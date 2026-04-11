@@ -1,9 +1,14 @@
 use crate::config::SimConfig;
-use crate::dispatch::DispatchStrategy;
-use crate::elevator::Elevator;
-use crate::events::EventBus;
-use crate::passenger::{Cargo, Passenger};
-use crate::stop::StopConfig;
+use crate::dispatch::{DispatchDecision, DispatchStrategy, WaitingManifest};
+use crate::door::DoorState;
+use crate::elevator::{Elevator, ElevatorId, ElevatorState};
+use crate::events::{EventBus, SimEvent};
+use crate::movement::tick_movement;
+use crate::passenger::{
+    Cargo, CargoId, CargoPriority, CargoState, Passenger, PassengerId, PassengerState,
+};
+use crate::stop::{StopConfig, StopId};
+use std::collections::HashMap;
 
 /// The core simulation state, advanced by calling `tick()`.
 pub struct Simulation {
@@ -17,4 +22,404 @@ pub struct Simulation {
     dispatch: Box<dyn DispatchStrategy>,
     next_passenger_id: u64,
     next_cargo_id: u64,
+}
+
+impl Simulation {
+    pub fn new(config: SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Self {
+        let stops = config.building.stops;
+        let elevators = config
+            .elevators
+            .iter()
+            .map(|ec| {
+                let start_pos = stops
+                    .iter()
+                    .find(|s| s.id == ec.starting_stop)
+                    .map(|s| s.position)
+                    .unwrap_or(0.0);
+                Elevator {
+                    id: ElevatorId(ec.id),
+                    position: start_pos,
+                    velocity: 0.0,
+                    state: ElevatorState::Idle,
+                    door: DoorState::Closed,
+                    max_speed: ec.max_speed,
+                    acceleration: ec.acceleration,
+                    deceleration: ec.deceleration,
+                    weight_capacity: ec.weight_capacity,
+                    current_load: 0.0,
+                    passengers: Vec::new(),
+                    cargo: Vec::new(),
+                    target_stop: None,
+                    door_transition_ticks: ec.door_transition_ticks,
+                    door_open_ticks: ec.door_open_ticks,
+                }
+            })
+            .collect();
+
+        let dt = 1.0 / config.simulation.ticks_per_second;
+
+        Simulation {
+            tick: 0,
+            dt,
+            stops,
+            elevators,
+            passengers: Vec::new(),
+            cargo: Vec::new(),
+            events: EventBus::default(),
+            dispatch,
+            next_passenger_id: 0,
+            next_cargo_id: 0,
+        }
+    }
+
+    /// Spawn a passenger at the given origin, headed to destination.
+    pub fn spawn_passenger(
+        &mut self,
+        origin: StopId,
+        destination: StopId,
+        weight: f64,
+    ) -> PassengerId {
+        let id = PassengerId(self.next_passenger_id);
+        self.next_passenger_id += 1;
+        self.passengers.push(Passenger {
+            id,
+            weight,
+            origin,
+            destination,
+            spawn_tick: self.tick,
+            state: PassengerState::Waiting,
+        });
+        self.events.emit(SimEvent::PassengerSpawned {
+            passenger: id,
+            origin,
+            destination,
+            tick: self.tick,
+        });
+        id
+    }
+
+    /// Spawn a cargo item at the given origin, headed to destination.
+    pub fn spawn_cargo(
+        &mut self,
+        origin: StopId,
+        destination: StopId,
+        weight: f64,
+        priority: CargoPriority,
+    ) -> CargoId {
+        let id = CargoId(self.next_cargo_id);
+        self.next_cargo_id += 1;
+        self.cargo.push(Cargo {
+            id,
+            weight,
+            origin,
+            destination,
+            priority,
+            state: CargoState::Waiting,
+        });
+        id
+    }
+
+    /// Drain all pending events.
+    pub fn drain_events(&mut self) -> Vec<SimEvent> {
+        self.events.drain()
+    }
+
+    /// Advance the simulation by one tick.
+    pub fn tick(&mut self) {
+        self.phase_dispatch();
+        self.phase_movement();
+        self.phase_doors();
+        self.phase_loading();
+        self.tick += 1;
+    }
+
+    /// Phase 1: Dispatch — assign idle/stopped elevators to stops.
+    fn phase_dispatch(&mut self) {
+        for i in 0..self.elevators.len() {
+            let needs_dispatch = matches!(
+                self.elevators[i].state,
+                ElevatorState::Idle | ElevatorState::Stopped
+            );
+            if !needs_dispatch {
+                continue;
+            }
+
+            let manifest = self.build_waiting_manifest(i);
+            let elevator_snapshot = self.elevators[i].clone();
+            let decision = self.dispatch.decide(&elevator_snapshot, &self.stops, &manifest);
+
+            match decision {
+                DispatchDecision::GoToStop(stop_id) => {
+                    // Find the stop we're currently at (if any) for the departure event.
+                    let current_stop = self.find_stop_at_position(self.elevators[i].position);
+                    self.elevators[i].state = ElevatorState::MovingToStop(stop_id);
+                    self.elevators[i].target_stop = Some(stop_id);
+                    if let Some(from) = current_stop {
+                        self.events.emit(SimEvent::ElevatorDeparted {
+                            elevator: self.elevators[i].id,
+                            from_stop: from,
+                            tick: self.tick,
+                        });
+                    }
+                }
+                DispatchDecision::Idle => {
+                    self.elevators[i].state = ElevatorState::Idle;
+                }
+            }
+        }
+    }
+
+    /// Phase 2: Movement — update position/velocity for moving elevators.
+    fn phase_movement(&mut self) {
+        for elevator in &mut self.elevators {
+            if let ElevatorState::MovingToStop(target_id) = elevator.state {
+                let target_pos = self
+                    .stops
+                    .iter()
+                    .find(|s| s.id == target_id)
+                    .map(|s| s.position)
+                    .unwrap_or(elevator.position);
+
+                let result = tick_movement(
+                    elevator.position,
+                    elevator.velocity,
+                    target_pos,
+                    elevator.max_speed,
+                    elevator.acceleration,
+                    elevator.deceleration,
+                    self.dt,
+                );
+
+                elevator.position = result.position;
+                elevator.velocity = result.velocity;
+
+                if result.arrived {
+                    elevator.state = ElevatorState::DoorOpening;
+                    elevator.door = DoorState::request_open(
+                        elevator.door_transition_ticks,
+                        elevator.door_open_ticks,
+                    );
+                    self.events.emit(SimEvent::ElevatorArrived {
+                        elevator: elevator.id,
+                        at_stop: target_id,
+                        tick: self.tick,
+                    });
+                }
+            }
+        }
+    }
+
+    /// Phase 3: Doors — tick door FSM, handle transitions.
+    fn phase_doors(&mut self) {
+        for elevator in &mut self.elevators {
+            // Only tick doors for elevators that have doors in motion.
+            if elevator.door.is_closed() && elevator.state != ElevatorState::DoorOpening {
+                continue;
+            }
+
+            let transition = elevator.door.tick();
+
+            match transition {
+                crate::door::DoorTransition::FinishedOpening => {
+                    elevator.state = ElevatorState::Loading;
+                    self.events.emit(SimEvent::DoorOpened {
+                        elevator: elevator.id,
+                        tick: self.tick,
+                    });
+                }
+                crate::door::DoorTransition::FinishedOpen => {
+                    elevator.state = ElevatorState::DoorClosing;
+                }
+                crate::door::DoorTransition::FinishedClosing => {
+                    elevator.state = ElevatorState::Stopped;
+                    elevator.target_stop = None;
+                    self.events.emit(SimEvent::DoorClosed {
+                        elevator: elevator.id,
+                        tick: self.tick,
+                    });
+                }
+                crate::door::DoorTransition::None => {}
+            }
+        }
+    }
+
+    /// Phase 4: Loading/Unloading — passengers and cargo board/exit at current stop.
+    fn phase_loading(&mut self) {
+        for ei in 0..self.elevators.len() {
+            if self.elevators[ei].state != ElevatorState::Loading {
+                continue;
+            }
+
+            let current_stop = match self.find_stop_at_position(self.elevators[ei].position) {
+                Some(id) => id,
+                None => continue,
+            };
+            let elevator_id = self.elevators[ei].id;
+
+            // Unload passengers whose destination is this stop.
+            let mut to_unload = Vec::new();
+            for pid in &self.elevators[ei].passengers {
+                if let Some(p) = self.passengers.iter().find(|p| p.id == *pid)
+                    && p.destination == current_stop
+                {
+                    to_unload.push(p.id);
+                }
+            }
+            for pid in &to_unload {
+                self.elevators[ei].passengers.retain(|p| p != pid);
+                if let Some(p) = self.passengers.iter_mut().find(|p| p.id == *pid) {
+                    let weight = p.weight;
+                    p.state = PassengerState::Arrived;
+                    self.elevators[ei].current_load -= weight;
+                    self.events.emit(SimEvent::PassengerAlighted {
+                        passenger: *pid,
+                        elevator: elevator_id,
+                        stop: current_stop,
+                        tick: self.tick,
+                    });
+                }
+            }
+
+            // Unload cargo whose destination is this stop.
+            let mut cargo_to_unload = Vec::new();
+            for cid in &self.elevators[ei].cargo {
+                if let Some(c) = self.cargo.iter().find(|c| c.id == *cid)
+                    && c.destination == current_stop
+                {
+                    cargo_to_unload.push(c.id);
+                }
+            }
+            for cid in &cargo_to_unload {
+                self.elevators[ei].cargo.retain(|c| c != cid);
+                if let Some(c) = self.cargo.iter_mut().find(|c| c.id == *cid) {
+                    let weight = c.weight;
+                    c.state = CargoState::Arrived;
+                    self.elevators[ei].current_load -= weight;
+                    self.events.emit(SimEvent::CargoUnloaded {
+                        cargo: *cid,
+                        elevator: elevator_id,
+                        stop: current_stop,
+                        tick: self.tick,
+                    });
+                }
+            }
+
+            // Load waiting passengers at this stop.
+            let waiting_pids: Vec<PassengerId> = self
+                .passengers
+                .iter()
+                .filter(|p| p.state == PassengerState::Waiting && p.origin == current_stop)
+                .map(|p| p.id)
+                .collect();
+
+            for pid in waiting_pids {
+                let weight = self
+                    .passengers
+                    .iter()
+                    .find(|p| p.id == pid)
+                    .map(|p| p.weight)
+                    .unwrap_or(0.0);
+
+                if self.elevators[ei].current_load + weight > self.elevators[ei].weight_capacity {
+                    self.events.emit(SimEvent::OverweightRejected {
+                        entity_kind: "passenger",
+                        elevator: elevator_id,
+                        tick: self.tick,
+                    });
+                    continue;
+                }
+
+                self.elevators[ei].current_load += weight;
+                self.elevators[ei].passengers.push(pid);
+                if let Some(p) = self.passengers.iter_mut().find(|p| p.id == pid) {
+                    p.state = PassengerState::Riding(elevator_id);
+                }
+                self.events.emit(SimEvent::PassengerBoarded {
+                    passenger: pid,
+                    elevator: elevator_id,
+                    tick: self.tick,
+                });
+            }
+
+            // Load waiting cargo at this stop.
+            let waiting_cids: Vec<CargoId> = self
+                .cargo
+                .iter()
+                .filter(|c| c.state == CargoState::Waiting && c.origin == current_stop)
+                .map(|c| c.id)
+                .collect();
+
+            for cid in waiting_cids {
+                let weight = self
+                    .cargo
+                    .iter()
+                    .find(|c| c.id == cid)
+                    .map(|c| c.weight)
+                    .unwrap_or(0.0);
+
+                if self.elevators[ei].current_load + weight > self.elevators[ei].weight_capacity {
+                    self.events.emit(SimEvent::OverweightRejected {
+                        entity_kind: "cargo",
+                        elevator: elevator_id,
+                        tick: self.tick,
+                    });
+                    continue;
+                }
+
+                self.elevators[ei].current_load += weight;
+                self.elevators[ei].cargo.push(cid);
+                if let Some(c) = self.cargo.iter_mut().find(|c| c.id == cid) {
+                    c.state = CargoState::Loaded(elevator_id);
+                }
+                self.events.emit(SimEvent::CargoLoaded {
+                    cargo: cid,
+                    elevator: elevator_id,
+                    tick: self.tick,
+                });
+            }
+        }
+    }
+
+    /// Build an owned WaitingManifest for dispatch decisions.
+    fn build_waiting_manifest(&self, _elevator_idx: usize) -> WaitingManifest {
+        let mut waiting_at_stop: HashMap<StopId, Vec<PassengerId>> = HashMap::new();
+        let mut passenger_destinations: HashMap<PassengerId, StopId> = HashMap::new();
+
+        for p in &self.passengers {
+            passenger_destinations.insert(p.id, p.destination);
+            if p.state == PassengerState::Waiting {
+                waiting_at_stop.entry(p.origin).or_default().push(p.id);
+            }
+        }
+
+        // Also include cargo destinations for riders.
+        for c in &self.cargo {
+            if let CargoState::Loaded(eid) = c.state
+                && eid == self.elevators[_elevator_idx].id
+            {
+                // Cargo on this elevator — treat destination as a rider destination.
+                passenger_destinations.insert(
+                    PassengerId(c.id.0), // Reuse the ID space for manifest purposes.
+                    c.destination,
+                );
+            }
+        }
+
+        let riders = self.elevators[_elevator_idx].passengers.clone();
+
+        WaitingManifest {
+            waiting_at_stop,
+            riders,
+            passenger_destinations,
+        }
+    }
+
+    /// Find the stop at a given position (within epsilon).
+    fn find_stop_at_position(&self, position: f64) -> Option<StopId> {
+        const EPSILON: f64 = 1e-6;
+        self.stops
+            .iter()
+            .find(|s| (s.position - position).abs() < EPSILON)
+            .map(|s| s.id)
+    }
 }

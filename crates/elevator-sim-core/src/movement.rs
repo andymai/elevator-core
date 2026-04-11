@@ -24,10 +24,62 @@ pub fn tick_movement(
     deceleration: f64,
     dt: f64,
 ) -> MovementResult {
-    // Will be implemented in Task 4
+    const EPSILON: f64 = 1e-9;
+
+    let displacement = target_position - position;
+
+    // Already at target and stationary.
+    if displacement.abs() < EPSILON && velocity.abs() < EPSILON {
+        return MovementResult {
+            position: target_position,
+            velocity: 0.0,
+            arrived: true,
+        };
+    }
+
+    let sign = displacement.signum();
+    let distance_remaining = displacement.abs();
+    let speed = velocity.abs();
+    let stopping_distance = speed * speed / (2.0 * deceleration);
+
+    let new_velocity = if stopping_distance >= distance_remaining - EPSILON {
+        // Decelerate
+        let v = velocity - deceleration * dt * velocity.signum();
+        // Clamp to zero if sign would flip.
+        if velocity > 0.0 && v < 0.0 || velocity < 0.0 && v > 0.0 {
+            0.0
+        } else {
+            v
+        }
+    } else if speed < max_speed {
+        // Accelerate toward target
+        let v = velocity + acceleration * dt * sign;
+        // Clamp magnitude to max_speed
+        if v.abs() > max_speed {
+            sign * max_speed
+        } else {
+            v
+        }
+    } else {
+        // Cruise
+        sign * max_speed
+    };
+
+    let new_pos = position + new_velocity * dt;
+
+    // Overshoot check: did we cross the target?
+    let new_displacement = target_position - new_pos;
+    if new_displacement.abs() < EPSILON || new_displacement.signum() != sign {
+        return MovementResult {
+            position: target_position,
+            velocity: 0.0,
+            arrived: true,
+        };
+    }
+
     MovementResult {
-        position,
-        velocity,
+        position: new_pos,
+        velocity: new_velocity,
         arrived: false,
     }
 }
