@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/elevator-sim-core", "crates/elevator-sim-bevy"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+ron = "0.9"
+rand = "0.9"
