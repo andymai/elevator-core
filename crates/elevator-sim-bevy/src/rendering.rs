@@ -74,6 +74,15 @@ pub struct PassengerVisual {
     pub passenger_id: PassengerId,
 }
 
+/// Pre-allocated material handles for each passenger state, avoiding per-frame allocations.
+#[derive(Resource)]
+pub struct PassengerMaterials {
+    pub waiting: Handle<ColorMaterial>,
+    pub boarding: Handle<ColorMaterial>,
+    pub riding: Handle<ColorMaterial>,
+    pub alighting: Handle<ColorMaterial>,
+}
+
 /// Spawn the building visuals: shaft, stop indicators, stop labels, and elevator car.
 pub fn spawn_building_visuals(
     mut commands: Commands,
@@ -141,6 +150,14 @@ pub fn spawn_building_visuals(
         ));
     }
 
+    let passenger_mats = PassengerMaterials {
+        waiting: materials.add(Color::srgba(0.2, 0.8, 0.3, 1.0)),
+        boarding: materials.add(Color::srgba(0.3, 0.9, 0.9, 1.0)),
+        riding: materials.add(Color::srgba(0.9, 0.8, 0.2, 1.0)),
+        alighting: materials.add(Color::srgba(0.9, 0.4, 0.2, 1.0)),
+    };
+    commands.insert_resource(passenger_mats);
+
     commands.insert_resource(vs);
 }
 
@@ -160,17 +177,11 @@ pub fn sync_elevator_visuals(
 pub fn sync_passenger_visuals(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
     existing: Query<(Entity, &PassengerVisual)>,
     vs: Res<VisualScale>,
+    passenger_mats: Res<PassengerMaterials>,
 ) {
-    // Colors per state.
-    let waiting_color = Color::srgba(0.2, 0.8, 0.3, 1.0);   // green
-    let boarding_color = Color::srgba(0.3, 0.9, 0.9, 1.0);   // cyan
-    let riding_color = Color::srgba(0.9, 0.8, 0.2, 1.0);     // yellow
-    let alighting_color = Color::srgba(0.9, 0.4, 0.2, 1.0);  // orange
-
     // Track which passenger IDs still exist in the sim.
     let active_ids: std::collections::HashSet<PassengerId> = sim
         .sim
@@ -195,7 +206,7 @@ pub fn sync_passenger_visuals(
             continue;
         }
 
-        let (x, y, color) = match passenger.state {
+        let (x, y, mat_handle) = match passenger.state {
             PassengerState::Waiting => {
                 let stop_y = sim
                     .sim
@@ -206,15 +217,14 @@ pub fn sync_passenger_visuals(
                     .unwrap_or(0.0);
                 let offset =
                     vs.waiting_x_offset - (passenger.id.0 % 5) as f32 * vs.rider_spacing;
-                (offset, stop_y, waiting_color)
+                (offset, stop_y, passenger_mats.waiting.clone())
             }
             PassengerState::Boarding(eid) => {
-                // Show between the waiting area and the car.
                 let elev_y = sim.sim.elevators.iter()
                     .find(|e| e.id == eid)
                     .map(|e| e.position as f32 * PPU)
                     .unwrap_or(0.0);
-                (vs.waiting_x_offset * 0.5, elev_y, boarding_color)
+                (vs.waiting_x_offset * 0.5, elev_y, passenger_mats.boarding.clone())
             }
             PassengerState::Riding(eid) => {
                 let elev_y = sim.sim.elevators.iter()
@@ -226,15 +236,14 @@ pub fn sync_passenger_visuals(
                     .and_then(|e| e.passengers.iter().position(|p| *p == passenger.id))
                     .unwrap_or(0);
                 let x_offset = -vs.rider_spacing + (idx as f32 % 3.0) * vs.rider_spacing;
-                (x_offset, elev_y, riding_color)
+                (x_offset, elev_y, passenger_mats.riding.clone())
             }
             PassengerState::Alighting(eid) => {
-                // Show moving away from car.
                 let elev_y = sim.sim.elevators.iter()
                     .find(|e| e.id == eid)
                     .map(|e| e.position as f32 * PPU)
                     .unwrap_or(0.0);
-                (vs.waiting_x_offset * 0.5, elev_y, alighting_color)
+                (vs.waiting_x_offset * 0.5, elev_y, passenger_mats.alighting.clone())
             }
             PassengerState::Arrived => continue,
         };
@@ -246,7 +255,7 @@ pub fn sync_passenger_visuals(
         // Spawn new visual.
         commands.spawn((
             Mesh2d(meshes.add(Circle::new(vs.passenger_radius))),
-            MeshMaterial2d(materials.add(color)),
+            MeshMaterial2d(mat_handle),
             Transform::from_xyz(x, y, 1.0),
             PassengerVisual {
                 passenger_id: passenger.id,
@@ -259,34 +268,29 @@ pub fn sync_passenger_visuals(
 pub fn update_passenger_positions(
     sim: Res<SimulationRes>,
     mut query: Query<(&PassengerVisual, &mut Transform, &mut MeshMaterial2d<ColorMaterial>)>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    passenger_mats: Res<PassengerMaterials>,
     vs: Res<VisualScale>,
 ) {
-    let waiting_color = Color::srgba(0.2, 0.8, 0.3, 1.0);
-    let boarding_color = Color::srgba(0.3, 0.9, 0.9, 1.0);
-    let riding_color = Color::srgba(0.9, 0.8, 0.2, 1.0);
-    let alighting_color = Color::srgba(0.9, 0.4, 0.2, 1.0);
-
     for (vis, mut transform, mut mat_handle) in &mut query {
         let Some(passenger) = sim.sim.passengers.iter().find(|p| p.id == vis.passenger_id) else {
             continue;
         };
 
-        let (x, y, color) = match passenger.state {
+        let (x, y, handle) = match passenger.state {
             PassengerState::Waiting => {
                 let stop_y = sim.sim.stops.iter()
                     .find(|s| s.id == passenger.origin)
                     .map(|s| s.position as f32 * PPU)
                     .unwrap_or(0.0);
                 let offset = vs.waiting_x_offset - (passenger.id.0 % 5) as f32 * vs.rider_spacing;
-                (offset, stop_y, waiting_color)
+                (offset, stop_y, passenger_mats.waiting.clone())
             }
             PassengerState::Boarding(eid) => {
                 let elev_y = sim.sim.elevators.iter()
                     .find(|e| e.id == eid)
                     .map(|e| e.position as f32 * PPU)
                     .unwrap_or(0.0);
-                (vs.waiting_x_offset * 0.5, elev_y, boarding_color)
+                (vs.waiting_x_offset * 0.5, elev_y, passenger_mats.boarding.clone())
             }
             PassengerState::Riding(eid) => {
                 let elev_y = sim.sim.elevators.iter()
@@ -298,20 +302,20 @@ pub fn update_passenger_positions(
                     .and_then(|e| e.passengers.iter().position(|p| *p == passenger.id))
                     .unwrap_or(0);
                 let x_offset = -vs.rider_spacing + (idx as f32 % 3.0) * vs.rider_spacing;
-                (x_offset, elev_y, riding_color)
+                (x_offset, elev_y, passenger_mats.riding.clone())
             }
             PassengerState::Alighting(eid) => {
                 let elev_y = sim.sim.elevators.iter()
                     .find(|e| e.id == eid)
                     .map(|e| e.position as f32 * PPU)
                     .unwrap_or(0.0);
-                (vs.waiting_x_offset * 0.5, elev_y, alighting_color)
+                (vs.waiting_x_offset * 0.5, elev_y, passenger_mats.alighting.clone())
             }
             PassengerState::Arrived => continue,
         };
 
         transform.translation.x = x;
         transform.translation.y = y;
-        *mat_handle = MeshMaterial2d(materials.add(color));
+        *mat_handle = MeshMaterial2d(handle);
     }
 }

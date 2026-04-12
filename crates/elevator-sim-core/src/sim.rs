@@ -22,6 +22,10 @@ pub struct Simulation {
     pub passengers: Vec<Passenger>,
     pub cargo: Vec<Cargo>,
     pub events: EventBus,
+    /// ECS-like World storage. **NOTE: Currently populated at init only.**
+    /// The tick loop still operates on the legacy Vec fields below.
+    /// World data becomes stale after the first tick. Do not read from
+    /// World for current state until the migration to World-based tick is complete.
     pub world: World,
     /// Legacy StopId → EntityId mapping.
     pub stop_entities: HashMap<StopId, EntityId>,

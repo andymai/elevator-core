@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use elevator_sim_core::stop::StopId;
 use rand::Rng;
 
 use crate::sim_bridge::{SimSpeed, SimulationRes};
@@ -34,8 +33,8 @@ pub fn spawn_ai_passengers(mut sim: ResMut<SimulationRes>, mut timer: ResMut<Pas
             dest_idx = rng.random_range(0..num_stops);
         }
 
-        let origin = StopId(origin_idx as u32);
-        let destination = StopId(dest_idx as u32);
+        let origin = sim.sim.stops[origin_idx].id;
+        let destination = sim.sim.stops[dest_idx].id;
         let weight = rng.random_range(timer.weight_min..timer.weight_max);
 
         sim.sim.spawn_passenger(origin, destination, weight);

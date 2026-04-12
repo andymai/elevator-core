@@ -60,7 +60,9 @@ pub fn update_hud(
     };
 
     // Elevator stats (first elevator for now).
-    let elev = &s.elevators[0];
+    let Some(elev) = s.elevators.first() else {
+        return;
+    };
 
     // State string.
     let state_str = match elev.state {

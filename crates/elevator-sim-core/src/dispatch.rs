@@ -136,6 +136,14 @@ impl DispatchStrategy for ScanDispatch {
         };
 
         // Pick nearest in the new direction (from behind).
+        if behind.is_empty() {
+            // All interesting stops are at the current position — go there.
+            return interesting_stops
+                .first()
+                .map(|(sid, _)| DispatchDecision::GoToStop(*sid))
+                .unwrap_or(DispatchDecision::Idle);
+        }
+
         let nearest = match self.direction {
             ScanDirection::Up => behind
                 .iter()

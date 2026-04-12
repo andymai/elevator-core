@@ -109,23 +109,22 @@ fn two_passengers_opposite_directions() {
 }
 
 #[test]
-fn overweight_passenger_rejected() {
+fn two_passengers_exceeding_capacity_delivered_in_two_trips() {
     let mut config = default_config();
     // Tiny elevator that can hold 100kg.
     config.elevators[0].weight_capacity = 100.0;
 
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
 
-    // Two passengers at ground, both going to floor 2. Together they exceed capacity.
+    // Two 70kg passengers at ground, both going to floor 2.
+    // Each fits alone (70 < 100) but not together (140 > 100).
     sim.spawn_passenger(StopId(0), StopId(1), 70.0);
     sim.spawn_passenger(StopId(0), StopId(1), 70.0);
 
-    // Run enough ticks for the elevator to open doors and try loading.
-    let mut all_events = Vec::new();
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
         sim.tick();
-        all_events.extend(sim.drain_events());
+        sim.drain_events();
         if sim
             .passengers
             .iter()
@@ -135,22 +134,49 @@ fn overweight_passenger_rejected() {
         }
     }
 
-    // Should have at least one overweight rejection event.
+    // Both passengers should eventually arrive (one per trip).
+    assert!(
+        sim.passengers
+            .iter()
+            .all(|p| p.state == PassengerState::Arrived),
+        "All passengers should eventually arrive"
+    );
+}
+
+#[test]
+fn overweight_passenger_rejected() {
+    let mut config = default_config();
+    // Tiny elevator that can hold 50kg.
+    config.elevators[0].weight_capacity = 50.0;
+
+    let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
+
+    // One light passenger (40kg) and one heavy passenger (60kg, exceeds capacity).
+    sim.spawn_passenger(StopId(0), StopId(1), 40.0);
+    sim.spawn_passenger(StopId(0), StopId(1), 60.0);
+
+    let mut all_events = Vec::new();
+    let max_ticks = 20_000;
+    for _ in 0..max_ticks {
+        sim.tick();
+        all_events.extend(sim.drain_events());
+        // Stop once the light passenger arrives.
+        if sim.passengers[0].state == PassengerState::Arrived {
+            break;
+        }
+    }
+
+    // Light passenger should be delivered.
+    assert_eq!(sim.passengers[0].state, PassengerState::Arrived);
+
+    // Should have at least one overweight rejection event (for the 60kg passenger).
     let rejections: Vec<_> = all_events
         .iter()
         .filter(|e| matches!(e, SimEvent::OverweightRejected { .. }))
         .collect();
     assert!(
         !rejections.is_empty(),
-        "Should have at least one overweight rejection"
-    );
-
-    // Both passengers should eventually arrive (second one gets picked up on a later trip).
-    assert!(
-        sim.passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived),
-        "All passengers should eventually arrive"
+        "Should have at least one overweight rejection for the 60kg passenger"
     );
 }
 
