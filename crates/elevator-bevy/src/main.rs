@@ -6,6 +6,9 @@ use bevy::prelude::*;
 mod camera;
 /// Keyboard input handling for simulation speed.
 mod input;
+/// Bioluminescent color palette.
+#[allow(dead_code)]
+mod palette;
 /// AI-driven rider spawning.
 mod passenger_ai;
 /// Bevy plugin wiring up the simulation.
