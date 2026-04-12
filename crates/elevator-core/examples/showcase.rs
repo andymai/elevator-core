@@ -268,7 +268,7 @@ fn part4_lifecycle_hooks() {
             // Count how many riders are currently in Riding phase.
             let riding = world
                 .iter_riders()
-                .filter(|(_, r)| matches!(r.phase, RiderPhase::Riding(_)))
+                .filter(|(_, r)| matches!(r.phase(), RiderPhase::Riding(_)))
                 .count();
             if riding > 0 {
                 boarding_count_hook.fetch_add(1, Ordering::Relaxed);

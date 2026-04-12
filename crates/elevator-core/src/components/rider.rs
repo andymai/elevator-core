@@ -47,13 +47,45 @@ impl std::fmt::Display for RiderPhase {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.
-    pub weight: f64,
+    pub(crate) weight: f64,
     /// Current rider lifecycle phase.
-    pub phase: RiderPhase,
+    pub(crate) phase: RiderPhase,
     /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
-    pub current_stop: Option<EntityId>,
+    pub(crate) current_stop: Option<EntityId>,
     /// Tick when this rider was spawned.
-    pub spawn_tick: u64,
+    pub(crate) spawn_tick: u64,
     /// Tick when this rider boarded (for ride-time metrics).
-    pub board_tick: Option<u64>,
+    pub(crate) board_tick: Option<u64>,
+}
+
+impl Rider {
+    /// Weight contributed to elevator load.
+    #[must_use]
+    pub const fn weight(&self) -> f64 {
+        self.weight
+    }
+
+    /// Current rider lifecycle phase.
+    #[must_use]
+    pub const fn phase(&self) -> RiderPhase {
+        self.phase
+    }
+
+    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
+    #[must_use]
+    pub const fn current_stop(&self) -> Option<EntityId> {
+        self.current_stop
+    }
+
+    /// Tick when this rider was spawned.
+    #[must_use]
+    pub const fn spawn_tick(&self) -> u64 {
+        self.spawn_tick
+    }
+
+    /// Tick when this rider boarded (for ride-time metrics).
+    #[must_use]
+    pub const fn board_tick(&self) -> Option<u64> {
+        self.board_tick
+    }
 }

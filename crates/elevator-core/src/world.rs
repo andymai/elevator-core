@@ -601,22 +601,14 @@ impl World {
     /// Create a query builder for iterating entities by component composition.
     ///
     /// ```
-    /// use elevator_core::world::World;
     /// use elevator_core::prelude::*;
     ///
-    /// let mut world = World::new();
-    /// let id = world.spawn();
-    /// world.set_rider(id, Rider {
-    ///     weight: 75.0,
-    ///     phase: RiderPhase::Waiting,
-    ///     current_stop: None,
-    ///     spawn_tick: 0,
-    ///     board_tick: None,
-    /// });
-    /// world.set_position(id, Position { value: 0.0 });
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
     ///
+    /// let world = sim.world();
     /// for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {
-    ///     println!("{id:?}: {:?} at {}", rider.phase, pos.value);
+    ///     println!("{id:?}: {:?} at {}", rider.phase(), pos.value());
     /// }
     /// ```
     #[must_use]

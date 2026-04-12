@@ -20,7 +20,7 @@ fn riders_arrive_at_destination() {
         let all_arrived = sim
             .world()
             .iter_riders()
-            .all(|(_, r)| r.phase == RiderPhase::Arrived);
+            .all(|(_, r)| r.phase() == RiderPhase::Arrived);
         if all_arrived {
             break;
         }
@@ -29,7 +29,7 @@ fn riders_arrive_at_destination() {
     let all_arrived = sim
         .world()
         .iter_riders()
-        .all(|(_, r)| r.phase == RiderPhase::Arrived);
+        .all(|(_, r)| r.phase() == RiderPhase::Arrived);
     assert!(all_arrived, "all riders should arrive within 2000 ticks");
     assert_eq!(sim.metrics().total_delivered(), 5);
 }

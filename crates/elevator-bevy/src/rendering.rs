@@ -107,7 +107,7 @@ pub fn spawn_building_visuals(
     let w = sim.sim.world();
     let stop_positions: Vec<(EntityId, f64, String)> = w
         .iter_stops()
-        .map(|(eid, s)| (eid, s.position, s.name.clone()))
+        .map(|(eid, s)| (eid, s.position(), s.name().to_owned()))
         .collect();
 
     if stop_positions.is_empty() {
@@ -162,7 +162,7 @@ pub fn spawn_building_visuals(
     // Elevator car(s).
     let car_material = materials.add(Color::srgba(0.2, 0.5, 0.9, 1.0));
     for (eid, pos, _car) in w.iter_elevators() {
-        let y = pos.value as f32 * PPU;
+        let y = pos.value() as f32 * PPU;
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(vs.car_width, vs.car_height))),
             MeshMaterial2d(car_material.clone()),
@@ -189,7 +189,7 @@ pub fn sync_elevator_visuals(
 ) {
     for (vis, mut transform) in &mut query {
         if let Some(pos) = sim.sim.world().position(vis.entity_id) {
-            transform.translation.y = pos.value as f32 * PPU;
+            transform.translation.y = pos.value() as f32 * PPU;
         }
     }
 }
@@ -209,7 +209,7 @@ pub fn sync_rider_visuals(
     // Active rider entity IDs (not arrived/abandoned).
     let active_ids: std::collections::HashSet<EntityId> = w
         .iter_riders()
-        .filter(|(_, r)| !matches!(r.phase, RiderPhase::Arrived | RiderPhase::Abandoned))
+        .filter(|(_, r)| !matches!(r.phase(), RiderPhase::Arrived | RiderPhase::Abandoned))
         .map(|(eid, _)| eid)
         .collect();
 
@@ -224,7 +224,7 @@ pub fn sync_rider_visuals(
         existing.iter().map(|(_, v)| v.entity_id).collect();
 
     for (rider_eid, rider) in w.iter_riders() {
-        if matches!(rider.phase, RiderPhase::Arrived | RiderPhase::Abandoned) {
+        if matches!(rider.phase(), RiderPhase::Arrived | RiderPhase::Abandoned) {
             continue;
         }
         if existing_ids.contains(&rider_eid) {
@@ -262,7 +262,7 @@ pub fn update_rider_positions(
         let Some(rider) = w.rider(vis.entity_id) else {
             continue;
         };
-        if matches!(rider.phase, RiderPhase::Arrived | RiderPhase::Abandoned) {
+        if matches!(rider.phase(), RiderPhase::Arrived | RiderPhase::Abandoned) {
             continue;
         }
 
@@ -281,10 +281,10 @@ fn rider_visual_params(
     vs: &VisualScale,
     mats: &RiderMaterials,
 ) -> (f32, f32, Handle<ColorMaterial>) {
-    match rider.phase {
+    match rider.phase() {
         RiderPhase::Waiting => {
             let stop_y = rider
-                .current_stop
+                .current_stop()
                 .and_then(|s| w.stop_position(s))
                 .unwrap_or(0.0);
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -294,7 +294,7 @@ fn rider_visual_params(
             (offset, stop_y as f32 * PPU, mats.waiting.clone())
         }
         RiderPhase::Boarding(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
@@ -302,7 +302,7 @@ fn rider_visual_params(
             )
         }
         RiderPhase::Riding(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
             let idx = w
                 .elevator(elev_eid)
                 .and_then(|car| car.riders().iter().position(|r| *r == rider_eid))
@@ -311,7 +311,7 @@ fn rider_visual_params(
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())
         }
         RiderPhase::Alighting(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
