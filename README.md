@@ -31,13 +31,6 @@ Add elevator-core to your project:
 cargo add elevator-core
 ```
 
-Or add it manually to your `Cargo.toml`:
-
-```toml
-[dependencies]
-elevator-core = "0.1"
-```
-
 From there, the typical workflow is:
 
 1. **Configure stops** -- define the building layout with named stops at arbitrary positions.
