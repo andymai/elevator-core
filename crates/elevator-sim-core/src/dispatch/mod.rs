@@ -14,28 +14,59 @@ use crate::ids::GroupId;
 use crate::world::World;
 use std::collections::BTreeMap;
 
-/// Demand at a single stop.
-#[derive(Debug, Clone, Default)]
-pub struct StopDemand {
-    /// Number of riders waiting at this stop.
-    pub waiting_count: u32,
-    /// Combined weight of all waiting riders.
-    pub total_waiting_weight: f64,
+/// Metadata about a single rider, available to dispatch strategies.
+#[derive(Debug, Clone)]
+pub struct RiderInfo {
+    /// Rider entity ID.
+    pub id: EntityId,
+    /// Rider's destination stop entity (from route).
+    pub destination: Option<EntityId>,
+    /// Rider weight.
+    pub weight: f64,
+    /// Ticks this rider has been waiting (0 if riding).
+    pub wait_ticks: u64,
 }
 
-/// Stop-level manifest for dispatch decisions.
+/// Full demand picture for dispatch decisions.
 ///
-/// Contains aggregate demand per stop, not individual rider details.
-/// Games that need entity-aware dispatch can implement custom
-/// `DispatchStrategy` that reads `&World` directly.
+/// Contains per-rider metadata grouped by stop, enabling entity-aware
+/// dispatch strategies (priority, weight-aware, VIP-first, etc.).
 ///
 /// Uses `BTreeMap` for deterministic iteration order.
 #[derive(Debug, Clone, Default)]
 pub struct DispatchManifest {
-    /// Stops with waiting riders: stop entity -> demand.
-    pub demand_at_stop: BTreeMap<EntityId, StopDemand>,
-    /// Stops that current riders are heading to: stop entity -> count.
-    pub rider_destinations: BTreeMap<EntityId, u32>,
+    /// Riders waiting at each stop, with full per-rider metadata.
+    pub waiting_at_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
+    /// Riders currently aboard elevators, grouped by their destination stop.
+    pub riding_to_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
+}
+
+impl DispatchManifest {
+    /// Number of riders waiting at a stop.
+    #[must_use]
+    pub fn waiting_count_at(&self, stop: EntityId) -> usize {
+        self.waiting_at_stop.get(&stop).map_or(0, Vec::len)
+    }
+
+    /// Total weight of riders waiting at a stop.
+    #[must_use]
+    pub fn total_weight_at(&self, stop: EntityId) -> f64 {
+        self.waiting_at_stop
+            .get(&stop)
+            .map_or(0.0, |riders| riders.iter().map(|r| r.weight).sum())
+    }
+
+    /// Number of riders heading to a stop (aboard elevators).
+    #[must_use]
+    pub fn riding_count_to(&self, stop: EntityId) -> usize {
+        self.riding_to_stop.get(&stop).map_or(0, Vec::len)
+    }
+
+    /// Whether a stop has any demand (waiting riders or riders heading there).
+    #[must_use]
+    pub fn has_demand(&self, stop: EntityId) -> bool {
+        self.waiting_count_at(stop) > 0 || self.riding_count_to(stop) > 0
+    }
 }
 
 /// Decision returned by a dispatch strategy.
@@ -63,9 +94,9 @@ pub struct ElevatorGroup {
 
 /// Pluggable dispatch algorithm.
 ///
-/// Receives a stop-level manifest (aggregate demand, not individual riders).
-/// For entity-aware dispatch, implementations can store a reference or
-/// read from `&World` passed to `decide_all()`.
+/// Receives a manifest with per-rider metadata grouped by stop.
+/// Convenience methods provide aggregate counts; implementations
+/// can also iterate individual riders for priority/weight-aware dispatch.
 pub trait DispatchStrategy: Send + Sync {
     /// Decide for a single elevator.
     fn decide(

@@ -67,16 +67,7 @@ impl DispatchStrategy for LookDispatch {
         let mut interesting: Vec<(EntityId, f64)> = Vec::new();
 
         for &stop_eid in &group.stop_entities {
-            let has_demand = manifest
-                .demand_at_stop
-                .get(&stop_eid)
-                .is_some_and(|d| d.waiting_count > 0);
-            let has_riders = manifest
-                .rider_destinations
-                .get(&stop_eid)
-                .is_some_and(|&c| c > 0);
-
-            if (has_demand || has_riders)
+            if manifest.has_demand(stop_eid)
                 && let Some(pos) = world.stop_position(stop_eid)
             {
                 interesting.push((stop_eid, pos));

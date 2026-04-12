@@ -5,6 +5,7 @@ mod helpers;
 
 mod builder_tests;
 mod config_tests;
+mod tagged_metrics_tests;
 mod feature_tests;
 mod hooks_tests;
 mod dispatch_tests;

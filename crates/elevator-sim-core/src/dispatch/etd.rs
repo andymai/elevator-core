@@ -66,15 +66,7 @@ impl DispatchStrategy for EtdDispatch {
             .stop_entities
             .iter()
             .filter_map(|&stop_eid| {
-                let has_demand = manifest
-                    .demand_at_stop
-                    .get(&stop_eid)
-                    .is_some_and(|d| d.waiting_count > 0);
-                let has_riders = manifest
-                    .rider_destinations
-                    .get(&stop_eid)
-                    .is_some_and(|&c| c > 0);
-                if has_demand || has_riders {
+                if manifest.has_demand(stop_eid) {
                     world.stop_position(stop_eid).map(|pos| (stop_eid, pos))
                 } else {
                     None
@@ -162,7 +154,7 @@ impl EtdDispatch {
         // Penalty: how many existing riders would be delayed?
         // Each rider on this elevator that needs to go somewhere else
         // would be delayed by roughly the detour time.
-        let existing_rider_count = car.riders.len() as f64;
+        let existing_rider_count = car.riders().len() as f64;
         let delay_penalty = existing_rider_count * travel_time;
 
         // Bonus: if the elevator is already heading toward this stop

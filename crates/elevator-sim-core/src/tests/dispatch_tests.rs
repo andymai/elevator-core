@@ -3,7 +3,7 @@ use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::look::LookDispatch;
 use crate::dispatch::nearest_car::NearestCarDispatch;
 use crate::dispatch::scan::ScanDispatch;
-use crate::dispatch::*;
+use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo};
 use crate::door::DoorState;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -69,6 +69,28 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
     eid
 }
 
+/// Add simulated waiting demand at a stop (creates a dummy RiderInfo).
+fn add_demand(manifest: &mut DispatchManifest, world: &mut World, stop: crate::entity::EntityId, weight: f64) {
+    let dummy = world.spawn();
+    manifest.waiting_at_stop.entry(stop).or_default().push(RiderInfo {
+        id: dummy,
+        destination: None,
+        weight,
+        wait_ticks: 0,
+    });
+}
+
+/// Add a rider destination entry (simulates a rider aboard heading to stop).
+fn add_rider_dest(manifest: &mut DispatchManifest, world: &mut World, stop: crate::entity::EntityId) {
+    let dummy = world.spawn();
+    manifest.riding_to_stop.entry(stop).or_default().push(RiderInfo {
+        id: dummy,
+        destination: Some(stop),
+        weight: 70.0,
+        wait_ticks: 0,
+    });
+}
+
 // ===== SCAN Tests =====
 
 #[test]
@@ -88,8 +110,8 @@ fn scan_goes_to_nearest_in_direction() {
     let elev = spawn_elevator(&mut world, 0.0);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[3], StopDemand { waiting_count: 1, total_waiting_weight: 80.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    add_demand(&mut manifest, &mut world, stops[3], 80.0);
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
@@ -101,8 +123,8 @@ fn scan_reverses_when_nothing_ahead() {
     let elev = spawn_elevator(&mut world, 8.0);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 80.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[1], 80.0);
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 8.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
@@ -114,7 +136,7 @@ fn scan_serves_rider_destination() {
     let elev = spawn_elevator(&mut world, 0.0);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
-    manifest.rider_destinations.insert(stops[2], 1);
+    add_rider_dest(&mut manifest, &mut world, stops[2]);
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
@@ -126,8 +148,8 @@ fn scan_prefers_current_direction() {
     let elev = spawn_elevator(&mut world, 4.0);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 80.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[2], 80.0);
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 4.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
@@ -153,7 +175,7 @@ fn look_reverses_at_last_request() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Only demand at stop 1 (pos 4.0) — LOOK should go there then reverse.
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
     let mut look = LookDispatch::new();
     let decision = look.decide(elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
@@ -169,7 +191,7 @@ fn nearest_car_assigns_closest_elevator() {
     let group = test_group(&stops, vec![elev_a, elev_b]);
 
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 12.0)];
@@ -191,8 +213,9 @@ fn nearest_car_multiple_stops() {
     let group = test_group(&stops, vec![elev_a, elev_b]);
 
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 2, total_waiting_weight: 140.0 });
-    manifest.demand_at_stop.insert(stops[3], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[3], 70.0);
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 12.0)];
@@ -218,7 +241,7 @@ fn etd_prefers_idle_elevator() {
 
     let group = test_group(&stops, vec![elev_a, elev_b]);
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 4.0), (elev_b, 4.0)];
@@ -237,7 +260,7 @@ fn etd_closer_elevator_wins() {
     let group = test_group(&stops, vec![elev_a, elev_b]);
 
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 8.0)];
@@ -260,8 +283,8 @@ fn scan_at_exact_stop_skips_current_position() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Put demand at stop[1] (pos 4.0, same as elevator) AND stop[2] (pos 8.0).
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 4.0, &group, &manifest, &world);
@@ -279,8 +302,8 @@ fn scan_reversal_picks_nearest_behind() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Demand at stops 0 (pos 0.0) and 2 (pos 8.0).
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut scan = ScanDispatch::new();
     let decision = scan.decide(elev, 12.0, &group, &manifest, &world);
@@ -297,8 +320,8 @@ fn scan_notify_removed_cleans_state() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Only demand below — forces reversal to Down.
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
 
     let mut scan = ScanDispatch::new();
     // First call: nothing Up from 12.0 → reverses to Down, picks stops[1] (nearest below).
@@ -310,7 +333,7 @@ fn scan_notify_removed_cleans_state() {
     scan.notify_removed(elev);
 
     // Re-query same elevator from position 4.0 with demand above AND below.
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
     let d2 = scan.decide(elev, 4.0, &group, &manifest, &world);
     // If notify_removed worked: default direction is Up → goes to stops[2] (pos 8.0).
     // If notify_removed was no-op: direction is still Down → goes to stops[1] (pos 4.0) or stops[0] (pos 0.0).
@@ -324,7 +347,7 @@ fn look_notify_removed_cleans_state() {
     let elev = spawn_elevator(&mut world, 12.0);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
 
     let mut look = LookDispatch::new();
     // Establish direction state (will reverse to Down since nothing is Up from 12.0).
@@ -332,7 +355,7 @@ fn look_notify_removed_cleans_state() {
     // Remove elevator.
     look.notify_removed(elev);
     // Reuse the same ID — direction should be gone.
-    manifest.demand_at_stop.insert(stops[2], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
     let decision = look.decide(elev, 4.0, &group, &manifest, &world);
     // Default direction is Up, should go up to stop[2] (pos 8.0).
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
@@ -346,8 +369,8 @@ fn look_down_direction_partitions_correctly() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Demand below at stops 0 and 1.
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
 
     let mut look = LookDispatch::new();
     // First call: nothing ahead (Up from 8.0 with only stops at 0 and 4), reverses.
@@ -370,8 +393,8 @@ fn scan_down_direction_serves_below() {
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     // Demand at stop[1] (pos 4.0, below) and stop[3] (pos 12.0, above).
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
-    manifest.demand_at_stop.insert(stops[3], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    add_demand(&mut manifest, &mut world, stops[3], 70.0);
 
     let mut scan = ScanDispatch::new();
     // First call: default Up → goes to stops[3] (above).
@@ -379,14 +402,14 @@ fn scan_down_direction_serves_below() {
     assert_eq!(d1, DispatchDecision::GoToStop(stops[3]));
 
     // Remove demand above, only below remains. Call again.
-    manifest.demand_at_stop.remove(&stops[3]);
+    manifest.waiting_at_stop.remove(&stops[3]);
     let d2 = scan.decide(elev, 12.0, &group, &manifest, &world);
     // Nothing ahead (Up from 12.0), reverses to Down. Nearest below = stops[1].
     assert_eq!(d2, DispatchDecision::GoToStop(stops[1]));
 
     // Now call again at position 8.0 with direction Down.
     // Demand at stops[0] (pos 0.0) and stops[1] (pos 4.0).
-    manifest.demand_at_stop.insert(stops[0], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
     let d3 = scan.decide(elev, 8.0, &group, &manifest, &world);
     // Direction is Down. Both stops below. Nearest in Down = stops[1] (pos 4.0, highest below).
     assert_eq!(d3, DispatchDecision::GoToStop(stops[1]));
@@ -402,7 +425,7 @@ fn nearest_car_distance_calculation() {
     let group = test_group(&stops, vec![elev_a, elev_b]);
 
     let mut manifest = DispatchManifest::default();
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 3.0), (elev_b, 5.0)];
@@ -421,10 +444,8 @@ fn nearest_car_ignores_zero_demand() {
     let group = test_group(&stops, vec![elev]);
 
     let mut manifest = DispatchManifest::default();
-    // Insert a stop demand with 0 waiting — should be ignored.
-    manifest.demand_at_stop.insert(stops[1], StopDemand { waiting_count: 0, total_waiting_weight: 0.0 });
     // Only real demand at stop[3].
-    manifest.demand_at_stop.insert(stops[3], StopDemand { waiting_count: 1, total_waiting_weight: 70.0 });
+    add_demand(&mut manifest, &mut world, stops[3], 70.0);
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev, 0.0)];

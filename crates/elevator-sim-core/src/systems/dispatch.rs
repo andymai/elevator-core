@@ -2,7 +2,7 @@
 
 use crate::components::{ElevatorPhase, RiderPhase};
 use crate::dispatch::{
-    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, StopDemand,
+    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
@@ -22,7 +22,7 @@ pub fn run(
     dispatchers: &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
 ) {
     for group in groups {
-        let manifest = build_manifest(world, group);
+        let manifest = build_manifest(world, group, ctx.tick);
 
         // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
@@ -103,11 +103,11 @@ pub fn run(
     }
 }
 
-/// Build a dispatch manifest summarizing demand and rider destinations for a group.
-fn build_manifest(world: &World, group: &ElevatorGroup) -> DispatchManifest {
+/// Build a dispatch manifest with per-rider metadata for a group.
+fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchManifest {
     let mut manifest = DispatchManifest::default();
 
-    // Demand: riders waiting at this group's stops.
+    // Waiting riders at this group's stops.
     for (rid, rider) in world.iter_riders() {
         if world.is_disabled(rid) {
             continue;
@@ -116,21 +116,42 @@ fn build_manifest(world: &World, group: &ElevatorGroup) -> DispatchManifest {
             continue;
         }
         if let Some(stop) = rider.current_stop
-            && group.stop_entities.contains(&stop) {
-                let demand = manifest.demand_at_stop.entry(stop).or_insert_with(StopDemand::default);
-                demand.waiting_count += 1;
-                demand.total_waiting_weight += rider.weight;
-            }
+            && group.stop_entities.contains(&stop)
+        {
+            let destination = world.route(rid).and_then(|r| r.current_destination());
+            let wait_ticks = tick.saturating_sub(rider.spawn_tick);
+            manifest
+                .waiting_at_stop
+                .entry(stop)
+                .or_default()
+                .push(RiderInfo {
+                    id: rid,
+                    destination,
+                    weight: rider.weight,
+                    wait_ticks,
+                });
+        }
     }
 
-    // Rider destinations: where current riders in this group's elevators want to go.
+    // Riders currently aboard this group's elevators, grouped by destination.
     for &elev_eid in &group.elevator_entities {
         if let Some(car) = world.elevator(elev_eid) {
-            for &rider_eid in &car.riders {
-                if let Some(route) = world.route(rider_eid)
-                    && let Some(dest) = route.current_destination() {
-                        *manifest.rider_destinations.entry(dest).or_default() += 1;
-                    }
+            for &rider_eid in car.riders() {
+                let destination = world.route(rider_eid).and_then(|r| r.current_destination());
+                if let Some(dest) = destination {
+                    let rider = world.rider(rider_eid);
+                    let weight = rider.map_or(0.0, |r| r.weight);
+                    manifest
+                        .riding_to_stop
+                        .entry(dest)
+                        .or_default()
+                        .push(RiderInfo {
+                            id: rider_eid,
+                            destination: Some(dest),
+                            weight,
+                            wait_ticks: 0,
+                        });
+                }
             }
         }
     }

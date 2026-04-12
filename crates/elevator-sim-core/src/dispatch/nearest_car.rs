@@ -49,19 +49,11 @@ impl DispatchStrategy for NearestCarDispatch {
         // Collect stops that need service (have demand or rider destinations).
         let mut pending_stops: Vec<(EntityId, f64)> = Vec::new();
         for &stop_eid in &group.stop_entities {
-            let has_demand = manifest
-                .demand_at_stop
-                .get(&stop_eid)
-                .is_some_and(|d| d.waiting_count > 0);
-            let has_riders = manifest
-                .rider_destinations
-                .get(&stop_eid)
-                .is_some_and(|&c| c > 0);
-
-            if (has_demand || has_riders)
-                && let Some(pos) = world.stop_position(stop_eid) {
-                    pending_stops.push((stop_eid, pos));
-                }
+            if manifest.has_demand(stop_eid)
+                && let Some(pos) = world.stop_position(stop_eid)
+            {
+                pending_stops.push((stop_eid, pos));
+            }
         }
 
         if pending_stops.is_empty() {
@@ -78,14 +70,8 @@ impl DispatchStrategy for NearestCarDispatch {
         // Greedy assignment: for each unassigned stop, find nearest unassigned elevator.
         // Sort stops by total demand (highest first) for priority.
         pending_stops.sort_by(|a, b| {
-            let demand_a = manifest
-                .demand_at_stop
-                .get(&a.0)
-                .map_or(0, |d| d.waiting_count);
-            let demand_b = manifest
-                .demand_at_stop
-                .get(&b.0)
-                .map_or(0, |d| d.waiting_count);
+            let demand_a = manifest.waiting_count_at(a.0);
+            let demand_b = manifest.waiting_count_at(b.0);
             demand_b.cmp(&demand_a)
         });
 

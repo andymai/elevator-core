@@ -153,6 +153,8 @@ impl Simulation {
 
         let dt = 1.0 / config.simulation.ticks_per_second;
 
+        world.insert_resource(crate::tagged_metrics::MetricTags::default());
+
         Ok(Self {
             world,
             events: EventBus::default(),
@@ -310,6 +312,40 @@ impl Simulation {
         self.dispatchers.insert(group, strategy);
     }
 
+    // ── Tagging ──────────────────────────────────────────────────────
+
+    /// Attach a metric tag to an entity (rider, stop, elevator, etc.).
+    ///
+    /// Tags enable per-tag metric breakdowns. An entity can have multiple tags.
+    /// Riders automatically inherit tags from their origin stop when spawned.
+    pub fn tag_entity(&mut self, id: EntityId, tag: impl Into<String>) {
+        if let Some(tags) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+            tags.tag(id, tag);
+        }
+    }
+
+    /// Remove a metric tag from an entity.
+    pub fn untag_entity(&mut self, id: EntityId, tag: &str) {
+        if let Some(tags) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+            tags.untag(id, tag);
+        }
+    }
+
+    /// Query the metric accumulator for a specific tag.
+    #[must_use]
+    pub fn metrics_for_tag(&self, tag: &str) -> Option<&crate::tagged_metrics::TaggedMetric> {
+        self.world
+            .resource::<crate::tagged_metrics::MetricTags>()
+            .and_then(|tags| tags.metric(tag))
+    }
+
+    /// List all registered metric tags.
+    pub fn all_tags(&self) -> Vec<&str> {
+        self.world
+            .resource::<crate::tagged_metrics::MetricTags>()
+            .map_or_else(Vec::new, |tags| tags.all_tags().collect())
+    }
+
     // ── Rider spawning ───────────────────────────────────────────────
 
     /// Spawn a rider at the given origin stop entity, headed to destination stop entity.
@@ -338,6 +374,15 @@ impl Simulation {
             destination,
             tick: self.tick,
         });
+
+        // Inherit metric tags from the origin stop.
+        if let Some(tags_res) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+            let origin_tags: Vec<String> = tags_res.tags_for(origin).to_vec();
+            for tag in origin_tags {
+                tags_res.tag(eid, tag);
+            }
+        }
+
         eid
     }
 
@@ -613,7 +658,7 @@ impl Simulation {
     pub fn run_metrics(&mut self) {
         self.hooks.run_before(Phase::Metrics, &mut self.world);
         let ctx = self.phase_context();
-        crate::systems::metrics::run(&self.world, &self.events, &mut self.metrics, &ctx);
+        crate::systems::metrics::run(&mut self.world, &self.events, &mut self.metrics, &ctx);
         self.hooks.run_after(Phase::Metrics, &mut self.world);
     }
 

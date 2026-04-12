@@ -43,6 +43,8 @@ pub mod scenario;
 pub mod sim;
 /// Stop configuration helpers.
 pub mod stop;
+/// Tag-based per-entity metrics.
+pub mod tagged_metrics;
 /// Tick-to-wall-clock time conversion.
 pub mod time;
 /// Traffic generation (arrival patterns).
@@ -57,7 +59,7 @@ pub mod prelude {
         Velocity, Zone,
     };
     pub use crate::config::SimConfig;
-    pub use crate::dispatch::{DispatchDecision, DispatchStrategy};
+    pub use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionReason, SimError};
     pub use crate::dispatch::ElevatorGroup;
@@ -68,6 +70,7 @@ pub mod prelude {
     pub use crate::sim::{ElevatorParams, Simulation};
     pub use crate::systems::PhaseContext;
     pub use crate::stop::StopId;
+    pub use crate::tagged_metrics::{MetricTags, TaggedMetric};
     pub use crate::time::TimeAdapter;
 }
 
