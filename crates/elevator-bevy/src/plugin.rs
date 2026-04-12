@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::atmosphere::{drift_marine_snow, spawn_atmosphere};
 use crate::camera::setup_camera;
+use crate::glow::{update_floor_glow, update_floor_labels};
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
@@ -71,6 +72,14 @@ impl Plugin for ElevatorSimPlugin {
                 )
                     .chain(),
             )
-            .add_systems(Update, (drift_marine_snow, fade_trail_segments));
+            .add_systems(
+                Update,
+                (
+                    drift_marine_snow,
+                    fade_trail_segments,
+                    update_floor_glow,
+                    update_floor_labels,
+                ),
+            );
     }
 }

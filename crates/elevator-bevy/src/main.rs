@@ -6,6 +6,8 @@ use bevy::prelude::*;
 mod atmosphere;
 /// Camera setup and centering.
 mod camera;
+/// Floor activity glow and label fade system.
+mod glow;
 /// Keyboard input handling for simulation speed.
 mod input;
 /// Bioluminescent color palette.
