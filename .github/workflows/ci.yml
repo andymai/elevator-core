@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
 
       - name: Install system dependencies
@@ -27,8 +29,8 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Test core
-        run: cargo test -p elevator-core
+      - name: Test workspace
+        run: cargo test --workspace
 
       - name: Build workspace
         run: cargo build --workspace

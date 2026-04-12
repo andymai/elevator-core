@@ -3,10 +3,10 @@ name = "elevator-core"
 version.workspace = true
 edition.workspace = true
 description = "Engine-agnostic elevator simulation library with pluggable dispatch strategies"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/andyaragon/elevator-sim"
-readme = "README.md"
-rust-version = "1.87"
+license.workspace = true
+repository.workspace = true
+readme = "../../README.md"
+rust-version.workspace = true
 categories = ["game-engines", "simulation"]
 keywords = ["elevator", "dispatch", "simulation", "ecs", "building"]
 

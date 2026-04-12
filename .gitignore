@@ -3,3 +3,11 @@
 *.swo
 .DS_Store
 .envrc
+.cargo/config.toml
+mutants.out/
+mutants.out.old/
+.claude/agent-memory-local/
+.idea/
+.vscode/
+*.code-workspace
+*.log

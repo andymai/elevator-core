@@ -1,5 +1,0 @@
-crates/elevator-sim-core/src/systems/dispatch.rs:119:13: replace && with || in build_manifest
-crates/elevator-sim-core/src/systems/dispatch.rs:131:21: replace && with || in build_manifest
-crates/elevator-sim-core/src/systems/loading.rs:44:5: replace collect_actions -> Vec<LoadAction> with vec![Default::default()]
-crates/elevator-sim-core/src/systems/loading.rs:110:17: replace && with || in collect_actions
-crates/elevator-sim-core/src/systems/loading.rs:109:17: replace && with || in collect_actions
