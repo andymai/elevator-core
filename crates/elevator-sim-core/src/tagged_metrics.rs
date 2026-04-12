@@ -12,7 +12,8 @@ use std::collections::HashMap;
 ///
 /// Tracks the same core metrics as the global [`Metrics`](crate::metrics::Metrics)
 /// but scoped to entities sharing a specific tag.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct TaggedMetric {
     /// Average wait time in ticks (spawn to board) for tagged riders.
     pub(crate) avg_wait_time: f64,
@@ -92,7 +93,7 @@ impl TaggedMetric {
 ///
 /// Stored as a world resource. Entities can have multiple string tags;
 /// metrics are pre-computed per tag each tick.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct MetricTags {
     /// Entity → tags mapping.
     entity_tags: HashMap<EntityId, Vec<String>>,
@@ -136,56 +137,37 @@ impl MetricTags {
         self.tag_metrics.keys().map(String::as_str)
     }
 
-    /// Record a spawn event for all tags on the given entity.
-    pub(crate) fn record_spawn(&mut self, entity: EntityId) {
+    /// Call `f` on the metric accumulator for each tag attached to `entity`.
+    fn for_each_tag(&mut self, entity: EntityId, mut f: impl FnMut(&mut TaggedMetric)) {
         let Some(tags) = self.entity_tags.get(&entity) else {
             return;
         };
         let tag_keys: Vec<&str> = tags.iter().map(String::as_str).collect();
         for tag in tag_keys {
             if let Some(m) = self.tag_metrics.get_mut(tag) {
-                m.record_spawn();
+                f(m);
             }
         }
+    }
+
+    /// Record a spawn event for all tags on the given entity.
+    pub(crate) fn record_spawn(&mut self, entity: EntityId) {
+        self.for_each_tag(entity, TaggedMetric::record_spawn);
     }
 
     /// Record a board event for all tags on the given entity.
     pub(crate) fn record_board(&mut self, entity: EntityId, wait_ticks: u64) {
-        let Some(tags) = self.entity_tags.get(&entity) else {
-            return;
-        };
-        let tag_keys: Vec<&str> = tags.iter().map(String::as_str).collect();
-        for tag in tag_keys {
-            if let Some(m) = self.tag_metrics.get_mut(tag) {
-                m.record_board(wait_ticks);
-            }
-        }
+        self.for_each_tag(entity, |m| m.record_board(wait_ticks));
     }
 
     /// Record a delivery event for all tags on the given entity.
     pub(crate) fn record_delivery(&mut self, entity: EntityId) {
-        let Some(tags) = self.entity_tags.get(&entity) else {
-            return;
-        };
-        let tag_keys: Vec<&str> = tags.iter().map(String::as_str).collect();
-        for tag in tag_keys {
-            if let Some(m) = self.tag_metrics.get_mut(tag) {
-                m.record_delivery();
-            }
-        }
+        self.for_each_tag(entity, TaggedMetric::record_delivery);
     }
 
     /// Record an abandonment event for all tags on the given entity.
     pub(crate) fn record_abandonment(&mut self, entity: EntityId) {
-        let Some(tags) = self.entity_tags.get(&entity) else {
-            return;
-        };
-        let tag_keys: Vec<&str> = tags.iter().map(String::as_str).collect();
-        for tag in tag_keys {
-            if let Some(m) = self.tag_metrics.get_mut(tag) {
-                m.record_abandonment();
-            }
-        }
+        self.for_each_tag(entity, TaggedMetric::record_abandonment);
     }
 
     /// Remove all tags for a despawned entity.

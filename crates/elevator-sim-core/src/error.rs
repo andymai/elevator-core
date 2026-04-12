@@ -22,6 +22,13 @@ pub enum SimError {
     StopNotFound(StopId),
     /// A referenced group does not exist.
     GroupNotFound(GroupId),
+    /// An operation was attempted on an entity in an invalid state.
+    InvalidState {
+        /// The entity in the wrong state.
+        entity: EntityId,
+        /// Human-readable explanation.
+        reason: String,
+    },
 }
 
 impl fmt::Display for SimError {
@@ -33,6 +40,9 @@ impl fmt::Display for SimError {
             Self::EntityNotFound(id) => write!(f, "entity not found: {id:?}"),
             Self::StopNotFound(id) => write!(f, "stop not found: {id:?}"),
             Self::GroupNotFound(id) => write!(f, "group not found: {id:?}"),
+            Self::InvalidState { entity, reason } => {
+                write!(f, "invalid state for {entity:?}: {reason}")
+            }
         }
     }
 }

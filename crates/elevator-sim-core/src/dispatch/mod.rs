@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 
 /// Metadata about a single rider, available to dispatch strategies.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RiderInfo {
     /// Rider entity ID.
     pub id: EntityId,

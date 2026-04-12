@@ -8,7 +8,6 @@
 //! own extensions separately and re-attach them after restoring.
 
 use crate::components::{Elevator, Patience, Position, Preferences, Rider, Route, Stop, Velocity, Zone};
-use crate::dispatch::ElevatorGroup;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
@@ -19,6 +18,8 @@ use std::collections::HashMap;
 /// Serializable snapshot of a single entity's components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntitySnapshot {
+    /// The original EntityId (used for remapping cross-references on restore).
+    pub original_id: EntityId,
     /// Position component (if present).
     pub position: Option<Position>,
     /// Velocity component (if present).
@@ -44,7 +45,7 @@ pub struct EntitySnapshot {
 /// Serializable snapshot of the entire simulation state.
 ///
 /// Capture via [`Simulation::snapshot()`] and restore via
-/// [`Simulation::from_snapshot()`]. The game chooses the serde format
+/// [`WorldSnapshot::restore()`]. The game chooses the serde format
 /// (RON, JSON, bincode, etc.).
 ///
 /// Extension components and resources are NOT included. Games must
@@ -87,51 +88,90 @@ impl WorldSnapshot {
     /// Requires a dispatch strategy (strategies are not serializable since
     /// they implement a trait with arbitrary state). Extension components
     /// and custom resources must be re-attached after restoration.
+    #[must_use]
     pub fn restore(
         self,
         dispatch: Box<dyn crate::dispatch::DispatchStrategy>,
     ) -> crate::sim::Simulation {
         use crate::dispatch::ElevatorGroup;
-        use crate::events::EventBus;
-        use crate::hooks::PhaseHooks;
         use crate::tagged_metrics::MetricTags;
-        use crate::time::TimeAdapter;
         use crate::world::{SortedStops, World};
 
         let mut world = World::new();
 
-        // Respawn all entities and attach components.
+        // Phase 1: spawn all entities and build old→new EntityId mapping.
         let mut index_to_id: Vec<EntityId> = Vec::with_capacity(self.entities.len());
+        let mut id_remap: HashMap<EntityId, EntityId> = HashMap::new();
         for snap in &self.entities {
-            let eid = world.spawn();
-            index_to_id.push(eid);
+            let new_id = world.spawn();
+            index_to_id.push(new_id);
+            id_remap.insert(snap.original_id, new_id);
+        }
 
-            if let Some(ref pos) = snap.position {
-                world.set_position(eid, pos.clone());
+        // Helper: remap an EntityId through the old→new map.
+        let remap = |old: EntityId| -> EntityId {
+            id_remap.get(&old).copied().unwrap_or(old)
+        };
+        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> {
+            old.map(&remap)
+        };
+
+        // Phase 2: attach components with remapped EntityIds.
+        for (i, snap) in self.entities.iter().enumerate() {
+            let eid = index_to_id[i];
+
+            if let Some(pos) = snap.position {
+                world.set_position(eid, pos);
             }
-            if let Some(ref vel) = snap.velocity {
-                world.set_velocity(eid, vel.clone());
+            if let Some(vel) = snap.velocity {
+                world.set_velocity(eid, vel);
             }
             if let Some(ref elev) = snap.elevator {
-                world.set_elevator(eid, elev.clone());
+                let mut e = elev.clone();
+                // Remap EntityId fields inside Elevator.
+                e.riders = e.riders.iter().map(|&r| remap(r)).collect();
+                e.target_stop = remap_opt(e.target_stop);
+                e.phase = match e.phase {
+                    crate::components::ElevatorPhase::MovingToStop(s) => {
+                        crate::components::ElevatorPhase::MovingToStop(remap(s))
+                    }
+                    other => other,
+                };
+                world.set_elevator(eid, e);
             }
             if let Some(ref stop) = snap.stop {
                 world.set_stop(eid, stop.clone());
             }
             if let Some(ref rider) = snap.rider {
-                world.set_rider(eid, rider.clone());
+                use crate::components::RiderPhase;
+                let mut r = rider.clone();
+                // Remap EntityId fields inside Rider.
+                r.current_stop = remap_opt(r.current_stop);
+                r.phase = match r.phase {
+                    RiderPhase::Boarding(e) => RiderPhase::Boarding(remap(e)),
+                    RiderPhase::Riding(e) => RiderPhase::Riding(remap(e)),
+                    RiderPhase::Alighting(e) => RiderPhase::Alighting(remap(e)),
+                    other => other,
+                };
+                world.set_rider(eid, r);
             }
             if let Some(ref route) = snap.route {
-                world.set_route(eid, route.clone());
+                let mut rt = route.clone();
+                // Remap EntityId fields inside Route legs.
+                for leg in &mut rt.legs {
+                    leg.from = remap(leg.from);
+                    leg.to = remap(leg.to);
+                }
+                world.set_route(eid, rt);
             }
             if let Some(ref zone) = snap.zone {
                 world.set_zone(eid, zone.clone());
             }
-            if let Some(ref patience) = snap.patience {
-                world.set_patience(eid, patience.clone());
+            if let Some(patience) = snap.patience {
+                world.set_patience(eid, patience);
             }
-            if let Some(ref prefs) = snap.preferences {
-                world.set_preferences(eid, prefs.clone());
+            if let Some(prefs) = snap.preferences {
+                world.set_preferences(eid, prefs);
             }
             if snap.disabled {
                 world.disable(eid);
@@ -222,15 +262,16 @@ impl crate::sim::Simulation {
         let entities: Vec<EntitySnapshot> = all_ids
             .iter()
             .map(|&eid| EntitySnapshot {
-                position: world.position(eid).cloned(),
-                velocity: world.velocity(eid).cloned(),
+                original_id: eid,
+                position: world.position(eid).copied(),
+                velocity: world.velocity(eid).copied(),
                 elevator: world.elevator(eid).cloned(),
                 stop: world.stop(eid).cloned(),
                 rider: world.rider(eid).cloned(),
                 route: world.route(eid).cloned(),
                 zone: world.zone(eid).cloned(),
-                patience: world.patience(eid).cloned(),
-                preferences: world.preferences(eid).cloned(),
+                patience: world.patience(eid).copied(),
+                preferences: world.preferences(eid).copied(),
                 disabled: world.is_disabled(eid),
             })
             .collect();

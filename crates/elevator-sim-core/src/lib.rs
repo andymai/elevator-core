@@ -65,7 +65,7 @@ pub mod prelude {
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionReason, SimError};
     pub use crate::dispatch::ElevatorGroup;
-    pub use crate::events::{Event, EventBus, EventChannel};
+    pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};
     pub use crate::hooks::Phase;
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;

@@ -9,11 +9,11 @@ use super::PhaseContext;
 
 /// Update metrics from events emitted this tick.
 pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &PhaseContext) {
-    // Collect tag updates to apply after event processing.
+    // Collect rider-level tag updates deferred until after event processing,
+    // because `world` is borrowed immutably inside the event loop.
     let mut tag_spawns: Vec<crate::entity::EntityId> = Vec::new();
     let mut tag_boards: Vec<(crate::entity::EntityId, u64)> = Vec::new();
-    let mut tag_deliveries: Vec<crate::entity::EntityId> = Vec::new();
-    let mut tag_abandonments: Vec<crate::entity::EntityId> = Vec::new();
+    let mut tag_terminals: Vec<(crate::entity::EntityId, bool)> = Vec::new(); // (rider, is_delivery)
 
     for event in events.peek() {
         match event {
@@ -32,12 +32,12 @@ pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &Ph
                 if let Some(rd) = world.rider(*rider) {
                     let ride_ticks = rd.board_tick.map_or(0, |bt| tick.saturating_sub(bt));
                     metrics.record_delivery(ride_ticks, *tick);
-                    tag_deliveries.push(*rider);
+                    tag_terminals.push((*rider, true));
                 }
             }
             Event::RiderAbandoned { rider, .. } => {
                 metrics.record_abandonment();
-                tag_abandonments.push(*rider);
+                tag_terminals.push((*rider, false));
             }
             _ => {}
         }
@@ -51,17 +51,12 @@ pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &Ph
         for (rider, wait) in tag_boards {
             tags.record_board(rider, wait);
         }
-        for rider in &tag_deliveries {
-            tags.record_delivery(*rider);
-        }
-        for rider in &tag_abandonments {
-            tags.record_abandonment(*rider);
-        }
-        // Remove tag entries for riders that reached terminal state.
-        for rider in tag_deliveries {
-            tags.remove_entity(rider);
-        }
-        for rider in tag_abandonments {
+        for (rider, is_delivery) in tag_terminals {
+            if is_delivery {
+                tags.record_delivery(rider);
+            } else {
+                tags.record_abandonment(rider);
+            }
             tags.remove_entity(rider);
         }
     }

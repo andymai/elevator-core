@@ -536,6 +536,21 @@ impl Simulation {
         Ok(eid)
     }
 
+    // ── Helpers ──────────────────────────────────────────────────────
+
+    /// Extract the `GroupId` from the current leg of a route.
+    ///
+    /// Falls back to `GroupId(0)` for Walk legs or when no route exists.
+    fn group_from_route(route: Option<&Route>) -> GroupId {
+        route
+            .and_then(|r| r.current())
+            .map(|leg| match leg.via {
+                crate::components::TransportMode::Elevator(g) => g,
+                crate::components::TransportMode::Walk => GroupId(0),
+            })
+            .unwrap_or(GroupId(0))
+    }
+
     // ── Re-routing ───────────────────────────────────────────────────
 
     /// Change a rider's destination mid-route.
@@ -556,30 +571,27 @@ impl Simulation {
             .ok_or(SimError::EntityNotFound(rider))?;
 
         if r.phase != RiderPhase::Waiting {
-            return Err(SimError::InvalidConfig {
-                field: "rider.phase",
+            return Err(SimError::InvalidState {
+                entity: rider,
                 reason: "can only reroute riders in Waiting phase".into(),
             });
         }
 
-        let origin = r
-            .current_stop
-            .ok_or(SimError::InvalidConfig {
-                field: "rider.current_stop",
-                reason: "rider has no current stop for reroute".into(),
-            })?;
+        let origin = r.current_stop.ok_or(SimError::InvalidState {
+            entity: rider,
+            reason: "rider has no current stop for reroute".into(),
+        })?;
 
-        let group = self
-            .world
-            .route(rider)
-            .and_then(|route| route.current().map(|leg| match leg.via {
-                crate::components::TransportMode::Elevator(g) => g,
-                crate::components::TransportMode::Walk => GroupId(0),
-            }))
-            .unwrap_or(GroupId(0));
-
+        let group = Self::group_from_route(self.world.route(rider));
         self.world
             .set_route(rider, Route::direct(origin, new_destination, group));
+
+        self.events.emit(Event::RiderRerouted {
+            rider,
+            new_destination,
+            tick: self.tick,
+        });
+
         Ok(())
     }
 
@@ -731,14 +743,7 @@ impl Simulation {
             if let Some(alt_stop) = alternative {
                 // Reroute to nearest alternative.
                 let origin = rider_current_stop.unwrap_or(alt_stop);
-                let group = self
-                    .world
-                    .route(rid)
-                    .and_then(|r| r.current().map(|leg| match leg.via {
-                        crate::components::TransportMode::Elevator(g) => g,
-                        crate::components::TransportMode::Walk => GroupId(0),
-                    }))
-                    .unwrap_or(GroupId(0));
+                let group = Self::group_from_route(self.world.route(rid));
                 self.world.set_route(rid, Route::direct(origin, alt_stop, group));
                 self.events.emit(Event::RouteInvalidated {
                     rider: rid,
