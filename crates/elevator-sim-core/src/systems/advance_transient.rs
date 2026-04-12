@@ -60,6 +60,23 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                         r.phase = RiderPhase::Arrived;
                     }
                 }
+
+                // If the rider's next destination is disabled, emit an invalidation event.
+                // The game (or a hook) can then reroute the rider.
+                if has_more_legs {
+                    if let Some(route) = world.route(id) {
+                        if let Some(dest) = route.current_destination() {
+                            if world.is_disabled(dest) {
+                                events.emit(Event::RouteInvalidated {
+                                    rider: id,
+                                    affected_stop: dest,
+                                    reason: crate::events::RouteInvalidReason::StopDisabled,
+                                    tick: ctx.tick,
+                                });
+                            }
+                        }
+                    }
+                }
             }
         }
     }

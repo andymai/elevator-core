@@ -1,4 +1,5 @@
 use crate::components::RiderPhase;
+use crate::error::SimError;
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -169,4 +170,42 @@ fn set_rider_route_replaces_route() {
     let r = sim.world().route(rider).unwrap();
     assert_eq!(r.legs.len(), 2);
     assert_eq!(r.current_destination(), Some(stop1));
+}
+
+#[test]
+fn reroute_rejects_non_waiting_rider() {
+    let config = three_stop_config();
+    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+
+    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Advance until rider is boarding or riding.
+    for _ in 0..500 {
+        sim.step();
+        let phase = sim.world().rider(rider).unwrap().phase;
+        if matches!(phase, RiderPhase::Riding(_) | RiderPhase::Arrived) {
+            break;
+        }
+    }
+
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    let result = sim.reroute(rider, stop1);
+
+    // Should fail if rider is not Waiting.
+    let phase = sim.world().rider(rider).unwrap().phase;
+    if phase != RiderPhase::Waiting {
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), SimError::InvalidState { .. }));
+    }
+}
+
+#[test]
+fn reroute_nonexistent_rider_returns_error() {
+    let config = three_stop_config();
+    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    // Use a stop entity as a fake rider — it's a valid EntityId but not a rider.
+    let result = sim.reroute(stop1, stop1);
+    assert!(result.is_err());
 }

@@ -12,6 +12,7 @@ use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
 use crate::stop::StopId;
+use crate::tagged_metrics::MetricTags;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -65,6 +66,8 @@ pub struct WorldSnapshot {
     pub stop_lookup: HashMap<StopId, usize>,
     /// Global metrics at snapshot time.
     pub metrics: Metrics,
+    /// Per-tag metric accumulators and entity-tag associations.
+    pub metric_tags: MetricTags,
     /// Ticks per second (for TimeAdapter reconstruction).
     pub ticks_per_second: f64,
 }
@@ -85,16 +88,18 @@ pub struct GroupSnapshot {
 impl WorldSnapshot {
     /// Restore a simulation from this snapshot.
     ///
-    /// Requires a dispatch strategy (strategies are not serializable since
-    /// they implement a trait with arbitrary state). Extension components
-    /// and custom resources must be re-attached after restoration.
+    /// Accepts a map of dispatch strategies keyed by `GroupId`. Groups not
+    /// present in the map default to `ScanDispatch`. Strategies are not
+    /// serializable (trait objects), so they must be re-provided on restore.
+    ///
+    /// Extension components and custom resources must be re-attached after
+    /// restoration.
     #[must_use]
     pub fn restore(
         self,
-        dispatch: Box<dyn crate::dispatch::DispatchStrategy>,
+        mut dispatchers_in: std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
     ) -> crate::sim::Simulation {
         use crate::dispatch::ElevatorGroup;
-        use crate::tagged_metrics::MetricTags;
         use crate::world::{SortedStops, World};
 
         let mut world = World::new();
@@ -185,7 +190,11 @@ impl WorldSnapshot {
             .collect();
         sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         world.insert_resource(SortedStops(sorted));
-        world.insert_resource(MetricTags::default());
+
+        // Restore MetricTags with remapped entity IDs.
+        let mut tags = self.metric_tags;
+        tags.remap_entity_ids(&id_remap);
+        world.insert_resource(tags);
 
         // Rebuild groups.
         let groups: Vec<ElevatorGroup> = self
@@ -214,18 +223,13 @@ impl WorldSnapshot {
             .filter_map(|(sid, &idx)| index_to_id.get(idx).map(|&eid| (*sid, eid)))
             .collect();
 
-        // Rebuild dispatchers.
+        // Rebuild dispatchers: use provided strategies, default missing groups to SCAN.
         let mut dispatchers = std::collections::BTreeMap::new();
         for group in &groups {
-            dispatchers.entry(group.id).or_insert_with(|| {
-                // Only the first group gets the provided dispatch; others get cloned default.
-                // This is a limitation — games with per-group dispatch must re-register after restore.
-                Box::new(crate::dispatch::scan::ScanDispatch::new()) as Box<dyn crate::dispatch::DispatchStrategy>
+            let strategy = dispatchers_in.remove(&group.id).unwrap_or_else(|| {
+                Box::new(crate::dispatch::scan::ScanDispatch::new())
             });
-        }
-        // Override the first/default group with the provided strategy.
-        if let Some(first_group) = groups.first() {
-            dispatchers.insert(first_group.id, dispatch);
+            dispatchers.insert(group.id, strategy);
         }
 
         crate::sim::Simulation::from_parts(
@@ -309,6 +313,11 @@ impl crate::sim::Simulation {
             groups,
             stop_lookup,
             metrics: self.metrics().clone(),
+            metric_tags: self
+                .world()
+                .resource::<MetricTags>()
+                .cloned()
+                .unwrap_or_default(),
             ticks_per_second: 1.0 / self.dt(),
         }
     }
