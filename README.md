@@ -9,6 +9,8 @@ A tick-based elevator simulation engine for Rust. Model anything from a
 strategies, realistic trapezoidal motion profiles, and an extension system
 let you build exactly the simulation you need.
 
+[Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
+
 ## Table of Contents
 
 - [Getting Started](#getting-started)
