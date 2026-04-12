@@ -1,7 +1,73 @@
-//! Engine-agnostic elevator simulation library.
+//! # elevator-core
 //!
-//! Provides a tick-based simulation with pluggable dispatch strategies,
-//! trapezoidal velocity profiles, and a typed event bus for UI/metrics consumers.
+//! Engine-agnostic, tick-based elevator simulation library for Rust.
+//!
+//! This crate provides the building blocks for modeling vertical transportation
+//! systems — from a 3-story office building to an orbital space elevator.
+//! Stops sit at arbitrary positions rather than uniform floors, and the
+//! simulation is driven by a deterministic 6-phase tick loop.
+//!
+//! ## Key capabilities
+//!
+//! - **Pluggable dispatch** — four built-in algorithms ([`dispatch::scan::ScanDispatch`],
+//!   [`dispatch::look::LookDispatch`], [`dispatch::nearest_car::NearestCarDispatch`],
+//!   [`dispatch::etd::EtdDispatch`]) plus the [`dispatch::DispatchStrategy`] trait
+//!   for custom implementations.
+//! - **Trapezoidal motion profiles** — realistic acceleration, cruise, and
+//!   deceleration computed per-tick in the [`movement`] module.
+//! - **Extension components** — attach arbitrary `Serialize + DeserializeOwned`
+//!   data to any entity via [`world::World::insert_ext`] without modifying the
+//!   library.
+//! - **Lifecycle hooks** — inject logic before or after any of the six
+//!   simulation phases. See [`hooks::Phase`].
+//! - **Metrics and events** — query aggregate wait/ride times through
+//!   [`metrics::Metrics`] and react to fine-grained tick events via
+//!   [`events::Event`].
+//! - **Snapshot save/load** — capture and restore full simulation state with
+//!   [`snapshot::WorldSnapshot`].
+//! - **Zero `unsafe` code** — enforced by `#![forbid(unsafe_code)]`.
+//!
+//! ## Quick start
+//!
+//! ```rust
+//! use elevator_core::prelude::*;
+//! use elevator_core::stop::StopConfig;
+//!
+//! let mut sim = SimulationBuilder::new()
+//!     .stops(vec![
+//!         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
+//!         StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
+//!         StopConfig { id: StopId(2), name: "Floor 3".into(), position: 8.0 },
+//!     ])
+//!     .build()
+//!     .unwrap();
+//!
+//! sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0).unwrap();
+//!
+//! for _ in 0..1000 {
+//!     sim.step();
+//! }
+//!
+//! assert!(sim.metrics().total_delivered() > 0);
+//! ```
+//!
+//! ## Crate layout
+//!
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`builder`] | Fluent [`SimulationBuilder`](builder::SimulationBuilder) API |
+//! | [`sim`] | Top-level [`Simulation`](sim::Simulation) runner and tick loop |
+//! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait |
+//! | [`world`] | ECS-style [`World`](world::World) with typed component storage |
+//! | [`components`] | Data types: [`Elevator`](components::Elevator), [`Rider`](components::Rider), [`Stop`](components::Stop), etc. |
+//! | [`events`] | [`Event`](events::Event) variants and the [`EventBus`](events::EventBus) |
+//! | [`metrics`] | Aggregate [`Metrics`](metrics::Metrics) (wait time, throughput, etc.) |
+//! | [`config`] | RON-deserializable [`SimConfig`](config::SimConfig) |
+//! | [`hooks`] | Lifecycle hook registration by [`Phase`](hooks::Phase) |
+//! | [`query`] | Entity query builder for filtering by component composition |
+//!
+//! For narrative guides, tutorials, and architecture walkthroughs, see the
+//! [mdBook documentation](https://andymai.github.io/elevator-core/).
 
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]

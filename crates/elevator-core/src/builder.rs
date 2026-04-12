@@ -50,6 +50,17 @@ impl Default for SimulationBuilder {
 
 impl SimulationBuilder {
     /// Create a builder with a minimal valid default configuration.
+    ///
+    /// The default gives you two stops (Ground at 0.0, Top at 10.0) and one
+    /// elevator with SCAN dispatch. Override any part with the fluent methods
+    /// before calling [`build`](Self::build).
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// assert_eq!(sim.current_tick(), 0);
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         let config = SimConfig {
@@ -260,6 +271,29 @@ impl SimulationBuilder {
     /// # Errors
     ///
     /// Returns [`SimError::InvalidConfig`] if the assembled configuration is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    /// use elevator_core::stop::StopConfig;
+    ///
+    /// let mut sim = SimulationBuilder::new()
+    ///     .stops(vec![
+    ///         StopConfig { id: StopId(0), name: "Lobby".into(), position: 0.0 },
+    ///         StopConfig { id: StopId(1), name: "Roof".into(), position: 20.0 },
+    ///     ])
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
+    ///
+    /// for _ in 0..1000 {
+    ///     sim.step();
+    /// }
+    ///
+    /// assert!(sim.metrics().total_delivered() > 0);
+    /// ```
     pub fn build(self) -> Result<Simulation, SimError> {
         let default_dispatch = self
             .dispatchers
