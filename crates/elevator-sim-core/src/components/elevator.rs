@@ -1,11 +1,13 @@
 //! Elevator state and configuration component.
 
+use serde::{Deserialize, Serialize};
+
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 
 /// Operational phase of an elevator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ElevatorPhase {
     /// Parked with no pending requests.
@@ -23,7 +25,7 @@ pub enum ElevatorPhase {
 }
 
 /// Component for an elevator entity.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Elevator {
     /// Current operational phase.
     pub(crate) phase: ElevatorPhase,

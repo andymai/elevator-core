@@ -1,7 +1,9 @@
 //! Door open/close finite-state machine.
 
+use serde::{Deserialize, Serialize};
+
 /// State machine for elevator doors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DoorState {
     /// Doors are fully closed.
@@ -30,7 +32,7 @@ pub enum DoorState {
 }
 
 /// Transition emitted when the door state changes phase.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DoorTransition {
     /// No phase change occurred this tick.

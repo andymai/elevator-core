@@ -1,12 +1,13 @@
 //! Aggregate simulation metrics (wait times, throughput, distance).
 
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 /// Aggregated simulation metrics, updated each tick from events.
 ///
 /// Games query this via `sim.metrics()` for HUD display, scoring,
 /// or scenario evaluation.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Metrics {
     // -- Queryable metrics (accessed via getters) --

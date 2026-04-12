@@ -170,6 +170,32 @@ impl Simulation {
         })
     }
 
+    /// Restore a simulation from pre-built parts (used by snapshot restore).
+    pub(crate) fn from_parts(
+        world: World,
+        tick: u64,
+        dt: f64,
+        groups: Vec<ElevatorGroup>,
+        stop_lookup: HashMap<StopId, EntityId>,
+        dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+        metrics: Metrics,
+        ticks_per_second: f64,
+    ) -> Self {
+        Self {
+            world,
+            events: EventBus::default(),
+            pending_output: Vec::new(),
+            tick,
+            dt,
+            groups,
+            stop_lookup,
+            dispatchers,
+            metrics,
+            time: TimeAdapter::new(ticks_per_second),
+            hooks: PhaseHooks::default(),
+        }
+    }
+
     /// Validate configuration before constructing the simulation.
     fn validate_config(config: &SimConfig) -> Result<(), SimError> {
         if config.building.stops.is_empty() {
@@ -299,8 +325,13 @@ impl Simulation {
         self.stop_lookup.get(&id).copied()
     }
 
+    /// Iterate over the stop ID → entity ID mapping.
+    pub fn stop_lookup_iter(&self) -> impl Iterator<Item = (&StopId, &EntityId)> {
+        self.stop_lookup.iter()
+    }
+
     /// Peek at events pending for consumer retrieval.
-    #[must_use] 
+    #[must_use]
     pub fn pending_events(&self) -> &[Event] {
         &self.pending_output
     }

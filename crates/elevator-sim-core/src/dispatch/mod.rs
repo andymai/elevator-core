@@ -9,6 +9,8 @@ pub mod nearest_car;
 /// SCAN dispatch algorithm.
 pub mod scan;
 
+use serde::{Deserialize, Serialize};
+
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -70,7 +72,7 @@ impl DispatchManifest {
 }
 
 /// Decision returned by a dispatch strategy.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DispatchDecision {
     /// Go to the specified stop entity.
@@ -80,7 +82,7 @@ pub enum DispatchDecision {
 }
 
 /// Runtime elevator group: a set of elevators serving a set of stops.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElevatorGroup {
     /// Unique group identifier.
     pub id: GroupId,

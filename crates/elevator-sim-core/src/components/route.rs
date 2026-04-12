@@ -1,10 +1,12 @@
 //! Multi-leg route planning for riders.
 
+use serde::{Deserialize, Serialize};
+
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 
 /// How to travel between two stops.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum TransportMode {
     /// Ride an elevator in the given group.
@@ -14,7 +16,7 @@ pub enum TransportMode {
 }
 
 /// One segment of a multi-leg route.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteLeg {
     /// Origin stop entity.
     pub from: EntityId,
@@ -25,7 +27,7 @@ pub struct RouteLeg {
 }
 
 /// A rider's full route, possibly spanning multiple elevator groups.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     /// Ordered legs of the route.
     pub legs: Vec<RouteLeg>,

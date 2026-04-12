@@ -41,6 +41,8 @@ pub mod movement;
 pub mod scenario;
 /// Top-level simulation runner.
 pub mod sim;
+/// World snapshot for save/load.
+pub mod snapshot;
 /// Stop configuration helpers.
 pub mod stop;
 /// Tag-based per-entity metrics.
@@ -69,6 +71,7 @@ pub mod prelude {
     pub use crate::metrics::Metrics;
     pub use crate::sim::{ElevatorParams, Simulation};
     pub use crate::systems::PhaseContext;
+    pub use crate::snapshot::WorldSnapshot;
     pub use crate::stop::StopId;
     pub use crate::tagged_metrics::{MetricTags, TaggedMetric};
     pub use crate::time::TimeAdapter;

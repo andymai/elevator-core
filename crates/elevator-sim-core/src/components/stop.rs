@@ -1,7 +1,9 @@
 //! Stop (floor/station) component.
 
+use serde::{Deserialize, Serialize};
+
 /// Component for a stop (floor/station) entity.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stop {
     /// Human-readable stop name.
     pub name: String,

@@ -1,14 +1,16 @@
 //! Position and velocity components along the shaft axis.
 
+use serde::{Deserialize, Serialize};
+
 /// Position along the shaft axis.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Position {
     /// Absolute position value.
     pub value: f64,
 }
 
 /// Velocity along the shaft axis (signed: +up, -down).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Velocity {
     /// Signed velocity value.
     pub value: f64,

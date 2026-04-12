@@ -1,9 +1,11 @@
 //! Rider (passenger/cargo) core data and lifecycle.
 
+use serde::{Deserialize, Serialize};
+
 use crate::entity::EntityId;
 
 /// Lifecycle phase of a rider entity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum RiderPhase {
     /// Waiting at a stop.
@@ -28,7 +30,7 @@ pub enum RiderPhase {
 /// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
 /// for game-specific behavior. An entity with `Rider` but no
 /// Route component can be boarded/alighted manually by game code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.
     pub weight: f64,
