@@ -51,7 +51,8 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `spawn_rider` | `(&mut self, EntityId, EntityId, f64) -> EntityId` | Spawn a rider at origin heading to destination with given weight |
+| `spawn_rider` | `(&mut self, EntityId, EntityId, f64) -> Result<EntityId, SimError>` | Spawn a rider at origin heading to destination with auto-detected group |
+| `spawn_rider_with_route` | `(&mut self, EntityId, EntityId, f64, Route) -> Result<EntityId, SimError>` | Spawn a rider with an explicit route |
 | `spawn_rider_by_stop_id` | `(&mut self, StopId, StopId, f64) -> Result<EntityId, SimError>` | Spawn a rider using config `StopId`s |
 | `reroute` | `(&mut self, EntityId, EntityId) -> Result<(), SimError>` | Change a waiting rider's destination |
 | `set_rider_route` | `(&mut self, EntityId, Route) -> Result<(), SimError>` | Replace a rider's entire remaining route |

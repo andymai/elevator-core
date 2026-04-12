@@ -27,6 +27,8 @@ fn two_elevator_config() -> SimConfig {
                     position: 10.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![
             ElevatorConfig {

@@ -3,6 +3,7 @@ use crate::components::{
     Velocity,
 };
 use crate::door::DoorState;
+use crate::entity::EntityId;
 use crate::events::Event;
 use crate::ids::GroupId;
 use crate::stop::StopId;
@@ -368,7 +369,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
 
     // Spawn a single rider at stop 0 heading to stop 2.
-    let rider = sim.spawn_rider(stop0, stop2, 70.0);
+    let rider = sim.spawn_rider(stop0, stop2, 70.0).unwrap();
     sim.drain_events();
 
     // Force both elevators to Loading at stop 0 simultaneously.
@@ -553,7 +554,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
-            group: GroupId(0),
+            line: EntityId::default(),
         },
     );
 
@@ -631,7 +632,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
-            group: GroupId(0),
+            line: EntityId::default(),
         },
     );
 
@@ -726,6 +727,8 @@ fn weight_rejection_boundary() {
                     position: 10.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,
@@ -814,6 +817,8 @@ fn passing_floor_events_emitted() {
                     position: 40.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,

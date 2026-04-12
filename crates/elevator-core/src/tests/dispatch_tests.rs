@@ -42,6 +42,7 @@ fn test_group(
     ElevatorGroup {
         id: GroupId(0),
         name: "Default".into(),
+        lines: vec![],
         elevator_entities,
         stop_entities: stop_entities.to_vec(),
     }
@@ -65,7 +66,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
             target_stop: None,
             door_transition_ticks: 15,
             door_open_ticks: 60,
-            group: GroupId(0),
+            line: crate::entity::EntityId::default(),
         },
     );
     eid

@@ -26,6 +26,8 @@ pub fn default_config() -> SimConfig {
                     position: 8.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![ElevatorConfig {
             id: 0,

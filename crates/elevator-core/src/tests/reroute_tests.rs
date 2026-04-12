@@ -29,6 +29,8 @@ fn three_stop_config() -> SimConfig {
                     position: 20.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![ElevatorConfig {
             id: 0,
@@ -132,6 +134,8 @@ fn disable_only_stop_causes_abandonment() {
                     position: 10.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![ElevatorConfig {
             id: 0,
@@ -205,12 +209,12 @@ fn set_rider_route_replaces_route() {
             RouteLeg {
                 from: stop0,
                 to: stop1,
-                via: TransportMode::Elevator(GroupId(0)),
+                via: TransportMode::Group(GroupId(0)),
             },
             RouteLeg {
                 from: stop1,
                 to: stop2,
-                via: TransportMode::Elevator(GroupId(0)),
+                via: TransportMode::Group(GroupId(0)),
             },
         ],
         current_leg: 0,

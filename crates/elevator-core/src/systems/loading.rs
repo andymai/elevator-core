@@ -1,9 +1,10 @@
 //! Phase 5: board and alight riders at stops with open doors.
 
-use crate::components::{ElevatorPhase, RiderPhase, Route};
+use crate::components::{ElevatorPhase, Line, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::events::{Event, EventBus};
+use crate::ids::GroupId;
 use crate::world::World;
 
 use super::PhaseContext;
@@ -80,6 +81,10 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             continue;
         }
 
+        // Derive this elevator's group from its line component.
+        let elev_line = car.line();
+        let elev_group: Option<GroupId> = world.line(elev_line).map(Line::group);
+
         // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
         let remaining_capacity = car.weight_capacity - car.current_load;
         let load_ratio = if car.weight_capacity > 0.0 {
@@ -103,6 +108,26 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 .is_none_or(|route| route.current().is_none_or(|leg| leg.from == current_stop));
             if !route_ok {
                 return None;
+            }
+            // Group/line match: rider must want this elevator's group (or specific line).
+            if let Some(route) = world.route(rid) {
+                if let Some(leg) = route.current() {
+                    match leg.via {
+                        TransportMode::Group(g) => {
+                            if elev_group != Some(g) {
+                                return None;
+                            }
+                        }
+                        TransportMode::Line(l) => {
+                            if elev_line != l {
+                                return None;
+                            }
+                        }
+                        TransportMode::Walk => {
+                            return None; // Walking riders don't board elevators.
+                        }
+                    }
+                }
             }
             // Rider preferences: skip crowded elevators.
             if let Some(prefs) = world.preferences(rid)

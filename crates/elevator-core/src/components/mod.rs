@@ -2,6 +2,8 @@
 
 /// Elevator state and properties.
 pub mod elevator;
+/// Line (physical path) — shaft, tether, track.
+pub mod line;
 /// Rider patience and boarding preferences.
 pub mod patience;
 /// Position and velocity along the shaft axis.
@@ -12,13 +14,11 @@ pub mod rider;
 pub mod route;
 /// Stop (floor/station) data.
 pub mod stop;
-/// Group/zone membership.
-pub mod zone;
 
 pub use elevator::{Elevator, ElevatorPhase};
+pub use line::{FloorPosition, Line, Orientation};
 pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};
 pub use rider::{Rider, RiderPhase};
 pub use route::{Route, RouteLeg, TransportMode};
 pub use stop::Stop;
-pub use zone::Zone;

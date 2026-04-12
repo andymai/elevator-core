@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::door::DoorState;
 use crate::entity::EntityId;
-use crate::ids::GroupId;
 
 /// Operational phase of an elevator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,8 +61,8 @@ pub struct Elevator {
     pub(crate) door_transition_ticks: u32,
     /// Ticks the door stays fully open.
     pub(crate) door_open_ticks: u32,
-    /// Elevator group this car belongs to.
-    pub(crate) group: GroupId,
+    /// Line entity this car belongs to.
+    pub(crate) line: EntityId,
 }
 
 impl Elevator {
@@ -133,9 +132,9 @@ impl Elevator {
         self.door_open_ticks
     }
 
-    /// Elevator group this car belongs to.
+    /// Line entity this car belongs to.
     #[must_use]
-    pub const fn group(&self) -> GroupId {
-        self.group
+    pub const fn line(&self) -> EntityId {
+        self.line
     }
 }

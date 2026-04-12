@@ -30,6 +30,24 @@ pub enum SimError {
         /// Human-readable explanation.
         reason: String,
     },
+    /// A line entity was not found.
+    LineNotFound(EntityId),
+    /// No route exists between origin and destination across any group.
+    NoRoute {
+        /// The origin stop.
+        origin: EntityId,
+        /// The destination stop.
+        destination: EntityId,
+    },
+    /// Multiple groups serve both origin and destination — caller must specify.
+    AmbiguousRoute {
+        /// The origin stop.
+        origin: EntityId,
+        /// The destination stop.
+        destination: EntityId,
+        /// The groups that serve both stops.
+        groups: Vec<GroupId>,
+    },
 }
 
 impl fmt::Display for SimError {
@@ -43,6 +61,23 @@ impl fmt::Display for SimError {
             Self::GroupNotFound(id) => write!(f, "group not found: {id:?}"),
             Self::InvalidState { entity, reason } => {
                 write!(f, "invalid state for {entity:?}: {reason}")
+            }
+            Self::LineNotFound(id) => write!(f, "line entity {id:?} not found"),
+            Self::NoRoute {
+                origin,
+                destination,
+            } => {
+                write!(f, "no route from {origin:?} to {destination:?}")
+            }
+            Self::AmbiguousRoute {
+                origin,
+                destination,
+                groups,
+            } => {
+                write!(
+                    f,
+                    "ambiguous route from {origin:?} to {destination:?}: served by groups {groups:?}"
+                )
             }
         }
     }

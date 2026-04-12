@@ -115,6 +115,8 @@ pub mod stop;
 pub mod tagged_metrics;
 /// Tick-to-wall-clock time conversion.
 pub mod time;
+/// Topology graph for cross-line connectivity queries.
+pub mod topology;
 /// Traffic generation (arrival patterns).
 #[cfg(feature = "traffic")]
 pub mod traffic;
@@ -139,14 +141,14 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        Elevator, ElevatorPhase, Patience, Position, Preferences, Rider, RiderPhase, Route, Stop,
-        Velocity, Zone,
+        Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience, Position, Preferences,
+        Rider, RiderPhase, Route, Stop, Velocity,
     };
-    pub use crate::config::SimConfig;
-    pub use crate::dispatch::ElevatorGroup;
+    pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::{
         BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo,
     };
+    pub use crate::dispatch::{ElevatorGroup, LineInfo};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
     pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};
@@ -159,6 +161,7 @@ pub mod prelude {
     pub use crate::systems::PhaseContext;
     pub use crate::tagged_metrics::{MetricTags, TaggedMetric};
     pub use crate::time::TimeAdapter;
+    pub use crate::topology::TopologyGraph;
 }
 
 #[cfg(test)]

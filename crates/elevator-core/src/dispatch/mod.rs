@@ -131,16 +131,41 @@ pub enum DispatchDecision {
     Idle,
 }
 
-/// Runtime elevator group: a set of elevators serving a set of stops.
+/// Per-line relationship data within an [`ElevatorGroup`].
+///
+/// This is a denormalized cache maintained by [`Simulation`](crate::sim::Simulation).
+/// The source of truth for intrinsic line properties is the
+/// [`Line`](crate::components::Line) component in World.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineInfo {
+    /// Line entity ID.
+    pub entity: EntityId,
+    /// Elevator entities on this line.
+    pub elevators: Vec<EntityId>,
+    /// Stop entities served by this line.
+    pub serves: Vec<EntityId>,
+}
+
+/// Runtime elevator group: a set of lines sharing a dispatch strategy.
+///
+/// A group is the logical dispatch unit. It contains one or more
+/// [`LineInfo`] entries, each representing a physical path with its
+/// elevators and served stops.
+///
+/// The flat `elevator_entities` and `stop_entities` fields are derived
+/// caches (union of all lines' elevators/stops) for backwards
+/// compatibility and convenience.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElevatorGroup {
     /// Unique group identifier.
     pub id: GroupId,
     /// Human-readable group name.
     pub name: String,
-    /// Elevator entities belonging to this group.
+    /// Lines belonging to this group.
+    pub lines: Vec<LineInfo>,
+    /// Elevator entities belonging to this group (derived from lines).
     pub elevator_entities: Vec<EntityId>,
-    /// Stop entities served by this group.
+    /// Stop entities served by this group (derived from lines, deduplicated).
     pub stop_entities: Vec<EntityId>,
 }
 

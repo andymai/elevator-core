@@ -48,7 +48,7 @@ pub fn spawn_ai_passengers(
         let destination = stop_ids[dest_idx];
         let weight = rng.random_range(timer.weight_min..timer.weight_max);
 
-        sim.sim.spawn_rider(origin, destination, weight);
+        let _ = sim.sim.spawn_rider(origin, destination, weight);
 
         let jitter = rng.random_range(0.5f64..1.5);
         timer.ticks_until_spawn = (timer.mean_interval as f64 * jitter) as u32;

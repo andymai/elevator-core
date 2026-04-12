@@ -8,7 +8,7 @@
 //! own extensions separately and re-attach them after restoring.
 
 use crate::components::{
-    Elevator, Patience, Position, Preferences, Rider, Route, Stop, Velocity, Zone,
+    Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -35,8 +35,9 @@ pub struct EntitySnapshot {
     pub rider: Option<Rider>,
     /// Route component (if present).
     pub route: Option<Route>,
-    /// Zone component (if present).
-    pub zone: Option<Zone>,
+    /// Line component (if present).
+    #[serde(default)]
+    pub line: Option<Line>,
     /// Patience component (if present).
     pub patience: Option<Patience>,
     /// Preferences component (if present).
@@ -76,6 +77,17 @@ pub struct WorldSnapshot {
     pub ticks_per_second: f64,
 }
 
+/// Per-line snapshot info within a group.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineSnapshotInfo {
+    /// Index into the `entities` vec for the line entity.
+    pub entity_index: usize,
+    /// Indices into the `entities` vec for elevators on this line.
+    pub elevator_indices: Vec<usize>,
+    /// Indices into the `entities` vec for stops served by this line.
+    pub stop_indices: Vec<usize>,
+}
+
 /// Serializable representation of an elevator group.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupSnapshot {
@@ -89,6 +101,9 @@ pub struct GroupSnapshot {
     pub stop_indices: Vec<usize>,
     /// The dispatch strategy used by this group.
     pub strategy: crate::dispatch::BuiltinStrategy,
+    /// Per-line snapshot data. Empty in legacy snapshots.
+    #[serde(default)]
+    pub lines: Vec<LineSnapshotInfo>,
 }
 
 /// Pending extension data from a snapshot, awaiting type registration.
@@ -199,6 +214,7 @@ impl WorldSnapshot {
                 let mut e = elev.clone();
                 e.riders = e.riders.iter().map(|&r| remap(r)).collect();
                 e.target_stop = remap_opt(e.target_stop);
+                e.line = remap(e.line);
                 e.phase = match e.phase {
                     crate::components::ElevatorPhase::MovingToStop(s) => {
                         crate::components::ElevatorPhase::MovingToStop(remap(s))
@@ -227,11 +243,14 @@ impl WorldSnapshot {
                 for leg in &mut rt.legs {
                     leg.from = remap(leg.from);
                     leg.to = remap(leg.to);
+                    if let crate::components::TransportMode::Line(ref mut l) = leg.via {
+                        *l = remap(*l);
+                    }
                 }
                 world.set_route(eid, rt);
             }
-            if let Some(ref zone) = snap.zone {
-                world.set_zone(eid, zone.clone());
+            if let Some(ref line) = snap.line {
+                world.set_line(eid, line.clone());
             }
             if let Some(patience) = snap.patience {
                 world.set_patience(eid, patience);
@@ -262,19 +281,55 @@ impl WorldSnapshot {
         let groups: Vec<ElevatorGroup> = self
             .groups
             .iter()
-            .map(|gs| ElevatorGroup {
-                id: gs.id,
-                name: gs.name.clone(),
-                elevator_entities: gs
+            .map(|gs| {
+                let elevator_entities: Vec<EntityId> = gs
                     .elevator_indices
                     .iter()
                     .filter_map(|&i| index_to_id.get(i).copied())
-                    .collect(),
-                stop_entities: gs
+                    .collect();
+                let stop_entities: Vec<EntityId> = gs
                     .stop_indices
                     .iter()
                     .filter_map(|&i| index_to_id.get(i).copied())
-                    .collect(),
+                    .collect();
+
+                let lines = if gs.lines.is_empty() {
+                    // Legacy snapshots have no per-line data; create a single
+                    // synthetic LineInfo containing all elevators and stops.
+                    vec![crate::dispatch::LineInfo {
+                        entity: EntityId::default(),
+                        elevators: elevator_entities.clone(),
+                        serves: stop_entities.clone(),
+                    }]
+                } else {
+                    gs.lines
+                        .iter()
+                        .filter_map(|lsi| {
+                            let entity = index_to_id.get(lsi.entity_index).copied()?;
+                            Some(crate::dispatch::LineInfo {
+                                entity,
+                                elevators: lsi
+                                    .elevator_indices
+                                    .iter()
+                                    .filter_map(|&i| index_to_id.get(i).copied())
+                                    .collect(),
+                                serves: lsi
+                                    .stop_indices
+                                    .iter()
+                                    .filter_map(|&i| index_to_id.get(i).copied())
+                                    .collect(),
+                            })
+                        })
+                        .collect()
+                };
+
+                ElevatorGroup {
+                    id: gs.id,
+                    name: gs.name.clone(),
+                    lines,
+                    elevator_entities,
+                    stop_entities,
+                }
             })
             .collect();
 
@@ -354,7 +409,7 @@ impl crate::sim::Simulation {
                 stop: world.stop(eid).cloned(),
                 rider: world.rider(eid).cloned(),
                 route: world.route(eid).cloned(),
-                zone: world.zone(eid).cloned(),
+                line: world.line(eid).cloned(),
                 patience: world.patience(eid).copied(),
                 preferences: world.preferences(eid).copied(),
                 disabled: world.is_disabled(eid),
@@ -365,23 +420,46 @@ impl crate::sim::Simulation {
         let groups: Vec<GroupSnapshot> = self
             .groups()
             .iter()
-            .map(|g| GroupSnapshot {
-                id: g.id,
-                name: g.name.clone(),
-                elevator_indices: g
-                    .elevator_entities
+            .map(|g| {
+                let lines: Vec<LineSnapshotInfo> = g
+                    .lines
                     .iter()
-                    .filter_map(|eid| id_to_index.get(eid).copied())
-                    .collect(),
-                stop_indices: g
-                    .stop_entities
-                    .iter()
-                    .filter_map(|eid| id_to_index.get(eid).copied())
-                    .collect(),
-                strategy: self
-                    .strategy_id(g.id)
-                    .cloned()
-                    .unwrap_or(crate::dispatch::BuiltinStrategy::Scan),
+                    .filter_map(|li| {
+                        let entity_index = id_to_index.get(&li.entity).copied()?;
+                        Some(LineSnapshotInfo {
+                            entity_index,
+                            elevator_indices: li
+                                .elevators
+                                .iter()
+                                .filter_map(|eid| id_to_index.get(eid).copied())
+                                .collect(),
+                            stop_indices: li
+                                .serves
+                                .iter()
+                                .filter_map(|eid| id_to_index.get(eid).copied())
+                                .collect(),
+                        })
+                    })
+                    .collect();
+                GroupSnapshot {
+                    id: g.id,
+                    name: g.name.clone(),
+                    elevator_indices: g
+                        .elevator_entities
+                        .iter()
+                        .filter_map(|eid| id_to_index.get(eid).copied())
+                        .collect(),
+                    stop_indices: g
+                        .stop_entities
+                        .iter()
+                        .filter_map(|eid| id_to_index.get(eid).copied())
+                        .collect(),
+                    strategy: self
+                        .strategy_id(g.id)
+                        .cloned()
+                        .unwrap_or(crate::dispatch::BuiltinStrategy::Scan),
+                    lines,
+                }
             })
             .collect();
 

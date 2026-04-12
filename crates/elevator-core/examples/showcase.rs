@@ -392,6 +392,8 @@ fn part6_configuration() {
                     position: 20.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![
             ElevatorConfig {
