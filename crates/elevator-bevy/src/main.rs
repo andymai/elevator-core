@@ -27,12 +27,13 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Elevator Simulator".into(),
-                resolution: (800u32, 600u32).into(),
+                title: "Living Building".into(),
+                resolution: (960u32, 540u32).into(),
                 ..default()
             }),
             ..default()
         }))
+        .insert_resource(ClearColor(palette::BG))
         .add_plugins(ElevatorSimPlugin)
         .run();
 }

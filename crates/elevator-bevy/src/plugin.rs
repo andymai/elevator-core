@@ -23,7 +23,7 @@ impl Plugin for ElevatorSimPlugin {
         // Load config — check CLI arg first, fall back to default.
         let config_path = std::env::args()
             .nth(1)
-            .unwrap_or_else(|| "assets/config/default.ron".to_string());
+            .unwrap_or_else(|| "assets/config/living_building.ron".to_string());
 
         let ron_str = std::fs::read_to_string(&config_path)
             .unwrap_or_else(|_| panic!("Failed to read config: {config_path}"));
