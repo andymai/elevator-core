@@ -2,6 +2,7 @@
 pub mod components;
 pub mod entity;
 pub mod ids;
+pub mod systems;
 pub mod world;
 
 // Compatibility layer (delegates to legacy fields during migration)
