@@ -86,6 +86,3 @@ pub const MARINE_SNOW: Color = Color::srgba(0.5, 0.6, 0.7, 0.08);
 
 /// HUD text color — dim, unobtrusive.
 pub const HUD_TEXT: Color = Color::srgba(0.5, 0.6, 0.7, 0.5);
-
-/// HUD text shadow/background for readability.
-pub const HUD_BG: Color = Color::srgba(0.02, 0.02, 0.04, 0.6);

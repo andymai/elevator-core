@@ -73,7 +73,6 @@ impl VisualScale {
 
 /// Stop metadata cached at spawn time for glow and label systems.
 #[derive(Resource)]
-#[allow(dead_code)]
 pub struct StopRegistry {
     /// (`EntityId`, world Y position, name) for each stop.
     pub stops: Vec<(EntityId, f32, String)>,
