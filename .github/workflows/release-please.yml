@@ -12,7 +12,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      elevator-core-release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
+      release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -22,7 +22,7 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.elevator-core-release-created == 'true'
+    if: needs.release-please.outputs.release-created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
