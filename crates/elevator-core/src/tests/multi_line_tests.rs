@@ -207,30 +207,30 @@ fn explicit_config_builds_correct_groups_and_lines() {
 
     assert_eq!(sim.groups().len(), 2, "should have exactly 2 groups");
 
-    let g0 = sim.groups().iter().find(|g| g.id == GroupId(0)).unwrap();
-    let g1 = sim.groups().iter().find(|g| g.id == GroupId(1)).unwrap();
+    let g0 = sim.groups().iter().find(|g| g.id() == GroupId(0)).unwrap();
+    let g1 = sim.groups().iter().find(|g| g.id() == GroupId(1)).unwrap();
 
     // Each group has exactly one line.
-    assert_eq!(g0.lines.len(), 1);
-    assert_eq!(g1.lines.len(), 1);
+    assert_eq!(g0.lines().len(), 1);
+    assert_eq!(g1.lines().len(), 1);
 
     // Each group has exactly one elevator.
-    assert_eq!(g0.elevator_entities.len(), 1);
-    assert_eq!(g1.elevator_entities.len(), 1);
+    assert_eq!(g0.elevator_entities().len(), 1);
+    assert_eq!(g1.elevator_entities().len(), 1);
 
     // Group 0 serves stops 0 and 1 (Ground + Transfer).
     let ground_eid = sim.stop_entity(StopId(0)).unwrap();
     let transfer_eid = sim.stop_entity(StopId(1)).unwrap();
     let top_eid = sim.stop_entity(StopId(2)).unwrap();
 
-    assert!(g0.stop_entities.contains(&ground_eid));
-    assert!(g0.stop_entities.contains(&transfer_eid));
-    assert!(!g0.stop_entities.contains(&top_eid));
+    assert!(g0.stop_entities().contains(&ground_eid));
+    assert!(g0.stop_entities().contains(&transfer_eid));
+    assert!(!g0.stop_entities().contains(&top_eid));
 
     // Group 1 serves stops 1 and 2 (Transfer + Top).
-    assert!(!g1.stop_entities.contains(&ground_eid));
-    assert!(g1.stop_entities.contains(&transfer_eid));
-    assert!(g1.stop_entities.contains(&top_eid));
+    assert!(!g1.stop_entities().contains(&ground_eid));
+    assert!(g1.stop_entities().contains(&transfer_eid));
+    assert!(g1.stop_entities().contains(&top_eid));
 }
 
 #[test]
@@ -292,12 +292,12 @@ fn legacy_config_auto_creates_single_group_with_all_elevators() {
     );
 
     let group = &sim.groups()[0];
-    assert_eq!(group.id, GroupId(0));
-    assert_eq!(group.lines.len(), 1, "should have 1 default line");
-    assert_eq!(group.elevator_entities.len(), 1, "should have 1 elevator");
+    assert_eq!(group.id(), GroupId(0));
+    assert_eq!(group.lines().len(), 1, "should have 1 default line");
+    assert_eq!(group.elevator_entities().len(), 1, "should have 1 elevator");
 
     // All 3 stops should be in the single group.
-    assert_eq!(group.stop_entities.len(), 3);
+    assert_eq!(group.stop_entities().len(), 3);
 }
 
 #[test]
@@ -442,15 +442,15 @@ fn rider_only_boards_elevator_from_matching_group() {
     let g0_elev = sim
         .groups()
         .iter()
-        .find(|g| g.id == GroupId(0))
+        .find(|g| g.id() == GroupId(0))
         .unwrap()
-        .elevator_entities[0];
+        .elevator_entities()[0];
     let g1_elev = sim
         .groups()
         .iter()
-        .find(|g| g.id == GroupId(1))
+        .find(|g| g.id() == GroupId(1))
         .unwrap()
-        .elevator_entities[0];
+        .elevator_entities()[0];
 
     // Step until the rider boards or we time out.
     let mut boarding_elevator = None;
@@ -639,15 +639,10 @@ fn add_group_and_add_line_reflect_in_query_apis() {
     assert_eq!(sim.groups().len(), 2);
 
     // Add a line to the new group.
-    let line_eid = sim
-        .add_line(
-            "Express Shaft".into(),
-            new_group_id,
-            Orientation::Vertical,
-            0.0,
-            10.0,
-        )
-        .unwrap();
+    let mut line_params = crate::sim::LineParams::new("Express Shaft", new_group_id);
+    line_params.orientation = Orientation::Vertical;
+    line_params.max_position = 10.0;
+    let line_eid = sim.add_line(&line_params).unwrap();
 
     // Query APIs should reflect the new line.
     let lines = sim.lines_in_group(new_group_id);
@@ -729,23 +724,23 @@ fn assign_line_to_group_updates_stop_entities_cache() {
     let top = sim.stop_entity(StopId(2)).unwrap();
 
     // Before: Group 0 has Ground, Group 1 has Top.
-    let g0 = sim.groups().iter().find(|g| g.id == GroupId(0)).unwrap();
-    assert!(g0.stop_entities.contains(&ground));
-    assert!(!g0.stop_entities.contains(&top));
+    let g0 = sim.groups().iter().find(|g| g.id() == GroupId(0)).unwrap();
+    assert!(g0.stop_entities().contains(&ground));
+    assert!(!g0.stop_entities().contains(&top));
 
     let low_line = sim.lines_in_group(GroupId(0))[0];
     sim.assign_line_to_group(low_line, GroupId(1)).unwrap();
 
     // After: Group 0 has no stops; Group 1 has all stops.
-    let g0 = sim.groups().iter().find(|g| g.id == GroupId(0)).unwrap();
+    let g0 = sim.groups().iter().find(|g| g.id() == GroupId(0)).unwrap();
     assert!(
-        g0.stop_entities.is_empty(),
+        g0.stop_entities().is_empty(),
         "Group 0 stop cache should be empty"
     );
 
-    let g1 = sim.groups().iter().find(|g| g.id == GroupId(1)).unwrap();
-    assert!(g1.stop_entities.contains(&ground));
-    assert!(g1.stop_entities.contains(&top));
+    let g1 = sim.groups().iter().find(|g| g.id() == GroupId(1)).unwrap();
+    assert!(g1.stop_entities().contains(&ground));
+    assert!(g1.stop_entities().contains(&top));
 }
 
 #[test]
@@ -844,10 +839,10 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    // Add a disconnected runtime stop (not in any line's serves list).
-    let disconnected = sim.add_stop("Stranded".into(), 50.0, GroupId(0)).unwrap();
-    // Remove it from the group's stop_entities by updating the line.
-    // Actually, add_stop adds it to the group but not to any line.
+    // Add a runtime stop to a line, then remove it so it's disconnected.
+    let line = sim.lines_in_group(GroupId(0))[0];
+    let disconnected = sim.add_stop("Stranded".into(), 50.0, line).unwrap();
+    sim.remove_stop_from_line(disconnected, line).unwrap();
     // The topo graph is built from lines, not group.stop_entities.
     // So this stop has no adjacency edges and should reach nothing.
     let reachable = sim.reachable_stops_from(disconnected);
@@ -1259,18 +1254,14 @@ fn add_stop_to_line_appears_in_serves_and_group_cache() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    // Add a runtime stop not in any line yet.
-    let new_stop = sim.add_stop("Rooftop".into(), 15.0, GroupId(0)).unwrap();
     let line_eid = sim.lines_in_group(GroupId(0))[0];
 
-    // Confirm not yet served by the line.
-    assert!(!sim.stops_served_by_line(line_eid).contains(&new_stop));
-
-    sim.add_stop_to_line(new_stop, line_eid).unwrap();
+    // add_stop now adds directly to the line's serves list.
+    let new_stop = sim.add_stop("Rooftop".into(), 15.0, line_eid).unwrap();
 
     assert!(
         sim.stops_served_by_line(line_eid).contains(&new_stop),
-        "stop should be in line's serves after add_stop_to_line"
+        "stop should be in line's serves after add_stop"
     );
 }
 
@@ -1296,7 +1287,7 @@ fn remove_stop_from_line_removes_from_serves_and_updates_group_cache() {
     // Group cache should also no longer include s2.
     let group = &sim.groups()[0];
     assert!(
-        !group.stop_entities.contains(&s2),
+        !group.stop_entities().contains(&s2),
         "group stop cache should not contain removed stop"
     );
 }

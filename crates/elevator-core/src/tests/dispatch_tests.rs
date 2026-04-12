@@ -39,13 +39,16 @@ fn test_group(
     stop_entities: &[crate::entity::EntityId],
     elevator_entities: Vec<crate::entity::EntityId>,
 ) -> ElevatorGroup {
-    ElevatorGroup {
-        id: GroupId(0),
-        name: "Default".into(),
-        lines: vec![],
-        elevator_entities,
-        stop_entities: stop_entities.to_vec(),
-    }
+    use crate::dispatch::LineInfo;
+    ElevatorGroup::new(
+        GroupId(0),
+        "Default".into(),
+        vec![LineInfo::new(
+            crate::entity::EntityId::default(),
+            elevator_entities,
+            stop_entities.to_vec(),
+        )],
+    )
 }
 
 fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {

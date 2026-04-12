@@ -143,6 +143,8 @@ pub enum Event {
     StopAdded {
         /// The new stop entity.
         stop: EntityId,
+        /// The line the stop was added to.
+        line: EntityId,
         /// The group the stop was added to.
         group: GroupId,
         /// The tick when the stop was added.
@@ -152,6 +154,8 @@ pub enum Event {
     ElevatorAdded {
         /// The new elevator entity.
         elevator: EntityId,
+        /// The line the elevator was added to.
+        line: EntityId,
         /// The group the elevator was added to.
         group: GroupId,
         /// The tick when the elevator was added.

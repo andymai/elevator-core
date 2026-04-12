@@ -1,7 +1,8 @@
 //! Top-level simulation runner and tick loop.
 
 use crate::components::{
-    Elevator, ElevatorPhase, Line, Orientation, Position, Rider, RiderPhase, Route, Stop, Velocity,
+    Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Position, Rider, RiderPhase, Route,
+    Stop, Velocity,
 };
 use crate::config::SimConfig;
 use crate::dispatch::{BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo};
@@ -19,6 +20,7 @@ use crate::topology::TopologyGraph;
 use crate::world::World;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
+use std::sync::Mutex;
 
 /// Parameters for creating a new elevator at runtime.
 #[derive(Debug, Clone)]
@@ -46,6 +48,41 @@ impl Default for ElevatorParams {
             weight_capacity: 800.0,
             door_transition_ticks: 5,
             door_open_ticks: 10,
+        }
+    }
+}
+
+/// Parameters for creating a new line at runtime.
+#[derive(Debug, Clone)]
+pub struct LineParams {
+    /// Human-readable name.
+    pub name: String,
+    /// Dispatch group to add this line to.
+    pub group: GroupId,
+    /// Physical orientation.
+    pub orientation: Orientation,
+    /// Lowest reachable position on the line axis.
+    pub min_position: f64,
+    /// Highest reachable position on the line axis.
+    pub max_position: f64,
+    /// Optional floor-plan position.
+    pub position: Option<FloorPosition>,
+    /// Maximum cars on this line (None = unlimited).
+    pub max_cars: Option<usize>,
+}
+
+impl LineParams {
+    /// Create line parameters with the given name and group, defaulting
+    /// everything else.
+    pub fn new(name: impl Into<String>, group: GroupId) -> Self {
+        Self {
+            name: name.into(),
+            group,
+            orientation: Orientation::default(),
+            min_position: 0.0,
+            max_position: 0.0,
+            position: None,
+            max_cars: None,
         }
     }
 }
@@ -86,7 +123,7 @@ pub struct Simulation {
     /// Reusable buffer for elevator IDs (avoids per-tick allocation).
     elevator_ids_buf: Vec<EntityId>,
     /// Lazy-rebuilt connectivity graph for cross-line topology queries.
-    topo_graph: TopologyGraph,
+    topo_graph: Mutex<TopologyGraph>,
 }
 
 impl Simulation {
@@ -164,9 +201,9 @@ impl Simulation {
         let line_tag_info: Vec<(EntityId, String, Vec<EntityId>)> = groups
             .iter()
             .flat_map(|group| {
-                group.lines.iter().filter_map(|li| {
-                    let line_comp = world.line(li.entity)?;
-                    Some((li.entity, line_comp.name.clone(), li.elevators.clone()))
+                group.lines().iter().filter_map(|li| {
+                    let line_comp = world.line(li.entity())?;
+                    Some((li.entity(), line_comp.name.clone(), li.elevators().to_vec()))
                 })
             })
             .collect();
@@ -196,7 +233,7 @@ impl Simulation {
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
             elevator_ids_buf: Vec::new(),
-            topo_graph: TopologyGraph::new(),
+            topo_graph: Mutex::new(TopologyGraph::new()),
         })
     }
 
@@ -260,19 +297,10 @@ impl Simulation {
             elevator_entities.push(eid);
         }
 
-        let default_line_info = LineInfo {
-            entity: default_line_eid,
-            elevators: elevator_entities.clone(),
-            serves: all_stop_entities.clone(),
-        };
+        let default_line_info =
+            LineInfo::new(default_line_eid, elevator_entities, all_stop_entities);
 
-        let group = ElevatorGroup {
-            id: GroupId(0),
-            name: "Default".into(),
-            lines: vec![default_line_info],
-            elevator_entities,
-            stop_entities: all_stop_entities,
-        };
+        let group = ElevatorGroup::new(GroupId(0), "Default".into(), vec![default_line_info]);
 
         // Use builder-provided dispatcher or default Scan.
         let mut dispatchers = BTreeMap::new();
@@ -378,11 +406,7 @@ impl Simulation {
                 elevator_entities.push(eid);
             }
 
-            let line_info = LineInfo {
-                entity: line_eid,
-                elevators: elevator_entities,
-                serves: served_entities,
-            };
+            let line_info = LineInfo::new(line_eid, elevator_entities, served_entities);
             line_map.insert(lc.id, (line_eid, line_info));
         }
 
@@ -397,8 +421,6 @@ impl Simulation {
                 let group_id = GroupId(gc.id);
 
                 let mut group_lines = Vec::new();
-                let mut all_elevators = Vec::new();
-                let mut all_stops = HashSet::new();
 
                 for &lid in &gc.lines {
                     if let Some((line_eid, li)) = line_map.get(&lid) {
@@ -407,18 +429,10 @@ impl Simulation {
                             line_comp.group = group_id;
                         }
                         group_lines.push(li.clone());
-                        all_elevators.extend_from_slice(&li.elevators);
-                        all_stops.extend(li.serves.iter().copied());
                     }
                 }
 
-                let group = ElevatorGroup {
-                    id: group_id,
-                    name: gc.name.clone(),
-                    lines: group_lines,
-                    elevator_entities: all_elevators,
-                    stop_entities: all_stops.into_iter().collect(),
-                };
+                let group = ElevatorGroup::new(group_id, gc.name.clone(), group_lines);
                 groups.push(group);
 
                 // GroupConfig strategy; builder overrides applied after this loop.
@@ -433,25 +447,15 @@ impl Simulation {
             // No explicit groups — create a single default group with all lines.
             let group_id = GroupId(0);
             let mut group_lines = Vec::new();
-            let mut all_elevators = Vec::new();
-            let mut all_stops = HashSet::new();
 
             for (line_eid, li) in line_map.values() {
                 if let Some(line_comp) = world.line_mut(*line_eid) {
                     line_comp.group = group_id;
                 }
                 group_lines.push(li.clone());
-                all_elevators.extend_from_slice(&li.elevators);
-                all_stops.extend(li.serves.iter().copied());
             }
 
-            let group = ElevatorGroup {
-                id: group_id,
-                name: "Default".into(),
-                lines: group_lines,
-                elevator_entities: all_elevators,
-                stop_entities: all_stops.into_iter().collect(),
-            };
+            let group = ElevatorGroup::new(group_id, "Default".into(), group_lines);
             groups.push(group);
 
             let dispatch: Box<dyn DispatchStrategy> =
@@ -495,7 +499,7 @@ impl Simulation {
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
             elevator_ids_buf: Vec::new(),
-            topo_graph: TopologyGraph::new(),
+            topo_graph: Mutex::new(TopologyGraph::new()),
         }
     }
 
@@ -830,8 +834,10 @@ impl Simulation {
         let matching: Vec<GroupId> = self
             .groups
             .iter()
-            .filter(|g| g.stop_entities.contains(&origin) && g.stop_entities.contains(&destination))
-            .map(|g| g.id)
+            .filter(|g| {
+                g.stop_entities().contains(&origin) && g.stop_entities().contains(&destination)
+            })
+            .map(ElevatorGroup::id)
             .collect();
 
         let group = match matching.len() {
@@ -968,6 +974,55 @@ impl Simulation {
         self.spawn_rider(origin_eid, dest_eid, weight)
     }
 
+    /// Spawn a rider using a specific group for routing.
+    ///
+    /// Like [`spawn_rider`](Self::spawn_rider) but skips auto-detection —
+    /// uses the given group directly. Useful when the caller already knows
+    /// the group, or to resolve an [`AmbiguousRoute`](crate::error::SimError::AmbiguousRoute).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::GroupNotFound`] if the group does not exist.
+    pub fn spawn_rider_in_group(
+        &mut self,
+        origin: EntityId,
+        destination: EntityId,
+        weight: f64,
+        group: GroupId,
+    ) -> Result<EntityId, SimError> {
+        if !self.groups.iter().any(|g| g.id() == group) {
+            return Err(SimError::GroupNotFound(group));
+        }
+        let route = Route::direct(origin, destination, group);
+        Ok(self.spawn_rider_inner(origin, destination, weight, route))
+    }
+
+    /// Convenience: spawn a rider by config `StopId` in a specific group.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::StopNotFound`] if a stop ID is unknown, or
+    /// [`SimError::GroupNotFound`] if the group does not exist.
+    pub fn spawn_rider_in_group_by_stop_id(
+        &mut self,
+        origin: StopId,
+        destination: StopId,
+        weight: f64,
+        group: GroupId,
+    ) -> Result<EntityId, SimError> {
+        let origin_eid = self
+            .stop_lookup
+            .get(&origin)
+            .copied()
+            .ok_or(SimError::StopNotFound(origin))?;
+        let dest_eid = self
+            .stop_lookup
+            .get(&destination)
+            .copied()
+            .ok_or(SimError::StopNotFound(destination))?;
+        self.spawn_rider_in_group(origin_eid, dest_eid, weight, group)
+    }
+
     /// Drain all pending events from completed ticks.
     ///
     /// Events emitted during `step()` (or per-phase methods) are buffered
@@ -1002,23 +1057,45 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
+    /// Returns [`SimError::LineNotFound`] if the line entity does not exist.
     pub fn add_stop(
         &mut self,
         name: String,
         position: f64,
-        group_id: GroupId,
+        line: EntityId,
     ) -> Result<EntityId, SimError> {
-        let group = self
+        let group_id = self
+            .world
+            .line(line)
+            .map(|l| l.group)
+            .ok_or(SimError::LineNotFound(line))?;
+
+        let (group_idx, line_idx) = self
             .groups
-            .iter_mut()
-            .find(|g| g.id == group_id)
-            .ok_or(SimError::GroupNotFound(group_id))?;
+            .iter()
+            .enumerate()
+            .find_map(|(gi, g)| {
+                if g.id() != group_id {
+                    return None;
+                }
+                g.lines()
+                    .iter()
+                    .position(|li| li.entity() == line)
+                    .map(|li_idx| (gi, li_idx))
+            })
+            .ok_or(SimError::LineNotFound(line))?;
 
         let eid = self.world.spawn();
         self.world.set_stop(eid, Stop { name, position });
         self.world.set_position(eid, Position { value: position });
-        group.stop_entities.push(eid);
+
+        // Add to the line's serves list.
+        self.groups[group_idx].lines_mut()[line_idx]
+            .serves_mut()
+            .push(eid);
+
+        // Add to the group's flat cache.
+        self.groups[group_idx].push_stop(eid);
 
         // Maintain sorted-stops index for O(log n) PassingFloor detection.
         if let Some(sorted) = self.world.resource_mut::<crate::world::SortedStops>() {
@@ -1026,37 +1103,49 @@ impl Simulation {
             sorted.0.insert(idx, (position, eid));
         }
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         self.events.emit(Event::StopAdded {
             stop: eid,
+            line,
             group: group_id,
             tick: self.tick,
         });
         Ok(eid)
     }
 
-    /// Add a new elevator to a group at runtime. Returns its `EntityId`.
+    /// Add a new elevator to a line at runtime. Returns its `EntityId`.
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
+    /// Returns [`SimError::LineNotFound`] if the line entity does not exist.
     pub fn add_elevator(
         &mut self,
         params: &ElevatorParams,
-        group_id: GroupId,
+        line: EntityId,
         starting_position: f64,
     ) -> Result<EntityId, SimError> {
-        let group = self
-            .groups
-            .iter_mut()
-            .find(|g| g.id == group_id)
-            .ok_or(SimError::GroupNotFound(group_id))?;
+        let group_id = self
+            .world
+            .line(line)
+            .map(|l| l.group)
+            .ok_or(SimError::LineNotFound(line))?;
 
-        // Use the first line in the group for the new elevator.
-        let line_entity = group
-            .lines
-            .first()
-            .map_or_else(EntityId::default, |li| li.entity);
+        let (group_idx, line_idx) = self
+            .groups
+            .iter()
+            .enumerate()
+            .find_map(|(gi, g)| {
+                if g.id() != group_id {
+                    return None;
+                }
+                g.lines()
+                    .iter()
+                    .position(|li| li.entity() == line)
+                    .map(|li_idx| (gi, li_idx))
+            })
+            .ok_or(SimError::LineNotFound(line))?;
 
         let eid = self.world.spawn();
         self.world.set_position(
@@ -1080,16 +1169,16 @@ impl Simulation {
                 target_stop: None,
                 door_transition_ticks: params.door_transition_ticks,
                 door_open_ticks: params.door_open_ticks,
-                line: line_entity,
+                line,
             },
         );
-        group.elevator_entities.push(eid);
-        if let Some(li) = group.lines.first_mut() {
-            li.elevators.push(eid);
-        }
+        self.groups[group_idx].lines_mut()[line_idx]
+            .elevators_mut()
+            .push(eid);
+        self.groups[group_idx].push_elevator(eid);
 
         // Tag the elevator with its line's "line:{name}" tag.
-        let line_name = self.world.line(line_entity).map(|l| l.name.clone());
+        let line_name = self.world.line(line).map(|l| l.name.clone());
         if let Some(name) = line_name {
             if let Some(tags) = self
                 .world
@@ -1099,9 +1188,12 @@ impl Simulation {
             }
         }
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         self.events.emit(Event::ElevatorAdded {
             elevator: eid,
+            line,
             group: group_id,
             tick: self.tick,
         });
@@ -1115,41 +1207,33 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
-    pub fn add_line(
-        &mut self,
-        name: String,
-        group_id: GroupId,
-        orientation: Orientation,
-        min_position: f64,
-        max_position: f64,
-    ) -> Result<EntityId, SimError> {
+    pub fn add_line(&mut self, params: &LineParams) -> Result<EntityId, SimError> {
+        let group_id = params.group;
         let group = self
             .groups
             .iter_mut()
-            .find(|g| g.id == group_id)
+            .find(|g| g.id() == group_id)
             .ok_or(SimError::GroupNotFound(group_id))?;
 
-        let line_tag = format!("line:{name}");
+        let line_tag = format!("line:{}", params.name);
 
         let eid = self.world.spawn();
         self.world.set_line(
             eid,
             Line {
-                name,
+                name: params.name.clone(),
                 group: group_id,
-                orientation,
-                position: None,
-                min_position,
-                max_position,
-                max_cars: None,
+                orientation: params.orientation,
+                position: params.position,
+                min_position: params.min_position,
+                max_position: params.max_position,
+                max_cars: params.max_cars,
             },
         );
 
-        group.lines.push(LineInfo {
-            entity: eid,
-            elevators: Vec::new(),
-            serves: Vec::new(),
-        });
+        group
+            .lines_mut()
+            .push(LineInfo::new(eid, Vec::new(), Vec::new()));
 
         // Tag the line entity with "line:{name}" for per-line metrics.
         if let Some(tags) = self
@@ -1159,7 +1243,9 @@ impl Simulation {
             tags.tag(eid, line_tag);
         }
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         self.events.emit(Event::LineAdded {
             line: eid,
             group: group_id,
@@ -1184,17 +1270,19 @@ impl Simulation {
             .iter()
             .enumerate()
             .find_map(|(gi, g)| {
-                g.lines
+                g.lines()
                     .iter()
-                    .position(|li| li.entity == line)
+                    .position(|li| li.entity() == line)
                     .map(|li_idx| (gi, li_idx))
             })
             .ok_or(SimError::LineNotFound(line))?;
 
-        let group_id = self.groups[group_idx].id;
+        let group_id = self.groups[group_idx].id();
 
         // Collect elevator entities to disable.
-        let elevator_ids: Vec<EntityId> = self.groups[group_idx].lines[line_idx].elevators.clone();
+        let elevator_ids: Vec<EntityId> = self.groups[group_idx].lines()[line_idx]
+            .elevators()
+            .to_vec();
 
         // Disable each elevator (ejects riders properly).
         for eid in &elevator_ids {
@@ -1203,15 +1291,17 @@ impl Simulation {
         }
 
         // Remove the LineInfo from the group.
-        self.groups[group_idx].lines.remove(line_idx);
+        self.groups[group_idx].lines_mut().remove(line_idx);
 
         // Rebuild flat caches.
-        Self::rebuild_group_caches(&mut self.groups[group_idx]);
+        self.groups[group_idx].rebuild_caches();
 
         // Remove Line component from world.
         self.world.remove_line(line);
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         self.events.emit(Event::LineRemoved {
             line,
             group: group_id,
@@ -1225,21 +1315,18 @@ impl Simulation {
         let next_id = self
             .groups
             .iter()
-            .map(|g| g.id.0)
+            .map(|g| g.id().0)
             .max()
             .map_or(0, |m| m + 1);
         let group_id = GroupId(next_id);
 
-        self.groups.push(ElevatorGroup {
-            id: group_id,
-            name,
-            lines: Vec::new(),
-            elevator_entities: Vec::new(),
-            stop_entities: Vec::new(),
-        });
+        self.groups
+            .push(ElevatorGroup::new(group_id, name, Vec::new()));
 
         self.dispatchers.insert(group_id, dispatch);
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         group_id
     }
 
@@ -1260,23 +1347,23 @@ impl Simulation {
             .iter()
             .enumerate()
             .find_map(|(gi, g)| {
-                g.lines
+                g.lines()
                     .iter()
-                    .position(|li| li.entity == line)
+                    .position(|li| li.entity() == line)
                     .map(|li_idx| (gi, li_idx))
             })
             .ok_or(SimError::LineNotFound(line))?;
 
         // Verify new group exists.
-        if !self.groups.iter().any(|g| g.id == new_group) {
+        if !self.groups.iter().any(|g| g.id() == new_group) {
             return Err(SimError::GroupNotFound(new_group));
         }
 
-        let old_group_id = self.groups[old_group_idx].id;
+        let old_group_id = self.groups[old_group_idx].id();
 
         // Remove LineInfo from old group.
-        let line_info = self.groups[old_group_idx].lines.remove(line_idx);
-        Self::rebuild_group_caches(&mut self.groups[old_group_idx]);
+        let line_info = self.groups[old_group_idx].lines_mut().remove(line_idx);
+        self.groups[old_group_idx].rebuild_caches();
 
         // Add LineInfo to new group.
         // Re-lookup new_group_idx since removal may have shifted indices
@@ -1285,17 +1372,19 @@ impl Simulation {
         let new_group_idx = self
             .groups
             .iter()
-            .position(|g| g.id == new_group)
+            .position(|g| g.id() == new_group)
             .ok_or(SimError::GroupNotFound(new_group))?;
-        self.groups[new_group_idx].lines.push(line_info);
-        Self::rebuild_group_caches(&mut self.groups[new_group_idx]);
+        self.groups[new_group_idx].lines_mut().push(line_info);
+        self.groups[new_group_idx].rebuild_caches();
 
         // Update Line component's group field.
         if let Some(line_comp) = self.world.line_mut(line) {
             line_comp.group = new_group;
         }
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         self.events.emit(Event::LineReassigned {
             line,
             old_group: old_group_id,
@@ -1324,24 +1413,23 @@ impl Simulation {
             .iter()
             .enumerate()
             .find_map(|(gi, g)| {
-                g.lines
+                g.lines()
                     .iter()
-                    .position(|li| li.entity == line)
+                    .position(|li| li.entity() == line)
                     .map(|li_idx| (gi, li_idx))
             })
             .ok_or(SimError::LineNotFound(line))?;
 
-        let li = &mut self.groups[group_idx].lines[line_idx];
-        if !li.serves.contains(&stop) {
-            li.serves.push(stop);
+        let li = &mut self.groups[group_idx].lines_mut()[line_idx];
+        if !li.serves().contains(&stop) {
+            li.serves_mut().push(stop);
         }
 
-        let group = &mut self.groups[group_idx];
-        if !group.stop_entities.contains(&stop) {
-            group.stop_entities.push(stop);
-        }
+        self.groups[group_idx].push_stop(stop);
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         Ok(())
     }
 
@@ -1361,33 +1449,52 @@ impl Simulation {
             .iter()
             .enumerate()
             .find_map(|(gi, g)| {
-                g.lines
+                g.lines()
                     .iter()
-                    .position(|li| li.entity == line)
+                    .position(|li| li.entity() == line)
                     .map(|li_idx| (gi, li_idx))
             })
             .ok_or(SimError::LineNotFound(line))?;
 
-        self.groups[group_idx].lines[line_idx]
-            .serves
+        self.groups[group_idx].lines_mut()[line_idx]
+            .serves_mut()
             .retain(|&s| s != stop);
 
         // Rebuild group's stop_entities from all lines.
-        Self::rebuild_group_caches(&mut self.groups[group_idx]);
+        self.groups[group_idx].rebuild_caches();
 
-        self.topo_graph.mark_dirty();
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         Ok(())
     }
 
     // ── Line / group queries ────────────────────────────────────────
+
+    /// Get all line entities across all groups.
+    #[must_use]
+    pub fn all_lines(&self) -> Vec<EntityId> {
+        self.groups
+            .iter()
+            .flat_map(|g| g.lines().iter().map(LineInfo::entity))
+            .collect()
+    }
+
+    /// Number of lines in the simulation.
+    #[must_use]
+    pub fn line_count(&self) -> usize {
+        self.groups.iter().map(|g| g.lines().len()).sum()
+    }
 
     /// Get all line entities in a group.
     #[must_use]
     pub fn lines_in_group(&self, group: GroupId) -> Vec<EntityId> {
         self.groups
             .iter()
-            .find(|g| g.id == group)
-            .map_or_else(Vec::new, |g| g.lines.iter().map(|li| li.entity).collect())
+            .find(|g| g.id() == group)
+            .map_or_else(Vec::new, |g| {
+                g.lines().iter().map(LineInfo::entity).collect()
+            })
     }
 
     /// Get elevator entities on a specific line.
@@ -1395,9 +1502,9 @@ impl Simulation {
     pub fn elevators_on_line(&self, line: EntityId) -> Vec<EntityId> {
         self.groups
             .iter()
-            .flat_map(|g| &g.lines)
-            .find(|li| li.entity == line)
-            .map_or_else(Vec::new, |li| li.elevators.clone())
+            .flat_map(ElevatorGroup::lines)
+            .find(|li| li.entity() == line)
+            .map_or_else(Vec::new, |li| li.elevators().to_vec())
     }
 
     /// Get stop entities served by a specific line.
@@ -1405,9 +1512,9 @@ impl Simulation {
     pub fn stops_served_by_line(&self, line: EntityId) -> Vec<EntityId> {
         self.groups
             .iter()
-            .flat_map(|g| &g.lines)
-            .find(|li| li.entity == line)
-            .map_or_else(Vec::new, |li| li.serves.clone())
+            .flat_map(ElevatorGroup::lines)
+            .find(|li| li.entity() == line)
+            .map_or_else(Vec::new, |li| li.serves().to_vec())
     }
 
     /// Get the line entity for an elevator.
@@ -1415,9 +1522,9 @@ impl Simulation {
     pub fn line_for_elevator(&self, elevator: EntityId) -> Option<EntityId> {
         self.groups
             .iter()
-            .flat_map(|g| &g.lines)
-            .find(|li| li.elevators.contains(&elevator))
-            .map(|li| li.entity)
+            .flat_map(ElevatorGroup::lines)
+            .find(|li| li.elevators().contains(&elevator))
+            .map(LineInfo::entity)
     }
 
     /// Get all line entities that serve a given stop.
@@ -1425,9 +1532,9 @@ impl Simulation {
     pub fn lines_serving_stop(&self, stop: EntityId) -> Vec<EntityId> {
         self.groups
             .iter()
-            .flat_map(|g| &g.lines)
-            .filter(|li| li.serves.contains(&stop))
-            .map(|li| li.entity)
+            .flat_map(ElevatorGroup::lines)
+            .filter(|li| li.serves().contains(&stop))
+            .map(LineInfo::entity)
             .collect()
     }
 
@@ -1436,55 +1543,43 @@ impl Simulation {
     pub fn groups_serving_stop(&self, stop: EntityId) -> Vec<GroupId> {
         self.groups
             .iter()
-            .filter(|g| g.stop_entities.contains(&stop))
-            .map(|g| g.id)
+            .filter(|g| g.stop_entities().contains(&stop))
+            .map(ElevatorGroup::id)
             .collect()
     }
 
     // ── Topology queries ─────────────────────────────────────────────
 
     /// Rebuild the topology graph if any mutation has invalidated it.
-    fn ensure_graph_built(&mut self) {
-        if self.topo_graph.is_dirty() {
-            self.topo_graph.rebuild(&self.groups);
+    fn ensure_graph_built(&self) {
+        if let Ok(mut graph) = self.topo_graph.lock() {
+            if graph.is_dirty() {
+                graph.rebuild(&self.groups);
+            }
         }
     }
 
     /// All stops reachable from a given stop through the line/group topology.
-    pub fn reachable_stops_from(&mut self, stop: EntityId) -> Vec<EntityId> {
+    pub fn reachable_stops_from(&self, stop: EntityId) -> Vec<EntityId> {
         self.ensure_graph_built();
-        self.topo_graph.reachable_stops_from(stop)
+        self.topo_graph
+            .lock()
+            .map_or_else(|_| Vec::new(), |g| g.reachable_stops_from(stop))
     }
 
     /// Stops that serve as transfer points between groups.
-    pub fn transfer_points(&mut self) -> Vec<EntityId> {
+    pub fn transfer_points(&self) -> Vec<EntityId> {
         self.ensure_graph_built();
         TopologyGraph::transfer_points(&self.groups)
     }
 
     /// Find the shortest route between two stops, possibly spanning multiple groups.
-    pub fn shortest_route(&mut self, from: EntityId, to: EntityId) -> Option<Route> {
+    pub fn shortest_route(&self, from: EntityId, to: EntityId) -> Option<Route> {
         self.ensure_graph_built();
-        self.topo_graph.shortest_route(from, to)
-    }
-
-    // ── Private helpers ─────────────────────────────────────────────
-
-    /// Rebuild a group's flat `elevator_entities` and `stop_entities` from its lines.
-    fn rebuild_group_caches(group: &mut ElevatorGroup) {
-        group.elevator_entities = group
-            .lines
-            .iter()
-            .flat_map(|li| li.elevators.iter().copied())
-            .collect();
-        let mut stops: Vec<EntityId> = group
-            .lines
-            .iter()
-            .flat_map(|li| li.serves.iter().copied())
-            .collect();
-        stops.sort_unstable();
-        stops.dedup();
-        group.stop_entities = stops;
+        self.topo_graph
+            .lock()
+            .ok()
+            .and_then(|g| g.shortest_route(from, to))
     }
 
     // ── Extension restore ────────────────────────────────────────────
@@ -1680,8 +1775,8 @@ impl Simulation {
         let group_stops: Vec<EntityId> = self
             .groups
             .iter()
-            .filter(|g| g.stop_entities.contains(&disabled_stop))
-            .flat_map(|g| g.stop_entities.iter().copied())
+            .filter(|g| g.stop_entities().contains(&disabled_stop))
+            .flat_map(|g| g.stop_entities().iter().copied())
             .filter(|&s| s != disabled_stop && !self.world.is_disabled(s))
             .collect();
 
@@ -1803,13 +1898,13 @@ impl Simulation {
             .run_before(Phase::AdvanceTransient, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::AdvanceTransient, group.id, &mut self.world);
+                .run_before_group(Phase::AdvanceTransient, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::AdvanceTransient, group.id, &mut self.world);
+                .run_after_group(Phase::AdvanceTransient, group.id(), &mut self.world);
         }
         self.hooks
             .run_after(Phase::AdvanceTransient, &mut self.world);
@@ -1820,7 +1915,7 @@ impl Simulation {
         self.hooks.run_before(Phase::Dispatch, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::Dispatch, group.id, &mut self.world);
+                .run_before_group(Phase::Dispatch, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         crate::systems::dispatch::run(
@@ -1832,7 +1927,7 @@ impl Simulation {
         );
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::Dispatch, group.id, &mut self.world);
+                .run_after_group(Phase::Dispatch, group.id(), &mut self.world);
         }
         self.hooks.run_after(Phase::Dispatch, &mut self.world);
     }
@@ -1842,7 +1937,7 @@ impl Simulation {
         self.hooks.run_before(Phase::Movement, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::Movement, group.id, &mut self.world);
+                .run_before_group(Phase::Movement, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
@@ -1854,7 +1949,7 @@ impl Simulation {
         );
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::Movement, group.id, &mut self.world);
+                .run_after_group(Phase::Movement, group.id(), &mut self.world);
         }
         self.hooks.run_after(Phase::Movement, &mut self.world);
     }
@@ -1864,7 +1959,7 @@ impl Simulation {
         self.hooks.run_before(Phase::Doors, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::Doors, group.id, &mut self.world);
+                .run_before_group(Phase::Doors, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
@@ -1876,7 +1971,7 @@ impl Simulation {
         );
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::Doors, group.id, &mut self.world);
+                .run_after_group(Phase::Doors, group.id(), &mut self.world);
         }
         self.hooks.run_after(Phase::Doors, &mut self.world);
     }
@@ -1886,7 +1981,7 @@ impl Simulation {
         self.hooks.run_before(Phase::Loading, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::Loading, group.id, &mut self.world);
+                .run_before_group(Phase::Loading, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
@@ -1898,7 +1993,7 @@ impl Simulation {
         );
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::Loading, group.id, &mut self.world);
+                .run_after_group(Phase::Loading, group.id(), &mut self.world);
         }
         self.hooks.run_after(Phase::Loading, &mut self.world);
     }
@@ -1908,13 +2003,13 @@ impl Simulation {
         self.hooks.run_before(Phase::Metrics, &mut self.world);
         for group in &self.groups {
             self.hooks
-                .run_before_group(Phase::Metrics, group.id, &mut self.world);
+                .run_before_group(Phase::Metrics, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
         crate::systems::metrics::run(&mut self.world, &self.events, &mut self.metrics, &ctx);
         for group in &self.groups {
             self.hooks
-                .run_after_group(Phase::Metrics, group.id, &mut self.world);
+                .run_after_group(Phase::Metrics, group.id(), &mut self.world);
         }
         self.hooks.run_after(Phase::Metrics, &mut self.world);
     }

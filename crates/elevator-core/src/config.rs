@@ -155,7 +155,7 @@ pub struct PassengerSpawnConfig {
 /// A line represents a shaft, tether, track, or other physical pathway
 /// that one or more elevator cars travel along. Lines belong to a
 /// [`GroupConfig`] for dispatch purposes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LineConfig {
     /// Unique line identifier (within the config).
     pub id: u32,

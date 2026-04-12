@@ -80,8 +80,8 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `add_stop` | `(&mut self, String, f64, GroupId) -> Result<EntityId, SimError>` | Add a new stop to a group at runtime |
-| `add_elevator` | `(&mut self, &ElevatorParams, GroupId, f64) -> Result<EntityId, SimError>` | Add a new elevator to a group at runtime |
+| `add_stop` | `(&mut self, String, f64, EntityId) -> Result<EntityId, SimError>` | Add a new stop to a line at runtime |
+| `add_elevator` | `(&mut self, &ElevatorParams, EntityId, f64) -> Result<EntityId, SimError>` | Add a new elevator to a line at runtime |
 | `disable` | `(&mut self, EntityId) -> Result<(), SimError>` | Disable an entity (skipped by all systems; ejects riders from elevators) |
 | `enable` | `(&mut self, EntityId) -> Result<(), SimError>` | Re-enable a disabled entity |
 | `is_disabled` | `(&self, EntityId) -> bool` | Check if an entity is disabled |

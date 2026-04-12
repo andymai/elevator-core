@@ -63,15 +63,15 @@ impl TopologyGraph {
         self.adjacency.clear();
 
         for group in groups {
-            for line_info in &group.lines {
+            for line_info in group.lines() {
                 // Every pair of stops served by a line is connected.
-                for &from in &line_info.serves {
-                    for &to in &line_info.serves {
+                for &from in line_info.serves() {
+                    for &to in line_info.serves() {
                         if from != to {
                             self.adjacency.entry(from).or_default().push(Edge {
                                 to,
-                                group: group.id,
-                                line: line_info.entity,
+                                group: group.id(),
+                                line: line_info.entity(),
                             });
                         }
                     }
@@ -117,7 +117,7 @@ impl TopologyGraph {
     pub fn transfer_points(groups: &[ElevatorGroup]) -> Vec<EntityId> {
         let mut stop_groups: HashMap<EntityId, usize> = HashMap::new();
         for group in groups {
-            for &stop in &group.stop_entities {
+            for &stop in group.stop_entities() {
                 *stop_groups.entry(stop).or_insert(0) += 1;
             }
         }
@@ -220,17 +220,11 @@ mod tests {
         line_entity: EntityId,
         stops: Vec<EntityId>,
     ) -> ElevatorGroup {
-        ElevatorGroup {
-            id: GroupId(group_id),
-            name: format!("Group {group_id}"),
-            lines: vec![LineInfo {
-                entity: line_entity,
-                elevators: Vec::new(),
-                serves: stops.clone(),
-            }],
-            elevator_entities: Vec::new(),
-            stop_entities: stops,
-        }
+        ElevatorGroup::new(
+            GroupId(group_id),
+            format!("Group {group_id}"),
+            vec![LineInfo::new(line_entity, Vec::new(), stops)],
+        )
     }
 
     #[test]

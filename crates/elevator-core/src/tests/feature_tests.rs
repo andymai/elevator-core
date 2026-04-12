@@ -360,7 +360,8 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         door_transition_ticks: 5,
         door_open_ticks: 10,
     };
-    let elev2 = sim.add_elevator(&params, GroupId(0), 0.0).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+    let elev2 = sim.add_elevator(&params, line, 0.0).unwrap();
     sim.drain_events();
 
     let elev1 = sim.world().elevator_ids()[0];

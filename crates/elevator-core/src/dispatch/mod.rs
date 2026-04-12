@@ -139,11 +139,51 @@ pub enum DispatchDecision {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineInfo {
     /// Line entity ID.
-    pub entity: EntityId,
+    entity: EntityId,
     /// Elevator entities on this line.
-    pub elevators: Vec<EntityId>,
+    elevators: Vec<EntityId>,
     /// Stop entities served by this line.
-    pub serves: Vec<EntityId>,
+    serves: Vec<EntityId>,
+}
+
+impl LineInfo {
+    /// Create a new `LineInfo`.
+    #[must_use]
+    pub const fn new(entity: EntityId, elevators: Vec<EntityId>, serves: Vec<EntityId>) -> Self {
+        Self {
+            entity,
+            elevators,
+            serves,
+        }
+    }
+
+    /// Line entity ID.
+    #[must_use]
+    pub const fn entity(&self) -> EntityId {
+        self.entity
+    }
+
+    /// Elevator entities on this line.
+    #[must_use]
+    pub fn elevators(&self) -> &[EntityId] {
+        &self.elevators
+    }
+
+    /// Stop entities served by this line.
+    #[must_use]
+    pub fn serves(&self) -> &[EntityId] {
+        &self.serves
+    }
+
+    /// Mutable access to elevator entities on this line.
+    pub const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
+        &mut self.elevators
+    }
+
+    /// Mutable access to stop entities served by this line.
+    pub const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
+        &mut self.serves
+    }
 }
 
 /// Runtime elevator group: a set of lines sharing a dispatch strategy.
@@ -153,20 +193,107 @@ pub struct LineInfo {
 /// elevators and served stops.
 ///
 /// The flat `elevator_entities` and `stop_entities` fields are derived
-/// caches (union of all lines' elevators/stops) for backwards
-/// compatibility and convenience.
+/// caches (union of all lines' elevators/stops), rebuilt automatically
+/// via [`rebuild_caches()`](Self::rebuild_caches).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElevatorGroup {
     /// Unique group identifier.
-    pub id: GroupId,
+    id: GroupId,
     /// Human-readable group name.
-    pub name: String,
+    name: String,
     /// Lines belonging to this group.
-    pub lines: Vec<LineInfo>,
+    lines: Vec<LineInfo>,
+    /// Derived flat cache — rebuilt by `rebuild_caches()`.
+    elevator_entities: Vec<EntityId>,
+    /// Derived flat cache — rebuilt by `rebuild_caches()`.
+    stop_entities: Vec<EntityId>,
+}
+
+impl ElevatorGroup {
+    /// Create a new group with the given lines. Caches are built automatically.
+    #[must_use]
+    pub fn new(id: GroupId, name: String, lines: Vec<LineInfo>) -> Self {
+        let mut group = Self {
+            id,
+            name,
+            lines,
+            elevator_entities: Vec::new(),
+            stop_entities: Vec::new(),
+        };
+        group.rebuild_caches();
+        group
+    }
+
+    /// Unique group identifier.
+    #[must_use]
+    pub const fn id(&self) -> GroupId {
+        self.id
+    }
+
+    /// Human-readable group name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Lines belonging to this group.
+    #[must_use]
+    pub fn lines(&self) -> &[LineInfo] {
+        &self.lines
+    }
+
+    /// Mutable access to lines (call [`rebuild_caches()`](Self::rebuild_caches) after mutating).
+    pub const fn lines_mut(&mut self) -> &mut Vec<LineInfo> {
+        &mut self.lines
+    }
+
     /// Elevator entities belonging to this group (derived from lines).
-    pub elevator_entities: Vec<EntityId>,
+    #[must_use]
+    pub fn elevator_entities(&self) -> &[EntityId] {
+        &self.elevator_entities
+    }
+
     /// Stop entities served by this group (derived from lines, deduplicated).
-    pub stop_entities: Vec<EntityId>,
+    #[must_use]
+    pub fn stop_entities(&self) -> &[EntityId] {
+        &self.stop_entities
+    }
+
+    /// Push a stop entity directly into the group's stop cache.
+    ///
+    /// Use when a stop belongs to the group for dispatch purposes but is
+    /// not (yet) assigned to any line. Call `add_stop_to_line` later to
+    /// wire it into the topology graph.
+    pub(crate) fn push_stop(&mut self, stop: EntityId) {
+        if !self.stop_entities.contains(&stop) {
+            self.stop_entities.push(stop);
+        }
+    }
+
+    /// Push an elevator entity directly into the group's elevator cache
+    /// (in addition to the line it belongs to).
+    pub(crate) fn push_elevator(&mut self, elevator: EntityId) {
+        if !self.elevator_entities.contains(&elevator) {
+            self.elevator_entities.push(elevator);
+        }
+    }
+
+    /// Rebuild derived caches from lines. Call after mutating lines.
+    pub fn rebuild_caches(&mut self) {
+        self.elevator_entities = self
+            .lines
+            .iter()
+            .flat_map(|li| li.elevators.iter().copied())
+            .collect();
+        let mut stops: Vec<EntityId> = self
+            .lines
+            .iter()
+            .flat_map(|li| li.serves.iter().copied())
+            .collect();
+        stops.sort_unstable();
+        stops.dedup();
+        self.stop_entities = stops;
+    }
 }
 
 /// Pluggable dispatch algorithm.

@@ -155,7 +155,7 @@ pub mod prelude {
     pub use crate::hooks::Phase;
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
-    pub use crate::sim::{ElevatorParams, Simulation};
+    pub use crate::sim::{ElevatorParams, LineParams, Simulation};
     pub use crate::snapshot::WorldSnapshot;
     pub use crate::stop::StopId;
     pub use crate::systems::PhaseContext;
