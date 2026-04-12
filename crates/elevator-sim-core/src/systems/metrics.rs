@@ -25,8 +25,7 @@ pub fn run(world: &World, events: &EventBus, metrics: &mut Metrics, ctx: &PhaseC
                 if let Some(rd) = world.rider_data.get(*rider) {
                     let ride_ticks = rd
                         .board_tick
-                        .map(|bt| tick.saturating_sub(bt))
-                        .unwrap_or(0);
+                        .map_or(0, |bt| tick.saturating_sub(bt));
                     metrics.record_delivery(ride_ticks, *tick);
                 }
             }
@@ -39,7 +38,7 @@ pub fn run(world: &World, events: &EventBus, metrics: &mut Metrics, ctx: &PhaseC
 
     // Track elevator distance.
     let mut total_dist = 0.0;
-    for (eid, _car) in world.elevator_cars.iter() {
+    for (eid, _car) in &world.elevator_cars {
         if let Some(vel) = world.velocities.get(eid) {
             total_dist += vel.value.abs() * ctx.dt;
         }

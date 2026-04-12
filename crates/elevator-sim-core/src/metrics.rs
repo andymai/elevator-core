@@ -25,9 +25,13 @@ pub struct Metrics {
     pub total_distance: f64,
 
     // -- Internal accumulators --
+    /// Running sum of wait ticks across all boarded riders.
     sum_wait_ticks: u64,
+    /// Running sum of ride ticks across all delivered riders.
     sum_ride_ticks: u64,
+    /// Number of riders that have boarded.
     boarded_count: u64,
+    /// Number of riders that have been delivered.
     delivered_count: u64,
     /// Sliding window for throughput: (tick, count) of recent deliveries.
     delivery_window: Vec<u64>,
@@ -36,24 +40,28 @@ pub struct Metrics {
 }
 
 impl Metrics {
+    /// Create a new `Metrics` with default throughput window (3600 ticks).
     pub fn new() -> Self {
-        Metrics {
+        Self {
             throughput_window_ticks: 3600, // default: 1 minute at 60 tps
             ..Default::default()
         }
     }
 
-    pub fn with_throughput_window(mut self, window_ticks: u64) -> Self {
+    /// Set the throughput window size (builder pattern).
+    #[must_use]
+    pub const fn with_throughput_window(mut self, window_ticks: u64) -> Self {
         self.throughput_window_ticks = window_ticks;
         self
     }
 
     /// Record a rider spawning.
-    pub fn record_spawn(&mut self) {
+    pub const fn record_spawn(&mut self) {
         self.total_spawned += 1;
     }
 
-    /// Record a rider boarding. `wait_ticks` = tick_boarded - tick_spawned.
+    /// Record a rider boarding. `wait_ticks` = `tick_boarded` - `tick_spawned`.
+    #[allow(clippy::cast_precision_loss)]
     pub fn record_board(&mut self, wait_ticks: u64) {
         self.boarded_count += 1;
         self.sum_wait_ticks += wait_ticks;
@@ -63,7 +71,8 @@ impl Metrics {
         }
     }
 
-    /// Record a rider alighting. `ride_ticks` = tick_alighted - tick_boarded.
+    /// Record a rider alighting. `ride_ticks` = `tick_alighted` - `tick_boarded`.
+    #[allow(clippy::cast_precision_loss)]
     pub fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
         self.delivered_count += 1;
         self.total_delivered += 1;
@@ -73,6 +82,7 @@ impl Metrics {
     }
 
     /// Record a rider abandoning.
+    #[allow(clippy::cast_precision_loss)]
     pub fn record_abandonment(&mut self) {
         self.total_abandoned += 1;
         if self.total_spawned > 0 {
@@ -86,6 +96,7 @@ impl Metrics {
     }
 
     /// Update windowed throughput. Call once per tick.
+    #[allow(clippy::cast_possible_truncation)]
     pub fn update_throughput(&mut self, current_tick: u64) {
         let cutoff = current_tick.saturating_sub(self.throughput_window_ticks);
         self.delivery_window.retain(|&t| t > cutoff);

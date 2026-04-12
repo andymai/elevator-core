@@ -1,3 +1,5 @@
+//! HUD overlay displaying simulation statistics and elevator status.
+
 use bevy::prelude::*;
 use elevator_sim_core::components::{ElevatorState, RiderState};
 
@@ -42,6 +44,7 @@ pub fn spawn_hud(mut commands: Commands) {
 }
 
 /// Update the HUD each frame with detailed stats.
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 pub fn update_hud(
     sim: Res<SimulationRes>,
     speed: Res<SimSpeed>,
@@ -66,8 +69,7 @@ pub fn update_hud(
             let name = w
                 .stop_data
                 .get(stop_eid)
-                .map(|s| s.name.as_str())
-                .unwrap_or("?");
+                .map_or("?", |s| s.name.as_str());
             format!("Moving -> {name}")
         }
         ElevatorState::DoorOpening => "Doors opening".to_string(),
@@ -79,10 +81,10 @@ pub fn update_hud(
     let velocity = w
         .velocities
         .get(elev_eid)
-        .map(|v| v.value.abs())
-        .unwrap_or(0.0);
-    let speed_display = format!("{:.1}", velocity);
+        .map_or(0.0, |v| v.value.abs());
+    let speed_display = format!("{velocity:.1}");
 
+    #[allow(clippy::option_if_let_else)]
     let eta_str = if let ElevatorState::MovingToStop(stop_eid) = car.state {
         if let Some(target_pos) = w.stop_position(stop_eid) {
             let dist = (target_pos - elev_pos.value).abs();
@@ -95,7 +97,7 @@ pub fn update_hud(
                         eta_secs % 60.0
                     )
                 } else {
-                    format!("{:.1}s", eta_secs)
+                    format!("{eta_secs:.1}s")
                 }
             } else {
                 "calculating...".to_string()
@@ -173,6 +175,6 @@ Delivered: {delivered}",
     );
 
     for mut t in &mut query {
-        **t = text.clone();
+        (**t).clone_from(&text);
     }
 }

@@ -1,8 +1,11 @@
 /// Result of one tick of movement physics.
 #[derive(Debug, Clone, Copy)]
 pub struct MovementResult {
+    /// Current position after this tick.
     pub position: f64,
+    /// Current velocity after this tick.
     pub velocity: f64,
+    /// Whether the elevator has arrived at the target.
     pub arrived: bool,
 }
 
@@ -44,7 +47,7 @@ pub fn tick_movement(
 
     let new_velocity = if stopping_distance >= distance_remaining - EPSILON {
         // Decelerate
-        let v = velocity - deceleration * dt * velocity.signum();
+        let v = (-deceleration * dt).mul_add(velocity.signum(), velocity);
         // Clamp to zero if sign would flip.
         if velocity > 0.0 && v < 0.0 || velocity < 0.0 && v > 0.0 {
             0.0
@@ -53,7 +56,7 @@ pub fn tick_movement(
         }
     } else if speed < max_speed {
         // Accelerate toward target
-        let v = velocity + acceleration * dt * sign;
+        let v = (acceleration * dt).mul_add(sign, velocity);
         // Clamp magnitude to max_speed
         if v.abs() > max_speed {
             sign * max_speed
@@ -65,11 +68,11 @@ pub fn tick_movement(
         sign * max_speed
     };
 
-    let new_pos = position + new_velocity * dt;
+    let new_pos = new_velocity.mul_add(dt, position);
 
     // Overshoot check: did we cross the target?
     let new_displacement = target_position - new_pos;
-    if new_displacement.abs() < EPSILON || new_displacement.signum() != sign {
+    if new_displacement.abs() < EPSILON || (new_displacement.signum() - sign).abs() > EPSILON {
         return MovementResult {
             position: target_position,
             velocity: 0.0,

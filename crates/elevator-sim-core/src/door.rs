@@ -1,17 +1,27 @@
 /// State machine for elevator doors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DoorState {
+    /// Doors are fully closed.
     Closed,
+    /// Doors are in the process of opening.
     Opening {
+        /// Ticks left in the opening transition.
         ticks_remaining: u32,
+        /// How many ticks the door stays open once fully opened.
         open_duration: u32,
+        /// How many ticks the closing transition takes.
         close_duration: u32,
     },
+    /// Doors are fully open and holding.
     Open {
+        /// Ticks left before the doors begin closing.
         ticks_remaining: u32,
+        /// How many ticks the closing transition takes.
         close_duration: u32,
     },
+    /// Doors are in the process of closing.
     Closing {
+        /// Ticks left in the closing transition.
         ticks_remaining: u32,
     },
 }
@@ -19,24 +29,30 @@ pub enum DoorState {
 /// Transition emitted when the door state changes phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DoorTransition {
+    /// No phase change occurred this tick.
     None,
+    /// Doors just finished opening and are now fully open.
     FinishedOpening,
+    /// Doors just finished holding open and are about to close.
     FinishedOpen,
+    /// Doors just finished closing and are now fully closed.
     FinishedClosing,
 }
 
 impl DoorState {
-    pub fn is_open(&self) -> bool {
-        matches!(self, DoorState::Open { .. })
+    /// Returns `true` if the doors are fully open.
+    pub const fn is_open(&self) -> bool {
+        matches!(self, Self::Open { .. })
     }
 
-    pub fn is_closed(&self) -> bool {
-        matches!(self, DoorState::Closed)
+    /// Returns `true` if the doors are fully closed.
+    pub const fn is_closed(&self) -> bool {
+        matches!(self, Self::Closed)
     }
 
     /// Begin opening the door.
-    pub fn request_open(transition_ticks: u32, open_ticks: u32) -> Self {
-        DoorState::Opening {
+    pub const fn request_open(transition_ticks: u32, open_ticks: u32) -> Self {
+        Self::Opening {
             ticks_remaining: transition_ticks,
             open_duration: open_ticks,
             close_duration: transition_ticks,
@@ -44,10 +60,10 @@ impl DoorState {
     }
 
     /// Advance the door state by one tick. Returns the transition that occurred.
-    pub fn tick(&mut self) -> DoorTransition {
+    pub const fn tick(&mut self) -> DoorTransition {
         match self {
-            DoorState::Closed => DoorTransition::None,
-            DoorState::Opening {
+            Self::Closed => DoorTransition::None,
+            Self::Opening {
                 ticks_remaining,
                 open_duration,
                 close_duration,
@@ -55,7 +71,7 @@ impl DoorState {
                 if *ticks_remaining <= 1 {
                     let od = *open_duration;
                     let cd = *close_duration;
-                    *self = DoorState::Open {
+                    *self = Self::Open {
                         ticks_remaining: od,
                         close_duration: cd,
                     };
@@ -65,13 +81,13 @@ impl DoorState {
                     DoorTransition::None
                 }
             }
-            DoorState::Open {
+            Self::Open {
                 ticks_remaining,
                 close_duration,
             } => {
                 if *ticks_remaining <= 1 {
                     let cd = *close_duration;
-                    *self = DoorState::Closing {
+                    *self = Self::Closing {
                         ticks_remaining: cd,
                     };
                     DoorTransition::FinishedOpen
@@ -80,9 +96,9 @@ impl DoorState {
                     DoorTransition::None
                 }
             }
-            DoorState::Closing { ticks_remaining } => {
+            Self::Closing { ticks_remaining } => {
                 if *ticks_remaining <= 1 {
-                    *self = DoorState::Closed;
+                    *self = Self::Closed;
                     DoorTransition::FinishedClosing
                 } else {
                     *ticks_remaining -= 1;

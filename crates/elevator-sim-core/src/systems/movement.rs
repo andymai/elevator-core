@@ -20,10 +20,12 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
         };
 
         let target_pos = world.stop_position(target_stop_eid).unwrap_or(0.0);
-        let pos = world.positions.get(eid).map(|p| p.value).unwrap_or(0.0);
-        let vel = world.velocities.get(eid).map(|v| v.value).unwrap_or(0.0);
+        let pos = world.positions.get(eid).map_or(0.0, |p| p.value);
+        let vel = world.velocities.get(eid).map_or(0.0, |v| v.value);
 
         let (max_speed, acceleration, deceleration, door_transition_ticks, door_open_ticks) = {
+            // Safety: we matched on elevator_cars.get(eid) above; it must exist.
+            #[allow(clippy::unwrap_used)]
             let car = world.elevator_cars.get(eid).unwrap();
             (
                 car.max_speed,
@@ -55,7 +57,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             } else {
                 (new_pos, old_pos)
             };
-            for (stop_eid, stop) in world.stop_data.iter() {
+            for (stop_eid, stop) in &world.stop_data {
                 if stop_eid == target_stop_eid {
                     continue;
                 }
@@ -71,6 +73,8 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
         }
 
         if result.arrived {
+            // Safety: we matched on elevator_cars.get(eid) above; it must exist.
+            #[allow(clippy::unwrap_used)]
             let car = world.elevator_cars.get_mut(eid).unwrap();
             car.state = ElevatorState::DoorOpening;
             car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);

@@ -5,14 +5,15 @@ use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup}
 
 /// Dispatch by assigning each call to the nearest idle elevator.
 ///
-/// For multi-elevator groups, this override `decide_all()` to coordinate
+/// For multi-elevator groups, this overrides `decide_all()` to coordinate
 /// across the entire group — preventing two elevators from responding to
 /// the same call.
 pub struct NearestCarDispatch;
 
 impl NearestCarDispatch {
-    pub fn new() -> Self {
-        NearestCarDispatch
+    /// Create a new `NearestCarDispatch`.
+    pub const fn new() -> Self {
+        Self
     }
 }
 
@@ -77,13 +78,11 @@ impl DispatchStrategy for NearestCarDispatch {
             let demand_a = manifest
                 .demand_at_stop
                 .get(&a.0)
-                .map(|d| d.waiting_count)
-                .unwrap_or(0);
+                .map_or(0, |d| d.waiting_count);
             let demand_b = manifest
                 .demand_at_stop
                 .get(&b.0)
-                .map(|d| d.waiting_count)
-                .unwrap_or(0);
+                .map_or(0, |d| d.waiting_count);
             demand_b.cmp(&demand_a)
         });
 
@@ -99,7 +98,7 @@ impl DispatchStrategy for NearestCarDispatch {
                 .min_by(|a, b| {
                     let dist_a = (a.1 - stop_pos).abs();
                     let dist_b = (b.1 - stop_pos).abs();
-                    dist_a.partial_cmp(&dist_b).unwrap()
+                    dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
                 });
 
             if let Some((elev_eid, _)) = nearest {

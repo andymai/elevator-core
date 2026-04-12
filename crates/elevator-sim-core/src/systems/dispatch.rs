@@ -8,16 +8,17 @@ use crate::ids::GroupId;
 use crate::world::World;
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 use super::PhaseContext;
 
 /// Assign idle/stopped elevators to stops via the dispatch strategy.
-pub fn run(
+pub fn run<S: BuildHasher>(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
-    dispatchers: &mut HashMap<GroupId, Box<dyn DispatchStrategy>>,
+    dispatchers: &mut HashMap<GroupId, Box<dyn DispatchStrategy>, S>,
 ) {
     for group in groups {
         let manifest = build_manifest(world, group);
@@ -41,9 +42,8 @@ pub fn run(
             continue;
         }
 
-        let dispatch = match dispatchers.get_mut(&group.id) {
-            Some(d) => d,
-            None => continue,
+        let Some(dispatch) = dispatchers.get_mut(&group.id) else {
+            continue;
         };
 
         let decisions = dispatch.decide_all(&idle_elevators, group, &manifest, world);
@@ -51,7 +51,7 @@ pub fn run(
         for (eid, decision) in decisions {
             match decision {
                 DispatchDecision::GoToStop(stop_eid) => {
-                    let pos = world.positions.get(eid).map(|p| p.value).unwrap_or(0.0);
+                    let pos = world.positions.get(eid).map_or(0.0, |p| p.value);
                     let current_stop = world.find_stop_at_position(pos);
                     if let Some(car) = world.elevator_cars.get_mut(eid) {
                         car.state = ElevatorState::MovingToStop(stop_eid);
@@ -75,6 +75,7 @@ pub fn run(
     }
 }
 
+/// Build a dispatch manifest summarizing demand and rider destinations for a group.
 fn build_manifest(world: &World, group: &ElevatorGroup) -> DispatchManifest {
     let mut manifest = DispatchManifest::default();
 

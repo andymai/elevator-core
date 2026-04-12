@@ -33,7 +33,7 @@ impl TrafficPattern {
         let mid = stops[n / 2];
 
         match self {
-            TrafficPattern::Uniform => {
+            Self::Uniform => {
                 let origin_idx = rng.random_range(0..n);
                 let mut dest_idx = rng.random_range(0..n);
                 while dest_idx == origin_idx {
@@ -42,7 +42,7 @@ impl TrafficPattern {
                 Some((stops[origin_idx], stops[dest_idx]))
             }
 
-            TrafficPattern::UpPeak => {
+            Self::UpPeak => {
                 // 80% from lobby, 20% inter-floor.
                 if rng.random_range(0.0..1.0) < 0.8 {
                     let dest_idx = rng.random_range(1..n);
@@ -52,7 +52,7 @@ impl TrafficPattern {
                 }
             }
 
-            TrafficPattern::DownPeak => {
+            Self::DownPeak => {
                 // 80% heading to lobby, 20% inter-floor.
                 if rng.random_range(0.0..1.0) < 0.8 {
                     let origin_idx = rng.random_range(1..n);
@@ -62,7 +62,7 @@ impl TrafficPattern {
                 }
             }
 
-            TrafficPattern::Lunchtime => {
+            Self::Lunchtime => {
                 // 40% going from upper to mid, 40% from mid to upper, 20% random.
                 let r: f64 = rng.random_range(0.0..1.0);
                 if r < 0.4 {
@@ -88,7 +88,7 @@ impl TrafficPattern {
                 }
             }
 
-            TrafficPattern::Mixed => {
+            Self::Mixed => {
                 // 30% up-peak, 30% down-peak, 40% inter-floor.
                 let r: f64 = rng.random_range(0.0..1.0);
                 if r < 0.3 {
@@ -104,6 +104,8 @@ impl TrafficPattern {
         }
     }
 
+    /// Sample a uniform random (origin, destination) pair with distinct stops.
+    #[allow(clippy::unnecessary_wraps)]
     fn uniform_pair(stops: &[EntityId], rng: &mut impl Rng) -> Option<(EntityId, EntityId)> {
         let n = stops.len();
         let origin_idx = rng.random_range(0..n);

@@ -1,6 +1,8 @@
 use slotmap::{SecondaryMap, SlotMap};
 
-use crate::components::*;
+use crate::components::{
+    ElevatorCar, Patience, Position, Preferences, RiderData, Route, StopData, Velocity, ZoneData,
+};
 use crate::entity::EntityId;
 
 /// Central storage for all simulation entities and their components.
@@ -15,20 +17,30 @@ pub struct World {
     alive: SlotMap<EntityId, ()>,
 
     // -- Component storages --
+    /// Shaft-axis positions.
     pub positions: SecondaryMap<EntityId, Position>,
+    /// Shaft-axis velocities.
     pub velocities: SecondaryMap<EntityId, Velocity>,
+    /// Elevator car components.
     pub elevator_cars: SecondaryMap<EntityId, ElevatorCar>,
+    /// Stop (floor/station) data.
     pub stop_data: SecondaryMap<EntityId, StopData>,
+    /// Rider core data.
     pub rider_data: SecondaryMap<EntityId, RiderData>,
+    /// Multi-leg routes.
     pub routes: SecondaryMap<EntityId, Route>,
+    /// Group/zone membership.
     pub zone_data: SecondaryMap<EntityId, ZoneData>,
+    /// Patience tracking.
     pub patience: SecondaryMap<EntityId, Patience>,
+    /// Boarding preferences.
     pub preferences: SecondaryMap<EntityId, Preferences>,
 }
 
 impl World {
+    /// Create an empty world with no entities.
     pub fn new() -> Self {
-        World {
+        Self {
             alive: SlotMap::with_key(),
             positions: SecondaryMap::new(),
             velocities: SecondaryMap::new(),
@@ -73,7 +85,7 @@ impl World {
 
     // -- Typed query helpers --
 
-    /// Iterate all elevator entities (have ElevatorCar + Position).
+    /// Iterate all elevator entities (have `ElevatorCar` + Position).
     pub fn elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &ElevatorCar)> {
         self.elevator_cars
             .iter()

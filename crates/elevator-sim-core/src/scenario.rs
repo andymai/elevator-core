@@ -8,9 +8,13 @@ use serde::{Deserialize, Serialize};
 /// A timed rider spawn event within a scenario.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimedSpawn {
+    /// Tick at which to spawn this rider.
     pub tick: u64,
+    /// Origin stop for the rider.
     pub origin: StopId,
+    /// Destination stop for the rider.
     pub destination: StopId,
+    /// Weight of the rider.
     pub weight: f64,
 }
 
@@ -32,9 +36,13 @@ pub enum Condition {
 /// A complete scenario: config + timed spawns + success conditions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Scenario {
+    /// Human-readable scenario name.
     pub name: String,
+    /// Simulation configuration.
     pub config: SimConfig,
+    /// Timed rider spawn events.
     pub spawns: Vec<TimedSpawn>,
+    /// Pass/fail conditions for evaluation.
     pub conditions: Vec<Condition>,
     /// Max ticks to run before declaring timeout.
     pub max_ticks: u64,
@@ -43,35 +51,50 @@ pub struct Scenario {
 /// Result of evaluating a single condition.
 #[derive(Debug, Clone)]
 pub struct ConditionResult {
+    /// The condition that was evaluated.
     pub condition: Condition,
+    /// Whether the condition passed.
     pub passed: bool,
+    /// The actual observed value.
     pub actual_value: f64,
 }
 
 /// Result of running a complete scenario.
 #[derive(Debug, Clone)]
 pub struct ScenarioResult {
+    /// Scenario name.
     pub name: String,
+    /// Whether all conditions passed.
     pub passed: bool,
+    /// Number of ticks run.
     pub ticks_run: u64,
+    /// Per-condition results.
     pub conditions: Vec<ConditionResult>,
+    /// Final simulation metrics.
     pub metrics: Metrics,
 }
 
 /// Runs a scenario to completion and evaluates conditions.
 pub struct ScenarioRunner {
+    /// The underlying simulation.
     sim: Simulation,
+    /// Timed spawn events.
     spawns: Vec<TimedSpawn>,
+    /// Index of the next spawn to process.
     spawn_cursor: usize,
+    /// Pass/fail conditions.
     conditions: Vec<Condition>,
+    /// Maximum ticks before timeout.
     max_ticks: u64,
+    /// Scenario name.
     name: String,
 }
 
 impl ScenarioRunner {
+    /// Create a new runner from a scenario definition and dispatch strategy.
     pub fn new(scenario: Scenario, dispatch: Box<dyn DispatchStrategy>) -> Self {
         let sim = Simulation::new(scenario.config, dispatch);
-        ScenarioRunner {
+        Self {
             sim,
             spawns: scenario.spawns,
             spawn_cursor: 0,
@@ -82,7 +105,7 @@ impl ScenarioRunner {
     }
 
     /// Access the underlying simulation.
-    pub fn sim(&self) -> &Simulation {
+    pub const fn sim(&self) -> &Simulation {
         &self.sim
     }
 
@@ -101,7 +124,7 @@ impl ScenarioRunner {
         self.sim.tick();
     }
 
-    /// Run to completion (all riders delivered or max_ticks reached).
+    /// Run to completion (all riders delivered or `max_ticks` reached).
     pub fn run_to_completion(&mut self) -> ScenarioResult {
         use crate::components::RiderState;
 
@@ -145,6 +168,7 @@ impl ScenarioRunner {
     }
 }
 
+/// Evaluate a single condition against metrics and the current tick.
 fn evaluate_condition(condition: &Condition, metrics: &Metrics, current_tick: u64) -> ConditionResult {
     match condition {
         Condition::AvgWaitBelow(threshold) => ConditionResult {

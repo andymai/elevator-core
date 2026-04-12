@@ -1,4 +1,6 @@
-use crate::components::*;
+use crate::components::{
+    ElevatorCar, ElevatorState, Position, RiderData, RiderState, Route, StopData, Velocity,
+};
 use crate::config::SimConfig;
 use crate::dispatch::{DispatchStrategy, ElevatorGroup};
 use crate::door::DoorState;
@@ -13,18 +15,27 @@ use std::collections::HashMap;
 
 /// The core simulation state, advanced by calling `tick()`.
 pub struct Simulation {
+    /// The ECS world containing all entity data.
     pub world: World,
+    /// Event bus for simulation events.
     pub events: EventBus,
+    /// Current simulation tick.
     pub tick: u64,
+    /// Time delta per tick (seconds).
     pub dt: f64,
+    /// Elevator groups in this simulation.
     pub groups: Vec<ElevatorGroup>,
-    /// Config StopId → EntityId mapping for spawn helpers.
+    /// Config `StopId` to `EntityId` mapping for spawn helpers.
     pub stop_lookup: HashMap<StopId, EntityId>,
+    /// Dispatch strategies keyed by group.
     dispatchers: HashMap<GroupId, Box<dyn DispatchStrategy>>,
+    /// Aggregated metrics.
     metrics: Metrics,
 }
 
 impl Simulation {
+    /// Create a new simulation from config and a dispatch strategy.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(config: SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Self {
         let mut world = World::new();
 
@@ -51,8 +62,7 @@ impl Simulation {
                 .stops
                 .iter()
                 .find(|s| s.id == ec.starting_stop)
-                .map(|s| s.position)
-                .unwrap_or(0.0);
+                .map_or(0.0, |s| s.position);
             world.positions.insert(eid, Position { value: start_pos });
             world.velocities.insert(eid, Velocity { value: 0.0 });
             world.elevator_cars.insert(
@@ -87,7 +97,7 @@ impl Simulation {
 
         let dt = 1.0 / config.simulation.ticks_per_second;
 
-        Simulation {
+        Self {
             world,
             events: EventBus::default(),
             tick: 0,
@@ -100,7 +110,7 @@ impl Simulation {
     }
 
     /// Get current simulation metrics.
-    pub fn metrics(&self) -> &Metrics {
+    pub const fn metrics(&self) -> &Metrics {
         &self.metrics
     }
 
@@ -134,7 +144,7 @@ impl Simulation {
         eid
     }
 
-    /// Convenience: spawn a rider by config StopId (returns None if stop not found).
+    /// Convenience: spawn a rider by config `StopId` (returns `None` if stop not found).
     pub fn spawn_rider_by_stop_id(
         &mut self,
         origin: StopId,

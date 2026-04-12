@@ -4,29 +4,36 @@ use crate::ids::GroupId;
 /// How to travel between two stops.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportMode {
+    /// Ride an elevator in the given group.
     Elevator(GroupId),
+    /// Walk between adjacent stops.
     Walk,
 }
 
 /// One segment of a multi-leg route.
 #[derive(Debug, Clone)]
 pub struct RouteLeg {
+    /// Origin stop entity.
     pub from: EntityId,
+    /// Destination stop entity.
     pub to: EntityId,
+    /// Transport mode for this leg.
     pub via: TransportMode,
 }
 
 /// A passenger's full route, possibly spanning multiple elevator groups.
 #[derive(Debug, Clone)]
 pub struct Route {
+    /// Ordered legs of the route.
     pub legs: Vec<RouteLeg>,
+    /// Index into `legs` for the leg currently being traversed.
     pub current_leg: usize,
 }
 
 impl Route {
     /// Create a direct single-leg route via one elevator group.
     pub fn direct(from: EntityId, to: EntityId, group: GroupId) -> Self {
-        Route {
+        Self {
             legs: vec![RouteLeg {
                 from,
                 to,
@@ -42,13 +49,13 @@ impl Route {
     }
 
     /// Advance to the next leg. Returns true if there are more legs.
-    pub fn advance(&mut self) -> bool {
+    pub const fn advance(&mut self) -> bool {
         self.current_leg += 1;
         self.current_leg < self.legs.len()
     }
 
     /// Whether all legs have been completed.
-    pub fn is_complete(&self) -> bool {
+    pub const fn is_complete(&self) -> bool {
         self.current_leg >= self.legs.len()
     }
 

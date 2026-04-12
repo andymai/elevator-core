@@ -3,6 +3,9 @@ name = "elevator-sim-core"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 serde.workspace = true
 ron.workspace = true

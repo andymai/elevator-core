@@ -22,12 +22,14 @@ pub enum RiderState {
 /// Core component for any entity that rides elevators.
 ///
 /// This is the minimum data the simulation needs. Games attach
-/// additional components (VipTag, FreightData, PersonData, etc.)
-/// for game-specific behavior. An entity with RiderData but no
+/// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
+/// for game-specific behavior. An entity with `RiderData` but no
 /// Route component can be boarded/alighted manually by game code.
 #[derive(Debug, Clone)]
 pub struct RiderData {
+    /// Weight contributed to elevator load.
     pub weight: f64,
+    /// Current rider lifecycle state.
     pub state: RiderState,
     /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
     pub current_stop: Option<EntityId>,

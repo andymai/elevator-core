@@ -1,4 +1,4 @@
-use crate::components::{ElevatorState, RiderState};
+use crate::components::{ElevatorState, RiderState, Route};
 use crate::entity::EntityId;
 use crate::events::{EventBus, SimEvent};
 use crate::world::World;
@@ -7,23 +7,35 @@ use super::PhaseContext;
 
 /// Intermediate action collected in the read-only pass, applied in the mutation pass.
 enum LoadAction {
+    /// A rider exits the elevator at a stop.
     Alight {
+        /// Rider entity leaving.
         rider: EntityId,
+        /// Elevator entity being exited.
         elevator: EntityId,
+        /// Stop entity where alighting occurs.
         stop: EntityId,
     },
+    /// A rider enters the elevator.
     Board {
+        /// Rider entity boarding.
         rider: EntityId,
+        /// Elevator entity being boarded.
         elevator: EntityId,
+        /// Weight the rider adds.
         weight: f64,
     },
+    /// A rider is rejected (overweight).
     Reject {
+        /// Rider entity rejected.
         rider: EntityId,
+        /// Elevator entity that rejected the rider.
         elevator: EntityId,
     },
 }
 
 /// One rider boards or exits per tick per elevator.
+#[allow(clippy::too_many_lines)] // Two-pass collect-then-apply pattern; splitting harms readability.
 pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
     let mut actions: Vec<LoadAction> = Vec::new();
 
@@ -31,18 +43,16 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
     let elevator_ids: Vec<EntityId> = world.elevator_cars.keys().collect();
 
     for &eid in &elevator_ids {
-        let car = match world.elevator_cars.get(eid) {
-            Some(c) => c,
-            None => continue,
+        let Some(car) = world.elevator_cars.get(eid) else {
+            continue;
         };
         if car.state != ElevatorState::Loading {
             continue;
         }
 
-        let pos = world.positions.get(eid).map(|p| p.value).unwrap_or(0.0);
-        let current_stop = match world.find_stop_at_position(pos) {
-            Some(s) => s,
-            None => continue,
+        let pos = world.positions.get(eid).map_or(0.0, |p| p.value);
+        let Some(current_stop) = world.find_stop_at_position(pos) else {
+            continue;
         };
 
         // Try to alight one rider whose route destination matches the current stop.
@@ -53,7 +63,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                 world
                     .routes
                     .get(**rid)
-                    .and_then(|route| route.current_destination()) == Some(current_stop)
+                    .and_then(Route::current_destination) == Some(current_stop)
             })
             .copied();
 

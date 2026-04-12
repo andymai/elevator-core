@@ -3,12 +3,15 @@ use crate::world::World;
 
 use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
 
+/// Epsilon for floating-point position comparisons.
 const EPSILON: f64 = 1e-9;
 
 /// Direction of travel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
+    /// Traveling upward (increasing position).
     Up,
+    /// Traveling downward (decreasing position).
     Down,
 }
 
@@ -20,12 +23,14 @@ pub enum Direction {
 ///
 /// This is the standard "elevator algorithm" used in real buildings.
 pub struct LookDispatch {
+    /// Current sweep direction.
     direction: Direction,
 }
 
 impl LookDispatch {
-    pub fn new() -> Self {
-        LookDispatch {
+    /// Create a new `LookDispatch` starting in the Up direction.
+    pub const fn new() -> Self {
+        Self {
             direction: Direction::Up,
         }
     }
@@ -84,14 +89,16 @@ impl DispatchStrategy for LookDispatch {
                 Direction::Up => ahead
                     .iter()
                     .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap()
+                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                     }),
                 Direction::Down => ahead
                     .iter()
                     .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap()
+                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                     }),
             };
+            // SAFETY: ahead is non-empty, so nearest is always Some.
+            #[allow(clippy::unwrap_used)]
             return DispatchDecision::GoToStop(nearest.unwrap().0);
         }
 
@@ -105,8 +112,7 @@ impl DispatchStrategy for LookDispatch {
             // All interesting stops at current position.
             return interesting
                 .first()
-                .map(|(sid, _)| DispatchDecision::GoToStop(*sid))
-                .unwrap_or(DispatchDecision::Idle);
+                .map_or(DispatchDecision::Idle, |(sid, _)| DispatchDecision::GoToStop(*sid));
         }
 
         // Pick nearest in new direction.
@@ -114,15 +120,17 @@ impl DispatchStrategy for LookDispatch {
             Direction::Up => behind
                 .iter()
                 .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap()
+                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                 }),
             Direction::Down => behind
                 .iter()
                 .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap()
+                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                 }),
         };
 
+        // SAFETY: behind is non-empty, so nearest is always Some.
+        #[allow(clippy::unwrap_used)]
         DispatchDecision::GoToStop(nearest.unwrap().0)
     }
 }

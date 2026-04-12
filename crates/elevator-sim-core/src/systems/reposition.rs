@@ -18,7 +18,7 @@ pub fn run(
     events: &mut EventBus,
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
-    idle_threshold_ticks: u64,
+    _idle_threshold_ticks: u64,
 ) {
     for group in groups {
         // Collect positions of all non-idle elevators in this group.
@@ -27,10 +27,10 @@ pub fn run(
             .iter()
             .filter_map(|&eid| {
                 let car = world.elevator_cars.get(eid)?;
-                if car.state != ElevatorState::Idle {
-                    world.positions.get(eid).map(|p| p.value)
-                } else {
+                if car.state == ElevatorState::Idle {
                     None
+                } else {
+                    world.positions.get(eid).map(|p| p.value)
                 }
             })
             .collect();
@@ -75,6 +75,8 @@ pub fn run(
             let best_stop = stop_positions.iter().max_by(|a, b| {
                 let min_dist_a = min_distance_to(a.1, &assigned_positions);
                 let min_dist_b = min_distance_to(b.1, &assigned_positions);
+                // Safety: min_distance_to returns finite f64 or INFINITY, never NaN.
+                #[allow(clippy::unwrap_used)]
                 min_dist_a.partial_cmp(&min_dist_b).unwrap()
             });
 
@@ -101,6 +103,7 @@ pub fn run(
     }
 }
 
+/// Minimum distance from `pos` to any value in `others`.
 fn min_distance_to(pos: f64, others: &[f64]) -> f64 {
     if others.is_empty() {
         return f64::INFINITY;

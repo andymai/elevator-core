@@ -3,12 +3,15 @@ use crate::world::World;
 
 use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
 
+/// Epsilon for floating-point position comparisons.
 const EPSILON: f64 = 1e-9;
 
 /// Direction of travel for the SCAN algorithm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanDirection {
+    /// Traveling upward (increasing position).
     Up,
+    /// Traveling downward (decreasing position).
     Down,
 }
 
@@ -16,12 +19,14 @@ pub enum ScanDirection {
 ///
 /// Serves all requests in the current direction of travel before reversing.
 pub struct ScanDispatch {
+    /// Current sweep direction.
     direction: ScanDirection,
 }
 
 impl ScanDispatch {
-    pub fn new() -> Self {
-        ScanDispatch {
+    /// Create a new `ScanDispatch` starting in the Up direction.
+    pub const fn new() -> Self {
+        Self {
             direction: ScanDirection::Up,
         }
     }
@@ -78,14 +83,16 @@ impl DispatchStrategy for ScanDispatch {
                 ScanDirection::Up => ahead
                     .iter()
                     .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap()
+                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                     }),
                 ScanDirection::Down => ahead
                     .iter()
                     .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap()
+                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                     }),
             };
+            // SAFETY: ahead is non-empty, so nearest is always Some.
+            #[allow(clippy::unwrap_used)]
             return DispatchDecision::GoToStop(nearest.unwrap().0);
         }
 
@@ -99,23 +106,24 @@ impl DispatchStrategy for ScanDispatch {
             // All interesting stops at current position (handled above).
             return interesting
                 .first()
-                .map(|(sid, _)| DispatchDecision::GoToStop(*sid))
-                .unwrap_or(DispatchDecision::Idle);
+                .map_or(DispatchDecision::Idle, |(sid, _)| DispatchDecision::GoToStop(*sid));
         }
 
         let nearest = match self.direction {
             ScanDirection::Up => behind
                 .iter()
                 .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap()
+                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                 }),
             ScanDirection::Down => behind
                 .iter()
                 .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap()
+                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
                 }),
         };
 
+        // SAFETY: behind is non-empty, so nearest is always Some.
+        #[allow(clippy::unwrap_used)]
         DispatchDecision::GoToStop(nearest.unwrap().0)
     }
 }

@@ -1,3 +1,5 @@
+//! Bevy plugin that wires up the elevator simulation into the app.
+
 use bevy::prelude::*;
 
 use crate::camera::setup_camera;
@@ -12,9 +14,11 @@ use elevator_sim_core::config::SimConfig;
 use elevator_sim_core::dispatch::scan::ScanDispatch;
 use elevator_sim_core::sim::Simulation;
 
+/// Top-level plugin that loads config, creates the simulation, and registers all systems.
 pub struct ElevatorSimPlugin;
 
 impl Plugin for ElevatorSimPlugin {
+    #[allow(clippy::panic)]
     fn build(&self, app: &mut App) {
         // Load config — check CLI arg first, fall back to default.
         let config_path = std::env::args()
