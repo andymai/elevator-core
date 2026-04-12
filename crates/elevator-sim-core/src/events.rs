@@ -1,60 +1,59 @@
-use crate::elevator::ElevatorId;
-use crate::passenger::{CargoId, PassengerId};
-use crate::stop::StopId;
+use crate::entity::EntityId;
 use serde::{Deserialize, Serialize};
 
 /// Events emitted by the simulation during ticks.
+///
+/// All entity references use `EntityId`. Games can look up additional
+/// component data on the referenced entity if needed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SimEvent {
+    // -- Elevator events --
     ElevatorDeparted {
-        elevator: ElevatorId,
-        from_stop: StopId,
+        elevator: EntityId,
+        from_stop: EntityId,
         tick: u64,
     },
     ElevatorArrived {
-        elevator: ElevatorId,
-        at_stop: StopId,
+        elevator: EntityId,
+        at_stop: EntityId,
         tick: u64,
     },
     DoorOpened {
-        elevator: ElevatorId,
+        elevator: EntityId,
         tick: u64,
     },
     DoorClosed {
-        elevator: ElevatorId,
+        elevator: EntityId,
         tick: u64,
     },
-    PassengerSpawned {
-        passenger: PassengerId,
-        origin: StopId,
-        destination: StopId,
+
+    // -- Rider events (unified: passengers, cargo, any rideable entity) --
+    RiderSpawned {
+        rider: EntityId,
+        origin: EntityId,
+        destination: EntityId,
         tick: u64,
     },
-    PassengerBoarded {
-        passenger: PassengerId,
-        elevator: ElevatorId,
+    RiderBoarded {
+        rider: EntityId,
+        elevator: EntityId,
         tick: u64,
     },
-    PassengerAlighted {
-        passenger: PassengerId,
-        elevator: ElevatorId,
-        stop: StopId,
+    RiderAlighted {
+        rider: EntityId,
+        elevator: EntityId,
+        stop: EntityId,
         tick: u64,
     },
-    CargoLoaded {
-        cargo: CargoId,
-        elevator: ElevatorId,
+    RiderRejected {
+        rider: EntityId,
+        elevator: EntityId,
+        reason: String,
         tick: u64,
     },
-    CargoUnloaded {
-        cargo: CargoId,
-        elevator: ElevatorId,
-        stop: StopId,
-        tick: u64,
-    },
-    OverweightRejected {
-        entity_kind: String,
-        elevator: ElevatorId,
+    RiderAbandoned {
+        rider: EntityId,
+        stop: EntityId,
         tick: u64,
     },
 }

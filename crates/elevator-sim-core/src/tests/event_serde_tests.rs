@@ -1,61 +1,60 @@
-use crate::elevator::ElevatorId;
 use crate::events::SimEvent;
-use crate::passenger::{CargoId, PassengerId};
-use crate::stop::StopId;
+use crate::world::World;
 
 #[test]
 fn roundtrip_sim_event_ron() {
+    // We need valid EntityIds from a World to construct events.
+    let mut world = World::new();
+    let e1 = world.spawn();
+    let e2 = world.spawn();
+    let e3 = world.spawn();
+
     let events = vec![
         SimEvent::ElevatorDeparted {
-            elevator: ElevatorId(1),
-            from_stop: StopId(0),
+            elevator: e1,
+            from_stop: e2,
             tick: 10,
         },
         SimEvent::ElevatorArrived {
-            elevator: ElevatorId(1),
-            at_stop: StopId(2),
+            elevator: e1,
+            at_stop: e3,
             tick: 20,
         },
         SimEvent::DoorOpened {
-            elevator: ElevatorId(0),
+            elevator: e1,
             tick: 5,
         },
         SimEvent::DoorClosed {
-            elevator: ElevatorId(0),
+            elevator: e1,
             tick: 8,
         },
-        SimEvent::PassengerSpawned {
-            passenger: PassengerId(42),
-            origin: StopId(0),
-            destination: StopId(3),
+        SimEvent::RiderSpawned {
+            rider: e2,
+            origin: e1,
+            destination: e3,
             tick: 1,
         },
-        SimEvent::PassengerBoarded {
-            passenger: PassengerId(42),
-            elevator: ElevatorId(1),
+        SimEvent::RiderBoarded {
+            rider: e2,
+            elevator: e1,
             tick: 15,
         },
-        SimEvent::PassengerAlighted {
-            passenger: PassengerId(42),
-            elevator: ElevatorId(1),
-            stop: StopId(3),
+        SimEvent::RiderAlighted {
+            rider: e2,
+            elevator: e1,
+            stop: e3,
             tick: 30,
         },
-        SimEvent::CargoLoaded {
-            cargo: CargoId(7),
-            elevator: ElevatorId(0),
-            tick: 12,
-        },
-        SimEvent::CargoUnloaded {
-            cargo: CargoId(7),
-            elevator: ElevatorId(0),
-            stop: StopId(1),
-            tick: 25,
-        },
-        SimEvent::OverweightRejected {
-            entity_kind: "passenger".to_string(),
-            elevator: ElevatorId(0),
+        SimEvent::RiderRejected {
+            rider: e2,
+            elevator: e1,
+            reason: "overweight".to_string(),
             tick: 99,
+        },
+        SimEvent::RiderAbandoned {
+            rider: e2,
+            stop: e1,
+            tick: 50,
         },
     ];
 

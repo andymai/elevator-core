@@ -2,15 +2,14 @@ use bevy::prelude::*;
 
 use crate::camera::setup_camera;
 use crate::input::handle_speed_input;
-use crate::passenger_ai::{spawn_ai_passengers, PassengerSpawnTimer};
+use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
-    spawn_building_visuals, sync_elevator_visuals, sync_passenger_visuals,
-    update_passenger_positions,
+    spawn_building_visuals, sync_elevator_visuals, sync_rider_visuals, update_rider_positions,
 };
-use crate::sim_bridge::{tick_simulation, SimEventWrapper, SimSpeed, SimulationRes};
+use crate::sim_bridge::{SimEventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_sim_core::config::SimConfig;
-use elevator_sim_core::dispatch::ScanDispatch;
+use elevator_sim_core::dispatch::scan::ScanDispatch;
 use elevator_sim_core::sim::Simulation;
 
 pub struct ElevatorSimPlugin;
@@ -47,8 +46,8 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_ai_passengers,
                     tick_simulation,
                     sync_elevator_visuals,
-                    sync_passenger_visuals,
-                    update_passenger_positions,
+                    sync_rider_visuals,
+                    update_rider_positions,
                     update_hud,
                 )
                     .chain(),

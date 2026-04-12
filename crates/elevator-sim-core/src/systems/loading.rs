@@ -1,141 +1,163 @@
-use crate::elevator::{Elevator, ElevatorState};
+use crate::components::{ElevatorState, RiderState};
+use crate::entity::EntityId;
 use crate::events::{EventBus, SimEvent};
-use crate::passenger::{Cargo, CargoState, Passenger, PassengerState};
-use crate::stop::StopConfig;
+use crate::world::World;
 
-/// One passenger/cargo boards or exits per tick per elevator.
-#[allow(clippy::needless_range_loop)]
-pub fn run(
-    elevators: &mut [Elevator],
-    passengers: &mut [Passenger],
-    cargo: &mut [Cargo],
-    stops: &[StopConfig],
-    events: &mut EventBus,
-    tick: u64,
-) {
-    for ei in 0..elevators.len() {
-        if elevators[ei].state != ElevatorState::Loading {
-            continue;
-        }
+use super::PhaseContext;
 
-        let current_stop = match find_stop_at_position(stops, elevators[ei].position) {
-            Some(id) => id,
+/// Intermediate action collected in the read-only pass, applied in the mutation pass.
+enum LoadAction {
+    Alight {
+        rider: EntityId,
+        elevator: EntityId,
+        stop: EntityId,
+    },
+    Board {
+        rider: EntityId,
+        elevator: EntityId,
+        weight: f64,
+    },
+    Reject {
+        rider: EntityId,
+        elevator: EntityId,
+    },
+}
+
+/// One rider boards or exits per tick per elevator.
+pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+    let mut actions: Vec<LoadAction> = Vec::new();
+
+    // Pass 1: collect actions (read-only over world)
+    let elevator_ids: Vec<EntityId> = world.elevator_cars.keys().collect();
+
+    for &eid in &elevator_ids {
+        let car = match world.elevator_cars.get(eid) {
+            Some(c) => c,
             None => continue,
         };
-        let elevator_id = elevators[ei].id;
+        if car.state != ElevatorState::Loading {
+            continue;
+        }
 
-        // --- Unload one passenger whose destination is this stop ---
-        let alight_pid = elevators[ei]
-            .passengers
+        let pos = world.positions.get(eid).map(|p| p.value).unwrap_or(0.0);
+        let current_stop = match world.find_stop_at_position(pos) {
+            Some(s) => s,
+            None => continue,
+        };
+
+        // Try to alight one rider whose route destination matches the current stop.
+        let alight_rider = car
+            .riders
             .iter()
-            .find(|pid| {
-                passengers
-                    .iter()
-                    .any(|p| p.id == **pid && p.destination == current_stop)
+            .find(|rid| {
+                world
+                    .routes
+                    .get(**rid)
+                    .and_then(|route| route.current_destination()) == Some(current_stop)
             })
             .copied();
 
-        if let Some(pid) = alight_pid {
-            elevators[ei].passengers.retain(|p| *p != pid);
-            if let Some(p) = passengers.iter_mut().find(|p| p.id == pid) {
-                let weight = p.weight;
-                p.state = PassengerState::Alighting(elevator_id);
-                elevators[ei].current_load -= weight;
-                events.emit(SimEvent::PassengerAlighted {
-                    passenger: pid,
-                    elevator: elevator_id,
-                    stop: current_stop,
-                    tick,
-                });
-            }
+        if let Some(rid) = alight_rider {
+            actions.push(LoadAction::Alight {
+                rider: rid,
+                elevator: eid,
+                stop: current_stop,
+            });
             continue;
         }
 
-        // --- Unload one cargo whose destination is this stop ---
-        let unload_cid = elevators[ei]
-            .cargo
+        // Try to board one waiting rider at this stop (first that fits by weight).
+        let remaining_capacity = car.weight_capacity - car.current_load;
+
+        let board_rider = world
+            .rider_data
             .iter()
-            .find(|cid| {
-                cargo
-                    .iter()
-                    .any(|c| c.id == **cid && c.destination == current_stop)
+            .find(|(rid, rider)| {
+                rider.state == RiderState::Waiting
+                    && rider.current_stop == Some(current_stop)
+                    && rider.weight <= remaining_capacity
+                    // Must want to depart from this stop (check route leg origin).
+                    && world.routes.get(*rid).is_none_or(|route| {
+                        route.current().is_none_or(|leg| leg.from == current_stop)
+                    })
             })
-            .copied();
+            .map(|(rid, rider)| (rid, rider.weight));
 
-        if let Some(cid) = unload_cid {
-            elevators[ei].cargo.retain(|c| *c != cid);
-            if let Some(c) = cargo.iter_mut().find(|c| c.id == cid) {
-                let weight = c.weight;
-                c.state = CargoState::Arrived;
-                elevators[ei].current_load -= weight;
-                events.emit(SimEvent::CargoUnloaded {
-                    cargo: cid,
-                    elevator: elevator_id,
-                    stop: current_stop,
-                    tick,
-                });
-            }
-            continue;
-        }
-
-        // --- Load one waiting passenger at this stop (first that fits) ---
-        let board_pid = passengers
-            .iter()
-            .filter(|p| p.state == PassengerState::Waiting && p.origin == current_stop)
-            .find(|p| elevators[ei].current_load + p.weight <= elevators[ei].weight_capacity)
-            .map(|p| (p.id, p.weight));
-
-        if let Some((pid, weight)) = board_pid {
-            elevators[ei].current_load += weight;
-            elevators[ei].passengers.push(pid);
-            if let Some(p) = passengers.iter_mut().find(|p| p.id == pid) {
-                p.state = PassengerState::Boarding(elevator_id);
-            }
-            events.emit(SimEvent::PassengerBoarded {
-                passenger: pid,
-                elevator: elevator_id,
-                tick,
+        if let Some((rid, weight)) = board_rider {
+            actions.push(LoadAction::Board {
+                rider: rid,
+                elevator: eid,
+                weight,
             });
             continue;
         }
-        // If no passenger fits, emit one rejection for the first waiting (if any).
-        if passengers.iter().any(|p| p.state == PassengerState::Waiting && p.origin == current_stop) {
-            events.emit(SimEvent::OverweightRejected {
-                entity_kind: "passenger".to_string(),
-                elevator: elevator_id,
-                tick,
-            });
-        }
 
-        // --- Load one waiting cargo at this stop (first that fits) ---
-        let load_cid = cargo
-            .iter()
-            .filter(|c| c.state == CargoState::Waiting && c.origin == current_stop)
-            .find(|c| elevators[ei].current_load + c.weight <= elevators[ei].weight_capacity)
-            .map(|c| (c.id, c.weight));
+        // Check if anyone is waiting but can't fit — emit a rejection event.
+        let rejected_rider = world.rider_data.iter().find(|(_, rider)| {
+            rider.state == RiderState::Waiting && rider.current_stop == Some(current_stop)
+        });
 
-        if let Some((cid, weight)) = load_cid {
-            elevators[ei].current_load += weight;
-            elevators[ei].cargo.push(cid);
-            if let Some(c) = cargo.iter_mut().find(|c| c.id == cid) {
-                c.state = CargoState::Loaded(elevator_id);
-            }
-            events.emit(SimEvent::CargoLoaded {
-                cargo: cid,
-                elevator: elevator_id,
-                tick,
+        if let Some((rid, _)) = rejected_rider {
+            actions.push(LoadAction::Reject {
+                rider: rid,
+                elevator: eid,
             });
         }
     }
-}
 
-fn find_stop_at_position(
-    stops: &[StopConfig],
-    position: f64,
-) -> Option<crate::stop::StopId> {
-    const EPSILON: f64 = 1e-6;
-    stops
-        .iter()
-        .find(|s| (s.position - position).abs() < EPSILON)
-        .map(|s| s.id)
+    // Pass 2: apply actions
+    for action in actions {
+        match action {
+            LoadAction::Alight {
+                rider,
+                elevator,
+                stop,
+            } => {
+                if let Some(car) = world.elevator_cars.get_mut(elevator) {
+                    car.riders.retain(|r| *r != rider);
+                    if let Some(rd) = world.rider_data.get(rider) {
+                        car.current_load -= rd.weight;
+                    }
+                }
+                if let Some(rd) = world.rider_data.get_mut(rider) {
+                    rd.state = RiderState::Alighting(elevator);
+                    rd.current_stop = Some(stop);
+                }
+                events.emit(SimEvent::RiderAlighted {
+                    rider,
+                    elevator,
+                    stop,
+                    tick: ctx.tick,
+                });
+            }
+            LoadAction::Board {
+                rider,
+                elevator,
+                weight,
+            } => {
+                if let Some(car) = world.elevator_cars.get_mut(elevator) {
+                    car.current_load += weight;
+                    car.riders.push(rider);
+                }
+                if let Some(rd) = world.rider_data.get_mut(rider) {
+                    rd.state = RiderState::Boarding(elevator);
+                    rd.board_tick = Some(ctx.tick);
+                    rd.current_stop = None;
+                }
+                events.emit(SimEvent::RiderBoarded {
+                    rider,
+                    elevator,
+                    tick: ctx.tick,
+                });
+            }
+            LoadAction::Reject { rider, elevator } => {
+                events.emit(SimEvent::RiderRejected {
+                    rider,
+                    elevator,
+                    reason: "overweight".to_string(),
+                    tick: ctx.tick,
+                });
+            }
+        }
+    }
 }

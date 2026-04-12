@@ -1,57 +1,61 @@
-use crate::components::{
-    ElevatorCar as ElevatorCarComp, ElevatorState as NewElevatorState, Position, StopData, Velocity,
-};
+use crate::components::*;
 use crate::config::SimConfig;
-use crate::dispatch::DispatchStrategy;
+use crate::dispatch::{DispatchStrategy, ElevatorGroup};
 use crate::door::DoorState;
-use crate::elevator::{Elevator, ElevatorId, ElevatorState};
 use crate::entity::EntityId;
 use crate::events::{EventBus, SimEvent};
 use crate::ids::GroupId;
-use crate::passenger::{Cargo, CargoId, CargoPriority, CargoState, Passenger, PassengerId, PassengerState};
-use crate::stop::{StopConfig, StopId};
+use crate::stop::StopId;
+use crate::systems::PhaseContext;
 use crate::world::World;
 use std::collections::HashMap;
 
 /// The core simulation state, advanced by calling `tick()`.
 pub struct Simulation {
+    pub world: World,
+    pub events: EventBus,
     pub tick: u64,
     pub dt: f64,
-    pub stops: Vec<StopConfig>,
-    pub elevators: Vec<Elevator>,
-    pub passengers: Vec<Passenger>,
-    pub cargo: Vec<Cargo>,
-    pub events: EventBus,
-    /// ECS-like World storage. **NOTE: Currently populated at init only.**
-    /// The tick loop still operates on the legacy Vec fields below.
-    /// World data becomes stale after the first tick. Do not read from
-    /// World for current state until the migration to World-based tick is complete.
-    pub world: World,
-    /// Legacy StopId → EntityId mapping.
-    pub stop_entities: HashMap<StopId, EntityId>,
-    /// Legacy ElevatorId → EntityId mapping.
-    pub elevator_entities: HashMap<ElevatorId, EntityId>,
-    dispatch: Box<dyn DispatchStrategy>,
-    next_passenger_id: u64,
-    next_cargo_id: u64,
+    pub groups: Vec<ElevatorGroup>,
+    /// Config StopId → EntityId mapping for spawn helpers.
+    pub stop_lookup: HashMap<StopId, EntityId>,
+    dispatchers: HashMap<GroupId, Box<dyn DispatchStrategy>>,
 }
 
 impl Simulation {
     pub fn new(config: SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Self {
-        let stops = config.building.stops;
-        let elevators: Vec<Elevator> = config
-            .elevators
-            .iter()
-            .map(|ec| {
-                let start_pos = stops
-                    .iter()
-                    .find(|s| s.id == ec.starting_stop)
-                    .map(|s| s.position)
-                    .unwrap_or(0.0);
-                Elevator {
-                    id: ElevatorId(ec.id),
-                    position: start_pos,
-                    velocity: 0.0,
+        let mut world = World::new();
+
+        // Create stop entities.
+        let mut stop_lookup: HashMap<StopId, EntityId> = HashMap::new();
+        for sc in &config.building.stops {
+            let eid = world.spawn();
+            world.stop_data.insert(
+                eid,
+                StopData {
+                    name: sc.name.clone(),
+                    position: sc.position,
+                },
+            );
+            stop_lookup.insert(sc.id, eid);
+        }
+
+        // Create elevator entities.
+        let mut elevator_entities = Vec::new();
+        for ec in &config.elevators {
+            let eid = world.spawn();
+            let start_pos = config
+                .building
+                .stops
+                .iter()
+                .find(|s| s.id == ec.starting_stop)
+                .map(|s| s.position)
+                .unwrap_or(0.0);
+            world.positions.insert(eid, Position { value: start_pos });
+            world.velocities.insert(eid, Velocity { value: 0.0 });
+            world.elevator_cars.insert(
+                eid,
+                ElevatorCar {
                     state: ElevatorState::Idle,
                     door: DoorState::Closed,
                     max_speed: ec.max_speed,
@@ -59,121 +63,79 @@ impl Simulation {
                     deceleration: ec.deceleration,
                     weight_capacity: ec.weight_capacity,
                     current_load: 0.0,
-                    passengers: Vec::new(),
-                    cargo: Vec::new(),
+                    riders: Vec::new(),
                     target_stop: None,
                     door_transition_ticks: ec.door_transition_ticks,
                     door_open_ticks: ec.door_open_ticks,
-                }
-            })
-            .collect();
-
-        let dt = 1.0 / config.simulation.ticks_per_second;
-
-        // Populate ECS World alongside legacy Vecs.
-        let mut world = World::new();
-        let mut stop_entities = HashMap::new();
-
-        for stop_config in &stops {
-            let eid = world.spawn();
-            world.stop_data.insert(
-                eid,
-                StopData {
-                    name: stop_config.name.clone(),
-                    position: stop_config.position,
-                },
-            );
-            stop_entities.insert(stop_config.id, eid);
-        }
-
-        let mut elevator_entities = HashMap::new();
-        for elev in elevators.iter() {
-            let eid = world.spawn();
-            let elev_pos = elev.position;
-            world.positions.insert(eid, Position { value: elev_pos });
-            world.velocities.insert(eid, Velocity { value: 0.0 });
-            world.elevator_cars.insert(
-                eid,
-                ElevatorCarComp {
-                    state: NewElevatorState::Idle,
-                    door: DoorState::Closed,
-                    max_speed: elev.max_speed,
-                    acceleration: elev.acceleration,
-                    deceleration: elev.deceleration,
-                    weight_capacity: elev.weight_capacity,
-                    current_load: 0.0,
-                    riders: vec![],
-                    target_stop: None,
-                    door_transition_ticks: elev.door_transition_ticks,
-                    door_open_ticks: elev.door_open_ticks,
                     group: GroupId(0),
                 },
             );
-            elevator_entities.insert(elev.id, eid);
+            elevator_entities.push(eid);
         }
 
+        let group = ElevatorGroup {
+            id: GroupId(0),
+            name: "Default".into(),
+            elevator_entities,
+            stop_entities: stop_lookup.values().copied().collect(),
+        };
+
+        let mut dispatchers = HashMap::new();
+        dispatchers.insert(GroupId(0), dispatch);
+
+        let dt = 1.0 / config.simulation.ticks_per_second;
+
         Simulation {
+            world,
+            events: EventBus::default(),
             tick: 0,
             dt,
-            stops,
-            elevators,
-            passengers: Vec::new(),
-            cargo: Vec::new(),
-            events: EventBus::default(),
-            world,
-            stop_entities,
-            elevator_entities,
-            dispatch,
-            next_passenger_id: 0,
-            next_cargo_id: 0,
+            groups: vec![group],
+            stop_lookup,
+            dispatchers,
         }
     }
 
-    /// Spawn a passenger at the given origin, headed to destination.
-    pub fn spawn_passenger(
+    /// Spawn a rider at the given origin stop entity, headed to destination stop entity.
+    pub fn spawn_rider(
         &mut self,
-        origin: StopId,
-        destination: StopId,
+        origin: EntityId,
+        destination: EntityId,
         weight: f64,
-    ) -> PassengerId {
-        let id = PassengerId(self.next_passenger_id);
-        self.next_passenger_id += 1;
-        self.passengers.push(Passenger {
-            id,
-            weight,
-            origin,
-            destination,
-            spawn_tick: self.tick,
-            state: PassengerState::Waiting,
-        });
-        self.events.emit(SimEvent::PassengerSpawned {
-            passenger: id,
+    ) -> EntityId {
+        let eid = self.world.spawn();
+        self.world.rider_data.insert(
+            eid,
+            RiderData {
+                weight,
+                state: RiderState::Waiting,
+                current_stop: Some(origin),
+                spawn_tick: self.tick,
+                board_tick: None,
+            },
+        );
+        self.world
+            .routes
+            .insert(eid, Route::direct(origin, destination, GroupId(0)));
+        self.events.emit(SimEvent::RiderSpawned {
+            rider: eid,
             origin,
             destination,
             tick: self.tick,
         });
-        id
+        eid
     }
 
-    /// Spawn a cargo item at the given origin, headed to destination.
-    pub fn spawn_cargo(
+    /// Convenience: spawn a rider by config StopId (returns None if stop not found).
+    pub fn spawn_rider_by_stop_id(
         &mut self,
         origin: StopId,
         destination: StopId,
         weight: f64,
-        priority: CargoPriority,
-    ) -> CargoId {
-        let id = CargoId(self.next_cargo_id);
-        self.next_cargo_id += 1;
-        self.cargo.push(Cargo {
-            id,
-            weight,
-            origin,
-            destination,
-            priority,
-            state: CargoState::Waiting,
-        });
-        id
+    ) -> Option<EntityId> {
+        let origin_eid = *self.stop_lookup.get(&origin)?;
+        let dest_eid = *self.stop_lookup.get(&destination)?;
+        Some(self.spawn_rider(origin_eid, dest_eid, weight))
     }
 
     /// Drain all pending events.
@@ -183,32 +145,23 @@ impl Simulation {
 
     /// Advance the simulation by one tick.
     pub fn tick(&mut self) {
-        crate::systems::advance_transient::run(&mut self.passengers);
+        let ctx = PhaseContext {
+            tick: self.tick,
+            dt: self.dt,
+        };
+
+        crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
         crate::systems::dispatch::run(
-            &mut self.elevators,
-            &self.stops,
-            &self.passengers,
-            &self.cargo,
-            self.dispatch.as_mut(),
+            &mut self.world,
             &mut self.events,
-            self.tick,
+            &ctx,
+            &self.groups,
+            &mut self.dispatchers,
         );
-        crate::systems::movement::run(
-            &mut self.elevators,
-            &self.stops,
-            self.dt,
-            &mut self.events,
-            self.tick,
-        );
-        crate::systems::doors::run(&mut self.elevators, &mut self.events, self.tick);
-        crate::systems::loading::run(
-            &mut self.elevators,
-            &mut self.passengers,
-            &mut self.cargo,
-            &self.stops,
-            &mut self.events,
-            self.tick,
-        );
+        crate::systems::movement::run(&mut self.world, &mut self.events, &ctx);
+        crate::systems::doors::run(&mut self.world, &mut self.events, &ctx);
+        crate::systems::loading::run(&mut self.world, &mut self.events, &ctx);
+
         self.tick += 1;
     }
 }

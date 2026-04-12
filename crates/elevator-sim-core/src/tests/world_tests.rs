@@ -65,24 +65,22 @@ fn elevator_query_returns_entities_with_both_components() {
 }
 
 #[test]
-fn passenger_query() {
+fn rider_query() {
     let mut world = World::new();
 
     let p1 = world.spawn();
     let origin = world.spawn();
-    let dest = world.spawn();
-    world.passenger_data.insert(p1, PassengerData {
+    world.rider_data.insert(p1, RiderData {
         weight: 70.0,
-        origin,
-        destination: dest,
+        state: RiderState::Waiting,
+        current_stop: Some(origin),
         spawn_tick: 0,
-        state: PassengerState::Waiting,
         board_tick: None,
     });
 
-    let passengers: Vec<_> = world.passengers().collect();
-    assert_eq!(passengers.len(), 1);
-    assert_eq!(passengers[0].1.weight, 70.0);
+    let riders: Vec<_> = world.riders().collect();
+    assert_eq!(riders.len(), 1);
+    assert_eq!(riders[0].1.weight, 70.0);
 }
 
 #[test]

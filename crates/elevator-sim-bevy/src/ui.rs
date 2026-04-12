@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use elevator_sim_core::elevator::ElevatorState;
-use elevator_sim_core::passenger::PassengerState;
+use elevator_sim_core::components::{ElevatorState, RiderState};
 
 use crate::sim_bridge::{SimSpeed, SimulationRes};
 
@@ -10,7 +9,6 @@ pub struct HudText;
 
 /// Spawn the HUD overlay.
 pub fn spawn_hud(mut commands: Commands) {
-    // Main stats panel — top left.
     commands.spawn((
         Text::new(""),
         TextFont {
@@ -27,7 +25,6 @@ pub fn spawn_hud(mut commands: Commands) {
         HudText,
     ));
 
-    // Instructions — bottom left.
     commands.spawn((
         Text::new("Space: pause | 1: 1x | 2: 2x | 3: 10x"),
         TextFont {
@@ -50,26 +47,26 @@ pub fn update_hud(
     speed: Res<SimSpeed>,
     mut query: Query<&mut Text, With<HudText>>,
 ) {
-    let s = &sim.sim;
+    let w = &sim.sim.world;
 
-    // Speed display.
     let speed_str = if speed.multiplier == 0 {
         "PAUSED".to_string()
     } else {
         format!("{}x", speed.multiplier)
     };
 
-    // Elevator stats (first elevator for now).
-    let Some(elev) = s.elevators.first() else {
+    // First elevator stats.
+    let Some((elev_eid, elev_pos, car)) = w.elevators().next() else {
         return;
     };
 
-    // State string.
-    let state_str = match elev.state {
+    let state_str = match car.state {
         ElevatorState::Idle => "Idle".to_string(),
-        ElevatorState::MovingToStop(sid) => {
-            let name = s.stops.iter().find(|st| st.id == sid)
-                .map(|st| st.name.as_str())
+        ElevatorState::MovingToStop(stop_eid) => {
+            let name = w
+                .stop_data
+                .get(stop_eid)
+                .map(|s| s.name.as_str())
                 .unwrap_or("?");
             format!("Moving -> {name}")
         }
@@ -79,21 +76,24 @@ pub fn update_hud(
         ElevatorState::Stopped => "Stopped".to_string(),
     };
 
-    // Speed in distance units per second.
-    let velocity = elev.velocity.abs();
-    let speed_val = velocity; // units/tick * ticks/sec = units/sec ... velocity is already in units/tick*dt
-    // velocity is updated by: v + accel * dt, position by: v * dt
-    // so velocity is in units/sec (since position += velocity * dt).
-    let speed_display = format!("{:.1}", speed_val);
+    let velocity = w
+        .velocities
+        .get(elev_eid)
+        .map(|v| v.value.abs())
+        .unwrap_or(0.0);
+    let speed_display = format!("{:.1}", velocity);
 
-    // ETA to target stop.
-    let eta_str = if let ElevatorState::MovingToStop(sid) = elev.state {
-        if let Some(target) = s.stops.iter().find(|st| st.id == sid) {
-            let dist = (target.position - elev.position).abs();
+    let eta_str = if let ElevatorState::MovingToStop(stop_eid) = car.state {
+        if let Some(target_pos) = w.stop_position(stop_eid) {
+            let dist = (target_pos - elev_pos.value).abs();
             if velocity > 0.001 {
                 let eta_secs = dist / velocity;
                 if eta_secs > 60.0 {
-                    format!("{:.0}m {:.0}s", (eta_secs / 60.0).floor(), eta_secs % 60.0)
+                    format!(
+                        "{:.0}m {:.0}s",
+                        (eta_secs / 60.0).floor(),
+                        eta_secs % 60.0
+                    )
                 } else {
                     format!("{:.1}s", eta_secs)
                 }
@@ -107,35 +107,46 @@ pub fn update_hud(
         "-".to_string()
     };
 
-    // Passenger counts.
-    let on_board = s.passengers.iter()
-        .filter(|p| matches!(p.state, PassengerState::Riding(_) | PassengerState::Boarding(_)))
+    // Rider counts.
+    let on_board = w
+        .riders()
+        .filter(|(_, r)| matches!(r.state, RiderState::Riding(_) | RiderState::Boarding(_)))
         .count();
-    let boarding = s.passengers.iter()
-        .filter(|p| matches!(p.state, PassengerState::Boarding(_)))
+    let boarding = w
+        .riders()
+        .filter(|(_, r)| matches!(r.state, RiderState::Boarding(_)))
         .count();
-    let alighting = s.passengers.iter()
-        .filter(|p| matches!(p.state, PassengerState::Alighting(_)))
+    let alighting = w
+        .riders()
+        .filter(|(_, r)| matches!(r.state, RiderState::Alighting(_)))
         .count();
-    let waiting = s.passengers.iter()
-        .filter(|p| p.state == PassengerState::Waiting)
+    let waiting = w
+        .riders()
+        .filter(|(_, r)| r.state == RiderState::Waiting)
         .count();
-    let delivered = s.passengers.iter()
-        .filter(|p| p.state == PassengerState::Arrived)
+    let delivered = w
+        .riders()
+        .filter(|(_, r)| r.state == RiderState::Arrived)
         .count();
 
-    // Mass.
-    let load_kg = elev.current_load;
-    let capacity_kg = elev.weight_capacity;
-    let load_pct = if capacity_kg > 0.0 { (load_kg / capacity_kg) * 100.0 } else { 0.0 };
+    let load_kg = car.current_load;
+    let capacity_kg = car.weight_capacity;
+    let load_pct = if capacity_kg > 0.0 {
+        (load_kg / capacity_kg) * 100.0
+    } else {
+        0.0
+    };
 
-    // Position as percentage of shaft.
-    let min_pos = s.stops.iter().map(|st| st.position).fold(f64::INFINITY, f64::min);
-    let max_pos = s.stops.iter().map(|st| st.position).fold(f64::NEG_INFINITY, f64::max);
+    let positions: Vec<f64> = w.stops().map(|(_, s)| s.position).collect();
+    let min_pos = positions.iter().copied().fold(f64::INFINITY, f64::min);
+    let max_pos = positions.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let span = max_pos - min_pos;
-    let pos_pct = if span > 0.0 { ((elev.position - min_pos) / span) * 100.0 } else { 0.0 };
+    let pos_pct = if span > 0.0 {
+        ((elev_pos.value - min_pos) / span) * 100.0
+    } else {
+        0.0
+    };
 
-    // Build boarding/alighting indicator.
     let transfer_str = if boarding > 0 && alighting > 0 {
         format!("  [{boarding} boarding, {alighting} alighting]")
     } else if boarding > 0 {
@@ -158,7 +169,7 @@ ETA: {eta_str}
 On board: {on_board}{transfer_str}
 Waiting: {waiting}
 Delivered: {delivered}",
-        s.tick
+        sim.sim.tick
     );
 
     for mut t in &mut query {

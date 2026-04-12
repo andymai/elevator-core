@@ -1,0 +1,38 @@
+use crate::entity::EntityId;
+
+/// State of any entity that can ride an elevator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RiderState {
+    /// Waiting at a stop.
+    Waiting,
+    /// Boarding an elevator (transient, one tick).
+    Boarding(EntityId),
+    /// Riding in an elevator.
+    Riding(EntityId),
+    /// Alighting from an elevator (transient, one tick).
+    Alighting(EntityId),
+    /// Walking between transfer stops.
+    Walking,
+    /// Reached final destination.
+    Arrived,
+    /// Gave up waiting.
+    Abandoned,
+}
+
+/// Core component for any entity that rides elevators.
+///
+/// This is the minimum data the simulation needs. Games attach
+/// additional components (VipTag, FreightData, PersonData, etc.)
+/// for game-specific behavior. An entity with RiderData but no
+/// Route component can be boarded/alighted manually by game code.
+#[derive(Debug, Clone)]
+pub struct RiderData {
+    pub weight: f64,
+    pub state: RiderState,
+    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
+    pub current_stop: Option<EntityId>,
+    /// Tick when this rider was spawned.
+    pub spawn_tick: u64,
+    /// Tick when this rider boarded (for ride-time metrics).
+    pub board_tick: Option<u64>,
+}

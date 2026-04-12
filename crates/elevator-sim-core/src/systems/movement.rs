@@ -1,44 +1,57 @@
+use crate::components::ElevatorState;
 use crate::door::DoorState;
-use crate::elevator::{Elevator, ElevatorState};
 use crate::events::{EventBus, SimEvent};
 use crate::movement::tick_movement;
-use crate::stop::StopConfig;
+use crate::world::World;
+
+use super::PhaseContext;
 
 /// Update position/velocity for all moving elevators.
-pub fn run(elevators: &mut [Elevator], stops: &[StopConfig], dt: f64, events: &mut EventBus, tick: u64) {
-    for elevator in elevators {
-        if let ElevatorState::MovingToStop(target_id) = elevator.state {
-            let target_pos = stops
-                .iter()
-                .find(|s| s.id == target_id)
-                .map(|s| s.position)
-                .unwrap_or(elevator.position);
+pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+    let elevator_ids: Vec<_> = world.elevator_cars.keys().collect();
 
-            let result = tick_movement(
-                elevator.position,
-                elevator.velocity,
-                target_pos,
-                elevator.max_speed,
-                elevator.acceleration,
-                elevator.deceleration,
-                dt,
-            );
+    for eid in elevator_ids {
+        let target_stop_eid = match world.elevator_cars.get(eid) {
+            Some(car) => match car.state {
+                ElevatorState::MovingToStop(stop_eid) => stop_eid,
+                _ => continue,
+            },
+            None => continue,
+        };
 
-            elevator.position = result.position;
-            elevator.velocity = result.velocity;
+        let target_pos = world.stop_position(target_stop_eid).unwrap_or(0.0);
+        let pos = world.positions.get(eid).map(|p| p.value).unwrap_or(0.0);
+        let vel = world.velocities.get(eid).map(|v| v.value).unwrap_or(0.0);
 
-            if result.arrived {
-                elevator.state = ElevatorState::DoorOpening;
-                elevator.door = DoorState::request_open(
-                    elevator.door_transition_ticks,
-                    elevator.door_open_ticks,
-                );
-                events.emit(SimEvent::ElevatorArrived {
-                    elevator: elevator.id,
-                    at_stop: target_id,
-                    tick,
-                });
-            }
+        let (max_speed, acceleration, deceleration, door_transition_ticks, door_open_ticks) = {
+            let car = world.elevator_cars.get(eid).unwrap();
+            (
+                car.max_speed,
+                car.acceleration,
+                car.deceleration,
+                car.door_transition_ticks,
+                car.door_open_ticks,
+            )
+        };
+
+        let result = tick_movement(pos, vel, target_pos, max_speed, acceleration, deceleration, ctx.dt);
+
+        if let Some(p) = world.positions.get_mut(eid) {
+            p.value = result.position;
+        }
+        if let Some(v) = world.velocities.get_mut(eid) {
+            v.value = result.velocity;
+        }
+
+        if result.arrived {
+            let car = world.elevator_cars.get_mut(eid).unwrap();
+            car.state = ElevatorState::DoorOpening;
+            car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);
+            events.emit(SimEvent::ElevatorArrived {
+                elevator: eid,
+                at_stop: target_stop_eid,
+                tick: ctx.tick,
+            });
         }
     }
 }

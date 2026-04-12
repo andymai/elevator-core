@@ -1,14 +1,18 @@
-use crate::passenger::{Passenger, PassengerState};
+use crate::components::RiderState;
+use crate::events::EventBus;
+use crate::world::World;
 
-/// Advance transient passenger states.
+use super::PhaseContext;
+
+/// Advance transient rider states.
 ///
 /// Boarding → Riding, Alighting → Arrived after one tick so they're
 /// visible for exactly one frame in the visualization.
-pub fn run(passengers: &mut [Passenger]) {
-    for p in passengers {
-        match p.state {
-            PassengerState::Boarding(eid) => p.state = PassengerState::Riding(eid),
-            PassengerState::Alighting(_) => p.state = PassengerState::Arrived,
+pub fn run(world: &mut World, _events: &mut EventBus, _ctx: &PhaseContext) {
+    for (_id, rider) in &mut world.rider_data {
+        match rider.state {
+            RiderState::Boarding(eid) => rider.state = RiderState::Riding(eid),
+            RiderState::Alighting(_) => rider.state = RiderState::Arrived,
             _ => {}
         }
     }

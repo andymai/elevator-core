@@ -1,7 +1,7 @@
+use crate::components::RiderState;
 use crate::config::*;
-use crate::dispatch::ScanDispatch;
+use crate::dispatch::scan::ScanDispatch;
 use crate::events::SimEvent;
-use crate::passenger::PassengerState;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 
@@ -26,7 +26,7 @@ fn default_config() -> SimConfig {
                     position: 8.0,
                 },
             ],
-            },
+        },
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "Main".into(),
@@ -48,135 +48,106 @@ fn default_config() -> SimConfig {
     }
 }
 
+fn all_riders_arrived(sim: &Simulation) -> bool {
+    sim.world.riders().all(|(_, r)| r.state == RiderState::Arrived)
+}
+
 #[test]
-fn single_passenger_delivery() {
+fn single_rider_delivery() {
     let config = default_config();
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0);
 
-    // Spawn passenger at ground wanting to go to floor 3.
-    sim.spawn_passenger(StopId(0), StopId(2), 70.0);
-
-    // Run until passenger arrives or timeout.
     let max_ticks = 10_000;
     for _ in 0..max_ticks {
         sim.tick();
-        if sim
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim) {
             break;
         }
     }
 
-    assert_eq!(sim.passengers.len(), 1);
-    assert_eq!(sim.passengers[0].state, PassengerState::Arrived);
-
-    // Check event sequence contains the key milestones.
-    // Events were drained implicitly during the sim. Let's check final state instead.
-    assert!(sim.tick < max_ticks, "Simulation should complete before timeout");
+    assert!(all_riders_arrived(&sim));
+    assert!(sim.tick < max_ticks, "Should complete before timeout");
 }
 
 #[test]
-fn two_passengers_opposite_directions() {
+fn two_riders_opposite_directions() {
     let config = default_config();
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
-
-    // Passenger at ground going up, passenger at top going down.
-    sim.spawn_passenger(StopId(0), StopId(2), 70.0);
-    sim.spawn_passenger(StopId(2), StopId(0), 80.0);
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0);
+    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 80.0);
 
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
         sim.tick();
-        if sim
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim) {
             break;
         }
     }
 
     assert!(
-        sim.passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived),
-        "All passengers should arrive. States: {:?}",
-        sim.passengers.iter().map(|p| p.state).collect::<Vec<_>>()
+        all_riders_arrived(&sim),
+        "All riders should arrive. States: {:?}",
+        sim.world
+            .riders()
+            .map(|(_, r)| r.state)
+            .collect::<Vec<_>>()
     );
     assert!(sim.tick < max_ticks, "Should complete before timeout");
 }
 
 #[test]
-fn two_passengers_exceeding_capacity_delivered_in_two_trips() {
+fn two_riders_exceeding_capacity_delivered_in_two_trips() {
     let mut config = default_config();
-    // Tiny elevator that can hold 100kg.
     config.elevators[0].weight_capacity = 100.0;
 
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
-
-    // Two 70kg passengers at ground, both going to floor 2.
-    // Each fits alone (70 < 100) but not together (140 > 100).
-    sim.spawn_passenger(StopId(0), StopId(1), 70.0);
-    sim.spawn_passenger(StopId(0), StopId(1), 70.0);
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0);
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0);
 
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
         sim.tick();
         sim.drain_events();
-        if sim
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim) {
             break;
         }
     }
 
-    // Both passengers should eventually arrive (one per trip).
-    assert!(
-        sim.passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived),
-        "All passengers should eventually arrive"
-    );
+    assert!(all_riders_arrived(&sim), "All riders should eventually arrive");
 }
 
 #[test]
-fn overweight_passenger_rejected() {
+fn overweight_rider_rejected() {
     let mut config = default_config();
-    // Tiny elevator that can hold 50kg.
     config.elevators[0].weight_capacity = 50.0;
 
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
-
-    // One light passenger (40kg) and one heavy passenger (60kg, exceeds capacity).
-    sim.spawn_passenger(StopId(0), StopId(1), 40.0);
-    sim.spawn_passenger(StopId(0), StopId(1), 60.0);
+    let light = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 40.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0);
 
     let mut all_events = Vec::new();
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
         sim.tick();
         all_events.extend(sim.drain_events());
-        // Stop once the light passenger arrives.
-        if sim.passengers[0].state == PassengerState::Arrived {
+        if sim.world.rider_data.get(light).map(|r| r.state) == Some(RiderState::Arrived) {
             break;
         }
     }
 
-    // Light passenger should be delivered.
-    assert_eq!(sim.passengers[0].state, PassengerState::Arrived);
+    assert_eq!(
+        sim.world.rider_data.get(light).map(|r| r.state),
+        Some(RiderState::Arrived)
+    );
 
-    // Should have at least one overweight rejection event (for the 60kg passenger).
     let rejections: Vec<_> = all_events
         .iter()
-        .filter(|e| matches!(e, SimEvent::OverweightRejected { .. }))
+        .filter(|e| matches!(e, SimEvent::RiderRejected { .. }))
         .collect();
     assert!(
         !rejections.is_empty(),
-        "Should have at least one overweight rejection for the 60kg passenger"
+        "Should have at least one rejection for the 60kg rider"
     );
 }
 
@@ -184,36 +155,28 @@ fn overweight_passenger_rejected() {
 fn events_are_emitted_in_order() {
     let config = default_config();
     let mut sim = Simulation::new(config, Box::new(ScanDispatch::new()));
-
-    sim.spawn_passenger(StopId(0), StopId(1), 70.0);
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0);
 
     let mut all_events = Vec::new();
     let max_ticks = 10_000;
     for _ in 0..max_ticks {
         sim.tick();
         all_events.extend(sim.drain_events());
-        if sim
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim) {
             break;
         }
     }
 
-    // Verify we see the expected event types in order:
-    // PassengerSpawned -> ElevatorDeparted -> ElevatorArrived -> DoorOpened -> PassengerBoarded
-    // -> DoorClosed -> ElevatorDeparted -> ElevatorArrived -> DoorOpened -> PassengerAlighted -> DoorClosed
     let event_names: Vec<&str> = all_events
         .iter()
         .map(|e| match e {
-            SimEvent::PassengerSpawned { .. } => "spawned",
+            SimEvent::RiderSpawned { .. } => "spawned",
             SimEvent::ElevatorDeparted { .. } => "departed",
             SimEvent::ElevatorArrived { .. } => "arrived",
             SimEvent::DoorOpened { .. } => "door_opened",
             SimEvent::DoorClosed { .. } => "door_closed",
-            SimEvent::PassengerBoarded { .. } => "boarded",
-            SimEvent::PassengerAlighted { .. } => "alighted",
+            SimEvent::RiderBoarded { .. } => "boarded",
+            SimEvent::RiderAlighted { .. } => "alighted",
             _ => "other",
         })
         .collect();
@@ -226,7 +189,6 @@ fn events_are_emitted_in_order() {
     assert!(event_names.contains(&"alighted"));
     assert!(event_names.contains(&"door_closed"));
 
-    // Spawned should come before boarded.
     let spawned_idx = event_names.iter().position(|e| *e == "spawned").unwrap();
     let boarded_idx = event_names.iter().position(|e| *e == "boarded").unwrap();
     assert!(spawned_idx < boarded_idx, "Spawned should come before boarded");
@@ -236,40 +198,34 @@ fn events_are_emitted_in_order() {
 fn deterministic_replay() {
     let config = default_config();
 
-    // Run the same scenario twice and verify identical tick counts.
     let mut sim1 = Simulation::new(config.clone(), Box::new(ScanDispatch::new()));
-    sim1.spawn_passenger(StopId(0), StopId(2), 70.0);
-    sim1.spawn_passenger(StopId(1), StopId(0), 60.0);
+    sim1.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0);
+    sim1.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0);
 
     let mut ticks1 = 0u64;
     for _ in 0..20_000 {
         sim1.tick();
         ticks1 += 1;
-        if sim1
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim1) {
             break;
         }
     }
 
     let mut sim2 = Simulation::new(config, Box::new(ScanDispatch::new()));
-    sim2.spawn_passenger(StopId(0), StopId(2), 70.0);
-    sim2.spawn_passenger(StopId(1), StopId(0), 60.0);
+    sim2.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0);
+    sim2.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0);
 
     let mut ticks2 = 0u64;
     for _ in 0..20_000 {
         sim2.tick();
         ticks2 += 1;
-        if sim2
-            .passengers
-            .iter()
-            .all(|p| p.state == PassengerState::Arrived)
-        {
+        if all_riders_arrived(&sim2) {
             break;
         }
     }
 
-    assert_eq!(ticks1, ticks2, "Deterministic simulation should take identical tick counts");
+    assert_eq!(
+        ticks1, ticks2,
+        "Deterministic simulation should take identical tick counts"
+    );
 }

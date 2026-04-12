@@ -5,22 +5,23 @@ use crate::entity::EntityId;
 
 /// Central storage for all simulation entities and their components.
 ///
-/// The `alive` SlotMap owns entity keys. All component storages are
-/// `SecondaryMap`s keyed by the same `EntityId`, enabling independent
-/// mutable borrows of different component types within the same function.
+/// Uses separate `SecondaryMap` per component type (struct-of-arrays pattern)
+/// to enable independent mutable borrows of different component storages
+/// within the same system function.
+///
+/// All component maps are public — games read and write freely.
 pub struct World {
     /// Primary key storage. An entity exists iff its key is here.
     alive: SlotMap<EntityId, ()>,
 
-    // -- Component storages (SecondaryMap for shared keys) --
+    // -- Component storages --
     pub positions: SecondaryMap<EntityId, Position>,
     pub velocities: SecondaryMap<EntityId, Velocity>,
     pub elevator_cars: SecondaryMap<EntityId, ElevatorCar>,
-    pub passenger_data: SecondaryMap<EntityId, PassengerData>,
-    pub cargo_data: SecondaryMap<EntityId, CargoData>,
     pub stop_data: SecondaryMap<EntityId, StopData>,
-    pub zone_data: SecondaryMap<EntityId, ZoneData>,
+    pub rider_data: SecondaryMap<EntityId, RiderData>,
     pub routes: SecondaryMap<EntityId, Route>,
+    pub zone_data: SecondaryMap<EntityId, ZoneData>,
     pub patience: SecondaryMap<EntityId, Patience>,
     pub preferences: SecondaryMap<EntityId, Preferences>,
 }
@@ -32,11 +33,10 @@ impl World {
             positions: SecondaryMap::new(),
             velocities: SecondaryMap::new(),
             elevator_cars: SecondaryMap::new(),
-            passenger_data: SecondaryMap::new(),
-            cargo_data: SecondaryMap::new(),
             stop_data: SecondaryMap::new(),
-            zone_data: SecondaryMap::new(),
+            rider_data: SecondaryMap::new(),
             routes: SecondaryMap::new(),
+            zone_data: SecondaryMap::new(),
             patience: SecondaryMap::new(),
             preferences: SecondaryMap::new(),
         }
@@ -53,11 +53,10 @@ impl World {
         self.positions.remove(id);
         self.velocities.remove(id);
         self.elevator_cars.remove(id);
-        self.passenger_data.remove(id);
-        self.cargo_data.remove(id);
         self.stop_data.remove(id);
-        self.zone_data.remove(id);
+        self.rider_data.remove(id);
         self.routes.remove(id);
+        self.zone_data.remove(id);
         self.patience.remove(id);
         self.preferences.remove(id);
     }
@@ -76,9 +75,9 @@ impl World {
 
     /// Iterate all elevator entities (have ElevatorCar + Position).
     pub fn elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &ElevatorCar)> {
-        self.elevator_cars.iter().filter_map(|(id, car)| {
-            self.positions.get(id).map(|pos| (id, pos, car))
-        })
+        self.elevator_cars
+            .iter()
+            .filter_map(|(id, car)| self.positions.get(id).map(|pos| (id, pos, car)))
     }
 
     /// All elevator entity IDs.
@@ -86,19 +85,14 @@ impl World {
         self.elevator_cars.keys().collect()
     }
 
-    /// Iterate all passenger entities.
-    pub fn passengers(&self) -> impl Iterator<Item = (EntityId, &PassengerData)> {
-        self.passenger_data.iter()
+    /// Iterate all rider entities.
+    pub fn riders(&self) -> impl Iterator<Item = (EntityId, &RiderData)> {
+        self.rider_data.iter()
     }
 
-    /// All passenger entity IDs.
-    pub fn passenger_ids(&self) -> Vec<EntityId> {
-        self.passenger_data.keys().collect()
-    }
-
-    /// Iterate all cargo entities.
-    pub fn cargo(&self) -> impl Iterator<Item = (EntityId, &CargoData)> {
-        self.cargo_data.iter()
+    /// All rider entity IDs.
+    pub fn rider_ids(&self) -> Vec<EntityId> {
+        self.rider_data.keys().collect()
     }
 
     /// Iterate all stop entities.

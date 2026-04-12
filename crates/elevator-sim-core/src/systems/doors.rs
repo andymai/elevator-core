@@ -1,33 +1,36 @@
+use crate::components::ElevatorState;
 use crate::door::DoorTransition;
-use crate::elevator::{Elevator, ElevatorState};
 use crate::events::{EventBus, SimEvent};
+use crate::world::World;
+
+use super::PhaseContext;
 
 /// Tick door FSMs and handle state transitions.
-pub fn run(elevators: &mut [Elevator], events: &mut EventBus, tick: u64) {
-    for elevator in elevators {
-        if elevator.door.is_closed() && elevator.state != ElevatorState::DoorOpening {
+pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+    for (eid, car) in &mut world.elevator_cars {
+        if car.door.is_closed() && car.state != ElevatorState::DoorOpening {
             continue;
         }
 
-        let transition = elevator.door.tick();
+        let transition = car.door.tick();
 
         match transition {
             DoorTransition::FinishedOpening => {
-                elevator.state = ElevatorState::Loading;
+                car.state = ElevatorState::Loading;
                 events.emit(SimEvent::DoorOpened {
-                    elevator: elevator.id,
-                    tick,
+                    elevator: eid,
+                    tick: ctx.tick,
                 });
             }
             DoorTransition::FinishedOpen => {
-                elevator.state = ElevatorState::DoorClosing;
+                car.state = ElevatorState::DoorClosing;
             }
             DoorTransition::FinishedClosing => {
-                elevator.state = ElevatorState::Stopped;
-                elevator.target_stop = None;
+                car.state = ElevatorState::Stopped;
+                car.target_stop = None;
                 events.emit(SimEvent::DoorClosed {
-                    elevator: elevator.id,
-                    tick,
+                    elevator: eid,
+                    tick: ctx.tick,
                 });
             }
             DoorTransition::None => {}

@@ -1,153 +1,175 @@
+use crate::components::*;
+use crate::dispatch::scan::ScanDispatch;
 use crate::dispatch::*;
 use crate::door::DoorState;
-use crate::elevator::*;
-use crate::passenger::PassengerId;
-use crate::stop::*;
-use std::collections::HashMap;
+use crate::ids::GroupId;
+use crate::world::World;
 
-fn test_stops() -> Vec<StopConfig> {
-    vec![
-        StopConfig {
-            id: StopId(0),
-            name: "Ground".into(),
-            position: 0.0,
-        },
-        StopConfig {
-            id: StopId(1),
-            name: "Floor 2".into(),
-            position: 4.0,
-        },
-        StopConfig {
-            id: StopId(2),
-            name: "Floor 3".into(),
-            position: 8.0,
-        },
-        StopConfig {
-            id: StopId(3),
-            name: "Roof".into(),
-            position: 12.0,
-        },
+/// Build a World with 4 stops and return (world, stop_entities).
+fn test_world() -> (World, Vec<crate::entity::EntityId>) {
+    let mut world = World::new();
+    let stops: Vec<_> = [
+        ("Ground", 0.0),
+        ("Floor 2", 4.0),
+        ("Floor 3", 8.0),
+        ("Roof", 12.0),
     ]
+    .iter()
+    .map(|(name, pos)| {
+        let eid = world.spawn();
+        world.stop_data.insert(
+            eid,
+            StopData {
+                name: (*name).into(),
+                position: *pos,
+            },
+        );
+        eid
+    })
+    .collect();
+    (world, stops)
 }
 
-fn test_elevator(position: f64) -> Elevator {
-    Elevator {
-        id: ElevatorId(0),
-        position,
-        velocity: 0.0,
-        state: ElevatorState::Idle,
-        door: DoorState::Closed,
-        max_speed: 2.0,
-        acceleration: 1.5,
-        deceleration: 2.0,
-        weight_capacity: 800.0,
-        current_load: 0.0,
-        passengers: vec![],
-        cargo: vec![],
-        target_stop: None,
-        door_transition_ticks: 15,
-        door_open_ticks: 60,
+fn test_group(
+    stop_entities: &[crate::entity::EntityId],
+    elevator_entities: Vec<crate::entity::EntityId>,
+) -> ElevatorGroup {
+    ElevatorGroup {
+        id: GroupId(0),
+        name: "Default".into(),
+        elevator_entities,
+        stop_entities: stop_entities.to_vec(),
     }
 }
 
-fn empty_manifest() -> WaitingManifest {
-    WaitingManifest {
-        waiting_at_stop: HashMap::new(),
-        riders: vec![],
-        passenger_destinations: HashMap::new(),
-    }
+fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
+    let eid = world.spawn();
+    world.positions.insert(eid, Position { value: position });
+    world.elevator_cars.insert(
+        eid,
+        ElevatorCar {
+            state: ElevatorState::Idle,
+            door: DoorState::Closed,
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            current_load: 0.0,
+            riders: vec![],
+            target_stop: None,
+            door_transition_ticks: 15,
+            door_open_ticks: 60,
+            group: GroupId(0),
+        },
+    );
+    eid
 }
 
 #[test]
 fn no_requests_returns_idle() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let manifest = DispatchManifest::default();
     let mut scan = ScanDispatch::new();
-    let elevator = test_elevator(0.0);
-    let stops = test_stops();
-    let manifest = empty_manifest();
 
-    let decision = scan.decide(&elevator, &stops, &manifest);
+    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::Idle);
 }
 
 #[test]
 fn goes_to_nearest_stop_in_current_direction() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+
+    let mut manifest = DispatchManifest::default();
+    manifest.demand_at_stop.insert(
+        stops[1],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 70.0,
+        },
+    );
+    manifest.demand_at_stop.insert(
+        stops[3],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 80.0,
+        },
+    );
+
     let mut scan = ScanDispatch::new(); // direction: Up
-    let elevator = test_elevator(0.0);
-    let stops = test_stops();
-
-    let mut waiting = HashMap::new();
-    waiting.insert(StopId(1), vec![PassengerId(10)]);
-    waiting.insert(StopId(3), vec![PassengerId(20)]);
-
-    let manifest = WaitingManifest {
-        waiting_at_stop: waiting,
-        riders: vec![],
-        passenger_destinations: HashMap::new(),
-    };
-
-    let decision = scan.decide(&elevator, &stops, &manifest);
-    // Nearest stop ahead (Up from 0.0) is StopId(1) at 4.0
-    assert_eq!(decision, DispatchDecision::GoToStop(StopId(1)));
+    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
 }
 
 #[test]
 fn reverses_when_nothing_ahead() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 8.0);
+    let group = test_group(&stops, vec![elev]);
+
+    let mut manifest = DispatchManifest::default();
+    manifest.demand_at_stop.insert(
+        stops[0],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 70.0,
+        },
+    );
+    manifest.demand_at_stop.insert(
+        stops[1],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 80.0,
+        },
+    );
+
     let mut scan = ScanDispatch::new(); // direction: Up
-    let elevator = test_elevator(8.0);
-    let stops = test_stops();
-
-    let mut waiting = HashMap::new();
-    waiting.insert(StopId(0), vec![PassengerId(10)]);
-    waiting.insert(StopId(1), vec![PassengerId(20)]);
-
-    let manifest = WaitingManifest {
-        waiting_at_stop: waiting,
-        riders: vec![],
-        passenger_destinations: HashMap::new(),
-    };
-
-    let decision = scan.decide(&elevator, &stops, &manifest);
-    // Nothing above 8.0 is interesting. Reverse to Down.
-    // Nearest below = StopId(1) at 4.0
-    assert_eq!(decision, DispatchDecision::GoToStop(StopId(1)));
+    let decision = scan.decide(elev, 8.0, &group, &manifest, &world);
+    // Nothing above 8.0 except Roof at 12.0 — but no demand there.
+    // Reverses to Down. Nearest below = stops[1] at 4.0.
+    assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
 }
 
 #[test]
 fn serves_rider_destination() {
-    let mut scan = ScanDispatch::new(); // direction: Up
-    let elevator = test_elevator(0.0);
-    let stops = test_stops();
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
 
-    let mut destinations = HashMap::new();
-    destinations.insert(PassengerId(1), StopId(2));
+    let mut manifest = DispatchManifest::default();
+    manifest.rider_destinations.insert(stops[2], 1);
 
-    let manifest = WaitingManifest {
-        waiting_at_stop: HashMap::new(),
-        riders: vec![PassengerId(1)],
-        passenger_destinations: destinations,
-    };
-
-    let decision = scan.decide(&elevator, &stops, &manifest);
-    assert_eq!(decision, DispatchDecision::GoToStop(StopId(2)));
+    let mut scan = ScanDispatch::new();
+    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
 
 #[test]
 fn prefers_current_direction() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0);
+    let group = test_group(&stops, vec![elev]);
+
+    let mut manifest = DispatchManifest::default();
+    manifest.demand_at_stop.insert(
+        stops[0],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 70.0,
+        },
+    );
+    manifest.demand_at_stop.insert(
+        stops[2],
+        StopDemand {
+            waiting_count: 1,
+            total_waiting_weight: 80.0,
+        },
+    );
+
     let mut scan = ScanDispatch::new(); // direction: Up
-    let elevator = test_elevator(4.0);
-    let stops = test_stops();
-
-    let mut waiting = HashMap::new();
-    waiting.insert(StopId(0), vec![PassengerId(10)]); // below at 0.0
-    waiting.insert(StopId(2), vec![PassengerId(20)]); // above at 8.0
-
-    let manifest = WaitingManifest {
-        waiting_at_stop: waiting,
-        riders: vec![],
-        passenger_destinations: HashMap::new(),
-    };
-
-    let decision = scan.decide(&elevator, &stops, &manifest);
-    // Should continue Up to StopId(2) rather than reversing to StopId(0)
-    assert_eq!(decision, DispatchDecision::GoToStop(StopId(2)));
+    let decision = scan.decide(elev, 4.0, &group, &manifest, &world);
+    assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
