@@ -89,7 +89,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             }
             let patience = world.patience(id)?;
             let stop = r.current_stop?;
-            if patience.waited_ticks + 1 >= patience.max_wait_ticks {
+            if patience.waited_ticks >= patience.max_wait_ticks.saturating_sub(1) {
                 Some((id, stop))
             } else {
                 None
@@ -110,7 +110,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
 
     for id in waiting_with_patience {
         if let Some(p) = world.patience_mut(id) {
-            p.waited_ticks += 1;
+            p.waited_ticks = p.waited_ticks.saturating_add(1);
         }
     }
 

@@ -3,6 +3,7 @@
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::stop::StopId;
+use ordered_float::OrderedFloat;
 use std::fmt;
 
 /// Errors that can occur during simulation setup or operation.
@@ -69,5 +70,37 @@ impl fmt::Display for RejectionReason {
             Self::OverCapacity => write!(f, "over capacity"),
             Self::PreferenceBased => write!(f, "rider preference"),
         }
+    }
+}
+
+/// Additional context for a rider rejection.
+///
+/// Provides the numeric details that led to the rejection decision.
+/// Separated from [`RejectionReason`] to preserve `Eq` on the reason enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RejectionContext {
+    /// Weight the rider attempted to add.
+    pub attempted_weight: OrderedFloat<f64>,
+    /// Current load on the elevator at rejection time.
+    pub current_load: OrderedFloat<f64>,
+    /// Maximum weight capacity of the elevator.
+    pub capacity: OrderedFloat<f64>,
+}
+
+impl From<EntityId> for SimError {
+    fn from(id: EntityId) -> Self {
+        Self::EntityNotFound(id)
+    }
+}
+
+impl From<StopId> for SimError {
+    fn from(id: StopId) -> Self {
+        Self::StopNotFound(id)
+    }
+}
+
+impl From<GroupId> for SimError {
+    fn from(id: GroupId) -> Self {
+        Self::GroupNotFound(id)
     }
 }

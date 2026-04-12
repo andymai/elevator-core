@@ -66,7 +66,7 @@ pub mod prelude {
         BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo,
     };
     pub use crate::entity::EntityId;
-    pub use crate::error::{RejectionReason, SimError};
+    pub use crate::error::{RejectionContext, RejectionReason, SimError};
     pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};
     pub use crate::hooks::Phase;
     pub use crate::ids::GroupId;

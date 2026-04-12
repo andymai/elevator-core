@@ -123,7 +123,9 @@ impl ScenarioRunner {
             && self.spawns[self.spawn_cursor].tick <= self.sim.current_tick()
         {
             let spawn = &self.spawns[self.spawn_cursor];
-            // Ignore errors from invalid stop IDs in scenario spawns.
+            // Deliberately ignore spawn errors: scenario files may reference stops
+            // that were removed or disabled during the scenario run. Silently
+            // skipping invalid spawns is the correct replay behavior.
             let _ = self
                 .sim
                 .spawn_rider_by_stop_id(spawn.origin, spawn.destination, spawn.weight);

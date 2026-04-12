@@ -1,7 +1,7 @@
 //! Simulation event bus and typed event channels.
 
 use crate::entity::EntityId;
-use crate::error::RejectionReason;
+use crate::error::{RejectionContext, RejectionReason};
 use crate::ids::GroupId;
 use serde::{Deserialize, Serialize};
 
@@ -98,6 +98,8 @@ pub enum Event {
         elevator: EntityId,
         /// The reason for rejection.
         reason: RejectionReason,
+        /// Additional numeric context for the rejection.
+        context: Option<RejectionContext>,
         /// The tick when rejection occurred.
         tick: u64,
     },

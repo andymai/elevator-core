@@ -2,7 +2,7 @@
 
 use crate::components::{ElevatorPhase, RiderPhase, Route};
 use crate::entity::EntityId;
-use crate::error::RejectionReason;
+use crate::error::{RejectionContext, RejectionReason};
 use crate::events::{Event, EventBus};
 use crate::world::World;
 
@@ -36,10 +36,13 @@ enum LoadAction {
         elevator: EntityId,
         /// Why the rider was rejected.
         reason: RejectionReason,
+        /// Numeric details of the rejection.
+        context: Option<RejectionContext>,
     },
 }
 
 /// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
+#[allow(clippy::too_many_lines)]
 fn collect_actions(world: &World) -> Vec<LoadAction> {
     let mut actions: Vec<LoadAction> = Vec::new();
     let elevator_ids = world.elevator_ids();
@@ -136,12 +139,22 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
                 rider: rid,
                 elevator: eid,
                 reason: RejectionReason::OverCapacity,
+                context: Some(RejectionContext {
+                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight).into(),
+                    current_load: car.current_load.into(),
+                    capacity: car.weight_capacity.into(),
+                }),
             });
         } else if let Some(rid) = preference_rejected {
             actions.push(LoadAction::Reject {
                 rider: rid,
                 elevator: eid,
                 reason: RejectionReason::PreferenceBased,
+                context: Some(RejectionContext {
+                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight).into(),
+                    current_load: car.current_load.into(),
+                    capacity: car.weight_capacity.into(),
+                }),
             });
         }
     }
@@ -219,11 +232,13 @@ fn apply_actions(
                 rider,
                 elevator,
                 reason,
+                context,
             } => {
                 events.emit(Event::RiderRejected {
                     rider,
                     elevator,
                     reason,
+                    context,
                     tick: ctx.tick,
                 });
             }

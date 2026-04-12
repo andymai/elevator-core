@@ -50,6 +50,7 @@ fn roundtrip_sim_event_ron() {
             rider: e2,
             elevator: e1,
             reason: RejectionReason::OverCapacity,
+            context: None,
             tick: 99,
         },
         Event::RiderAbandoned {
