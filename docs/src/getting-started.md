@@ -8,13 +8,6 @@ In this chapter we will build a minimal elevator simulation from scratch: a 3-st
 cargo add elevator-core
 ```
 
-Or add it to your `Cargo.toml` manually:
-
-```toml
-[dependencies]
-elevator-core = "0.1"
-```
-
 ## Import the prelude
 
 The prelude re-exports everything you need for typical usage:
