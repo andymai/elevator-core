@@ -19,8 +19,8 @@ missing_docs_in_private_items = "warn"
 module_name_repetitions = "allow"
 # Enforce #[must_use] on all public return values
 must_use_candidate = "deny"
-# TODO(PR 7): add # Errors sections to all Result-returning public fns
-missing_errors_doc = "allow"
+# Errors sections added to all Result-returning public fns
+missing_errors_doc = "warn"
 # Panic paths are already denied; documenting them is redundant
 missing_panics_doc = "allow"
 # Simulation math intentionally uses as-casts for u64/usize -> f64 (values stay within f64 mantissa range)

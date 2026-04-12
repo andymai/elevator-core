@@ -256,6 +256,10 @@ impl SimulationBuilder {
     /// Build the simulation, validating the configuration.
     ///
     /// Returns `Err(SimError)` if the configuration is invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidConfig`] if the assembled configuration is invalid.
     pub fn build(self) -> Result<Simulation, SimError> {
         let default_dispatch = self
             .dispatchers

@@ -98,6 +98,10 @@ impl ScenarioRunner {
     /// Create a new runner from a scenario definition and dispatch strategy.
     ///
     /// Returns `Err` if the scenario's config is invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidConfig`] if the scenario's simulation config is invalid.
     pub fn new(scenario: Scenario, dispatch: Box<dyn DispatchStrategy>) -> Result<Self, SimError> {
         let sim = Simulation::new(&scenario.config, dispatch)?;
         Ok(Self {

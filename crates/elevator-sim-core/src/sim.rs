@@ -84,6 +84,12 @@ impl Simulation {
     ///
     /// Returns `Err` if the config is invalid (zero stops, duplicate IDs,
     /// negative speeds, etc.).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidConfig`] if the configuration has zero stops,
+    /// duplicate stop IDs, zero elevators, non-positive physics parameters,
+    /// invalid starting stops, or non-positive tick rate.
     pub fn new(config: &SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Result<Self, SimError> {
         Self::new_with_hooks(config, dispatch, PhaseHooks::default())
     }
@@ -469,6 +475,11 @@ impl Simulation {
     /// Convenience: spawn a rider by config `StopId`.
     ///
     /// Returns `Err` if either stop ID is not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::StopNotFound`] if the origin or destination stop ID
+    /// is not in the building configuration.
     pub fn spawn_rider_by_stop_id(
         &mut self,
         origin: StopId,
@@ -507,6 +518,10 @@ impl Simulation {
     /// Runtime-added stops have no `StopId` — they are identified purely
     /// by `EntityId`. The `stop_lookup` (config `StopId` → `EntityId`)
     /// is not updated.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
     pub fn add_stop(
         &mut self,
         name: String,
@@ -539,6 +554,10 @@ impl Simulation {
     }
 
     /// Add a new elevator to a group at runtime. Returns its `EntityId`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
     pub fn add_elevator(
         &mut self,
         params: &ElevatorParams,
@@ -630,6 +649,12 @@ impl Simulation {
     ///
     /// Returns `Err` if the rider does not exist or is not in `Waiting` phase
     /// (riding/boarding riders cannot be rerouted until they alight).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `rider` does not exist.
+    /// Returns [`SimError::InvalidState`] if the rider is not in
+    /// [`RiderPhase::Waiting`] or has no current stop.
     pub fn reroute(&mut self, rider: EntityId, new_destination: EntityId) -> Result<(), SimError> {
         let r = self
             .world
@@ -662,6 +687,10 @@ impl Simulation {
     }
 
     /// Replace a rider's entire remaining route.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `rider` does not exist.
     pub fn set_rider_route(&mut self, rider: EntityId, route: Route) -> Result<(), SimError> {
         if self.world.rider(rider).is_none() {
             return Err(SimError::EntityNotFound(rider));
@@ -678,6 +707,11 @@ impl Simulation {
     /// zero velocity to prevent stale target references on re-enable.
     ///
     /// Emits `EntityDisabled`. Returns `Err` if the entity does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not refer to a
+    /// living entity.
     pub fn disable(&mut self, id: EntityId) -> Result<(), SimError> {
         if !self.world.is_alive(id) {
             return Err(SimError::EntityNotFound(id));
@@ -731,6 +765,11 @@ impl Simulation {
     /// Re-enable a disabled entity.
     ///
     /// Emits `EntityEnabled`. Returns `Err` if the entity does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not refer to a
+    /// living entity.
     pub fn enable(&mut self, id: EntityId) -> Result<(), SimError> {
         if !self.world.is_alive(id) {
             return Err(SimError::EntityNotFound(id));
