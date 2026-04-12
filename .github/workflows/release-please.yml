@@ -34,5 +34,3 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Publish elevator-core to crates.io
         run: cargo publish -p elevator-core
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
