@@ -29,3 +29,8 @@ doc = false
 name = "world_ops"
 path = "fuzz_targets/world_ops.rs"
 doc = false
+
+[[bin]]
+name = "snapshot_deserialize"
+path = "fuzz_targets/snapshot_deserialize.rs"
+doc = false

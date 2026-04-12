@@ -26,3 +26,7 @@ mod topology_tests;
 #[cfg(feature = "traffic")]
 mod traffic_tests;
 mod world_tests;
+
+mod boundary_tests;
+mod event_payload_tests;
+mod multi_elevator_tests;
