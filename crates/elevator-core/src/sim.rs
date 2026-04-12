@@ -480,6 +480,17 @@ impl Simulation {
     ///
     /// Returns [`SimError::StopNotFound`] if the origin or destination stop ID
     /// is not in the building configuration.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// // Default builder has StopId(0) and StopId(1).
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    ///
+    /// let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 80.0).unwrap();
+    /// sim.step(); // metrics are updated during the tick
+    /// assert_eq!(sim.metrics().total_spawned(), 1);
+    /// ```
     pub fn spawn_rider_by_stop_id(
         &mut self,
         origin: StopId,
@@ -505,6 +516,18 @@ impl Simulation {
     /// and made available here after `advance_tick()` is called.
     /// Events emitted outside the tick loop (e.g., `spawn_rider`, `disable`)
     /// are also included.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    ///
+    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.step();
+    ///
+    /// let events = sim.drain_events();
+    /// assert!(!events.is_empty());
+    /// ```
     pub fn drain_events(&mut self) -> Vec<Event> {
         // Flush any events still in the bus (from spawn_rider, disable, etc.)
         self.pending_output.extend(self.events.drain());
@@ -1090,6 +1113,14 @@ impl Simulation {
     /// Events from this tick are buffered internally and available via
     /// `drain_events()`. The metrics system only processes events from
     /// the current tick, regardless of whether the consumer drains them.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// sim.step();
+    /// assert_eq!(sim.current_tick(), 1);
+    /// ```
     pub fn step(&mut self) {
         self.run_advance_transient();
         self.run_dispatch();

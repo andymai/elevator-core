@@ -1,0 +1,15 @@
+[book]
+title = "elevator-core"
+authors = ["Andy Aragon"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "../target/book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/andymai/elevator-core"
+edit-url-template = "https://github.com/andymai/elevator-core/edit/main/docs/src/{path}"
+additional-css = ["theme/custom.css"]

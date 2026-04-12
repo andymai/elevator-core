@@ -1,0 +1,23 @@
+/* Warm accent for active sidebar links */
+.sidebar .active > a {
+    color: #e06c40 !important;
+}
+
+/* Heading accent color */
+.content main h1,
+.content main h2,
+.content main h3 {
+    color: #c85a30;
+}
+
+/* Slightly softer code block background */
+.content main pre {
+    border-left: 3px solid #e06c40;
+    border-radius: 4px;
+}
+
+/* Inline code styling */
+.content main code {
+    border-radius: 3px;
+    padding: 1px 4px;
+}
