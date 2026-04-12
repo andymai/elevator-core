@@ -2,6 +2,7 @@ pub mod advance_transient;
 pub mod dispatch;
 pub mod doors;
 pub mod loading;
+pub mod metrics;
 pub mod movement;
 
 /// Context passed to every system phase.

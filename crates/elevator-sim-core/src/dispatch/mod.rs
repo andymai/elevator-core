@@ -1,3 +1,6 @@
+pub mod etd;
+pub mod look;
+pub mod nearest_car;
 pub mod scan;
 
 use crate::entity::EntityId;

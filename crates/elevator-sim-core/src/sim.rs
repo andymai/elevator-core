@@ -5,6 +5,7 @@ use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::events::{EventBus, SimEvent};
 use crate::ids::GroupId;
+use crate::metrics::Metrics;
 use crate::stop::StopId;
 use crate::systems::PhaseContext;
 use crate::world::World;
@@ -20,6 +21,7 @@ pub struct Simulation {
     /// Config StopId → EntityId mapping for spawn helpers.
     pub stop_lookup: HashMap<StopId, EntityId>,
     dispatchers: HashMap<GroupId, Box<dyn DispatchStrategy>>,
+    metrics: Metrics,
 }
 
 impl Simulation {
@@ -93,7 +95,13 @@ impl Simulation {
             groups: vec![group],
             stop_lookup,
             dispatchers,
+            metrics: Metrics::new(),
         }
+    }
+
+    /// Get current simulation metrics.
+    pub fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     /// Spawn a rider at the given origin stop entity, headed to destination stop entity.
@@ -161,6 +169,7 @@ impl Simulation {
         crate::systems::movement::run(&mut self.world, &mut self.events, &ctx);
         crate::systems::doors::run(&mut self.world, &mut self.events, &ctx);
         crate::systems::loading::run(&mut self.world, &mut self.events, &ctx);
+        crate::systems::metrics::run(&self.world, &self.events, &mut self.metrics, &ctx);
 
         self.tick += 1;
     }
