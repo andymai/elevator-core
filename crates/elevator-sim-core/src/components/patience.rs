@@ -11,6 +11,15 @@ pub struct Patience {
     pub waited_ticks: u64,
 }
 
+impl Default for Patience {
+    fn default() -> Self {
+        Self {
+            max_wait_ticks: 600,
+            waited_ticks: 0,
+        }
+    }
+}
+
 /// Boarding preferences for a rider.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Preferences {
@@ -18,4 +27,13 @@ pub struct Preferences {
     pub skip_full_elevator: bool,
     /// Maximum load factor (0.0-1.0) the rider will tolerate when boarding.
     pub max_crowding_factor: f64,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            skip_full_elevator: false,
+            max_crowding_factor: 0.8,
+        }
+    }
 }

@@ -1,5 +1,7 @@
 //! Fluent builder for constructing a [`Simulation`] programmatically.
 
+use serde::{Serialize, de::DeserializeOwned};
+
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -12,6 +14,9 @@ use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 use crate::world::World;
 use std::collections::BTreeMap;
+
+/// A deferred extension registration closure.
+type ExtRegistration = Box<dyn FnOnce(&mut World) + Send>;
 
 /// Fluent builder for constructing a [`Simulation`].
 ///
@@ -33,6 +38,8 @@ pub struct SimulationBuilder {
     dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     /// Lifecycle hooks for before/after each tick phase.
     hooks: PhaseHooks,
+    /// Deferred extension registrations (applied after build).
+    ext_registrations: Vec<ExtRegistration>,
 }
 
 impl Default for SimulationBuilder {
@@ -91,6 +98,7 @@ impl SimulationBuilder {
             config,
             dispatchers,
             hooks: PhaseHooks::default(),
+            ext_registrations: Vec::new(),
         }
     }
 
@@ -110,6 +118,7 @@ impl SimulationBuilder {
             config,
             dispatchers,
             hooks: PhaseHooks::default(),
+            ext_registrations: Vec::new(),
         }
     }
 
@@ -203,17 +212,39 @@ impl SimulationBuilder {
         self
     }
 
+    /// Pre-register an extension type for snapshot deserialization.
+    ///
+    /// Extensions registered here will be available immediately after [`build()`](Self::build)
+    /// without needing to call `register_ext` manually.
+    #[must_use]
+    pub fn with_ext<T: 'static + Send + Sync + Serialize + DeserializeOwned>(
+        mut self,
+        name: &str,
+    ) -> Self {
+        let name = name.to_owned();
+        self.ext_registrations
+            .push(Box::new(move |world: &mut World| {
+                world.register_ext::<T>(&name);
+            }));
+        self
+    }
+
     /// Build the simulation, validating the configuration.
     ///
     /// Returns `Err(SimError)` if the configuration is invalid.
     pub fn build(self) -> Result<Simulation, SimError> {
-        // Extract the default dispatch for Simulation::new().
         let default_dispatch = self
             .dispatchers
             .into_values()
             .next()
             .unwrap_or_else(|| Box::new(ScanDispatch::new()));
 
-        Simulation::new_with_hooks(&self.config, default_dispatch, self.hooks)
+        let mut sim = Simulation::new_with_hooks(&self.config, default_dispatch, self.hooks)?;
+
+        for register in self.ext_registrations {
+            register(sim.world_mut());
+        }
+
+        Ok(sim)
     }
 }

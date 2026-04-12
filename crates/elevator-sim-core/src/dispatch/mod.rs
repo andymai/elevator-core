@@ -92,6 +92,18 @@ pub enum BuiltinStrategy {
     Custom(String),
 }
 
+impl std::fmt::Display for BuiltinStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Scan => write!(f, "Scan"),
+            Self::Look => write!(f, "Look"),
+            Self::NearestCar => write!(f, "NearestCar"),
+            Self::Etd => write!(f, "Etd"),
+            Self::Custom(name) => write!(f, "Custom({name})"),
+        }
+    }
+}
+
 impl BuiltinStrategy {
     /// Instantiate the dispatch strategy for this variant.
     ///

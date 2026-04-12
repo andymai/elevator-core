@@ -24,6 +24,20 @@ pub enum RiderPhase {
     Abandoned,
 }
 
+impl std::fmt::Display for RiderPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Waiting => write!(f, "Waiting"),
+            Self::Boarding(id) => write!(f, "Boarding({id:?})"),
+            Self::Riding(id) => write!(f, "Riding({id:?})"),
+            Self::Alighting(id) => write!(f, "Alighting({id:?})"),
+            Self::Walking => write!(f, "Walking"),
+            Self::Arrived => write!(f, "Arrived"),
+            Self::Abandoned => write!(f, "Abandoned"),
+        }
+    }
+}
+
 /// Core component for any entity that rides elevators.
 ///
 /// This is the minimum data the simulation needs. Games attach

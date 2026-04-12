@@ -45,6 +45,21 @@ pub enum DoorTransition {
     FinishedClosing,
 }
 
+impl std::fmt::Display for DoorState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Closed => write!(f, "Closed"),
+            Self::Opening {
+                ticks_remaining, ..
+            } => write!(f, "Opening({ticks_remaining})"),
+            Self::Open {
+                ticks_remaining, ..
+            } => write!(f, "Open({ticks_remaining})"),
+            Self::Closing { ticks_remaining } => write!(f, "Closing({ticks_remaining})"),
+        }
+    }
+}
+
 impl DoorState {
     /// Returns `true` if the doors are fully open.
     #[must_use]

@@ -53,6 +53,22 @@ pub mod time;
 #[cfg(feature = "traffic")]
 pub mod traffic;
 
+/// Register multiple extension types for snapshot deserialization in one call.
+///
+/// Eliminates the manual `register_ext` ceremony after snapshot restore.
+///
+/// # Example
+///
+/// ```ignore
+/// register_extensions!(sim.world_mut(), VipTag => "vip_tag", Priority => "priority");
+/// ```
+#[macro_export]
+macro_rules! register_extensions {
+    ($world:expr, $($ty:ty => $name:expr),+ $(,)?) => {
+        $( $world.register_ext::<$ty>($name); )+
+    };
+}
+
 /// Common imports for consumers of this library.
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;

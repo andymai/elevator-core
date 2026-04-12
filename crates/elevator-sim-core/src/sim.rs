@@ -36,6 +36,19 @@ pub struct ElevatorParams {
     pub door_open_ticks: u32,
 }
 
+impl Default for ElevatorParams {
+    fn default() -> Self {
+        Self {
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            door_transition_ticks: 5,
+            door_open_ticks: 10,
+        }
+    }
+}
+
 /// The core simulation state, advanced by calling `step()`.
 pub struct Simulation {
     /// The ECS world containing all entity data.

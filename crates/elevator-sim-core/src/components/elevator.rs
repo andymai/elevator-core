@@ -24,6 +24,19 @@ pub enum ElevatorPhase {
     Stopped,
 }
 
+impl std::fmt::Display for ElevatorPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Idle => write!(f, "Idle"),
+            Self::MovingToStop(id) => write!(f, "MovingToStop({id:?})"),
+            Self::DoorOpening => write!(f, "DoorOpening"),
+            Self::Loading => write!(f, "Loading"),
+            Self::DoorClosing => write!(f, "DoorClosing"),
+            Self::Stopped => write!(f, "Stopped"),
+        }
+    }
+}
+
 /// Component for an elevator entity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Elevator {
