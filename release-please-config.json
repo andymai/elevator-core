@@ -4,13 +4,8 @@
       "release-type": "rust",
       "component": "elevator-core",
       "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true
-    },
-    "crates/elevator-bevy": {
-      "release-type": "rust",
-      "component": "elevator-bevy",
-      "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true
+      "bump-minor-pre-major": true,
+      "include-component-in-tag": true
     }
   },
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
