@@ -4,7 +4,7 @@ members = ["crates/elevator-sim-core", "crates/elevator-sim-bevy"]
 default-members = ["crates/elevator-sim-bevy"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 
 [workspace.lints.clippy]

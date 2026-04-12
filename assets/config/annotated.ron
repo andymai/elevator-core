@@ -1,0 +1,69 @@
+// Annotated elevator simulation configuration.
+// All fields are required unless noted otherwise.
+
+SimConfig(
+    building: BuildingConfig(
+        // Human-readable building name (for display/logging).
+        name: "Demo Tower",
+
+        // Stops along the elevator shaft. At least one required.
+        // Positions are in arbitrary distance units from origin.
+        // Stops need not be uniformly spaced — supports buildings and space elevators.
+        stops: [
+            // id: unique StopId — referenced by elevator starting_stop and rider routes.
+            // name: display label for the stop.
+            // position: absolute distance from shaft origin. Must be unique across stops.
+            StopConfig(id: StopId(0), name: "Ground",  position: 0.0),
+            StopConfig(id: StopId(1), name: "Floor 2", position: 4.0),
+            StopConfig(id: StopId(2), name: "Floor 3", position: 7.5),
+            StopConfig(id: StopId(3), name: "Floor 4", position: 11.0),
+            StopConfig(id: StopId(4), name: "Roof",    position: 15.0),
+        ],
+    ),
+
+    // Elevator cars. At least one required.
+    elevators: [
+        ElevatorConfig(
+            // Numeric ID (used in config only; mapped to EntityId at runtime).
+            id: 0,
+            // Display name for the elevator.
+            name: "Main",
+            // Maximum travel speed in distance units per second. Must be > 0.
+            // Typical range: 1.0-5.0 for buildings, higher for space elevators.
+            max_speed: 2.0,
+            // Acceleration rate in distance units per second squared. Must be > 0.
+            // Controls how quickly the car reaches max_speed.
+            acceleration: 1.5,
+            // Deceleration rate in distance units per second squared. Must be > 0.
+            // Controls braking as the car approaches a stop.
+            deceleration: 2.0,
+            // Maximum weight the car can carry (arbitrary units). Must be > 0.
+            // Riders exceeding this are rejected with OverCapacity.
+            weight_capacity: 800.0,
+            // StopId where this elevator starts. Must match a stop in the building.
+            starting_stop: StopId(0),
+            // Ticks the door stays fully open before closing. Higher = more boarding time.
+            door_open_ticks: 60,
+            // Ticks for the door open/close transition animation.
+            door_transition_ticks: 15,
+        ),
+    ],
+
+    simulation: SimulationParams(
+        // Simulation tick rate. Must be > 0.
+        // Higher values increase resolution but require more steps per real-time second.
+        // 60.0 is typical for game-like simulations.
+        ticks_per_second: 60.0,
+    ),
+
+    // Passenger spawning parameters (used by the optional 'traffic' feature).
+    // The struct is always present in config even if the traffic feature is disabled.
+    passenger_spawning: PassengerSpawnConfig(
+        // Mean ticks between passenger spawns (Poisson process). Must be > 0.
+        // Lower = more frequent arrivals. At 60 tps, 120 ticks = 2 seconds.
+        mean_interval_ticks: 120,
+        // (min, max) weight range for randomly spawned passengers.
+        // Each passenger gets a uniform random weight in this range.
+        weight_range: (50.0, 100.0),
+    ),
+)

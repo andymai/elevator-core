@@ -1,0 +1,4 @@
+{
+  "crates/elevator-sim-core": "1.0.0",
+  "crates/elevator-sim-bevy": "1.0.0"
+}

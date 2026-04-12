@@ -118,6 +118,9 @@ pub struct SimulationParams {
 ///
 /// The core simulation does not spawn passengers automatically; these values
 /// are advisory and consumed by game code or traffic generators.
+///
+/// This struct is always available regardless of feature flags. The built-in
+/// traffic generation that consumes it requires the `traffic` feature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PassengerSpawnConfig {
     /// Mean interval in ticks between passenger spawns.
