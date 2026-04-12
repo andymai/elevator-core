@@ -3,8 +3,10 @@
 /// Shared test utilities.
 mod helpers;
 
+mod builder_tests;
 mod config_tests;
 mod feature_tests;
+mod hooks_tests;
 mod dispatch_tests;
 mod door_tests;
 mod error_tests;

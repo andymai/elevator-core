@@ -7,26 +7,27 @@ use std::collections::VecDeque;
 /// Games query this via `sim.metrics()` for HUD display, scoring,
 /// or scenario evaluation.
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct Metrics {
-    // -- Public queryable metrics --
+    // -- Queryable metrics (accessed via getters) --
     /// Average wait time in ticks (spawn to board).
-    pub avg_wait_time: f64,
+    pub(crate) avg_wait_time: f64,
     /// Average ride time in ticks (board to alight).
-    pub avg_ride_time: f64,
+    pub(crate) avg_ride_time: f64,
     /// Maximum wait time observed (ticks).
-    pub max_wait_time: u64,
+    pub(crate) max_wait_time: u64,
     /// Riders delivered in the current throughput window.
-    pub throughput: u64,
+    pub(crate) throughput: u64,
     /// Riders delivered total.
-    pub total_delivered: u64,
+    pub(crate) total_delivered: u64,
     /// Riders who abandoned.
-    pub total_abandoned: u64,
+    pub(crate) total_abandoned: u64,
     /// Total riders spawned.
-    pub total_spawned: u64,
+    pub(crate) total_spawned: u64,
     /// Abandonment rate (0.0 - 1.0).
-    pub abandonment_rate: f64,
+    pub(crate) abandonment_rate: f64,
     /// Total distance traveled by all elevators.
-    pub total_distance: f64,
+    pub(crate) total_distance: f64,
 
     // -- Internal accumulators --
     /// Running sum of wait ticks across all boarded riders.
@@ -40,7 +41,7 @@ pub struct Metrics {
     /// Sliding window of delivery ticks, sorted ascending.
     delivery_window: VecDeque<u64>,
     /// Window size for throughput calculation.
-    pub throughput_window_ticks: u64,
+    pub(crate) throughput_window_ticks: u64,
 }
 
 impl Metrics {
@@ -59,6 +60,70 @@ impl Metrics {
         self.throughput_window_ticks = window_ticks;
         self
     }
+
+    // ── Getters ──────────────────────────────────��───────────────────
+
+    /// Average wait time in ticks (spawn to board).
+    #[must_use]
+    pub const fn avg_wait_time(&self) -> f64 {
+        self.avg_wait_time
+    }
+
+    /// Average ride time in ticks (board to alight).
+    #[must_use]
+    pub const fn avg_ride_time(&self) -> f64 {
+        self.avg_ride_time
+    }
+
+    /// Maximum wait time observed (ticks).
+    #[must_use]
+    pub const fn max_wait_time(&self) -> u64 {
+        self.max_wait_time
+    }
+
+    /// Riders delivered in the current throughput window.
+    #[must_use]
+    pub const fn throughput(&self) -> u64 {
+        self.throughput
+    }
+
+    /// Riders delivered total.
+    #[must_use]
+    pub const fn total_delivered(&self) -> u64 {
+        self.total_delivered
+    }
+
+    /// Riders who abandoned.
+    #[must_use]
+    pub const fn total_abandoned(&self) -> u64 {
+        self.total_abandoned
+    }
+
+    /// Total riders spawned.
+    #[must_use]
+    pub const fn total_spawned(&self) -> u64 {
+        self.total_spawned
+    }
+
+    /// Abandonment rate (0.0 - 1.0).
+    #[must_use]
+    pub const fn abandonment_rate(&self) -> f64 {
+        self.abandonment_rate
+    }
+
+    /// Total distance traveled by all elevators.
+    #[must_use]
+    pub const fn total_distance(&self) -> f64 {
+        self.total_distance
+    }
+
+    /// Window size for throughput calculation (ticks).
+    #[must_use]
+    pub const fn throughput_window_ticks(&self) -> u64 {
+        self.throughput_window_ticks
+    }
+
+    // ── Recording ───────────────────���────────────────────────────────
 
     /// Record a rider spawning.
     pub const fn record_spawn(&mut self) {

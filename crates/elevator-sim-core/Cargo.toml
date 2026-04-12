@@ -4,8 +4,11 @@ version.workspace = true
 edition.workspace = true
 description = "Engine-agnostic elevator simulation library with pluggable dispatch strategies"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/andyaragon/elevator-sim"
+readme = "README.md"
+rust-version = "1.87"
 categories = ["game-engines", "simulation"]
-keywords = ["elevator", "dispatch", "simulation"]
+keywords = ["elevator", "dispatch", "simulation", "ecs", "building"]
 
 [features]
 default = ["traffic"]
@@ -26,4 +29,12 @@ proptest = "1"
 
 [[bench]]
 name = "sim_bench"
+harness = false
+
+[[bench]]
+name = "scaling_bench"
+harness = false
+
+[[bench]]
+name = "dispatch_bench"
 harness = false

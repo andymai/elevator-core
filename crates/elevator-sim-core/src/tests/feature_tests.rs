@@ -649,3 +649,127 @@ fn route_direct_current_returns_single_leg() {
     assert_eq!(route.current_destination(), Some(to));
     assert!(!route.is_complete());
 }
+
+/// Verify weight-based rejection: riders over capacity are rejected, not boarded.
+#[test]
+fn weight_rejection_boundary() {
+    use crate::events::Event;
+
+    // 2 stops, 1 elevator with capacity 100.0.
+    let config = crate::config::SimConfig {
+        building: crate::config::BuildingConfig {
+            name: "WeightTest".into(),
+            stops: vec![
+                crate::stop::StopConfig { id: crate::stop::StopId(0), name: "A".into(), position: 0.0 },
+                crate::stop::StopConfig { id: crate::stop::StopId(1), name: "B".into(), position: 10.0 },
+            ],
+        },
+        elevators: vec![crate::config::ElevatorConfig {
+            id: 0,
+            name: "E0".into(),
+            max_speed: 5.0,
+            acceleration: 3.0,
+            deceleration: 3.0,
+            weight_capacity: 100.0,
+            starting_stop: crate::stop::StopId(0),
+            door_open_ticks: 10,
+            door_transition_ticks: 3,
+        }],
+        simulation: crate::config::SimulationParams { ticks_per_second: 60.0 },
+        passenger_spawning: crate::config::PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let mut sim = crate::sim::Simulation::new(
+        &config,
+        Box::new(crate::dispatch::scan::ScanDispatch::new()),
+    ).unwrap();
+
+    // Spawn rider1 (weight 60) and rider2 (weight 60) at stop 0 → stop 1.
+    // Combined = 120, exceeds capacity 100. Only one should board.
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0).unwrap();
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0).unwrap();
+
+    // Run enough ticks for loading to happen.
+    for _ in 0..500 {
+        sim.step();
+    }
+
+    let events = sim.drain_events();
+    let rejections: Vec<_> = events.iter().filter(|e| matches!(e, Event::RiderRejected { .. })).collect();
+
+    // At least one rider should be rejected due to weight.
+    assert!(
+        !rejections.is_empty(),
+        "Expected at least 1 rejection event due to weight capacity"
+    );
+}
+
+/// Verify PassingFloor events are emitted when an elevator passes through stops.
+#[test]
+fn passing_floor_events_emitted() {
+    use crate::events::Event;
+
+    // Setup: 5 stops, elevator going from stop 0 (pos 0) to stop 4 (pos 40).
+    // Should pass through stops 1-3 along the way.
+    let config = crate::config::SimConfig {
+        building: crate::config::BuildingConfig {
+            name: "PassFloor".into(),
+            stops: vec![
+                crate::stop::StopConfig { id: crate::stop::StopId(0), name: "S0".into(), position: 0.0 },
+                crate::stop::StopConfig { id: crate::stop::StopId(1), name: "S1".into(), position: 10.0 },
+                crate::stop::StopConfig { id: crate::stop::StopId(2), name: "S2".into(), position: 20.0 },
+                crate::stop::StopConfig { id: crate::stop::StopId(3), name: "S3".into(), position: 30.0 },
+                crate::stop::StopConfig { id: crate::stop::StopId(4), name: "S4".into(), position: 40.0 },
+            ],
+        },
+        elevators: vec![crate::config::ElevatorConfig {
+            id: 0,
+            name: "E0".into(),
+            max_speed: 5.0,
+            acceleration: 2.0,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: crate::stop::StopId(0),
+            door_open_ticks: 5,
+            door_transition_ticks: 3,
+        }],
+        simulation: crate::config::SimulationParams { ticks_per_second: 60.0 },
+        passenger_spawning: crate::config::PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let mut sim = crate::sim::Simulation::new(
+        &config,
+        Box::new(crate::dispatch::scan::ScanDispatch::new()),
+    ).unwrap();
+
+    // Spawn a rider from stop 0 to stop 4 to trigger dispatch.
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0).unwrap();
+
+    // Run enough ticks for the elevator to reach the destination.
+    for _ in 0..2000 {
+        sim.step();
+    }
+
+    let events = sim.drain_events();
+    let passing_events: Vec<_> = events.iter().filter(|e| matches!(e, Event::PassingFloor { .. })).collect();
+
+    // Should have passing events for stops 1, 2, 3 (the intermediate stops).
+    assert!(
+        passing_events.len() >= 3,
+        "Expected at least 3 PassingFloor events, got {}",
+        passing_events.len()
+    );
+
+    // Verify they're all moving_up = true.
+    for event in &passing_events {
+        if let Event::PassingFloor { moving_up, .. } = event {
+            assert!(*moving_up, "Elevator should be moving up");
+        }
+    }
+}

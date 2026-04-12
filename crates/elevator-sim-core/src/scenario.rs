@@ -185,28 +185,28 @@ fn evaluate_condition(condition: &Condition, metrics: &Metrics, current_tick: u6
     match condition {
         Condition::AvgWaitBelow(threshold) => ConditionResult {
             condition: condition.clone(),
-            passed: metrics.avg_wait_time < *threshold,
-            actual_value: metrics.avg_wait_time,
+            passed: metrics.avg_wait_time() < *threshold,
+            actual_value: metrics.avg_wait_time(),
         },
         Condition::MaxWaitBelow(threshold) => ConditionResult {
             condition: condition.clone(),
-            passed: metrics.max_wait_time < *threshold,
-            actual_value: metrics.max_wait_time as f64,
+            passed: metrics.max_wait_time() < *threshold,
+            actual_value: metrics.max_wait_time() as f64,
         },
         Condition::ThroughputAbove(threshold) => ConditionResult {
             condition: condition.clone(),
-            passed: metrics.throughput > *threshold,
-            actual_value: metrics.throughput as f64,
+            passed: metrics.throughput() > *threshold,
+            actual_value: metrics.throughput() as f64,
         },
         Condition::AllDeliveredByTick(deadline) => ConditionResult {
             condition: condition.clone(),
-            passed: current_tick <= *deadline && metrics.total_delivered == metrics.total_spawned,
+            passed: current_tick <= *deadline && metrics.total_delivered() == metrics.total_spawned(),
             actual_value: current_tick as f64,
         },
         Condition::AbandonmentRateBelow(threshold) => ConditionResult {
             condition: condition.clone(),
-            passed: metrics.abandonment_rate < *threshold,
-            actual_value: metrics.abandonment_rate,
+            passed: metrics.abandonment_rate() < *threshold,
+            actual_value: metrics.abandonment_rate(),
         },
     }
 }

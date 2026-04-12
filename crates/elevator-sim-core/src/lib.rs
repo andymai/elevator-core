@@ -3,6 +3,7 @@
 //! Provides a tick-based simulation with pluggable dispatch strategies,
 //! trapezoidal velocity profiles, and a typed event bus for UI/metrics consumers.
 
+#![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 /// Entity-component data types for the simulation.
@@ -20,6 +21,8 @@ pub mod systems;
 /// Central entity/component storage.
 pub mod world;
 
+/// Fluent builder for constructing a Simulation programmatically.
+pub mod builder;
 /// Building and elevator configuration (RON deserialization).
 pub mod config;
 /// Pluggable dispatch strategies (SCAN, LOOK, nearest-car, ETD).
@@ -28,6 +31,8 @@ pub mod dispatch;
 pub mod door;
 /// Simulation event bus and event types.
 pub mod events;
+/// Lifecycle hooks for injecting logic before/after simulation phases.
+pub mod hooks;
 /// Aggregate simulation metrics.
 pub mod metrics;
 /// Trapezoidal velocity-profile movement math.
@@ -46,6 +51,7 @@ pub mod traffic;
 
 /// Common imports for consumers of this library.
 pub mod prelude {
+    pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
         Elevator, ElevatorPhase, Patience, Position, Preferences, Rider, RiderPhase, Route, Stop,
         Velocity, Zone,
@@ -56,6 +62,7 @@ pub mod prelude {
     pub use crate::error::{RejectionReason, SimError};
     pub use crate::dispatch::ElevatorGroup;
     pub use crate::events::{Event, EventBus, EventChannel};
+    pub use crate::hooks::Phase;
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{ElevatorParams, Simulation};

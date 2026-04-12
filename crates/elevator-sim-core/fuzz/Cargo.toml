@@ -1,0 +1,31 @@
+[package]
+name = "elevator-sim-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+elevator-sim-core = { path = ".." }
+ron = "0.9"
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "config_parse"
+path = "fuzz_targets/config_parse.rs"
+doc = false
+
+[[bin]]
+name = "sim_step_random"
+path = "fuzz_targets/sim_step_random.rs"
+doc = false
+
+[[bin]]
+name = "world_ops"
+path = "fuzz_targets/world_ops.rs"
+doc = false

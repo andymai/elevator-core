@@ -9,6 +9,7 @@ use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::error::SimError;
 use crate::events::{Event, EventBus};
+use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
 use crate::stop::StopId;
@@ -57,6 +58,8 @@ pub struct Simulation {
     metrics: Metrics,
     /// Time conversion utility.
     time: TimeAdapter,
+    /// Lifecycle hooks (before/after each phase).
+    hooks: PhaseHooks,
 }
 
 impl Simulation {
@@ -67,6 +70,17 @@ impl Simulation {
     pub fn new(
         config: &SimConfig,
         dispatch: Box<dyn DispatchStrategy>,
+    ) -> Result<Self, SimError> {
+        Self::new_with_hooks(config, dispatch, PhaseHooks::default())
+    }
+
+    /// Create a simulation with pre-configured lifecycle hooks.
+    ///
+    /// Used by [`SimulationBuilder`](crate::builder::SimulationBuilder).
+    pub(crate) fn new_with_hooks(
+        config: &SimConfig,
+        dispatch: Box<dyn DispatchStrategy>,
+        hooks: PhaseHooks,
     ) -> Result<Self, SimError> {
         Self::validate_config(config)?;
 
@@ -150,6 +164,7 @@ impl Simulation {
             dispatchers,
             metrics: Metrics::new(),
             time: TimeAdapter::new(config.simulation.ticks_per_second),
+            hooks,
         })
     }
 
@@ -548,14 +563,17 @@ impl Simulation {
         }
     }
 
-    /// Run only the `advance_transient` phase.
+    /// Run only the `advance_transient` phase (with hooks).
     pub fn run_advance_transient(&mut self) {
+        self.hooks.run_before(Phase::AdvanceTransient, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
+        self.hooks.run_after(Phase::AdvanceTransient, &mut self.world);
     }
 
-    /// Run only the dispatch phase.
+    /// Run only the dispatch phase (with hooks).
     pub fn run_dispatch(&mut self) {
+        self.hooks.run_before(Phase::Dispatch, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::dispatch::run(
             &mut self.world,
@@ -564,30 +582,63 @@ impl Simulation {
             &self.groups,
             &mut self.dispatchers,
         );
+        self.hooks.run_after(Phase::Dispatch, &mut self.world);
     }
 
-    /// Run only the movement phase.
+    /// Run only the movement phase (with hooks).
     pub fn run_movement(&mut self) {
+        self.hooks.run_before(Phase::Movement, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::movement::run(&mut self.world, &mut self.events, &ctx);
+        self.hooks.run_after(Phase::Movement, &mut self.world);
     }
 
-    /// Run only the doors phase.
+    /// Run only the doors phase (with hooks).
     pub fn run_doors(&mut self) {
+        self.hooks.run_before(Phase::Doors, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::doors::run(&mut self.world, &mut self.events, &ctx);
+        self.hooks.run_after(Phase::Doors, &mut self.world);
     }
 
-    /// Run only the loading phase.
+    /// Run only the loading phase (with hooks).
     pub fn run_loading(&mut self) {
+        self.hooks.run_before(Phase::Loading, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::loading::run(&mut self.world, &mut self.events, &ctx);
+        self.hooks.run_after(Phase::Loading, &mut self.world);
     }
 
-    /// Run only the metrics phase.
+    /// Run only the metrics phase (with hooks).
     pub fn run_metrics(&mut self) {
+        self.hooks.run_before(Phase::Metrics, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::metrics::run(&self.world, &self.events, &mut self.metrics, &ctx);
+        self.hooks.run_after(Phase::Metrics, &mut self.world);
+    }
+
+    /// Register a hook to run before a simulation phase.
+    ///
+    /// Hooks are called in registration order. The hook receives mutable
+    /// access to the world, allowing entity inspection or modification.
+    pub fn add_before_hook(
+        &mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_before(phase, Box::new(hook));
+    }
+
+    /// Register a hook to run after a simulation phase.
+    ///
+    /// Hooks are called in registration order. The hook receives mutable
+    /// access to the world, allowing entity inspection or modification.
+    pub fn add_after_hook(
+        &mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_after(phase, Box::new(hook));
     }
 
     /// Increment the tick counter and flush events to the output buffer.
