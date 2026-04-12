@@ -54,6 +54,8 @@ pub struct Simulation {
     stop_lookup: HashMap<StopId, EntityId>,
     /// Dispatch strategies keyed by group.
     dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    /// Serializable strategy identifiers (for snapshot).
+    strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
     /// Aggregated metrics.
     metrics: Metrics,
     /// Time conversion utility.
@@ -155,6 +157,9 @@ impl Simulation {
 
         world.insert_resource(crate::tagged_metrics::MetricTags::default());
 
+        let mut strategy_ids = BTreeMap::new();
+        strategy_ids.insert(GroupId(0), crate::dispatch::BuiltinStrategy::Scan);
+
         Ok(Self {
             world,
             events: EventBus::default(),
@@ -164,6 +169,7 @@ impl Simulation {
             groups: vec![group],
             stop_lookup,
             dispatchers,
+            strategy_ids,
             metrics: Metrics::new(),
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
@@ -178,6 +184,7 @@ impl Simulation {
         groups: Vec<ElevatorGroup>,
         stop_lookup: HashMap<StopId, EntityId>,
         dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+        strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
         metrics: Metrics,
         ticks_per_second: f64,
     ) -> Self {
@@ -190,6 +197,7 @@ impl Simulation {
             groups,
             stop_lookup,
             dispatchers,
+            strategy_ids,
             metrics,
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
@@ -325,6 +333,12 @@ impl Simulation {
         self.stop_lookup.get(&id).copied()
     }
 
+    /// Get the strategy identifier for a group.
+    #[must_use]
+    pub fn strategy_id(&self, group: GroupId) -> Option<&crate::dispatch::BuiltinStrategy> {
+        self.strategy_ids.get(&group)
+    }
+
     /// Iterate over the stop ID → entity ID mapping.
     pub fn stop_lookup_iter(&self) -> impl Iterator<Item = (&StopId, &EntityId)> {
         self.stop_lookup.iter()
@@ -339,8 +353,17 @@ impl Simulation {
     // ── Dispatch management ──────────────────────────────────────────
 
     /// Replace the dispatch strategy for a group.
-    pub fn set_dispatch(&mut self, group: GroupId, strategy: Box<dyn DispatchStrategy>) {
+    ///
+    /// The `id` parameter identifies the strategy for snapshot serialization.
+    /// Use `BuiltinStrategy::Custom("name")` for custom strategies.
+    pub fn set_dispatch(
+        &mut self,
+        group: GroupId,
+        strategy: Box<dyn DispatchStrategy>,
+        id: crate::dispatch::BuiltinStrategy,
+    ) {
         self.dispatchers.insert(group, strategy);
+        self.strategy_ids.insert(group, id);
     }
 
     // ── Tagging ──────────────────────────────────────────────────────
@@ -534,6 +557,27 @@ impl Simulation {
             tick: self.tick,
         });
         Ok(eid)
+    }
+
+    // ── Extension restore ────────────────────────────────────────────
+
+    /// Deserialize extension components from a snapshot.
+    ///
+    /// Call this after restoring from a snapshot and registering all
+    /// extension types via `world.register_ext::<T>(name)`.
+    ///
+    /// ```ignore
+    /// let mut sim = snapshot.restore(None);
+    /// sim.world_mut().register_ext::<VipTag>("vip_tag");
+    /// sim.load_extensions();
+    /// ```
+    pub fn load_extensions(&mut self) {
+        if let Some(pending) = self
+            .world
+            .remove_resource::<crate::snapshot::PendingExtensions>()
+        {
+            self.world.deserialize_extensions(&pending.0);
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────

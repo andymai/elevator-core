@@ -19,12 +19,12 @@ workspace = true
 
 [dependencies]
 serde.workspace = true
+ron.workspace = true
 rand = { workspace = true, optional = true }
 slotmap.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-ron.workspace = true
 proptest = "1"
 
 [[bench]]

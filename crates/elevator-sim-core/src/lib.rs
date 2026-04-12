@@ -61,7 +61,7 @@ pub mod prelude {
         Velocity, Zone,
     };
     pub use crate::config::SimConfig;
-    pub use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo};
+    pub use crate::dispatch::{BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionReason, SimError};
     pub use crate::dispatch::ElevatorGroup;

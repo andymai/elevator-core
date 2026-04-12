@@ -143,12 +143,12 @@ fn query_get_single_entity() {
 fn query_extension_component() {
     let (mut w, a, b, _c) = test_world();
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     struct VipTag {
         level: u32,
     }
 
-    w.insert_ext(a, VipTag { level: 3 });
+    w.insert_ext(a, VipTag { level: 3 }, "vip_tag");
 
     // Query for entities with Rider and VipTag extension.
     let results: Vec<_> = w
@@ -168,11 +168,11 @@ fn query_extension_component() {
 fn query_ext_with_filter() {
     let (mut w, a, b, c) = test_world();
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct Priority(#[allow(dead_code)] u32);
 
-    w.insert_ext(a, Priority(1));
-    w.insert_ext(c, Priority(2));
+    w.insert_ext(a, Priority(1), "priority");
+    w.insert_ext(c, Priority(2), "priority");
 
     // Entities with Position that have Priority extension.
     let results: Vec<_> = w
@@ -191,10 +191,10 @@ fn query_ext_with_filter() {
 fn query_ext_without_filter() {
     let (mut w, a, _b, _c) = test_world();
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct Marked;
 
-    w.insert_ext(a, Marked);
+    w.insert_ext(a, Marked, "marked");
 
     // Riders without Marked extension.
     let results: Vec<_> = w

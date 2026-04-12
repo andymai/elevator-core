@@ -72,6 +72,43 @@ impl DispatchManifest {
     }
 }
 
+/// Serializable identifier for built-in dispatch strategies.
+///
+/// Used in snapshots and config files to restore the correct strategy
+/// without requiring the game to manually re-wire dispatch. Custom strategies
+/// are represented by the `Custom(String)` variant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum BuiltinStrategy {
+    /// SCAN (elevator) algorithm — sweeps end-to-end.
+    Scan,
+    /// LOOK algorithm — reverses at last request.
+    Look,
+    /// Nearest-car — assigns closest idle elevator.
+    NearestCar,
+    /// Estimated Time to Destination — minimizes total cost.
+    Etd,
+    /// Custom strategy identified by name. The game must provide a factory.
+    Custom(String),
+}
+
+impl BuiltinStrategy {
+    /// Instantiate the dispatch strategy for this variant.
+    ///
+    /// Returns `None` for `Custom` — the game must provide those via
+    /// a factory function.
+    #[must_use]
+    pub fn instantiate(&self) -> Option<Box<dyn DispatchStrategy>> {
+        match self {
+            Self::Scan => Some(Box::new(scan::ScanDispatch::new())),
+            Self::Look => Some(Box::new(look::LookDispatch::new())),
+            Self::NearestCar => Some(Box::new(nearest_car::NearestCarDispatch::new())),
+            Self::Etd => Some(Box::new(etd::EtdDispatch::new())),
+            Self::Custom(_) => None,
+        }
+    }
+}
+
 /// Decision returned by a dispatch strategy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]

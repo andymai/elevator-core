@@ -68,6 +68,8 @@ pub struct WorldSnapshot {
     pub metrics: Metrics,
     /// Per-tag metric accumulators and entity-tag associations.
     pub metric_tags: MetricTags,
+    /// Serialized extension component data: name → (EntityId → RON string).
+    pub extensions: HashMap<String, HashMap<EntityId, String>>,
     /// Ticks per second (for TimeAdapter reconstruction).
     pub ticks_per_second: f64,
 }
@@ -83,21 +85,31 @@ pub struct GroupSnapshot {
     pub elevator_indices: Vec<usize>,
     /// Indices into the `entities` vec for stops in this group.
     pub stop_indices: Vec<usize>,
+    /// The dispatch strategy used by this group.
+    pub strategy: crate::dispatch::BuiltinStrategy,
 }
+
+/// Pending extension data from a snapshot, awaiting type registration.
+///
+/// Stored as a world resource after `restore()`. Call
+/// `sim.load_extensions()` after registering extension types to
+/// deserialize the data.
+pub(crate) struct PendingExtensions(pub(crate) HashMap<String, HashMap<EntityId, String>>);
 
 impl WorldSnapshot {
     /// Restore a simulation from this snapshot.
     ///
-    /// Accepts a map of dispatch strategies keyed by `GroupId`. Groups not
-    /// present in the map default to `ScanDispatch`. Strategies are not
-    /// serializable (trait objects), so they must be re-provided on restore.
+    /// Built-in strategies (Scan, Look, NearestCar, ETD) are auto-restored.
+    /// For `Custom` strategies, provide a factory function that maps strategy
+    /// names to instances. Pass `None` if only using built-in strategies.
     ///
-    /// Extension components and custom resources must be re-attached after
-    /// restoration.
+    /// To restore extension components, call `world.register_ext::<T>(name)`
+    /// on the returned simulation's world for each extension type, then call
+    /// [`Simulation::load_extensions()`] with this snapshot's `extensions` data.
     #[must_use]
     pub fn restore(
         self,
-        mut dispatchers_in: std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
+        custom_strategy_factory: Option<&dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>,
     ) -> crate::sim::Simulation {
         use crate::dispatch::ElevatorGroup;
         use crate::world::{SortedStops, World};
@@ -223,14 +235,43 @@ impl WorldSnapshot {
             .filter_map(|(sid, &idx)| index_to_id.get(idx).map(|&eid| (*sid, eid)))
             .collect();
 
-        // Rebuild dispatchers: use provided strategies, default missing groups to SCAN.
+        // Rebuild dispatchers from serialized strategy identifiers.
         let mut dispatchers = std::collections::BTreeMap::new();
-        for group in &groups {
-            let strategy = dispatchers_in.remove(&group.id).unwrap_or_else(|| {
-                Box::new(crate::dispatch::scan::ScanDispatch::new())
-            });
+        let mut strategy_ids = std::collections::BTreeMap::new();
+        for (gs, group) in self.groups.iter().zip(groups.iter()) {
+            let strategy: Box<dyn crate::dispatch::DispatchStrategy> = gs
+                .strategy
+                .instantiate()
+                .or_else(|| {
+                    if let crate::dispatch::BuiltinStrategy::Custom(ref name) = gs.strategy {
+                        custom_strategy_factory.and_then(|f| f(name))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| Box::new(crate::dispatch::scan::ScanDispatch::new()));
             dispatchers.insert(group.id, strategy);
+            strategy_ids.insert(group.id, gs.strategy.clone());
         }
+
+        // Remap EntityIds in extension data for later deserialization.
+        let remapped_exts: HashMap<String, HashMap<EntityId, String>> = self
+            .extensions
+            .iter()
+            .map(|(name, entries)| {
+                let remapped: HashMap<EntityId, String> = entries
+                    .iter()
+                    .map(|(old_id, data)| {
+                        let new_id = id_remap.get(old_id).copied().unwrap_or(*old_id);
+                        (new_id, data.clone())
+                    })
+                    .collect();
+                (name.clone(), remapped)
+            })
+            .collect();
+
+        // Store pending extension data as a resource for later deserialization.
+        world.insert_resource(PendingExtensions(remapped_exts));
 
         crate::sim::Simulation::from_parts(
             world,
@@ -239,6 +280,7 @@ impl WorldSnapshot {
             groups,
             stop_lookup,
             dispatchers,
+            strategy_ids,
             self.metrics,
             self.ticks_per_second,
         )
@@ -297,6 +339,10 @@ impl crate::sim::Simulation {
                     .iter()
                     .filter_map(|eid| id_to_index.get(eid).copied())
                     .collect(),
+                strategy: self
+                    .strategy_id(g.id)
+                    .cloned()
+                    .unwrap_or(crate::dispatch::BuiltinStrategy::Scan),
             })
             .collect();
 
@@ -318,6 +364,7 @@ impl crate::sim::Simulation {
                 .resource::<MetricTags>()
                 .cloned()
                 .unwrap_or_default(),
+            extensions: self.world().serialize_extensions(),
             ticks_per_second: 1.0 / self.dt(),
         }
     }

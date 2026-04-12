@@ -7,7 +7,9 @@
 //! use elevator_sim_core::world::World;
 //! use elevator_sim_core::query::{Ext, With, Without};
 //!
-//! #[derive(Debug, Clone)]
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(Debug, Clone, Serialize, Deserialize)]
 //! struct VipTag { level: u32 }
 //!
 //! let mut world = World::new();
@@ -22,7 +24,7 @@
 //!     board_tick: None,
 //! });
 //! world.set_position(r, Position { value: 0.0 });
-//! world.insert_ext(r, VipTag { level: 5 });
+//! world.insert_ext(r, VipTag { level: 5 }, "vip_tag");
 //!
 //! // All riders with a position
 //! for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {

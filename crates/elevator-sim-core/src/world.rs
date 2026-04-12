@@ -50,6 +50,8 @@ pub struct World {
     // -- Extension storage for game-specific components --
     /// Type-erased per-entity maps for custom components.
     extensions: HashMap<TypeId, Box<dyn AnyExtMap>>,
+    /// TypeId → name mapping for extension serialization.
+    ext_names: HashMap<TypeId, String>,
 
     // -- Global resources (singletons not attached to any entity) --
     /// Type-erased global resources for game-specific state.
@@ -73,6 +75,7 @@ impl World {
             preferences: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
+            ext_names: HashMap::new(),
             resources: HashMap::new(),
         }
     }
@@ -388,30 +391,40 @@ impl World {
     /// Insert a custom component for an entity.
     ///
     /// Games use this to attach their own typed data to simulation entities.
+    /// Extension components must be `Serialize + DeserializeOwned` to support
+    /// snapshot save/load. A `name` string is required for serialization roundtrips.
     /// Extension components are automatically cleaned up on `despawn()`.
     ///
     /// ```
     /// use elevator_sim_core::world::World;
+    /// use serde::{Serialize, Deserialize};
     ///
-    /// #[derive(Debug, Clone)]
+    /// #[derive(Debug, Clone, Serialize, Deserialize)]
     /// struct VipTag { level: u32 }
     ///
     /// let mut world = World::new();
     /// let entity = world.spawn();
-    /// world.insert_ext(entity, VipTag { level: 3 });
+    /// world.insert_ext(entity, VipTag { level: 3 }, "vip_tag");
     /// ```
-    pub fn insert_ext<T: 'static + Send + Sync>(&mut self, id: EntityId, value: T) {
+    pub fn insert_ext<T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned>(
+        &mut self,
+        id: EntityId,
+        value: T,
+        name: &str,
+    ) {
+        let type_id = TypeId::of::<T>();
         let map = self
             .extensions
-            .entry(TypeId::of::<T>())
+            .entry(type_id)
             .or_insert_with(|| Box::new(SecondaryMap::<EntityId, T>::new()));
         if let Some(m) = map.as_any_mut().downcast_mut::<SecondaryMap<EntityId, T>>() {
             m.insert(id, value);
         }
+        self.ext_names.insert(type_id, name.to_owned());
     }
 
     /// Get a clone of a custom component for an entity.
-    #[must_use] 
+    #[must_use]
     pub fn get_ext<T: 'static + Send + Sync + Clone>(&self, id: EntityId) -> Option<T> {
         self.ext_map::<T>()?.get(id).cloned()
     }
@@ -442,6 +455,49 @@ impl World {
             .get_mut(&TypeId::of::<T>())?
             .as_any_mut()
             .downcast_mut::<SecondaryMap<EntityId, T>>()
+    }
+
+    /// Serialize all extension component data for snapshot.
+    /// Returns name → (EntityId → RON string) mapping.
+    pub(crate) fn serialize_extensions(&self) -> HashMap<String, HashMap<EntityId, String>> {
+        let mut result = HashMap::new();
+        for (type_id, map) in &self.extensions {
+            if let Some(name) = self.ext_names.get(type_id) {
+                result.insert(name.clone(), map.serialize_entries());
+            }
+        }
+        result
+    }
+
+    /// Deserialize extension data from snapshot. Requires that extension types
+    /// have been registered (via `register_ext_deserializer`) before calling.
+    pub(crate) fn deserialize_extensions(
+        &mut self,
+        data: &HashMap<String, HashMap<EntityId, String>>,
+    ) {
+        for (name, entries) in data {
+            // Find the TypeId by name.
+            if let Some((&type_id, _)) = self.ext_names.iter().find(|(_, n)| *n == name) {
+                if let Some(map) = self.extensions.get_mut(&type_id) {
+                    map.deserialize_entries(entries);
+                }
+            }
+        }
+    }
+
+    /// Register an extension type for deserialization (creates empty storage).
+    ///
+    /// Must be called before `restore()` for each extension type that was
+    /// present in the original simulation.
+    pub fn register_ext<T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned>(
+        &mut self,
+        name: &str,
+    ) {
+        let type_id = TypeId::of::<T>();
+        self.extensions
+            .entry(type_id)
+            .or_insert_with(|| Box::new(SecondaryMap::<EntityId, T>::new()));
+        self.ext_names.insert(type_id, name.to_owned());
     }
 
     // ── Disabled entity management ──────────────────────────────────
