@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::atmosphere::{drift_marine_snow, spawn_atmosphere};
 use crate::camera::setup_camera;
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
@@ -43,7 +44,15 @@ impl Plugin for ElevatorSimPlugin {
                 weight_max: spawn_config.weight_range.1,
             })
             .add_message::<EventWrapper>()
-            .add_systems(Startup, (setup_camera, spawn_building_visuals, spawn_hud))
+            .add_systems(
+                Startup,
+                (
+                    setup_camera,
+                    spawn_atmosphere,
+                    spawn_building_visuals,
+                    spawn_hud,
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -56,6 +65,7 @@ impl Plugin for ElevatorSimPlugin {
                     update_hud,
                 )
                     .chain(),
-            );
+            )
+            .add_systems(Update, drift_marine_snow);
     }
 }

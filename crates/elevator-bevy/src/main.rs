@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+/// Deep ocean atmosphere particles.
+mod atmosphere;
 /// Camera setup and centering.
 mod camera;
 /// Keyboard input handling for simulation speed.
