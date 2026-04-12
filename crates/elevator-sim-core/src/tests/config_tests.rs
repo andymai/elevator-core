@@ -7,12 +7,12 @@ fn deserialize_default_ron() {
 
     assert_eq!(config.building.name, "Demo Tower");
     assert_eq!(config.building.stops.len(), 5);
-    assert_eq!(config.building.stops[0].position, 0.0);
-    assert_eq!(config.building.stops[4].position, 15.0);
+    assert!((config.building.stops[0].position - 0.0).abs() < f64::EPSILON);
+    assert!((config.building.stops[4].position - 15.0).abs() < f64::EPSILON);
     assert_eq!(config.elevators.len(), 1);
-    assert_eq!(config.elevators[0].max_speed, 2.0);
-    assert_eq!(config.elevators[0].weight_capacity, 800.0);
-    assert_eq!(config.simulation.ticks_per_second, 60.0);
+    assert!((config.elevators[0].max_speed - 2.0).abs() < f64::EPSILON);
+    assert!((config.elevators[0].weight_capacity - 800.0).abs() < f64::EPSILON);
+    assert!((config.simulation.ticks_per_second - 60.0).abs() < f64::EPSILON);
     assert_eq!(config.passenger_spawning.mean_interval_ticks, 120);
 }
 

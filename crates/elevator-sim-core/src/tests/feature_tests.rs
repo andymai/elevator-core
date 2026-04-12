@@ -397,18 +397,17 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
 
     // Count how many elevators list this rider.
     let elev_ids = sim.world().elevator_ids();
-    let boarding_elevators: Vec<_> = elev_ids
+    let boarding_count = elev_ids
         .iter()
         .filter(|&&eid| {
             sim.world()
                 .elevator(eid)
-                .map_or(false, |car| car.riders.contains(&rider))
+                .is_some_and(|car| car.riders.contains(&rider))
         })
-        .collect();
+        .count();
 
     assert_eq!(
-        boarding_elevators.len(),
-        1,
+        boarding_count, 1,
         "rider should appear in exactly one elevator's riders list after double-board attempt"
     );
 }
@@ -499,7 +498,7 @@ fn disable_elevator_clears_its_rider_list() {
         if sim
             .world()
             .elevator(elev)
-            .map_or(false, |c| !c.riders.is_empty())
+            .is_some_and(|c| !c.riders.is_empty())
         {
             break;
         }
@@ -513,8 +512,8 @@ fn disable_elevator_clears_its_rider_list() {
         car.riders.is_empty(),
         "elevator riders list should be empty after disable"
     );
-    assert_eq!(
-        car.current_load, 0.0,
+    assert!(
+        car.current_load.abs() < f64::EPSILON,
         "current_load should be zeroed after disable"
     );
 }
@@ -657,8 +656,8 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
         !car.riders.contains(&rider),
         "rider should be removed from elevator's riders list on despawn"
     );
-    assert_eq!(
-        car.current_load, 0.0,
+    assert!(
+        car.current_load.abs() < f64::EPSILON,
         "elevator current_load should decrease when rider despawns"
     );
 }
@@ -767,19 +766,18 @@ fn weight_rejection_boundary() {
     }
 
     let events = sim.drain_events();
-    let rejections: Vec<_> = events
+    let has_rejection = events
         .iter()
-        .filter(|e| matches!(e, Event::RiderRejected { .. }))
-        .collect();
+        .any(|e| matches!(e, Event::RiderRejected { .. }));
 
     // At least one rider should be rejected due to weight.
     assert!(
-        !rejections.is_empty(),
+        has_rejection,
         "Expected at least 1 rejection event due to weight capacity"
     );
 }
 
-/// Verify PassingFloor events are emitted when an elevator passes through stops.
+/// Verify `PassingFloor` events are emitted when an elevator passes through stops.
 #[test]
 fn passing_floor_events_emitted() {
     use crate::events::Event;

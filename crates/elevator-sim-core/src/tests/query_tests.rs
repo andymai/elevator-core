@@ -130,25 +130,24 @@ fn query_optional_component() {
 
 #[test]
 fn query_get_single_entity() {
-    let (w, a, _b, _c) = test_world();
+    let (w, a, b, _c) = test_world();
     let result = w.query::<(&Rider,)>().get(a);
     assert!(result.is_some());
     assert!((result.unwrap().0.weight - 70.0).abs() < 1e-9);
 
     // Non-matching entity.
-    let result = w.query::<(&Rider,)>().get(_b);
+    let result = w.query::<(&Rider,)>().get(b);
     assert!(result.is_none());
 }
 
 #[test]
 fn query_extension_component() {
-    let (mut w, a, b, _c) = test_world();
-
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
     struct VipTag {
         level: u32,
     }
 
+    let (mut w, a, b, _c) = test_world();
     w.insert_ext(a, VipTag { level: 3 }, "vip_tag");
 
     // Query for entities with Rider and VipTag extension.
@@ -167,11 +166,10 @@ fn query_extension_component() {
 
 #[test]
 fn query_ext_with_filter() {
-    let (mut w, a, b, c) = test_world();
-
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct Priority(#[allow(dead_code)] u32);
 
+    let (mut w, a, b, c) = test_world();
     w.insert_ext(a, Priority(1), "priority");
     w.insert_ext(c, Priority(2), "priority");
 
@@ -190,27 +188,26 @@ fn query_ext_with_filter() {
 
 #[test]
 fn query_ext_without_filter() {
-    let (mut w, a, _b, _c) = test_world();
-
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct Marked;
 
+    let (mut w, a, _b, _c) = test_world();
     w.insert_ext(a, Marked, "marked");
 
     // Riders without Marked extension.
-    let results: Vec<_> = w
+    let count = w
         .query::<(EntityId, &Rider)>()
         .ext_without::<Marked>()
         .iter()
-        .collect();
-    assert_eq!(results.len(), 0); // Only entity a has Rider, and it has Marked
+        .count();
+    assert_eq!(count, 0); // Only entity a has Rider, and it has Marked
 }
 
 #[test]
 fn query_empty_world() {
     let w = World::new();
-    let results: Vec<_> = w.query::<(EntityId, &Rider)>().iter().collect();
-    assert!(results.is_empty());
+    let count = w.query::<(EntityId, &Rider)>().iter().count();
+    assert_eq!(count, 0);
 }
 
 #[test]

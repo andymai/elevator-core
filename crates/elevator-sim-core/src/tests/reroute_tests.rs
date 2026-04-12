@@ -168,7 +168,7 @@ fn disable_only_stop_causes_abandonment() {
 
     // Should emit NoAlternative event.
     let events = sim.drain_events();
-    let invalidated: Vec<_> = events
+    let invalidated_count = events
         .iter()
         .filter(|e| {
             matches!(
@@ -179,12 +179,15 @@ fn disable_only_stop_causes_abandonment() {
                 }
             )
         })
-        .collect();
-    assert_eq!(invalidated.len(), 1);
+        .count();
+    assert_eq!(invalidated_count, 1);
 }
 
 #[test]
 fn set_rider_route_replaces_route() {
+    use crate::components::{Route, RouteLeg, TransportMode};
+    use crate::ids::GroupId;
+
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
@@ -197,8 +200,6 @@ fn set_rider_route_replaces_route() {
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
 
     // Set a multi-leg route: 0→1, then 1→2.
-    use crate::components::{Route, RouteLeg, TransportMode};
-    use crate::ids::GroupId;
     let route = Route {
         legs: vec![
             RouteLeg {

@@ -132,7 +132,7 @@ impl WorldSnapshot {
             .iter_stops()
             .map(|(eid, stop)| (stop.position, eid))
             .collect();
-        sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
         world.insert_resource(SortedStops(sorted));
 
         // Rebuild groups, stop lookup, dispatchers, and extensions (borrows self).

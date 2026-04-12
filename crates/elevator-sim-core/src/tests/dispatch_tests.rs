@@ -10,7 +10,7 @@ use crate::door::DoorState;
 use crate::ids::GroupId;
 use crate::world::World;
 
-/// Build a World with 4 stops and return (world, stop_entities).
+/// Build a `World` with 4 stops and return (world, `stop_entities`).
 fn test_world() -> (World, Vec<crate::entity::EntityId>) {
     let mut world = World::new();
     let stops: Vec<_> = [
@@ -71,7 +71,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
     eid
 }
 
-/// Add simulated waiting demand at a stop (creates a dummy RiderInfo).
+/// Add simulated waiting demand at a stop (creates a dummy `RiderInfo`).
 fn add_demand(
     manifest: &mut DispatchManifest,
     world: &mut World,
@@ -330,7 +330,7 @@ fn scan_reversal_picks_nearest_behind() {
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
 
-/// Test that notify_removed cleans up direction state for SCAN.
+/// Test that `notify_removed` cleans up direction state for SCAN.
 /// After removal, same entity ID should revert to default direction (Up).
 #[test]
 fn scan_notify_removed_cleans_state() {
@@ -359,7 +359,7 @@ fn scan_notify_removed_cleans_state() {
     assert_eq!(d2, DispatchDecision::GoToStop(stops[2]));
 }
 
-/// Test that LOOK notify_removed cleans up direction state.
+/// Test that LOOK `notify_removed` cleans up direction state.
 #[test]
 fn look_notify_removed_cleans_state() {
     let (mut world, stops) = test_world();
@@ -434,7 +434,7 @@ fn scan_down_direction_serves_below() {
     assert_eq!(d3, DispatchDecision::GoToStop(stops[1]));
 }
 
-/// Test NearestCar correctly assigns based on distance subtraction direction.
+/// Test `NearestCar` correctly assigns based on distance subtraction direction.
 #[test]
 fn nearest_car_distance_calculation() {
     let (mut world, stops) = test_world();
@@ -455,7 +455,7 @@ fn nearest_car_distance_calculation() {
     assert_eq!(a_dec.1, DispatchDecision::GoToStop(stops[1]));
 }
 
-/// Test NearestCar ignores stops with zero demand (waiting_count = 0).
+/// Test `NearestCar` ignores stops with zero demand (`waiting_count` = 0).
 #[test]
 fn nearest_car_ignores_zero_demand() {
     let (mut world, stops) = test_world();

@@ -111,12 +111,11 @@ fn overweight_rider_rejected() {
         Some(RiderPhase::Arrived)
     );
 
-    let rejections: Vec<_> = all_events
+    let has_rejection = all_events
         .iter()
-        .filter(|e| matches!(e, Event::RiderRejected { .. }))
-        .collect();
+        .any(|e| matches!(e, Event::RiderRejected { .. }));
     assert!(
-        !rejections.is_empty(),
+        has_rejection,
         "Should have at least one rejection for the 60kg rider"
     );
 }

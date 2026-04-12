@@ -67,7 +67,7 @@ fn elevator_query_returns_entities_with_both_components() {
     let elevators: Vec<_> = world.iter_elevators().collect();
     assert_eq!(elevators.len(), 1);
     assert_eq!(elevators[0].0, elev_id);
-    assert_eq!(elevators[0].1.value, 10.0);
+    assert!((elevators[0].1.value - 10.0).abs() < f64::EPSILON);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn rider_query() {
 
     let riders: Vec<_> = world.iter_riders().collect();
     assert_eq!(riders.len(), 1);
-    assert_eq!(riders[0].1.weight, 70.0);
+    assert!((riders[0].1.weight - 70.0).abs() < f64::EPSILON);
 }
 
 #[test]

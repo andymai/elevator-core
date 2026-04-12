@@ -42,9 +42,9 @@ fn snapshot_roundtrip_preserves_riders() {
     let restored = snap.restore(None);
 
     // Rider count should match.
-    let original_riders: Vec<_> = sim.world().iter_riders().collect();
-    let restored_riders: Vec<_> = restored.world().iter_riders().collect();
-    assert_eq!(original_riders.len(), restored_riders.len());
+    let original_count = sim.world().iter_riders().count();
+    let restored_count = restored.world().iter_riders().count();
+    assert_eq!(original_count, restored_count);
 }
 
 #[test]
@@ -206,8 +206,7 @@ fn snapshot_preserves_metric_tags() {
 
     let original_spawned = sim
         .metrics_for_tag("zone:lobby")
-        .map(|m| m.total_spawned())
-        .unwrap_or(0);
+        .map_or(0, crate::tagged_metrics::TaggedMetric::total_spawned);
     assert!(original_spawned > 0);
 
     let snap = sim.snapshot();
@@ -215,8 +214,7 @@ fn snapshot_preserves_metric_tags() {
 
     let restored_spawned = restored
         .metrics_for_tag("zone:lobby")
-        .map(|m| m.total_spawned())
-        .unwrap_or(0);
+        .map_or(0, crate::tagged_metrics::TaggedMetric::total_spawned);
     assert_eq!(restored_spawned, original_spawned);
 }
 

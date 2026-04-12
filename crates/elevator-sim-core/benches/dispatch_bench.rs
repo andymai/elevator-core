@@ -1,3 +1,13 @@
+#![allow(
+    missing_docs,
+    clippy::missing_docs_in_private_items,
+    clippy::unwrap_used,
+    clippy::cast_precision_loss,
+    clippy::items_after_statements,
+    clippy::significant_drop_tightening,
+    clippy::type_complexity
+)]
+
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use elevator_sim_core::config::{

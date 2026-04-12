@@ -16,8 +16,7 @@ fn before_hook_fires_before_phase() {
 
     sim.step();
 
-    let entries = log.lock().unwrap();
-    assert!(entries.contains(&"before_movement"));
+    assert!(log.lock().unwrap().contains(&"before_movement"));
 }
 
 #[test]
@@ -34,8 +33,7 @@ fn after_hook_fires_after_phase() {
 
     sim.step();
 
-    let entries = log.lock().unwrap();
-    assert!(entries.contains(&"after_loading"));
+    assert!(log.lock().unwrap().contains(&"after_loading"));
 }
 
 #[test]
@@ -60,8 +58,7 @@ fn multiple_hooks_fire_in_registration_order() {
 
     sim.step();
 
-    let entries = log.lock().unwrap();
-    assert_eq!(&*entries, &[1, 2, 3]);
+    assert_eq!(&*log.lock().unwrap(), &[1, 2, 3]);
 }
 
 #[test]
@@ -129,7 +126,7 @@ fn hooks_on_all_phases() {
 
     sim.step();
 
-    let entries = log.lock().unwrap();
+    let entries: Vec<String> = log.lock().unwrap().clone();
     // Should have 12 entries: before + after for each of 6 phases.
     assert_eq!(entries.len(), 12);
     // Verify ordering: before_X always comes before after_X for each phase.

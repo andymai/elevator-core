@@ -105,7 +105,7 @@ impl Simulation {
             .iter_stops()
             .map(|(eid, stop)| (stop.position, eid))
             .collect();
-        sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
         world.insert_resource(crate::world::SortedStops(sorted));
 
         // Create elevator entities.

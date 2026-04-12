@@ -127,8 +127,7 @@ fn builder_hooks_are_passed_through() {
 
     sim.step();
 
-    let entries = log.lock().unwrap();
-    assert_eq!(&*entries, &["before_movement"]);
+    assert_eq!(&*log.lock().unwrap(), &["before_movement"]);
 }
 
 #[test]

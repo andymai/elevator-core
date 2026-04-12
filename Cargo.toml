@@ -10,16 +10,20 @@ edition = "2024"
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
-# Specific strict lints
+# Strict lints: zero panics in library code
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
 missing_docs_in_private_items = "warn"
-# Allow reasonable exceptions
+# Types like ElevatorPhase::DoorOpening read naturally without the module prefix
 module_name_repetitions = "allow"
+# Enforce #[must_use] on all public return values
 must_use_candidate = "deny"
+# TODO(PR 7): add # Errors sections to all Result-returning public fns
 missing_errors_doc = "allow"
+# Panic paths are already denied; documenting them is redundant
 missing_panics_doc = "allow"
+# Simulation math intentionally uses as-casts for u64/usize -> f64 (values stay within f64 mantissa range)
 cast_precision_loss = "allow"
 cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
