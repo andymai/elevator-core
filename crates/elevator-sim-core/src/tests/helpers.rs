@@ -50,7 +50,9 @@ pub fn default_config() -> SimConfig {
 
 /// Check if all riders in the sim have arrived.
 pub fn all_riders_arrived(sim: &Simulation) -> bool {
-    sim.world().iter_riders().all(|(_, r)| r.phase == RiderPhase::Arrived)
+    sim.world()
+        .iter_riders()
+        .all(|(_, r)| r.phase == RiderPhase::Arrived)
 }
 
 /// Create a boxed SCAN dispatch strategy.

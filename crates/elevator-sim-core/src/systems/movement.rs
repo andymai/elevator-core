@@ -38,7 +38,15 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
         let door_transition_ticks = car.door_transition_ticks;
         let door_open_ticks = car.door_open_ticks;
 
-        let result = tick_movement(pos, vel, target_pos, max_speed, acceleration, deceleration, ctx.dt);
+        let result = tick_movement(
+            pos,
+            vel,
+            target_pos,
+            max_speed,
+            acceleration,
+            deceleration,
+            ctx.dt,
+        );
 
         let old_pos = pos;
         let new_pos = result.position;

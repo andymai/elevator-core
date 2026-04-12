@@ -3,8 +3,8 @@
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
-use crate::dispatch::scan::ScanDispatch;
 use crate::dispatch::DispatchStrategy;
+use crate::dispatch::scan::ScanDispatch;
 use crate::error::SimError;
 use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
@@ -27,8 +27,11 @@ use std::collections::BTreeMap;
 /// - `ScanDispatch` strategy
 /// - 60 ticks per second
 pub struct SimulationBuilder {
+    /// Simulation configuration (stops, elevators, timing).
     config: SimConfig,
+    /// Per-group dispatch strategies.
     dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    /// Lifecycle hooks for before/after each tick phase.
     hooks: PhaseHooks,
 }
 
@@ -79,7 +82,10 @@ impl SimulationBuilder {
         };
 
         let mut dispatchers = BTreeMap::new();
-        dispatchers.insert(GroupId(0), Box::new(ScanDispatch::new()) as Box<dyn DispatchStrategy>);
+        dispatchers.insert(
+            GroupId(0),
+            Box::new(ScanDispatch::new()) as Box<dyn DispatchStrategy>,
+        );
 
         Self {
             config,
@@ -95,7 +101,10 @@ impl SimulationBuilder {
     #[must_use]
     pub fn from_config(config: SimConfig) -> Self {
         let mut dispatchers = BTreeMap::new();
-        dispatchers.insert(GroupId(0), Box::new(ScanDispatch::new()) as Box<dyn DispatchStrategy>);
+        dispatchers.insert(
+            GroupId(0),
+            Box::new(ScanDispatch::new()) as Box<dyn DispatchStrategy>,
+        );
 
         Self {
             config,
@@ -174,14 +183,22 @@ impl SimulationBuilder {
 
     /// Register a hook to run before a simulation phase.
     #[must_use]
-    pub fn before(mut self, phase: Phase, hook: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+    pub fn before(
+        mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) -> Self {
         self.hooks.add_before(phase, Box::new(hook));
         self
     }
 
     /// Register a hook to run after a simulation phase.
     #[must_use]
-    pub fn after(mut self, phase: Phase, hook: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+    pub fn after(
+        mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) -> Self {
         self.hooks.add_after(phase, Box::new(hook));
         self
     }
@@ -191,7 +208,10 @@ impl SimulationBuilder {
     /// Returns `Err(SimError)` if the configuration is invalid.
     pub fn build(self) -> Result<Simulation, SimError> {
         // Extract the default dispatch for Simulation::new().
-        let default_dispatch = self.dispatchers.into_values().next()
+        let default_dispatch = self
+            .dispatchers
+            .into_values()
+            .next()
             .unwrap_or_else(|| Box::new(ScanDispatch::new()));
 
         Simulation::new_with_hooks(&self.config, default_dispatch, self.hooks)

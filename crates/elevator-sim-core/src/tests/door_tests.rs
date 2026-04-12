@@ -48,29 +48,14 @@ fn full_door_cycle() {
     assert_eq!(door.tick(), DoorTransition::None); // 1 remaining
 
     assert_eq!(door.tick(), DoorTransition::FinishedOpen);
-    assert_eq!(
-        door,
-        DoorState::Closing {
-            ticks_remaining: 3,
-        }
-    );
+    assert_eq!(door, DoorState::Closing { ticks_remaining: 3 });
 
     // Closing phase: 3 ticks total, transitions on the 3rd
     assert_eq!(door.tick(), DoorTransition::None);
-    assert!(matches!(
-        door,
-        DoorState::Closing {
-            ticks_remaining: 2,
-        }
-    ));
+    assert!(matches!(door, DoorState::Closing { ticks_remaining: 2 }));
 
     assert_eq!(door.tick(), DoorTransition::None);
-    assert!(matches!(
-        door,
-        DoorState::Closing {
-            ticks_remaining: 1,
-        }
-    ));
+    assert!(matches!(door, DoorState::Closing { ticks_remaining: 1 }));
 
     assert_eq!(door.tick(), DoorTransition::FinishedClosing);
     assert_eq!(door, DoorState::Closed);
@@ -97,9 +82,7 @@ fn is_open_and_is_closed() {
     assert!(open.is_open());
     assert!(!open.is_closed());
 
-    let closing = DoorState::Closing {
-        ticks_remaining: 2,
-    };
+    let closing = DoorState::Closing { ticks_remaining: 2 };
     assert!(!closing.is_open());
     assert!(!closing.is_closed());
 }

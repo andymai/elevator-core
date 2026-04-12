@@ -3,14 +3,19 @@ use crate::traffic::TrafficPattern;
 use crate::world::World;
 
 fn make_stops(world: &mut World, count: usize) -> Vec<crate::entity::EntityId> {
-    (0..count).map(|i| {
-        let eid = world.spawn();
-        world.set_stop(eid, Stop {
-            name: format!("Stop {i}"),
-            position: i as f64 * 4.0,
-        });
-        eid
-    }).collect()
+    (0..count)
+        .map(|i| {
+            let eid = world.spawn();
+            world.set_stop(
+                eid,
+                Stop {
+                    name: format!("Stop {i}"),
+                    position: i as f64 * 4.0,
+                },
+            );
+            eid
+        })
+        .collect()
 }
 
 #[test]
@@ -39,11 +44,16 @@ fn up_peak_biases_to_lobby() {
     let total = 1000;
     for _ in 0..total {
         let (o, _) = TrafficPattern::UpPeak.sample(&stops, &mut rng).unwrap();
-        if o == lobby { lobby_origins += 1; }
+        if o == lobby {
+            lobby_origins += 1;
+        }
     }
 
     let ratio = lobby_origins as f64 / total as f64;
-    assert!(ratio > 0.5, "UpPeak should have >50% origins from lobby, got {ratio:.2}");
+    assert!(
+        ratio > 0.5,
+        "UpPeak should have >50% origins from lobby, got {ratio:.2}"
+    );
 }
 
 #[test]
@@ -57,11 +67,16 @@ fn down_peak_biases_dest_to_lobby() {
     let total = 1000;
     for _ in 0..total {
         let (_, d) = TrafficPattern::DownPeak.sample(&stops, &mut rng).unwrap();
-        if d == lobby { lobby_dests += 1; }
+        if d == lobby {
+            lobby_dests += 1;
+        }
     }
 
     let ratio = lobby_dests as f64 / total as f64;
-    assert!(ratio > 0.5, "DownPeak should have >50% destinations to lobby, got {ratio:.2}");
+    assert!(
+        ratio > 0.5,
+        "DownPeak should have >50% destinations to lobby, got {ratio:.2}"
+    );
 }
 
 #[test]

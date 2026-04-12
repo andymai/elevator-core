@@ -3,11 +3,11 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use elevator_sim_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
+use elevator_sim_core::dispatch::DispatchStrategy;
 use elevator_sim_core::dispatch::etd::EtdDispatch;
 use elevator_sim_core::dispatch::look::LookDispatch;
 use elevator_sim_core::dispatch::nearest_car::NearestCarDispatch;
 use elevator_sim_core::dispatch::scan::ScanDispatch;
-use elevator_sim_core::dispatch::DispatchStrategy;
 use elevator_sim_core::sim::Simulation;
 use elevator_sim_core::stop::{StopConfig, StopId};
 
@@ -91,20 +91,17 @@ fn bench_dispatch_comparison(c: &mut Criterion) {
     for &(elevators, stops) in configs {
         let riders = elevators * 4; // 4 riders per elevator
         for &(name, make_strategy) in strategies {
-            group.bench_function(
-                format!("{name}_{elevators}e_{stops}s"),
-                |b| {
-                    b.iter_batched(
-                        || make_sim_with(stops, elevators, riders, make_strategy()),
-                        |mut sim| {
-                            for _ in 0..100 {
-                                sim.run_dispatch();
-                            }
-                        },
-                        criterion::BatchSize::LargeInput,
-                    );
-                },
-            );
+            group.bench_function(format!("{name}_{elevators}e_{stops}s"), |b| {
+                b.iter_batched(
+                    || make_sim_with(stops, elevators, riders, make_strategy()),
+                    |mut sim| {
+                        for _ in 0..100 {
+                            sim.run_dispatch();
+                        }
+                    },
+                    criterion::BatchSize::LargeInput,
+                );
+            });
         }
     }
 

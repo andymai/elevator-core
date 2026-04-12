@@ -1,6 +1,4 @@
-use crate::components::{
-    Elevator, ElevatorPhase, Position, Rider, RiderPhase, Stop, Velocity,
-};
+use crate::components::{Elevator, ElevatorPhase, Position, Rider, RiderPhase, Stop, Velocity};
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -73,7 +71,10 @@ fn query_single_component() {
 fn query_multi_component() {
     let (w, _a, b, _c) = test_world();
     // Only entity B has both Position and Velocity.
-    let results: Vec<_> = w.query::<(EntityId, &Position, &Velocity)>().iter().collect();
+    let results: Vec<_> = w
+        .query::<(EntityId, &Position, &Velocity)>()
+        .iter()
+        .collect();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].0, b);
     assert!((results[0].1.value - 4.0).abs() < 1e-9);

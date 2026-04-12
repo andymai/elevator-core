@@ -111,7 +111,10 @@ fn moving_downward() {
     let target = 3.0;
 
     let r = tick_movement(pos, vel, target, MAX_SPEED, ACCELERATION, DECELERATION, DT);
-    assert!(r.velocity < 0.0, "velocity should be negative when moving down");
+    assert!(
+        r.velocity < 0.0,
+        "velocity should be negative when moving down"
+    );
 
     // Run to completion.
     pos = r.position;

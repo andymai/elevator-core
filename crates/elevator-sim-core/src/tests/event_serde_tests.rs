@@ -61,8 +61,7 @@ fn roundtrip_sim_event_ron() {
 
     for event in &events {
         let serialized = ron::to_string(event).expect("failed to serialize Event");
-        let deserialized: Event =
-            ron::from_str(&serialized).expect("failed to deserialize Event");
+        let deserialized: Event = ron::from_str(&serialized).expect("failed to deserialize Event");
         assert_eq!(*event, deserialized);
     }
 }

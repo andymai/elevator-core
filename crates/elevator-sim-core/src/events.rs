@@ -223,7 +223,7 @@ impl EventBus {
     }
 
     /// Returns a slice of all pending events without clearing them.
-    #[must_use] 
+    #[must_use]
     pub fn peek(&self) -> &[Event] {
         &self.events
     }
@@ -253,7 +253,7 @@ pub struct EventChannel<T> {
 
 impl<T> EventChannel<T> {
     /// Create an empty event channel.
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self { events: Vec::new() }
     }
@@ -269,19 +269,19 @@ impl<T> EventChannel<T> {
     }
 
     /// Peek at pending events without clearing.
-    #[must_use] 
+    #[must_use]
     pub fn peek(&self) -> &[T] {
         &self.events
     }
 
     /// Check if the channel has no pending events.
-    #[must_use] 
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
 
     /// Number of pending events.
-    #[must_use] 
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.events.len()
     }

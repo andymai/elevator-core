@@ -69,10 +69,7 @@ impl Simulation {
     ///
     /// Returns `Err` if the config is invalid (zero stops, duplicate IDs,
     /// negative speeds, etc.).
-    pub fn new(
-        config: &SimConfig,
-        dispatch: Box<dyn DispatchStrategy>,
-    ) -> Result<Self, SimError> {
+    pub fn new(config: &SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Result<Self, SimError> {
         Self::new_with_hooks(config, dispatch, PhaseHooks::default())
     }
 
@@ -177,6 +174,7 @@ impl Simulation {
     }
 
     /// Restore a simulation from pre-built parts (used by snapshot restore).
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_parts(
         world: World,
         tick: u64,
@@ -256,13 +254,15 @@ impl Simulation {
                     reason: format!("must be positive, got {}", elev.weight_capacity),
                 });
             }
-            if !config.building.stops.iter().any(|s| s.id == elev.starting_stop) {
+            if !config
+                .building
+                .stops
+                .iter()
+                .any(|s| s.id == elev.starting_stop)
+            {
                 return Err(SimError::InvalidConfig {
                     field: "elevators.starting_stop",
-                    reason: format!(
-                        "references non-existent StopId({:?})",
-                        elev.starting_stop
-                    ),
+                    reason: format!("references non-existent StopId({:?})", elev.starting_stop),
                 });
             }
         }
@@ -283,7 +283,7 @@ impl Simulation {
     // ── Accessors ────────────────────────────────────────────────────
 
     /// Get a shared reference to the world.
-    #[must_use] 
+    #[must_use]
     pub const fn world(&self) -> &World {
         &self.world
     }
@@ -298,37 +298,37 @@ impl Simulation {
     }
 
     /// Current simulation tick.
-    #[must_use] 
+    #[must_use]
     pub const fn current_tick(&self) -> u64 {
         self.tick
     }
 
     /// Time delta per tick (seconds).
-    #[must_use] 
+    #[must_use]
     pub const fn dt(&self) -> f64 {
         self.dt
     }
 
     /// Get current simulation metrics.
-    #[must_use] 
+    #[must_use]
     pub const fn metrics(&self) -> &Metrics {
         &self.metrics
     }
 
     /// The time adapter for tick↔wall-clock conversion.
-    #[must_use] 
+    #[must_use]
     pub const fn time(&self) -> &TimeAdapter {
         &self.time
     }
 
     /// Get the elevator groups.
-    #[must_use] 
+    #[must_use]
     pub fn groups(&self) -> &[ElevatorGroup] {
         &self.groups
     }
 
     /// Resolve a config `StopId` to its runtime `EntityId`.
-    #[must_use] 
+    #[must_use]
     pub fn stop_entity(&self, id: StopId) -> Option<EntityId> {
         self.stop_lookup.get(&id).copied()
     }
@@ -373,14 +373,20 @@ impl Simulation {
     /// Tags enable per-tag metric breakdowns. An entity can have multiple tags.
     /// Riders automatically inherit tags from their origin stop when spawned.
     pub fn tag_entity(&mut self, id: EntityId, tag: impl Into<String>) {
-        if let Some(tags) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+        if let Some(tags) = self
+            .world
+            .resource_mut::<crate::tagged_metrics::MetricTags>()
+        {
             tags.tag(id, tag);
         }
     }
 
     /// Remove a metric tag from an entity.
     pub fn untag_entity(&mut self, id: EntityId, tag: &str) {
-        if let Some(tags) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+        if let Some(tags) = self
+            .world
+            .resource_mut::<crate::tagged_metrics::MetricTags>()
+        {
             tags.untag(id, tag);
         }
     }
@@ -430,7 +436,10 @@ impl Simulation {
         });
 
         // Inherit metric tags from the origin stop.
-        if let Some(tags_res) = self.world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+        if let Some(tags_res) = self
+            .world
+            .resource_mut::<crate::tagged_metrics::MetricTags>()
+        {
             let origin_tags: Vec<String> = tags_res.tags_for(origin).to_vec();
             for tag in origin_tags {
                 tags_res.tag(eid, tag);
@@ -494,10 +503,8 @@ impl Simulation {
             .ok_or(SimError::GroupNotFound(group_id))?;
 
         let eid = self.world.spawn();
-        self.world
-            .set_stop(eid, Stop { name, position });
-        self.world
-            .set_position(eid, Position { value: position });
+        self.world.set_stop(eid, Stop { name, position });
+        self.world.set_position(eid, Position { value: position });
         group.stop_entities.push(eid);
 
         // Maintain sorted-stops index for O(log n) PassingFloor detection.
@@ -528,10 +535,13 @@ impl Simulation {
             .ok_or(SimError::GroupNotFound(group_id))?;
 
         let eid = self.world.spawn();
-        self.world
-            .set_position(eid, Position { value: starting_position });
-        self.world
-            .set_velocity(eid, Velocity { value: 0.0 });
+        self.world.set_position(
+            eid,
+            Position {
+                value: starting_position,
+            },
+        );
+        self.world.set_velocity(eid, Velocity { value: 0.0 });
         self.world.set_elevator(
             eid,
             Elevator {
@@ -588,11 +598,10 @@ impl Simulation {
     fn group_from_route(route: Option<&Route>) -> GroupId {
         route
             .and_then(|r| r.current())
-            .map(|leg| match leg.via {
+            .map_or(GroupId(0), |leg| match leg.via {
                 crate::components::TransportMode::Elevator(g) => g,
                 crate::components::TransportMode::Walk => GroupId(0),
             })
-            .unwrap_or(GroupId(0))
     }
 
     // ── Re-routing ───────────────────────────────────────────────────
@@ -604,11 +613,7 @@ impl Simulation {
     ///
     /// Returns `Err` if the rider does not exist or is not in `Waiting` phase
     /// (riding/boarding riders cannot be rerouted until they alight).
-    pub fn reroute(
-        &mut self,
-        rider: EntityId,
-        new_destination: EntityId,
-    ) -> Result<(), SimError> {
+    pub fn reroute(&mut self, rider: EntityId, new_destination: EntityId) -> Result<(), SimError> {
         let r = self
             .world
             .rider(rider)
@@ -621,7 +626,7 @@ impl Simulation {
             });
         }
 
-        let origin = r.current_stop.ok_or(SimError::InvalidState {
+        let origin = r.current_stop.ok_or_else(|| SimError::InvalidState {
             entity: rider,
             reason: "rider has no current stop for reroute".into(),
         })?;
@@ -640,11 +645,7 @@ impl Simulation {
     }
 
     /// Replace a rider's entire remaining route.
-    pub fn set_rider_route(
-        &mut self,
-        rider: EntityId,
-        route: Route,
-    ) -> Result<(), SimError> {
+    pub fn set_rider_route(&mut self, rider: EntityId, route: Route) -> Result<(), SimError> {
         if self.world.rider(rider).is_none() {
             return Err(SimError::EntityNotFound(rider));
         }
@@ -755,9 +756,11 @@ impl Simulation {
             }
 
             let references_stop = self.world.route(rid).is_some_and(|route| {
-                route.legs.iter().skip(route.current_leg).any(|leg| {
-                    leg.to == disabled_stop || leg.from == disabled_stop
-                })
+                route
+                    .legs
+                    .iter()
+                    .skip(route.current_leg)
+                    .any(|leg| leg.to == disabled_stop || leg.from == disabled_stop)
             });
 
             if !references_stop {
@@ -765,21 +768,17 @@ impl Simulation {
             }
 
             // Try to find nearest alternative (excluding rider's current stop).
-            let rider_current_stop = self
-                .world
-                .rider(rid)
-                .and_then(|r| r.current_stop);
+            let rider_current_stop = self.world.rider(rid).and_then(|r| r.current_stop);
 
-            let disabled_stop_pos = self
-                .world
-                .stop(disabled_stop)
-                .map_or(0.0, |s| s.position);
+            let disabled_stop_pos = self.world.stop(disabled_stop).map_or(0.0, |s| s.position);
 
             let alternative = group_stops
                 .iter()
                 .filter(|&&s| Some(s) != rider_current_stop)
                 .filter_map(|&s| {
-                    self.world.stop(s).map(|stop| (s, (stop.position - disabled_stop_pos).abs()))
+                    self.world
+                        .stop(s)
+                        .map(|stop| (s, (stop.position - disabled_stop_pos).abs()))
                 })
                 .min_by(|a, b| a.1.total_cmp(&b.1))
                 .map(|(s, _)| s);
@@ -788,7 +787,8 @@ impl Simulation {
                 // Reroute to nearest alternative.
                 let origin = rider_current_stop.unwrap_or(alt_stop);
                 let group = Self::group_from_route(self.world.route(rid));
-                self.world.set_route(rid, Route::direct(origin, alt_stop, group));
+                self.world
+                    .set_route(rid, Route::direct(origin, alt_stop, group));
                 self.events.emit(Event::RouteInvalidated {
                     rider: rid,
                     affected_stop: disabled_stop,
@@ -825,7 +825,7 @@ impl Simulation {
     // ── Sub-stepping ────────────────────────────────────────────────
 
     /// Get the dispatch strategies map (for advanced sub-stepping).
-    #[must_use] 
+    #[must_use]
     pub fn dispatchers(&self) -> &BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
         &self.dispatchers
     }
@@ -846,7 +846,7 @@ impl Simulation {
     }
 
     /// Build the `PhaseContext` for the current tick.
-    #[must_use] 
+    #[must_use]
     pub const fn phase_context(&self) -> PhaseContext {
         PhaseContext {
             tick: self.tick,
@@ -856,10 +856,12 @@ impl Simulation {
 
     /// Run only the `advance_transient` phase (with hooks).
     pub fn run_advance_transient(&mut self) {
-        self.hooks.run_before(Phase::AdvanceTransient, &mut self.world);
+        self.hooks
+            .run_before(Phase::AdvanceTransient, &mut self.world);
         let ctx = self.phase_context();
         crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
-        self.hooks.run_after(Phase::AdvanceTransient, &mut self.world);
+        self.hooks
+            .run_after(Phase::AdvanceTransient, &mut self.world);
     }
 
     /// Run only the dispatch phase (with hooks).

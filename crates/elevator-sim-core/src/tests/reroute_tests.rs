@@ -1,9 +1,9 @@
 use crate::components::RiderPhase;
-use crate::error::SimError;
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use crate::dispatch::scan::ScanDispatch;
+use crate::error::SimError;
 use crate::events::{Event, RouteInvalidReason};
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
@@ -13,9 +13,21 @@ fn three_stop_config() -> SimConfig {
         building: BuildingConfig {
             name: "Reroute".into(),
             stops: vec![
-                StopConfig { id: StopId(0), name: "A".into(), position: 0.0 },
-                StopConfig { id: StopId(1), name: "B".into(), position: 10.0 },
-                StopConfig { id: StopId(2), name: "C".into(), position: 20.0 },
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "C".into(),
+                    position: 20.0,
+                },
             ],
         },
         elevators: vec![ElevatorConfig {
@@ -29,7 +41,9 @@ fn three_stop_config() -> SimConfig {
             door_open_ticks: 5,
             door_transition_ticks: 3,
         }],
-        simulation: SimulationParams { ticks_per_second: 60.0 },
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
         passenger_spawning: PassengerSpawnConfig {
             mean_interval_ticks: 120,
             weight_range: (50.0, 100.0),
@@ -43,7 +57,9 @@ fn reroute_changes_rider_destination() {
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
     // Spawn rider from 0 → 2.
-    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
 
     // Reroute to stop 1 instead.
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -59,7 +75,9 @@ fn disable_stop_reroutes_affected_riders() {
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
     // Spawn rider from 0 → 1.
-    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     // Disable stop 1 — rider should be rerouted to nearest alternative (stop 2).
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -78,7 +96,8 @@ fn disable_stop_emits_route_invalidated_event() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     sim.disable(stop1).unwrap();
@@ -102,8 +121,16 @@ fn disable_only_stop_causes_abandonment() {
         building: BuildingConfig {
             name: "Two".into(),
             stops: vec![
-                StopConfig { id: StopId(0), name: "A".into(), position: 0.0 },
-                StopConfig { id: StopId(1), name: "B".into(), position: 10.0 },
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
             ],
         },
         elevators: vec![ElevatorConfig {
@@ -117,7 +144,9 @@ fn disable_only_stop_causes_abandonment() {
             door_open_ticks: 5,
             door_transition_ticks: 3,
         }],
-        simulation: SimulationParams { ticks_per_second: 60.0 },
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
         passenger_spawning: PassengerSpawnConfig {
             mean_interval_ticks: 120,
             weight_range: (50.0, 100.0),
@@ -125,7 +154,9 @@ fn disable_only_stop_causes_abandonment() {
     };
 
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
-    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     // Disable the only other stop — no alternative available.
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -139,7 +170,15 @@ fn disable_only_stop_causes_abandonment() {
     let events = sim.drain_events();
     let invalidated: Vec<_> = events
         .iter()
-        .filter(|e| matches!(e, Event::RouteInvalidated { reason: RouteInvalidReason::NoAlternative, .. }))
+        .filter(|e| {
+            matches!(
+                e,
+                Event::RouteInvalidated {
+                    reason: RouteInvalidReason::NoAlternative,
+                    ..
+                }
+            )
+        })
         .collect();
     assert_eq!(invalidated.len(), 1);
 }
@@ -149,7 +188,9 @@ fn set_rider_route_replaces_route() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
-    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
 
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -160,8 +201,16 @@ fn set_rider_route_replaces_route() {
     use crate::ids::GroupId;
     let route = Route {
         legs: vec![
-            RouteLeg { from: stop0, to: stop1, via: TransportMode::Elevator(GroupId(0)) },
-            RouteLeg { from: stop1, to: stop2, via: TransportMode::Elevator(GroupId(0)) },
+            RouteLeg {
+                from: stop0,
+                to: stop1,
+                via: TransportMode::Elevator(GroupId(0)),
+            },
+            RouteLeg {
+                from: stop1,
+                to: stop2,
+                via: TransportMode::Elevator(GroupId(0)),
+            },
         ],
         current_leg: 0,
     };
@@ -177,7 +226,9 @@ fn reroute_rejects_non_waiting_rider() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
 
-    let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
 
     // Advance until rider is boarding or riding.
     for _ in 0..500 {

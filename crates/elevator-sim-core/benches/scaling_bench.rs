@@ -138,5 +138,10 @@ fn bench_spawn_pressure(c: &mut Criterion) {
 // Criterion harness
 // ---------------------------------------------------------------------------
 
-criterion_group!(benches, bench_realistic, bench_extreme, bench_spawn_pressure);
+criterion_group!(
+    benches,
+    bench_realistic,
+    bench_extreme,
+    bench_spawn_pressure
+);
 criterion_main!(benches);

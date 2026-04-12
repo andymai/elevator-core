@@ -91,14 +91,10 @@ impl DispatchStrategy for LookDispatch {
             let nearest = match direction {
                 Direction::Up => ahead
                     .iter()
-                    .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.total_cmp(&b.1)
-                    }),
+                    .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
                 Direction::Down => ahead
                     .iter()
-                    .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.total_cmp(&b.1)
-                    }),
+                    .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
             };
             // ahead is non-empty, so nearest is always Some.
             if let Some(stop) = nearest {
@@ -117,25 +113,25 @@ impl DispatchStrategy for LookDispatch {
             // All interesting stops at current position.
             return interesting
                 .first()
-                .map_or(DispatchDecision::Idle, |(sid, _)| DispatchDecision::GoToStop(*sid));
+                .map_or(DispatchDecision::Idle, |(sid, _)| {
+                    DispatchDecision::GoToStop(*sid)
+                });
         }
 
         // Pick nearest in new direction.
         let nearest = match new_dir {
             Direction::Up => behind
                 .iter()
-                .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.total_cmp(&b.1)
-                }),
+                .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
             Direction::Down => behind
                 .iter()
-                .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.total_cmp(&b.1)
-                }),
+                .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
         };
 
         // behind is non-empty, so nearest is always Some.
-        nearest.map_or(DispatchDecision::Idle, |stop| DispatchDecision::GoToStop(stop.0))
+        nearest.map_or(DispatchDecision::Idle, |stop| {
+            DispatchDecision::GoToStop(stop.0)
+        })
     }
 
     fn notify_removed(&mut self, elevator: EntityId) {

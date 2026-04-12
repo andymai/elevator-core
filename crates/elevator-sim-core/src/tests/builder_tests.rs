@@ -21,9 +21,21 @@ fn from_config_produces_valid_sim() {
         building: BuildingConfig {
             name: "Test".into(),
             stops: vec![
-                StopConfig { id: StopId(0), name: "A".into(), position: 0.0 },
-                StopConfig { id: StopId(1), name: "B".into(), position: 5.0 },
-                StopConfig { id: StopId(2), name: "C".into(), position: 10.0 },
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 5.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "C".into(),
+                    position: 10.0,
+                },
             ],
         },
         elevators: vec![ElevatorConfig {
@@ -37,7 +49,9 @@ fn from_config_produces_valid_sim() {
             door_open_ticks: 8,
             door_transition_ticks: 4,
         }],
-        simulation: SimulationParams { ticks_per_second: 30.0 },
+        simulation: SimulationParams {
+            ticks_per_second: 30.0,
+        },
         passenger_spawning: PassengerSpawnConfig {
             mean_interval_ticks: 60,
             weight_range: (50.0, 90.0),
@@ -60,9 +74,21 @@ fn custom_dispatch_strategy() {
 fn builder_with_stops_and_elevators() {
     let sim = SimulationBuilder::new()
         .stops(vec![
-            StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
-            StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
-            StopConfig { id: StopId(2), name: "Floor 3".into(), position: 8.0 },
+            StopConfig {
+                id: StopId(0),
+                name: "Ground".into(),
+                position: 0.0,
+            },
+            StopConfig {
+                id: StopId(1),
+                name: "Floor 2".into(),
+                position: 4.0,
+            },
+            StopConfig {
+                id: StopId(2),
+                name: "Floor 3".into(),
+                position: 8.0,
+            },
         ])
         .elevator(ElevatorConfig {
             id: 1,
@@ -83,9 +109,7 @@ fn builder_with_stops_and_elevators() {
 #[test]
 fn builder_propagates_validation_errors() {
     // Zero stops should fail.
-    let result = SimulationBuilder::new()
-        .stops(vec![])
-        .build();
+    let result = SimulationBuilder::new().stops(vec![]).build();
     assert!(result.is_err());
 }
 

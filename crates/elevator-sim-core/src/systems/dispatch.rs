@@ -1,6 +1,6 @@
 //! Phase 2: assign idle/stopped elevators to stops via the dispatch strategy.
 
-use crate::components::{ElevatorPhase, RiderPhase};
+use crate::components::{ElevatorPhase, RiderPhase, Route};
 use crate::dispatch::{
     DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
@@ -118,7 +118,7 @@ fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchMa
         if let Some(stop) = rider.current_stop
             && group.stop_entities.contains(&stop)
         {
-            let destination = world.route(rid).and_then(|r| r.current_destination());
+            let destination = world.route(rid).and_then(Route::current_destination);
             let wait_ticks = tick.saturating_sub(rider.spawn_tick);
             manifest
                 .waiting_at_stop
@@ -137,7 +137,7 @@ fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchMa
     for &elev_eid in &group.elevator_entities {
         if let Some(car) = world.elevator(elev_eid) {
             for &rider_eid in car.riders() {
-                let destination = world.route(rider_eid).and_then(|r| r.current_destination());
+                let destination = world.route(rider_eid).and_then(Route::current_destination);
                 if let Some(dest) = destination {
                     let rider = world.rider(rider_eid);
                     let weight = rider.map_or(0.0, |r| r.weight);

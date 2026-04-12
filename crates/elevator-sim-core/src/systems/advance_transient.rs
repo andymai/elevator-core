@@ -48,9 +48,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             }
             TransientAction::Alight => {
                 // Check if the route has more legs.
-                let has_more_legs = world
-                    .route_mut(id)
-                    .is_some_and(Route::advance);
+                let has_more_legs = world.route_mut(id).is_some_and(Route::advance);
 
                 if let Some(r) = world.rider_mut(id) {
                     if has_more_legs {

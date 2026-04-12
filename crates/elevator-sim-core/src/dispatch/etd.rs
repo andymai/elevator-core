@@ -23,13 +23,13 @@ pub struct EtdDispatch {
 
 impl EtdDispatch {
     /// Create a new `EtdDispatch` with default delay weight of 1.0.
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self { delay_weight: 1.0 }
     }
 
     /// Create a new `EtdDispatch` with the given delay weight.
-    #[must_use] 
+    #[must_use]
     pub const fn with_delay_weight(delay_weight: f64) -> Self {
         Self { delay_weight }
     }
@@ -160,17 +160,21 @@ impl EtdDispatch {
         // Bonus: if the elevator is already heading toward this stop
         // (same direction), reduce cost.
         let direction_bonus = match car.phase {
-            ElevatorPhase::MovingToStop(current_target) => {
-                world.stop_position(current_target).map_or(0.0, |current_target_pos| {
+            ElevatorPhase::MovingToStop(current_target) => world
+                .stop_position(current_target)
+                .map_or(0.0, |current_target_pos| {
                     let moving_up = current_target_pos > elev_pos;
                     let target_is_ahead = if moving_up {
                         target_pos > elev_pos && target_pos <= current_target_pos
                     } else {
                         target_pos < elev_pos && target_pos >= current_target_pos
                     };
-                    if target_is_ahead { -travel_time * 0.5 } else { 0.0 }
-                })
-            }
+                    if target_is_ahead {
+                        -travel_time * 0.5
+                    } else {
+                        0.0
+                    }
+                }),
             ElevatorPhase::Idle => -travel_time * 0.3, // Slight bonus for idle elevators.
             _ => 0.0,
         };

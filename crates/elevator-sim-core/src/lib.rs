@@ -8,14 +8,14 @@
 
 /// Entity-component data types for the simulation.
 pub mod components;
-/// ECS-style query builder for iterating entities by component composition.
-pub mod query;
 /// Entity identity and allocation.
 pub mod entity;
 /// Simulation error types.
 pub mod error;
 /// Typed identifiers for groups, zones, and other sim concepts.
 pub mod ids;
+/// ECS-style query builder for iterating entities by component composition.
+pub mod query;
 /// Tick-loop system phases (dispatch, movement, doors, loading, metrics).
 pub mod systems;
 /// Central entity/component storage.
@@ -61,18 +61,20 @@ pub mod prelude {
         Velocity, Zone,
     };
     pub use crate::config::SimConfig;
-    pub use crate::dispatch::{BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo};
+    pub use crate::dispatch::ElevatorGroup;
+    pub use crate::dispatch::{
+        BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo,
+    };
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionReason, SimError};
-    pub use crate::dispatch::ElevatorGroup;
     pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};
     pub use crate::hooks::Phase;
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{ElevatorParams, Simulation};
-    pub use crate::systems::PhaseContext;
     pub use crate::snapshot::WorldSnapshot;
     pub use crate::stop::StopId;
+    pub use crate::systems::PhaseContext;
     pub use crate::tagged_metrics::{MetricTags, TaggedMetric};
     pub use crate::time::TimeAdapter;
 }

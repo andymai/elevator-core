@@ -114,5 +114,8 @@ fn min_distance_to(pos: f64, others: &[f64]) -> f64 {
     if others.is_empty() {
         return f64::INFINITY;
     }
-    others.iter().map(|&o| (pos - o).abs()).fold(f64::INFINITY, f64::min)
+    others
+        .iter()
+        .map(|&o| (pos - o).abs())
+        .fold(f64::INFINITY, f64::min)
 }

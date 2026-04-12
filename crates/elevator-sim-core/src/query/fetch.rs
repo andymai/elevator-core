@@ -88,9 +88,7 @@ impl<T: 'static + Send + Sync> WorldQuery for &Ext<T> {
     }
 
     fn contains(world: &World, id: EntityId) -> bool {
-        world
-            .ext_map::<T>()
-            .is_some_and(|m| m.contains_key(id))
+        world.ext_map::<T>().is_some_and(|m| m.contains_key(id))
     }
 }
 

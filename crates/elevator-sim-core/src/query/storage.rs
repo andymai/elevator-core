@@ -3,8 +3,8 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use slotmap::SecondaryMap;
 
 use crate::entity::EntityId;
@@ -23,10 +23,10 @@ pub trait AnyExtMap: Send + Sync {
     /// Downcast to concrete type mutably.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    /// Serialize all entries to a map of EntityId → RON string.
+    /// Serialize all entries to a map of `EntityId` → RON string.
     fn serialize_entries(&self) -> HashMap<EntityId, String>;
 
-    /// Deserialize entries from a map of EntityId → RON string, replacing current contents.
+    /// Deserialize entries from a map of `EntityId` → RON string, replacing current contents.
     fn deserialize_entries(&mut self, data: &HashMap<EntityId, String>);
 }
 

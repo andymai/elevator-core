@@ -3,7 +3,9 @@ use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::look::LookDispatch;
 use crate::dispatch::nearest_car::NearestCarDispatch;
 use crate::dispatch::scan::ScanDispatch;
-use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo};
+use crate::dispatch::{
+    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
+};
 use crate::door::DoorState;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -70,25 +72,42 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
 }
 
 /// Add simulated waiting demand at a stop (creates a dummy RiderInfo).
-fn add_demand(manifest: &mut DispatchManifest, world: &mut World, stop: crate::entity::EntityId, weight: f64) {
+fn add_demand(
+    manifest: &mut DispatchManifest,
+    world: &mut World,
+    stop: crate::entity::EntityId,
+    weight: f64,
+) {
     let dummy = world.spawn();
-    manifest.waiting_at_stop.entry(stop).or_default().push(RiderInfo {
-        id: dummy,
-        destination: None,
-        weight,
-        wait_ticks: 0,
-    });
+    manifest
+        .waiting_at_stop
+        .entry(stop)
+        .or_default()
+        .push(RiderInfo {
+            id: dummy,
+            destination: None,
+            weight,
+            wait_ticks: 0,
+        });
 }
 
 /// Add a rider destination entry (simulates a rider aboard heading to stop).
-fn add_rider_dest(manifest: &mut DispatchManifest, world: &mut World, stop: crate::entity::EntityId) {
+fn add_rider_dest(
+    manifest: &mut DispatchManifest,
+    world: &mut World,
+    stop: crate::entity::EntityId,
+) {
     let dummy = world.spawn();
-    manifest.riding_to_stop.entry(stop).or_default().push(RiderInfo {
-        id: dummy,
-        destination: Some(stop),
-        weight: 70.0,
-        wait_ticks: 0,
-    });
+    manifest
+        .riding_to_stop
+        .entry(stop)
+        .or_default()
+        .push(RiderInfo {
+            id: dummy,
+            destination: Some(stop),
+            weight: 70.0,
+            wait_ticks: 0,
+        });
 }
 
 // ===== SCAN Tests =====
@@ -186,7 +205,7 @@ fn look_reverses_at_last_request() {
 #[test]
 fn nearest_car_assigns_closest_elevator() {
     let (mut world, stops) = test_world();
-    let elev_a = spawn_elevator(&mut world, 0.0);  // at Ground
+    let elev_a = spawn_elevator(&mut world, 0.0); // at Ground
     let elev_b = spawn_elevator(&mut world, 12.0); // at Roof
     let group = test_group(&stops, vec![elev_a, elev_b]);
 

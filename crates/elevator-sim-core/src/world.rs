@@ -50,7 +50,7 @@ pub struct World {
     // -- Extension storage for game-specific components --
     /// Type-erased per-entity maps for custom components.
     extensions: HashMap<TypeId, Box<dyn AnyExtMap>>,
-    /// TypeId → name mapping for extension serialization.
+    /// `TypeId` → name mapping for extension serialization.
     ext_names: HashMap<TypeId, String>,
 
     // -- Global resources (singletons not attached to any entity) --
@@ -60,7 +60,7 @@ pub struct World {
 
 impl World {
     /// Create an empty world with no entities.
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             alive: SlotMap::with_key(),
@@ -140,13 +140,13 @@ impl World {
     }
 
     /// Check if an entity is alive.
-    #[must_use] 
+    #[must_use]
     pub fn is_alive(&self, id: EntityId) -> bool {
         self.alive.contains_key(id)
     }
 
     /// Number of live entities.
-    #[must_use] 
+    #[must_use]
     pub fn entity_count(&self) -> usize {
         self.alive.len()
     }
@@ -159,7 +159,7 @@ impl World {
     // ── Position accessors ───────────────────────────────────────────
 
     /// Get an entity's position.
-    #[must_use] 
+    #[must_use]
     pub fn position(&self, id: EntityId) -> Option<&Position> {
         self.positions.get(id)
     }
@@ -177,7 +177,7 @@ impl World {
     // ── Velocity accessors ───────────────────────────────────────────
 
     /// Get an entity's velocity.
-    #[must_use] 
+    #[must_use]
     pub fn velocity(&self, id: EntityId) -> Option<&Velocity> {
         self.velocities.get(id)
     }
@@ -195,7 +195,7 @@ impl World {
     // ── Elevator accessors ───────────────────────────────────────────
 
     /// Get an entity's elevator component.
-    #[must_use] 
+    #[must_use]
     pub fn elevator(&self, id: EntityId) -> Option<&Elevator> {
         self.elevators.get(id)
     }
@@ -213,7 +213,7 @@ impl World {
     // ── Rider accessors ──────────────────────────────────────────────
 
     /// Get an entity's rider component.
-    #[must_use] 
+    #[must_use]
     pub fn rider(&self, id: EntityId) -> Option<&Rider> {
         self.riders.get(id)
     }
@@ -231,7 +231,7 @@ impl World {
     // ── Stop accessors ───────────────────────────────────────────────
 
     /// Get an entity's stop component.
-    #[must_use] 
+    #[must_use]
     pub fn stop(&self, id: EntityId) -> Option<&Stop> {
         self.stops.get(id)
     }
@@ -249,7 +249,7 @@ impl World {
     // ── Route accessors ──────────────────────────────────────────────
 
     /// Get an entity's route.
-    #[must_use] 
+    #[must_use]
     pub fn route(&self, id: EntityId) -> Option<&Route> {
         self.routes.get(id)
     }
@@ -267,7 +267,7 @@ impl World {
     // ── Zone accessors ───────────────────────────────────────────────
 
     /// Get an entity's zone.
-    #[must_use] 
+    #[must_use]
     pub fn zone(&self, id: EntityId) -> Option<&Zone> {
         self.zones.get(id)
     }
@@ -280,7 +280,7 @@ impl World {
     // ── Patience accessors ───────────────────────────────────────────
 
     /// Get an entity's patience.
-    #[must_use] 
+    #[must_use]
     pub fn patience(&self, id: EntityId) -> Option<&Patience> {
         self.patience.get(id)
     }
@@ -298,7 +298,7 @@ impl World {
     // ── Preferences accessors ────────────────────────────────────────
 
     /// Get an entity's preferences.
-    #[must_use] 
+    #[must_use]
     pub fn preferences(&self, id: EntityId) -> Option<&Preferences> {
         self.preferences.get(id)
     }
@@ -318,7 +318,7 @@ impl World {
     }
 
     /// Iterate all elevator entity IDs (allocates).
-    #[must_use] 
+    #[must_use]
     pub fn elevator_ids(&self) -> Vec<EntityId> {
         self.elevators.keys().collect()
     }
@@ -334,7 +334,7 @@ impl World {
     }
 
     /// Iterate all rider entity IDs (allocates).
-    #[must_use] 
+    #[must_use]
     pub fn rider_ids(&self) -> Vec<EntityId> {
         self.riders.keys().collect()
     }
@@ -345,13 +345,13 @@ impl World {
     }
 
     /// Iterate all stop entity IDs (allocates).
-    #[must_use] 
+    #[must_use]
     pub fn stop_ids(&self) -> Vec<EntityId> {
         self.stops.keys().collect()
     }
 
     /// Find the stop entity at a given position (within epsilon).
-    #[must_use] 
+    #[must_use]
     pub fn find_stop_at_position(&self, position: f64) -> Option<EntityId> {
         const EPSILON: f64 = 1e-6;
         self.stops.iter().find_map(|(id, stop)| {
@@ -368,7 +368,7 @@ impl World {
     /// Unlike [`find_stop_at_position`](Self::find_stop_at_position), this finds
     /// the closest stop by minimum distance rather than requiring an exact match.
     /// Used when ejecting riders from a disabled/despawned elevator mid-transit.
-    #[must_use] 
+    #[must_use]
     pub fn find_nearest_stop(&self, position: f64) -> Option<EntityId> {
         self.stops
             .iter()
@@ -381,7 +381,7 @@ impl World {
     }
 
     /// Get a stop's position by entity id.
-    #[must_use] 
+    #[must_use]
     pub fn stop_position(&self, id: EntityId) -> Option<f64> {
         self.stops.get(id).map(|s| s.position)
     }
@@ -448,9 +448,7 @@ impl World {
     }
 
     /// Downcast extension storage to a typed `SecondaryMap` (mutable).
-    fn ext_map_mut<T: 'static + Send + Sync>(
-        &mut self,
-    ) -> Option<&mut SecondaryMap<EntityId, T>> {
+    fn ext_map_mut<T: 'static + Send + Sync>(&mut self) -> Option<&mut SecondaryMap<EntityId, T>> {
         self.extensions
             .get_mut(&TypeId::of::<T>())?
             .as_any_mut()
@@ -458,7 +456,7 @@ impl World {
     }
 
     /// Serialize all extension component data for snapshot.
-    /// Returns name → (EntityId → RON string) mapping.
+    /// Returns name → (`EntityId` → RON string) mapping.
     pub(crate) fn serialize_extensions(&self) -> HashMap<String, HashMap<EntityId, String>> {
         let mut result = HashMap::new();
         for (type_id, map) in &self.extensions {
@@ -489,7 +487,9 @@ impl World {
     ///
     /// Must be called before `restore()` for each extension type that was
     /// present in the original simulation.
-    pub fn register_ext<T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned>(
+    pub fn register_ext<
+        T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned,
+    >(
         &mut self,
         name: &str,
     ) {
@@ -513,7 +513,7 @@ impl World {
     }
 
     /// Check if an entity is disabled.
-    #[must_use] 
+    #[must_use]
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.disabled.contains_key(id)
     }
@@ -540,7 +540,7 @@ impl World {
     }
 
     /// Get a shared reference to a global resource.
-    #[must_use] 
+    #[must_use]
     pub fn resource<T: 'static + Send + Sync>(&self) -> Option<&T> {
         self.resources.get(&TypeId::of::<T>())?.downcast_ref()
     }
@@ -581,10 +581,8 @@ impl World {
     ///     println!("{id:?}: {:?} at {}", rider.phase, pos.value);
     /// }
     /// ```
-    #[must_use] 
-    pub const fn query<Q: crate::query::WorldQuery>(
-        &self,
-    ) -> crate::query::QueryBuilder<'_, Q> {
+    #[must_use]
+    pub const fn query<Q: crate::query::WorldQuery>(&self) -> crate::query::QueryBuilder<'_, Q> {
         crate::query::QueryBuilder::new(self)
     }
 }

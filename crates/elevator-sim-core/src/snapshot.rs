@@ -7,7 +7,9 @@
 //! Extension components are NOT included — games must serialize their
 //! own extensions separately and re-attach them after restoring.
 
-use crate::components::{Elevator, Patience, Position, Preferences, Rider, Route, Stop, Velocity, Zone};
+use crate::components::{
+    Elevator, Patience, Position, Preferences, Rider, Route, Stop, Velocity, Zone,
+};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
@@ -19,7 +21,7 @@ use std::collections::HashMap;
 /// Serializable snapshot of a single entity's components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntitySnapshot {
-    /// The original EntityId (used for remapping cross-references on restore).
+    /// The original `EntityId` (used for remapping cross-references on restore).
     pub original_id: EntityId,
     /// Position component (if present).
     pub position: Option<Position>,
@@ -58,7 +60,7 @@ pub struct WorldSnapshot {
     /// Time delta per tick.
     pub dt: f64,
     /// All entities indexed by position in this vec.
-    /// EntityIds are regenerated on restore.
+    /// `EntityId`s are regenerated on restore.
     pub entities: Vec<EntitySnapshot>,
     /// Elevator groups (references into entities by index).
     pub groups: Vec<GroupSnapshot>,
@@ -68,9 +70,9 @@ pub struct WorldSnapshot {
     pub metrics: Metrics,
     /// Per-tag metric accumulators and entity-tag associations.
     pub metric_tags: MetricTags,
-    /// Serialized extension component data: name → (EntityId → RON string).
+    /// Serialized extension component data: name → (`EntityId` → RON string).
     pub extensions: HashMap<String, HashMap<EntityId, String>>,
-    /// Ticks per second (for TimeAdapter reconstruction).
+    /// Ticks per second (for `TimeAdapter` reconstruction).
     pub ticks_per_second: f64,
 }
 
@@ -96,10 +98,14 @@ pub struct GroupSnapshot {
 /// deserialize the data.
 pub(crate) struct PendingExtensions(pub(crate) HashMap<String, HashMap<EntityId, String>>);
 
+/// Factory function type for instantiating custom dispatch strategies by name.
+type CustomStrategyFactory<'a> =
+    Option<&'a dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>;
+
 impl WorldSnapshot {
     /// Restore a simulation from this snapshot.
     ///
-    /// Built-in strategies (Scan, Look, NearestCar, ETD) are auto-restored.
+    /// Built-in strategies (Scan, Look, `NearestCar`, ETD) are auto-restored.
     /// For `Custom` strategies, provide a factory function that maps strategy
     /// names to instances. Pass `None` if only using built-in strategies.
     ///
@@ -109,32 +115,78 @@ impl WorldSnapshot {
     #[must_use]
     pub fn restore(
         self,
-        custom_strategy_factory: Option<&dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>,
+        custom_strategy_factory: CustomStrategyFactory<'_>,
     ) -> crate::sim::Simulation {
-        use crate::dispatch::ElevatorGroup;
         use crate::world::{SortedStops, World};
 
         let mut world = World::new();
 
         // Phase 1: spawn all entities and build old→new EntityId mapping.
-        let mut index_to_id: Vec<EntityId> = Vec::with_capacity(self.entities.len());
+        let (index_to_id, id_remap) = Self::spawn_entities(&mut world, &self.entities);
+
+        // Phase 2: attach components with remapped EntityIds.
+        Self::attach_components(&mut world, &self.entities, &index_to_id, &id_remap);
+
+        // Rebuild sorted stops index.
+        let mut sorted: Vec<(f64, EntityId)> = world
+            .iter_stops()
+            .map(|(eid, stop)| (stop.position, eid))
+            .collect();
+        sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        world.insert_resource(SortedStops(sorted));
+
+        // Rebuild groups, stop lookup, dispatchers, and extensions (borrows self).
+        let (groups, stop_lookup, dispatchers, strategy_ids) =
+            self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory);
+
+        // Remap EntityIds in extension data for later deserialization.
+        let remapped_exts = Self::remap_extensions(&self.extensions, &id_remap);
+        world.insert_resource(PendingExtensions(remapped_exts));
+
+        // Restore MetricTags with remapped entity IDs (moves out of self).
+        let mut tags = self.metric_tags;
+        tags.remap_entity_ids(&id_remap);
+        world.insert_resource(tags);
+
+        crate::sim::Simulation::from_parts(
+            world,
+            self.tick,
+            self.dt,
+            groups,
+            stop_lookup,
+            dispatchers,
+            strategy_ids,
+            self.metrics,
+            self.ticks_per_second,
+        )
+    }
+
+    /// Spawn entities in the world and build the old→new `EntityId` mapping.
+    fn spawn_entities(
+        world: &mut crate::world::World,
+        entities: &[EntitySnapshot],
+    ) -> (Vec<EntityId>, HashMap<EntityId, EntityId>) {
+        let mut index_to_id: Vec<EntityId> = Vec::with_capacity(entities.len());
         let mut id_remap: HashMap<EntityId, EntityId> = HashMap::new();
-        for snap in &self.entities {
+        for snap in entities {
             let new_id = world.spawn();
             index_to_id.push(new_id);
             id_remap.insert(snap.original_id, new_id);
         }
+        (index_to_id, id_remap)
+    }
 
-        // Helper: remap an EntityId through the old→new map.
-        let remap = |old: EntityId| -> EntityId {
-            id_remap.get(&old).copied().unwrap_or(old)
-        };
-        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> {
-            old.map(&remap)
-        };
+    /// Attach components to spawned entities, remapping cross-references.
+    fn attach_components(
+        world: &mut crate::world::World,
+        entities: &[EntitySnapshot],
+        index_to_id: &[EntityId],
+        id_remap: &HashMap<EntityId, EntityId>,
+    ) {
+        let remap = |old: EntityId| -> EntityId { id_remap.get(&old).copied().unwrap_or(old) };
+        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(&remap) };
 
-        // Phase 2: attach components with remapped EntityIds.
-        for (i, snap) in self.entities.iter().enumerate() {
+        for (i, snap) in entities.iter().enumerate() {
             let eid = index_to_id[i];
 
             if let Some(pos) = snap.position {
@@ -145,7 +197,6 @@ impl WorldSnapshot {
             }
             if let Some(ref elev) = snap.elevator {
                 let mut e = elev.clone();
-                // Remap EntityId fields inside Elevator.
                 e.riders = e.riders.iter().map(|&r| remap(r)).collect();
                 e.target_stop = remap_opt(e.target_stop);
                 e.phase = match e.phase {
@@ -162,7 +213,6 @@ impl WorldSnapshot {
             if let Some(ref rider) = snap.rider {
                 use crate::components::RiderPhase;
                 let mut r = rider.clone();
-                // Remap EntityId fields inside Rider.
                 r.current_stop = remap_opt(r.current_stop);
                 r.phase = match r.phase {
                     RiderPhase::Boarding(e) => RiderPhase::Boarding(remap(e)),
@@ -174,7 +224,6 @@ impl WorldSnapshot {
             }
             if let Some(ref route) = snap.route {
                 let mut rt = route.clone();
-                // Remap EntityId fields inside Route legs.
                 for leg in &mut rt.legs {
                     leg.from = remap(leg.from);
                     leg.to = remap(leg.to);
@@ -194,21 +243,22 @@ impl WorldSnapshot {
                 world.disable(eid);
             }
         }
+    }
 
-        // Rebuild sorted stops index.
-        let mut sorted: Vec<(f64, EntityId)> = world
-            .iter_stops()
-            .map(|(eid, stop)| (stop.position, eid))
-            .collect();
-        sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        world.insert_resource(SortedStops(sorted));
+    /// Rebuild groups, stop lookup, and dispatchers from snapshot data.
+    #[allow(clippy::type_complexity)]
+    fn rebuild_groups_and_dispatchers(
+        &self,
+        index_to_id: &[EntityId],
+        custom_strategy_factory: CustomStrategyFactory<'_>,
+    ) -> (
+        Vec<crate::dispatch::ElevatorGroup>,
+        HashMap<StopId, EntityId>,
+        std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
+        std::collections::BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
+    ) {
+        use crate::dispatch::ElevatorGroup;
 
-        // Restore MetricTags with remapped entity IDs.
-        let mut tags = self.metric_tags;
-        tags.remap_entity_ids(&id_remap);
-        world.insert_resource(tags);
-
-        // Rebuild groups.
         let groups: Vec<ElevatorGroup> = self
             .groups
             .iter()
@@ -228,14 +278,12 @@ impl WorldSnapshot {
             })
             .collect();
 
-        // Rebuild stop lookup.
         let stop_lookup: HashMap<StopId, EntityId> = self
             .stop_lookup
             .iter()
             .filter_map(|(sid, &idx)| index_to_id.get(idx).map(|&eid| (*sid, eid)))
             .collect();
 
-        // Rebuild dispatchers from serialized strategy identifiers.
         let mut dispatchers = std::collections::BTreeMap::new();
         let mut strategy_ids = std::collections::BTreeMap::new();
         for (gs, group) in self.groups.iter().zip(groups.iter()) {
@@ -254,9 +302,15 @@ impl WorldSnapshot {
             strategy_ids.insert(group.id, gs.strategy.clone());
         }
 
-        // Remap EntityIds in extension data for later deserialization.
-        let remapped_exts: HashMap<String, HashMap<EntityId, String>> = self
-            .extensions
+        (groups, stop_lookup, dispatchers, strategy_ids)
+    }
+
+    /// Remap `EntityId`s in extension data using the old→new mapping.
+    fn remap_extensions(
+        extensions: &HashMap<String, HashMap<EntityId, String>>,
+        id_remap: &HashMap<EntityId, EntityId>,
+    ) -> HashMap<String, HashMap<EntityId, String>> {
+        extensions
             .iter()
             .map(|(name, entries)| {
                 let remapped: HashMap<EntityId, String> = entries
@@ -268,22 +322,7 @@ impl WorldSnapshot {
                     .collect();
                 (name.clone(), remapped)
             })
-            .collect();
-
-        // Store pending extension data as a resource for later deserialization.
-        world.insert_resource(PendingExtensions(remapped_exts));
-
-        crate::sim::Simulation::from_parts(
-            world,
-            self.tick,
-            self.dt,
-            groups,
-            stop_lookup,
-            dispatchers,
-            strategy_ids,
-            self.metrics,
-            self.ticks_per_second,
-        )
+            .collect()
     }
 }
 
@@ -349,7 +388,7 @@ impl crate::sim::Simulation {
         // Snapshot stop lookup (convert EntityIds to indices).
         let stop_lookup: HashMap<StopId, usize> = self
             .stop_lookup_iter()
-            .filter_map(|(sid, eid)| id_to_index.get(&eid).map(|&idx| (*sid, idx)))
+            .filter_map(|(sid, eid)| id_to_index.get(eid).map(|&idx| (*sid, idx)))
             .collect();
 
         WorldSnapshot {

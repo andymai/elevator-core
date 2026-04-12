@@ -20,7 +20,7 @@ pub struct MovementResult {
 /// - `acceleration`: acceleration rate (positive)
 /// - `deceleration`: deceleration rate (positive)
 /// - `dt`: time step
-#[must_use] 
+#[must_use]
 pub fn tick_movement(
     position: f64,
     velocity: f64,

@@ -10,9 +10,7 @@ fn add_stop_at_runtime() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let stop = sim
-        .add_stop("Penthouse".into(), 12.0, GroupId(0))
-        .unwrap();
+    let stop = sim.add_stop("Penthouse".into(), 12.0, GroupId(0)).unwrap();
 
     // Stop entity is alive and has correct data.
     assert!(sim.world().is_alive(stop));
@@ -95,13 +93,21 @@ fn disable_and_enable_entities() {
 
     // EntityDisabled event emitted.
     let events = sim.drain_events();
-    assert!(events.iter().any(|e| matches!(e, Event::EntityDisabled { entity, .. } if *entity == stop)));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::EntityDisabled { entity, .. } if *entity == stop))
+    );
 
     sim.enable(stop).unwrap();
     assert!(!sim.is_disabled(stop));
 
     let events = sim.drain_events();
-    assert!(events.iter().any(|e| matches!(e, Event::EntityEnabled { entity, .. } if *entity == stop)));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::EntityEnabled { entity, .. } if *entity == stop))
+    );
 }
 
 #[test]
@@ -115,14 +121,17 @@ fn disabled_elevator_not_dispatched() {
     sim.drain_events();
 
     // Spawn a rider — should trigger dispatch, but elevator is disabled.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
     sim.step();
 
     let events = sim.drain_events();
     // No ElevatorAssigned because the elevator is disabled.
-    assert!(!events
-        .iter()
-        .any(|e| matches!(e, Event::ElevatorAssigned { .. })));
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, Event::ElevatorAssigned { .. }))
+    );
 }
 
 #[test]
@@ -130,11 +139,12 @@ fn runtime_stop_has_no_stop_id() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let _stop = sim
-        .add_stop("Runtime".into(), 20.0, GroupId(0))
-        .unwrap();
+    let _stop = sim.add_stop("Runtime".into(), 20.0, GroupId(0)).unwrap();
 
     // Config stop lookup should not contain runtime stops.
-    assert_eq!(sim.stop_entity(StopId(0)), Some(sim.stop_entity(StopId(0)).unwrap()));
+    assert_eq!(
+        sim.stop_entity(StopId(0)),
+        Some(sim.stop_entity(StopId(0)).unwrap())
+    );
     // There's no StopId for the runtime stop — only EntityId.
 }

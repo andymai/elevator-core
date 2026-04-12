@@ -9,7 +9,8 @@ use super::helpers::{all_riders_arrived, default_config, scan};
 fn single_rider_delivery() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
 
     let max_ticks = 10_000;
     for _ in 0..max_ticks {
@@ -20,15 +21,20 @@ fn single_rider_delivery() {
     }
 
     assert!(all_riders_arrived(&sim));
-    assert!(sim.current_tick() < max_ticks, "Should complete before timeout");
+    assert!(
+        sim.current_tick() < max_ticks,
+        "Should complete before timeout"
+    );
 }
 
 #[test]
 fn two_riders_opposite_directions() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 80.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 80.0)
+        .unwrap();
 
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
@@ -46,7 +52,10 @@ fn two_riders_opposite_directions() {
             .map(|(_, r)| r.phase)
             .collect::<Vec<_>>()
     );
-    assert!(sim.current_tick() < max_ticks, "Should complete before timeout");
+    assert!(
+        sim.current_tick() < max_ticks,
+        "Should complete before timeout"
+    );
 }
 
 #[test]
@@ -55,8 +64,10 @@ fn two_riders_exceeding_capacity_delivered_in_two_trips() {
     config.elevators[0].weight_capacity = 100.0;
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     let max_ticks = 20_000;
     for _ in 0..max_ticks {
@@ -67,7 +78,10 @@ fn two_riders_exceeding_capacity_delivered_in_two_trips() {
         }
     }
 
-    assert!(all_riders_arrived(&sim), "All riders should eventually arrive");
+    assert!(
+        all_riders_arrived(&sim),
+        "All riders should eventually arrive"
+    );
 }
 
 #[test]
@@ -76,8 +90,11 @@ fn overweight_rider_rejected() {
     config.elevators[0].weight_capacity = 50.0;
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let light = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 40.0).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0).unwrap();
+    let light = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(1), 40.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0)
+        .unwrap();
 
     let mut all_events = Vec::new();
     let max_ticks = 20_000;
@@ -108,7 +125,8 @@ fn overweight_rider_rejected() {
 fn events_are_emitted_in_order() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     let mut all_events = Vec::new();
     let max_ticks = 10_000;
@@ -144,7 +162,10 @@ fn events_are_emitted_in_order() {
 
     let spawned_idx = event_names.iter().position(|e| *e == "spawned").unwrap();
     let boarded_idx = event_names.iter().position(|e| *e == "boarded").unwrap();
-    assert!(spawned_idx < boarded_idx, "Spawned should come before boarded");
+    assert!(
+        spawned_idx < boarded_idx,
+        "Spawned should come before boarded"
+    );
 }
 
 #[test]
@@ -152,8 +173,10 @@ fn deterministic_replay() {
     let config = default_config();
 
     let mut sim1 = Simulation::new(&config, scan()).unwrap();
-    sim1.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
-    sim1.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0).unwrap();
+    sim1.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    sim1.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0)
+        .unwrap();
 
     let mut ticks1 = 0u64;
     for _ in 0..20_000 {
@@ -165,8 +188,10 @@ fn deterministic_replay() {
     }
 
     let mut sim2 = Simulation::new(&config, scan()).unwrap();
-    sim2.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
-    sim2.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0).unwrap();
+    sim2.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    sim2.spawn_rider_by_stop_id(StopId(1), StopId(0), 60.0)
+        .unwrap();
 
     let mut ticks2 = 0u64;
     for _ in 0..20_000 {

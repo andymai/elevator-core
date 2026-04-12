@@ -114,8 +114,14 @@ pub fn spawn_building_visuals(
         return;
     }
 
-    let min_pos = stop_positions.iter().map(|s| s.1).fold(f64::INFINITY, f64::min);
-    let max_pos = stop_positions.iter().map(|s| s.1).fold(f64::NEG_INFINITY, f64::max);
+    let min_pos = stop_positions
+        .iter()
+        .map(|s| s.1)
+        .fold(f64::INFINITY, f64::min);
+    let max_pos = stop_positions
+        .iter()
+        .map(|s| s.1)
+        .fold(f64::NEG_INFINITY, f64::max);
     let span = (max_pos - min_pos) as f32;
     let vs = VisualScale::from_shaft_span(span);
 
@@ -242,7 +248,11 @@ pub fn sync_rider_visuals(
 #[allow(clippy::needless_pass_by_value)]
 pub fn update_rider_positions(
     sim: Res<SimulationRes>,
-    mut query: Query<(&RiderVisual, &mut Transform, &mut MeshMaterial2d<ColorMaterial>)>,
+    mut query: Query<(
+        &RiderVisual,
+        &mut Transform,
+        &mut MeshMaterial2d<ColorMaterial>,
+    )>,
     rider_mats: Res<RiderMaterials>,
     vs: Res<VisualScale>,
 ) {
@@ -284,9 +294,7 @@ fn rider_visual_params(
             (offset, stop_y as f32 * PPU, mats.waiting.clone())
         }
         RiderPhase::Boarding(elev_eid) => {
-            let elev_y = w
-                .position(elev_eid)
-                .map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
@@ -294,9 +302,7 @@ fn rider_visual_params(
             )
         }
         RiderPhase::Riding(elev_eid) => {
-            let elev_y = w
-                .position(elev_eid)
-                .map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
             let idx = w
                 .elevator(elev_eid)
                 .and_then(|car| car.riders().iter().position(|r| *r == rider_eid))
@@ -305,9 +311,7 @@ fn rider_visual_params(
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())
         }
         RiderPhase::Alighting(elev_eid) => {
-            let elev_y = w
-                .position(elev_eid)
-                .map_or(0.0, |p| p.value);
+            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value);
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,

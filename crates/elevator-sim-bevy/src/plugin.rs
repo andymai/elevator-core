@@ -27,8 +27,8 @@ impl Plugin for ElevatorSimPlugin {
 
         let ron_str = std::fs::read_to_string(&config_path)
             .unwrap_or_else(|_| panic!("Failed to read config: {config_path}"));
-        let config: SimConfig =
-            ron::from_str(&ron_str).unwrap_or_else(|e| panic!("Failed to parse {config_path}: {e}"));
+        let config: SimConfig = ron::from_str(&ron_str)
+            .unwrap_or_else(|e| panic!("Failed to parse {config_path}: {e}"));
 
         let spawn_config = config.passenger_spawning.clone();
         let sim = Simulation::new(&config, Box::new(ScanDispatch::new()))

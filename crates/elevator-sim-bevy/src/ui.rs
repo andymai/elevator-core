@@ -66,9 +66,7 @@ pub fn update_hud(
     let state_str = match car.phase() {
         ElevatorPhase::Idle => "Idle".to_string(),
         ElevatorPhase::MovingToStop(stop_eid) => {
-            let name = w
-                .stop(stop_eid)
-                .map_or("?", |s| s.name.as_str());
+            let name = w.stop(stop_eid).map_or("?", |s| s.name.as_str());
             format!("Moving -> {name}")
         }
         ElevatorPhase::DoorOpening => "Doors opening".to_string(),
@@ -78,9 +76,7 @@ pub fn update_hud(
         _ => "Unknown".to_string(),
     };
 
-    let velocity = w
-        .velocity(elev_eid)
-        .map_or(0.0, |v| v.value.abs());
+    let velocity = w.velocity(elev_eid).map_or(0.0, |v| v.value.abs());
     let speed_display = format!("{velocity:.1}");
 
     #[allow(clippy::option_if_let_else)]
@@ -90,11 +86,7 @@ pub fn update_hud(
             if velocity > 0.001 {
                 let eta_secs = dist / velocity;
                 if eta_secs > 60.0 {
-                    format!(
-                        "{:.0}m {:.0}s",
-                        (eta_secs / 60.0).floor(),
-                        eta_secs % 60.0
-                    )
+                    format!("{:.0}m {:.0}s", (eta_secs / 60.0).floor(), eta_secs % 60.0)
                 } else {
                     format!("{eta_secs:.1}s")
                 }
@@ -112,11 +104,22 @@ pub fn update_hud(
     let (mut on_board, mut boarding, mut alighting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
     for (_, r) in w.iter_riders() {
         match r.phase {
-            RiderPhase::Boarding(_) => { boarding += 1; on_board += 1; }
-            RiderPhase::Riding(_) => { on_board += 1; }
-            RiderPhase::Alighting(_) => { alighting += 1; }
-            RiderPhase::Waiting => { waiting += 1; }
-            RiderPhase::Arrived => { delivered += 1; }
+            RiderPhase::Boarding(_) => {
+                boarding += 1;
+                on_board += 1;
+            }
+            RiderPhase::Riding(_) => {
+                on_board += 1;
+            }
+            RiderPhase::Alighting(_) => {
+                alighting += 1;
+            }
+            RiderPhase::Waiting => {
+                waiting += 1;
+            }
+            RiderPhase::Arrived => {
+                delivered += 1;
+            }
             _ => {}
         }
     }

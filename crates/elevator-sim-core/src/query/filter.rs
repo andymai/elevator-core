@@ -59,17 +59,13 @@ impl_builtin_filter!(crate::components::Preferences, preferences);
 
 impl<T: 'static + Send + Sync> QueryFilter for ExtWith<T> {
     fn matches(world: &World, id: EntityId) -> bool {
-        world
-            .ext_map::<T>()
-            .is_some_and(|m| m.contains_key(id))
+        world.ext_map::<T>().is_some_and(|m| m.contains_key(id))
     }
 }
 
 impl<T: 'static + Send + Sync> QueryFilter for ExtWithout<T> {
     fn matches(world: &World, id: EntityId) -> bool {
-        !world
-            .ext_map::<T>()
-            .is_some_and(|m| m.contains_key(id))
+        !world.ext_map::<T>().is_some_and(|m| m.contains_key(id))
     }
 }
 

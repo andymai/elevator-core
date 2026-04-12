@@ -24,12 +24,15 @@ pub enum Phase {
     Metrics,
 }
 
+/// A boxed closure that receives mutable world access during a phase hook.
 pub(crate) type PhaseHook = Box<dyn Fn(&mut World) + Send + Sync>;
 
 /// Storage for before/after hooks keyed by phase.
 #[derive(Default)]
 pub(crate) struct PhaseHooks {
+    /// Hooks to run before each phase.
     before: HashMap<Phase, Vec<PhaseHook>>,
+    /// Hooks to run after each phase.
     after: HashMap<Phase, Vec<PhaseHook>>,
 }
 

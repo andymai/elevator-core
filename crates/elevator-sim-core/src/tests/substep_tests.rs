@@ -9,14 +9,18 @@ fn per_phase_methods_equivalent_to_step() {
 
     // Sim A: use step()
     let mut sim_a = crate::sim::Simulation::new(&config, scan()).unwrap();
-    sim_a.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim_a
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
     for _ in 0..100 {
         sim_a.step();
     }
 
     // Sim B: use individual phases
     let mut sim_b = crate::sim::Simulation::new(&config, scan()).unwrap();
-    sim_b.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim_b
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
     for _ in 0..100 {
         sim_b.run_advance_transient();
         sim_b.run_dispatch();
@@ -31,7 +35,10 @@ fn per_phase_methods_equivalent_to_step() {
     assert_eq!(sim_a.current_tick(), sim_b.current_tick());
 
     // Both should have the same metrics.
-    assert_eq!(sim_a.metrics().total_delivered, sim_b.metrics().total_delivered);
+    assert_eq!(
+        sim_a.metrics().total_delivered,
+        sim_b.metrics().total_delivered
+    );
     assert_eq!(sim_a.metrics().total_spawned, sim_b.metrics().total_spawned);
 }
 
@@ -63,16 +70,19 @@ fn elevator_assigned_event_emitted() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
     sim.drain_events(); // clear spawn event
 
     sim.run_advance_transient();
     sim.run_dispatch();
 
     let events = sim.drain_events();
-    assert!(events
-        .iter()
-        .any(|e| matches!(e, Event::ElevatorAssigned { .. })));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ElevatorAssigned { .. }))
+    );
 }
 
 #[test]
@@ -90,7 +100,9 @@ fn events_mut_allows_custom_emission() {
     });
 
     let events = sim.drain_events();
-    assert!(events.iter().any(|e| matches!(e,
-        Event::ElevatorDeparted { tick: 999, .. }
-    )));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::ElevatorDeparted { tick: 999, .. }))
+    );
 }

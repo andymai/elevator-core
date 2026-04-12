@@ -47,19 +47,19 @@ pub enum DoorTransition {
 
 impl DoorState {
     /// Returns `true` if the doors are fully open.
-    #[must_use] 
+    #[must_use]
     pub const fn is_open(&self) -> bool {
         matches!(self, Self::Open { .. })
     }
 
     /// Returns `true` if the doors are fully closed.
-    #[must_use] 
+    #[must_use]
     pub const fn is_closed(&self) -> bool {
         matches!(self, Self::Closed)
     }
 
     /// Begin opening the door.
-    #[must_use] 
+    #[must_use]
     pub const fn request_open(transition_ticks: u32, open_ticks: u32) -> Self {
         Self::Opening {
             ticks_remaining: transition_ticks,

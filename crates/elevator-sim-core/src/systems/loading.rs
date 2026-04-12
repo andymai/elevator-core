@@ -65,9 +65,7 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
             .riders
             .iter()
             .find(|rid| {
-                world
-                    .route(**rid)
-                    .and_then(Route::current_destination) == Some(current_stop)
+                world.route(**rid).and_then(Route::current_destination) == Some(current_stop)
             })
             .copied();
 
@@ -98,9 +96,9 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
                 return None;
             }
             // Must want to depart from this stop (check route leg origin).
-            let route_ok = world.route(rid).is_none_or(|route| {
-                route.current().is_none_or(|leg| leg.from == current_stop)
-            });
+            let route_ok = world
+                .route(rid)
+                .is_none_or(|route| route.current().is_none_or(|leg| leg.from == current_stop));
             if !route_ok {
                 return None;
             }
@@ -152,7 +150,12 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
 }
 
 /// Mutation pass: apply collected actions to the world and emit events.
-fn apply_actions(actions: Vec<LoadAction>, world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+fn apply_actions(
+    actions: Vec<LoadAction>,
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+) {
     for action in actions {
         match action {
             LoadAction::Alight {
@@ -212,7 +215,11 @@ fn apply_actions(actions: Vec<LoadAction>, world: &mut World, events: &mut Event
                     tick: ctx.tick,
                 });
             }
-            LoadAction::Reject { rider, elevator, reason } => {
+            LoadAction::Reject {
+                rider,
+                elevator,
+                reason,
+            } => {
                 events.emit(Event::RiderRejected {
                     rider,
                     elevator,

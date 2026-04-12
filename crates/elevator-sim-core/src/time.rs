@@ -15,41 +15,41 @@ pub struct TimeAdapter {
 
 impl TimeAdapter {
     /// Create a new adapter with the given tick rate.
-    #[must_use] 
+    #[must_use]
     pub const fn new(ticks_per_second: f64) -> Self {
         Self { ticks_per_second }
     }
 
     /// Convert ticks to seconds.
     #[allow(clippy::cast_precision_loss)] // tick counts within f64 range
-    #[must_use] 
+    #[must_use]
     pub fn ticks_to_seconds(&self, ticks: u64) -> f64 {
         ticks as f64 / self.ticks_per_second
     }
 
     /// Convert seconds to ticks, rounded to nearest.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // intentional rounding
-    #[must_use] 
+    #[must_use]
     pub fn seconds_to_ticks(&self, seconds: f64) -> u64 {
         (seconds * self.ticks_per_second).round() as u64
     }
 
     /// Convert a `Duration` to ticks, rounded to nearest.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // intentional rounding
-    #[must_use] 
+    #[must_use]
     pub fn duration_to_ticks(&self, duration: Duration) -> u64 {
         (duration.as_secs_f64() * self.ticks_per_second).round() as u64
     }
 
     /// Convert ticks to a `Duration`.
     #[allow(clippy::cast_precision_loss)] // tick counts within f64 range
-    #[must_use] 
+    #[must_use]
     pub fn ticks_to_duration(&self, ticks: u64) -> Duration {
         Duration::from_secs_f64(ticks as f64 / self.ticks_per_second)
     }
 
     /// The configured tick rate.
-    #[must_use] 
+    #[must_use]
     pub const fn ticks_per_second(&self) -> f64 {
         self.ticks_per_second
     }

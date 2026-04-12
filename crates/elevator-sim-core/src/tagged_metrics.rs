@@ -26,8 +26,9 @@ pub struct TaggedMetric {
     /// Maximum wait time observed for tagged riders.
     pub(crate) max_wait_time: u64,
 
-    // Internal accumulators.
+    /// Internal accumulator: total wait ticks for boarded riders.
     sum_wait_ticks: u64,
+    /// Internal accumulator: number of riders that have boarded.
     boarded_count: u64,
 }
 
@@ -63,7 +64,7 @@ impl TaggedMetric {
     }
 
     /// Record a spawn event for this tag.
-    pub(crate) fn record_spawn(&mut self) {
+    pub(crate) const fn record_spawn(&mut self) {
         self.total_spawned += 1;
     }
 
@@ -79,12 +80,12 @@ impl TaggedMetric {
     }
 
     /// Record a delivery event.
-    pub(crate) fn record_delivery(&mut self) {
+    pub(crate) const fn record_delivery(&mut self) {
         self.total_delivered += 1;
     }
 
     /// Record an abandonment event.
-    pub(crate) fn record_abandonment(&mut self) {
+    pub(crate) const fn record_abandonment(&mut self) {
         self.total_abandoned += 1;
     }
 }
@@ -177,8 +178,7 @@ impl MetricTags {
 
     /// Remap all entity IDs using the provided mapping (for snapshot restore).
     pub(crate) fn remap_entity_ids(&mut self, remap: &HashMap<EntityId, EntityId>) {
-        let old_tags: HashMap<EntityId, Vec<String>> =
-            std::mem::take(&mut self.entity_tags);
+        let old_tags: HashMap<EntityId, Vec<String>> = std::mem::take(&mut self.entity_tags);
         for (old_id, tags) in old_tags {
             let new_id = remap.get(&old_id).copied().unwrap_or(old_id);
             self.entity_tags.insert(new_id, tags);

@@ -270,15 +270,33 @@ fn find_nearest_stop_returns_closest_by_distance() {
     let mut world = World::new();
 
     let s0 = world.spawn();
-    world.set_stop(s0, Stop { name: "S0".into(), position: 0.0 });
+    world.set_stop(
+        s0,
+        Stop {
+            name: "S0".into(),
+            position: 0.0,
+        },
+    );
     world.set_position(s0, Position { value: 0.0 });
 
     let s1 = world.spawn();
-    world.set_stop(s1, Stop { name: "S1".into(), position: 4.0 });
+    world.set_stop(
+        s1,
+        Stop {
+            name: "S1".into(),
+            position: 4.0,
+        },
+    );
     world.set_position(s1, Position { value: 4.0 });
 
     let s2 = world.spawn();
-    world.set_stop(s2, Stop { name: "S2".into(), position: 8.0 });
+    world.set_stop(
+        s2,
+        Stop {
+            name: "S2".into(),
+            position: 8.0,
+        },
+    );
     world.set_position(s2, Position { value: 8.0 });
 
     // 3.0 is equidistant from 0.0 (dist 3) and 4.0 (dist 1) — nearest is s1.
@@ -301,7 +319,13 @@ fn find_nearest_stop_with_single_stop() {
     let mut world = World::new();
 
     let s = world.spawn();
-    world.set_stop(s, Stop { name: "Only".into(), position: 10.0 });
+    world.set_stop(
+        s,
+        Stop {
+            name: "Only".into(),
+            position: 10.0,
+        },
+    );
 
     // Any position should map to the only stop.
     assert_eq!(world.find_nearest_stop(999.0), Some(s));
@@ -450,10 +474,10 @@ fn disable_elevator_ejects_riding_passenger_to_waiting() {
 
     // RiderEjected event should have been emitted.
     assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, Event::RiderEjected { rider: r, elevator: e, .. }
-                if *r == rider && *e == elev)),
+        events.iter().any(
+            |e| matches!(e, Event::RiderEjected { rider: r, elevator: e, .. }
+                if *r == rider && *e == elev)
+        ),
         "RiderEjected event should be emitted when elevator is disabled"
     );
 }
@@ -463,7 +487,8 @@ fn disable_elevator_clears_its_rider_list() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
 
     let elev = sim.world().elevator_ids()[0];
 
@@ -471,7 +496,11 @@ fn disable_elevator_clears_its_rider_list() {
     for _ in 0..5_000 {
         sim.step();
         sim.drain_events();
-        if sim.world().elevator(elev).map_or(false, |c| !c.riders.is_empty()) {
+        if sim
+            .world()
+            .elevator(elev)
+            .map_or(false, |c| !c.riders.is_empty())
+        {
             break;
         }
     }
@@ -484,7 +513,10 @@ fn disable_elevator_clears_its_rider_list() {
         car.riders.is_empty(),
         "elevator riders list should be empty after disable"
     );
-    assert_eq!(car.current_load, 0.0, "current_load should be zeroed after disable");
+    assert_eq!(
+        car.current_load, 0.0,
+        "current_load should be zeroed after disable"
+    );
 }
 
 // ── 6. Despawn cleanup ───────────────────────────────────────────────────────
@@ -495,7 +527,13 @@ fn despawn_elevator_resets_rider_to_waiting() {
 
     // Create a stop for the rider to land at.
     let stop = world.spawn();
-    world.set_stop(stop, Stop { name: "Ground".into(), position: 0.0 });
+    world.set_stop(
+        stop,
+        Stop {
+            name: "Ground".into(),
+            position: 0.0,
+        },
+    );
     world.set_position(stop, Position { value: 0.0 });
 
     // Create the elevator at the stop's position.
@@ -569,7 +607,13 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
     let mut world = World::new();
 
     let stop = world.spawn();
-    world.set_stop(stop, Stop { name: "Ground".into(), position: 0.0 });
+    world.set_stop(
+        stop,
+        Stop {
+            name: "Ground".into(),
+            position: 0.0,
+        },
+    );
 
     let elev = world.spawn();
     world.set_position(elev, Position { value: 0.0 });
@@ -627,10 +671,22 @@ fn route_direct_current_returns_single_leg() {
     let mut world = World::new();
 
     let from = world.spawn();
-    world.set_stop(from, Stop { name: "A".into(), position: 0.0 });
+    world.set_stop(
+        from,
+        Stop {
+            name: "A".into(),
+            position: 0.0,
+        },
+    );
 
     let to = world.spawn();
-    world.set_stop(to, Stop { name: "B".into(), position: 4.0 });
+    world.set_stop(
+        to,
+        Stop {
+            name: "B".into(),
+            position: 4.0,
+        },
+    );
 
     let rider = world.spawn();
     world.set_rider(
@@ -660,8 +716,16 @@ fn weight_rejection_boundary() {
         building: crate::config::BuildingConfig {
             name: "WeightTest".into(),
             stops: vec![
-                crate::stop::StopConfig { id: crate::stop::StopId(0), name: "A".into(), position: 0.0 },
-                crate::stop::StopConfig { id: crate::stop::StopId(1), name: "B".into(), position: 10.0 },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
             ],
         },
         elevators: vec![crate::config::ElevatorConfig {
@@ -675,7 +739,9 @@ fn weight_rejection_boundary() {
             door_open_ticks: 10,
             door_transition_ticks: 3,
         }],
-        simulation: crate::config::SimulationParams { ticks_per_second: 60.0 },
+        simulation: crate::config::SimulationParams {
+            ticks_per_second: 60.0,
+        },
         passenger_spawning: crate::config::PassengerSpawnConfig {
             mean_interval_ticks: 120,
             weight_range: (50.0, 100.0),
@@ -685,12 +751,15 @@ fn weight_rejection_boundary() {
     let mut sim = crate::sim::Simulation::new(
         &config,
         Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Spawn rider1 (weight 60) and rider2 (weight 60) at stop 0 → stop 1.
     // Combined = 120, exceeds capacity 100. Only one should board.
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0).unwrap();
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0).unwrap();
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
+        .unwrap();
 
     // Run enough ticks for loading to happen.
     for _ in 0..500 {
@@ -698,7 +767,10 @@ fn weight_rejection_boundary() {
     }
 
     let events = sim.drain_events();
-    let rejections: Vec<_> = events.iter().filter(|e| matches!(e, Event::RiderRejected { .. })).collect();
+    let rejections: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, Event::RiderRejected { .. }))
+        .collect();
 
     // At least one rider should be rejected due to weight.
     assert!(
@@ -718,11 +790,31 @@ fn passing_floor_events_emitted() {
         building: crate::config::BuildingConfig {
             name: "PassFloor".into(),
             stops: vec![
-                crate::stop::StopConfig { id: crate::stop::StopId(0), name: "S0".into(), position: 0.0 },
-                crate::stop::StopConfig { id: crate::stop::StopId(1), name: "S1".into(), position: 10.0 },
-                crate::stop::StopConfig { id: crate::stop::StopId(2), name: "S2".into(), position: 20.0 },
-                crate::stop::StopConfig { id: crate::stop::StopId(3), name: "S3".into(), position: 30.0 },
-                crate::stop::StopConfig { id: crate::stop::StopId(4), name: "S4".into(), position: 40.0 },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(0),
+                    name: "S0".into(),
+                    position: 0.0,
+                },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(1),
+                    name: "S1".into(),
+                    position: 10.0,
+                },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(2),
+                    name: "S2".into(),
+                    position: 20.0,
+                },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(3),
+                    name: "S3".into(),
+                    position: 30.0,
+                },
+                crate::stop::StopConfig {
+                    id: crate::stop::StopId(4),
+                    name: "S4".into(),
+                    position: 40.0,
+                },
             ],
         },
         elevators: vec![crate::config::ElevatorConfig {
@@ -736,7 +828,9 @@ fn passing_floor_events_emitted() {
             door_open_ticks: 5,
             door_transition_ticks: 3,
         }],
-        simulation: crate::config::SimulationParams { ticks_per_second: 60.0 },
+        simulation: crate::config::SimulationParams {
+            ticks_per_second: 60.0,
+        },
         passenger_spawning: crate::config::PassengerSpawnConfig {
             mean_interval_ticks: 120,
             weight_range: (50.0, 100.0),
@@ -746,10 +840,12 @@ fn passing_floor_events_emitted() {
     let mut sim = crate::sim::Simulation::new(
         &config,
         Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Spawn a rider from stop 0 to stop 4 to trigger dispatch.
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0)
+        .unwrap();
 
     // Run enough ticks for the elevator to reach the destination.
     for _ in 0..2000 {
@@ -757,7 +853,10 @@ fn passing_floor_events_emitted() {
     }
 
     let events = sim.drain_events();
-    let passing_events: Vec<_> = events.iter().filter(|e| matches!(e, Event::PassingFloor { .. })).collect();
+    let passing_events: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, Event::PassingFloor { .. }))
+        .collect();
 
     // Should have passing events for stops 1, 2, 3 (the intermediate stops).
     assert!(

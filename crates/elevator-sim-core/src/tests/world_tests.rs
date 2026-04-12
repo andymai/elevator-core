@@ -16,10 +16,13 @@ fn despawn_removes_entity_and_components() {
     let mut world = World::new();
     let id = world.spawn();
     world.set_position(id, Position { value: 42.0 });
-    world.set_stop(id, Stop {
-        name: "Test".into(),
-        position: 42.0,
-    });
+    world.set_stop(
+        id,
+        Stop {
+            name: "Test".into(),
+            position: 42.0,
+        },
+    );
 
     assert!(world.position(id).is_some());
     assert!(world.stop(id).is_some());
@@ -39,20 +42,23 @@ fn elevator_query_returns_entities_with_both_components() {
     // Entity with both Position + Elevator.
     let elev_id = world.spawn();
     world.set_position(elev_id, Position { value: 10.0 });
-    world.set_elevator(elev_id, Elevator {
-        phase: ElevatorPhase::Idle,
-        door: DoorState::Closed,
-        max_speed: 2.0,
-        acceleration: 1.5,
-        deceleration: 2.0,
-        weight_capacity: 800.0,
-        current_load: 0.0,
-        riders: vec![],
-        target_stop: None,
-        door_transition_ticks: 15,
-        door_open_ticks: 60,
-        group: GroupId(0),
-    });
+    world.set_elevator(
+        elev_id,
+        Elevator {
+            phase: ElevatorPhase::Idle,
+            door: DoorState::Closed,
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            current_load: 0.0,
+            riders: vec![],
+            target_stop: None,
+            door_transition_ticks: 15,
+            door_open_ticks: 60,
+            group: GroupId(0),
+        },
+    );
 
     // Entity with only Position (a stop, not an elevator).
     let stop_id = world.spawn();
@@ -70,13 +76,16 @@ fn rider_query() {
 
     let p1 = world.spawn();
     let origin = world.spawn();
-    world.set_rider(p1, Rider {
-        weight: 70.0,
-        phase: RiderPhase::Waiting,
-        current_stop: Some(origin),
-        spawn_tick: 0,
-        board_tick: None,
-    });
+    world.set_rider(
+        p1,
+        Rider {
+            weight: 70.0,
+            phase: RiderPhase::Waiting,
+            current_stop: Some(origin),
+            spawn_tick: 0,
+            board_tick: None,
+        },
+    );
 
     let riders: Vec<_> = world.iter_riders().collect();
     assert_eq!(riders.len(), 1);
@@ -88,16 +97,22 @@ fn find_stop_at_position() {
     let mut world = World::new();
 
     let s0 = world.spawn();
-    world.set_stop(s0, Stop {
-        name: "Ground".into(),
-        position: 0.0,
-    });
+    world.set_stop(
+        s0,
+        Stop {
+            name: "Ground".into(),
+            position: 0.0,
+        },
+    );
 
     let s1 = world.spawn();
-    world.set_stop(s1, Stop {
-        name: "Roof".into(),
-        position: 100.0,
-    });
+    world.set_stop(
+        s1,
+        Stop {
+            name: "Roof".into(),
+            position: 100.0,
+        },
+    );
 
     assert_eq!(world.find_stop_at_position(0.0), Some(s0));
     assert_eq!(world.find_stop_at_position(100.0), Some(s1));
@@ -127,10 +142,13 @@ fn multiple_entities_independent() {
 fn stop_position_helper() {
     let mut world = World::new();
     let s = world.spawn();
-    world.set_stop(s, Stop {
-        name: "Test".into(),
-        position: 42.5,
-    });
+    world.set_stop(
+        s,
+        Stop {
+            name: "Test".into(),
+            position: 42.5,
+        },
+    );
 
     assert_eq!(world.stop_position(s), Some(42.5));
 

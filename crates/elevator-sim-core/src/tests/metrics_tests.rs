@@ -6,8 +6,10 @@ use super::helpers::{all_riders_arrived, default_config, scan};
 #[test]
 fn metrics_track_deliveries() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 60.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 60.0)
+        .unwrap();
 
     for _ in 0..20_000 {
         sim.step();
@@ -28,10 +30,13 @@ fn metrics_track_deliveries() {
 #[test]
 fn metrics_wait_time_increases_with_distance() {
     let mut sim1 = Simulation::new(&default_config(), scan()).unwrap();
-    sim1.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    sim1.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
     for _ in 0..10_000 {
         sim1.step();
-        if all_riders_arrived(&sim1) { break; }
+        if all_riders_arrived(&sim1) {
+            break;
+        }
     }
     let wait1 = sim1.metrics().avg_wait_time;
 
@@ -43,13 +48,19 @@ fn metrics_wait_time_increases_with_distance() {
 #[test]
 fn metrics_throughput_window() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
 
     for _ in 0..10_000 {
         sim.step();
         sim.drain_events();
-        if all_riders_arrived(&sim) { break; }
+        if all_riders_arrived(&sim) {
+            break;
+        }
     }
 
-    assert!(sim.metrics().throughput >= 1, "Should have at least 1 delivery in window");
+    assert!(
+        sim.metrics().throughput >= 1,
+        "Should have at least 1 delivery in window"
+    );
 }

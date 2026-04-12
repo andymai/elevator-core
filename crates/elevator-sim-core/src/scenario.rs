@@ -98,10 +98,7 @@ impl ScenarioRunner {
     /// Create a new runner from a scenario definition and dispatch strategy.
     ///
     /// Returns `Err` if the scenario's config is invalid.
-    pub fn new(
-        scenario: Scenario,
-        dispatch: Box<dyn DispatchStrategy>,
-    ) -> Result<Self, SimError> {
+    pub fn new(scenario: Scenario, dispatch: Box<dyn DispatchStrategy>) -> Result<Self, SimError> {
         let sim = Simulation::new(&scenario.config, dispatch)?;
         Ok(Self {
             sim,
@@ -114,7 +111,7 @@ impl ScenarioRunner {
     }
 
     /// Access the underlying simulation.
-    #[must_use] 
+    #[must_use]
     pub const fn sim(&self) -> &Simulation {
         &self.sim
     }
@@ -127,7 +124,8 @@ impl ScenarioRunner {
         {
             let spawn = &self.spawns[self.spawn_cursor];
             // Ignore errors from invalid stop IDs in scenario spawns.
-            let _ = self.sim
+            let _ = self
+                .sim
                 .spawn_rider_by_stop_id(spawn.origin, spawn.destination, spawn.weight);
             self.spawn_cursor += 1;
         }
@@ -144,11 +142,10 @@ impl ScenarioRunner {
 
             // Check if all spawns have happened and all riders are done.
             if self.spawn_cursor >= self.spawns.len() {
-                let all_done = self
-                    .sim
-                    .world()
-                    .iter_riders()
-                    .all(|(_, r)| matches!(r.phase, RiderPhase::Arrived | RiderPhase::Abandoned));
+                let all_done =
+                    self.sim.world().iter_riders().all(|(_, r)| {
+                        matches!(r.phase, RiderPhase::Arrived | RiderPhase::Abandoned)
+                    });
                 if all_done {
                     break;
                 }
@@ -159,7 +156,7 @@ impl ScenarioRunner {
     }
 
     /// Evaluate conditions against current metrics.
-    #[must_use] 
+    #[must_use]
     pub fn evaluate(&self) -> ScenarioResult {
         let metrics = self.sim.metrics().clone();
         let condition_results: Vec<ConditionResult> = self
@@ -181,7 +178,11 @@ impl ScenarioRunner {
 }
 
 /// Evaluate a single condition against metrics and the current tick.
-fn evaluate_condition(condition: &Condition, metrics: &Metrics, current_tick: u64) -> ConditionResult {
+fn evaluate_condition(
+    condition: &Condition,
+    metrics: &Metrics,
+    current_tick: u64,
+) -> ConditionResult {
     match condition {
         Condition::AvgWaitBelow(threshold) => ConditionResult {
             condition: condition.clone(),
@@ -200,7 +201,8 @@ fn evaluate_condition(condition: &Condition, metrics: &Metrics, current_tick: u6
         },
         Condition::AllDeliveredByTick(deadline) => ConditionResult {
             condition: condition.clone(),
-            passed: current_tick <= *deadline && metrics.total_delivered() == metrics.total_spawned(),
+            passed: current_tick <= *deadline
+                && metrics.total_delivered() == metrics.total_spawned(),
             actual_value: current_tick as f64,
         },
         Condition::AbandonmentRateBelow(threshold) => ConditionResult {
