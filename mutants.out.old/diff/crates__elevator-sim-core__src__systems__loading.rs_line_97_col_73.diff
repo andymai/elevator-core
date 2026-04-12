@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace != with == in collect_actions
+@@ -89,17 +89,17 @@
+         };
+         let mut rejected_candidate: Option<EntityId> = None;
+         let mut preference_rejected: Option<EntityId> = None;
+ 
+         let board_rider = world.iter_riders().find_map(|(rid, rider)| {
+             if world.is_disabled(rid) {
+                 return None;
+             }
+-            if rider.phase != RiderPhase::Waiting || rider.current_stop != Some(current_stop) {
++            if rider.phase != RiderPhase::Waiting || rider.current_stop == /* ~ changed by cargo-mutants ~ */ Some(current_stop) {
+                 return None;
+             }
+             // Must want to depart from this stop (check route leg origin).
+             let route_ok = world.route(rid).is_none_or(|route| {
+                 route.current().is_none_or(|leg| leg.from == current_stop)
+             });
+             if !route_ok {
+                 return None;

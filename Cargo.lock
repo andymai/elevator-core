@@ -2338,19 +2338,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
-name = "elevator-sim-bevy"
-version = "0.1.0"
+name = "elevator-bevy"
+version = "1.0.0"
 dependencies = [
  "bevy",
- "elevator-sim-core",
+ "elevator-core",
  "rand 0.9.3",
  "ron 0.9.0",
  "serde",
 ]
 
 [[package]]
-name = "elevator-sim-core"
-version = "0.1.0"
+name = "elevator-core"
+version = "1.0.0"
 dependencies = [
  "criterion",
  "ordered-float",

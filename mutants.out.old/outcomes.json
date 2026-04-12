@@ -1,0 +1,3916 @@
+{
+  "outcomes": [
+    {
+      "scenario": "Baseline",
+      "summary": "Success",
+      "log_path": "log/baseline.log",
+      "diff_path": null,
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 7.664546645,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.414612597,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:24:5: replace run with ()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 16,
+                "column": 1
+              },
+              "end": {
+                "line": 104,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 24,
+              "column": 5
+            },
+            "end": {
+              "line": 103,
+              "column": 6
+            }
+          },
+          "replacement": "()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_24_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_24_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 1.002243501,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 4.059515125,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:119:13: replace && with || in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 119,
+              "column": 13
+            },
+            "end": {
+              "line": 119,
+              "column": 15
+            }
+          },
+          "replacement": "||",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "Unviable",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_119_col_13.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_119_col_13.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.952055518,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:121:38: replace += with -= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 121,
+              "column": 38
+            },
+            "end": {
+              "line": 121,
+              "column": 40
+            }
+          },
+          "replacement": "-=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_121_col_38.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_121_col_38.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.852138298,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.201239518,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:108:5: replace build_manifest -> DispatchManifest with Default::default()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 108,
+              "column": 5
+            },
+            "end": {
+              "line": 138,
+              "column": 13
+            }
+          },
+          "replacement": "Default::default()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_108_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_108_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 12.628344418,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 4.10765056,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:115:24: replace != with == in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 115,
+              "column": 24
+            },
+            "end": {
+              "line": 115,
+              "column": 26
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_115_col_24.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_115_col_24.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 12.477704068,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 5.409227469,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:121:38: replace += with *= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 121,
+              "column": 38
+            },
+            "end": {
+              "line": 121,
+              "column": 40
+            }
+          },
+          "replacement": "*=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_121_col_38_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_121_col_38_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.651599023,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 15.674337003,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:131:21: replace && with || in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 131,
+              "column": 21
+            },
+            "end": {
+              "line": 131,
+              "column": 23
+            }
+          },
+          "replacement": "||",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "Unviable",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_131_col_21.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_131_col_21.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.351185656,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:132:79: replace += with -= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 132,
+              "column": 79
+            },
+            "end": {
+              "line": 132,
+              "column": 81
+            }
+          },
+          "replacement": "-=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_132_col_79.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_132_col_79.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.5514776,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.301129999,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:122:45: replace += with -= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 122,
+              "column": 45
+            },
+            "end": {
+              "line": 122,
+              "column": 47
+            }
+          },
+          "replacement": "-=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_122_col_45.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_122_col_45.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.601516126,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.315803107,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:122:45: replace += with *= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 122,
+              "column": 45
+            },
+            "end": {
+              "line": 122,
+              "column": 47
+            }
+          },
+          "replacement": "*=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_122_col_45_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_122_col_45_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551467732,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.86520086,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:68:37: replace == with != in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 16,
+                "column": 1
+              },
+              "end": {
+                "line": 104,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 68,
+              "column": 37
+            },
+            "end": {
+              "line": 68,
+              "column": 39
+            }
+          },
+          "replacement": "!=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_68_col_37.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_68_col_37.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 12.675425252,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 18.87858982,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/dispatch.rs:132:79: replace += with *= in build_manifest",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/dispatch.rs",
+          "function": {
+            "function_name": "build_manifest",
+            "return_type": "-> DispatchManifest",
+            "span": {
+              "start": {
+                "line": 106,
+                "column": 1
+              },
+              "end": {
+                "line": 139,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 132,
+              "column": 79
+            },
+            "end": {
+              "line": 132,
+              "column": 81
+            }
+          },
+          "replacement": "*=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__dispatch.rs_line_132_col_79_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__dispatch.rs_line_132_col_79_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551363879,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.364530542,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/doors.rs:12:5: replace run with ()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/doors.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 10,
+                "column": 1
+              },
+              "end": {
+                "line": 51,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 12,
+              "column": 5
+            },
+            "end": {
+              "line": 50,
+              "column": 6
+            }
+          },
+          "replacement": "()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__doors.rs_line_12_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__doors.rs_line_12_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.601520724,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.413030316,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:44:5: replace collect_actions -> Vec<LoadAction> with vec![Default::default()]",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 44,
+              "column": 5
+            },
+            "end": {
+              "line": 151,
+              "column": 12
+            }
+          },
+          "replacement": "vec![Default::default()]",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "Unviable",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_44_col_5_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_44_col_5_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.351225761,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/doors.rs:23:46: replace != with == in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/doors.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 10,
+                "column": 1
+              },
+              "end": {
+                "line": 51,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 23,
+              "column": 46
+            },
+            "end": {
+              "line": 23,
+              "column": 48
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__doors.rs_line_23_col_46.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__doors.rs_line_23_col_46.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551558331,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.964533584,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:44:5: replace collect_actions -> Vec<LoadAction> with vec![]",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 44,
+              "column": 5
+            },
+            "end": {
+              "line": 151,
+              "column": 12
+            }
+          },
+          "replacement": "vec![]",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_44_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_44_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.751601012,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.164208333,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:54:22: replace != with == in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 54,
+              "column": 22
+            },
+            "end": {
+              "line": 54,
+              "column": 24
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_54_col_22.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_54_col_22.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551440531,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.765919631,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/doors.rs:23:33: replace && with || in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/doors.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 10,
+                "column": 1
+              },
+              "end": {
+                "line": 51,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 23,
+              "column": 33
+            },
+            "end": {
+              "line": 23,
+              "column": 35
+            }
+          },
+          "replacement": "||",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__doors.rs_line_23_col_33.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__doors.rs_line_23_col_33.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.601521525,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 20.37746784,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:84:54: replace - with + in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 84,
+              "column": 54
+            },
+            "end": {
+              "line": 84,
+              "column": 55
+            }
+          },
+          "replacement": "+",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_84_col_54.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_84_col_54.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.751731154,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 8.514207894,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:70:59: replace == with != in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 70,
+              "column": 59
+            },
+            "end": {
+              "line": 70,
+              "column": 61
+            }
+          },
+          "replacement": "!=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_70_col_59.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_70_col_59.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551459417,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 13.273607415,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:84:54: replace - with / in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 84,
+              "column": 54
+            },
+            "end": {
+              "line": 84,
+              "column": 55
+            }
+          },
+          "replacement": "/",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_84_col_54_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_84_col_54_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.55216565,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.968035355,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with == in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 85,
+              "column": 49
+            },
+            "end": {
+              "line": 85,
+              "column": 50
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551481909,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.769021578,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with >= in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 85,
+              "column": 49
+            },
+            "end": {
+              "line": 85,
+              "column": 50
+            }
+          },
+          "replacement": ">=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49_002.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49_002.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551493249,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.663078611,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with < in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 85,
+              "column": 49
+            },
+            "end": {
+              "line": 85,
+              "column": 50
+            }
+          },
+          "replacement": "<",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_85_col_49_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551486387,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.614157551,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:86:30: replace / with % in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 86,
+              "column": 30
+            },
+            "end": {
+              "line": 86,
+              "column": 31
+            }
+          },
+          "replacement": "%",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_86_col_30.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_86_col_30.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551438027,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.014708733,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:86:30: replace / with * in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 86,
+              "column": 30
+            },
+            "end": {
+              "line": 86,
+              "column": 31
+            }
+          },
+          "replacement": "*",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_86_col_30_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_86_col_30_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551497929,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.516333043,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:97:51: replace || with && in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 97,
+              "column": 51
+            },
+            "end": {
+              "line": 97,
+              "column": 53
+            }
+          },
+          "replacement": "&&",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_51.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_51.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.6015243,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.815227328,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:97:28: replace != with == in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 97,
+              "column": 28
+            },
+            "end": {
+              "line": 97,
+              "column": 30
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_28.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_28.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551574851,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 12.168089789,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:110:17: replace && with || in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 110,
+              "column": 17
+            },
+            "end": {
+              "line": 110,
+              "column": 19
+            }
+          },
+          "replacement": "||",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "Unviable",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_17.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_17.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.35120939,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:109:17: replace && with || in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 109,
+              "column": 17
+            },
+            "end": {
+              "line": 109,
+              "column": 19
+            }
+          },
+          "replacement": "||",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "Unviable",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_109_col_17.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_109_col_17.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.351218908,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:97:73: replace != with == in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 97,
+              "column": 73
+            },
+            "end": {
+              "line": 97,
+              "column": 75
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_73.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_97_col_73.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.602027516,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 12.970561632999999,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:102:59: replace == with != in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 102,
+              "column": 59
+            },
+            "end": {
+              "line": 102,
+              "column": 61
+            }
+          },
+          "replacement": "!=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_102_col_59.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_102_col_59.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551440982,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.467187519,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:104:16: delete ! in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 104,
+              "column": 16
+            },
+            "end": {
+              "line": 104,
+              "column": 17
+            }
+          },
+          "replacement": "",
+          "genre": "UnaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_104_col_16.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_104_col_16.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551386081,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 8.762784792,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with == in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 110,
+              "column": 31
+            },
+            "end": {
+              "line": 110,
+              "column": 32
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551468744,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.11722586,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with >= in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 110,
+              "column": 31
+            },
+            "end": {
+              "line": 110,
+              "column": 32
+            }
+          },
+          "replacement": ">=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31_002.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31_002.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551475246,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.215726358,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with < in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 110,
+              "column": 31
+            },
+            "end": {
+              "line": 110,
+              "column": 32
+            }
+          },
+          "replacement": "<",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_110_col_31_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.55140201,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.71606212,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:117:29: replace <= with > in collect_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "collect_actions",
+            "return_type": "-> Vec<LoadAction>",
+            "span": {
+              "start": {
+                "line": 42,
+                "column": 1
+              },
+              "end": {
+                "line": 152,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 117,
+              "column": 29
+            },
+            "end": {
+              "line": 117,
+              "column": 31
+            }
+          },
+          "replacement": ">",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_117_col_29.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_117_col_29.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.552054203,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 12.365979023,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:156:5: replace apply_actions with ()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 156,
+              "column": 5
+            },
+            "end": {
+              "line": 224,
+              "column": 6
+            }
+          },
+          "replacement": "()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_156_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_156_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.751629334,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.765150409,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:173:46: replace != with == in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 173,
+              "column": 46
+            },
+            "end": {
+              "line": 173,
+              "column": 48
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_173_col_46.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_173_col_46.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551456451,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 7.761067989,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:167:45: replace != with == in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 167,
+              "column": 45
+            },
+            "end": {
+              "line": 167,
+              "column": 47
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_167_col_45.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_167_col_45.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.55147752,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.462470047,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:174:58: replace - with + in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 174,
+              "column": 58
+            },
+            "end": {
+              "line": 174,
+              "column": 59
+            }
+          },
+          "replacement": "+",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_174_col_58.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_174_col_58.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551445942,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.664483101,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:174:58: replace - with / in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 174,
+              "column": 58
+            },
+            "end": {
+              "line": 174,
+              "column": 59
+            }
+          },
+          "replacement": "/",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_174_col_58_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_174_col_58_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.701578887,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.315134264,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:201:38: replace += with -= in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 201,
+              "column": 38
+            },
+            "end": {
+              "line": 201,
+              "column": 40
+            }
+          },
+          "replacement": "-=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_201_col_38.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_201_col_38.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551563551,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 7.963489675,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:196:45: replace != with == in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 196,
+              "column": 45
+            },
+            "end": {
+              "line": 196,
+              "column": 47
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_196_col_45.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_196_col_45.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551514579,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.215012408,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:201:38: replace += with *= in apply_actions",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "apply_actions",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 154,
+                "column": 1
+              },
+              "end": {
+                "line": 225,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 201,
+              "column": 38
+            },
+            "end": {
+              "line": 201,
+              "column": 40
+            }
+          },
+          "replacement": "*=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_201_col_38_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_201_col_38_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551581204,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 8.263762722,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:13:5: replace run with ()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 13,
+              "column": 5
+            },
+            "end": {
+              "line": 91,
+              "column": 6
+            }
+          },
+          "replacement": "()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_13_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_13_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.701577575,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.062678295,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/loading.rs:229:5: replace run with ()",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/loading.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 227,
+                "column": 1
+              },
+              "end": {
+                "line": 231,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 229,
+              "column": 5
+            },
+            "end": {
+              "line": 230,
+              "column": 48
+            }
+          },
+          "replacement": "()",
+          "genre": "FnValue"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__loading.rs_line_229_col_5.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__loading.rs_line_229_col_5.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.751523818,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.314612283,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with == in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 56,
+              "column": 37
+            },
+            "end": {
+              "line": 56,
+              "column": 38
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.651639788,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.151091008,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with < in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 56,
+              "column": 37
+            },
+            "end": {
+              "line": 56,
+              "column": 38
+            }
+          },
+          "replacement": "<",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.851671389,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.150926923,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:63:66: replace <= with > in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 63,
+              "column": 66
+            },
+            "end": {
+              "line": 63,
+              "column": 68
+            }
+          },
+          "replacement": ">",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_66.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_66.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.553278681,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.150886808,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:55:12: delete ! in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 55,
+              "column": 12
+            },
+            "end": {
+              "line": 55,
+              "column": 13
+            }
+          },
+          "replacement": "",
+          "genre": "UnaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_55_col_12.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_55_col_12.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551438317,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.212877744,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:21:17: delete match arm ElevatorPhase::MovingToStop(stop_eid) in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 21,
+              "column": 17
+            },
+            "end": {
+              "line": 21,
+              "column": 67
+            }
+          },
+          "replacement": "",
+          "genre": "MatchArm"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_21_col_17.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_21_col_17.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.70167639,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.116560514,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with == in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 64,
+              "column": 64
+            },
+            "end": {
+              "line": 64,
+              "column": 65
+            }
+          },
+          "replacement": "==",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.702228997,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.151050032,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with > in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 64,
+              "column": 64
+            },
+            "end": {
+              "line": 64,
+              "column": 65
+            }
+          },
+          "replacement": ">",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551478894,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 2.255966649,
+          "process_status": {
+            "Failure": 101
+          },
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with >= in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 56,
+              "column": 37
+            },
+            "end": {
+              "line": 56,
+              "column": 38
+            }
+          },
+          "replacement": ">=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37_002.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_56_col_37_002.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.651651449,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 9.914962329,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:63:72: replace + with - in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 63,
+              "column": 72
+            },
+            "end": {
+              "line": 63,
+              "column": 73
+            }
+          },
+          "replacement": "-",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_72.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_72.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.553452974,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.61654805,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:63:72: replace + with * in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 63,
+              "column": 72
+            },
+            "end": {
+              "line": 63,
+              "column": 73
+            }
+          },
+          "replacement": "*",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_72_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_63_col_72_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.552899495,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 13.872137967,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with <= in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 64,
+              "column": 64
+            },
+            "end": {
+              "line": 64,
+              "column": 65
+            }
+          },
+          "replacement": "<=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64_002.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_64_002.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551510462,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 13.467538859,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:64:69: replace - with + in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 64,
+              "column": 69
+            },
+            "end": {
+              "line": 64,
+              "column": 70
+            }
+          },
+          "replacement": "+",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_69.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_69.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551448647,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 10.464983119,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:64:69: replace - with / in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 64,
+              "column": 69
+            },
+            "end": {
+              "line": 64,
+              "column": 70
+            }
+          },
+          "replacement": "/",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_69_001.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_64_col_69_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551512586,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 13.119369113,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "crates/elevator-sim-core/src/systems/movement.rs:66:33: replace == with != in run",
+          "package": "elevator-sim-core",
+          "file": "crates/elevator-sim-core/src/systems/movement.rs",
+          "function": {
+            "function_name": "run",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 11,
+                "column": 1
+              },
+              "end": {
+                "line": 92,
+                "column": 2
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 66,
+              "column": 33
+            },
+            "end": {
+              "line": 66,
+              "column": 35
+            }
+          },
+          "replacement": "!=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "MissedMutant",
+      "log_path": "log/crates__elevator-sim-core__src__systems__movement.rs_line_66_col_33.log",
+      "diff_path": "diff/crates__elevator-sim-core__src__systems__movement.rs_line_66_col_33.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 0.551510983,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--no-run",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 11.969369947,
+          "process_status": "Success",
+          "argv": [
+            "/var/home/andy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+            "test",
+            "--verbose",
+            "--package=elevator-sim-core@0.1.0"
+          ]
+        }
+      ]
+    }
+  ],
+  "total_mutants": 61,
+  "missed": 19,
+  "caught": 37,
+  "timeout": 0,
+  "unviable": 5,
+  "success": 0,
+  "start_time": "2026-04-12T09:44:25.279063062Z",
+  "end_time": "2026-04-12T09:47:18.95963138Z",
+  "cargo_mutants_version": "27.0.0"
+}

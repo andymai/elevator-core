@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/dispatch.rs
++++ replace += with *= in build_manifest
+@@ -114,17 +114,17 @@
+         }
+         if rider.phase != RiderPhase::Waiting {
+             continue;
+         }
+         if let Some(stop) = rider.current_stop
+             && group.stop_entities.contains(&stop) {
+                 let demand = manifest.demand_at_stop.entry(stop).or_insert_with(StopDemand::default);
+                 demand.waiting_count += 1;
+-                demand.total_waiting_weight += rider.weight;
++                demand.total_waiting_weight *= /* ~ changed by cargo-mutants ~ */ rider.weight;
+             }
+     }
+ 
+     // Rider destinations: where current riders in this group's elevators want to go.
+     for &elev_eid in &group.elevator_entities {
+         if let Some(car) = world.elevator(elev_eid) {
+             for &rider_eid in &car.riders {
+                 if let Some(route) = world.route(rider_eid)

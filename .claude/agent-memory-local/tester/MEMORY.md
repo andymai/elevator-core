@@ -1,0 +1,1 @@
+- [Test setup quirks](test_setup_quirks.md) — DoorState::Open is a struct variant, loading phase checks ElevatorPhase not DoorState

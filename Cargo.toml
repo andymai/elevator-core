@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["crates/elevator-sim-core", "crates/elevator-sim-bevy"]
-default-members = ["crates/elevator-sim-bevy"]
+members = ["crates/elevator-core", "crates/elevator-bevy"]
+default-members = ["crates/elevator-bevy"]
 
 [workspace.package]
 version = "1.0.0"

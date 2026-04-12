@@ -1,14 +1,14 @@
 {
   "packages": {
-    "crates/elevator-sim-core": {
+    "crates/elevator-core": {
       "release-type": "rust",
-      "component": "elevator-sim-core",
+      "component": "elevator-core",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true
     },
-    "crates/elevator-sim-bevy": {
+    "crates/elevator-bevy": {
       "release-type": "rust",
-      "component": "elevator-sim-bevy",
+      "component": "elevator-bevy",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true
     }

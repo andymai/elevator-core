@@ -1,0 +1,128 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace collect_actions -> Vec<LoadAction> with vec![Default::default()]
+@@ -36,124 +36,17 @@
+         elevator: EntityId,
+         /// Why the rider was rejected.
+         reason: RejectionReason,
+     },
+ }
+ 
+ /// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
+ fn collect_actions(world: &World) -> Vec<LoadAction> {
+-    let mut actions: Vec<LoadAction> = Vec::new();
+-    let elevator_ids = world.elevator_ids();
+-
+-    for &eid in &elevator_ids {
+-        if world.is_disabled(eid) {
+-            continue;
+-        }
+-        let Some(car) = world.elevator(eid) else {
+-            continue;
+-        };
+-        if car.phase != ElevatorPhase::Loading {
+-            continue;
+-        }
+-
+-        let pos = world.position(eid).map_or(0.0, |p| p.value);
+-        let Some(current_stop) = world.find_stop_at_position(pos) else {
+-            continue;
+-        };
+-
+-        // Try to alight one rider whose route destination matches the current stop.
+-        let alight_rider = car
+-            .riders
+-            .iter()
+-            .find(|rid| {
+-                world
+-                    .route(**rid)
+-                    .and_then(Route::current_destination) == Some(current_stop)
+-            })
+-            .copied();
+-
+-        if let Some(rid) = alight_rider {
+-            actions.push(LoadAction::Alight {
+-                rider: rid,
+-                elevator: eid,
+-                stop: current_stop,
+-            });
+-            continue;
+-        }
+-
+-        // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
+-        let remaining_capacity = car.weight_capacity - car.current_load;
+-        let load_ratio = if car.weight_capacity > 0.0 {
+-            car.current_load / car.weight_capacity
+-        } else {
+-            1.0
+-        };
+-        let mut rejected_candidate: Option<EntityId> = None;
+-        let mut preference_rejected: Option<EntityId> = None;
+-
+-        let board_rider = world.iter_riders().find_map(|(rid, rider)| {
+-            if world.is_disabled(rid) {
+-                return None;
+-            }
+-            if rider.phase != RiderPhase::Waiting || rider.current_stop != Some(current_stop) {
+-                return None;
+-            }
+-            // Must want to depart from this stop (check route leg origin).
+-            let route_ok = world.route(rid).is_none_or(|route| {
+-                route.current().is_none_or(|leg| leg.from == current_stop)
+-            });
+-            if !route_ok {
+-                return None;
+-            }
+-            // Rider preferences: skip crowded elevators.
+-            if let Some(prefs) = world.preferences(rid)
+-                && prefs.skip_full_elevator
+-                && load_ratio > prefs.max_crowding_factor
+-            {
+-                if preference_rejected.is_none() {
+-                    preference_rejected = Some(rid);
+-                }
+-                return None;
+-            }
+-            if rider.weight <= remaining_capacity {
+-                Some((rid, rider.weight))
+-            } else {
+-                if rejected_candidate.is_none() {
+-                    rejected_candidate = Some(rid);
+-                }
+-                None
+-            }
+-        });
+-
+-        if let Some((rid, weight)) = board_rider {
+-            actions.push(LoadAction::Board {
+-                rider: rid,
+-                elevator: eid,
+-                weight,
+-            });
+-            continue;
+-        }
+-
+-        if let Some(rid) = rejected_candidate {
+-            actions.push(LoadAction::Reject {
+-                rider: rid,
+-                elevator: eid,
+-                reason: RejectionReason::OverCapacity,
+-            });
+-        } else if let Some(rid) = preference_rejected {
+-            actions.push(LoadAction::Reject {
+-                rider: rid,
+-                elevator: eid,
+-                reason: RejectionReason::PreferenceBased,
+-            });
+-        }
+-    }
+-
+-    actions
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Mutation pass: apply collected actions to the world and emit events.
+ fn apply_actions(actions: Vec<LoadAction>, world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+     for action in actions {
+         match action {
+             LoadAction::Alight {
+                 rider,

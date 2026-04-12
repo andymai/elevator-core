@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace += with *= in apply_actions
+@@ -193,17 +193,17 @@
+                 // the same stop may have already boarded them in an earlier action).
+                 if world
+                     .rider(rider)
+                     .is_none_or(|r| r.phase != RiderPhase::Waiting)
+                 {
+                     continue;
+                 }
+                 if let Some(car) = world.elevator_mut(elevator) {
+-                    car.current_load += weight;
++                    car.current_load *= /* ~ changed by cargo-mutants ~ */ weight;
+                     car.riders.push(rider);
+                 }
+                 if let Some(rd) = world.rider_mut(rider) {
+                     rd.phase = RiderPhase::Boarding(elevator);
+                     rd.board_tick = Some(ctx.tick);
+                     rd.current_stop = None;
+                 }
+                 events.emit(Event::RiderBoarded {

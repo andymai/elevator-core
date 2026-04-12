@@ -1,0 +1,19 @@
+crates/elevator-sim-core/src/systems/dispatch.rs:122:45: replace += with -= in build_manifest
+crates/elevator-sim-core/src/systems/dispatch.rs:122:45: replace += with *= in build_manifest
+crates/elevator-sim-core/src/systems/doors.rs:23:46: replace != with == in run
+crates/elevator-sim-core/src/systems/loading.rs:84:54: replace - with / in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with >= in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:86:30: replace / with % in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:86:30: replace / with * in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:97:51: replace || with && in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with >= in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:174:58: replace - with / in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:201:38: replace += with *= in apply_actions
+crates/elevator-sim-core/src/systems/movement.rs:55:12: delete ! in run
+crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with >= in run
+crates/elevator-sim-core/src/systems/movement.rs:63:72: replace + with - in run
+crates/elevator-sim-core/src/systems/movement.rs:63:72: replace + with * in run
+crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with <= in run
+crates/elevator-sim-core/src/systems/movement.rs:64:69: replace - with + in run
+crates/elevator-sim-core/src/systems/movement.rs:64:69: replace - with / in run
+crates/elevator-sim-core/src/systems/movement.rs:66:33: replace == with != in run

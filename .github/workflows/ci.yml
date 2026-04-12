@@ -28,7 +28,7 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Test core
-        run: cargo test -p elevator-sim-core
+        run: cargo test -p elevator-core
 
       - name: Build workspace
         run: cargo build --workspace

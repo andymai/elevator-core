@@ -3,14 +3,14 @@
 ## Project Structure
 
 Cargo workspace with two crates:
-- `crates/elevator-sim-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
-- `crates/elevator-sim-bevy` — Bevy 0.18 game binary wrapping the core sim
+- `crates/elevator-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
+- `crates/elevator-bevy` — Bevy 0.18 game binary wrapping the core sim
 
 ## Build
 
 ```bash
-cargo test -p elevator-sim-core
-cargo clippy -p elevator-sim-core
+cargo test -p elevator-core
+cargo clippy -p elevator-core
 cargo build            # full workspace (PKG_CONFIG_PATH set by .cargo/config.toml)
 cargo run              # default config
 cargo run -- assets/config/space_elevator.ron

@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace == with != in collect_actions
+@@ -62,17 +62,17 @@
+ 
+         // Try to alight one rider whose route destination matches the current stop.
+         let alight_rider = car
+             .riders
+             .iter()
+             .find(|rid| {
+                 world
+                     .route(**rid)
+-                    .and_then(Route::current_destination) == Some(current_stop)
++                    .and_then(Route::current_destination) != /* ~ changed by cargo-mutants ~ */ Some(current_stop)
+             })
+             .copied();
+ 
+         if let Some(rid) = alight_rider {
+             actions.push(LoadAction::Alight {
+                 rider: rid,
+                 elevator: eid,
+                 stop: current_stop,

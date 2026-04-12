@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/doors.rs
++++ replace && with || in run
+@@ -15,17 +15,17 @@
+         if world.is_disabled(eid) {
+             continue;
+         }
+ 
+         let Some(car) = world.elevator_mut(eid) else {
+             continue;
+         };
+ 
+-        if car.door.is_closed() && car.phase != ElevatorPhase::DoorOpening {
++        if car.door.is_closed() || /* ~ changed by cargo-mutants ~ */ car.phase != ElevatorPhase::DoorOpening {
+             continue;
+         }
+ 
+         let transition = car.door.tick();
+ 
+         match transition {
+             DoorTransition::FinishedOpening => {
+                 car.phase = ElevatorPhase::Loading;

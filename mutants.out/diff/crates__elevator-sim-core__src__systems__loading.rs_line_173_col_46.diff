@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace != with == in apply_actions
+@@ -165,17 +165,17 @@
+                 if world
+                     .rider(rider)
+                     .is_none_or(|r| r.phase != RiderPhase::Riding(elevator))
+                 {
+                     continue;
+                 }
+                 let rider_weight = world.rider(rider).map_or(0.0, |rd| rd.weight);
+                 if let Some(car) = world.elevator_mut(elevator) {
+-                    car.riders.retain(|r| *r != rider);
++                    car.riders.retain(|r| *r == /* ~ changed by cargo-mutants ~ */ rider);
+                     car.current_load = (car.current_load - rider_weight).max(0.0);
+                 }
+                 if let Some(rd) = world.rider_mut(rider) {
+                     rd.phase = RiderPhase::Alighting(elevator);
+                     rd.current_stop = Some(stop);
+                 }
+                 events.emit(Event::RiderAlighted {
+                     rider,

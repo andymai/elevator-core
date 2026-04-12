@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/movement.rs
++++ replace - with / in run
+@@ -56,17 +56,17 @@
+             let moving_up = new_pos > old_pos;
+             let (lo, hi) = if moving_up {
+                 (old_pos, new_pos)
+             } else {
+                 (new_pos, old_pos)
+             };
+             if let Some(sorted) = world.resource::<SortedStops>() {
+                 let start = sorted.0.partition_point(|&(p, _)| p <= lo + 1e-9);
+-                let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
++                let end = sorted.0.partition_point(|&(p, _)| p < hi / /* ~ changed by cargo-mutants ~ */ 1e-9);
+                 for &(_, stop_eid) in &sorted.0[start..end] {
+                     if stop_eid == target_stop_eid {
+                         continue;
+                     }
+                     events.emit(Event::PassingFloor {
+                         elevator: eid,
+                         stop: stop_eid,
+                         moving_up,

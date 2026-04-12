@@ -1,0 +1,37 @@
+crates/elevator-sim-core/src/systems/dispatch.rs:24:5: replace run with ()
+crates/elevator-sim-core/src/systems/dispatch.rs:121:38: replace += with -= in build_manifest
+crates/elevator-sim-core/src/systems/dispatch.rs:108:5: replace build_manifest -> DispatchManifest with Default::default()
+crates/elevator-sim-core/src/systems/dispatch.rs:115:24: replace != with == in build_manifest
+crates/elevator-sim-core/src/systems/dispatch.rs:121:38: replace += with *= in build_manifest
+crates/elevator-sim-core/src/systems/dispatch.rs:132:79: replace += with -= in build_manifest
+crates/elevator-sim-core/src/systems/dispatch.rs:68:37: replace == with != in run
+crates/elevator-sim-core/src/systems/doors.rs:12:5: replace run with ()
+crates/elevator-sim-core/src/systems/dispatch.rs:132:79: replace += with *= in build_manifest
+crates/elevator-sim-core/src/systems/loading.rs:54:22: replace != with == in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:44:5: replace collect_actions -> Vec<LoadAction> with vec![]
+crates/elevator-sim-core/src/systems/doors.rs:23:33: replace && with || in run
+crates/elevator-sim-core/src/systems/loading.rs:70:59: replace == with != in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:84:54: replace - with + in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with < in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:85:49: replace > with == in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:97:73: replace != with == in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:97:28: replace != with == in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:104:16: delete ! in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:102:59: replace == with != in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with == in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:110:31: replace > with < in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:117:29: replace <= with > in collect_actions
+crates/elevator-sim-core/src/systems/loading.rs:156:5: replace apply_actions with ()
+crates/elevator-sim-core/src/systems/loading.rs:167:45: replace != with == in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:173:46: replace != with == in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:174:58: replace - with + in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:196:45: replace != with == in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:201:38: replace += with -= in apply_actions
+crates/elevator-sim-core/src/systems/loading.rs:229:5: replace run with ()
+crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with == in run
+crates/elevator-sim-core/src/systems/movement.rs:13:5: replace run with ()
+crates/elevator-sim-core/src/systems/movement.rs:56:37: replace > with < in run
+crates/elevator-sim-core/src/systems/movement.rs:63:66: replace <= with > in run
+crates/elevator-sim-core/src/systems/movement.rs:21:17: delete match arm ElevatorPhase::MovingToStop(stop_eid) in run
+crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with == in run
+crates/elevator-sim-core/src/systems/movement.rs:64:64: replace < with > in run

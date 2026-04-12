@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ delete ! in collect_actions
+@@ -96,17 +96,17 @@
+             }
+             if rider.phase != RiderPhase::Waiting || rider.current_stop != Some(current_stop) {
+                 return None;
+             }
+             // Must want to depart from this stop (check route leg origin).
+             let route_ok = world.route(rid).is_none_or(|route| {
+                 route.current().is_none_or(|leg| leg.from == current_stop)
+             });
+-            if !route_ok {
++            if  /* ~ changed by cargo-mutants ~ */route_ok {
+                 return None;
+             }
+             // Rider preferences: skip crowded elevators.
+             if let Some(prefs) = world.preferences(rid)
+                 && prefs.skip_full_elevator
+                 && load_ratio > prefs.max_crowding_factor
+             {
+                 if preference_rejected.is_none() {

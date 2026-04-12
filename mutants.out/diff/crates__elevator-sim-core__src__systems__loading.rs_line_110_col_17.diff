@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace && with || in collect_actions
+@@ -102,17 +102,17 @@
+                 route.current().is_none_or(|leg| leg.from == current_stop)
+             });
+             if !route_ok {
+                 return None;
+             }
+             // Rider preferences: skip crowded elevators.
+             if let Some(prefs) = world.preferences(rid)
+                 && prefs.skip_full_elevator
+-                && load_ratio > prefs.max_crowding_factor
++                || /* ~ changed by cargo-mutants ~ */ load_ratio > prefs.max_crowding_factor
+             {
+                 if preference_rejected.is_none() {
+                     preference_rejected = Some(rid);
+                 }
+                 return None;
+             }
+             if rider.weight <= remaining_capacity {
+                 Some((rid, rider.weight))

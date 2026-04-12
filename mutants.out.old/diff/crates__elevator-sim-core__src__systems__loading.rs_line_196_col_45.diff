@@ -1,0 +1,21 @@
+--- crates/elevator-sim-core/src/systems/loading.rs
++++ replace != with == in apply_actions
+@@ -188,17 +188,17 @@
+                 rider,
+                 elevator,
+                 weight,
+             } => {
+                 // Guard: skip if rider is no longer Waiting (another elevator at
+                 // the same stop may have already boarded them in an earlier action).
+                 if world
+                     .rider(rider)
+-                    .is_none_or(|r| r.phase != RiderPhase::Waiting)
++                    .is_none_or(|r| r.phase == /* ~ changed by cargo-mutants ~ */ RiderPhase::Waiting)
+                 {
+                     continue;
+                 }
+                 if let Some(car) = world.elevator_mut(elevator) {
+                     car.current_load += weight;
+                     car.riders.push(rider);
+                 }
+                 if let Some(rd) = world.rider_mut(rider) {
