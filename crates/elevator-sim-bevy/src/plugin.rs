@@ -7,7 +7,7 @@ use crate::rendering::{
     spawn_building_visuals, sync_elevator_visuals, sync_passenger_visuals,
     update_passenger_positions,
 };
-use crate::sim_bridge::{SimEventWrapper, SimSpeed, SimulationRes};
+use crate::sim_bridge::{tick_simulation, SimEventWrapper, SimSpeed, SimulationRes};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_sim_core::config::SimConfig;
 use elevator_sim_core::dispatch::ScanDispatch;
@@ -17,11 +17,15 @@ pub struct ElevatorSimPlugin;
 
 impl Plugin for ElevatorSimPlugin {
     fn build(&self, app: &mut App) {
-        // Load config.
-        let ron_str = std::fs::read_to_string("assets/config/default.ron")
-            .expect("Failed to read assets/config/default.ron");
+        // Load config — check CLI arg first, fall back to default.
+        let config_path = std::env::args()
+            .nth(1)
+            .unwrap_or_else(|| "assets/config/default.ron".to_string());
+
+        let ron_str = std::fs::read_to_string(&config_path)
+            .unwrap_or_else(|_| panic!("Failed to read config: {config_path}"));
         let config: SimConfig =
-            ron::from_str(&ron_str).expect("Failed to parse default.ron");
+            ron::from_str(&ron_str).unwrap_or_else(|e| panic!("Failed to parse {config_path}: {e}"));
 
         let spawn_config = config.passenger_spawning.clone();
         let sim = Simulation::new(config, Box::new(ScanDispatch::new()));
@@ -51,6 +55,3 @@ impl Plugin for ElevatorSimPlugin {
             );
     }
 }
-
-// Re-export the tick function.
-use crate::sim_bridge::tick_simulation;

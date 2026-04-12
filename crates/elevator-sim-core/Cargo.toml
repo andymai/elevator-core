@@ -7,3 +7,4 @@ edition.workspace = true
 serde.workspace = true
 ron.workspace = true
 rand.workspace = true
+slotmap.workspace = true

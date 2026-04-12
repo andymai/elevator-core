@@ -3,11 +3,11 @@ use crate::stop::StopId;
 use serde::{Deserialize, Serialize};
 
 /// Unique identifier for a passenger.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PassengerId(pub u64);
 
 /// Unique identifier for a cargo item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CargoId(pub u64);
 
 /// Current state of a passenger in the simulation.

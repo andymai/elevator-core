@@ -1,9 +1,10 @@
 use crate::elevator::ElevatorId;
 use crate::passenger::{CargoId, PassengerId};
 use crate::stop::StopId;
+use serde::{Deserialize, Serialize};
 
 /// Events emitted by the simulation during ticks.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SimEvent {
     ElevatorDeparted {
         elevator: ElevatorId,
@@ -52,7 +53,7 @@ pub enum SimEvent {
         tick: u64,
     },
     OverweightRejected {
-        entity_kind: &'static str,
+        entity_kind: String,
         elevator: ElevatorId,
         tick: u64,
     },

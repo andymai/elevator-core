@@ -1,0 +1,2 @@
+[env]
+PKG_CONFIG_PATH = { value = "/var/home/linuxbrew/.linuxbrew/Cellar/systemd/260.1/lib/pkgconfig", force = false }

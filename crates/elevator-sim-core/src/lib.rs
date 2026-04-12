@@ -1,3 +1,13 @@
+// New ECS-like architecture
+pub mod components;
+pub mod entity;
+pub mod ids;
+pub mod world;
+
+// Compatibility layer (delegates to legacy fields during migration)
+pub mod compat;
+
+// Existing modules (kept during migration)
 pub mod config;
 pub mod dispatch;
 pub mod door;

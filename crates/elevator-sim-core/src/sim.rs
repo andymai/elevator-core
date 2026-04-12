@@ -1,13 +1,19 @@
+use crate::components::{
+    ElevatorCar as ElevatorCarComp, ElevatorState as NewElevatorState, Position, StopData, Velocity,
+};
 use crate::config::SimConfig;
 use crate::dispatch::{DispatchDecision, DispatchStrategy, WaitingManifest};
 use crate::door::DoorState;
 use crate::elevator::{Elevator, ElevatorId, ElevatorState};
+use crate::entity::EntityId;
 use crate::events::{EventBus, SimEvent};
+use crate::ids::GroupId;
 use crate::movement::tick_movement;
 use crate::passenger::{
     Cargo, CargoId, CargoPriority, CargoState, Passenger, PassengerId, PassengerState,
 };
 use crate::stop::{StopConfig, StopId};
+use crate::world::World;
 use std::collections::HashMap;
 
 /// The core simulation state, advanced by calling `tick()`.
@@ -19,6 +25,11 @@ pub struct Simulation {
     pub passengers: Vec<Passenger>,
     pub cargo: Vec<Cargo>,
     pub events: EventBus,
+    pub world: World,
+    /// Legacy StopId → EntityId mapping.
+    pub stop_entities: HashMap<StopId, EntityId>,
+    /// Legacy ElevatorId → EntityId mapping.
+    pub elevator_entities: HashMap<ElevatorId, EntityId>,
     dispatch: Box<dyn DispatchStrategy>,
     next_passenger_id: u64,
     next_cargo_id: u64,
@@ -27,7 +38,7 @@ pub struct Simulation {
 impl Simulation {
     pub fn new(config: SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Self {
         let stops = config.building.stops;
-        let elevators = config
+        let elevators: Vec<Elevator> = config
             .elevators
             .iter()
             .map(|ec| {
@@ -58,6 +69,48 @@ impl Simulation {
 
         let dt = 1.0 / config.simulation.ticks_per_second;
 
+        // Populate ECS World alongside legacy Vecs.
+        let mut world = World::new();
+        let mut stop_entities = HashMap::new();
+
+        for stop_config in &stops {
+            let eid = world.spawn();
+            world.stop_data.insert(
+                eid,
+                StopData {
+                    name: stop_config.name.clone(),
+                    position: stop_config.position,
+                },
+            );
+            stop_entities.insert(stop_config.id, eid);
+        }
+
+        let mut elevator_entities = HashMap::new();
+        for elev in elevators.iter() {
+            let eid = world.spawn();
+            let elev_pos = elev.position;
+            world.positions.insert(eid, Position { value: elev_pos });
+            world.velocities.insert(eid, Velocity { value: 0.0 });
+            world.elevator_cars.insert(
+                eid,
+                ElevatorCarComp {
+                    state: NewElevatorState::Idle,
+                    door: DoorState::Closed,
+                    max_speed: elev.max_speed,
+                    acceleration: elev.acceleration,
+                    deceleration: elev.deceleration,
+                    weight_capacity: elev.weight_capacity,
+                    current_load: 0.0,
+                    riders: vec![],
+                    target_stop: None,
+                    door_transition_ticks: elev.door_transition_ticks,
+                    door_open_ticks: elev.door_open_ticks,
+                    group: GroupId(0),
+                },
+            );
+            elevator_entities.insert(elev.id, eid);
+        }
+
         Simulation {
             tick: 0,
             dt,
@@ -66,6 +119,9 @@ impl Simulation {
             passengers: Vec::new(),
             cargo: Vec::new(),
             events: EventBus::default(),
+            world,
+            stop_entities,
+            elevator_entities,
             dispatch,
             next_passenger_id: 0,
             next_cargo_id: 0,
@@ -126,6 +182,7 @@ impl Simulation {
 
     /// Advance the simulation by one tick.
     pub fn tick(&mut self) {
+        self.phase_advance_transient();
         self.phase_dispatch();
         self.phase_movement();
         self.phase_doors();
@@ -243,7 +300,10 @@ impl Simulation {
         }
     }
 
-    /// Phase 4: Loading/Unloading — passengers and cargo board/exit at current stop.
+    /// Phase 4: Loading/Unloading — one passenger/cargo boards or exits per tick.
+    ///
+    /// Processing one at a time makes boarding/alighting visible in the
+    /// visualization and gives a more realistic loading cadence.
     fn phase_loading(&mut self) {
         for ei in 0..self.elevators.len() {
             if self.elevators[ei].state != ElevatorState::Loading {
@@ -256,126 +316,131 @@ impl Simulation {
             };
             let elevator_id = self.elevators[ei].id;
 
-            // Unload passengers whose destination is this stop.
-            let mut to_unload = Vec::new();
-            for pid in &self.elevators[ei].passengers {
-                if let Some(p) = self.passengers.iter().find(|p| p.id == *pid)
-                    && p.destination == current_stop
-                {
-                    to_unload.push(p.id);
-                }
-            }
-            for pid in &to_unload {
-                self.elevators[ei].passengers.retain(|p| p != pid);
-                if let Some(p) = self.passengers.iter_mut().find(|p| p.id == *pid) {
+            // --- Unload one passenger whose destination is this stop ---
+            let alight_pid = self.elevators[ei]
+                .passengers
+                .iter()
+                .find(|pid| {
+                    self.passengers
+                        .iter()
+                        .any(|p| p.id == **pid && p.destination == current_stop)
+                })
+                .copied();
+
+            if let Some(pid) = alight_pid {
+                self.elevators[ei].passengers.retain(|p| *p != pid);
+                if let Some(p) = self.passengers.iter_mut().find(|p| p.id == pid) {
                     let weight = p.weight;
-                    p.state = PassengerState::Arrived;
+                    p.state = PassengerState::Alighting(elevator_id);
                     self.elevators[ei].current_load -= weight;
                     self.events.emit(SimEvent::PassengerAlighted {
-                        passenger: *pid,
+                        passenger: pid,
                         elevator: elevator_id,
                         stop: current_stop,
                         tick: self.tick,
                     });
                 }
+                // Only one transfer per tick — return early.
+                continue;
             }
 
-            // Unload cargo whose destination is this stop.
-            let mut cargo_to_unload = Vec::new();
-            for cid in &self.elevators[ei].cargo {
-                if let Some(c) = self.cargo.iter().find(|c| c.id == *cid)
-                    && c.destination == current_stop
-                {
-                    cargo_to_unload.push(c.id);
-                }
-            }
-            for cid in &cargo_to_unload {
-                self.elevators[ei].cargo.retain(|c| c != cid);
-                if let Some(c) = self.cargo.iter_mut().find(|c| c.id == *cid) {
+            // --- Unload one cargo whose destination is this stop ---
+            let unload_cid = self.elevators[ei]
+                .cargo
+                .iter()
+                .find(|cid| {
+                    self.cargo
+                        .iter()
+                        .any(|c| c.id == **cid && c.destination == current_stop)
+                })
+                .copied();
+
+            if let Some(cid) = unload_cid {
+                self.elevators[ei].cargo.retain(|c| *c != cid);
+                if let Some(c) = self.cargo.iter_mut().find(|c| c.id == cid) {
                     let weight = c.weight;
                     c.state = CargoState::Arrived;
                     self.elevators[ei].current_load -= weight;
                     self.events.emit(SimEvent::CargoUnloaded {
-                        cargo: *cid,
+                        cargo: cid,
                         elevator: elevator_id,
                         stop: current_stop,
                         tick: self.tick,
                     });
                 }
+                continue;
             }
 
-            // Load waiting passengers at this stop.
-            let waiting_pids: Vec<PassengerId> = self
+            // --- Load one waiting passenger at this stop ---
+            let board_pid = self
                 .passengers
                 .iter()
-                .filter(|p| p.state == PassengerState::Waiting && p.origin == current_stop)
-                .map(|p| p.id)
-                .collect();
+                .find(|p| p.state == PassengerState::Waiting && p.origin == current_stop)
+                .map(|p| (p.id, p.weight));
 
-            for pid in waiting_pids {
-                let weight = self
-                    .passengers
-                    .iter()
-                    .find(|p| p.id == pid)
-                    .map(|p| p.weight)
-                    .unwrap_or(0.0);
-
+            if let Some((pid, weight)) = board_pid {
                 if self.elevators[ei].current_load + weight > self.elevators[ei].weight_capacity {
                     self.events.emit(SimEvent::OverweightRejected {
-                        entity_kind: "passenger",
+                        entity_kind: "passenger".to_string(),
+                        elevator: elevator_id,
+                        tick: self.tick,
+                    });
+                    // Don't block — try cargo next tick, or skip.
+                } else {
+                    self.elevators[ei].current_load += weight;
+                    self.elevators[ei].passengers.push(pid);
+                    if let Some(p) = self.passengers.iter_mut().find(|p| p.id == pid) {
+                        p.state = PassengerState::Boarding(elevator_id);
+                    }
+                    self.events.emit(SimEvent::PassengerBoarded {
+                        passenger: pid,
                         elevator: elevator_id,
                         tick: self.tick,
                     });
                     continue;
                 }
-
-                self.elevators[ei].current_load += weight;
-                self.elevators[ei].passengers.push(pid);
-                if let Some(p) = self.passengers.iter_mut().find(|p| p.id == pid) {
-                    p.state = PassengerState::Riding(elevator_id);
-                }
-                self.events.emit(SimEvent::PassengerBoarded {
-                    passenger: pid,
-                    elevator: elevator_id,
-                    tick: self.tick,
-                });
             }
 
-            // Load waiting cargo at this stop.
-            let waiting_cids: Vec<CargoId> = self
+            // --- Load one waiting cargo at this stop ---
+            let load_cid = self
                 .cargo
                 .iter()
-                .filter(|c| c.state == CargoState::Waiting && c.origin == current_stop)
-                .map(|c| c.id)
-                .collect();
+                .find(|c| c.state == CargoState::Waiting && c.origin == current_stop)
+                .map(|c| (c.id, c.weight));
 
-            for cid in waiting_cids {
-                let weight = self
-                    .cargo
-                    .iter()
-                    .find(|c| c.id == cid)
-                    .map(|c| c.weight)
-                    .unwrap_or(0.0);
-
+            if let Some((cid, weight)) = load_cid {
                 if self.elevators[ei].current_load + weight > self.elevators[ei].weight_capacity {
                     self.events.emit(SimEvent::OverweightRejected {
-                        entity_kind: "cargo",
+                        entity_kind: "cargo".to_string(),
                         elevator: elevator_id,
                         tick: self.tick,
                     });
-                    continue;
+                } else {
+                    self.elevators[ei].current_load += weight;
+                    self.elevators[ei].cargo.push(cid);
+                    if let Some(c) = self.cargo.iter_mut().find(|c| c.id == cid) {
+                        c.state = CargoState::Loaded(elevator_id);
+                    }
+                    self.events.emit(SimEvent::CargoLoaded {
+                        cargo: cid,
+                        elevator: elevator_id,
+                        tick: self.tick,
+                    });
                 }
+            }
+        }
+    }
 
-                self.elevators[ei].current_load += weight;
-                self.elevators[ei].cargo.push(cid);
-                if let Some(c) = self.cargo.iter_mut().find(|c| c.id == cid) {
-                    c.state = CargoState::Loaded(elevator_id);
-                }
-                self.events.emit(SimEvent::CargoLoaded {
-                    cargo: cid,
-                    elevator: elevator_id,
-                    tick: self.tick,
-                });
+    /// Phase 5: Advance transient passenger states.
+    ///
+    /// Boarding → Riding, Alighting → Arrived after one tick so they're
+    /// visible for exactly one frame in the visualization.
+    fn phase_advance_transient(&mut self) {
+        for p in &mut self.passengers {
+            match p.state {
+                PassengerState::Boarding(eid) => p.state = PassengerState::Riding(eid),
+                PassengerState::Alighting(_) => p.state = PassengerState::Arrived,
+                _ => {}
             }
         }
     }
