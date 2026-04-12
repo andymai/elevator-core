@@ -58,7 +58,7 @@ pub fn spawn_trail_segments(
         if !matches!(elev.phase(), ElevatorPhase::MovingToStop(_)) {
             continue;
         }
-        if vel.value.abs() < MIN_SPEED_FOR_TRAIL {
+        if vel.value().abs() < MIN_SPEED_FOR_TRAIL {
             continue;
         }
 
@@ -72,7 +72,7 @@ pub fn spawn_trail_segments(
         let Some(pos) = w.position(vis.entity_id) else {
             continue;
         };
-        let y = pos.value as f32 * PPU;
+        let y = pos.value() as f32 * PPU;
 
         // Trail segment: small circle at the elevator's current position.
         let size = 4.0;
