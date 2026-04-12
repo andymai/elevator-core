@@ -169,6 +169,30 @@ pub enum Event {
         /// The tick when it was enabled.
         tick: u64,
     },
+    /// A rider's route was invalidated due to topology change.
+    ///
+    /// Emitted when a stop on a rider's route is disabled or removed.
+    /// If no alternative is found, the rider will abandon after a grace period.
+    RouteInvalidated {
+        /// The affected rider.
+        rider: EntityId,
+        /// The stop that caused the invalidation.
+        affected_stop: EntityId,
+        /// Why the route was invalidated.
+        reason: RouteInvalidReason,
+        /// The tick when invalidation occurred.
+        tick: u64,
+    },
+}
+
+/// Reason a rider's route was invalidated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum RouteInvalidReason {
+    /// A stop on the route was disabled.
+    StopDisabled,
+    /// No alternative stop is available in the same group.
+    NoAlternative,
 }
 
 /// Collects simulation events for consumers to drain.

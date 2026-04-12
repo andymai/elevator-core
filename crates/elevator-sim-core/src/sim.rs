@@ -505,6 +505,68 @@ impl Simulation {
         Ok(eid)
     }
 
+    // ── Re-routing ───────────────────────────────────────────────────
+
+    /// Change a rider's destination mid-route.
+    ///
+    /// Replaces remaining route legs with a single direct leg to `new_destination`,
+    /// keeping the rider's current stop as origin.
+    ///
+    /// Returns `Err` if the rider does not exist or is not in `Waiting` phase
+    /// (riding/boarding riders cannot be rerouted until they alight).
+    pub fn reroute(
+        &mut self,
+        rider: EntityId,
+        new_destination: EntityId,
+    ) -> Result<(), SimError> {
+        let r = self
+            .world
+            .rider(rider)
+            .ok_or(SimError::EntityNotFound(rider))?;
+
+        if r.phase != RiderPhase::Waiting {
+            return Err(SimError::InvalidConfig {
+                field: "rider.phase",
+                reason: "can only reroute riders in Waiting phase".into(),
+            });
+        }
+
+        let origin = r
+            .current_stop
+            .ok_or(SimError::InvalidConfig {
+                field: "rider.current_stop",
+                reason: "rider has no current stop for reroute".into(),
+            })?;
+
+        let group = self
+            .world
+            .route(rider)
+            .and_then(|route| route.current().map(|leg| match leg.via {
+                crate::components::TransportMode::Elevator(g) => g,
+                crate::components::TransportMode::Walk => GroupId(0),
+            }))
+            .unwrap_or(GroupId(0));
+
+        self.world
+            .set_route(rider, Route::direct(origin, new_destination, group));
+        Ok(())
+    }
+
+    /// Replace a rider's entire remaining route.
+    pub fn set_rider_route(
+        &mut self,
+        rider: EntityId,
+        route: Route,
+    ) -> Result<(), SimError> {
+        if self.world.rider(rider).is_none() {
+            return Err(SimError::EntityNotFound(rider));
+        }
+        self.world.set_route(rider, route);
+        Ok(())
+    }
+
+    // ── Entity lifecycle ────────────────────────────────────────────
+
     /// Disable an entity. Disabled entities are skipped by all systems.
     ///
     /// If the entity is an elevator in motion, it is reset to `Idle` with
@@ -547,6 +609,12 @@ impl Simulation {
         if let Some(vel) = self.world.velocity_mut(id) {
             vel.value = 0.0;
         }
+
+        // If this is a stop, invalidate routes that reference it.
+        if self.world.stop(id).is_some() {
+            self.invalidate_routes_for_stop(id);
+        }
+
         self.world.disable(id);
         self.events.emit(Event::EntityDisabled {
             entity: id,
@@ -570,8 +638,106 @@ impl Simulation {
         Ok(())
     }
 
+    /// Invalidate routes for all riders referencing a disabled stop.
+    ///
+    /// Attempts to reroute riders to the nearest enabled alternative stop.
+    /// If no alternative exists, emits `RouteInvalidated` with `NoAlternative`.
+    fn invalidate_routes_for_stop(&mut self, disabled_stop: EntityId) {
+        use crate::events::RouteInvalidReason;
+
+        // Find the group this stop belongs to.
+        let group_stops: Vec<EntityId> = self
+            .groups
+            .iter()
+            .filter(|g| g.stop_entities.contains(&disabled_stop))
+            .flat_map(|g| g.stop_entities.iter().copied())
+            .filter(|&s| s != disabled_stop && !self.world.is_disabled(s))
+            .collect();
+
+        // Find all Waiting riders whose route references this stop.
+        // Riding riders are skipped — they'll be rerouted when they alight.
+        let rider_ids: Vec<EntityId> = self.world.rider_ids();
+        for rid in rider_ids {
+            let is_waiting = self
+                .world
+                .rider(rid)
+                .is_some_and(|r| r.phase == RiderPhase::Waiting);
+
+            if !is_waiting {
+                continue;
+            }
+
+            let references_stop = self.world.route(rid).is_some_and(|route| {
+                route.legs.iter().skip(route.current_leg).any(|leg| {
+                    leg.to == disabled_stop || leg.from == disabled_stop
+                })
+            });
+
+            if !references_stop {
+                continue;
+            }
+
+            // Try to find nearest alternative (excluding rider's current stop).
+            let rider_current_stop = self
+                .world
+                .rider(rid)
+                .and_then(|r| r.current_stop);
+
+            let disabled_stop_pos = self
+                .world
+                .stop(disabled_stop)
+                .map_or(0.0, |s| s.position);
+
+            let alternative = group_stops
+                .iter()
+                .filter(|&&s| Some(s) != rider_current_stop)
+                .filter_map(|&s| {
+                    self.world.stop(s).map(|stop| (s, (stop.position - disabled_stop_pos).abs()))
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map(|(s, _)| s);
+
+            if let Some(alt_stop) = alternative {
+                // Reroute to nearest alternative.
+                let origin = rider_current_stop.unwrap_or(alt_stop);
+                let group = self
+                    .world
+                    .route(rid)
+                    .and_then(|r| r.current().map(|leg| match leg.via {
+                        crate::components::TransportMode::Elevator(g) => g,
+                        crate::components::TransportMode::Walk => GroupId(0),
+                    }))
+                    .unwrap_or(GroupId(0));
+                self.world.set_route(rid, Route::direct(origin, alt_stop, group));
+                self.events.emit(Event::RouteInvalidated {
+                    rider: rid,
+                    affected_stop: disabled_stop,
+                    reason: RouteInvalidReason::StopDisabled,
+                    tick: self.tick,
+                });
+            } else {
+                // No alternative — rider abandons immediately.
+                let abandon_stop = rider_current_stop.unwrap_or(disabled_stop);
+                self.events.emit(Event::RouteInvalidated {
+                    rider: rid,
+                    affected_stop: disabled_stop,
+                    reason: RouteInvalidReason::NoAlternative,
+                    tick: self.tick,
+                });
+                if let Some(r) = self.world.rider_mut(rid) {
+                    r.phase = RiderPhase::Abandoned;
+                }
+                self.events.emit(Event::RiderAbandoned {
+                    rider: rid,
+                    stop: abandon_stop,
+                    tick: self.tick,
+                });
+            }
+        }
+    }
+
     /// Check if an entity is disabled.
-    #[must_use] 
+    #[must_use]
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.world.is_disabled(id)
     }
