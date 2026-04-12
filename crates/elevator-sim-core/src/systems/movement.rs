@@ -36,11 +36,38 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
 
         let result = tick_movement(pos, vel, target_pos, max_speed, acceleration, deceleration, ctx.dt);
 
+        let old_pos = pos;
+        let new_pos = result.position;
+
         if let Some(p) = world.positions.get_mut(eid) {
-            p.value = result.position;
+            p.value = new_pos;
         }
         if let Some(v) = world.velocities.get_mut(eid) {
             v.value = result.velocity;
+        }
+
+        // Emit PassingFloor for any stops crossed between old and new position
+        // (excluding the target stop — that gets an ElevatorArrived instead).
+        if !result.arrived {
+            let moving_up = new_pos > old_pos;
+            let (lo, hi) = if moving_up {
+                (old_pos, new_pos)
+            } else {
+                (new_pos, old_pos)
+            };
+            for (stop_eid, stop) in world.stop_data.iter() {
+                if stop_eid == target_stop_eid {
+                    continue;
+                }
+                if stop.position > lo + 1e-9 && stop.position < hi - 1e-9 {
+                    events.emit(SimEvent::PassingFloor {
+                        elevator: eid,
+                        stop: stop_eid,
+                        moving_up,
+                        tick: ctx.tick,
+                    });
+                }
+            }
         }
 
         if result.arrived {

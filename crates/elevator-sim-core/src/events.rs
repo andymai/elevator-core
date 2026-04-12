@@ -26,6 +26,15 @@ pub enum SimEvent {
         elevator: EntityId,
         tick: u64,
     },
+    /// Emitted when an elevator passes a stop without stopping.
+    /// Games/dispatch can use this to decide whether to add stops mid-travel.
+    PassingFloor {
+        elevator: EntityId,
+        stop: EntityId,
+        /// Direction: true = moving up, false = moving down.
+        moving_up: bool,
+        tick: u64,
+    },
 
     // -- Rider events (unified: passengers, cargo, any rideable entity) --
     RiderSpawned {

@@ -4,6 +4,7 @@ pub mod doors;
 pub mod loading;
 pub mod metrics;
 pub mod movement;
+pub mod reposition;
 
 /// Context passed to every system phase.
 pub struct PhaseContext {
