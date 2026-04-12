@@ -1,7 +1,9 @@
-use crate::components::ElevatorState;
+//! Optional system: reposition idle elevators for better coverage.
+
+use crate::components::ElevatorPhase;
 use crate::dispatch::ElevatorGroup;
 use crate::entity::EntityId;
-use crate::events::{EventBus, SimEvent};
+use crate::events::{Event, EventBus};
 use crate::world::World;
 
 use super::PhaseContext;
@@ -26,11 +28,14 @@ pub fn run(
             .elevator_entities
             .iter()
             .filter_map(|&eid| {
-                let car = world.elevator_cars.get(eid)?;
-                if car.state == ElevatorState::Idle {
+                if world.is_disabled(eid) {
+                    return None;
+                }
+                let car = world.elevator(eid)?;
+                if car.phase == ElevatorPhase::Idle {
                     None
                 } else {
-                    world.positions.get(eid).map(|p| p.value)
+                    world.position(eid).map(|p| p.value)
                 }
             })
             .collect();
@@ -40,9 +45,12 @@ pub fn run(
             .elevator_entities
             .iter()
             .filter_map(|&eid| {
-                let car = world.elevator_cars.get(eid)?;
-                if car.state == ElevatorState::Idle {
-                    let pos = world.positions.get(eid)?.value;
+                if world.is_disabled(eid) {
+                    return None;
+                }
+                let car = world.elevator(eid)?;
+                if car.phase == ElevatorPhase::Idle {
+                    let pos = world.position(eid)?.value;
                     Some((eid, pos))
                 } else {
                     None
@@ -75,22 +83,20 @@ pub fn run(
             let best_stop = stop_positions.iter().max_by(|a, b| {
                 let min_dist_a = min_distance_to(a.1, &assigned_positions);
                 let min_dist_b = min_distance_to(b.1, &assigned_positions);
-                // Safety: min_distance_to returns finite f64 or INFINITY, never NaN.
-                #[allow(clippy::unwrap_used)]
-                min_dist_a.partial_cmp(&min_dist_b).unwrap()
+                min_dist_a.total_cmp(&min_dist_b)
             });
 
             if let Some((stop_eid, stop_pos)) = best_stop {
                 // Only reposition if we're not already at this stop.
                 if (*stop_pos - elev_pos).abs() > 1e-6 {
-                    if let Some(car) = world.elevator_cars.get_mut(*elev_eid) {
-                        car.state = ElevatorState::MovingToStop(*stop_eid);
+                    if let Some(car) = world.elevator_mut(*elev_eid) {
+                        car.phase = ElevatorPhase::MovingToStop(*stop_eid);
                         car.target_stop = Some(*stop_eid);
                     }
 
                     let current_stop = world.find_stop_at_position(*elev_pos);
                     if let Some(from) = current_stop {
-                        events.emit(SimEvent::ElevatorDeparted {
+                        events.emit(Event::ElevatorDeparted {
                             elevator: *elev_eid,
                             from_stop: from,
                             tick: ctx.tick,

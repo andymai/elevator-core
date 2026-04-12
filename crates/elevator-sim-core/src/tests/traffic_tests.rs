@@ -1,10 +1,11 @@
+use crate::components::Stop;
 use crate::traffic::TrafficPattern;
 use crate::world::World;
 
 fn make_stops(world: &mut World, count: usize) -> Vec<crate::entity::EntityId> {
     (0..count).map(|i| {
         let eid = world.spawn();
-        world.stop_data.insert(eid, crate::components::StopData {
+        world.set_stop(eid, Stop {
             name: format!("Stop {i}"),
             position: i as f64 * 4.0,
         });

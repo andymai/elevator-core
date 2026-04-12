@@ -1,5 +1,8 @@
+//! Scenario replay: timed rider spawns with pass/fail conditions.
+
 use crate::config::SimConfig;
 use crate::dispatch::DispatchStrategy;
+use crate::error::SimError;
 use crate::metrics::Metrics;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -92,16 +95,21 @@ pub struct ScenarioRunner {
 
 impl ScenarioRunner {
     /// Create a new runner from a scenario definition and dispatch strategy.
-    pub fn new(scenario: Scenario, dispatch: Box<dyn DispatchStrategy>) -> Self {
-        let sim = Simulation::new(scenario.config, dispatch);
-        Self {
+    ///
+    /// Returns `Err` if the scenario's config is invalid.
+    pub fn new(
+        scenario: Scenario,
+        dispatch: Box<dyn DispatchStrategy>,
+    ) -> Result<Self, SimError> {
+        let sim = Simulation::new(&scenario.config, dispatch)?;
+        Ok(Self {
             sim,
             spawns: scenario.spawns,
             spawn_cursor: 0,
             conditions: scenario.conditions,
             max_ticks: scenario.max_ticks,
             name: scenario.name,
-        }
+        })
     }
 
     /// Access the underlying simulation.
@@ -113,20 +121,21 @@ impl ScenarioRunner {
     pub fn tick(&mut self) {
         // Spawn any riders scheduled for this tick.
         while self.spawn_cursor < self.spawns.len()
-            && self.spawns[self.spawn_cursor].tick <= self.sim.tick
+            && self.spawns[self.spawn_cursor].tick <= self.sim.current_tick()
         {
             let spawn = &self.spawns[self.spawn_cursor];
-            self.sim
+            // Ignore errors from invalid stop IDs in scenario spawns.
+            let _ = self.sim
                 .spawn_rider_by_stop_id(spawn.origin, spawn.destination, spawn.weight);
             self.spawn_cursor += 1;
         }
 
-        self.sim.tick();
+        self.sim.step();
     }
 
     /// Run to completion (all riders delivered or `max_ticks` reached).
     pub fn run_to_completion(&mut self) -> ScenarioResult {
-        use crate::components::RiderState;
+        use crate::components::RiderPhase;
 
         for _ in 0..self.max_ticks {
             self.tick();
@@ -135,9 +144,9 @@ impl ScenarioRunner {
             if self.spawn_cursor >= self.spawns.len() {
                 let all_done = self
                     .sim
-                    .world
-                    .riders()
-                    .all(|(_, r)| matches!(r.state, RiderState::Arrived | RiderState::Abandoned));
+                    .world()
+                    .iter_riders()
+                    .all(|(_, r)| matches!(r.phase, RiderPhase::Arrived | RiderPhase::Abandoned));
                 if all_done {
                     break;
                 }
@@ -153,7 +162,7 @@ impl ScenarioRunner {
         let condition_results: Vec<ConditionResult> = self
             .conditions
             .iter()
-            .map(|cond| evaluate_condition(cond, &metrics, self.sim.tick))
+            .map(|cond| evaluate_condition(cond, &metrics, self.sim.current_tick()))
             .collect();
 
         let passed = condition_results.iter().all(|r| r.passed);
@@ -161,7 +170,7 @@ impl ScenarioRunner {
         ScenarioResult {
             name: self.name.clone(),
             passed,
-            ticks_run: self.sim.tick,
+            ticks_run: self.sim.current_tick(),
             conditions: condition_results,
             metrics,
         }

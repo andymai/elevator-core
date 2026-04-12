@@ -1,3 +1,5 @@
+//! Multi-leg route planning for riders.
+
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 
@@ -21,7 +23,7 @@ pub struct RouteLeg {
     pub via: TransportMode,
 }
 
-/// A passenger's full route, possibly spanning multiple elevator groups.
+/// A rider's full route, possibly spanning multiple elevator groups.
 #[derive(Debug, Clone)]
 pub struct Route {
     /// Ordered legs of the route.
@@ -59,7 +61,7 @@ impl Route {
         self.current_leg >= self.legs.len()
     }
 
-    /// The destination of the current leg (where the passenger wants to alight).
+    /// The destination of the current leg.
     pub fn current_destination(&self) -> Option<EntityId> {
         self.current().map(|leg| leg.to)
     }

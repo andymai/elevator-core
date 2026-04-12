@@ -1,4 +1,6 @@
-use crate::events::{EventBus, SimEvent};
+//! Phase 6: update aggregate metrics from events emitted this tick.
+
+use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
 use crate::world::World;
 
@@ -8,38 +10,41 @@ use super::PhaseContext;
 pub fn run(world: &World, events: &EventBus, metrics: &mut Metrics, ctx: &PhaseContext) {
     for event in events.peek() {
         match event {
-            SimEvent::RiderSpawned { .. } => {
+            Event::RiderSpawned { .. } => {
                 metrics.record_spawn();
             }
-            SimEvent::RiderBoarded {
+            Event::RiderBoarded {
                 rider, tick, ..
             } => {
-                if let Some(rd) = world.rider_data.get(*rider) {
+                if let Some(rd) = world.rider(*rider) {
                     let wait_ticks = tick.saturating_sub(rd.spawn_tick);
                     metrics.record_board(wait_ticks);
                 }
             }
-            SimEvent::RiderAlighted {
+            Event::RiderAlighted {
                 rider, tick, ..
             } => {
-                if let Some(rd) = world.rider_data.get(*rider) {
+                if let Some(rd) = world.rider(*rider) {
                     let ride_ticks = rd
                         .board_tick
                         .map_or(0, |bt| tick.saturating_sub(bt));
                     metrics.record_delivery(ride_ticks, *tick);
                 }
             }
-            SimEvent::RiderAbandoned { .. } => {
+            Event::RiderAbandoned { .. } => {
                 metrics.record_abandonment();
             }
             _ => {}
         }
     }
 
-    // Track elevator distance.
+    // Track elevator distance (skip disabled elevators).
     let mut total_dist = 0.0;
-    for (eid, _car) in &world.elevator_cars {
-        if let Some(vel) = world.velocities.get(eid) {
+    for (eid, _pos, _car) in world.iter_elevators() {
+        if world.is_disabled(eid) {
+            continue;
+        }
+        if let Some(vel) = world.velocity(eid) {
             total_dist += vel.value.abs() * ctx.dt;
         }
     }

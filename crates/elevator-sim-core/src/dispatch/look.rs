@@ -1,9 +1,13 @@
+//! LOOK dispatch algorithm — reverses at the last request, not the shaft end.
+
+use std::collections::HashMap;
+
 use crate::entity::EntityId;
 use crate::world::World;
 
 use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
 
-/// Epsilon for floating-point position comparisons.
+/// Tolerance for floating-point position comparisons.
 const EPSILON: f64 = 1e-9;
 
 /// Direction of travel.
@@ -23,15 +27,16 @@ pub enum Direction {
 ///
 /// This is the standard "elevator algorithm" used in real buildings.
 pub struct LookDispatch {
-    /// Current sweep direction.
-    direction: Direction,
+    /// Per-elevator sweep direction.
+    direction: HashMap<EntityId, Direction>,
 }
 
 impl LookDispatch {
-    /// Create a new `LookDispatch` starting in the Up direction.
-    pub const fn new() -> Self {
+    /// Create a new `LookDispatch` with no initial direction state.
+    #[must_use]
+    pub fn new() -> Self {
         Self {
-            direction: Direction::Up,
+            direction: HashMap::new(),
         }
     }
 }
@@ -45,12 +50,18 @@ impl Default for LookDispatch {
 impl DispatchStrategy for LookDispatch {
     fn decide(
         &mut self,
-        _elevator: EntityId,
+        elevator: EntityId,
         elevator_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
     ) -> DispatchDecision {
+        let direction = self
+            .direction
+            .get(&elevator)
+            .copied()
+            .unwrap_or(Direction::Up);
+
         // Collect stops with demand or rider destinations.
         let mut interesting: Vec<(EntityId, f64)> = Vec::new();
 
@@ -78,35 +89,37 @@ impl DispatchStrategy for LookDispatch {
         let pos = elevator_position;
 
         // Partition into ahead (in current direction) and behind.
-        let (ahead, behind): (Vec<_>, Vec<_>) = match self.direction {
+        let (ahead, behind): (Vec<_>, Vec<_>) = match direction {
             Direction::Up => interesting.iter().partition(|(_, p)| *p > pos + EPSILON),
             Direction::Down => interesting.iter().partition(|(_, p)| *p < pos - EPSILON),
         };
 
         if !ahead.is_empty() {
             // Continue in current direction — pick nearest ahead.
-            let nearest = match self.direction {
+            let nearest = match direction {
                 Direction::Up => ahead
                     .iter()
                     .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                        a.1.total_cmp(&b.1)
                     }),
                 Direction::Down => ahead
                     .iter()
                     .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                        a.1.total_cmp(&b.1)
                     }),
             };
-            // SAFETY: ahead is non-empty, so nearest is always Some.
-            #[allow(clippy::unwrap_used)]
-            return DispatchDecision::GoToStop(nearest.unwrap().0);
+            // ahead is non-empty, so nearest is always Some.
+            if let Some(stop) = nearest {
+                return DispatchDecision::GoToStop(stop.0);
+            }
         }
 
         // No requests ahead — reverse direction (LOOK behavior).
-        self.direction = match self.direction {
+        let new_dir = match direction {
             Direction::Up => Direction::Down,
             Direction::Down => Direction::Up,
         };
+        self.direction.insert(elevator, new_dir);
 
         if behind.is_empty() {
             // All interesting stops at current position.
@@ -116,21 +129,24 @@ impl DispatchStrategy for LookDispatch {
         }
 
         // Pick nearest in new direction.
-        let nearest = match self.direction {
+        let nearest = match new_dir {
             Direction::Up => behind
                 .iter()
                 .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                    a.1.total_cmp(&b.1)
                 }),
             Direction::Down => behind
                 .iter()
                 .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| {
-                    a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                    a.1.total_cmp(&b.1)
                 }),
         };
 
-        // SAFETY: behind is non-empty, so nearest is always Some.
-        #[allow(clippy::unwrap_used)]
-        DispatchDecision::GoToStop(nearest.unwrap().0)
+        // behind is non-empty, so nearest is always Some.
+        nearest.map_or(DispatchDecision::Idle, |stop| DispatchDecision::GoToStop(stop.0))
+    }
+
+    fn notify_removed(&mut self, elevator: EntityId) {
+        self.direction.remove(&elevator);
     }
 }

@@ -1,3 +1,5 @@
+//! Door open/close finite-state machine.
+
 /// State machine for elevator doors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DoorState {

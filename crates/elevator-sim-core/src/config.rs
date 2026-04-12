@@ -1,3 +1,5 @@
+//! Building and elevator configuration (RON-deserializable).
+
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
 

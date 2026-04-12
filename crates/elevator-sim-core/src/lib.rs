@@ -5,8 +5,12 @@
 
 /// Entity-component data types for the simulation.
 pub mod components;
+/// ECS-style query builder for iterating entities by component composition.
+pub mod query;
 /// Entity identity and allocation.
 pub mod entity;
+/// Simulation error types.
+pub mod error;
 /// Typed identifiers for groups, zones, and other sim concepts.
 pub mod ids;
 /// Tick-loop system phases (dispatch, movement, doors, loading, metrics).
@@ -16,7 +20,7 @@ pub mod world;
 
 /// Building and elevator configuration (RON deserialization).
 pub mod config;
-/// Dispatch strategies (SCAN, nearest-car, ETD, LOOK).
+/// Pluggable dispatch strategies (SCAN, LOOK, nearest-car, ETD).
 pub mod dispatch;
 /// Door finite-state machine.
 pub mod door;
@@ -32,8 +36,30 @@ pub mod scenario;
 pub mod sim;
 /// Stop configuration helpers.
 pub mod stop;
+/// Tick-to-wall-clock time conversion.
+pub mod time;
 /// Traffic generation (arrival patterns).
 pub mod traffic;
+
+/// Common imports for consumers of this library.
+pub mod prelude {
+    pub use crate::components::{
+        Elevator, ElevatorPhase, Patience, Position, Preferences, Rider, RiderPhase, Route, Stop,
+        Velocity, Zone,
+    };
+    pub use crate::config::SimConfig;
+    pub use crate::dispatch::{DispatchDecision, DispatchStrategy};
+    pub use crate::entity::EntityId;
+    pub use crate::error::{RejectionReason, SimError};
+    pub use crate::dispatch::ElevatorGroup;
+    pub use crate::events::{Event, EventBus, EventChannel};
+    pub use crate::ids::GroupId;
+    pub use crate::metrics::Metrics;
+    pub use crate::sim::{ElevatorParams, Simulation};
+    pub use crate::systems::PhaseContext;
+    pub use crate::stop::StopId;
+    pub use crate::time::TimeAdapter;
+}
 
 #[cfg(test)]
 mod tests;

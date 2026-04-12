@@ -1,4 +1,6 @@
-/// Dispatch module re-exports.
+//! Pluggable dispatch strategies for assigning elevators to stops.
+
+/// Estimated Time to Destination dispatch algorithm.
 pub mod etd;
 /// LOOK dispatch algorithm.
 pub mod look;
@@ -10,7 +12,7 @@ pub mod scan;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Demand at a single stop.
 #[derive(Debug, Clone, Default)]
@@ -26,12 +28,14 @@ pub struct StopDemand {
 /// Contains aggregate demand per stop, not individual rider details.
 /// Games that need entity-aware dispatch can implement custom
 /// `DispatchStrategy` that reads `&World` directly.
+///
+/// Uses `BTreeMap` for deterministic iteration order.
 #[derive(Debug, Clone, Default)]
 pub struct DispatchManifest {
     /// Stops with waiting riders: stop entity -> demand.
-    pub demand_at_stop: HashMap<EntityId, StopDemand>,
+    pub demand_at_stop: BTreeMap<EntityId, StopDemand>,
     /// Stops that current riders are heading to: stop entity -> count.
-    pub rider_destinations: HashMap<EntityId, u32>,
+    pub rider_destinations: BTreeMap<EntityId, u32>,
 }
 
 /// Decision returned by a dispatch strategy.
@@ -86,4 +90,10 @@ pub trait DispatchStrategy: Send + Sync {
             .map(|(eid, pos)| (*eid, self.decide(*eid, *pos, group, manifest, world)))
             .collect()
     }
+
+    /// Notify the strategy that an elevator has been removed.
+    ///
+    /// Implementations with per-elevator state (e.g., direction tracking)
+    /// should clean up here to prevent unbounded memory growth. Default: no-op.
+    fn notify_removed(&mut self, _elevator: EntityId) {}
 }

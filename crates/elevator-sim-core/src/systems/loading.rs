@@ -1,6 +1,9 @@
-use crate::components::{ElevatorState, RiderState, Route};
+//! Phase 5: board and alight riders at stops with open doors.
+
+use crate::components::{ElevatorPhase, RiderPhase, Route};
 use crate::entity::EntityId;
-use crate::events::{EventBus, SimEvent};
+use crate::error::RejectionReason;
+use crate::events::{Event, EventBus};
 use crate::world::World;
 
 use super::PhaseContext;
@@ -34,23 +37,23 @@ enum LoadAction {
     },
 }
 
-/// One rider boards or exits per tick per elevator.
-#[allow(clippy::too_many_lines)] // Two-pass collect-then-apply pattern; splitting harms readability.
-pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+/// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
+fn collect_actions(world: &World) -> Vec<LoadAction> {
     let mut actions: Vec<LoadAction> = Vec::new();
-
-    // Pass 1: collect actions (read-only over world)
-    let elevator_ids: Vec<EntityId> = world.elevator_cars.keys().collect();
+    let elevator_ids = world.elevator_ids();
 
     for &eid in &elevator_ids {
-        let Some(car) = world.elevator_cars.get(eid) else {
+        if world.is_disabled(eid) {
+            continue;
+        }
+        let Some(car) = world.elevator(eid) else {
             continue;
         };
-        if car.state != ElevatorState::Loading {
+        if car.phase != ElevatorPhase::Loading {
             continue;
         }
 
-        let pos = world.positions.get(eid).map_or(0.0, |p| p.value);
+        let pos = world.position(eid).map_or(0.0, |p| p.value);
         let Some(current_stop) = world.find_stop_at_position(pos) else {
             continue;
         };
@@ -61,8 +64,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             .iter()
             .find(|rid| {
                 world
-                    .routes
-                    .get(**rid)
+                    .route(**rid)
                     .and_then(Route::current_destination) == Some(current_stop)
             })
             .copied();
@@ -76,22 +78,45 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             continue;
         }
 
-        // Try to board one waiting rider at this stop (first that fits by weight).
+        // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
         let remaining_capacity = car.weight_capacity - car.current_load;
+        let load_ratio = if car.weight_capacity > 0.0 {
+            car.current_load / car.weight_capacity
+        } else {
+            1.0
+        };
+        let mut rejected_candidate: Option<EntityId> = None;
 
-        let board_rider = world
-            .rider_data
-            .iter()
-            .find(|(rid, rider)| {
-                rider.state == RiderState::Waiting
-                    && rider.current_stop == Some(current_stop)
-                    && rider.weight <= remaining_capacity
-                    // Must want to depart from this stop (check route leg origin).
-                    && world.routes.get(*rid).is_none_or(|route| {
-                        route.current().is_none_or(|leg| leg.from == current_stop)
-                    })
-            })
-            .map(|(rid, rider)| (rid, rider.weight));
+        let board_rider = world.iter_riders().find_map(|(rid, rider)| {
+            if world.is_disabled(rid) {
+                return None;
+            }
+            if rider.phase != RiderPhase::Waiting || rider.current_stop != Some(current_stop) {
+                return None;
+            }
+            // Must want to depart from this stop (check route leg origin).
+            let route_ok = world.route(rid).is_none_or(|route| {
+                route.current().is_none_or(|leg| leg.from == current_stop)
+            });
+            if !route_ok {
+                return None;
+            }
+            // Rider preferences: skip crowded elevators.
+            if let Some(prefs) = world.preferences(rid)
+                && prefs.skip_full_elevator
+                && load_ratio > prefs.max_crowding_factor
+            {
+                return None;
+            }
+            if rider.weight <= remaining_capacity {
+                Some((rid, rider.weight))
+            } else {
+                if rejected_candidate.is_none() {
+                    rejected_candidate = Some(rid);
+                }
+                None
+            }
+        });
 
         if let Some((rid, weight)) = board_rider {
             actions.push(LoadAction::Board {
@@ -102,12 +127,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             continue;
         }
 
-        // Check if anyone is waiting but can't fit — emit a rejection event.
-        let rejected_rider = world.rider_data.iter().find(|(_, rider)| {
-            rider.state == RiderState::Waiting && rider.current_stop == Some(current_stop)
-        });
-
-        if let Some((rid, _)) = rejected_rider {
+        if let Some(rid) = rejected_candidate {
             actions.push(LoadAction::Reject {
                 rider: rid,
                 elevator: eid,
@@ -115,7 +135,11 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
         }
     }
 
-    // Pass 2: apply actions
+    actions
+}
+
+/// Mutation pass: apply collected actions to the world and emit events.
+fn apply_actions(actions: Vec<LoadAction>, world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
     for action in actions {
         match action {
             LoadAction::Alight {
@@ -123,17 +147,24 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                 elevator,
                 stop,
             } => {
-                if let Some(car) = world.elevator_cars.get_mut(elevator) {
-                    car.riders.retain(|r| *r != rider);
-                    if let Some(rd) = world.rider_data.get(rider) {
-                        car.current_load -= rd.weight;
-                    }
+                // Guard: skip if rider is no longer Riding this elevator (another
+                // elevator may have already alighted them in an earlier action).
+                if world
+                    .rider(rider)
+                    .is_none_or(|r| r.phase != RiderPhase::Riding(elevator))
+                {
+                    continue;
                 }
-                if let Some(rd) = world.rider_data.get_mut(rider) {
-                    rd.state = RiderState::Alighting(elevator);
+                let rider_weight = world.rider(rider).map_or(0.0, |rd| rd.weight);
+                if let Some(car) = world.elevator_mut(elevator) {
+                    car.riders.retain(|r| *r != rider);
+                    car.current_load = (car.current_load - rider_weight).max(0.0);
+                }
+                if let Some(rd) = world.rider_mut(rider) {
+                    rd.phase = RiderPhase::Alighting(elevator);
                     rd.current_stop = Some(stop);
                 }
-                events.emit(SimEvent::RiderAlighted {
+                events.emit(Event::RiderAlighted {
                     rider,
                     elevator,
                     stop,
@@ -145,29 +176,43 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                 elevator,
                 weight,
             } => {
-                if let Some(car) = world.elevator_cars.get_mut(elevator) {
+                // Guard: skip if rider is no longer Waiting (another elevator at
+                // the same stop may have already boarded them in an earlier action).
+                if world
+                    .rider(rider)
+                    .is_none_or(|r| r.phase != RiderPhase::Waiting)
+                {
+                    continue;
+                }
+                if let Some(car) = world.elevator_mut(elevator) {
                     car.current_load += weight;
                     car.riders.push(rider);
                 }
-                if let Some(rd) = world.rider_data.get_mut(rider) {
-                    rd.state = RiderState::Boarding(elevator);
+                if let Some(rd) = world.rider_mut(rider) {
+                    rd.phase = RiderPhase::Boarding(elevator);
                     rd.board_tick = Some(ctx.tick);
                     rd.current_stop = None;
                 }
-                events.emit(SimEvent::RiderBoarded {
+                events.emit(Event::RiderBoarded {
                     rider,
                     elevator,
                     tick: ctx.tick,
                 });
             }
             LoadAction::Reject { rider, elevator } => {
-                events.emit(SimEvent::RiderRejected {
+                events.emit(Event::RiderRejected {
                     rider,
                     elevator,
-                    reason: "overweight".to_string(),
+                    reason: RejectionReason::OverCapacity,
                     tick: ctx.tick,
                 });
             }
         }
     }
+}
+
+/// One rider boards or exits per tick per elevator.
+pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+    let actions = collect_actions(world);
+    apply_actions(actions, world, events, ctx);
 }

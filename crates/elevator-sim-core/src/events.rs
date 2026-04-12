@@ -1,4 +1,8 @@
+//! Simulation event bus and typed event channels.
+
 use crate::entity::EntityId;
+use crate::error::RejectionReason;
+use crate::ids::GroupId;
 use serde::{Deserialize, Serialize};
 
 /// Events emitted by the simulation during ticks.
@@ -6,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// All entity references use `EntityId`. Games can look up additional
 /// component data on the referenced entity if needed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SimEvent {
+pub enum Event {
     // -- Elevator events --
     /// An elevator departed from a stop.
     ElevatorDeparted {
@@ -92,7 +96,7 @@ pub enum SimEvent {
         /// The elevator that rejected the rider.
         elevator: EntityId,
         /// The reason for rejection.
-        reason: String,
+        reason: RejectionReason,
         /// The tick when rejection occurred.
         tick: u64,
     },
@@ -105,28 +109,140 @@ pub enum SimEvent {
         /// The tick when abandonment occurred.
         tick: u64,
     },
+
+    /// A rider was ejected from an elevator (due to disable or despawn).
+    ///
+    /// The rider is moved to `Waiting` phase at the nearest stop.
+    RiderEjected {
+        /// The rider that was ejected.
+        rider: EntityId,
+        /// The elevator the rider was ejected from.
+        elevator: EntityId,
+        /// The stop the rider was placed at.
+        stop: EntityId,
+        /// The tick when ejection occurred.
+        tick: u64,
+    },
+
+    // -- Dispatch events --
+    /// An elevator was assigned to serve a stop by the dispatcher.
+    ElevatorAssigned {
+        /// The elevator that was assigned.
+        elevator: EntityId,
+        /// The stop it was assigned to serve.
+        stop: EntityId,
+        /// The tick when the assignment occurred.
+        tick: u64,
+    },
+
+    // -- Topology lifecycle events --
+    /// A new stop was added to the simulation.
+    StopAdded {
+        /// The new stop entity.
+        stop: EntityId,
+        /// The group the stop was added to.
+        group: GroupId,
+        /// The tick when the stop was added.
+        tick: u64,
+    },
+    /// A new elevator was added to the simulation.
+    ElevatorAdded {
+        /// The new elevator entity.
+        elevator: EntityId,
+        /// The group the elevator was added to.
+        group: GroupId,
+        /// The tick when the elevator was added.
+        tick: u64,
+    },
+    /// An entity was disabled.
+    EntityDisabled {
+        /// The entity that was disabled.
+        entity: EntityId,
+        /// The tick when it was disabled.
+        tick: u64,
+    },
+    /// An entity was re-enabled.
+    EntityEnabled {
+        /// The entity that was re-enabled.
+        entity: EntityId,
+        /// The tick when it was enabled.
+        tick: u64,
+    },
 }
 
 /// Collects simulation events for consumers to drain.
 #[derive(Debug, Default)]
 pub struct EventBus {
     /// The pending events not yet consumed.
-    events: Vec<SimEvent>,
+    events: Vec<Event>,
 }
 
 impl EventBus {
     /// Pushes a new event onto the bus.
-    pub fn emit(&mut self, event: SimEvent) {
+    pub fn emit(&mut self, event: Event) {
         self.events.push(event);
     }
 
     /// Returns and clears all pending events.
-    pub fn drain(&mut self) -> Vec<SimEvent> {
+    pub fn drain(&mut self) -> Vec<Event> {
         std::mem::take(&mut self.events)
     }
 
     /// Returns a slice of all pending events without clearing them.
-    pub fn peek(&self) -> &[SimEvent] {
+    pub fn peek(&self) -> &[Event] {
         &self.events
+    }
+}
+
+/// A typed event channel for game-specific events.
+///
+/// Games insert this as a global resource on `World`:
+///
+/// ```ignore
+/// world.insert_resource(EventChannel::<MyGameEvent>::new());
+/// // Later:
+/// world.resource_mut::<EventChannel<MyGameEvent>>().unwrap().emit(MyEvent::Foo);
+/// ```
+#[derive(Debug)]
+pub struct EventChannel<T> {
+    /// Pending events not yet consumed.
+    events: Vec<T>,
+}
+
+impl<T> EventChannel<T> {
+    /// Create an empty event channel.
+    pub const fn new() -> Self {
+        Self { events: Vec::new() }
+    }
+
+    /// Emit an event into the channel.
+    pub fn emit(&mut self, event: T) {
+        self.events.push(event);
+    }
+
+    /// Drain and return all pending events.
+    pub fn drain(&mut self) -> Vec<T> {
+        std::mem::take(&mut self.events)
+    }
+
+    /// Peek at pending events without clearing.
+    pub fn peek(&self) -> &[T] {
+        &self.events
+    }
+
+    /// Check if the channel has no pending events.
+    pub const fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+
+    /// Number of pending events.
+    pub const fn len(&self) -> usize {
+        self.events.len()
+    }
+}
+
+impl<T> Default for EventChannel<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }

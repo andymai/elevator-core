@@ -1,8 +1,10 @@
+//! Rider (passenger/cargo) core data and lifecycle.
+
 use crate::entity::EntityId;
 
-/// State of any entity that can ride an elevator.
+/// Lifecycle phase of a rider entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RiderState {
+pub enum RiderPhase {
     /// Waiting at a stop.
     Waiting,
     /// Boarding an elevator (transient, one tick).
@@ -23,14 +25,14 @@ pub enum RiderState {
 ///
 /// This is the minimum data the simulation needs. Games attach
 /// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
-/// for game-specific behavior. An entity with `RiderData` but no
+/// for game-specific behavior. An entity with `Rider` but no
 /// Route component can be boarded/alighted manually by game code.
 #[derive(Debug, Clone)]
-pub struct RiderData {
+pub struct Rider {
     /// Weight contributed to elevator load.
     pub weight: f64,
-    /// Current rider lifecycle state.
-    pub state: RiderState,
+    /// Current rider lifecycle phase.
+    pub phase: RiderPhase,
     /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
     pub current_stop: Option<EntityId>,
     /// Tick when this rider was spawned.

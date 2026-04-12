@@ -1,6 +1,8 @@
-/// Component for a stop entity.
+//! Stop (floor/station) component.
+
+/// Component for a stop (floor/station) entity.
 #[derive(Debug, Clone)]
-pub struct StopData {
+pub struct Stop {
     /// Human-readable stop name.
     pub name: String,
     /// Absolute position along the shaft axis.

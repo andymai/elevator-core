@@ -1,7 +1,7 @@
 //! HUD overlay displaying simulation statistics and elevator status.
 
 use bevy::prelude::*;
-use elevator_sim_core::components::{ElevatorState, RiderState};
+use elevator_sim_core::components::{ElevatorPhase, RiderPhase};
 
 use crate::sim_bridge::{SimSpeed, SimulationRes};
 
@@ -50,7 +50,7 @@ pub fn update_hud(
     speed: Res<SimSpeed>,
     mut query: Query<&mut Text, With<HudText>>,
 ) {
-    let w = &sim.sim.world;
+    let w = sim.sim.world();
 
     let speed_str = if speed.multiplier == 0 {
         "PAUSED".to_string()
@@ -59,33 +59,31 @@ pub fn update_hud(
     };
 
     // First elevator stats.
-    let Some((elev_eid, elev_pos, car)) = w.elevators().next() else {
+    let Some((elev_eid, elev_pos, car)) = w.iter_elevators().next() else {
         return;
     };
 
-    let state_str = match car.state {
-        ElevatorState::Idle => "Idle".to_string(),
-        ElevatorState::MovingToStop(stop_eid) => {
+    let state_str = match car.phase {
+        ElevatorPhase::Idle => "Idle".to_string(),
+        ElevatorPhase::MovingToStop(stop_eid) => {
             let name = w
-                .stop_data
-                .get(stop_eid)
+                .stop(stop_eid)
                 .map_or("?", |s| s.name.as_str());
             format!("Moving -> {name}")
         }
-        ElevatorState::DoorOpening => "Doors opening".to_string(),
-        ElevatorState::Loading => "Loading".to_string(),
-        ElevatorState::DoorClosing => "Doors closing".to_string(),
-        ElevatorState::Stopped => "Stopped".to_string(),
+        ElevatorPhase::DoorOpening => "Doors opening".to_string(),
+        ElevatorPhase::Loading => "Loading".to_string(),
+        ElevatorPhase::DoorClosing => "Doors closing".to_string(),
+        ElevatorPhase::Stopped => "Stopped".to_string(),
     };
 
     let velocity = w
-        .velocities
-        .get(elev_eid)
+        .velocity(elev_eid)
         .map_or(0.0, |v| v.value.abs());
     let speed_display = format!("{velocity:.1}");
 
     #[allow(clippy::option_if_let_else)]
-    let eta_str = if let ElevatorState::MovingToStop(stop_eid) = car.state {
+    let eta_str = if let ElevatorPhase::MovingToStop(stop_eid) = car.phase {
         if let Some(target_pos) = w.stop_position(stop_eid) {
             let dist = (target_pos - elev_pos.value).abs();
             if velocity > 0.001 {
@@ -109,27 +107,18 @@ pub fn update_hud(
         "-".to_string()
     };
 
-    // Rider counts.
-    let on_board = w
-        .riders()
-        .filter(|(_, r)| matches!(r.state, RiderState::Riding(_) | RiderState::Boarding(_)))
-        .count();
-    let boarding = w
-        .riders()
-        .filter(|(_, r)| matches!(r.state, RiderState::Boarding(_)))
-        .count();
-    let alighting = w
-        .riders()
-        .filter(|(_, r)| matches!(r.state, RiderState::Alighting(_)))
-        .count();
-    let waiting = w
-        .riders()
-        .filter(|(_, r)| r.state == RiderState::Waiting)
-        .count();
-    let delivered = w
-        .riders()
-        .filter(|(_, r)| r.state == RiderState::Arrived)
-        .count();
+    // Rider counts — single pass.
+    let (mut on_board, mut boarding, mut alighting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
+    for (_, r) in w.iter_riders() {
+        match r.phase {
+            RiderPhase::Boarding(_) => { boarding += 1; on_board += 1; }
+            RiderPhase::Riding(_) => { on_board += 1; }
+            RiderPhase::Alighting(_) => { alighting += 1; }
+            RiderPhase::Waiting => { waiting += 1; }
+            RiderPhase::Arrived => { delivered += 1; }
+            _ => {}
+        }
+    }
 
     let load_kg = car.current_load;
     let capacity_kg = car.weight_capacity;
@@ -139,7 +128,7 @@ pub fn update_hud(
         0.0
     };
 
-    let positions: Vec<f64> = w.stops().map(|(_, s)| s.position).collect();
+    let positions: Vec<f64> = w.iter_stops().map(|(_, s)| s.position).collect();
     let min_pos = positions.iter().copied().fold(f64::INFINITY, f64::min);
     let max_pos = positions.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let span = max_pos - min_pos;
@@ -171,7 +160,7 @@ ETA: {eta_str}
 On board: {on_board}{transfer_str}
 Waiting: {waiting}
 Delivered: {delivered}",
-        sim.sim.tick
+        sim.sim.current_tick()
     );
 
     for mut t in &mut query {

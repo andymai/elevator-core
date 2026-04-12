@@ -1,3 +1,5 @@
+//! Position and velocity components along the shaft axis.
+
 /// Position along the shaft axis.
 #[derive(Debug, Clone, Copy)]
 pub struct Position {

@@ -1,3 +1,5 @@
+//! Traffic generation patterns for rider origin/destination distributions.
+
 use crate::entity::EntityId;
 use rand::Rng;
 
@@ -48,7 +50,7 @@ impl TrafficPattern {
                     let dest_idx = rng.random_range(1..n);
                     Some((lobby, stops[dest_idx]))
                 } else {
-                    Self::uniform_pair(stops, rng)
+                    Some(Self::uniform_pair(stops, rng))
                 }
             }
 
@@ -58,7 +60,7 @@ impl TrafficPattern {
                     let origin_idx = rng.random_range(1..n);
                     Some((stops[origin_idx], lobby))
                 } else {
-                    Self::uniform_pair(stops, rng)
+                    Some(Self::uniform_pair(stops, rng))
                 }
             }
 
@@ -72,7 +74,7 @@ impl TrafficPattern {
                         let origin_idx = rng.random_range(upper_start..n);
                         Some((stops[origin_idx], mid))
                     } else {
-                        Self::uniform_pair(stops, rng)
+                        Some(Self::uniform_pair(stops, rng))
                     }
                 } else if r < 0.8 {
                     // Mid to upper stop.
@@ -81,10 +83,10 @@ impl TrafficPattern {
                         let dest_idx = rng.random_range(upper_start..n);
                         Some((mid, stops[dest_idx]))
                     } else {
-                        Self::uniform_pair(stops, rng)
+                        Some(Self::uniform_pair(stops, rng))
                     }
                 } else {
-                    Self::uniform_pair(stops, rng)
+                    Some(Self::uniform_pair(stops, rng))
                 }
             }
 
@@ -98,21 +100,20 @@ impl TrafficPattern {
                     let origin_idx = rng.random_range(1..n);
                     Some((stops[origin_idx], lobby))
                 } else {
-                    Self::uniform_pair(stops, rng)
+                    Some(Self::uniform_pair(stops, rng))
                 }
             }
         }
     }
 
     /// Sample a uniform random (origin, destination) pair with distinct stops.
-    #[allow(clippy::unnecessary_wraps)]
-    fn uniform_pair(stops: &[EntityId], rng: &mut impl Rng) -> Option<(EntityId, EntityId)> {
+    fn uniform_pair(stops: &[EntityId], rng: &mut impl Rng) -> (EntityId, EntityId) {
         let n = stops.len();
         let origin_idx = rng.random_range(0..n);
         let mut dest_idx = rng.random_range(0..n);
         while dest_idx == origin_idx {
             dest_idx = rng.random_range(0..n);
         }
-        Some((stops[origin_idx], stops[dest_idx]))
+        (stops[origin_idx], stops[dest_idx])
     }
 }

@@ -1,10 +1,12 @@
+//! Elevator state and configuration component.
+
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 
-/// Operational state of an elevator car.
+/// Operational phase of an elevator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ElevatorState {
+pub enum ElevatorPhase {
     /// Parked with no pending requests.
     Idle,
     /// Travelling toward a specific stop.
@@ -19,11 +21,11 @@ pub enum ElevatorState {
     Stopped,
 }
 
-/// Component for an elevator car entity.
+/// Component for an elevator entity.
 #[derive(Debug, Clone)]
-pub struct ElevatorCar {
-    /// Current operational state.
-    pub state: ElevatorState,
+pub struct Elevator {
+    /// Current operational phase.
+    pub phase: ElevatorPhase,
     /// Door finite-state machine.
     pub door: DoorState,
     /// Maximum travel speed (distance/tick).

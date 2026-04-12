@@ -1,14 +1,26 @@
-use crate::components::ElevatorState;
+//! Phase 4: tick door FSMs and handle open/close phase transitions.
+
+use crate::components::ElevatorPhase;
 use crate::door::DoorTransition;
-use crate::events::{EventBus, SimEvent};
+use crate::events::{Event, EventBus};
 use crate::world::World;
 
 use super::PhaseContext;
 
-/// Tick door FSMs and handle state transitions.
+/// Tick door FSMs and handle phase transitions.
 pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
-    for (eid, car) in &mut world.elevator_cars {
-        if car.door.is_closed() && car.state != ElevatorState::DoorOpening {
+    let elevator_ids = world.elevator_ids();
+
+    for eid in elevator_ids {
+        if world.is_disabled(eid) {
+            continue;
+        }
+
+        let Some(car) = world.elevator_mut(eid) else {
+            continue;
+        };
+
+        if car.door.is_closed() && car.phase != ElevatorPhase::DoorOpening {
             continue;
         }
 
@@ -16,19 +28,19 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
 
         match transition {
             DoorTransition::FinishedOpening => {
-                car.state = ElevatorState::Loading;
-                events.emit(SimEvent::DoorOpened {
+                car.phase = ElevatorPhase::Loading;
+                events.emit(Event::DoorOpened {
                     elevator: eid,
                     tick: ctx.tick,
                 });
             }
             DoorTransition::FinishedOpen => {
-                car.state = ElevatorState::DoorClosing;
+                car.phase = ElevatorPhase::DoorClosing;
             }
             DoorTransition::FinishedClosing => {
-                car.state = ElevatorState::Stopped;
+                car.phase = ElevatorPhase::Stopped;
                 car.target_stop = None;
-                events.emit(SimEvent::DoorClosed {
+                events.emit(Event::DoorClosed {
                     elevator: eid,
                     tick: ctx.tick,
                 });

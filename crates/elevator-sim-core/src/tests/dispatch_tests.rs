@@ -20,9 +20,9 @@ fn test_world() -> (World, Vec<crate::entity::EntityId>) {
     .iter()
     .map(|(name, pos)| {
         let eid = world.spawn();
-        world.stop_data.insert(
+        world.set_stop(
             eid,
-            StopData {
+            Stop {
                 name: (*name).into(),
                 position: *pos,
             },
@@ -47,12 +47,12 @@ fn test_group(
 
 fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
     let eid = world.spawn();
-    world.positions.insert(eid, Position { value: position });
-    world.velocities.insert(eid, Velocity { value: 0.0 });
-    world.elevator_cars.insert(
+    world.set_position(eid, Position { value: position });
+    world.set_velocity(eid, Velocity { value: 0.0 });
+    world.set_elevator(
         eid,
-        ElevatorCar {
-            state: ElevatorState::Idle,
+        Elevator {
+            phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
             max_speed: 2.0,
             acceleration: 1.5,
@@ -214,7 +214,7 @@ fn etd_prefers_idle_elevator() {
     let elev_a = spawn_elevator(&mut world, 4.0);
     let elev_b = spawn_elevator(&mut world, 4.0);
     // Make elev_b busy with riders.
-    world.elevator_cars.get_mut(elev_b).unwrap().riders = vec![world.spawn(), world.spawn()];
+    world.elevator_mut(elev_b).unwrap().riders = vec![world.spawn(), world.spawn()];
 
     let group = test_group(&stops, vec![elev_a, elev_b]);
     let mut manifest = DispatchManifest::default();

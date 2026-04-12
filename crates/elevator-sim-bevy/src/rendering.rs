@@ -1,7 +1,7 @@
 //! Visual rendering of elevator shafts, cars, stops, and riders.
 
 use bevy::prelude::*;
-use elevator_sim_core::components::RiderState;
+use elevator_sim_core::components::RiderPhase;
 use elevator_sim_core::entity::EntityId;
 use std::hash::{Hash, Hasher};
 
@@ -83,16 +83,16 @@ pub struct RiderVisual {
     pub entity_id: EntityId,
 }
 
-/// Pre-allocated material handles per rider state.
+/// Pre-allocated material handles per rider phase.
 #[derive(Resource)]
 pub struct RiderMaterials {
-    /// Material for riders in the Waiting state.
+    /// Material for riders in the Waiting phase.
     pub waiting: Handle<ColorMaterial>,
-    /// Material for riders in the Boarding state.
+    /// Material for riders in the Boarding phase.
     pub boarding: Handle<ColorMaterial>,
-    /// Material for riders in the Riding state.
+    /// Material for riders in the Riding phase.
     pub riding: Handle<ColorMaterial>,
-    /// Material for riders in the Alighting state.
+    /// Material for riders in the Alighting phase.
     pub alighting: Handle<ColorMaterial>,
 }
 
@@ -104,9 +104,9 @@ pub fn spawn_building_visuals(
     mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
 ) {
-    let w = &sim.sim.world;
+    let w = sim.sim.world();
     let stop_positions: Vec<(EntityId, f64, String)> = w
-        .stops()
+        .iter_stops()
         .map(|(eid, s)| (eid, s.position, s.name.clone()))
         .collect();
 
@@ -155,7 +155,7 @@ pub fn spawn_building_visuals(
 
     // Elevator car(s).
     let car_material = materials.add(Color::srgba(0.2, 0.5, 0.9, 1.0));
-    for (eid, pos, _car) in w.elevators() {
+    for (eid, pos, _car) in w.iter_elevators() {
         let y = pos.value as f32 * PPU;
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(vs.car_width, vs.car_height))),
@@ -182,7 +182,7 @@ pub fn sync_elevator_visuals(
     mut query: Query<(&ElevatorVisual, &mut Transform)>,
 ) {
     for (vis, mut transform) in &mut query {
-        if let Some(pos) = sim.sim.world.positions.get(vis.entity_id) {
+        if let Some(pos) = sim.sim.world().position(vis.entity_id) {
             transform.translation.y = pos.value as f32 * PPU;
         }
     }
@@ -198,12 +198,12 @@ pub fn sync_rider_visuals(
     vs: Res<VisualScale>,
     rider_mats: Res<RiderMaterials>,
 ) {
-    let w = &sim.sim.world;
+    let w = sim.sim.world();
 
     // Active rider entity IDs (not arrived/abandoned).
     let active_ids: std::collections::HashSet<EntityId> = w
-        .riders()
-        .filter(|(_, r)| !matches!(r.state, RiderState::Arrived | RiderState::Abandoned))
+        .iter_riders()
+        .filter(|(_, r)| !matches!(r.phase, RiderPhase::Arrived | RiderPhase::Abandoned))
         .map(|(eid, _)| eid)
         .collect();
 
@@ -217,8 +217,8 @@ pub fn sync_rider_visuals(
     let existing_ids: std::collections::HashSet<EntityId> =
         existing.iter().map(|(_, v)| v.entity_id).collect();
 
-    for (rider_eid, rider) in w.riders() {
-        if matches!(rider.state, RiderState::Arrived | RiderState::Abandoned) {
+    for (rider_eid, rider) in w.iter_riders() {
+        if matches!(rider.phase, RiderPhase::Arrived | RiderPhase::Abandoned) {
             continue;
         }
         if existing_ids.contains(&rider_eid) {
@@ -246,13 +246,13 @@ pub fn update_rider_positions(
     rider_mats: Res<RiderMaterials>,
     vs: Res<VisualScale>,
 ) {
-    let w = &sim.sim.world;
+    let w = sim.sim.world();
 
     for (vis, mut transform, mut mat_handle) in &mut query {
-        let Some(rider) = w.rider_data.get(vis.entity_id) else {
+        let Some(rider) = w.rider(vis.entity_id) else {
             continue;
         };
-        if matches!(rider.state, RiderState::Arrived | RiderState::Abandoned) {
+        if matches!(rider.phase, RiderPhase::Arrived | RiderPhase::Abandoned) {
             continue;
         }
 
@@ -263,16 +263,16 @@ pub fn update_rider_positions(
     }
 }
 
-/// Compute (x, y, material) for a rider visual based on its state.
+/// Compute (x, y, material) for a rider visual based on its phase.
 fn rider_visual_params(
     rider_eid: EntityId,
-    rider: &elevator_sim_core::components::RiderData,
+    rider: &elevator_sim_core::components::Rider,
     w: &elevator_sim_core::world::World,
     vs: &VisualScale,
     mats: &RiderMaterials,
 ) -> (f32, f32, Handle<ColorMaterial>) {
-    match rider.state {
-        RiderState::Waiting => {
+    match rider.phase {
+        RiderPhase::Waiting => {
             let stop_y = rider
                 .current_stop
                 .and_then(|s| w.stop_position(s))
@@ -283,10 +283,9 @@ fn rider_visual_params(
             let offset = ((hash % 5) as f32).mul_add(-vs.rider_spacing, vs.waiting_x_offset);
             (offset, stop_y as f32 * PPU, mats.waiting.clone())
         }
-        RiderState::Boarding(elev_eid) => {
+        RiderPhase::Boarding(elev_eid) => {
             let elev_y = w
-                .positions
-                .get(elev_eid)
+                .position(elev_eid)
                 .map_or(0.0, |p| p.value);
             (
                 vs.waiting_x_offset * 0.5,
@@ -294,23 +293,20 @@ fn rider_visual_params(
                 mats.boarding.clone(),
             )
         }
-        RiderState::Riding(elev_eid) => {
+        RiderPhase::Riding(elev_eid) => {
             let elev_y = w
-                .positions
-                .get(elev_eid)
+                .position(elev_eid)
                 .map_or(0.0, |p| p.value);
             let idx = w
-                .elevator_cars
-                .get(elev_eid)
+                .elevator(elev_eid)
                 .and_then(|car| car.riders.iter().position(|r| *r == rider_eid))
                 .unwrap_or(0);
             let x_offset = (idx as f32 % 3.0).mul_add(vs.rider_spacing, -vs.rider_spacing);
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())
         }
-        RiderState::Alighting(elev_eid) => {
+        RiderPhase::Alighting(elev_eid) => {
             let elev_y = w
-                .positions
-                .get(elev_eid)
+                .position(elev_eid)
                 .map_or(0.0, |p| p.value);
             (
                 vs.waiting_x_offset * 0.5,

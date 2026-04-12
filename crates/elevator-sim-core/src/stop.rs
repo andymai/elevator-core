@@ -1,6 +1,8 @@
+//! Stop identifiers and configuration.
+
 use serde::{Deserialize, Serialize};
 
-/// Unique identifier for a stop along the shaft.
+/// Numeric identifier for a stop along the shaft.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StopId(pub u32);
 

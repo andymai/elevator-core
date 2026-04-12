@@ -1,9 +1,11 @@
+//! Nearest-car dispatch — assigns each call to the closest idle elevator.
+
 use crate::entity::EntityId;
 use crate::world::World;
 
 use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
 
-/// Dispatch by assigning each call to the nearest idle elevator.
+/// Assigns each call to the nearest idle elevator.
 ///
 /// For multi-elevator groups, this overrides `decide_all()` to coordinate
 /// across the entire group — preventing two elevators from responding to
@@ -98,7 +100,7 @@ impl DispatchStrategy for NearestCarDispatch {
                 .min_by(|a, b| {
                     let dist_a = (a.1 - stop_pos).abs();
                     let dist_b = (b.1 - stop_pos).abs();
-                    dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+                    dist_a.total_cmp(&dist_b)
                 });
 
             if let Some((elev_eid, _)) = nearest {

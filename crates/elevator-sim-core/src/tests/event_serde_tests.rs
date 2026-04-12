@@ -1,4 +1,5 @@
-use crate::events::SimEvent;
+use crate::error::RejectionReason;
+use crate::events::Event;
 use crate::world::World;
 
 #[test]
@@ -10,48 +11,48 @@ fn roundtrip_sim_event_ron() {
     let e3 = world.spawn();
 
     let events = vec![
-        SimEvent::ElevatorDeparted {
+        Event::ElevatorDeparted {
             elevator: e1,
             from_stop: e2,
             tick: 10,
         },
-        SimEvent::ElevatorArrived {
+        Event::ElevatorArrived {
             elevator: e1,
             at_stop: e3,
             tick: 20,
         },
-        SimEvent::DoorOpened {
+        Event::DoorOpened {
             elevator: e1,
             tick: 5,
         },
-        SimEvent::DoorClosed {
+        Event::DoorClosed {
             elevator: e1,
             tick: 8,
         },
-        SimEvent::RiderSpawned {
+        Event::RiderSpawned {
             rider: e2,
             origin: e1,
             destination: e3,
             tick: 1,
         },
-        SimEvent::RiderBoarded {
+        Event::RiderBoarded {
             rider: e2,
             elevator: e1,
             tick: 15,
         },
-        SimEvent::RiderAlighted {
+        Event::RiderAlighted {
             rider: e2,
             elevator: e1,
             stop: e3,
             tick: 30,
         },
-        SimEvent::RiderRejected {
+        Event::RiderRejected {
             rider: e2,
             elevator: e1,
-            reason: "overweight".to_string(),
+            reason: RejectionReason::OverCapacity,
             tick: 99,
         },
-        SimEvent::RiderAbandoned {
+        Event::RiderAbandoned {
             rider: e2,
             stop: e1,
             tick: 50,
@@ -59,9 +60,9 @@ fn roundtrip_sim_event_ron() {
     ];
 
     for event in &events {
-        let serialized = ron::to_string(event).expect("failed to serialize SimEvent");
-        let deserialized: SimEvent =
-            ron::from_str(&serialized).expect("failed to deserialize SimEvent");
+        let serialized = ron::to_string(event).expect("failed to serialize Event");
+        let deserialized: Event =
+            ron::from_str(&serialized).expect("failed to deserialize Event");
         assert_eq!(*event, deserialized);
     }
 }

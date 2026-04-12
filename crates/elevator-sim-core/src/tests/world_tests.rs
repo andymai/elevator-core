@@ -15,20 +15,20 @@ fn spawn_and_check_alive() {
 fn despawn_removes_entity_and_components() {
     let mut world = World::new();
     let id = world.spawn();
-    world.positions.insert(id, Position { value: 42.0 });
-    world.stop_data.insert(id, StopData {
+    world.set_position(id, Position { value: 42.0 });
+    world.set_stop(id, Stop {
         name: "Test".into(),
         position: 42.0,
     });
 
-    assert!(world.positions.contains_key(id));
-    assert!(world.stop_data.contains_key(id));
+    assert!(world.position(id).is_some());
+    assert!(world.stop(id).is_some());
 
     world.despawn(id);
 
     assert!(!world.is_alive(id));
-    assert!(!world.positions.contains_key(id));
-    assert!(!world.stop_data.contains_key(id));
+    assert!(world.position(id).is_none());
+    assert!(world.stop(id).is_none());
     assert_eq!(world.entity_count(), 0);
 }
 
@@ -36,11 +36,11 @@ fn despawn_removes_entity_and_components() {
 fn elevator_query_returns_entities_with_both_components() {
     let mut world = World::new();
 
-    // Entity with both Position + ElevatorCar.
+    // Entity with both Position + Elevator.
     let elev_id = world.spawn();
-    world.positions.insert(elev_id, Position { value: 10.0 });
-    world.elevator_cars.insert(elev_id, ElevatorCar {
-        state: ElevatorState::Idle,
+    world.set_position(elev_id, Position { value: 10.0 });
+    world.set_elevator(elev_id, Elevator {
+        phase: ElevatorPhase::Idle,
         door: DoorState::Closed,
         max_speed: 2.0,
         acceleration: 1.5,
@@ -56,9 +56,9 @@ fn elevator_query_returns_entities_with_both_components() {
 
     // Entity with only Position (a stop, not an elevator).
     let stop_id = world.spawn();
-    world.positions.insert(stop_id, Position { value: 0.0 });
+    world.set_position(stop_id, Position { value: 0.0 });
 
-    let elevators: Vec<_> = world.elevators().collect();
+    let elevators: Vec<_> = world.iter_elevators().collect();
     assert_eq!(elevators.len(), 1);
     assert_eq!(elevators[0].0, elev_id);
     assert_eq!(elevators[0].1.value, 10.0);
@@ -70,15 +70,15 @@ fn rider_query() {
 
     let p1 = world.spawn();
     let origin = world.spawn();
-    world.rider_data.insert(p1, RiderData {
+    world.set_rider(p1, Rider {
         weight: 70.0,
-        state: RiderState::Waiting,
+        phase: RiderPhase::Waiting,
         current_stop: Some(origin),
         spawn_tick: 0,
         board_tick: None,
     });
 
-    let riders: Vec<_> = world.riders().collect();
+    let riders: Vec<_> = world.iter_riders().collect();
     assert_eq!(riders.len(), 1);
     assert_eq!(riders[0].1.weight, 70.0);
 }
@@ -88,13 +88,13 @@ fn find_stop_at_position() {
     let mut world = World::new();
 
     let s0 = world.spawn();
-    world.stop_data.insert(s0, StopData {
+    world.set_stop(s0, Stop {
         name: "Ground".into(),
         position: 0.0,
     });
 
     let s1 = world.spawn();
-    world.stop_data.insert(s1, StopData {
+    world.set_stop(s1, Stop {
         name: "Roof".into(),
         position: 100.0,
     });
@@ -111,16 +111,15 @@ fn multiple_entities_independent() {
     let b = world.spawn();
     let c = world.spawn();
 
-    world.positions.insert(a, Position { value: 1.0 });
-    world.positions.insert(b, Position { value: 2.0 });
-    world.positions.insert(c, Position { value: 3.0 });
+    world.set_position(a, Position { value: 1.0 });
+    world.set_position(b, Position { value: 2.0 });
+    world.set_position(c, Position { value: 3.0 });
 
     world.despawn(b);
 
     assert!(world.is_alive(a));
     assert!(!world.is_alive(b));
     assert!(world.is_alive(c));
-    assert_eq!(world.positions.len(), 2);
     assert_eq!(world.entity_count(), 2);
 }
 
@@ -128,7 +127,7 @@ fn multiple_entities_independent() {
 fn stop_position_helper() {
     let mut world = World::new();
     let s = world.spawn();
-    world.stop_data.insert(s, StopData {
+    world.set_stop(s, Stop {
         name: "Test".into(),
         position: 42.5,
     });
@@ -137,4 +136,26 @@ fn stop_position_helper() {
 
     let fake = world.spawn();
     assert_eq!(world.stop_position(fake), None);
+}
+
+#[test]
+fn extension_components() {
+    #[derive(Debug, Clone, PartialEq)]
+    struct VipTag {
+        level: u32,
+    }
+
+    let mut world = World::new();
+    let e = world.spawn();
+
+    // Insert, get, mutate.
+    world.insert_ext(e, VipTag { level: 3 });
+    assert_eq!(world.get_ext::<VipTag>(e), Some(VipTag { level: 3 }));
+
+    world.get_ext_mut::<VipTag>(e).unwrap().level = 5;
+    assert_eq!(world.get_ext::<VipTag>(e).unwrap().level, 5);
+
+    // Despawn cleans up extensions.
+    world.despawn(e);
+    assert!(world.get_ext::<VipTag>(e).is_none());
 }

@@ -1,24 +1,25 @@
-use crate::components::{ElevatorState, RiderState};
+//! Phase 2: assign idle/stopped elevators to stops via the dispatch strategy.
+
+use crate::components::{ElevatorPhase, RiderPhase};
 use crate::dispatch::{
     DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, StopDemand,
 };
 use crate::entity::EntityId;
-use crate::events::{EventBus, SimEvent};
+use crate::events::{Event, EventBus};
 use crate::ids::GroupId;
 use crate::world::World;
 
-use std::collections::HashMap;
-use std::hash::BuildHasher;
+use std::collections::BTreeMap;
 
 use super::PhaseContext;
 
 /// Assign idle/stopped elevators to stops via the dispatch strategy.
-pub fn run<S: BuildHasher>(
+pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
-    dispatchers: &mut HashMap<GroupId, Box<dyn DispatchStrategy>, S>,
+    dispatchers: &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
 ) {
     for group in groups {
         let manifest = build_manifest(world, group);
@@ -28,9 +29,12 @@ pub fn run<S: BuildHasher>(
             .elevator_entities
             .iter()
             .filter_map(|eid| {
-                let car = world.elevator_cars.get(*eid)?;
-                if matches!(car.state, ElevatorState::Idle | ElevatorState::Stopped) {
-                    let pos = world.positions.get(*eid)?.value;
+                if world.is_disabled(*eid) {
+                    return None;
+                }
+                let car = world.elevator(*eid)?;
+                if matches!(car.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped) {
+                    let pos = world.position(*eid)?.value;
                     Some((*eid, pos))
                 } else {
                     None
@@ -51,14 +55,38 @@ pub fn run<S: BuildHasher>(
         for (eid, decision) in decisions {
             match decision {
                 DispatchDecision::GoToStop(stop_eid) => {
-                    let pos = world.positions.get(eid).map_or(0.0, |p| p.value);
+                    let pos = world.position(eid).map_or(0.0, |p| p.value);
                     let current_stop = world.find_stop_at_position(pos);
-                    if let Some(car) = world.elevator_cars.get_mut(eid) {
-                        car.state = ElevatorState::MovingToStop(stop_eid);
+
+                    events.emit(Event::ElevatorAssigned {
+                        elevator: eid,
+                        stop: stop_eid,
+                        tick: ctx.tick,
+                    });
+
+                    // Already at this stop — open doors directly.
+                    if current_stop == Some(stop_eid) {
+                        events.emit(Event::ElevatorArrived {
+                            elevator: eid,
+                            at_stop: stop_eid,
+                            tick: ctx.tick,
+                        });
+                        if let Some(car) = world.elevator_mut(eid) {
+                            car.phase = ElevatorPhase::DoorOpening;
+                            car.door = crate::door::DoorState::request_open(
+                                car.door_transition_ticks,
+                                car.door_open_ticks,
+                            );
+                        }
+                        continue;
+                    }
+
+                    if let Some(car) = world.elevator_mut(eid) {
+                        car.phase = ElevatorPhase::MovingToStop(stop_eid);
                         car.target_stop = Some(stop_eid);
                     }
                     if let Some(from) = current_stop {
-                        events.emit(SimEvent::ElevatorDeparted {
+                        events.emit(Event::ElevatorDeparted {
                             elevator: eid,
                             from_stop: from,
                             tick: ctx.tick,
@@ -66,8 +94,8 @@ pub fn run<S: BuildHasher>(
                     }
                 }
                 DispatchDecision::Idle => {
-                    if let Some(car) = world.elevator_cars.get_mut(eid) {
-                        car.state = ElevatorState::Idle;
+                    if let Some(car) = world.elevator_mut(eid) {
+                        car.phase = ElevatorPhase::Idle;
                     }
                 }
             }
@@ -80,8 +108,11 @@ fn build_manifest(world: &World, group: &ElevatorGroup) -> DispatchManifest {
     let mut manifest = DispatchManifest::default();
 
     // Demand: riders waiting at this group's stops.
-    for (_, rider) in world.riders() {
-        if rider.state != RiderState::Waiting {
+    for (rid, rider) in world.iter_riders() {
+        if world.is_disabled(rid) {
+            continue;
+        }
+        if rider.phase != RiderPhase::Waiting {
             continue;
         }
         if let Some(stop) = rider.current_stop
@@ -94,9 +125,9 @@ fn build_manifest(world: &World, group: &ElevatorGroup) -> DispatchManifest {
 
     // Rider destinations: where current riders in this group's elevators want to go.
     for &elev_eid in &group.elevator_entities {
-        if let Some(car) = world.elevator_cars.get(elev_eid) {
+        if let Some(car) = world.elevator(elev_eid) {
             for &rider_eid in &car.riders {
-                if let Some(route) = world.routes.get(rider_eid)
+                if let Some(route) = world.route(rider_eid)
                     && let Some(dest) = route.current_destination() {
                         *manifest.rider_destinations.entry(dest).or_default() += 1;
                     }

@@ -8,7 +8,7 @@ use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
     spawn_building_visuals, sync_elevator_visuals, sync_rider_visuals, update_rider_positions,
 };
-use crate::sim_bridge::{SimEventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_sim_core::config::SimConfig;
 use elevator_sim_core::dispatch::scan::ScanDispatch;
@@ -31,7 +31,8 @@ impl Plugin for ElevatorSimPlugin {
             ron::from_str(&ron_str).unwrap_or_else(|e| panic!("Failed to parse {config_path}: {e}"));
 
         let spawn_config = config.passenger_spawning.clone();
-        let sim = Simulation::new(config, Box::new(ScanDispatch::new()));
+        let sim = Simulation::new(&config, Box::new(ScanDispatch::new()))
+            .unwrap_or_else(|e| panic!("Invalid simulation config: {e}"));
 
         app.insert_resource(SimulationRes { sim })
             .insert_resource(SimSpeed { multiplier: 1 })
@@ -41,7 +42,7 @@ impl Plugin for ElevatorSimPlugin {
                 weight_min: spawn_config.weight_range.0,
                 weight_max: spawn_config.weight_range.1,
             })
-            .add_message::<SimEventWrapper>()
+            .add_message::<EventWrapper>()
             .add_systems(Startup, (setup_camera, spawn_building_visuals, spawn_hud))
             .add_systems(
                 Update,

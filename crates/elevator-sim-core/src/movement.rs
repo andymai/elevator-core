@@ -1,3 +1,5 @@
+//! Trapezoidal velocity-profile movement physics.
+
 /// Result of one tick of movement physics.
 #[derive(Debug, Clone, Copy)]
 pub struct MovementResult {

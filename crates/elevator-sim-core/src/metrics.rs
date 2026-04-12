@@ -1,3 +1,7 @@
+//! Aggregate simulation metrics (wait times, throughput, distance).
+
+use std::collections::VecDeque;
+
 /// Aggregated simulation metrics, updated each tick from events.
 ///
 /// Games query this via `sim.metrics()` for HUD display, scoring,
@@ -33,8 +37,8 @@ pub struct Metrics {
     boarded_count: u64,
     /// Number of riders that have been delivered.
     delivered_count: u64,
-    /// Sliding window for throughput: (tick, count) of recent deliveries.
-    delivery_window: Vec<u64>,
+    /// Sliding window of delivery ticks, sorted ascending.
+    delivery_window: VecDeque<u64>,
     /// Window size for throughput calculation.
     pub throughput_window_ticks: u64,
 }
@@ -61,7 +65,7 @@ impl Metrics {
     }
 
     /// Record a rider boarding. `wait_ticks` = `tick_boarded` - `tick_spawned`.
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub fn record_board(&mut self, wait_ticks: u64) {
         self.boarded_count += 1;
         self.sum_wait_ticks += wait_ticks;
@@ -72,17 +76,17 @@ impl Metrics {
     }
 
     /// Record a rider alighting. `ride_ticks` = `tick_alighted` - `tick_boarded`.
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
         self.delivered_count += 1;
         self.total_delivered += 1;
         self.sum_ride_ticks += ride_ticks;
         self.avg_ride_time = self.sum_ride_ticks as f64 / self.delivered_count as f64;
-        self.delivery_window.push(tick);
+        self.delivery_window.push_back(tick);
     }
 
     /// Record a rider abandoning.
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub fn record_abandonment(&mut self) {
         self.total_abandoned += 1;
         if self.total_spawned > 0 {
@@ -96,10 +100,13 @@ impl Metrics {
     }
 
     /// Update windowed throughput. Call once per tick.
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation)] // window len always fits in u64
     pub fn update_throughput(&mut self, current_tick: u64) {
         let cutoff = current_tick.saturating_sub(self.throughput_window_ticks);
-        self.delivery_window.retain(|&t| t > cutoff);
+        // Delivery ticks are inserted in order, so expired entries are at the front.
+        while self.delivery_window.front().is_some_and(|&t| t <= cutoff) {
+            self.delivery_window.pop_front();
+        }
         self.throughput = self.delivery_window.len() as u64;
     }
 }

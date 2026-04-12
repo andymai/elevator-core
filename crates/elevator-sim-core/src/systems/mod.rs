@@ -1,3 +1,5 @@
+//! Tick-loop system phases run in sequence each simulation step.
+
 /// Advance transient states (boarding/alighting) to their next state.
 pub mod advance_transient;
 /// Assign idle elevators to stops via dispatch strategy.
@@ -14,6 +16,7 @@ pub mod movement;
 pub mod reposition;
 
 /// Context passed to every system phase.
+#[derive(Debug, Clone, Copy)]
 pub struct PhaseContext {
     /// Current simulation tick number.
     pub tick: u64,

@@ -32,7 +32,7 @@ pub fn spawn_ai_passengers(
     let ticks_this_frame = speed.multiplier;
 
     if timer.ticks_until_spawn <= ticks_this_frame {
-        let stop_ids: Vec<_> = sim.sim.world.stop_ids();
+        let stop_ids: Vec<_> = sim.sim.world().stop_ids();
         if stop_ids.len() < 2 {
             return;
         }

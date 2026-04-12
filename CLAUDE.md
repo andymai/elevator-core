@@ -25,22 +25,40 @@ System deps (Ubuntu): `libudev-dev libasound2-dev`
 
 ECS-like internal architecture (no ECS crate dependency):
 - `entity.rs` — `EntityId` via slotmap generational keys
-- `world.rs` — `World` with `SecondaryMap` per component type (struct-of-arrays)
-- `components/` — `RiderData`, `ElevatorCar`, `StopData`, `Position`, `Velocity`, `Route`, `Patience`, `Preferences`
-- `systems/` — Free functions: `advance_transient`, `dispatch`, `movement`, `doors`, `loading`
-- `sim.rs` — Thin `Simulation` wrapper with `pub world`, `pub events`, phase registration
+- `world.rs` — `World` with encapsulated `SecondaryMap` per component type (struct-of-arrays), typed accessors, and extension storage for custom game components
+- `components/` — `Rider`, `Elevator`, `Stop`, `Position`, `Velocity`, `Route`, `Patience`, `Preferences`, `Zone`
+- `systems/` — Free functions: `advance_transient`, `dispatch`, `movement`, `doors`, `loading`, `metrics`, `reposition`
+- `sim.rs` — `Simulation` with encapsulated fields accessed via methods, per-phase sub-stepping
+- `query/` — ECS-style query builder: `world.query::<(EntityId, &Rider, &Position)>().with::<Elevator>().iter()`
+- `error.rs` — `SimError` enum for config validation and runtime errors; `RejectionReason` enum
+- `time.rs` — `TimeAdapter` for tick↔wall-clock conversion
+- `prelude` module re-exports common types
 
 Key design:
-- **Game-agnostic riders**: `RiderData` = anything that rides (passengers, cargo, VIPs). Games add custom components.
+- **Encapsulated World**: Component maps are `pub(crate)`, accessed via typed methods (`world.rider(id)`, `world.elevator_mut(id)`). Extension storage (`world.insert_ext::<T>()`) for game-specific custom components, auto-cleaned on `despawn()`. Global resources (`world.insert_resource::<T>()`) for singletons.
+- **Query builder**: `world.query::<(EntityId, &Rider, &Position)>().with::<Elevator>().iter()`. Supports built-in and extension (`&Ext<T>`) components, `With`/`Without`/`ExtWith`/`ExtWithout` filters, `Option<&T>` optional reads, single-entity `.get(id)`, tuples up to arity 8. Zero unsafe.
+- **Dynamic topology**: `sim.add_stop()`, `sim.add_elevator()` at runtime. `sim.disable(id)`/`sim.enable(id)` with lifecycle events. All systems skip disabled entities.
+- **Sub-stepping**: Per-phase methods (`sim.run_dispatch()`, `sim.run_movement()`, etc.) plus `sim.advance_tick()`. `step()` composes them.
+- **Error handling**: `Simulation::new()` returns `Result<Self, SimError>` with config validation. `spawn_rider_by_stop_id()` returns `Result<EntityId, SimError>`.
+- **Game-agnostic riders**: `Rider` = anything that rides (passengers, cargo, VIPs). Games add custom components via extension storage.
 - **Route-based loading**: Riders with a `Route` component are auto-boarded/alighted. No Route = game manages manually.
-- **Stop-level dispatch**: `DispatchManifest` has aggregate demand per stop, not individual rider details.
-- **Composable tick**: Games call `sim.tick()` or invoke system functions directly on `&mut World`.
+- **Stop-level dispatch**: `DispatchManifest` uses `BTreeMap` for deterministic iteration order.
+- **Per-group dispatch**: Each `ElevatorGroup` can have its own `DispatchStrategy` via `sim.set_dispatch(group, strategy)`.
+- **Composable tick**: Games call `sim.step()` or per-phase methods for full control.
+- **Event system**: Typed `Event` enum for sim events, `EventChannel<T>` as a world resource for game events.
 - Simulation uses "stops" at arbitrary distances (not uniform floors) — supports buildings and space elevators
-- Tick-based simulation with 5-phase tick loop: advance_transient → dispatch → movement → doors → loading
-- Pluggable dispatch via `DispatchStrategy` trait (MVP: SCAN algorithm)
+- Tick-based simulation with 6-phase tick loop: advance_transient → dispatch → movement → doors → loading → metrics
+- Pluggable dispatch via `DispatchStrategy` trait (SCAN, LOOK, NearestCar, ETD algorithms)
 - Trapezoidal velocity profile for elevator movement
-- Weight capacity system for riders
-- Typed event bus (`SimEvent` enum) with unified rider events
+- Weight capacity system with `RejectionReason` enum (not String)
+
+## Type Naming
+
+Domain-first naming convention:
+- `Rider` (not `RiderData`), `Elevator` (not `ElevatorCar`), `Stop` (not `StopData`), `Zone` (not `ZoneData`)
+- `RiderPhase` (not `RiderState`), `ElevatorPhase` (not `ElevatorState`)
+- `Event` (not `SimEvent`), `RejectionReason` (not `String`)
+- Component fields: `.phase` (not `.state`)
 
 ## Bevy API Notes (0.18)
 
@@ -53,8 +71,9 @@ Key design:
 
 Building layout and sim params in `assets/config/default.ron` (RON format).
 Space elevator config in `assets/config/space_elevator.ron`.
-Config uses `StopId`/`ElevatorConfig` — mapped to `EntityId` at init via `sim.stop_lookup`.
+Config uses `StopId`/`ElevatorConfig` — mapped to `EntityId` at init via `sim.stop_entity(StopId)`.
+Config validated at construction time (zero stops, duplicate IDs, negative speeds, invalid starting_stop).
 
 ## Testing
 
-32 tests covering: config deserialization, door FSM, movement physics, SCAN dispatch, World CRUD, event serialization, and end-to-end scenario replay.
+91 tests covering: config deserialization, door FSM, movement physics, SCAN/LOOK/NearestCar/ETD dispatch, World CRUD, extension components, event serialization, traffic patterns, metrics, end-to-end scenario replay, dynamic topology, query builder, sub-stepping, resources, and disabled entities.

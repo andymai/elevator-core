@@ -1,4 +1,6 @@
-use crate::components::ElevatorState;
+//! Estimated Time to Destination (ETD) dispatch algorithm.
+
+use crate::components::ElevatorPhase;
 use crate::entity::EntityId;
 use crate::world::World;
 
@@ -143,7 +145,7 @@ impl EtdDispatch {
         _manifest: &DispatchManifest,
         world: &World,
     ) -> f64 {
-        let Some(car) = world.elevator_cars.get(elev_eid) else {
+        let Some(car) = world.elevator(elev_eid) else {
             return f64::INFINITY;
         };
 
@@ -163,8 +165,8 @@ impl EtdDispatch {
 
         // Bonus: if the elevator is already heading toward this stop
         // (same direction), reduce cost.
-        let direction_bonus = match car.state {
-            ElevatorState::MovingToStop(current_target) => {
+        let direction_bonus = match car.phase {
+            ElevatorPhase::MovingToStop(current_target) => {
                 world.stop_position(current_target).map_or(0.0, |current_target_pos| {
                     let moving_up = current_target_pos > elev_pos;
                     let target_is_ahead = if moving_up {
@@ -175,7 +177,7 @@ impl EtdDispatch {
                     if target_is_ahead { -travel_time * 0.5 } else { 0.0 }
                 })
             }
-            ElevatorState::Idle => -travel_time * 0.3, // Slight bonus for idle elevators.
+            ElevatorPhase::Idle => -travel_time * 0.3, // Slight bonus for idle elevators.
             _ => 0.0,
         };
 
