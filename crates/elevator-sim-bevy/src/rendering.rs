@@ -299,7 +299,7 @@ fn rider_visual_params(
                 .map_or(0.0, |p| p.value);
             let idx = w
                 .elevator(elev_eid)
-                .and_then(|car| car.riders.iter().position(|r| *r == rider_eid))
+                .and_then(|car| car.riders().iter().position(|r| *r == rider_eid))
                 .unwrap_or(0);
             let x_offset = (idx as f32 % 3.0).mul_add(vs.rider_spacing, -vs.rider_spacing);
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())

@@ -17,7 +17,7 @@ panic = "warn"
 missing_docs_in_private_items = "warn"
 # Allow reasonable exceptions
 module_name_repetitions = "allow"
-must_use_candidate = "allow"
+must_use_candidate = "deny"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 cast_precision_loss = "allow"

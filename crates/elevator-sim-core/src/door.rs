@@ -2,6 +2,7 @@
 
 /// State machine for elevator doors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum DoorState {
     /// Doors are fully closed.
     Closed,
@@ -30,6 +31,7 @@ pub enum DoorState {
 
 /// Transition emitted when the door state changes phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum DoorTransition {
     /// No phase change occurred this tick.
     None,
@@ -43,16 +45,19 @@ pub enum DoorTransition {
 
 impl DoorState {
     /// Returns `true` if the doors are fully open.
+    #[must_use] 
     pub const fn is_open(&self) -> bool {
         matches!(self, Self::Open { .. })
     }
 
     /// Returns `true` if the doors are fully closed.
+    #[must_use] 
     pub const fn is_closed(&self) -> bool {
         matches!(self, Self::Closed)
     }
 
     /// Begin opening the door.
+    #[must_use] 
     pub const fn request_open(transition_ticks: u32, open_ticks: u32) -> Self {
         Self::Opening {
             ticks_remaining: transition_ticks,

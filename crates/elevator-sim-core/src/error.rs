@@ -7,6 +7,7 @@ use std::fmt;
 
 /// Errors that can occur during simulation setup or operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SimError {
     /// Configuration is invalid.
     InvalidConfig {
@@ -36,19 +37,27 @@ impl fmt::Display for SimError {
     }
 }
 
-impl std::error::Error for SimError {}
+impl std::error::Error for SimError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 /// Reason a rider was rejected from boarding an elevator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum RejectionReason {
     /// Rider's weight exceeds remaining elevator capacity.
     OverCapacity,
+    /// Rider's boarding preferences prevented boarding (e.g., crowding threshold).
+    PreferenceBased,
 }
 
 impl fmt::Display for RejectionReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::OverCapacity => write!(f, "over capacity"),
+            Self::PreferenceBased => write!(f, "rider preference"),
         }
     }
 }

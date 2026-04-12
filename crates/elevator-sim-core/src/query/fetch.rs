@@ -11,7 +11,7 @@ use crate::world::World;
 /// - `EntityId` — passes through the entity ID
 /// - `&T` for built-in components — reads from the component's `SecondaryMap`
 /// - `Option<&T>` for built-in components — optional read (always matches)
-/// - `&Ext<T>` for extension components — cloned from extension storage
+/// - `&Ext<T>` for extension components — read from extension storage
 /// - Tuples of the above (up to arity 8)
 pub trait WorldQuery {
     /// The item yielded per entity.
@@ -26,8 +26,7 @@ pub trait WorldQuery {
 
 /// Marker type for querying extension components.
 ///
-/// Extension values are cloned out of `RefCell`-guarded storage, so `T: Clone`
-/// is required.
+/// Extension values are read by reference from type-erased storage.
 pub struct Ext<T>(PhantomData<T>);
 
 impl WorldQuery for EntityId {
@@ -81,11 +80,11 @@ impl_builtin_query!(crate::components::Zone, zones);
 impl_builtin_query!(crate::components::Patience, patience);
 impl_builtin_query!(crate::components::Preferences, preferences);
 
-impl<T: 'static + Send + Sync + Clone> WorldQuery for &Ext<T> {
-    type Item<'w> = T;
+impl<T: 'static + Send + Sync> WorldQuery for &Ext<T> {
+    type Item<'w> = &'w T;
 
     fn fetch(world: &World, id: EntityId) -> Option<Self::Item<'_>> {
-        world.ext_map::<T>()?.get(id).cloned()
+        world.ext_map::<T>()?.get(id)
     }
 
     fn contains(world: &World, id: EntityId) -> bool {

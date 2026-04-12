@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// All entity references use `EntityId`. Games can look up additional
 /// component data on the referenced entity if needed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Event {
     // -- Elevator events --
     /// An elevator departed from a stop.
@@ -189,6 +190,7 @@ impl EventBus {
     }
 
     /// Returns a slice of all pending events without clearing them.
+    #[must_use] 
     pub fn peek(&self) -> &[Event] {
         &self.events
     }
@@ -198,10 +200,17 @@ impl EventBus {
 ///
 /// Games insert this as a global resource on `World`:
 ///
-/// ```ignore
+/// ```
+/// use elevator_sim_core::world::World;
+/// use elevator_sim_core::events::EventChannel;
+///
+/// #[derive(Debug)]
+/// enum MyGameEvent { Foo, Bar }
+///
+/// let mut world = World::new();
 /// world.insert_resource(EventChannel::<MyGameEvent>::new());
 /// // Later:
-/// world.resource_mut::<EventChannel<MyGameEvent>>().unwrap().emit(MyEvent::Foo);
+/// world.resource_mut::<EventChannel<MyGameEvent>>().unwrap().emit(MyGameEvent::Foo);
 /// ```
 #[derive(Debug)]
 pub struct EventChannel<T> {
@@ -211,6 +220,7 @@ pub struct EventChannel<T> {
 
 impl<T> EventChannel<T> {
     /// Create an empty event channel.
+    #[must_use] 
     pub const fn new() -> Self {
         Self { events: Vec::new() }
     }
@@ -226,16 +236,19 @@ impl<T> EventChannel<T> {
     }
 
     /// Peek at pending events without clearing.
+    #[must_use] 
     pub fn peek(&self) -> &[T] {
         &self.events
     }
 
     /// Check if the channel has no pending events.
+    #[must_use] 
     pub const fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
 
     /// Number of pending events.
+    #[must_use] 
     pub const fn len(&self) -> usize {
         self.events.len()
     }

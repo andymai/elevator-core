@@ -63,7 +63,7 @@ pub fn update_hud(
         return;
     };
 
-    let state_str = match car.phase {
+    let state_str = match car.phase() {
         ElevatorPhase::Idle => "Idle".to_string(),
         ElevatorPhase::MovingToStop(stop_eid) => {
             let name = w
@@ -75,6 +75,7 @@ pub fn update_hud(
         ElevatorPhase::Loading => "Loading".to_string(),
         ElevatorPhase::DoorClosing => "Doors closing".to_string(),
         ElevatorPhase::Stopped => "Stopped".to_string(),
+        _ => "Unknown".to_string(),
     };
 
     let velocity = w
@@ -83,7 +84,7 @@ pub fn update_hud(
     let speed_display = format!("{velocity:.1}");
 
     #[allow(clippy::option_if_let_else)]
-    let eta_str = if let ElevatorPhase::MovingToStop(stop_eid) = car.phase {
+    let eta_str = if let ElevatorPhase::MovingToStop(stop_eid) = car.phase() {
         if let Some(target_pos) = w.stop_position(stop_eid) {
             let dist = (target_pos - elev_pos.value).abs();
             if velocity > 0.001 {
@@ -120,8 +121,8 @@ pub fn update_hud(
         }
     }
 
-    let load_kg = car.current_load;
-    let capacity_kg = car.weight_capacity;
+    let load_kg = car.current_load();
+    let capacity_kg = car.weight_capacity();
     let load_pct = if capacity_kg > 0.0 {
         (load_kg / capacity_kg) * 100.0
     } else {

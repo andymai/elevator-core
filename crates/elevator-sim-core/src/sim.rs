@@ -87,6 +87,14 @@ impl Simulation {
             stop_lookup.insert(sc.id, eid);
         }
 
+        // Build sorted-stops index for O(log n) PassingFloor detection.
+        let mut sorted: Vec<(f64, EntityId)> = world
+            .iter_stops()
+            .map(|(eid, stop)| (stop.position, eid))
+            .collect();
+        sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        world.insert_resource(crate::world::SortedStops(sorted));
+
         // Create elevator entities.
         let mut elevator_entities = Vec::new();
         for ec in &config.elevators {
@@ -224,6 +232,7 @@ impl Simulation {
     // ── Accessors ────────────────────────────────────────────────────
 
     /// Get a shared reference to the world.
+    #[must_use] 
     pub const fn world(&self) -> &World {
         &self.world
     }
@@ -238,36 +247,43 @@ impl Simulation {
     }
 
     /// Current simulation tick.
+    #[must_use] 
     pub const fn current_tick(&self) -> u64 {
         self.tick
     }
 
     /// Time delta per tick (seconds).
+    #[must_use] 
     pub const fn dt(&self) -> f64 {
         self.dt
     }
 
     /// Get current simulation metrics.
+    #[must_use] 
     pub const fn metrics(&self) -> &Metrics {
         &self.metrics
     }
 
     /// The time adapter for tick↔wall-clock conversion.
+    #[must_use] 
     pub const fn time(&self) -> &TimeAdapter {
         &self.time
     }
 
     /// Get the elevator groups.
+    #[must_use] 
     pub fn groups(&self) -> &[ElevatorGroup] {
         &self.groups
     }
 
     /// Resolve a config `StopId` to its runtime `EntityId`.
+    #[must_use] 
     pub fn stop_entity(&self, id: StopId) -> Option<EntityId> {
         self.stop_lookup.get(&id).copied()
     }
 
     /// Peek at events pending for consumer retrieval.
+    #[must_use] 
     pub fn pending_events(&self) -> &[Event] {
         &self.pending_output
     }
@@ -369,6 +385,12 @@ impl Simulation {
         self.world
             .set_position(eid, Position { value: position });
         group.stop_entities.push(eid);
+
+        // Maintain sorted-stops index for O(log n) PassingFloor detection.
+        if let Some(sorted) = self.world.resource_mut::<crate::world::SortedStops>() {
+            let idx = sorted.0.partition_point(|&(p, _)| p < position);
+            sorted.0.insert(idx, (position, eid));
+        }
 
         self.events.emit(Event::StopAdded {
             stop: eid,
@@ -489,6 +511,7 @@ impl Simulation {
     }
 
     /// Check if an entity is disabled.
+    #[must_use] 
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.world.is_disabled(id)
     }
@@ -496,6 +519,7 @@ impl Simulation {
     // ── Sub-stepping ────────────────────────────────────────────────
 
     /// Get the dispatch strategies map (for advanced sub-stepping).
+    #[must_use] 
     pub fn dispatchers(&self) -> &BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
         &self.dispatchers
     }
@@ -516,6 +540,7 @@ impl Simulation {
     }
 
     /// Build the `PhaseContext` for the current tick.
+    #[must_use] 
     pub const fn phase_context(&self) -> PhaseContext {
         PhaseContext {
             tick: self.tick,

@@ -5,6 +5,7 @@ use rand::Rng;
 
 /// Traffic pattern for generating realistic rider origin/destination distributions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TrafficPattern {
     /// Uniform random: equal probability for all origin/destination pairs.
     Uniform,

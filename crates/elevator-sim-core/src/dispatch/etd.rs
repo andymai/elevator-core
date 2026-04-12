@@ -23,11 +23,13 @@ pub struct EtdDispatch {
 
 impl EtdDispatch {
     /// Create a new `EtdDispatch` with default delay weight of 1.0.
+    #[must_use] 
     pub const fn new() -> Self {
         Self { delay_weight: 1.0 }
     }
 
     /// Create a new `EtdDispatch` with the given delay weight.
+    #[must_use] 
     pub const fn with_delay_weight(delay_weight: f64) -> Self {
         Self { delay_weight }
     }

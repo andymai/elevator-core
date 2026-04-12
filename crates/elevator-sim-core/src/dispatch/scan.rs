@@ -12,6 +12,7 @@ const EPSILON: f64 = 1e-9;
 
 /// Direction of travel for the SCAN algorithm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ScanDirection {
     /// Traveling upward (increasing position).
     Up,

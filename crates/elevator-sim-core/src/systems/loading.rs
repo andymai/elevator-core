@@ -28,12 +28,14 @@ enum LoadAction {
         /// Weight the rider adds.
         weight: f64,
     },
-    /// A rider is rejected (overweight).
+    /// A rider is rejected from boarding.
     Reject {
         /// Rider entity rejected.
         rider: EntityId,
         /// Elevator entity that rejected the rider.
         elevator: EntityId,
+        /// Why the rider was rejected.
+        reason: RejectionReason,
     },
 }
 
@@ -86,6 +88,7 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
             1.0
         };
         let mut rejected_candidate: Option<EntityId> = None;
+        let mut preference_rejected: Option<EntityId> = None;
 
         let board_rider = world.iter_riders().find_map(|(rid, rider)| {
             if world.is_disabled(rid) {
@@ -106,6 +109,9 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
                 && prefs.skip_full_elevator
                 && load_ratio > prefs.max_crowding_factor
             {
+                if preference_rejected.is_none() {
+                    preference_rejected = Some(rid);
+                }
                 return None;
             }
             if rider.weight <= remaining_capacity {
@@ -131,6 +137,13 @@ fn collect_actions(world: &World) -> Vec<LoadAction> {
             actions.push(LoadAction::Reject {
                 rider: rid,
                 elevator: eid,
+                reason: RejectionReason::OverCapacity,
+            });
+        } else if let Some(rid) = preference_rejected {
+            actions.push(LoadAction::Reject {
+                rider: rid,
+                elevator: eid,
+                reason: RejectionReason::PreferenceBased,
             });
         }
     }
@@ -199,11 +212,11 @@ fn apply_actions(actions: Vec<LoadAction>, world: &mut World, events: &mut Event
                     tick: ctx.tick,
                 });
             }
-            LoadAction::Reject { rider, elevator } => {
+            LoadAction::Reject { rider, elevator, reason } => {
                 events.emit(Event::RiderRejected {
                     rider,
                     elevator,
-                    reason: RejectionReason::OverCapacity,
+                    reason,
                     tick: ctx.tick,
                 });
             }

@@ -4,6 +4,7 @@ use crate::entity::EntityId;
 
 /// Lifecycle phase of a rider entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RiderPhase {
     /// Waiting at a stop.
     Waiting,

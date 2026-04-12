@@ -23,6 +23,7 @@ pub struct TimedSpawn {
 
 /// A pass/fail condition for scenario evaluation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Condition {
     /// Average wait time must be below this value (ticks).
     AvgWaitBelow(f64),
@@ -113,6 +114,7 @@ impl ScenarioRunner {
     }
 
     /// Access the underlying simulation.
+    #[must_use] 
     pub const fn sim(&self) -> &Simulation {
         &self.sim
     }
@@ -157,6 +159,7 @@ impl ScenarioRunner {
     }
 
     /// Evaluate conditions against current metrics.
+    #[must_use] 
     pub fn evaluate(&self) -> ScenarioResult {
         let metrics = self.sim.metrics().clone();
         let condition_results: Vec<ConditionResult> = self

@@ -2,18 +2,35 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use elevator_sim_core::prelude::*;
-//! use elevator_sim_core::query::Ext;
+//! use elevator_sim_core::world::World;
+//! use elevator_sim_core::query::{Ext, With, Without};
+//!
+//! #[derive(Debug, Clone)]
+//! struct VipTag { level: u32 }
+//!
+//! let mut world = World::new();
+//!
+//! // Spawn a rider with a position
+//! let r = world.spawn();
+//! world.set_rider(r, Rider {
+//!     weight: 75.0,
+//!     phase: RiderPhase::Waiting,
+//!     current_stop: None,
+//!     spawn_tick: 0,
+//!     board_tick: None,
+//! });
+//! world.set_position(r, Position { value: 0.0 });
+//! world.insert_ext(r, VipTag { level: 5 });
 //!
 //! // All riders with a position
 //! for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {
 //!     println!("{id:?}: phase={:?} at {}", rider.phase, pos.value);
 //! }
 //!
-//! // Elevators without routes
+//! // Entities with Position but without Route
 //! for (id, pos) in world.query::<(EntityId, &Position)>()
-//!     .with::<Elevator>()
 //!     .without::<Route>()
 //!     .iter()
 //! {

@@ -45,6 +45,7 @@ pub struct Metrics {
 
 impl Metrics {
     /// Create a new `Metrics` with default throughput window (3600 ticks).
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             throughput_window_ticks: 3600, // default: 1 minute at 60 tps

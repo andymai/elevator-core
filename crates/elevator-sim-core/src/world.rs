@@ -58,6 +58,7 @@ pub struct World {
 
 impl World {
     /// Create an empty world with no entities.
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             alive: SlotMap::with_key(),
@@ -136,11 +137,13 @@ impl World {
     }
 
     /// Check if an entity is alive.
+    #[must_use] 
     pub fn is_alive(&self, id: EntityId) -> bool {
         self.alive.contains_key(id)
     }
 
     /// Number of live entities.
+    #[must_use] 
     pub fn entity_count(&self) -> usize {
         self.alive.len()
     }
@@ -153,6 +156,7 @@ impl World {
     // ── Position accessors ───────────────────────────────────────────
 
     /// Get an entity's position.
+    #[must_use] 
     pub fn position(&self, id: EntityId) -> Option<&Position> {
         self.positions.get(id)
     }
@@ -170,6 +174,7 @@ impl World {
     // ── Velocity accessors ───────────────────────────────────────────
 
     /// Get an entity's velocity.
+    #[must_use] 
     pub fn velocity(&self, id: EntityId) -> Option<&Velocity> {
         self.velocities.get(id)
     }
@@ -187,6 +192,7 @@ impl World {
     // ── Elevator accessors ───────────────────────────────────────────
 
     /// Get an entity's elevator component.
+    #[must_use] 
     pub fn elevator(&self, id: EntityId) -> Option<&Elevator> {
         self.elevators.get(id)
     }
@@ -204,6 +210,7 @@ impl World {
     // ── Rider accessors ──────────────────────────────────────────────
 
     /// Get an entity's rider component.
+    #[must_use] 
     pub fn rider(&self, id: EntityId) -> Option<&Rider> {
         self.riders.get(id)
     }
@@ -221,6 +228,7 @@ impl World {
     // ── Stop accessors ───────────────────────────────────────────────
 
     /// Get an entity's stop component.
+    #[must_use] 
     pub fn stop(&self, id: EntityId) -> Option<&Stop> {
         self.stops.get(id)
     }
@@ -238,6 +246,7 @@ impl World {
     // ── Route accessors ──────────────────────────────────────────────
 
     /// Get an entity's route.
+    #[must_use] 
     pub fn route(&self, id: EntityId) -> Option<&Route> {
         self.routes.get(id)
     }
@@ -255,6 +264,7 @@ impl World {
     // ── Zone accessors ───────────────────────────────────────────────
 
     /// Get an entity's zone.
+    #[must_use] 
     pub fn zone(&self, id: EntityId) -> Option<&Zone> {
         self.zones.get(id)
     }
@@ -267,6 +277,7 @@ impl World {
     // ── Patience accessors ───────────────────────────────────────────
 
     /// Get an entity's patience.
+    #[must_use] 
     pub fn patience(&self, id: EntityId) -> Option<&Patience> {
         self.patience.get(id)
     }
@@ -284,6 +295,7 @@ impl World {
     // ── Preferences accessors ────────────────────────────────────────
 
     /// Get an entity's preferences.
+    #[must_use] 
     pub fn preferences(&self, id: EntityId) -> Option<&Preferences> {
         self.preferences.get(id)
     }
@@ -303,6 +315,7 @@ impl World {
     }
 
     /// Iterate all elevator entity IDs (allocates).
+    #[must_use] 
     pub fn elevator_ids(&self) -> Vec<EntityId> {
         self.elevators.keys().collect()
     }
@@ -318,6 +331,7 @@ impl World {
     }
 
     /// Iterate all rider entity IDs (allocates).
+    #[must_use] 
     pub fn rider_ids(&self) -> Vec<EntityId> {
         self.riders.keys().collect()
     }
@@ -328,11 +342,13 @@ impl World {
     }
 
     /// Iterate all stop entity IDs (allocates).
+    #[must_use] 
     pub fn stop_ids(&self) -> Vec<EntityId> {
         self.stops.keys().collect()
     }
 
     /// Find the stop entity at a given position (within epsilon).
+    #[must_use] 
     pub fn find_stop_at_position(&self, position: f64) -> Option<EntityId> {
         const EPSILON: f64 = 1e-6;
         self.stops.iter().find_map(|(id, stop)| {
@@ -349,6 +365,7 @@ impl World {
     /// Unlike [`find_stop_at_position`](Self::find_stop_at_position), this finds
     /// the closest stop by minimum distance rather than requiring an exact match.
     /// Used when ejecting riders from a disabled/despawned elevator mid-transit.
+    #[must_use] 
     pub fn find_nearest_stop(&self, position: f64) -> Option<EntityId> {
         self.stops
             .iter()
@@ -361,6 +378,7 @@ impl World {
     }
 
     /// Get a stop's position by entity id.
+    #[must_use] 
     pub fn stop_position(&self, id: EntityId) -> Option<f64> {
         self.stops.get(id).map(|s| s.position)
     }
@@ -372,7 +390,14 @@ impl World {
     /// Games use this to attach their own typed data to simulation entities.
     /// Extension components are automatically cleaned up on `despawn()`.
     ///
-    /// ```ignore
+    /// ```
+    /// use elevator_sim_core::world::World;
+    ///
+    /// #[derive(Debug, Clone)]
+    /// struct VipTag { level: u32 }
+    ///
+    /// let mut world = World::new();
+    /// let entity = world.spawn();
     /// world.insert_ext(entity, VipTag { level: 3 });
     /// ```
     pub fn insert_ext<T: 'static + Send + Sync>(&mut self, id: EntityId, value: T) {
@@ -386,6 +411,7 @@ impl World {
     }
 
     /// Get a clone of a custom component for an entity.
+    #[must_use] 
     pub fn get_ext<T: 'static + Send + Sync + Clone>(&self, id: EntityId) -> Option<T> {
         self.ext_map::<T>()?.get(id).cloned()
     }
@@ -431,6 +457,7 @@ impl World {
     }
 
     /// Check if an entity is disabled.
+    #[must_use] 
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.disabled.contains_key(id)
     }
@@ -442,7 +469,14 @@ impl World {
     /// Resources are singletons not attached to any entity. Games use them
     /// for event channels, score trackers, or any global state.
     ///
-    /// ```ignore
+    /// ```
+    /// use elevator_sim_core::world::World;
+    /// use elevator_sim_core::events::EventChannel;
+    ///
+    /// #[derive(Debug)]
+    /// enum MyEvent { Score(u32) }
+    ///
+    /// let mut world = World::new();
     /// world.insert_resource(EventChannel::<MyEvent>::new());
     /// ```
     pub fn insert_resource<T: 'static + Send + Sync>(&mut self, value: T) {
@@ -450,6 +484,7 @@ impl World {
     }
 
     /// Get a shared reference to a global resource.
+    #[must_use] 
     pub fn resource<T: 'static + Send + Sync>(&self) -> Option<&T> {
         self.resources.get(&TypeId::of::<T>())?.downcast_ref()
     }
@@ -471,11 +506,26 @@ impl World {
 
     /// Create a query builder for iterating entities by component composition.
     ///
-    /// ```ignore
+    /// ```
+    /// use elevator_sim_core::world::World;
+    /// use elevator_sim_core::prelude::*;
+    ///
+    /// let mut world = World::new();
+    /// let id = world.spawn();
+    /// world.set_rider(id, Rider {
+    ///     weight: 75.0,
+    ///     phase: RiderPhase::Waiting,
+    ///     current_stop: None,
+    ///     spawn_tick: 0,
+    ///     board_tick: None,
+    /// });
+    /// world.set_position(id, Position { value: 0.0 });
+    ///
     /// for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {
     ///     println!("{id:?}: {:?} at {}", rider.phase, pos.value);
     /// }
     /// ```
+    #[must_use] 
     pub const fn query<Q: crate::query::WorldQuery>(
         &self,
     ) -> crate::query::QueryBuilder<'_, Q> {
@@ -488,3 +538,9 @@ impl Default for World {
         Self::new()
     }
 }
+
+/// Stops sorted by position for efficient range queries (binary search).
+///
+/// Used by the movement system to detect `PassingFloor` events in O(log n)
+/// instead of O(n) per moving elevator per tick.
+pub(crate) struct SortedStops(pub(crate) Vec<(f64, EntityId)>);

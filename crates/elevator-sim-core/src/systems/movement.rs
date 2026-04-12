@@ -4,7 +4,7 @@ use crate::components::ElevatorPhase;
 use crate::door::DoorState;
 use crate::events::{Event, EventBus};
 use crate::movement::tick_movement;
-use crate::world::World;
+use crate::world::{SortedStops, World};
 
 use super::PhaseContext;
 
@@ -59,11 +59,13 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             } else {
                 (new_pos, old_pos)
             };
-            for (stop_eid, stop) in world.iter_stops() {
-                if stop_eid == target_stop_eid {
-                    continue;
-                }
-                if stop.position > lo + 1e-9 && stop.position < hi - 1e-9 {
+            if let Some(sorted) = world.resource::<SortedStops>() {
+                let start = sorted.0.partition_point(|&(p, _)| p <= lo + 1e-9);
+                let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
+                for &(_, stop_eid) in &sorted.0[start..end] {
+                    if stop_eid == target_stop_eid {
+                        continue;
+                    }
                     events.emit(Event::PassingFloor {
                         elevator: eid,
                         stop: stop_eid,

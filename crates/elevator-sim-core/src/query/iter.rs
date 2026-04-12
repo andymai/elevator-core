@@ -31,6 +31,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Add a `With<T>` filter — only match entities that have built-in component `T`.
+    #[must_use] 
     pub const fn with<T: 'static>(self) -> QueryBuilder<'w, Q, (F, super::filter::With<T>)>
     where
         (F, super::filter::With<T>): QueryFilter,
@@ -39,6 +40,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Add a `Without<T>` filter — exclude entities that have built-in component `T`.
+    #[must_use] 
     pub const fn without<T: 'static>(self) -> QueryBuilder<'w, Q, (F, super::filter::Without<T>)>
     where
         (F, super::filter::Without<T>): QueryFilter,
@@ -47,6 +49,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Add an `ExtWith<T>` filter — only match entities with extension component `T`.
+    #[must_use] 
     pub const fn ext_with<T: 'static + Send + Sync>(
         self,
     ) -> QueryBuilder<'w, Q, (F, super::filter::ExtWith<T>)>
@@ -57,6 +60,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Add an `ExtWithout<T>` filter — exclude entities with extension component `T`.
+    #[must_use] 
     pub const fn ext_without<T: 'static + Send + Sync>(
         self,
     ) -> QueryBuilder<'w, Q, (F, super::filter::ExtWithout<T>)>
@@ -67,6 +71,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Execute the query and iterate matching entities.
+    #[must_use] 
     pub fn iter(self) -> QueryIter<'w, Q, F> {
         QueryIter {
             world: self.world,
@@ -76,6 +81,7 @@ impl<'w, Q: WorldQuery, F: QueryFilter> QueryBuilder<'w, Q, F> {
     }
 
     /// Fetch a single entity by ID.
+    #[must_use] 
     pub fn get(self, id: EntityId) -> Option<Q::Item<'w>> {
         if !Q::contains(self.world, id) || !F::matches(self.world, id) {
             return None;

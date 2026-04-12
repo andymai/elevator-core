@@ -40,6 +40,7 @@ pub struct DispatchManifest {
 
 /// Decision returned by a dispatch strategy.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum DispatchDecision {
     /// Go to the specified stop entity.
     GoToStop(EntityId),

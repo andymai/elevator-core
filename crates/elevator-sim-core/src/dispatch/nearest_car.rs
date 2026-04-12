@@ -14,6 +14,7 @@ pub struct NearestCarDispatch;
 
 impl NearestCarDispatch {
     /// Create a new `NearestCarDispatch`.
+    #[must_use] 
     pub const fn new() -> Self {
         Self
     }

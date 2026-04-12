@@ -12,6 +12,7 @@ const EPSILON: f64 = 1e-9;
 
 /// Direction of travel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Direction {
     /// Traveling upward (increasing position).
     Up,

@@ -3,6 +3,8 @@
 //! Provides a tick-based simulation with pluggable dispatch strategies,
 //! trapezoidal velocity profiles, and a typed event bus for UI/metrics consumers.
 
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 /// Entity-component data types for the simulation.
 pub mod components;
 /// ECS-style query builder for iterating entities by component composition.
@@ -39,6 +41,7 @@ pub mod stop;
 /// Tick-to-wall-clock time conversion.
 pub mod time;
 /// Traffic generation (arrival patterns).
+#[cfg(feature = "traffic")]
 pub mod traffic;
 
 /// Common imports for consumers of this library.

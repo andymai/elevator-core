@@ -5,6 +5,7 @@ use crate::ids::GroupId;
 
 /// How to travel between two stops.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TransportMode {
     /// Ride an elevator in the given group.
     Elevator(GroupId),
@@ -34,6 +35,7 @@ pub struct Route {
 
 impl Route {
     /// Create a direct single-leg route via one elevator group.
+    #[must_use] 
     pub fn direct(from: EntityId, to: EntityId, group: GroupId) -> Self {
         Self {
             legs: vec![RouteLeg {
@@ -46,6 +48,7 @@ impl Route {
     }
 
     /// Get the current leg, if any remain.
+    #[must_use] 
     pub fn current(&self) -> Option<&RouteLeg> {
         self.legs.get(self.current_leg)
     }
@@ -57,11 +60,13 @@ impl Route {
     }
 
     /// Whether all legs have been completed.
+    #[must_use] 
     pub const fn is_complete(&self) -> bool {
         self.current_leg >= self.legs.len()
     }
 
     /// The destination of the current leg.
+    #[must_use] 
     pub fn current_destination(&self) -> Option<EntityId> {
         self.current().map(|leg| leg.to)
     }
