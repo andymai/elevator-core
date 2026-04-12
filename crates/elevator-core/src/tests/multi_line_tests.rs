@@ -203,7 +203,7 @@ fn overlapping_groups_config() -> SimConfig {
 #[test]
 fn explicit_config_builds_correct_groups_and_lines() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     assert_eq!(sim.groups().len(), 2, "should have exactly 2 groups");
 
@@ -236,7 +236,7 @@ fn explicit_config_builds_correct_groups_and_lines() {
 #[test]
 fn explicit_config_lines_have_correct_stop_coverage() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground_eid = sim.stop_entity(StopId(0)).unwrap();
     let transfer_eid = sim.stop_entity(StopId(1)).unwrap();
@@ -265,7 +265,7 @@ fn explicit_config_lines_have_correct_stop_coverage() {
 #[test]
 fn line_component_orientation_and_bounds_set_from_config() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let low_line_eid = sim.lines_in_group(GroupId(0))[0];
     let line_comp = sim.world().line(low_line_eid).unwrap();
@@ -283,7 +283,7 @@ fn legacy_config_auto_creates_single_group_with_all_elevators() {
     use super::helpers::default_config;
 
     let config = default_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     assert_eq!(
         sim.groups().len(),
@@ -305,7 +305,7 @@ fn legacy_config_line_covers_all_stops() {
     use super::helpers::default_config;
 
     let config = default_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let line_eid = sim.lines_in_group(GroupId(0))[0];
     let stops = sim.stops_served_by_line(line_eid);
@@ -324,7 +324,7 @@ fn legacy_config_line_covers_all_stops() {
 #[test]
 fn spawn_rider_auto_detects_group_for_same_group_stops() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -340,7 +340,7 @@ fn spawn_rider_auto_detects_group_for_same_group_stops() {
 #[test]
 fn spawn_rider_returns_no_route_when_stops_in_different_groups() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let top = sim.stop_entity(StopId(2)).unwrap();
@@ -358,7 +358,7 @@ fn spawn_rider_returns_no_route_when_stops_in_different_groups() {
 #[test]
 fn spawn_rider_returns_ambiguous_route_when_multiple_groups_serve_both_stops() {
     let config = overlapping_groups_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let bottom = sim.stop_entity(StopId(0)).unwrap();
     let top = sim.stop_entity(StopId(1)).unwrap();
@@ -378,7 +378,7 @@ fn spawn_rider_returns_ambiguous_route_when_multiple_groups_serve_both_stops() {
 #[test]
 fn cross_group_rider_arrives_via_explicit_two_leg_route() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -430,7 +430,7 @@ fn cross_group_rider_arrives_via_explicit_two_leg_route() {
 fn rider_only_boards_elevator_from_matching_group() {
     // Both groups share the Transfer stop, each has one elevator.
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let transfer = sim.stop_entity(StopId(1)).unwrap();
     let top = sim.stop_entity(StopId(2)).unwrap();
@@ -556,7 +556,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
         },
     };
 
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Find line 2's entity and elevator.
     let line2_eid = sim
@@ -635,7 +635,7 @@ fn add_group_and_add_line_reflect_in_query_apis() {
     assert_eq!(sim.groups().len(), 1);
 
     // Add a new group.
-    let new_group_id = sim.add_group("Express".into(), Box::new(ScanDispatch::new()));
+    let new_group_id = sim.add_group("Express", ScanDispatch::new());
     assert_eq!(sim.groups().len(), 2);
 
     // Add a line to the new group.
@@ -666,8 +666,8 @@ fn add_group_returns_monotonically_increasing_id() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Default sim has GroupId(0).
-    let g1 = sim.add_group("G1".into(), Box::new(ScanDispatch::new()));
-    let g2 = sim.add_group("G2".into(), Box::new(ScanDispatch::new()));
+    let g1 = sim.add_group("G1", ScanDispatch::new());
+    let g2 = sim.add_group("G2", ScanDispatch::new());
 
     assert_eq!(g1, GroupId(1));
     assert_eq!(g2, GroupId(2));
@@ -678,7 +678,7 @@ fn add_group_returns_monotonically_increasing_id() {
 #[test]
 fn assign_line_to_group_moves_line_between_groups() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Get the low-rise line (belongs to Group 0).
     let low_line = sim.lines_in_group(GroupId(0))[0];
@@ -718,7 +718,7 @@ fn assign_line_to_group_moves_line_between_groups() {
 #[test]
 fn assign_line_to_group_updates_stop_entities_cache() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let top = sim.stop_entity(StopId(2)).unwrap();
@@ -746,7 +746,7 @@ fn assign_line_to_group_updates_stop_entities_cache() {
 #[test]
 fn assign_line_to_nonexistent_group_returns_error() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let low_line = sim.lines_in_group(GroupId(0))[0];
 
@@ -762,7 +762,7 @@ fn assign_line_to_nonexistent_group_returns_error() {
 #[test]
 fn reachable_stops_from_includes_cross_group_stops_via_transfer() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -855,7 +855,7 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
 #[test]
 fn transfer_points_returns_stops_shared_across_groups() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let transfer = sim.stop_entity(StopId(1)).unwrap();
 
@@ -870,7 +870,7 @@ fn transfer_points_empty_for_non_overlapping_groups() {
 
     // Single group — no stop is in two groups.
     let config = default_config();
-    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let sim = Simulation::new(&config, scan()).unwrap();
 
     let transfers = sim.transfer_points();
     assert!(
@@ -882,7 +882,7 @@ fn transfer_points_empty_for_non_overlapping_groups() {
 #[test]
 fn shortest_route_finds_direct_path_within_group() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -900,7 +900,7 @@ fn shortest_route_finds_direct_path_within_group() {
 #[test]
 fn shortest_route_spans_groups_via_transfer() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -1007,7 +1007,7 @@ fn shortest_route_returns_none_for_unreachable_stop() {
         },
     };
 
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let a = sim.stop_entity(StopId(0)).unwrap();
     let b = sim.stop_entity(StopId(1)).unwrap();
@@ -1028,7 +1028,7 @@ fn duplicate_line_ids_fail_validation() {
         lines[1].id = 1;
     }
 
-    let result = Simulation::new(&config, Box::new(ScanDispatch::new()));
+    let result = Simulation::new(&config, ScanDispatch::new());
     assert!(
         matches!(
             result,
@@ -1049,7 +1049,7 @@ fn line_references_nonexistent_stop_fails_validation() {
         lines[1].serves.push(StopId(99));
     }
 
-    let result = Simulation::new(&config, Box::new(ScanDispatch::new()));
+    let result = Simulation::new(&config, ScanDispatch::new());
     assert!(
         matches!(
             result,
@@ -1070,7 +1070,7 @@ fn group_references_nonexistent_line_fails_validation() {
         groups[0].lines.push(99);
     }
 
-    let result = Simulation::new(&config, Box::new(ScanDispatch::new()));
+    let result = Simulation::new(&config, ScanDispatch::new());
     assert!(
         matches!(
             result,
@@ -1093,7 +1093,7 @@ fn orphaned_stop_not_in_any_line_fails_validation() {
         position: 100.0,
     });
 
-    let result = Simulation::new(&config, Box::new(ScanDispatch::new()));
+    let result = Simulation::new(&config, ScanDispatch::new());
     assert!(
         matches!(
             result,
@@ -1146,7 +1146,7 @@ fn no_elevators_in_any_line_fails_validation() {
         },
     };
 
-    let result = Simulation::new(&config, Box::new(ScanDispatch::new()));
+    let result = Simulation::new(&config, ScanDispatch::new());
     assert!(
         matches!(
             result,
@@ -1164,7 +1164,7 @@ fn no_elevators_in_any_line_fails_validation() {
 #[test]
 fn lines_serving_stop_returns_both_lines_for_transfer_stop() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let transfer = sim.stop_entity(StopId(1)).unwrap();
     let ground = sim.stop_entity(StopId(0)).unwrap();
@@ -1187,7 +1187,7 @@ fn lines_serving_stop_returns_both_lines_for_transfer_stop() {
 #[test]
 fn groups_serving_stop_returns_both_groups_for_transfer_stop() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let transfer = sim.stop_entity(StopId(1)).unwrap();
     let ground = sim.stop_entity(StopId(0)).unwrap();
@@ -1213,7 +1213,7 @@ fn groups_serving_stop_returns_both_groups_for_transfer_stop() {
 #[test]
 fn line_for_elevator_returns_correct_line_entity() {
     let config = two_group_config();
-    let sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let low_line = sim.lines_in_group(GroupId(0))[0];
     let high_line = sim.lines_in_group(GroupId(1))[0];
@@ -1228,7 +1228,7 @@ fn line_for_elevator_returns_correct_line_entity() {
 #[test]
 fn remove_line_removes_from_group_and_world() {
     let config = two_group_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let low_line = sim.lines_in_group(GroupId(0))[0];
 

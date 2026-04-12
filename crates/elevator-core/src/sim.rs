@@ -137,9 +137,12 @@ impl Simulation {
     /// Returns [`SimError::InvalidConfig`] if the configuration has zero stops,
     /// duplicate stop IDs, zero elevators, non-positive physics parameters,
     /// invalid starting stops, or non-positive tick rate.
-    pub fn new(config: &SimConfig, dispatch: Box<dyn DispatchStrategy>) -> Result<Self, SimError> {
+    pub fn new(
+        config: &SimConfig,
+        dispatch: impl DispatchStrategy + 'static,
+    ) -> Result<Self, SimError> {
         let mut dispatchers = BTreeMap::new();
-        dispatchers.insert(GroupId(0), dispatch);
+        dispatchers.insert(GroupId(0), Box::new(dispatch) as Box<dyn DispatchStrategy>);
         Self::new_with_hooks(config, dispatchers, PhaseHooks::default())
     }
 
@@ -1311,7 +1314,11 @@ impl Simulation {
     }
 
     /// Create a new dispatch group. Returns the group ID.
-    pub fn add_group(&mut self, name: String, dispatch: Box<dyn DispatchStrategy>) -> GroupId {
+    pub fn add_group(
+        &mut self,
+        name: impl Into<String>,
+        dispatch: impl DispatchStrategy + 'static,
+    ) -> GroupId {
         let next_id = self
             .groups
             .iter()
@@ -1321,9 +1328,9 @@ impl Simulation {
         let group_id = GroupId(next_id);
 
         self.groups
-            .push(ElevatorGroup::new(group_id, name, Vec::new()));
+            .push(ElevatorGroup::new(group_id, name.into(), Vec::new()));
 
-        self.dispatchers.insert(group_id, dispatch);
+        self.dispatchers.insert(group_id, Box::new(dispatch));
         if let Ok(mut g) = self.topo_graph.lock() {
             g.mark_dirty();
         }

@@ -31,7 +31,7 @@ impl Plugin for ElevatorSimPlugin {
             .unwrap_or_else(|e| panic!("Failed to parse {config_path}: {e}"));
 
         let spawn_config = config.passenger_spawning.clone();
-        let sim = Simulation::new(&config, Box::new(ScanDispatch::new()))
+        let sim = Simulation::new(&config, ScanDispatch::new())
             .unwrap_or_else(|e| panic!("Invalid simulation config: {e}"));
 
         app.insert_resource(SimulationRes { sim })

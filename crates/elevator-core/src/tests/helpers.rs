@@ -57,8 +57,7 @@ pub fn all_riders_arrived(sim: &Simulation) -> bool {
         .all(|(_, r)| r.phase == RiderPhase::Arrived)
 }
 
-/// Create a boxed SCAN dispatch strategy.
-#[allow(clippy::unnecessary_box_returns)]
-pub fn scan() -> Box<ScanDispatch> {
-    Box::new(ScanDispatch::new())
+/// Create a SCAN dispatch strategy.
+pub fn scan() -> ScanDispatch {
+    ScanDispatch::new()
 }

@@ -10,7 +10,7 @@ use crate::tests::helpers::default_config;
 #[test]
 fn rider_boarded_event_has_correct_elevator() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
@@ -54,7 +54,7 @@ fn rider_boarded_event_has_correct_elevator() {
 #[test]
 fn rider_alighted_event_has_correct_stop() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
     let _rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
@@ -110,7 +110,7 @@ fn event_tick(e: &Event) -> Option<u64> {
 #[test]
 fn event_ticks_are_monotonically_increasing() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn riders to generate events.
     for _ in 0..3 {

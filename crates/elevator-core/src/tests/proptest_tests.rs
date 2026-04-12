@@ -255,7 +255,7 @@ proptest! {
             },
         };
 
-        let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+        let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
         // Spawn riders with random weights (but always fitting individually).
         let mut rng_state = seed;
@@ -299,7 +299,7 @@ proptest! {
         seed in 0..u64::MAX,
     ) {
         let config = make_config(stop_count, elevator_count);
-        let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+        let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
         // Simple LCG for deterministic pseudo-random stop pairs.
         let mut rng_state = seed;

@@ -56,7 +56,7 @@ fn three_stop_config() -> SimConfig {
 #[test]
 fn reroute_changes_rider_destination() {
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn rider from 0 → 2.
     let rider = sim
@@ -74,7 +74,7 @@ fn reroute_changes_rider_destination() {
 #[test]
 fn disable_stop_reroutes_affected_riders() {
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn rider from 0 → 1.
     let rider = sim
@@ -96,7 +96,7 @@ fn disable_stop_reroutes_affected_riders() {
 #[test]
 fn disable_stop_emits_route_invalidated_event() {
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
@@ -157,7 +157,7 @@ fn disable_only_stop_causes_abandonment() {
         },
     };
 
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
@@ -193,7 +193,7 @@ fn set_rider_route_replaces_route() {
     use crate::ids::GroupId;
 
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -229,7 +229,7 @@ fn set_rider_route_replaces_route() {
 #[test]
 fn reroute_rejects_non_waiting_rider() {
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -258,7 +258,7 @@ fn reroute_rejects_non_waiting_rider() {
 #[test]
 fn reroute_nonexistent_rider_returns_error() {
     let config = three_stop_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Use a stop entity as a fake rider — it's a valid EntityId but not a rider.

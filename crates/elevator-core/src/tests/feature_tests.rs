@@ -751,11 +751,8 @@ fn weight_rejection_boundary() {
         },
     };
 
-    let mut sim = crate::sim::Simulation::new(
-        &config,
-        Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    )
-    .unwrap();
+    let mut sim =
+        crate::sim::Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new()).unwrap();
 
     // Spawn rider1 (weight 60) and rider2 (weight 60) at stop 0 → stop 1.
     // Combined = 120, exceeds capacity 100. Only one should board.
@@ -841,11 +838,8 @@ fn passing_floor_events_emitted() {
         },
     };
 
-    let mut sim = crate::sim::Simulation::new(
-        &config,
-        Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    )
-    .unwrap();
+    let mut sim =
+        crate::sim::Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new()).unwrap();
 
     // Spawn a rider from stop 0 to stop 4 to trigger dispatch.
     sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0)
