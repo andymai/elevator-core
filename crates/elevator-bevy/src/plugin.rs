@@ -7,7 +7,9 @@ use crate::camera::setup_camera;
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
-    spawn_building_visuals, sync_elevator_visuals, sync_rider_visuals, update_rider_positions,
+    elevator::sync_elevator_visuals,
+    rider::{sync_rider_visuals, update_rider_positions},
+    spawn_building_visuals,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use crate::ui::{spawn_hud, update_hud};
