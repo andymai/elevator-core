@@ -19,6 +19,8 @@ mod plugin;
 mod rendering;
 /// Simulation bridge resources and tick system.
 mod sim_bridge;
+/// Elevator light trail system.
+mod trail;
 /// HUD overlay for simulation stats.
 mod ui;
 

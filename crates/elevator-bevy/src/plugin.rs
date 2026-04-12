@@ -12,6 +12,7 @@ use crate::rendering::{
     spawn_building_visuals,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::trail::{TrailCooldowns, fade_trail_segments, spawn_trail_segments};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::scan::ScanDispatch;
@@ -39,6 +40,7 @@ impl Plugin for ElevatorSimPlugin {
 
         app.insert_resource(SimulationRes { sim })
             .insert_resource(SimSpeed { multiplier: 1 })
+            .insert_resource(TrailCooldowns::default())
             .insert_resource(PassengerSpawnTimer {
                 ticks_until_spawn: spawn_config.mean_interval_ticks,
                 mean_interval: spawn_config.mean_interval_ticks,
@@ -62,12 +64,13 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_ai_passengers,
                     tick_simulation,
                     sync_elevator_visuals,
+                    spawn_trail_segments,
                     sync_rider_visuals,
                     update_rider_positions,
                     update_hud,
                 )
                     .chain(),
             )
-            .add_systems(Update, drift_marine_snow);
+            .add_systems(Update, (drift_marine_snow, fade_trail_segments));
     }
 }
