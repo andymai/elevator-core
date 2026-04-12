@@ -9,10 +9,13 @@ use crate::world::{SortedStops, World};
 use super::PhaseContext;
 
 /// Update position/velocity for all moving elevators.
-pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
-    let elevator_ids = world.elevator_ids();
-
-    for eid in elevator_ids {
+pub fn run(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    elevator_ids: &[crate::entity::EntityId],
+) {
+    for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
         }

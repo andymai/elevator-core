@@ -1,5 +1,7 @@
 //! Estimated Time to Destination (ETD) dispatch algorithm.
 
+use smallvec::SmallVec;
+
 use crate::components::ElevatorPhase;
 use crate::entity::EntityId;
 use crate::world::World;
@@ -62,7 +64,7 @@ impl DispatchStrategy for EtdDispatch {
         world: &World,
     ) -> Vec<(EntityId, DispatchDecision)> {
         // Collect stops needing service.
-        let pending_stops: Vec<(EntityId, f64)> = group
+        let pending_stops: SmallVec<[(EntityId, f64); 16]> = group
             .stop_entities
             .iter()
             .filter_map(|&stop_eid| {
@@ -82,7 +84,7 @@ impl DispatchStrategy for EtdDispatch {
         }
 
         let mut results: Vec<(EntityId, DispatchDecision)> = Vec::new();
-        let mut assigned_elevators: Vec<EntityId> = Vec::new();
+        let mut assigned_elevators: SmallVec<[EntityId; 16]> = SmallVec::new();
 
         // For each pending stop, find the elevator with minimum ETD cost.
         for (stop_eid, stop_pos) in &pending_stops {

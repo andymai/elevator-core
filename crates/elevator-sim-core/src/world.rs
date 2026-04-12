@@ -323,6 +323,12 @@ impl World {
         self.elevators.keys().collect()
     }
 
+    /// Fill the buffer with all elevator entity IDs, clearing it first.
+    pub fn elevator_ids_into(&self, buf: &mut Vec<EntityId>) {
+        buf.clear();
+        buf.extend(self.elevators.keys());
+    }
+
     /// Iterate all rider entities.
     pub fn iter_riders(&self) -> impl Iterator<Item = (EntityId, &Rider)> {
         self.riders.iter()

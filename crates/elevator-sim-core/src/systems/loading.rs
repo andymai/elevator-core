@@ -43,11 +43,10 @@ enum LoadAction {
 
 /// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
 #[allow(clippy::too_many_lines)]
-fn collect_actions(world: &World) -> Vec<LoadAction> {
+fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> {
     let mut actions: Vec<LoadAction> = Vec::new();
-    let elevator_ids = world.elevator_ids();
 
-    for &eid in &elevator_ids {
+    for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
         }
@@ -247,7 +246,12 @@ fn apply_actions(
 }
 
 /// One rider boards or exits per tick per elevator.
-pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
-    let actions = collect_actions(world);
+pub fn run(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    elevator_ids: &[EntityId],
+) {
+    let actions = collect_actions(world, elevator_ids);
     apply_actions(actions, world, events, ctx);
 }

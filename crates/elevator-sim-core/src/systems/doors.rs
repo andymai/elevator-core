@@ -8,10 +8,13 @@ use crate::world::World;
 use super::PhaseContext;
 
 /// Tick door FSMs and handle phase transitions.
-pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
-    let elevator_ids = world.elevator_ids();
-
-    for eid in elevator_ids {
+pub fn run(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    elevator_ids: &[crate::entity::EntityId],
+) {
+    for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
         }

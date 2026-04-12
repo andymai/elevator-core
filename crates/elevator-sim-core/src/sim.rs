@@ -75,6 +75,8 @@ pub struct Simulation {
     time: TimeAdapter,
     /// Lifecycle hooks (before/after each phase).
     hooks: PhaseHooks,
+    /// Reusable buffer for elevator IDs (avoids per-tick allocation).
+    elevator_ids_buf: Vec<EntityId>,
 }
 
 impl Simulation {
@@ -183,6 +185,7 @@ impl Simulation {
             metrics: Metrics::new(),
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
+            elevator_ids_buf: Vec::new(),
         })
     }
 
@@ -212,6 +215,7 @@ impl Simulation {
             metrics,
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
+            elevator_ids_buf: Vec::new(),
         }
     }
 
@@ -895,7 +899,13 @@ impl Simulation {
     pub fn run_movement(&mut self) {
         self.hooks.run_before(Phase::Movement, &mut self.world);
         let ctx = self.phase_context();
-        crate::systems::movement::run(&mut self.world, &mut self.events, &ctx);
+        self.world.elevator_ids_into(&mut self.elevator_ids_buf);
+        crate::systems::movement::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.elevator_ids_buf,
+        );
         self.hooks.run_after(Phase::Movement, &mut self.world);
     }
 
@@ -903,7 +913,13 @@ impl Simulation {
     pub fn run_doors(&mut self) {
         self.hooks.run_before(Phase::Doors, &mut self.world);
         let ctx = self.phase_context();
-        crate::systems::doors::run(&mut self.world, &mut self.events, &ctx);
+        self.world.elevator_ids_into(&mut self.elevator_ids_buf);
+        crate::systems::doors::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.elevator_ids_buf,
+        );
         self.hooks.run_after(Phase::Doors, &mut self.world);
     }
 
@@ -911,7 +927,13 @@ impl Simulation {
     pub fn run_loading(&mut self) {
         self.hooks.run_before(Phase::Loading, &mut self.world);
         let ctx = self.phase_context();
-        crate::systems::loading::run(&mut self.world, &mut self.events, &ctx);
+        self.world.elevator_ids_into(&mut self.elevator_ids_buf);
+        crate::systems::loading::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.elevator_ids_buf,
+        );
         self.hooks.run_after(Phase::Loading, &mut self.world);
     }
 

@@ -1,5 +1,7 @@
 //! Nearest-car dispatch — assigns each call to the closest idle elevator.
 
+use smallvec::SmallVec;
+
 use crate::entity::EntityId;
 use crate::world::World;
 
@@ -47,7 +49,7 @@ impl DispatchStrategy for NearestCarDispatch {
         world: &World,
     ) -> Vec<(EntityId, DispatchDecision)> {
         // Collect stops that need service (have demand or rider destinations).
-        let mut pending_stops: Vec<(EntityId, f64)> = Vec::new();
+        let mut pending_stops: SmallVec<[(EntityId, f64); 16]> = SmallVec::new();
         for &stop_eid in &group.stop_entities {
             if manifest.has_demand(stop_eid)
                 && let Some(pos) = world.stop_position(stop_eid)
@@ -64,8 +66,8 @@ impl DispatchStrategy for NearestCarDispatch {
         }
 
         let mut results: Vec<(EntityId, DispatchDecision)> = Vec::new();
-        let mut assigned_stops: Vec<EntityId> = Vec::new();
-        let mut assigned_elevators: Vec<EntityId> = Vec::new();
+        let mut assigned_stops: SmallVec<[EntityId; 16]> = SmallVec::new();
+        let mut assigned_elevators: SmallVec<[EntityId; 16]> = SmallVec::new();
 
         // Greedy assignment: for each unassigned stop, find nearest unassigned elevator.
         // Sort stops by total demand (highest first) for priority.

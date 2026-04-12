@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use smallvec::SmallVec;
+
 use crate::entity::EntityId;
 use crate::world::World;
 
@@ -64,7 +66,7 @@ impl DispatchStrategy for LookDispatch {
             .unwrap_or(Direction::Up);
 
         // Collect stops with demand or rider destinations.
-        let mut interesting: Vec<(EntityId, f64)> = Vec::new();
+        let mut interesting: SmallVec<[(EntityId, f64); 32]> = SmallVec::new();
 
         for &stop_eid in &group.stop_entities {
             if manifest.has_demand(stop_eid)
@@ -81,7 +83,7 @@ impl DispatchStrategy for LookDispatch {
         let pos = elevator_position;
 
         // Partition into ahead (in current direction) and behind.
-        let (ahead, behind): (Vec<_>, Vec<_>) = match direction {
+        let (ahead, behind): (SmallVec<[_; 32]>, SmallVec<[_; 32]>) = match direction {
             Direction::Up => interesting.iter().partition(|(_, p)| *p > pos + EPSILON),
             Direction::Down => interesting.iter().partition(|(_, p)| *p < pos - EPSILON),
         };
