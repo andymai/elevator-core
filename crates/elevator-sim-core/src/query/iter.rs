@@ -10,6 +10,58 @@ use crate::world::World;
 use super::fetch::WorldQuery;
 use super::filter::QueryFilter;
 
+/// Builder for mutable extension queries.
+///
+/// Created by [`World::query_ext_mut()`]. Collects matching entity IDs
+/// upfront (keys snapshot) to avoid borrow conflicts, then provides
+/// [`for_each_mut`](Self::for_each_mut) for mutable iteration.
+pub struct ExtQueryMut<'w, T: 'static + Send + Sync, F: QueryFilter = ()> {
+    /// The world being queried (mutable).
+    world: &'w mut World,
+    /// Snapshot of matching entity IDs.
+    ids: Vec<EntityId>,
+    /// Marker for the extension type and filter.
+    _marker: PhantomData<(T, F)>,
+}
+
+impl<'w, T: 'static + Send + Sync, F: QueryFilter> ExtQueryMut<'w, T, F> {
+    /// Create a new mutable extension query builder.
+    pub(crate) fn new(world: &'w mut World) -> Self {
+        let ids: Vec<EntityId> = world
+            .alive_keys()
+            .filter(|&id| {
+                world.ext_map::<T>().is_some_and(|m| m.contains_key(id)) && F::matches(world, id)
+            })
+            .collect();
+        Self {
+            world,
+            ids,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Entity IDs matching this query.
+    #[must_use]
+    pub fn ids(&self) -> &[EntityId] {
+        &self.ids
+    }
+
+    /// Number of matching entities.
+    #[must_use]
+    pub const fn count(&self) -> usize {
+        self.ids.len()
+    }
+
+    /// Apply a closure to each matching entity's extension data mutably.
+    pub fn for_each_mut(&mut self, mut f: impl FnMut(EntityId, &mut T)) {
+        for &id in &self.ids {
+            if let Some(val) = self.world.get_ext_mut::<T>(id) {
+                f(id, val);
+            }
+        }
+    }
+}
+
 /// Builder for constructing and executing queries.
 ///
 /// Created by [`World::query()`]. Chain `.with::<T>()` and `.without::<T>()`

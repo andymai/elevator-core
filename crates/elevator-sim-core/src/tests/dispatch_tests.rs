@@ -455,6 +455,51 @@ fn nearest_car_distance_calculation() {
     assert_eq!(a_dec.1, DispatchDecision::GoToStop(stops[1]));
 }
 
+/// A custom dispatch strategy that always returns Idle.
+/// Demonstrates implementing the trait for game-specific dispatch logic.
+struct AlwaysIdleDispatch;
+
+impl DispatchStrategy for AlwaysIdleDispatch {
+    fn decide(
+        &mut self,
+        _elevator: crate::entity::EntityId,
+        _elevator_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) -> DispatchDecision {
+        DispatchDecision::Idle
+    }
+}
+
+#[test]
+fn custom_dispatch_strategy() {
+    use crate::builder::SimulationBuilder;
+    use crate::stop::StopId;
+
+    let mut sim = SimulationBuilder::new()
+        .dispatch(AlwaysIdleDispatch)
+        .build()
+        .unwrap();
+
+    // Spawn a rider so there's demand.
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .unwrap();
+
+    // Step several times — the elevator should never move since dispatch always returns Idle.
+    for _ in 0..100 {
+        sim.step();
+    }
+
+    // Elevator should still be at starting position (idle).
+    let elevators: Vec<_> = sim.world().iter_elevators().collect();
+    assert!(!elevators.is_empty());
+    assert!(
+        (elevators[0].1.value - 0.0).abs() < f64::EPSILON,
+        "elevator should not have moved with AlwaysIdle dispatch"
+    );
+}
+
 /// Test `NearestCar` ignores stops with zero demand (`waiting_count` = 0).
 #[test]
 fn nearest_car_ignores_zero_demand() {

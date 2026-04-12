@@ -591,6 +591,23 @@ impl World {
     pub const fn query<Q: crate::query::WorldQuery>(&self) -> crate::query::QueryBuilder<'_, Q> {
         crate::query::QueryBuilder::new(self)
     }
+
+    /// Create a mutable extension query builder.
+    ///
+    /// Uses the keys-snapshot pattern: collects matching entity IDs upfront
+    /// into an owned `Vec`, then iterates with mutable access via
+    /// [`for_each_mut`](crate::query::ExtQueryMut::for_each_mut).
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| {
+    ///     tag.level += 1;
+    /// });
+    /// ```
+    pub fn query_ext_mut<T: 'static + Send + Sync>(&mut self) -> crate::query::ExtQueryMut<'_, T> {
+        crate::query::ExtQueryMut::new(self)
+    }
 }
 
 impl Default for World {

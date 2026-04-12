@@ -875,8 +875,16 @@ impl Simulation {
     pub fn run_advance_transient(&mut self) {
         self.hooks
             .run_before(Phase::AdvanceTransient, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::AdvanceTransient, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::AdvanceTransient, group.id, &mut self.world);
+        }
         self.hooks
             .run_after(Phase::AdvanceTransient, &mut self.world);
     }
@@ -884,6 +892,10 @@ impl Simulation {
     /// Run only the dispatch phase (with hooks).
     pub fn run_dispatch(&mut self) {
         self.hooks.run_before(Phase::Dispatch, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::Dispatch, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         crate::systems::dispatch::run(
             &mut self.world,
@@ -892,12 +904,20 @@ impl Simulation {
             &self.groups,
             &mut self.dispatchers,
         );
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::Dispatch, group.id, &mut self.world);
+        }
         self.hooks.run_after(Phase::Dispatch, &mut self.world);
     }
 
     /// Run only the movement phase (with hooks).
     pub fn run_movement(&mut self) {
         self.hooks.run_before(Phase::Movement, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::Movement, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
         crate::systems::movement::run(
@@ -906,12 +926,20 @@ impl Simulation {
             &ctx,
             &self.elevator_ids_buf,
         );
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::Movement, group.id, &mut self.world);
+        }
         self.hooks.run_after(Phase::Movement, &mut self.world);
     }
 
     /// Run only the doors phase (with hooks).
     pub fn run_doors(&mut self) {
         self.hooks.run_before(Phase::Doors, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::Doors, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
         crate::systems::doors::run(
@@ -920,12 +948,20 @@ impl Simulation {
             &ctx,
             &self.elevator_ids_buf,
         );
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::Doors, group.id, &mut self.world);
+        }
         self.hooks.run_after(Phase::Doors, &mut self.world);
     }
 
     /// Run only the loading phase (with hooks).
     pub fn run_loading(&mut self) {
         self.hooks.run_before(Phase::Loading, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::Loading, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         self.world.elevator_ids_into(&mut self.elevator_ids_buf);
         crate::systems::loading::run(
@@ -934,14 +970,26 @@ impl Simulation {
             &ctx,
             &self.elevator_ids_buf,
         );
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::Loading, group.id, &mut self.world);
+        }
         self.hooks.run_after(Phase::Loading, &mut self.world);
     }
 
     /// Run only the metrics phase (with hooks).
     pub fn run_metrics(&mut self) {
         self.hooks.run_before(Phase::Metrics, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::Metrics, group.id, &mut self.world);
+        }
         let ctx = self.phase_context();
         crate::systems::metrics::run(&mut self.world, &self.events, &mut self.metrics, &ctx);
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::Metrics, group.id, &mut self.world);
+        }
         self.hooks.run_after(Phase::Metrics, &mut self.world);
     }
 
@@ -967,6 +1015,26 @@ impl Simulation {
         hook: impl Fn(&mut World) + Send + Sync + 'static,
     ) {
         self.hooks.add_after(phase, Box::new(hook));
+    }
+
+    /// Register a hook to run before a phase for a specific group.
+    pub fn add_before_group_hook(
+        &mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_before_group(phase, group, Box::new(hook));
+    }
+
+    /// Register a hook to run after a phase for a specific group.
+    pub fn add_after_group_hook(
+        &mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_after_group(phase, group, Box::new(hook));
     }
 
     /// Increment the tick counter and flush events to the output buffer.

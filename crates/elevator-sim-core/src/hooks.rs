@@ -1,5 +1,6 @@
 //! Lifecycle hooks for injecting custom logic before/after simulation phases.
 
+use crate::ids::GroupId;
 use crate::world::World;
 use std::collections::HashMap;
 
@@ -34,6 +35,10 @@ pub(crate) struct PhaseHooks {
     before: HashMap<Phase, Vec<PhaseHook>>,
     /// Hooks to run after each phase.
     after: HashMap<Phase, Vec<PhaseHook>>,
+    /// Hooks to run before a phase for a specific group.
+    before_group: HashMap<(Phase, GroupId), Vec<PhaseHook>>,
+    /// Hooks to run after a phase for a specific group.
+    after_group: HashMap<(Phase, GroupId), Vec<PhaseHook>>,
 }
 
 impl PhaseHooks {
@@ -63,5 +68,39 @@ impl PhaseHooks {
     /// Register a hook to run after a phase.
     pub(crate) fn add_after(&mut self, phase: Phase, hook: PhaseHook) {
         self.after.entry(phase).or_default().push(hook);
+    }
+
+    /// Run all before-hooks for the given phase and group.
+    pub(crate) fn run_before_group(&self, phase: Phase, group: GroupId, world: &mut World) {
+        if let Some(hooks) = self.before_group.get(&(phase, group)) {
+            for hook in hooks {
+                hook(world);
+            }
+        }
+    }
+
+    /// Run all after-hooks for the given phase and group.
+    pub(crate) fn run_after_group(&self, phase: Phase, group: GroupId, world: &mut World) {
+        if let Some(hooks) = self.after_group.get(&(phase, group)) {
+            for hook in hooks {
+                hook(world);
+            }
+        }
+    }
+
+    /// Register a hook to run before a phase for a specific group.
+    pub(crate) fn add_before_group(&mut self, phase: Phase, group: GroupId, hook: PhaseHook) {
+        self.before_group
+            .entry((phase, group))
+            .or_default()
+            .push(hook);
+    }
+
+    /// Register a hook to run after a phase for a specific group.
+    pub(crate) fn add_after_group(&mut self, phase: Phase, group: GroupId, hook: PhaseHook) {
+        self.after_group
+            .entry((phase, group))
+            .or_default()
+            .push(hook);
     }
 }

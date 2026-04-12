@@ -29,6 +29,9 @@ pub trait WorldQuery {
 /// Extension values are read by reference from type-erased storage.
 pub struct Ext<T>(PhantomData<T>);
 
+/// Marker type for mutable extension queries.
+pub struct ExtMut<T>(PhantomData<T>);
+
 impl WorldQuery for EntityId {
     type Item<'w> = Self;
 

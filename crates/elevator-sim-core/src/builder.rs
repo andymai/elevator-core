@@ -212,6 +212,30 @@ impl SimulationBuilder {
         self
     }
 
+    /// Register a hook to run before a phase for a specific group.
+    #[must_use]
+    pub fn before_group(
+        mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) -> Self {
+        self.hooks.add_before_group(phase, group, Box::new(hook));
+        self
+    }
+
+    /// Register a hook to run after a phase for a specific group.
+    #[must_use]
+    pub fn after_group(
+        mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) -> Self {
+        self.hooks.add_after_group(phase, group, Box::new(hook));
+        self
+    }
+
     /// Pre-register an extension type for snapshot deserialization.
     ///
     /// Extensions registered here will be available immediately after [`build()`](Self::build)

@@ -51,6 +51,6 @@ mod fetch;
 mod filter;
 mod iter;
 
-pub use fetch::{Ext, WorldQuery};
+pub use fetch::{Ext, ExtMut, WorldQuery};
 pub use filter::{ExtWith, ExtWithout, QueryFilter, With, Without};
-pub use iter::{QueryBuilder, QueryIter};
+pub use iter::{ExtQueryMut, QueryBuilder, QueryIter};
