@@ -42,7 +42,7 @@ pub fn spawn_atmosphere(
     sim: Res<SimulationRes>,
 ) {
     let w = sim.sim.world();
-    let positions: Vec<f64> = w.iter_stops().map(|(_, s)| s.position).collect();
+    let positions: Vec<f64> = w.iter_stops().map(|(_, s)| s.position()).collect();
     let min_pos = positions.iter().copied().fold(f64::INFINITY, f64::min) as f32;
     let max_pos = positions.iter().copied().fold(f64::NEG_INFINITY, f64::max) as f32;
 

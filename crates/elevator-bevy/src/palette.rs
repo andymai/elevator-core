@@ -68,8 +68,8 @@ pub const RIDER_BOARDING: Color = Color::linear_rgba(0.5, 1.5, 1.5, 0.9);
 /// Rider riding — packed yellow glow.
 pub const RIDER_RIDING: Color = Color::linear_rgba(1.8, 1.5, 0.4, 0.9);
 
-/// Rider alighting — scattering warm.
-pub const RIDER_ALIGHTING: Color = Color::linear_rgba(1.5, 1.0, 0.5, 0.9);
+/// Rider exiting — scattering warm.
+pub const RIDER_EXITING: Color = Color::linear_rgba(1.5, 1.0, 0.5, 0.9);
 
 /// Rider arrived — fading sparkle.
 pub const RIDER_ARRIVED: Color = Color::linear_rgba(0.8, 1.0, 1.5, 0.4);
