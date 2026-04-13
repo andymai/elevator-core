@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v2.0.0...elevator-core-v3.0.0) (2026-04-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* add repositioning system, overhaul ETD dispatch, and improve error handling
+
+### Features
+
+* add repositioning system, overhaul ETD dispatch, and improve error handling ([7da3841](https://github.com/andymai/elevator-core/commit/7da3841b4dbc59de454d69f11a1344a1842f7052))
+
 ## [2.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v1.0.0...elevator-core-v2.0.0) (2026-04-13)
 
 
