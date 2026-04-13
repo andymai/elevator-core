@@ -336,6 +336,19 @@ impl SimulationBuilder {
         self
     }
 
+    /// Validate the configuration without building the simulation.
+    ///
+    /// Runs the same validation as [`build()`](Self::build) but does not
+    /// allocate entities or construct the simulation. Useful for CLI tools,
+    /// config editors, and dry-run checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidConfig`] if the configuration is invalid.
+    pub fn validate(&self) -> Result<(), SimError> {
+        Simulation::validate_config(&self.config)
+    }
+
     /// Build the simulation, validating the configuration.
     ///
     /// Returns `Err(SimError)` if the configuration is invalid.

@@ -535,7 +535,7 @@ impl Simulation {
     }
 
     /// Validate configuration before constructing the simulation.
-    fn validate_config(config: &SimConfig) -> Result<(), SimError> {
+    pub(crate) fn validate_config(config: &SimConfig) -> Result<(), SimError> {
         if config.building.stops.is_empty() {
             return Err(SimError::InvalidConfig {
                 field: "building.stops",
@@ -929,9 +929,23 @@ impl Simulation {
 
         let group = match matching.len() {
             0 => {
+                let origin_groups: Vec<GroupId> = self
+                    .groups
+                    .iter()
+                    .filter(|g| g.stop_entities().contains(&origin))
+                    .map(ElevatorGroup::id)
+                    .collect();
+                let destination_groups: Vec<GroupId> = self
+                    .groups
+                    .iter()
+                    .filter(|g| g.stop_entities().contains(&destination))
+                    .map(ElevatorGroup::id)
+                    .collect();
                 return Err(SimError::NoRoute {
                     origin,
                     destination,
+                    origin_groups,
+                    destination_groups,
                 });
             }
             1 => matching[0],
@@ -1009,6 +1023,12 @@ impl Simulation {
             tick: self.tick,
         });
 
+        // Auto-tag the rider with "stop:{name}" for per-stop wait time tracking.
+        let stop_tag = self
+            .world
+            .stop(origin)
+            .map(|s| format!("stop:{}", s.name()));
+
         // Inherit metric tags from the origin stop.
         if let Some(tags_res) = self
             .world
@@ -1016,6 +1036,10 @@ impl Simulation {
         {
             let origin_tags: Vec<String> = tags_res.tags_for(origin).to_vec();
             for tag in origin_tags {
+                tags_res.tag(eid, tag);
+            }
+            // Apply the origin stop tag.
+            if let Some(tag) = stop_tag {
                 tags_res.tag(eid, tag);
             }
         }
@@ -2071,6 +2095,7 @@ impl Simulation {
             &mut self.events,
             &ctx,
             &self.elevator_ids_buf,
+            &mut self.metrics,
         );
         for group in &self.groups {
             self.hooks
@@ -2165,7 +2190,13 @@ impl Simulation {
                 .run_before_group(Phase::Metrics, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
-        crate::systems::metrics::run(&mut self.world, &self.events, &mut self.metrics, &ctx);
+        crate::systems::metrics::run(
+            &mut self.world,
+            &self.events,
+            &mut self.metrics,
+            &ctx,
+            &self.groups,
+        );
         for group in &self.groups {
             self.hooks
                 .run_after_group(Phase::Metrics, group.id(), &mut self.world);

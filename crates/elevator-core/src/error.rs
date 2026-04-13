@@ -38,6 +38,10 @@ pub enum SimError {
         origin: EntityId,
         /// The destination stop.
         destination: EntityId,
+        /// Groups that serve the origin (if any).
+        origin_groups: Vec<GroupId>,
+        /// Groups that serve the destination (if any).
+        destination_groups: Vec<GroupId>,
     },
     /// Multiple groups serve both origin and destination — caller must specify.
     AmbiguousRoute {
@@ -66,8 +70,14 @@ impl fmt::Display for SimError {
             Self::NoRoute {
                 origin,
                 destination,
+                origin_groups,
+                destination_groups,
             } => {
-                write!(f, "no route from {origin:?} to {destination:?}")
+                write!(
+                    f,
+                    "no route from {origin:?} to {destination:?} \
+                     (origin served by {origin_groups:?}, destination served by {destination_groups:?})"
+                )
             }
             Self::AmbiguousRoute {
                 origin,

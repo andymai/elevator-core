@@ -1,4 +1,15 @@
 //! Built-in repositioning strategies for idle elevators.
+//!
+//! # Example
+//!
+//! ```rust
+//! use elevator_core::prelude::*;
+//!
+//! let sim = SimulationBuilder::new()
+//!     .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
+//!     .build()
+//!     .unwrap();
+//! ```
 
 use crate::entity::EntityId;
 use crate::tagged_metrics::{MetricTags, TaggedMetric};
