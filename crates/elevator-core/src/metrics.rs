@@ -194,13 +194,13 @@ impl Metrics {
     // ── Recording ───────────────────���────────────────────────────────
 
     /// Record a rider spawning.
-    pub const fn record_spawn(&mut self) {
+    pub(crate) const fn record_spawn(&mut self) {
         self.total_spawned += 1;
     }
 
     /// Record a rider boarding. `wait_ticks` = `tick_boarded` - `tick_spawned`.
     #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
-    pub fn record_board(&mut self, wait_ticks: u64) {
+    pub(crate) fn record_board(&mut self, wait_ticks: u64) {
         self.boarded_count += 1;
         self.sum_wait_ticks += wait_ticks;
         self.avg_wait_time = self.sum_wait_ticks as f64 / self.boarded_count as f64;
@@ -211,7 +211,7 @@ impl Metrics {
 
     /// Record a rider exiting. `ride_ticks` = `tick_exited` - `tick_boarded`.
     #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
-    pub fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
+    pub(crate) fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
         self.delivered_count += 1;
         self.total_delivered += 1;
         self.sum_ride_ticks += ride_ticks;
@@ -221,7 +221,7 @@ impl Metrics {
 
     /// Record a rider abandoning.
     #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
-    pub fn record_abandonment(&mut self) {
+    pub(crate) fn record_abandonment(&mut self) {
         self.total_abandoned += 1;
         if self.total_spawned > 0 {
             self.abandonment_rate = self.total_abandoned as f64 / self.total_spawned as f64;
@@ -229,22 +229,22 @@ impl Metrics {
     }
 
     /// Record a rider settling as a resident.
-    pub const fn record_settle(&mut self) {
+    pub(crate) const fn record_settle(&mut self) {
         self.total_settled += 1;
     }
 
     /// Record a resident rider being rerouted.
-    pub const fn record_reroute(&mut self) {
+    pub(crate) const fn record_reroute(&mut self) {
         self.total_rerouted += 1;
     }
 
     /// Record elevator distance traveled this tick.
-    pub fn record_distance(&mut self, distance: f64) {
+    pub(crate) fn record_distance(&mut self, distance: f64) {
         self.total_distance += distance;
     }
 
     /// Record elevator distance traveled while repositioning.
-    pub fn record_reposition_distance(&mut self, distance: f64) {
+    pub(crate) fn record_reposition_distance(&mut self, distance: f64) {
         self.reposition_distance += distance;
     }
 
@@ -257,7 +257,7 @@ impl Metrics {
 
     /// Update windowed throughput. Call once per tick.
     #[allow(clippy::cast_possible_truncation)] // window len always fits in u64
-    pub fn update_throughput(&mut self, current_tick: u64) {
+    pub(crate) fn update_throughput(&mut self, current_tick: u64) {
         let cutoff = current_tick.saturating_sub(self.throughput_window_ticks);
         // Delivery ticks are inserted in order, so expired entries are at the front.
         while self.delivery_window.front().is_some_and(|&t| t <= cutoff) {

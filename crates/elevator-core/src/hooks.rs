@@ -4,6 +4,7 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
+//! use elevator_core::hooks::Phase;
 //!
 //! let mut sim = SimulationBuilder::new()
 //!     .before(Phase::Dispatch, |world| {

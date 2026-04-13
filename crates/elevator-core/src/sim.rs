@@ -1,8 +1,8 @@
 //! Top-level simulation runner and tick loop.
 
 use crate::components::{
-    Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Position, Rider, RiderPhase, Route,
-    Stop, Velocity,
+    AccessControl, Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience, Position,
+    Preferences, Rider, RiderPhase, Route, Stop, Velocity,
 };
 use crate::config::SimConfig;
 use crate::dispatch::{
@@ -94,6 +94,171 @@ impl LineParams {
             position: None,
             max_cars: None,
         }
+    }
+}
+
+/// Fluent builder for spawning riders with optional configuration.
+///
+/// Created via [`Simulation::build_rider`] or [`Simulation::build_rider_by_stop_id`].
+///
+/// ```
+/// use elevator_core::prelude::*;
+///
+/// let mut sim = SimulationBuilder::new().build().unwrap();
+/// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
+///     .unwrap()
+///     .weight(80.0)
+///     .spawn()
+///     .unwrap();
+/// ```
+pub struct RiderBuilder<'a> {
+    /// Mutable reference to the simulation (consumed on spawn).
+    sim: &'a mut Simulation,
+    /// Origin stop entity.
+    origin: EntityId,
+    /// Destination stop entity.
+    destination: EntityId,
+    /// Rider weight (default: 75.0).
+    weight: f64,
+    /// Explicit dispatch group (skips auto-detection).
+    group: Option<GroupId>,
+    /// Explicit multi-leg route.
+    route: Option<Route>,
+    /// Maximum wait ticks before abandoning.
+    patience: Option<u64>,
+    /// Boarding preferences.
+    preferences: Option<Preferences>,
+    /// Per-rider access control.
+    access_control: Option<AccessControl>,
+}
+
+impl RiderBuilder<'_> {
+    /// Set the rider's weight (default: 75.0).
+    #[must_use]
+    pub const fn weight(mut self, weight: f64) -> Self {
+        self.weight = weight;
+        self
+    }
+
+    /// Set the dispatch group explicitly, skipping auto-detection.
+    #[must_use]
+    pub const fn group(mut self, group: GroupId) -> Self {
+        self.group = Some(group);
+        self
+    }
+
+    /// Provide an explicit multi-leg route.
+    #[must_use]
+    pub fn route(mut self, route: Route) -> Self {
+        self.route = Some(route);
+        self
+    }
+
+    /// Set maximum wait ticks before the rider abandons.
+    #[must_use]
+    pub const fn patience(mut self, max_wait_ticks: u64) -> Self {
+        self.patience = Some(max_wait_ticks);
+        self
+    }
+
+    /// Set boarding preferences.
+    #[must_use]
+    pub const fn preferences(mut self, prefs: Preferences) -> Self {
+        self.preferences = Some(prefs);
+        self
+    }
+
+    /// Set per-rider access control (allowed stops).
+    #[must_use]
+    pub fn access_control(mut self, ac: AccessControl) -> Self {
+        self.access_control = Some(ac);
+        self
+    }
+
+    /// Spawn the rider with the configured options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::NoRoute`] if no group serves both stops (when auto-detecting).
+    /// Returns [`SimError::AmbiguousRoute`] if multiple groups serve both stops (when auto-detecting).
+    /// Returns [`SimError::GroupNotFound`] if an explicit group does not exist.
+    pub fn spawn(self) -> Result<EntityId, SimError> {
+        let route = if let Some(route) = self.route {
+            route
+        } else if let Some(group) = self.group {
+            if !self.sim.groups.iter().any(|g| g.id() == group) {
+                return Err(SimError::GroupNotFound(group));
+            }
+            Route::direct(self.origin, self.destination, group)
+        } else {
+            // Auto-detect group (same logic as spawn_rider).
+            let matching: Vec<GroupId> = self
+                .sim
+                .groups
+                .iter()
+                .filter(|g| {
+                    g.stop_entities().contains(&self.origin)
+                        && g.stop_entities().contains(&self.destination)
+                })
+                .map(ElevatorGroup::id)
+                .collect();
+
+            match matching.len() {
+                0 => {
+                    let origin_groups: Vec<GroupId> = self
+                        .sim
+                        .groups
+                        .iter()
+                        .filter(|g| g.stop_entities().contains(&self.origin))
+                        .map(ElevatorGroup::id)
+                        .collect();
+                    let destination_groups: Vec<GroupId> = self
+                        .sim
+                        .groups
+                        .iter()
+                        .filter(|g| g.stop_entities().contains(&self.destination))
+                        .map(ElevatorGroup::id)
+                        .collect();
+                    return Err(SimError::NoRoute {
+                        origin: self.origin,
+                        destination: self.destination,
+                        origin_groups,
+                        destination_groups,
+                    });
+                }
+                1 => Route::direct(self.origin, self.destination, matching[0]),
+                _ => {
+                    return Err(SimError::AmbiguousRoute {
+                        origin: self.origin,
+                        destination: self.destination,
+                        groups: matching,
+                    });
+                }
+            }
+        };
+
+        let eid = self
+            .sim
+            .spawn_rider_inner(self.origin, self.destination, self.weight, route);
+
+        // Apply optional components.
+        if let Some(max_wait) = self.patience {
+            self.sim.world.set_patience(
+                eid,
+                Patience {
+                    max_wait_ticks: max_wait,
+                    waited_ticks: 0,
+                },
+            );
+        }
+        if let Some(prefs) = self.preferences {
+            self.sim.world.set_preferences(eid, prefs);
+        }
+        if let Some(ac) = self.access_control {
+            self.sim.world.set_access_control(eid, ac);
+        }
+
+        Ok(eid)
     }
 }
 
@@ -952,6 +1117,81 @@ impl Simulation {
 
     // ── Rider spawning ───────────────────────────────────────────────
 
+    /// Create a rider builder for fluent rider spawning.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let s0 = sim.stop_entity(StopId(0)).unwrap();
+    /// let s1 = sim.stop_entity(StopId(1)).unwrap();
+    /// let rider = sim.build_rider(s0, s1)
+    ///     .weight(80.0)
+    ///     .spawn()
+    ///     .unwrap();
+    /// ```
+    pub const fn build_rider(
+        &mut self,
+        origin: EntityId,
+        destination: EntityId,
+    ) -> RiderBuilder<'_> {
+        RiderBuilder {
+            sim: self,
+            origin,
+            destination,
+            weight: 75.0,
+            group: None,
+            route: None,
+            patience: None,
+            preferences: None,
+            access_control: None,
+        }
+    }
+
+    /// Create a rider builder using config `StopId`s.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::StopNotFound`] if either stop ID is unknown.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
+    ///     .unwrap()
+    ///     .weight(80.0)
+    ///     .spawn()
+    ///     .unwrap();
+    /// ```
+    pub fn build_rider_by_stop_id(
+        &mut self,
+        origin: StopId,
+        destination: StopId,
+    ) -> Result<RiderBuilder<'_>, SimError> {
+        let origin_eid = self
+            .stop_lookup
+            .get(&origin)
+            .copied()
+            .ok_or(SimError::StopNotFound(origin))?;
+        let dest_eid = self
+            .stop_lookup
+            .get(&destination)
+            .copied()
+            .ok_or(SimError::StopNotFound(destination))?;
+        Ok(RiderBuilder {
+            sim: self,
+            origin: origin_eid,
+            destination: dest_eid,
+            weight: 75.0,
+            group: None,
+            route: None,
+            patience: None,
+            preferences: None,
+            access_control: None,
+        })
+    }
+
     /// Spawn a rider at the given origin stop entity, headed to destination stop entity.
     ///
     /// Auto-detects the elevator group by finding groups that serve both origin
@@ -1208,6 +1448,40 @@ impl Simulation {
         std::mem::take(&mut self.pending_output)
     }
 
+    /// Drain only events matching a predicate.
+    ///
+    /// Events that don't match the predicate remain in the buffer
+    /// and will be returned by future `drain_events` or
+    /// `drain_events_where` calls.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.step();
+    ///
+    /// let spawns: Vec<Event> = sim.drain_events_where(|e| {
+    ///     matches!(e, Event::RiderSpawned { .. })
+    /// });
+    /// ```
+    pub fn drain_events_where(&mut self, predicate: impl Fn(&Event) -> bool) -> Vec<Event> {
+        // Flush bus into pending_output first.
+        self.pending_output.extend(self.events.drain());
+
+        let mut matched = Vec::new();
+        let mut remaining = Vec::new();
+        for event in std::mem::take(&mut self.pending_output) {
+            if predicate(&event) {
+                matched.push(event);
+            } else {
+                remaining.push(event);
+            }
+        }
+        self.pending_output = remaining;
+        matched
+    }
+
     // ── Dynamic topology ────────────────────────────────────────────
 
     /// Find the (`group_index`, `line_index`) for a line entity.
@@ -1459,6 +1733,101 @@ impl Simulation {
             group: group_id,
             tick: self.tick,
         });
+        Ok(())
+    }
+
+    /// Remove an elevator from the simulation.
+    ///
+    /// The elevator is disabled first (ejecting any riders), then removed
+    /// from its line and despawned from the world.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    pub fn remove_elevator(&mut self, elevator: EntityId) -> Result<(), SimError> {
+        let line = self
+            .world
+            .elevator(elevator)
+            .ok_or(SimError::EntityNotFound(elevator))?
+            .line();
+
+        // Disable first to eject riders and reset state.
+        let _ = self.disable(elevator);
+
+        // Find and remove from group/line topology.
+        let mut group_id = GroupId(0);
+        if let Ok((group_idx, line_idx)) = self.find_line(line) {
+            self.groups[group_idx].lines_mut()[line_idx]
+                .elevators_mut()
+                .retain(|&e| e != elevator);
+            self.groups[group_idx].rebuild_caches();
+
+            // Notify dispatch strategy.
+            group_id = self.groups[group_idx].id();
+            if let Some(dispatcher) = self.dispatchers.get_mut(&group_id) {
+                dispatcher.notify_removed(elevator);
+            }
+        }
+
+        self.events.emit(Event::ElevatorRemoved {
+            elevator,
+            line,
+            group: group_id,
+            tick: self.tick,
+        });
+
+        // Despawn from world.
+        self.world.despawn(elevator);
+
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
+        Ok(())
+    }
+
+    /// Remove a stop from the simulation.
+    ///
+    /// The stop is disabled first (invalidating routes that reference it),
+    /// then removed from all lines and despawned from the world.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the stop does not exist.
+    pub fn remove_stop(&mut self, stop: EntityId) -> Result<(), SimError> {
+        if self.world.stop(stop).is_none() {
+            return Err(SimError::EntityNotFound(stop));
+        }
+
+        // Disable first to invalidate routes referencing this stop.
+        let _ = self.disable(stop);
+
+        // Remove from all lines and groups.
+        for group in &mut self.groups {
+            for line_info in group.lines_mut() {
+                line_info.serves_mut().retain(|&s| s != stop);
+            }
+            group.rebuild_caches();
+        }
+
+        // Remove from SortedStops resource.
+        if let Some(sorted) = self.world.resource_mut::<crate::world::SortedStops>() {
+            sorted.0.retain(|&(_, s)| s != stop);
+        }
+
+        // Remove from stop_lookup.
+        self.stop_lookup.retain(|_, &mut eid| eid != stop);
+
+        self.events.emit(Event::StopRemoved {
+            stop,
+            tick: self.tick,
+        });
+
+        // Despawn from world.
+        self.world.despawn(stop);
+
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
         Ok(())
     }
 
@@ -1721,6 +2090,13 @@ impl Simulation {
             .flat_map(ElevatorGroup::lines)
             .find(|li| li.elevators().contains(&elevator))
             .map(LineInfo::entity)
+    }
+
+    /// Iterate over elevators currently repositioning.
+    pub fn iter_repositioning_elevators(&self) -> impl Iterator<Item = EntityId> + '_ {
+        self.world
+            .iter_elevators()
+            .filter_map(|(id, _pos, car)| if car.repositioning() { Some(id) } else { None })
     }
 
     /// Get all line entities that serve a given stop.
@@ -2128,6 +2504,26 @@ impl Simulation {
     #[must_use]
     pub fn abandoned_count_at(&self, stop: EntityId) -> usize {
         self.rider_index.abandoned_count_at(stop)
+    }
+
+    /// Get the rider entities currently aboard an elevator.
+    ///
+    /// Returns an empty slice if the elevator does not exist.
+    #[must_use]
+    pub fn riders_on(&self, elevator: EntityId) -> &[EntityId] {
+        self.world
+            .elevator(elevator)
+            .map_or(&[], |car| car.riders())
+    }
+
+    /// Get the number of riders aboard an elevator.
+    ///
+    /// Returns 0 if the elevator does not exist.
+    #[must_use]
+    pub fn occupancy(&self, elevator: EntityId) -> usize {
+        self.world
+            .elevator(elevator)
+            .map_or(0, |car| car.riders().len())
     }
 
     // ── Entity lifecycle ────────────────────────────────────────────

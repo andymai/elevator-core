@@ -105,7 +105,7 @@ fn handle_exit(
 ///
 /// These transient states last exactly one tick so they're
 /// visible for one frame in the visualization.
-pub(crate) fn run(
+pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
