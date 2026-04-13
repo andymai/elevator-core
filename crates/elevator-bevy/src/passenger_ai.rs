@@ -19,6 +19,9 @@ pub struct PassengerSpawnTimer {
 }
 
 /// System to periodically spawn riders with random origin/destination.
+///
+/// Handles `AmbiguousRoute` errors (when both Local and Express groups serve
+/// a stop pair) by falling back to the first matching group.
 #[allow(clippy::needless_pass_by_value)]
 pub fn spawn_ai_passengers(
     mut sim: ResMut<SimulationRes>,
@@ -48,7 +51,16 @@ pub fn spawn_ai_passengers(
         let destination = stop_ids[dest_idx];
         let weight = rng.random_range(timer.weight_min..timer.weight_max);
 
-        let _ = sim.sim.spawn_rider(origin, destination, weight);
+        if let Err(elevator_core::error::SimError::AmbiguousRoute { groups, .. }) =
+            sim.sim.spawn_rider(origin, destination, weight)
+        {
+            // Resolve ambiguity: pick the first group (Local preferred).
+            if let Some(&group) = groups.first() {
+                let _ = sim
+                    .sim
+                    .spawn_rider_in_group(origin, destination, weight, group);
+            }
+        }
 
         let jitter = rng.random_range(0.5f64..1.5);
         timer.ticks_until_spawn = (timer.mean_interval as f64 * jitter) as u32;
