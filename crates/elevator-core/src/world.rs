@@ -8,6 +8,8 @@ use slotmap::{SecondaryMap, SlotMap};
 use crate::components::{
     AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
 };
+#[cfg(feature = "energy")]
+use crate::energy::{EnergyMetrics, EnergyProfile};
 use crate::entity::EntityId;
 use crate::query::storage::AnyExtMap;
 
@@ -46,6 +48,13 @@ pub struct World {
     /// Per-rider access control (allowed stops).
     pub(crate) access_controls: SecondaryMap<EntityId, AccessControl>,
 
+    /// Per-elevator energy cost profiles.
+    #[cfg(feature = "energy")]
+    pub(crate) energy_profiles: SecondaryMap<EntityId, EnergyProfile>,
+    /// Per-elevator accumulated energy metrics.
+    #[cfg(feature = "energy")]
+    pub(crate) energy_metrics: SecondaryMap<EntityId, EnergyMetrics>,
+
     /// Disabled marker (entities skipped by all systems).
     pub(crate) disabled: SecondaryMap<EntityId, ()>,
 
@@ -76,6 +85,10 @@ impl World {
             patience: SecondaryMap::new(),
             preferences: SecondaryMap::new(),
             access_controls: SecondaryMap::new(),
+            #[cfg(feature = "energy")]
+            energy_profiles: SecondaryMap::new(),
+            #[cfg(feature = "energy")]
+            energy_metrics: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
             ext_names: HashMap::new(),
@@ -136,6 +149,10 @@ impl World {
         self.patience.remove(id);
         self.preferences.remove(id);
         self.access_controls.remove(id);
+        #[cfg(feature = "energy")]
+        self.energy_profiles.remove(id);
+        #[cfg(feature = "energy")]
+        self.energy_metrics.remove(id);
         self.disabled.remove(id);
 
         for ext in self.extensions.values_mut() {
@@ -343,6 +360,40 @@ impl World {
     /// Set an entity's access control.
     pub fn set_access_control(&mut self, id: EntityId, ac: AccessControl) {
         self.access_controls.insert(id, ac);
+    }
+
+    // ── Energy accessors (feature-gated) ────────────────────────────
+
+    #[cfg(feature = "energy")]
+    /// Get an entity's energy profile.
+    #[must_use]
+    pub fn energy_profile(&self, id: EntityId) -> Option<&EnergyProfile> {
+        self.energy_profiles.get(id)
+    }
+
+    #[cfg(feature = "energy")]
+    /// Get an entity's energy metrics.
+    #[must_use]
+    pub fn energy_metrics(&self, id: EntityId) -> Option<&EnergyMetrics> {
+        self.energy_metrics.get(id)
+    }
+
+    #[cfg(feature = "energy")]
+    /// Get an entity's energy metrics mutably.
+    pub fn energy_metrics_mut(&mut self, id: EntityId) -> Option<&mut EnergyMetrics> {
+        self.energy_metrics.get_mut(id)
+    }
+
+    #[cfg(feature = "energy")]
+    /// Set an entity's energy profile.
+    pub fn set_energy_profile(&mut self, id: EntityId, profile: EnergyProfile) {
+        self.energy_profiles.insert(id, profile);
+    }
+
+    #[cfg(feature = "energy")]
+    /// Set an entity's energy metrics.
+    pub fn set_energy_metrics(&mut self, id: EntityId, metrics: EnergyMetrics) {
+        self.energy_metrics.insert(id, metrics);
     }
 
     // ── Typed query helpers ──────────────────────────────────────────

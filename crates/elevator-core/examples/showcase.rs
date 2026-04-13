@@ -407,6 +407,8 @@ fn part6_configuration() {
                 door_open_ticks: 15,
                 door_transition_ticks: 8,
                 restricted_stops: Vec::new(),
+                #[cfg(feature = "energy")]
+                energy_profile: None,
             },
             ElevatorConfig {
                 id: 1,
@@ -419,6 +421,8 @@ fn part6_configuration() {
                 door_open_ticks: 15,
                 door_transition_ticks: 8,
                 restricted_stops: Vec::new(),
+                #[cfg(feature = "energy")]
+                energy_profile: None,
             },
         ],
         simulation: SimulationParams {

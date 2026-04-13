@@ -748,6 +748,8 @@ fn weight_rejection_boundary() {
             door_open_ticks: 10,
             door_transition_ticks: 3,
             restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,
@@ -836,6 +838,8 @@ fn passing_floor_events_emitted() {
             door_open_ticks: 5,
             door_transition_ticks: 3,
             restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,

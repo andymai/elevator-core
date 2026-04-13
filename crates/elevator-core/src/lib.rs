@@ -186,6 +186,9 @@ pub mod config;
 pub mod dispatch;
 /// Door finite-state machine.
 pub mod door;
+/// Simplified energy modeling for elevators.
+#[cfg(feature = "energy")]
+pub mod energy;
 /// Simulation event bus and event types.
 pub mod events;
 /// Lifecycle hooks for injecting logic before/after simulation phases.
@@ -246,6 +249,8 @@ pub mod prelude {
         RepositionStrategy, RiderInfo,
     };
     pub use crate::dispatch::{ElevatorGroup, LineInfo};
+    #[cfg(feature = "energy")]
+    pub use crate::energy::{EnergyMetrics, EnergyProfile};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
     pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};

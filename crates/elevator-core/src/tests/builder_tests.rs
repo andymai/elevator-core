@@ -51,6 +51,8 @@ fn from_config_produces_valid_sim() {
             door_open_ticks: 8,
             door_transition_ticks: 4,
             restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
         }],
         simulation: SimulationParams {
             ticks_per_second: 30.0,
@@ -104,6 +106,8 @@ fn builder_with_stops_and_elevators() {
             door_open_ticks: 10,
             door_transition_ticks: 5,
             restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
         })
         .ticks_per_second(120.0)
         .build();

@@ -13,6 +13,7 @@ keywords = ["elevator", "dispatch", "simulation", "ecs", "building"]
 [features]
 default = ["traffic"]
 traffic = ["dep:rand"]
+energy = []
 
 [lints]
 workspace = true

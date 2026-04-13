@@ -322,6 +322,8 @@ fn build_lobby_sim() -> crate::sim::Simulation {
             door_open_ticks: 10,
             door_transition_ticks: 5,
             restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
         }])
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)
