@@ -2571,11 +2571,26 @@ impl Simulation {
                 }
             }
 
+            let had_load = self
+                .world
+                .elevator(id)
+                .is_some_and(|c| c.current_load > 0.0);
+            let capacity = self.world.elevator(id).map(|c| c.weight_capacity);
             if let Some(car) = self.world.elevator_mut(id) {
                 car.riders.clear();
                 car.current_load = 0.0;
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
+            }
+            if had_load {
+                if let Some(cap) = capacity {
+                    self.events.emit(Event::CapacityChanged {
+                        elevator: id,
+                        current_load: ordered_float::OrderedFloat(0.0),
+                        capacity: ordered_float::OrderedFloat(cap),
+                        tick: self.tick,
+                    });
+                }
             }
         }
         if let Some(vel) = self.world.velocity_mut(id) {
@@ -2713,6 +2728,86 @@ impl Simulation {
     #[must_use]
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.world.is_disabled(id)
+    }
+
+    // ── Entity type queries ─────────────────────────────────────────
+
+    /// Check if an entity is an elevator.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let stop = sim.stop_entity(StopId(0)).unwrap();
+    /// assert!(!sim.is_elevator(stop));
+    /// assert!(sim.is_stop(stop));
+    /// ```
+    #[must_use]
+    pub fn is_elevator(&self, id: EntityId) -> bool {
+        self.world.elevator(id).is_some()
+    }
+
+    /// Check if an entity is a rider.
+    #[must_use]
+    pub fn is_rider(&self, id: EntityId) -> bool {
+        self.world.rider(id).is_some()
+    }
+
+    /// Check if an entity is a stop.
+    #[must_use]
+    pub fn is_stop(&self, id: EntityId) -> bool {
+        self.world.stop(id).is_some()
+    }
+
+    // ── Aggregate queries ───────────────────────────────────────────
+
+    /// Count of elevators currently in the [`Idle`](ElevatorPhase::Idle) phase.
+    ///
+    /// Excludes disabled elevators (whose phase is reset to `Idle` on disable).
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// assert_eq!(sim.idle_elevator_count(), 1);
+    /// ```
+    #[must_use]
+    pub fn idle_elevator_count(&self) -> usize {
+        self.world.iter_idle_elevators().count()
+    }
+
+    /// Current total weight aboard an elevator, or `None` if the entity is
+    /// not an elevator.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let stop = sim.stop_entity(StopId(0)).unwrap();
+    /// assert_eq!(sim.elevator_load(stop), None); // not an elevator
+    /// ```
+    #[must_use]
+    pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
+        self.world.elevator(id).map(|e| e.current_load)
+    }
+
+    /// Count of elevators currently in the given phase.
+    ///
+    /// Excludes disabled elevators (whose phase is reset to `Idle` on disable).
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 1);
+    /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Loading), 0);
+    /// ```
+    #[must_use]
+    pub fn elevators_in_phase(&self, phase: ElevatorPhase) -> usize {
+        self.world
+            .iter_elevators()
+            .filter(|(id, _, e)| e.phase() == phase && !self.world.is_disabled(*id))
+            .count()
     }
 
     // ── Service mode ────────────────────────────────────────────────
