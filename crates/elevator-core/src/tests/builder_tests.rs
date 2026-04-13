@@ -53,6 +53,8 @@ fn from_config_produces_valid_sim() {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         }],
         simulation: SimulationParams {
             ticks_per_second: 30.0,
@@ -108,6 +110,8 @@ fn builder_with_stops_and_elevators() {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         })
         .ticks_per_second(120.0)
         .build();

@@ -125,6 +125,17 @@ pub struct ElevatorConfig {
     #[cfg(feature = "energy")]
     #[serde(default)]
     pub energy_profile: Option<crate::energy::EnergyProfile>,
+    /// Service mode at simulation start. Defaults to `Normal`.
+    #[serde(default)]
+    pub service_mode: Option<crate::components::ServiceMode>,
+    /// Speed multiplier for Inspection mode (0.0..1.0). Defaults to 0.25.
+    #[serde(default = "default_inspection_speed_factor")]
+    pub inspection_speed_factor: f64,
+}
+
+/// Default inspection speed factor (25% of normal speed).
+const fn default_inspection_speed_factor() -> f64 {
+    0.25
 }
 
 /// Global simulation timing parameters.

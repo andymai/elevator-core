@@ -46,6 +46,7 @@ fn add_elevator_at_runtime() {
         door_transition_ticks: 3,
         door_open_ticks: 8,
         restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
     };
 
     let elev = sim.add_elevator(&params, line, 4.0).unwrap();
@@ -83,6 +84,7 @@ fn add_to_nonexistent_line_returns_error() {
         door_transition_ticks: 1,
         door_open_ticks: 1,
         restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
     };
     let result = sim.add_elevator(&params, bogus, 0.0);
     assert!(result.is_err());

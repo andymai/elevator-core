@@ -55,6 +55,9 @@ pub struct EntitySnapshot {
     #[cfg(feature = "energy")]
     #[serde(default)]
     pub energy_metrics: Option<crate::energy::EnergyMetrics>,
+    /// Service mode (if present).
+    #[serde(default)]
+    pub service_mode: Option<crate::components::ServiceMode>,
 }
 
 /// Serializable snapshot of the entire simulation state.
@@ -340,6 +343,9 @@ impl WorldSnapshot {
             if let Some(ref em) = snap.energy_metrics {
                 world.set_energy_metrics(eid, em.clone());
             }
+            if let Some(mode) = snap.service_mode {
+                world.set_service_mode(eid, mode);
+            }
         }
     }
 
@@ -489,6 +495,7 @@ impl crate::sim::Simulation {
                 energy_profile: world.energy_profile(eid).cloned(),
                 #[cfg(feature = "energy")]
                 energy_metrics: world.energy_metrics(eid).cloned(),
+                service_mode: world.service_mode(eid).copied(),
             })
             .collect();
 
