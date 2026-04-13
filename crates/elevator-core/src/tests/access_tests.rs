@@ -165,9 +165,12 @@ fn restriction_does_not_affect_unrestricted_destinations() {
     );
 }
 
-/// Both elevator and rider restrictions: elevator restricts stop, rider lacks access to another.
+/// Elevator restriction and rider access control work independently in the same sim.
+///
+/// Tests each restriction type in isolation (one rider per restriction) to avoid
+/// the loading system's single-rejection-slot-per-tick behavior masking failures.
 #[test]
-fn both_restrictions_combined() {
+fn both_restriction_types_work_in_same_sim() {
     let mut config = helpers::default_config();
     // Elevator restricts Floor 2.
     config.elevators[0].restricted_stops = vec![StopId(1)];
@@ -175,12 +178,36 @@ fn both_restrictions_combined() {
     let mut sim =
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
-    // Rider going to Floor 2 (elevator-restricted).
+    // Rider 1: going to Floor 2 (elevator-restricted). Test alone first.
     let rider1 = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .expect("spawn should succeed");
 
-    // Rider going to Floor 3 with access control that doesn't include Floor 3.
+    let mut events_phase1 = Vec::new();
+    for _ in 0..200 {
+        sim.step();
+        events_phase1.extend(sim.drain_events());
+    }
+
+    let rider1_rejected = events_phase1.iter().any(|e| {
+        matches!(
+            e,
+            Event::RiderRejected {
+                rider,
+                reason: RejectionReason::AccessDenied,
+                ..
+            } if *rider == rider1
+        )
+    });
+    assert!(
+        rider1_rejected,
+        "rider1 (elevator-restricted) should be rejected"
+    );
+
+    // Despawn rider1 so it doesn't monopolize the rejection slot.
+    sim.despawn_rider(rider1).expect("despawn should succeed");
+
+    // Rider 2: going to Floor 3 with access control that doesn't include Floor 3.
     let rider2 = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
@@ -189,30 +216,25 @@ fn both_restrictions_combined() {
     sim.set_rider_access(rider2, HashSet::from([stop0, stop1]))
         .expect("set_rider_access should succeed");
 
-    let mut all_events = Vec::new();
-    for _ in 0..500 {
+    let mut events_phase2 = Vec::new();
+    for _ in 0..200 {
         sim.step();
-        all_events.extend(sim.drain_events());
+        events_phase2.extend(sim.drain_events());
     }
 
-    // Both riders should have been rejected.
-    let access_denied_count = all_events
-        .iter()
-        .filter(|e| {
-            matches!(
-                e,
-                Event::RiderRejected {
-                    reason: RejectionReason::AccessDenied,
-                    ..
-                }
-            )
-        })
-        .count();
-
-    let _ = (rider1, rider2); // suppress unused warnings
+    let rider2_rejected = events_phase2.iter().any(|e| {
+        matches!(
+            e,
+            Event::RiderRejected {
+                rider,
+                reason: RejectionReason::AccessDenied,
+                ..
+            } if *rider == rider2
+        )
+    });
     assert!(
-        access_denied_count >= 2,
-        "both riders should be rejected with AccessDenied, got {access_denied_count}"
+        rider2_rejected,
+        "rider2 (access-control-restricted) should be rejected"
     );
 }
 

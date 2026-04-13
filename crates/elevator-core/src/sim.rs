@@ -2045,6 +2045,28 @@ impl Simulation {
         Ok(())
     }
 
+    /// Set the restricted stops for an elevator.
+    ///
+    /// Riders whose current destination is in this set will be rejected
+    /// with [`RejectionReason::AccessDenied`](crate::error::RejectionReason::AccessDenied)
+    /// during the loading phase.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    pub fn set_elevator_restricted_stops(
+        &mut self,
+        elevator: EntityId,
+        restricted_stops: HashSet<EntityId>,
+    ) -> Result<(), SimError> {
+        let car = self
+            .world
+            .elevator_mut(elevator)
+            .ok_or(SimError::EntityNotFound(elevator))?;
+        car.restricted_stops = restricted_stops;
+        Ok(())
+    }
+
     // ── Population queries ──────────────────────────────────────────
 
     /// Iterate over resident rider IDs at a stop (O(1) lookup).
