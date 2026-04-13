@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 use crate::palette;
-use crate::rendering::{LineLayout, PPU, StopRegistry};
+use crate::rendering::{LineLayout, PPU, SharedMeshes, StopRegistry, TRANSFER_STOP_INDEX};
 use crate::sim_bridge::SimulationRes;
 use elevator_core::components::{ElevatorPhase, RiderPhase};
 use elevator_core::entity::EntityId;
@@ -75,12 +75,12 @@ pub struct ArrivalRing {
 #[allow(clippy::needless_pass_by_value)]
 pub fn spawn_sparkles(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
     mut prev: ResMut<PreviousArrivals>,
     _registry: Res<StopRegistry>,
     layout: Res<LineLayout>,
+    shared_meshes: Res<SharedMeshes>,
 ) {
     let w = sim.sim.world();
 
@@ -148,7 +148,7 @@ pub fn spawn_sparkles(
             let color = Color::linear_rgba(lin.red, lin.green, lin.blue, lin.alpha * alpha_var);
 
             commands.spawn((
-                Mesh2d(meshes.add(Circle::new(2.0))),
+                Mesh2d(shared_meshes.sparkle.clone()),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
                 Transform::from_xyz(shaft_x, stop_y, 1.5),
                 Sparkle {
@@ -204,20 +204,17 @@ pub fn update_sparkles(
 
 // ── Transfer Arc Systems ──
 
-/// Transfer stop index (Mid-Depths).
-const TRANSFER_STOP_INDEX: usize = 9;
-
 /// Detect riders at the transfer floor who just entered Waiting phase (arriving
 /// from one group to transfer to another) and spawn arc particles.
 #[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
 pub fn spawn_transfer_arcs(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
     mut prev_waiters: ResMut<PreviousTransferWaiters>,
     registry: Res<StopRegistry>,
     layout: Res<LineLayout>,
+    shared_meshes: Res<SharedMeshes>,
 ) {
     let w = sim.sim.world();
 
@@ -302,7 +299,7 @@ pub fn spawn_transfer_arcs(
             );
 
             commands.spawn((
-                Mesh2d(meshes.add(Circle::new(2.5))),
+                Mesh2d(shared_meshes.transfer_arc.clone()),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
                 Transform::from_xyz(start_x, transfer_y_px + offset_y, 1.5),
                 TransferArc {
@@ -375,11 +372,11 @@ pub fn update_transfer_arcs(
 #[allow(clippy::needless_pass_by_value)]
 pub fn spawn_arrival_rings(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
     mut prev_phases: ResMut<PreviousPhases>,
     layout: Res<LineLayout>,
+    shared_meshes: Res<SharedMeshes>,
 ) {
     let w = sim.sim.world();
 
@@ -406,7 +403,7 @@ pub fn spawn_arrival_rings(
             };
 
             commands.spawn((
-                Mesh2d(meshes.add(Circle::new(1.0))),
+                Mesh2d(shared_meshes.arrival_ring.clone()),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(ring_color))),
                 Transform::from_xyz(x, y, 0.45),
                 ArrivalRing {

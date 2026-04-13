@@ -13,7 +13,7 @@ use crate::rendering::{
     rider::{sync_rider_visuals, update_rider_positions},
     spawn_building_visuals,
 };
-use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::sim_bridge::{SimSpeed, SimulationRes, tick_simulation};
 use crate::sparkle::{
     PreviousArrivals, PreviousPhases, PreviousTransferWaiters, spawn_arrival_rings, spawn_sparkles,
     spawn_transfer_arcs, update_arrival_rings, update_sparkles, update_transfer_arcs,
@@ -57,7 +57,6 @@ impl Plugin for ElevatorSimPlugin {
                 weight_min: spawn_config.weight_range.0,
                 weight_max: spawn_config.weight_range.1,
             })
-            .add_message::<EventWrapper>()
             .add_systems(
                 Startup,
                 (setup_camera, spawn_atmosphere, spawn_building_visuals).chain(),
@@ -85,7 +84,7 @@ impl Plugin for ElevatorSimPlugin {
                     drift_marine_snow,
                     drift_edge_glow,
                     fade_trail_segments,
-                    update_floor_glow,
+                    update_floor_glow.before(update_breathing),
                     update_breathing,
                     update_sparkles,
                     update_transfer_arcs,

@@ -22,7 +22,7 @@ pub fn update_floor_glow(
     sim: Res<SimulationRes>,
     registry: Res<StopRegistry>,
     breath: Res<BreathPhase>,
-    mut floor_lines: Query<(&FloorLine, &mut MeshMaterial2d<ColorMaterial>)>,
+    mut floor_lines: Query<(&mut FloorLine, &mut MeshMaterial2d<ColorMaterial>)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let w = sim.sim.world();
@@ -48,7 +48,7 @@ pub fn update_floor_glow(
         }
     }
 
-    for (floor_line, mat_handle) in &mut floor_lines {
+    for (mut floor_line, mat_handle) in &mut floor_lines {
         let has_elevator = elevator_stops.contains(&floor_line.stop_id);
         let has_riders = waiting_stops.contains(&floor_line.stop_id);
 
@@ -74,6 +74,9 @@ pub fn update_floor_glow(
                 (lin.alpha * alpha_mod).clamp(0.0, 1.0),
             );
         }
+
+        // Update the base alpha so breathing modulates from the latest glow state.
+        floor_line.base_alpha = color.to_srgba().alpha;
 
         if let Some(mat) = materials.get_mut(mat_handle.id()) {
             mat.color = color;

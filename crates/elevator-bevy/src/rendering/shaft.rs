@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::{PPU, VisualScale};
+use super::{PPU, TRANSFER_STOP_INDEX, VisualScale};
 use crate::palette;
 use elevator_core::entity::EntityId;
 
@@ -15,8 +15,10 @@ pub struct ShaftVisual;
 pub struct FloorLine {
     /// The simulation stop entity this floor line represents.
     pub stop_id: EntityId,
-    /// Whether this is the transfer floor (Mid-Depths, index 9).
+    /// Whether this is the transfer floor (Mid-Depths).
     pub is_transfer: bool,
+    /// Baseline alpha set by the glow system, used by breathing to avoid compounding.
+    pub base_alpha: f32,
 }
 
 /// Marker component for floor name labels. Used by glow systems.
@@ -99,12 +101,13 @@ pub fn spawn_floor_lines(
         );
 
         // Transfer floor (index 9, "Mid-Depths") uses a brighter baseline.
-        let floor_color = if i == 9 {
+        let floor_color = if i == TRANSFER_STOP_INDEX {
             palette::FLOOR_TRANSFER
         } else {
             gradient_color
         };
 
+        let initial_alpha = floor_color.to_srgba().alpha;
         let line_material = materials.add(ColorMaterial::from_color(floor_color));
 
         // Floor indicator line — spans all shafts.
@@ -114,18 +117,19 @@ pub fn spawn_floor_lines(
             Transform::from_xyz(0.0, y, 0.1),
             FloorLine {
                 stop_id: *eid,
-                is_transfer: i == 9,
+                is_transfer: i == TRANSFER_STOP_INDEX,
+                base_alpha: initial_alpha,
             },
         ));
 
         // Floor labels — only spawn for first (0), transfer (9), and last (19) stops.
         let last_index = stop_data.len() - 1;
-        if i == 0 || i == 9 || i == last_index {
+        if i == 0 || i == TRANSFER_STOP_INDEX || i == last_index {
             let label_color = if i == 0 {
                 // Deep Root: cool blue tint
                 let c = palette::FLOOR_BOTTOM.to_linear();
                 Color::linear_rgba(c.red, c.green, c.blue, 0.35)
-            } else if i == 9 {
+            } else if i == TRANSFER_STOP_INDEX {
                 // Mid-Depths: warm purple tint
                 let c = palette::FLOOR_TRANSFER.to_linear();
                 Color::linear_rgba(c.red, c.green, c.blue, 0.4)

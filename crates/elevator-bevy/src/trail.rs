@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::palette;
 use crate::rendering::LineLayout;
 use crate::rendering::PPU;
+use crate::rendering::SharedMeshes;
 use crate::rendering::elevator::ElevatorVisual;
 use crate::sim_bridge::SimulationRes;
 use elevator_core::components::ElevatorPhase;
@@ -41,12 +42,12 @@ pub struct TrailCooldowns {
 #[allow(clippy::needless_pass_by_value)]
 pub fn spawn_trail_segments(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     sim: Res<SimulationRes>,
     elevators: Query<&ElevatorVisual>,
     mut cooldowns: ResMut<TrailCooldowns>,
     layout: Res<LineLayout>,
+    shared_meshes: Res<SharedMeshes>,
 ) {
     let w = sim.sim.world();
 
@@ -94,14 +95,18 @@ pub fn spawn_trail_segments(
         };
 
         // Express trail segments are larger; 50% bigger at high speed.
-        let size = if vis.is_express {
-            if high_speed { 9.0 } else { 6.0 }
+        let mesh_handle = if vis.is_express {
+            if high_speed {
+                shared_meshes.trail_express_fast.clone()
+            } else {
+                shared_meshes.trail_express.clone()
+            }
         } else {
-            4.0
+            shared_meshes.trail_local.clone()
         };
 
         commands.spawn((
-            Mesh2d(meshes.add(Circle::new(size))),
+            Mesh2d(mesh_handle),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(trail_color))),
             Transform::from_xyz(x, y, 0.3),
             TrailSegment {

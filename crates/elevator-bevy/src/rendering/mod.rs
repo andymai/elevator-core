@@ -14,8 +14,28 @@ use std::collections::HashMap;
 
 use crate::sim_bridge::SimulationRes;
 
+/// Pre-allocated mesh handles shared across particle/trail systems.
+#[derive(Resource)]
+pub struct SharedMeshes {
+    /// Circle(4.0) — local elevator trail segments.
+    pub trail_local: Handle<Mesh>,
+    /// Circle(6.0) — express elevator trail segments.
+    pub trail_express: Handle<Mesh>,
+    /// Circle(9.0) — express elevator trail segments at high speed.
+    pub trail_express_fast: Handle<Mesh>,
+    /// Circle(2.0) — sparkle particles.
+    pub sparkle: Handle<Mesh>,
+    /// Circle(1.0) — arrival rings (scaled at runtime).
+    pub arrival_ring: Handle<Mesh>,
+    /// Circle(2.5) — transfer arc particles.
+    pub transfer_arc: Handle<Mesh>,
+}
+
 /// Pixels per simulation distance unit.
 pub const PPU: f32 = 40.0;
+
+/// Index of the transfer floor in the stop list (Mid-Depths).
+pub const TRANSFER_STOP_INDEX: usize = 9;
 
 /// Holds computed visual sizes that scale with the shaft height.
 #[derive(Resource)]
@@ -221,6 +241,17 @@ pub fn spawn_building_visuals(
     // Spawn rider material resources.
     rider::init_rider_materials(&mut commands, &mut materials);
 
+    // Pre-allocate shared mesh handles for particle/trail systems.
+    let shared_meshes = SharedMeshes {
+        trail_local: meshes.add(Circle::new(4.0)),
+        trail_express: meshes.add(Circle::new(6.0)),
+        trail_express_fast: meshes.add(Circle::new(9.0)),
+        sparkle: meshes.add(Circle::new(2.0)),
+        arrival_ring: meshes.add(Circle::new(1.0)),
+        transfer_arc: meshes.add(Circle::new(2.5)),
+    };
+
+    commands.insert_resource(shared_meshes);
     commands.insert_resource(StopRegistry { stops: stop_data });
     commands.insert_resource(layout);
     commands.insert_resource(vs);
