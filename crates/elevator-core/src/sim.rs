@@ -668,6 +668,12 @@ impl Simulation {
                 reason: format!("must be positive, got {}", elev.weight_capacity),
             });
         }
+        if elev.inspection_speed_factor <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.inspection_speed_factor",
+                reason: format!("must be positive, got {}", elev.inspection_speed_factor),
+            });
+        }
         if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
             return Err(SimError::InvalidConfig {
                 field: "elevators.starting_stop",
