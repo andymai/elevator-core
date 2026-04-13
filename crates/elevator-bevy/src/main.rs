@@ -4,6 +4,8 @@ use bevy::prelude::*;
 
 /// Deep ocean atmosphere particles.
 mod atmosphere;
+/// Global breathing rhythm — ambient light modulation.
+mod breathing;
 /// Camera setup and centering.
 mod camera;
 /// Floor activity glow and label fade system.
@@ -20,6 +22,8 @@ mod plugin;
 mod rendering;
 /// Simulation bridge resources and tick system.
 mod sim_bridge;
+/// Arrival sparkle particles.
+mod sparkle;
 /// Elevator light trail system.
 mod trail;
 /// HUD overlay for simulation stats.
@@ -33,7 +37,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Living Building".into(),
-                resolution: (960u32, 540u32).into(),
+                resolution: (1600u32, 900u32).into(),
                 ..default()
             }),
             ..default()

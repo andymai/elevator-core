@@ -21,6 +21,15 @@ pub const SHAFT_BORDER: Color = Color::srgba(0.39, 0.59, 0.78, 0.10);
 /// Floor line at rest — very dim.
 pub const FLOOR_DIM: Color = Color::srgba(0.4, 0.5, 0.6, 0.15);
 
+/// Transfer floor (Mid-Depths) — warm purple blending cyan/amber groups.
+pub const FLOOR_TRANSFER: Color = Color::linear_rgba(0.8, 0.6, 1.2, 0.5);
+
+/// Floor line color at the top of the building — warm amber.
+pub const FLOOR_TOP: Color = Color::linear_rgba(1.2, 0.8, 0.4, 0.3);
+
+/// Floor line color at the bottom of the building — cool blue.
+pub const FLOOR_BOTTOM: Color = Color::linear_rgba(0.3, 0.5, 1.0, 0.3);
+
 /// Floor line when riders are waiting — soft glow.
 pub const FLOOR_ACTIVE: Color = Color::linear_rgba(0.5, 0.7, 1.0, 0.6);
 
@@ -110,10 +119,12 @@ pub const RIDER_ABANDONED: Color = Color::linear_rgba(2.0, 0.3, 0.2, 0.9);
 
 // ── Marine snow / atmosphere particles ──
 
-/// Ambient drifting particle — very dim, cool.
-pub const MARINE_SNOW: Color = Color::srgba(0.5, 0.6, 0.7, 0.08);
+/// Ambient drifting particle — dim, cool.
+#[allow(dead_code)]
+pub const MARINE_SNOW: Color = Color::srgba(0.5, 0.6, 0.7, 0.12);
 
 // ── HUD ──
 
 /// HUD text color — dim, unobtrusive.
+#[allow(dead_code)]
 pub const HUD_TEXT: Color = Color::srgba(0.5, 0.6, 0.7, 0.5);

@@ -3,6 +3,9 @@
 
 use bevy::prelude::*;
 
+use std::f32::consts::TAU;
+
+use crate::breathing::BreathPhase;
 use crate::palette;
 use crate::rendering::StopRegistry;
 use crate::rendering::shaft::{FloorLabel, FloorLine};
@@ -14,10 +17,12 @@ use elevator_core::entity::EntityId;
 const ELEVATOR_PROXIMITY: f32 = 0.1;
 
 /// Update floor line colors based on nearby activity.
+/// Transfer floor pulses at 2x the global breathing rate.
 #[allow(clippy::needless_pass_by_value)]
 pub fn update_floor_glow(
     sim: Res<SimulationRes>,
     registry: Res<StopRegistry>,
+    breath: Res<BreathPhase>,
     mut floor_lines: Query<(&FloorLine, &mut MeshMaterial2d<ColorMaterial>)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -48,13 +53,28 @@ pub fn update_floor_glow(
         let has_elevator = elevator_stops.contains(&floor_line.stop_id);
         let has_riders = waiting_stops.contains(&floor_line.stop_id);
 
-        let color = if has_elevator {
+        let mut color = if has_elevator {
             palette::FLOOR_ELEVATOR
         } else if has_riders {
             palette::FLOOR_ACTIVE
+        } else if floor_line.is_transfer {
+            palette::FLOOR_TRANSFER
         } else {
             palette::FLOOR_DIM
         };
+
+        // Transfer floor pulses at 2x the global breathing rate.
+        if floor_line.is_transfer {
+            let transfer_pulse = (breath.elapsed * 0.14 * TAU).sin(); // 2x frequency
+            let lin = color.to_linear();
+            let alpha_mod = 1.0 + transfer_pulse * 0.2;
+            color = Color::linear_rgba(
+                lin.red,
+                lin.green,
+                lin.blue,
+                (lin.alpha * alpha_mod).clamp(0.0, 1.0),
+            );
+        }
 
         if let Some(mat) = materials.get_mut(mat_handle.id()) {
             mat.color = color;

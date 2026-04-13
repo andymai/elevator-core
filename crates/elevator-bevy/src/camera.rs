@@ -48,10 +48,10 @@ pub fn setup_camera(mut commands: Commands, sim: Res<SimulationRes>, windows: Qu
             ..OrthographicProjection::default_2d()
         }),
         Bloom {
-            intensity: 0.3,
+            intensity: 0.4,
             low_frequency_boost: 0.6,
             low_frequency_boost_curvature: 0.4,
-            high_pass_frequency: 0.9,
+            high_pass_frequency: 0.6,
             ..default()
         },
     ));

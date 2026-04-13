@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::atmosphere::{drift_marine_snow, spawn_atmosphere};
+use crate::breathing::{BreathPhase, update_breathing};
 use crate::camera::setup_camera;
 use crate::glow::{update_floor_glow, update_floor_labels};
 use crate::input::handle_speed_input;
@@ -13,6 +14,7 @@ use crate::rendering::{
     spawn_building_visuals,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::sparkle::{PreviousArrivals, spawn_sparkles, update_sparkles};
 use crate::trail::{TrailCooldowns, fade_trail_segments, spawn_trail_segments};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_core::config::SimConfig;
@@ -42,6 +44,8 @@ impl Plugin for ElevatorSimPlugin {
         app.insert_resource(SimulationRes { sim })
             .insert_resource(SimSpeed { multiplier: 1 })
             .insert_resource(TrailCooldowns::default())
+            .insert_resource(BreathPhase::default())
+            .insert_resource(PreviousArrivals::default())
             .insert_resource(PassengerSpawnTimer {
                 ticks_until_spawn: spawn_config.mean_interval_ticks,
                 mean_interval: spawn_config.mean_interval_ticks,
@@ -68,6 +72,7 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_trail_segments,
                     sync_rider_visuals,
                     update_rider_positions,
+                    spawn_sparkles,
                     update_hud,
                 )
                     .chain(),
@@ -79,6 +84,8 @@ impl Plugin for ElevatorSimPlugin {
                     fade_trail_segments,
                     update_floor_glow,
                     update_floor_labels,
+                    update_breathing,
+                    update_sparkles,
                 ),
             );
     }
