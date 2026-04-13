@@ -60,6 +60,7 @@ fn elevator_query_returns_entities_with_both_components() {
             line: crate::entity::EntityId::default(),
             repositioning: false,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         },
     );
 

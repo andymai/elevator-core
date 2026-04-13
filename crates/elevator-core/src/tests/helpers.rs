@@ -42,6 +42,8 @@ pub fn default_config() -> SimConfig {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         }],
         simulation: SimulationParams {
             ticks_per_second: 60.0,

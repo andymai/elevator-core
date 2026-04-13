@@ -71,6 +71,14 @@ pub struct Elevator {
     /// Stop entity IDs this elevator cannot serve (access restriction).
     #[serde(default)]
     pub(crate) restricted_stops: HashSet<EntityId>,
+    /// Speed multiplier for Inspection mode (0.0..1.0).
+    #[serde(default = "default_inspection_speed_factor")]
+    pub(crate) inspection_speed_factor: f64,
+}
+
+/// Default inspection speed factor (25% of normal speed).
+const fn default_inspection_speed_factor() -> f64 {
+    0.25
 }
 
 impl Elevator {
@@ -156,5 +164,11 @@ impl Elevator {
     #[must_use]
     pub const fn restricted_stops(&self) -> &HashSet<EntityId> {
         &self.restricted_stops
+    }
+
+    /// Speed multiplier applied during Inspection mode.
+    #[must_use]
+    pub const fn inspection_speed_factor(&self) -> f64 {
+        self.inspection_speed_factor
     }
 }

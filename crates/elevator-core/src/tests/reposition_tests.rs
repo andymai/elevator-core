@@ -76,6 +76,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> EntityId {
             line: EntityId::default(),
             repositioning: false,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         },
     );
     eid
@@ -324,6 +325,8 @@ fn build_lobby_sim() -> crate::sim::Simulation {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         }])
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)

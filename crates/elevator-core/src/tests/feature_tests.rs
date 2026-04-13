@@ -361,6 +361,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         door_transition_ticks: 5,
         door_open_ticks: 10,
         restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
     };
     let line = sim.lines_in_group(GroupId(0))[0];
     let elev2 = sim.add_elevator(&params, line, 0.0).unwrap();
@@ -560,6 +561,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             line: EntityId::default(),
             repositioning: false,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         },
     );
 
@@ -640,6 +642,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             line: EntityId::default(),
             repositioning: false,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         },
     );
 
@@ -750,6 +753,8 @@ fn weight_rejection_boundary() {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,
@@ -840,6 +845,8 @@ fn passing_floor_events_emitted() {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,

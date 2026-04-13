@@ -409,6 +409,8 @@ fn part6_configuration() {
                 restricted_stops: Vec::new(),
                 #[cfg(feature = "energy")]
                 energy_profile: None,
+                service_mode: None,
+                inspection_speed_factor: 0.25,
             },
             ElevatorConfig {
                 id: 1,
@@ -423,6 +425,8 @@ fn part6_configuration() {
                 restricted_stops: Vec::new(),
                 #[cfg(feature = "energy")]
                 energy_profile: None,
+                service_mode: None,
+                inspection_speed_factor: 0.25,
             },
         ],
         simulation: SimulationParams {

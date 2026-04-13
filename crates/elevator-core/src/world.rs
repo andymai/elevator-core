@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::components::{
-    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
+    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, ServiceMode,
+    Stop, Velocity,
 };
 #[cfg(feature = "energy")]
 use crate::energy::{EnergyMetrics, EnergyProfile};
@@ -54,6 +55,8 @@ pub struct World {
     /// Per-elevator accumulated energy metrics.
     #[cfg(feature = "energy")]
     pub(crate) energy_metrics: SecondaryMap<EntityId, EnergyMetrics>,
+    /// Elevator service modes.
+    pub(crate) service_modes: SecondaryMap<EntityId, ServiceMode>,
 
     /// Disabled marker (entities skipped by all systems).
     pub(crate) disabled: SecondaryMap<EntityId, ()>,
@@ -89,6 +92,7 @@ impl World {
             energy_profiles: SecondaryMap::new(),
             #[cfg(feature = "energy")]
             energy_metrics: SecondaryMap::new(),
+            service_modes: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
             ext_names: HashMap::new(),
@@ -153,6 +157,7 @@ impl World {
         self.energy_profiles.remove(id);
         #[cfg(feature = "energy")]
         self.energy_metrics.remove(id);
+        self.service_modes.remove(id);
         self.disabled.remove(id);
 
         for ext in self.extensions.values_mut() {
@@ -394,6 +399,19 @@ impl World {
     /// Set an entity's energy metrics.
     pub fn set_energy_metrics(&mut self, id: EntityId, metrics: EnergyMetrics) {
         self.energy_metrics.insert(id, metrics);
+    }
+
+    // ── Service mode accessors ──────────────────────────────────────
+
+    /// Get an entity's service mode.
+    #[must_use]
+    pub fn service_mode(&self, id: EntityId) -> Option<&ServiceMode> {
+        self.service_modes.get(id)
+    }
+
+    /// Set an entity's service mode.
+    pub fn set_service_mode(&mut self, id: EntityId, mode: ServiceMode) {
+        self.service_modes.insert(id, mode);
     }
 
     // ── Typed query helpers ──────────────────────────────────────────

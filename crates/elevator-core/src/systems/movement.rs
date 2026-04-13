@@ -42,11 +42,19 @@ pub fn run(
         };
         let vel = vel_comp.value;
 
+        let is_inspection = world
+            .service_mode(eid)
+            .is_some_and(|m| *m == crate::components::ServiceMode::Inspection);
+
         // Extract elevator params upfront — we already confirmed elevator(eid) is Some above.
         let Some(car) = world.elevator(eid) else {
             continue;
         };
-        let max_speed = car.max_speed;
+        let max_speed = if is_inspection {
+            car.max_speed * car.inspection_speed_factor
+        } else {
+            car.max_speed
+        };
         let acceleration = car.acceleration;
         let deceleration = car.deceleration;
         let door_transition_ticks = car.door_transition_ticks;

@@ -59,6 +59,8 @@ fn two_group_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -83,6 +85,8 @@ fn two_group_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -154,6 +158,8 @@ fn overlapping_groups_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -178,6 +184,8 @@ fn overlapping_groups_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -529,6 +537,8 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -553,6 +563,8 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -839,6 +851,8 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
                     restricted_stops: Vec::new(),
                     #[cfg(feature = "energy")]
                     energy_profile: None,
+                    service_mode: None,
+                    inspection_speed_factor: 0.25,
                 }],
                 orientation: Orientation::Vertical,
                 position: None,
@@ -983,6 +997,8 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1007,6 +1023,8 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1654,6 +1672,8 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1678,6 +1698,8 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1802,6 +1824,8 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     },
                     ElevatorConfig {
                         id: 2,
@@ -1816,6 +1840,8 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     },
                 ],
                 orientation: Orientation::Vertical,
@@ -1879,6 +1905,8 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     },
                     ElevatorConfig {
                         id: 2,
@@ -1893,6 +1921,8 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     },
                 ],
                 orientation: Orientation::Vertical,
@@ -1961,6 +1991,8 @@ fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
                     restricted_stops: Vec::new(),
                     #[cfg(feature = "energy")]
                     energy_profile: None,
+                    service_mode: None,
+                    inspection_speed_factor: 0.25,
                 }],
                 orientation: Orientation::Vertical,
                 position: None,
@@ -2051,6 +2083,8 @@ fn three_group_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2075,6 +2109,8 @@ fn three_group_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2099,6 +2135,8 @@ fn three_group_config() -> SimConfig {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2598,6 +2636,8 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2622,6 +2662,8 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                         restricted_stops: Vec::new(),
                         #[cfg(feature = "energy")]
                         energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,

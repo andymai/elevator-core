@@ -44,6 +44,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             line: EntityId::default(),
             repositioning: false,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         },
     );
 
