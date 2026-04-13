@@ -18,6 +18,9 @@ Events are emitted during the tick phases. Here are the main categories:
 | `DoorClosed { elevator, tick }` | Doors finish closing |
 | `PassingFloor { elevator, stop, moving_up, tick }` | An elevator passes a stop without stopping |
 | `ElevatorAssigned { elevator, stop, tick }` | Dispatch assigns an elevator to a stop |
+| `ElevatorRepositioning { elevator, to_stop, tick }` | An idle elevator begins repositioning |
+| `ElevatorRepositioned { elevator, at_stop, tick }` | An elevator completed repositioning |
+| `ElevatorIdle { elevator, at_stop, tick }` | An elevator became idle |
 
 **Rider events:**
 
@@ -29,6 +32,9 @@ Events are emitted during the tick phases. Here are the main categories:
 | `RiderRejected { rider, elevator, reason, context, tick }` | A rider was refused boarding (over capacity) |
 | `RiderAbandoned { rider, stop, tick }` | A rider gave up waiting |
 | `RiderEjected { rider, elevator, stop, tick }` | A rider was ejected (elevator disabled) |
+| `RiderSettled { rider, stop, tick }` | A rider settled at a stop as a resident |
+| `RiderDespawned { rider, tick }` | A rider was removed from the simulation |
+| `RiderRerouted { rider, new_destination, tick }` | A rider was manually rerouted via `sim.reroute()` or `sim.reroute_rider()` |
 
 **Topology events:**
 
@@ -39,7 +45,10 @@ Events are emitted during the tick phases. Here are the main categories:
 | `EntityDisabled { entity, tick }` | An entity was disabled |
 | `EntityEnabled { entity, tick }` | An entity was re-enabled |
 | `RouteInvalidated { rider, affected_stop, reason, tick }` | A rider's route was broken by a topology change |
-| `RiderRerouted { rider, new_destination, tick }` | A rider was manually rerouted |
+| `LineAdded { line, group, tick }` | A line was added |
+| `LineRemoved { line, group, tick }` | A line was removed |
+| `LineReassigned { line, old_group, new_group, tick }` | A line was moved between groups |
+| `ElevatorReassigned { elevator, old_line, new_line, tick }` | An elevator was moved between lines |
 
 ### Draining events
 
@@ -127,6 +136,8 @@ println!("Throughput:        {} riders/window", m.throughput());
 println!("Total delivered:   {}", m.total_delivered());
 println!("Total spawned:     {}", m.total_spawned());
 println!("Total abandoned:   {}", m.total_abandoned());
+println!("Total settled:     {}", m.total_settled());
+println!("Total rerouted:    {}", m.total_rerouted());
 println!("Abandonment rate:  {:.1}%", m.abandonment_rate() * 100.0);
 println!("Total distance:    {:.1} units", m.total_distance());
 # }
@@ -144,7 +155,11 @@ println!("Total distance:    {:.1} units", m.total_distance());
 | `total_spawned()` | Cumulative riders spawned |
 | `total_abandoned()` | Cumulative riders who gave up waiting |
 | `abandonment_rate()` | `total_abandoned / total_spawned` (0.0 to 1.0) |
+| `total_settled()` | Cumulative riders settled as residents |
+| `total_rerouted()` | Cumulative riders rerouted from resident phase |
 | `total_distance()` | Sum of all elevator travel distance |
+| `utilization_by_group()` | Per-group fraction of elevators currently moving |
+| `reposition_distance()` | Total elevator distance traveled while repositioning |
 
 Metrics are updated during the Metrics phase of each tick. They are always available and always reflect the latest tick, regardless of whether you drain events.
 

@@ -6,8 +6,9 @@
 
 A tick-based elevator simulation engine for Rust. Model anything from a
 3-story office building to an orbital space elevator. Pluggable dispatch
-strategies, realistic trapezoidal motion profiles, and an extension system
-let you build exactly the simulation you need.
+strategies, realistic trapezoidal motion profiles, O(1) population tracking
+per stop, and an extension system let you build exactly the simulation you
+need.
 
 [Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
 
@@ -38,7 +39,7 @@ From there, the typical workflow is:
 1. **Configure stops** -- define the building layout with named stops at arbitrary positions.
 2. **Build the simulation** -- `SimulationBuilder` validates the config and returns a ready-to-run `Simulation`.
 3. **Spawn riders** -- place riders at origin stops with a destination and weight.
-4. **Step the loop** -- each call to `sim.step()` advances one tick through all six phases.
+4. **Step the loop** -- each call to `sim.step()` advances one tick through all seven phases.
 5. **Read metrics** -- query aggregate wait times, ride times, and throughput at any point.
 
 ## Examples
@@ -139,24 +140,25 @@ if let Some(tag) = sim.world().get_ext::<VipTag>(rider_id) {
 
 ## Architecture
 
-Each call to `sim.step()` executes six phases:
+Each call to `sim.step()` executes seven phases:
 
 ```text
-┌───────────────┐   ┌──────────┐   ┌──────────┐
-│ Advance       │──▶│ Dispatch │──▶│ Movement │
-│ Transient     │   │          │   │          │
-└───────────────┘   └──────────┘   └──────────┘
-                                        │
-┌───────────────┐   ┌──────────┐   ┌──────────┐
-│ Metrics       │◀──│ Loading  │◀──│ Doors    │
-│               │   │          │   │          │
-└───────────────┘   └──────────┘   └──────────┘
+┌───────────────┐   ┌──────────┐   ┌──────────────┐   ┌──────────┐
+│ Advance       │──▶│ Dispatch │──▶│ Reposition   │──▶│ Movement │
+│ Transient     │   │          │   │              │   │          │
+└───────────────┘   └──────────┘   └──────────────┘   └──────────┘
+                                                           │
+               ┌───────────────┐   ┌──────────┐   ┌──────────┐
+               │ Metrics       │◀──│ Loading  │◀──│ Doors    │
+               │               │   │          │   │          │
+               └───────────────┘   └──────────┘   └──────────┘
 ```
 
 | Phase | Description |
 |-------|-------------|
-| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Exiting to Arrived). |
+| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Exiting to Resident/Arrived). |
 | **Dispatch** | Assigns idle elevators to stops via the pluggable `DispatchStrategy`. |
+| **Reposition** | Moves idle elevators toward strategic positions to reduce future wait times. |
 | **Movement** | Updates elevator position and velocity using trapezoidal acceleration profiles. |
 | **Doors** | Ticks door open/close finite-state machines at each stop. |
 | **Loading** | Boards waiting riders onto elevators with open doors and exits riders at their destination. |

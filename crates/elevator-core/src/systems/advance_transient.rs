@@ -3,6 +3,7 @@
 use crate::components::{RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
+use crate::rider_index::RiderIndex;
 use crate::world::World;
 
 use super::PhaseContext;
@@ -18,7 +19,13 @@ enum TransientAction {
 /// Handle a rider that has just exited: advance the route and transition to
 /// the appropriate phase. Walk legs are executed immediately (the rider is
 /// teleported to the walk destination).
-fn handle_exit(id: EntityId, world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+fn handle_exit(
+    id: EntityId,
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    rider_index: &mut RiderIndex,
+) {
     // Check if the route has more legs.
     let has_more_legs = world.route_mut(id).is_some_and(Route::advance);
 
@@ -60,6 +67,10 @@ fn handle_exit(id: EntityId, world: &mut World, events: &mut EventBus, ctx: &Pha
             if let Some(r) = world.rider_mut(id) {
                 r.phase = RiderPhase::Waiting;
             }
+            // Rider is now Waiting at their current_stop — add to index.
+            if let Some(stop) = world.rider(id).and_then(|r| r.current_stop) {
+                rider_index.insert_waiting(stop, id);
+            }
         }
     } else if let Some(r) = world.rider_mut(id) {
         r.phase = RiderPhase::Arrived;
@@ -94,7 +105,12 @@ fn handle_exit(id: EntityId, world: &mut World, events: &mut EventBus, ctx: &Pha
 ///
 /// These transient states last exactly one tick so they're
 /// visible for one frame in the visualization.
-pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+pub(crate) fn run(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    rider_index: &mut RiderIndex,
+) {
     // Only collect riders in transient phases to avoid allocating all IDs.
     let actionable: Vec<_> = world
         .iter_riders()
@@ -117,7 +133,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                     r.phase = RiderPhase::Riding(eid);
                 }
             }
-            TransientAction::Exit => handle_exit(id, world, events, ctx),
+            TransientAction::Exit => handle_exit(id, world, events, ctx, rider_index),
         }
     }
 
@@ -157,10 +173,12 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
     }
 
     // Apply abandonments.
-    for (id, stop) in abandon {
+    for &(id, stop) in &abandon {
         if let Some(r) = world.rider_mut(id) {
             r.phase = RiderPhase::Abandoned;
         }
+        rider_index.remove_waiting(stop, id);
+        rider_index.insert_abandoned(stop, id);
         events.emit(Event::RiderAbandoned {
             rider: id,
             stop,

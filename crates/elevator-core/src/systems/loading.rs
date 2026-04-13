@@ -5,6 +5,7 @@ use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::events::{Event, EventBus};
 use crate::ids::GroupId;
+use crate::rider_index::RiderIndex;
 use crate::world::World;
 
 use super::PhaseContext;
@@ -192,6 +193,7 @@ fn apply_actions(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    rider_index: &mut RiderIndex,
 ) {
     for action in actions {
         match action {
@@ -231,12 +233,17 @@ fn apply_actions(
             } => {
                 // Guard: skip if rider is no longer Waiting (another elevator at
                 // the same stop may have already boarded them in an earlier action).
-                if world
-                    .rider(rider)
-                    .is_none_or(|r| r.phase != RiderPhase::Waiting)
-                {
+                let boarding_stop = world.rider(rider).and_then(|r| {
+                    if r.phase == RiderPhase::Waiting {
+                        r.current_stop
+                    } else {
+                        None
+                    }
+                });
+                let Some(stop) = boarding_stop else {
                     continue;
-                }
+                };
+                rider_index.remove_waiting(stop, rider);
                 if let Some(car) = world.elevator_mut(elevator) {
                     car.current_load += weight;
                     car.riders.push(rider);
@@ -271,12 +278,13 @@ fn apply_actions(
 }
 
 /// One rider boards or exits per tick per elevator.
-pub fn run(
+pub(crate) fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     elevator_ids: &[EntityId],
+    rider_index: &mut RiderIndex,
 ) {
     let actions = collect_actions(world, elevator_ids);
-    apply_actions(actions, world, events, ctx);
+    apply_actions(actions, world, events, ctx, rider_index);
 }

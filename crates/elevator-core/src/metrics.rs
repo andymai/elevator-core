@@ -38,6 +38,10 @@ pub struct Metrics {
     /// Total distance traveled by elevators while repositioning.
     #[serde(default)]
     pub(crate) reposition_distance: f64,
+    /// Total riders settled as residents.
+    pub(crate) total_settled: u64,
+    /// Total riders rerouted from resident phase.
+    pub(crate) total_rerouted: u64,
 
     // -- Internal accumulators --
     /// Running sum of wait ticks across all boarded riders.
@@ -139,6 +143,18 @@ impl Metrics {
         self.reposition_distance
     }
 
+    /// Total riders settled as residents.
+    #[must_use]
+    pub const fn total_settled(&self) -> u64 {
+        self.total_settled
+    }
+
+    /// Total riders rerouted from resident phase.
+    #[must_use]
+    pub const fn total_rerouted(&self) -> u64 {
+        self.total_rerouted
+    }
+
     /// Window size for throughput calculation (ticks).
     #[must_use]
     pub const fn throughput_window_ticks(&self) -> u64 {
@@ -180,6 +196,16 @@ impl Metrics {
         if self.total_spawned > 0 {
             self.abandonment_rate = self.total_abandoned as f64 / self.total_spawned as f64;
         }
+    }
+
+    /// Record a rider settling as a resident.
+    pub const fn record_settle(&mut self) {
+        self.total_settled += 1;
+    }
+
+    /// Record a resident rider being rerouted.
+    pub const fn record_reroute(&mut self) {
+        self.total_rerouted += 1;
     }
 
     /// Record elevator distance traveled this tick.
