@@ -14,6 +14,8 @@ pub mod position;
 pub mod rider;
 /// Multi-leg route planning.
 pub mod route;
+/// Service mode component for elevator operational modes.
+pub mod service_mode;
 /// Stop (floor/station) data.
 pub mod stop;
 
@@ -24,4 +26,5 @@ pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};
 pub use rider::{Rider, RiderPhase};
 pub use route::{Route, RouteLeg, TransportMode};
+pub use service_mode::ServiceMode;
 pub use stop::Stop;

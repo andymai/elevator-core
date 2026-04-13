@@ -43,6 +43,8 @@ pub struct ElevatorParams {
     pub door_open_ticks: u32,
     /// Stop entity IDs this elevator cannot serve (access restriction).
     pub restricted_stops: HashSet<EntityId>,
+    /// Speed multiplier for Inspection mode (0.0..1.0).
+    pub inspection_speed_factor: f64,
 }
 
 impl Default for ElevatorParams {
@@ -55,6 +57,7 @@ impl Default for ElevatorParams {
             door_transition_ticks: 5,
             door_open_ticks: 10,
             restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
         }
     }
 }
@@ -333,12 +336,16 @@ impl Simulation {
                     line: default_line_eid,
                     repositioning: false,
                     restricted_stops: restricted,
+                    inspection_speed_factor: ec.inspection_speed_factor,
                 },
             );
             #[cfg(feature = "energy")]
             if let Some(ref profile) = ec.energy_profile {
                 world.set_energy_profile(eid, profile.clone());
                 world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+            }
+            if let Some(mode) = ec.service_mode {
+                world.set_service_mode(eid, mode);
             }
             elevator_entities.push(eid);
         }
@@ -454,12 +461,16 @@ impl Simulation {
                         line: line_eid,
                         repositioning: false,
                         restricted_stops: restricted,
+                        inspection_speed_factor: ec.inspection_speed_factor,
                     },
                 );
                 #[cfg(feature = "energy")]
                 if let Some(ref profile) = ec.energy_profile {
                     world.set_energy_profile(eid, profile.clone());
                     world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+                }
+                if let Some(mode) = ec.service_mode {
+                    world.set_service_mode(eid, mode);
                 }
                 elevator_entities.push(eid);
             }
@@ -1315,6 +1326,7 @@ impl Simulation {
                 line,
                 repositioning: false,
                 restricted_stops: params.restricted_stops.clone(),
+                inspection_speed_factor: params.inspection_speed_factor,
             },
         );
         self.groups[group_idx].lines_mut()[line_idx]
@@ -2299,6 +2311,50 @@ impl Simulation {
     #[must_use]
     pub fn is_disabled(&self, id: EntityId) -> bool {
         self.world.is_disabled(id)
+    }
+
+    // ── Service mode ────────────────────────────────────────────────
+
+    /// Set the service mode for an elevator.
+    ///
+    /// Emits [`Event::ServiceModeChanged`] if the mode actually changes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    pub fn set_service_mode(
+        &mut self,
+        elevator: EntityId,
+        mode: crate::components::ServiceMode,
+    ) -> Result<(), SimError> {
+        if self.world.elevator(elevator).is_none() {
+            return Err(SimError::EntityNotFound(elevator));
+        }
+        let old = self
+            .world
+            .service_mode(elevator)
+            .copied()
+            .unwrap_or_default();
+        if old == mode {
+            return Ok(());
+        }
+        self.world.set_service_mode(elevator, mode);
+        self.events.emit(Event::ServiceModeChanged {
+            elevator,
+            from: old,
+            to: mode,
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    /// Get the current service mode for an elevator.
+    #[must_use]
+    pub fn service_mode(&self, elevator: EntityId) -> crate::components::ServiceMode {
+        self.world
+            .service_mode(elevator)
+            .copied()
+            .unwrap_or_default()
     }
 
     // ── Sub-stepping ────────────────────────────────────────────────

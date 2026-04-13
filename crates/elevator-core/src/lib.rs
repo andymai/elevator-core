@@ -238,7 +238,7 @@ pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
         AccessControl, Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience,
-        Position, Preferences, Rider, RiderPhase, Route, Stop, Velocity,
+        Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop, Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{

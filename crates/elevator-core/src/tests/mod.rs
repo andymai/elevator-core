@@ -36,3 +36,4 @@ mod multi_elevator_tests;
 mod multi_line_tests;
 mod reposition_tests;
 mod resident_tests;
+mod service_mode_tests;

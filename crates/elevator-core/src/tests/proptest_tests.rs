@@ -115,6 +115,8 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
             restricted_stops: Vec::new(),
             #[cfg(feature = "energy")]
             energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         })
         .collect();
 
@@ -253,6 +255,8 @@ proptest! {
                 restricted_stops: Vec::new(),
                 #[cfg(feature = "energy")]
                 energy_profile: None,
+                service_mode: None,
+                inspection_speed_factor: 0.25,
             }],
             simulation: SimulationParams { ticks_per_second: 60.0 },
             passenger_spawning: PassengerSpawnConfig {

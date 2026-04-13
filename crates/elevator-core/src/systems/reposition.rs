@@ -35,6 +35,13 @@ pub fn run(
                 if world.is_disabled(eid) {
                     return None;
                 }
+                // Skip elevators in Independent service mode.
+                if world
+                    .service_mode(eid)
+                    .is_some_and(|m| *m == crate::components::ServiceMode::Independent)
+                {
+                    return None;
+                }
                 let car = world.elevator(eid)?;
                 if car.phase == ElevatorPhase::Idle {
                     let pos = world.position(eid)?.value;

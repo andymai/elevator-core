@@ -1,7 +1,7 @@
 //! Phase 4: tick door FSMs and handle open/close phase transitions.
 
 use crate::components::ElevatorPhase;
-use crate::door::DoorTransition;
+use crate::door::{DoorState, DoorTransition};
 use crate::events::{Event, EventBus};
 use crate::world::World;
 
@@ -19,11 +19,20 @@ pub fn run(
             continue;
         }
 
+        let is_inspection = world
+            .service_mode(eid)
+            .is_some_and(|m| *m == crate::components::ServiceMode::Inspection);
+
         let Some(car) = world.elevator_mut(eid) else {
             continue;
         };
 
         if car.door.is_closed() && car.phase != ElevatorPhase::DoorOpening {
+            continue;
+        }
+
+        // In Inspection mode, hold doors open — don't tick the door FSM.
+        if is_inspection && matches!(car.door, DoorState::Open { .. }) {
             continue;
         }
 
