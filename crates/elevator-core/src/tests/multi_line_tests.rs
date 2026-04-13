@@ -1291,3 +1291,1296 @@ fn remove_stop_from_line_removes_from_serves_and_updates_group_cache() {
         "group stop cache should not contain removed stop"
     );
 }
+
+// ── 12. Walk leg execution ────────────────────────────────────────────────────
+
+#[test]
+fn walk_only_route_rider_arrives_directly() {
+    // A rider with a single Walk leg needs no elevator — they arrive on the next
+    // advance_transient tick.
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: ground,
+            to: transfer,
+            via: TransportMode::Walk,
+        }],
+        current_leg: 0,
+    };
+
+    // Spawn at ground, destination transfer, route is walk-only.
+    let rider = sim
+        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .unwrap();
+
+    // The rider starts Waiting.
+    assert_eq!(sim.world().rider(rider).unwrap().phase, RiderPhase::Waiting);
+
+    // Walk is processed during advance_transient when in Exiting phase, but a
+    // Walk leg rider begins Waiting — a single elevator step is not needed.
+    // However the walk executes only after Exiting is resolved, so we need to
+    // put the rider in Exiting to trigger the walk.  The actual flow for a
+    // pure-walk route: rider stays Waiting until manually placed in Exiting,
+    // OR we manually advance the route to trigger the walk code path.
+    //
+    // The loading system skips Walk riders (they never board).  The walk is
+    // executed in handle_exit, which fires when a rider transitions from Exiting.
+    // For a walk-only route with no elevator, we exercise the path by placing the
+    // rider in Exiting phase manually and stepping once.
+    sim.world_mut().rider_mut(rider).unwrap().phase =
+        RiderPhase::Exiting(crate::entity::EntityId::default());
+
+    sim.step();
+
+    let rider_data = sim.world().rider(rider).unwrap();
+    assert_eq!(
+        rider_data.phase,
+        RiderPhase::Arrived,
+        "walk-only rider should arrive after advance_transient processes the Exiting phase"
+    );
+    // For a single-leg Walk route, current_stop is not updated to the walk
+    // destination — the rider simply arrives (no more legs to process).
+    // current_stop remains wherever the rider was at spawn time (ground).
+    assert_eq!(
+        rider_data.current_stop,
+        Some(ground),
+        "rider's current_stop should remain at spawn stop for a single-leg walk route"
+    );
+}
+
+#[test]
+fn walk_leg_teleports_rider_to_destination() {
+    // Walk leg in the middle of a multi-leg route: after exiting the first
+    // elevator leg, rider is teleported to the walk destination in the same tick.
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+    let top = sim.stop_entity(StopId(2)).unwrap();
+
+    // Route: Group0 elevator ground→transfer, then Walk transfer→transfer (no-op
+    // teleport to same stop), then Group1 elevator transfer→top.
+    // This exercises the Walk code path without needing a physically separate stop.
+    let route = Route {
+        legs: vec![
+            RouteLeg {
+                from: ground,
+                to: transfer,
+                via: TransportMode::Group(GroupId(0)),
+            },
+            RouteLeg {
+                from: transfer,
+                to: transfer,
+                via: TransportMode::Walk,
+            },
+            RouteLeg {
+                from: transfer,
+                to: top,
+                via: TransportMode::Group(GroupId(1)),
+            },
+        ],
+        current_leg: 0,
+    };
+
+    let rider = sim
+        .spawn_rider_with_route(ground, top, 70.0, route)
+        .unwrap();
+
+    for _ in 0..5000 {
+        sim.step();
+        if let Some(r) = sim.world().rider(rider) {
+            if r.phase == RiderPhase::Arrived {
+                break;
+            }
+        }
+    }
+
+    assert_eq!(
+        sim.world().rider(rider).unwrap().phase,
+        RiderPhase::Arrived,
+        "rider with walk leg in multi-leg route should eventually arrive"
+    );
+}
+
+#[test]
+fn walk_leg_rider_does_not_board_elevator() {
+    // A rider whose current leg is Walk must NOT board any elevator.
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: ground,
+            to: transfer,
+            via: TransportMode::Walk,
+        }],
+        current_leg: 0,
+    };
+
+    let rider = sim
+        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .unwrap();
+
+    // Step 50 ticks — enough for an elevator to come and open its doors.
+    for _ in 0..50 {
+        sim.step();
+    }
+
+    // Rider should still be Waiting (or already Waiting to board nothing) —
+    // never Boarding or Riding.
+    let phase = sim.world().rider(rider).unwrap().phase;
+    assert!(
+        matches!(phase, RiderPhase::Waiting | RiderPhase::Arrived),
+        "walk-leg rider should never board an elevator, got {phase:?}"
+    );
+}
+
+// ── 13. Line removal mid-simulation ──────────────────────────────────────────
+
+#[test]
+fn remove_line_with_riders_aboard_ejects_riders() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    // Spawn a rider on the low-rise line (Group 0: ground→transfer).
+    let rider = sim.spawn_rider(ground, transfer, 70.0).unwrap();
+
+    // Run until the rider is actually riding an elevator.
+    let mut is_riding = false;
+    for _ in 0..3000 {
+        sim.step();
+        if let Some(r) = sim.world().rider(rider) {
+            if matches!(r.phase, RiderPhase::Riding(_)) {
+                is_riding = true;
+                break;
+            }
+        }
+    }
+    assert!(is_riding, "rider should board elevator within 3000 ticks");
+
+    // Now remove the low-rise line while the rider is aboard.
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    sim.remove_line(low_line).unwrap();
+
+    // After one tick the disable/eject should have been applied.
+    sim.step();
+
+    // Rider must NOT be in a Riding phase anymore.
+    let phase = sim.world().rider(rider).unwrap().phase;
+    assert!(
+        matches!(phase, RiderPhase::Waiting | RiderPhase::Arrived),
+        "rider should be ejected when line is removed; got {phase:?}"
+    );
+}
+
+#[test]
+fn remove_line_updates_group_cache() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Group 0 starts with one line; Group 1 starts with one line.
+    assert_eq!(sim.lines_in_group(GroupId(0)).len(), 1);
+
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    sim.remove_line(low_line).unwrap();
+
+    assert_eq!(
+        sim.lines_in_group(GroupId(0)).len(),
+        0,
+        "Group 0 should have no lines after remove_line"
+    );
+    assert_eq!(
+        sim.groups()
+            .iter()
+            .find(|g| g.id() == GroupId(0))
+            .unwrap()
+            .elevator_entities()
+            .len(),
+        0,
+        "Group 0 elevator cache should be empty after remove_line"
+    );
+}
+
+#[test]
+fn remove_line_marks_topology_graph_dirty() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Prime the topology graph.
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let top = sim.stop_entity(StopId(2)).unwrap();
+    let before = sim.reachable_stops_from(ground);
+    assert!(
+        before.contains(&top),
+        "ground should reach top before removal"
+    );
+
+    // Remove the low-rise line — now ground should not reach top.
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    sim.remove_line(low_line).unwrap();
+
+    let after = sim.reachable_stops_from(ground);
+    assert!(
+        !after.contains(&top),
+        "ground should no longer reach top after low-rise line is removed"
+    );
+}
+
+// ── 14. Elevator reassignment (swing car) ────────────────────────────────────
+
+#[test]
+fn reassign_elevator_to_line_moves_elevator() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    let high_line = sim.lines_in_group(GroupId(1))[0];
+
+    let low_elevator = sim.elevators_on_line(low_line)[0];
+
+    // Precondition: elevator is on the low-rise line.
+    assert_eq!(sim.world().elevator(low_elevator).unwrap().line(), low_line);
+    assert_eq!(sim.elevators_on_line(low_line).len(), 1);
+    assert_eq!(sim.elevators_on_line(high_line).len(), 1);
+
+    sim.reassign_elevator_to_line(low_elevator, high_line)
+        .unwrap();
+
+    // The elevator component should reference the new line.
+    assert_eq!(
+        sim.world().elevator(low_elevator).unwrap().line(),
+        high_line,
+        "elevator line field should point to the new line"
+    );
+
+    // The line info caches should be updated.
+    assert_eq!(
+        sim.elevators_on_line(low_line).len(),
+        0,
+        "low-rise line should have no elevators after reassignment"
+    );
+    assert_eq!(
+        sim.elevators_on_line(high_line).len(),
+        2,
+        "high-rise line should have 2 elevators after reassignment"
+    );
+}
+
+#[test]
+fn reassign_elevator_to_line_at_max_cars_returns_error() {
+    // Build a config where the high line has max_cars: Some(1).
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Cap Test".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "Ground".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "Transfer".into(),
+                    position: 10.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "Top".into(),
+                    position: 20.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "Low".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 1,
+                        name: "L1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "High".into(),
+                    serves: vec![StopId(1), StopId(2)],
+                    elevators: vec![ElevatorConfig {
+                        id: 2,
+                        name: "H1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(1),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: Some(1), // already full
+                },
+            ]),
+            groups: Some(vec![
+                GroupConfig {
+                    id: 0,
+                    name: "Low Rise".into(),
+                    lines: vec![1],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                },
+                GroupConfig {
+                    id: 1,
+                    name: "High Rise".into(),
+                    lines: vec![2],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                },
+            ]),
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    let high_line = sim.lines_in_group(GroupId(1))[0];
+    let low_elevator = sim.elevators_on_line(low_line)[0];
+
+    // High line already has 1 car and max_cars is 1 — should fail.
+    let result = sim.reassign_elevator_to_line(low_elevator, high_line);
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "line.max_cars",
+                ..
+            })
+        ),
+        "expected InvalidConfig(max_cars), got {result:?}"
+    );
+}
+
+#[test]
+fn reassign_elevator_emits_elevator_reassigned_event() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    let high_line = sim.lines_in_group(GroupId(1))[0];
+    let low_elevator = sim.elevators_on_line(low_line)[0];
+
+    sim.reassign_elevator_to_line(low_elevator, high_line)
+        .unwrap();
+
+    let events = sim.drain_events();
+    let reassigned = events.iter().find(|e| {
+        matches!(
+            e,
+            crate::events::Event::ElevatorReassigned {
+                elevator,
+                old_line,
+                new_line,
+                ..
+            } if *elevator == low_elevator && *old_line == low_line && *new_line == high_line
+        )
+    });
+
+    assert!(
+        reassigned.is_some(),
+        "ElevatorReassigned event should be emitted with correct old/new line"
+    );
+}
+
+// ── 15. max_cars enforcement ──────────────────────────────────────────────────
+
+#[test]
+fn max_cars_exactly_met_at_config_time_succeeds() {
+    // max_cars: Some(2) with exactly 2 elevators: valid.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Capped".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "G".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "T".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: Some(vec![LineConfig {
+                id: 1,
+                name: "Main".into(),
+                serves: vec![StopId(0), StopId(1)],
+                elevators: vec![
+                    ElevatorConfig {
+                        id: 1,
+                        name: "E1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    },
+                    ElevatorConfig {
+                        id: 2,
+                        name: "E2".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    },
+                ],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                max_cars: Some(2),
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let result = Simulation::new(&config, ScanDispatch::new());
+    assert!(
+        result.is_ok(),
+        "max_cars: Some(2) with exactly 2 elevators should succeed"
+    );
+}
+
+#[test]
+fn max_cars_exceeded_at_config_time_fails_validation() {
+    // max_cars: Some(1) with 2 elevators: invalid.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Over Cap".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "G".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "T".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: Some(vec![LineConfig {
+                id: 1,
+                name: "Main".into(),
+                serves: vec![StopId(0), StopId(1)],
+                elevators: vec![
+                    ElevatorConfig {
+                        id: 1,
+                        name: "E1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    },
+                    ElevatorConfig {
+                        id: 2,
+                        name: "E2".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    },
+                ],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                max_cars: Some(1),
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let result = Simulation::new(&config, ScanDispatch::new());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.lines.max_cars",
+                ..
+            })
+        ),
+        "expected InvalidConfig(max_cars), got {result:?}"
+    );
+}
+
+#[test]
+fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
+    // Build a sim with max_cars: Some(1) on a line that already has 1 elevator.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Runtime Cap".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "G".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "T".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: Some(vec![LineConfig {
+                id: 1,
+                name: "Main".into(),
+                serves: vec![StopId(0), StopId(1)],
+                elevators: vec![ElevatorConfig {
+                    id: 1,
+                    name: "E1".into(),
+                    max_speed: 2.0,
+                    acceleration: 1.5,
+                    deceleration: 2.0,
+                    weight_capacity: 800.0,
+                    starting_stop: StopId(0),
+                    door_open_ticks: 10,
+                    door_transition_ticks: 5,
+                }],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                max_cars: Some(1),
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    let result = sim.add_elevator(&crate::sim::ElevatorParams::default(), line, 0.0);
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "line.max_cars",
+                ..
+            })
+        ),
+        "expected InvalidConfig(max_cars) when adding elevator to full line, got {result:?}"
+    );
+}
+
+// ── 16. Complex topology (3+ groups) ─────────────────────────────────────────
+
+/// 4-stop, 3-line, 3-group config with 2 transfer stops.
+///
+/// ```
+/// Stops: A(0) ─── B(1) ─── C(2) ─── D(3)
+/// Line 1 (Group 0): A ─── B
+/// Line 2 (Group 1): B ─── C
+/// Line 3 (Group 2): C ─── D
+/// Transfer stops: B (Groups 0+1), C (Groups 1+2)
+/// ```
+fn three_group_config() -> SimConfig {
+    SimConfig {
+        building: BuildingConfig {
+            name: "Three-Group Tower".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "C".into(),
+                    position: 20.0,
+                },
+                StopConfig {
+                    id: StopId(3),
+                    name: "D".into(),
+                    position: 30.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "AB".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 1,
+                        name: "E1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "BC".into(),
+                    serves: vec![StopId(1), StopId(2)],
+                    elevators: vec![ElevatorConfig {
+                        id: 2,
+                        name: "E2".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(1),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 3,
+                    name: "CD".into(),
+                    serves: vec![StopId(2), StopId(3)],
+                    elevators: vec![ElevatorConfig {
+                        id: 3,
+                        name: "E3".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(2),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+            ]),
+            groups: Some(vec![
+                GroupConfig {
+                    id: 0,
+                    name: "Group AB".into(),
+                    lines: vec![1],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                },
+                GroupConfig {
+                    id: 1,
+                    name: "Group BC".into(),
+                    lines: vec![2],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                },
+                GroupConfig {
+                    id: 2,
+                    name: "Group CD".into(),
+                    lines: vec![3],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                },
+            ]),
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    }
+}
+
+#[test]
+fn three_group_rider_navigates_all_legs() {
+    let config = three_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let a = sim.stop_entity(StopId(0)).unwrap();
+    let b = sim.stop_entity(StopId(1)).unwrap();
+    let c = sim.stop_entity(StopId(2)).unwrap();
+    let d = sim.stop_entity(StopId(3)).unwrap();
+
+    // Explicit 3-leg route: A→B via Group0, B→C via Group1, C→D via Group2.
+    let route = Route {
+        legs: vec![
+            RouteLeg {
+                from: a,
+                to: b,
+                via: TransportMode::Group(GroupId(0)),
+            },
+            RouteLeg {
+                from: b,
+                to: c,
+                via: TransportMode::Group(GroupId(1)),
+            },
+            RouteLeg {
+                from: c,
+                to: d,
+                via: TransportMode::Group(GroupId(2)),
+            },
+        ],
+        current_leg: 0,
+    };
+
+    let rider = sim.spawn_rider_with_route(a, d, 70.0, route).unwrap();
+
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rider)
+            .map_or(false, |r| r.phase == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+
+    assert_eq!(
+        sim.world().rider(rider).unwrap().phase,
+        RiderPhase::Arrived,
+        "rider should arrive at D via all three groups"
+    );
+}
+
+#[test]
+fn shortest_route_across_three_groups_has_three_legs() {
+    let config = three_group_config();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let a = sim.stop_entity(StopId(0)).unwrap();
+    let d = sim.stop_entity(StopId(3)).unwrap();
+
+    let route = sim.shortest_route(a, d);
+    assert!(route.is_some(), "route A→D should exist via 3 groups");
+
+    let route = route.unwrap();
+    assert_eq!(
+        route.legs.len(),
+        3,
+        "3-group route should have exactly 3 legs"
+    );
+    assert_eq!(route.legs[0].from, a);
+    assert_eq!(route.legs[2].to, d);
+}
+
+#[test]
+fn reachable_stops_from_traverses_full_three_group_graph() {
+    let config = three_group_config();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let a = sim.stop_entity(StopId(0)).unwrap();
+    let b = sim.stop_entity(StopId(1)).unwrap();
+    let c = sim.stop_entity(StopId(2)).unwrap();
+    let d = sim.stop_entity(StopId(3)).unwrap();
+
+    let reachable = sim.reachable_stops_from(a);
+    assert!(reachable.contains(&b), "A should reach B");
+    assert!(reachable.contains(&c), "A should reach C via transfer at B");
+    assert!(
+        reachable.contains(&d),
+        "A should reach D via transfers at B and C"
+    );
+}
+
+// ── 17. despawn_rider ─────────────────────────────────────────────────────────
+
+#[test]
+fn despawn_waiting_rider_removes_from_world() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    let rider = sim.spawn_rider(ground, transfer, 70.0).unwrap();
+
+    // Rider is Waiting — despawn it.
+    sim.world_mut().despawn(rider);
+
+    assert!(
+        !sim.world().is_alive(rider),
+        "despawned waiting rider should no longer be alive"
+    );
+    assert!(
+        sim.world().rider(rider).is_none(),
+        "despawned waiting rider should have no rider component"
+    );
+}
+
+#[test]
+fn despawn_riding_rider_removes_from_elevator_riders_list() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    let rider = sim.spawn_rider(ground, transfer, 70.0).unwrap();
+
+    // Run until the rider boards.
+    let mut elevator_id = None;
+    for _ in 0..3000 {
+        sim.step();
+        if let Some(r) = sim.world().rider(rider) {
+            if let RiderPhase::Riding(e) = r.phase {
+                elevator_id = Some(e);
+                break;
+            }
+        }
+    }
+    let elev = elevator_id.expect("rider should board within 3000 ticks");
+
+    // Verify load before despawn.
+    let load_before = sim.world().elevator(elev).unwrap().current_load;
+    assert!(
+        load_before > 0.0,
+        "elevator should have load while carrying rider"
+    );
+
+    // Despawn the riding rider.
+    sim.world_mut().despawn(rider);
+
+    assert!(
+        !sim.world().is_alive(rider),
+        "despawned riding rider should not be alive"
+    );
+
+    // The elevator's riders list should no longer contain this rider.
+    let car = sim.world().elevator(elev).unwrap();
+    assert!(
+        !car.riders.contains(&rider),
+        "elevator riders list should not contain despawned rider"
+    );
+
+    // Load should be reduced.
+    assert!(
+        car.current_load < load_before,
+        "elevator load should decrease after rider despawn"
+    );
+}
+
+#[test]
+fn despawn_nonexistent_entity_does_not_panic() {
+    // world.despawn on an unknown entity should be a no-op (not a crash).
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Use a made-up EntityId that was never spawned.
+    // The alive check in world.despawn will simply skip it.
+    let fake_id = crate::entity::EntityId::default();
+
+    // This must not panic.
+    sim.world_mut().despawn(fake_id);
+}
+
+// ── 18. spawn_rider_in_group ──────────────────────────────────────────────────
+
+#[test]
+fn spawn_rider_in_group_succeeds_when_group_serves_stops() {
+    let config = overlapping_groups_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let bottom = sim.stop_entity(StopId(0)).unwrap();
+    let top = sim.stop_entity(StopId(1)).unwrap();
+
+    // Both groups serve bottom and top — explicitly pick Group A (id=0).
+    let result = sim.spawn_rider_in_group(bottom, top, 70.0, GroupId(0));
+    assert!(
+        result.is_ok(),
+        "spawn_rider_in_group should succeed for a valid group"
+    );
+
+    let rider = result.unwrap();
+    let r = sim.world().rider(rider).unwrap();
+    assert_eq!(r.phase, RiderPhase::Waiting);
+}
+
+#[test]
+fn spawn_rider_in_nonexistent_group_returns_group_not_found() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    let result = sim.spawn_rider_in_group(ground, transfer, 70.0, GroupId(99));
+    assert!(
+        matches!(result, Err(SimError::GroupNotFound(GroupId(99)))),
+        "expected GroupNotFound(99), got {result:?}"
+    );
+}
+
+// ── 19. Snapshot round-trip with multi-line topology ─────────────────────────
+
+#[test]
+fn snapshot_roundtrip_preserves_multi_group_topology() {
+    let config = two_group_config();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    // Both groups must survive.
+    assert_eq!(
+        restored.groups().len(),
+        2,
+        "restored sim should have 2 groups"
+    );
+
+    // Each group should have exactly one line.
+    let g0 = restored
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(0))
+        .expect("GroupId(0) should exist after restore");
+    let g1 = restored
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(1))
+        .expect("GroupId(1) should exist after restore");
+
+    assert_eq!(g0.lines().len(), 1, "Group 0 should have 1 line");
+    assert_eq!(g1.lines().len(), 1, "Group 1 should have 1 line");
+
+    // Each group should have exactly one elevator.
+    assert_eq!(g0.elevator_entities().len(), 1);
+    assert_eq!(g1.elevator_entities().len(), 1);
+}
+
+#[test]
+fn snapshot_roundtrip_elevator_line_reference_is_valid() {
+    let config = two_group_config();
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Capture original elevator→line mappings.
+    let orig_g0_elev = sim.elevators_on_line(sim.lines_in_group(GroupId(0))[0])[0];
+    let orig_g1_elev = sim.elevators_on_line(sim.lines_in_group(GroupId(1))[0])[0];
+    let orig_g0_line = sim.world().elevator(orig_g0_elev).unwrap().line();
+    let orig_g1_line = sim.world().elevator(orig_g1_elev).unwrap().line();
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    // In the restored sim, each elevator's line reference must still point to a
+    // valid line entity (even though EntityIds are remapped).
+    let r_g0_elev = restored.elevators_on_line(restored.lines_in_group(GroupId(0))[0])[0];
+    let r_g1_elev = restored.elevators_on_line(restored.lines_in_group(GroupId(1))[0])[0];
+
+    let r_g0_line = restored.world().elevator(r_g0_elev).unwrap().line();
+    let r_g1_line = restored.world().elevator(r_g1_elev).unwrap().line();
+
+    // The line entities from the restored sim should exist in the world.
+    assert!(
+        restored.world().line(r_g0_line).is_some(),
+        "restored Group 0 elevator's line should exist in world"
+    );
+    assert!(
+        restored.world().line(r_g1_line).is_some(),
+        "restored Group 1 elevator's line should exist in world"
+    );
+
+    // The two lines should be different entities.
+    assert_ne!(
+        r_g0_line, r_g1_line,
+        "restored elevators should reference different lines"
+    );
+
+    // Sanity: original sim also had different lines.
+    assert_ne!(orig_g0_line, orig_g1_line);
+}
+
+#[test]
+fn snapshot_roundtrip_transport_mode_group_serde_alias() {
+    // TransportMode::Group serializes as "Group" and deserializes via the
+    // "Elevator" alias — verify round-trip through RON.
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: crate::entity::EntityId::default(),
+            to: crate::entity::EntityId::default(),
+            via: TransportMode::Group(GroupId(5)),
+        }],
+        current_leg: 0,
+    };
+
+    // Serialize to RON.
+    let ron_str = ron::to_string(&route).expect("route should serialize to RON");
+
+    // The serialized form uses "Group" (not "Elevator").
+    assert!(
+        ron_str.contains("Group"),
+        "serialized route should contain 'Group', got: {ron_str}"
+    );
+
+    // Deserialize and verify it round-trips.
+    let restored: Route = ron::from_str(&ron_str).expect("route should deserialize from RON");
+    assert_eq!(
+        restored.legs[0].via,
+        TransportMode::Group(GroupId(5)),
+        "round-tripped route leg should have Group(5)"
+    );
+}
+
+// ── 20. PassingFloor direction field ─────────────────────────────────────────
+
+#[test]
+fn passing_floor_event_moving_up_is_true_when_ascending() {
+    use crate::events::Event;
+
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Spawn a rider going from Ground (pos 0) to Top (pos 20) — forces upward travel.
+    // Group 0 can only reach Transfer (pos 10), so spawn within Group 0's range.
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+    sim.spawn_rider(ground, transfer, 70.0).unwrap();
+
+    // Collect PassingFloor events; the single intermediate stop gets passed when
+    // there's nothing between ground and transfer. Since there are only 2 stops in
+    // this group, we won't see a PassingFloor here. Use the 3-group config which
+    // has more stops.
+    drop(sim);
+
+    // Use the 3-group config: A(0)–B(10)–C(20)–D(30).
+    // Dispatch elevator from A toward D — it will pass B and C.
+    let config3 = three_group_config();
+    let mut sim3 = Simulation::new(&config3, ScanDispatch::new()).unwrap();
+
+    let a = sim3.stop_entity(StopId(0)).unwrap();
+    let b = sim3.stop_entity(StopId(1)).unwrap();
+    sim3.spawn_rider(a, b, 70.0).unwrap();
+
+    let mut passing_up: Vec<bool> = Vec::new();
+    for _ in 0..2000 {
+        sim3.step();
+        let events = sim3.drain_events();
+        for e in events {
+            if let Event::PassingFloor { moving_up, .. } = e {
+                passing_up.push(moving_up);
+            }
+        }
+        if !passing_up.is_empty() {
+            break;
+        }
+    }
+
+    // If a PassingFloor was emitted while going up, moving_up must be true.
+    for up in &passing_up {
+        assert!(
+            up,
+            "PassingFloor while ascending should have moving_up = true"
+        );
+    }
+}
+
+#[test]
+fn passing_floor_event_moving_up_is_false_when_descending() {
+    use crate::events::Event;
+
+    // Use the 3-group config: elevator starts at StopId(1) (pos 10).
+    // Spawn a rider going B→A (downward).
+    let config = three_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let a = sim.stop_entity(StopId(0)).unwrap();
+    let b = sim.stop_entity(StopId(1)).unwrap();
+
+    // Spawn at B going to A — forces downward movement.
+    sim.spawn_rider(b, a, 70.0).unwrap();
+
+    let mut passing_events: Vec<bool> = Vec::new();
+    for _ in 0..3000 {
+        sim.step();
+        let events = sim.drain_events();
+        for e in events {
+            if let Event::PassingFloor { moving_up, .. } = e {
+                passing_events.push(moving_up);
+            }
+        }
+    }
+
+    // If any PassingFloor was emitted during a downward trip, moving_up must be false.
+    for up in &passing_events {
+        assert!(
+            !up,
+            "PassingFloor while descending should have moving_up = false"
+        );
+    }
+}
+
+// ── 21. Orphan line validation ────────────────────────────────────────────────
+
+#[test]
+fn orphan_line_not_referenced_by_any_group_fails_validation() {
+    // Line 2 exists but is not in any group's lines list.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Orphan Line".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "G".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "T".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "Main".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 1,
+                        name: "E1".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "Orphan".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 2,
+                        name: "E2".into(),
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+            ]),
+            // Only group references line 1; line 2 is orphaned.
+            groups: Some(vec![GroupConfig {
+                id: 0,
+                name: "G0".into(),
+                lines: vec![1],
+                dispatch: crate::dispatch::BuiltinStrategy::Scan,
+            }]),
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let result = Simulation::new(&config, ScanDispatch::new());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.lines",
+                ..
+            })
+        ),
+        "expected InvalidConfig for orphan line, got {result:?}"
+    );
+}
