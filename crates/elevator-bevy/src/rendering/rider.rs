@@ -9,9 +9,10 @@
 use bevy::prelude::*;
 use elevator_core::components::{Position, Rider, RiderPhase};
 use elevator_core::entity::EntityId;
+use elevator_core::sim::Simulation;
 use std::hash::{Hash, Hasher};
 
-use super::{PPU, VisualScale};
+use super::{LineLayout, PPU, VisualScale};
 use crate::palette;
 use crate::sim_bridge::SimulationRes;
 
@@ -72,6 +73,7 @@ pub fn sync_rider_visuals(
     existing: Query<(Entity, &RiderVisual)>,
     vs: Res<VisualScale>,
     rider_mats: Res<RiderMaterials>,
+    layout: Res<LineLayout>,
 ) {
     let w = sim.sim.world();
     let current_tick = sim.sim.current_tick();
@@ -101,8 +103,16 @@ pub fn sync_rider_visuals(
             continue;
         }
 
-        let (x, y, mat_handle) =
-            rider_visual_params(rider_eid, rider, w, &vs, &rider_mats, current_tick);
+        let (x, y, mat_handle) = rider_visual_params(
+            rider_eid,
+            rider,
+            w,
+            &sim.sim,
+            &layout,
+            &vs,
+            &rider_mats,
+            current_tick,
+        );
 
         commands.spawn((
             Mesh2d(meshes.add(Circle::new(vs.rider_radius))),
@@ -127,6 +137,7 @@ pub fn update_rider_positions(
     )>,
     rider_mats: Res<RiderMaterials>,
     vs: Res<VisualScale>,
+    layout: Res<LineLayout>,
 ) {
     let w = sim.sim.world();
     let current_tick = sim.sim.current_tick();
@@ -140,8 +151,16 @@ pub fn update_rider_positions(
             continue;
         }
 
-        let (x, y, handle) =
-            rider_visual_params(vis.entity_id, rider, w, &vs, &rider_mats, current_tick);
+        let (x, y, handle) = rider_visual_params(
+            vis.entity_id,
+            rider,
+            w,
+            &sim.sim,
+            &layout,
+            &vs,
+            &rider_mats,
+            current_tick,
+        );
 
         // Add gentle drift for waiting riders.
         let drift = if matches!(rider.phase(), RiderPhase::Waiting) {
@@ -161,10 +180,16 @@ pub fn update_rider_positions(
 }
 
 /// Compute (x, y, material) for a rider visual based on its phase.
+///
+/// For waiting riders, position them near the leftmost line that serves their
+/// stop. For boarding/riding/exiting riders, position at the elevator's line.
+#[allow(clippy::too_many_arguments)]
 fn rider_visual_params(
     rider_eid: EntityId,
     rider: &Rider,
     w: &elevator_core::world::World,
+    sim: &Simulation,
+    layout: &LineLayout,
     vs: &VisualScale,
     mats: &RiderMaterials,
     current_tick: u64,
@@ -175,6 +200,15 @@ fn rider_visual_params(
                 .current_stop()
                 .and_then(|s| w.stop_position(s))
                 .unwrap_or(0.0);
+
+            // Find x-position: use the first line serving this stop.
+            let shaft_x = rider.current_stop().map_or(0.0, |stop| {
+                let lines = sim.lines_serving_stop(stop);
+                lines
+                    .first()
+                    .map_or(0.0, |line_eid| layout.x_for_line(*line_eid))
+            });
+
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             rider_eid.hash(&mut hasher);
             let hash = hasher.finish();
@@ -187,18 +221,24 @@ fn rider_visual_params(
             } else {
                 mats.calm.clone()
             };
-            (offset, stop_y as f32 * PPU, mat)
+            (shaft_x + offset, stop_y as f32 * PPU, mat)
         }
         RiderPhase::Boarding(elev_eid) => {
             let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
+            let shaft_x = sim
+                .line_for_elevator(elev_eid)
+                .map_or(0.0, |l| layout.x_for_line(l));
             (
-                vs.waiting_x_offset * 0.3,
+                vs.waiting_x_offset.mul_add(0.3, shaft_x),
                 elev_y as f32 * PPU,
                 mats.boarding.clone(),
             )
         }
         RiderPhase::Riding(elev_eid) => {
             let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
+            let shaft_x = sim
+                .line_for_elevator(elev_eid)
+                .map_or(0.0, |l| layout.x_for_line(l));
             let idx = w
                 .elevator(elev_eid)
                 .and_then(|car| car.riders().iter().position(|r| *r == rider_eid))
@@ -206,15 +246,18 @@ fn rider_visual_params(
             let x_offset = (idx as f32 % 4.0).mul_add(vs.rider_spacing, -vs.rider_spacing * 1.5);
             let y_offset = (idx as f32 / 4.0).floor() * vs.rider_spacing;
             (
-                x_offset,
+                shaft_x + x_offset,
                 (elev_y as f32).mul_add(PPU, y_offset),
                 mats.riding.clone(),
             )
         }
         RiderPhase::Exiting(elev_eid) => {
             let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
+            let shaft_x = sim
+                .line_for_elevator(elev_eid)
+                .map_or(0.0, |l| layout.x_for_line(l));
             (
-                vs.waiting_x_offset * 0.3,
+                vs.waiting_x_offset.mul_add(0.3, shaft_x),
                 elev_y as f32 * PPU,
                 mats.exiting.clone(),
             )

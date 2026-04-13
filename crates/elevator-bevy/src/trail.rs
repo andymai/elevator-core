@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::palette;
+use crate::rendering::LineLayout;
 use crate::rendering::PPU;
 use crate::rendering::elevator::ElevatorVisual;
 use crate::sim_bridge::SimulationRes;
@@ -25,6 +26,8 @@ pub struct TrailSegment {
     remaining: f32,
     /// Total lifetime (for alpha interpolation).
     total: f32,
+    /// Whether this trail belongs to an express elevator.
+    is_express: bool,
 }
 
 /// Per-elevator trail spawn cooldown, stored as a Bevy resource.
@@ -43,6 +46,7 @@ pub fn spawn_trail_segments(
     sim: Res<SimulationRes>,
     elevators: Query<&ElevatorVisual>,
     mut cooldowns: ResMut<TrailCooldowns>,
+    layout: Res<LineLayout>,
 ) {
     let w = sim.sim.world();
 
@@ -74,15 +78,27 @@ pub fn spawn_trail_segments(
         };
         let y = pos.value() as f32 * PPU;
 
-        // Trail segment: small circle at the elevator's current position.
-        let size = 4.0;
+        // Position trail at the elevator's line x-position.
+        let line_eid = sim.sim.line_for_elevator(vis.entity_id);
+        let x = line_eid.map_or(0.0, |l| layout.x_for_line(l));
+
+        let trail_color = if vis.is_express {
+            palette::TRAIL_NEAR_EXPRESS
+        } else {
+            palette::TRAIL_NEAR
+        };
+
+        // Express trail segments are larger.
+        let size = if vis.is_express { 6.0 } else { 4.0 };
+
         commands.spawn((
             Mesh2d(meshes.add(Circle::new(size))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(palette::TRAIL_NEAR))),
-            Transform::from_xyz(0.0, y, 0.3),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(trail_color))),
+            Transform::from_xyz(x, y, 0.3),
             TrailSegment {
                 remaining: TRAIL_LIFETIME,
                 total: TRAIL_LIFETIME,
+                is_express: vis.is_express,
             },
         ));
     }
@@ -110,11 +126,17 @@ pub fn fade_trail_segments(
             continue;
         }
 
-        // Interpolate color from TRAIL_NEAR to TRAIL_FAR.
+        // Interpolate color from near to far.
         let t = 1.0 - (trail.remaining / trail.total);
+        let (near_color, far_color) = if trail.is_express {
+            (palette::TRAIL_NEAR_EXPRESS, palette::TRAIL_FAR_EXPRESS)
+        } else {
+            (palette::TRAIL_NEAR, palette::TRAIL_FAR)
+        };
+
         if let Some(mat) = materials.get_mut(mat_handle.id()) {
-            let near = palette::TRAIL_NEAR.to_linear();
-            let far = palette::TRAIL_FAR.to_linear();
+            let near = near_color.to_linear();
+            let far = far_color.to_linear();
             mat.color = Color::linear_rgba(
                 near.red.mul_add(1.0 - t, far.red * t),
                 near.green.mul_add(1.0 - t, far.green * t),

@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use crate::rendering::PPU;
 use crate::sim_bridge::SimulationRes;
 
-/// Set up an HDR camera centered on the shaft, zoomed to fit all stops, with Bloom.
+/// Set up an HDR camera centered on the building, zoomed to fit all stops and shafts, with Bloom.
 #[allow(clippy::needless_pass_by_value)]
 pub fn setup_camera(mut commands: Commands, sim: Res<SimulationRes>, windows: Query<&Window>) {
     let world = sim.sim.world();
@@ -17,14 +17,28 @@ pub fn setup_camera(mut commands: Commands, sim: Res<SimulationRes>, windows: Qu
     let shaft_height_world = (max_pos - min_pos) as f32 * PPU;
     let center_y = f64::midpoint(min_pos, max_pos) as f32 * PPU;
 
+    // Estimate horizontal span from number of lines.
+    let line_count = sim.sim.line_count();
+    let estimated_width = if line_count > 1 {
+        // Rough estimate: spacing * lines + group gap + label margin.
+        let span = shaft_height_world / 15.0; // scale factor
+        let shaft_spacing = 30.0 * span.max(1.0);
+        let group_gap = 50.0 * span.max(1.0);
+        shaft_spacing * (line_count as f32 - 1.0) + group_gap + 200.0
+    } else {
+        200.0
+    };
+
     let padded_height = shaft_height_world + 120.0;
 
-    let window_height = windows
-        .iter()
-        .next()
-        .map_or(540.0, |w| w.resolution.height());
+    let window = windows.iter().next();
+    let window_height = window.map_or(540.0, |w| w.resolution.height());
+    let window_width = window.map_or(960.0, |w| w.resolution.width());
 
-    let scale = (padded_height / window_height).max(1.0);
+    // Scale to fit both height and width.
+    let scale_y = padded_height / window_height;
+    let scale_x = estimated_width / window_width;
+    let scale = scale_y.max(scale_x).max(1.0);
 
     commands.spawn((
         Camera2d,

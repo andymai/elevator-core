@@ -37,14 +37,39 @@ pub const LABEL_ACTIVE: Color = Color::srgba(0.7, 0.8, 0.9, 0.7);
 
 // ── Elevator capsules ──
 
-/// Elevator car core — warm white-gold emissive.
+/// Elevator car core — warm white-gold emissive (legacy / fallback).
+#[allow(dead_code)]
 pub const CAR_CORE: Color = Color::linear_rgba(2.0, 1.8, 1.2, 1.0);
 
-/// Elevator car when doors open — brightened.
+/// Elevator car when doors open — brightened (legacy / fallback).
+#[allow(dead_code)]
 pub const CAR_DOORS_OPEN: Color = Color::linear_rgba(3.0, 2.7, 1.8, 1.0);
 
-/// Elevator car halo/glow mesh — softer, larger.
+/// Elevator car halo/glow mesh — softer, larger (legacy / fallback).
+#[allow(dead_code)]
 pub const CAR_HALO: Color = Color::linear_rgba(1.0, 0.9, 0.6, 0.3);
+
+// ── Local group — deep cyan/teal ──
+
+/// Local elevator car core — cool cyan emissive.
+pub const CAR_CORE_LOCAL: Color = Color::linear_rgba(0.8, 1.8, 2.0, 1.0);
+
+/// Local elevator car halo — soft teal glow.
+pub const CAR_HALO_LOCAL: Color = Color::linear_rgba(0.3, 0.8, 1.0, 0.15);
+
+/// Local elevator car when doors open — brightened cyan.
+pub const CAR_DOORS_OPEN_LOCAL: Color = Color::linear_rgba(1.2, 2.5, 2.8, 1.0);
+
+// ── Express group — warm amber/gold ──
+
+/// Express elevator car core — warm amber emissive.
+pub const CAR_CORE_EXPRESS: Color = Color::linear_rgba(2.5, 1.8, 0.6, 1.0);
+
+/// Express elevator car halo — warm gold glow.
+pub const CAR_HALO_EXPRESS: Color = Color::linear_rgba(1.2, 0.8, 0.3, 0.2);
+
+/// Express elevator car when doors open — bright gold.
+pub const CAR_DOORS_OPEN_EXPRESS: Color = Color::linear_rgba(3.0, 2.5, 1.2, 1.0);
 
 // ── Light trails ──
 
@@ -53,6 +78,12 @@ pub const TRAIL_NEAR: Color = Color::linear_rgba(1.2, 1.0, 0.6, 0.5);
 
 /// Trail segment ending color (far from car) — cool fade.
 pub const TRAIL_FAR: Color = Color::linear_rgba(0.3, 0.4, 0.7, 0.05);
+
+/// Express trail segment starting color — brighter amber.
+pub const TRAIL_NEAR_EXPRESS: Color = Color::linear_rgba(2.0, 1.5, 0.4, 0.7);
+
+/// Express trail segment ending color — warm fade.
+pub const TRAIL_FAR_EXPRESS: Color = Color::linear_rgba(0.6, 0.4, 0.2, 0.08);
 
 // ── Rider specks ──
 
