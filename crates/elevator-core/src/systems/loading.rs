@@ -7,6 +7,7 @@ use crate::events::{Event, EventBus};
 use crate::ids::GroupId;
 use crate::rider_index::RiderIndex;
 use crate::world::World;
+use ordered_float::OrderedFloat;
 
 use super::PhaseContext;
 
@@ -251,6 +252,14 @@ fn apply_actions(
                     stop,
                     tick: ctx.tick,
                 });
+                if let Some(car) = world.elevator(elevator) {
+                    events.emit(Event::CapacityChanged {
+                        elevator,
+                        current_load: OrderedFloat(car.current_load),
+                        capacity: OrderedFloat(car.weight_capacity),
+                        tick: ctx.tick,
+                    });
+                }
             }
             LoadAction::Board {
                 rider,
@@ -284,6 +293,14 @@ fn apply_actions(
                     elevator,
                     tick: ctx.tick,
                 });
+                if let Some(car) = world.elevator(elevator) {
+                    events.emit(Event::CapacityChanged {
+                        elevator,
+                        current_load: OrderedFloat(car.current_load),
+                        capacity: OrderedFloat(car.weight_capacity),
+                        tick: ctx.tick,
+                    });
+                }
             }
             LoadAction::Reject {
                 rider,

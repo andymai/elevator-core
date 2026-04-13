@@ -3,7 +3,6 @@
 use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::ids::GroupId;
-#[cfg(feature = "energy")]
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
@@ -314,6 +313,22 @@ pub enum Event {
         /// Energy regenerated this tick.
         regenerated: OrderedFloat<f64>,
         /// The tick when energy was recorded.
+        tick: u64,
+    },
+
+    /// An elevator's load changed (rider boarded or exited).
+    ///
+    /// Emitted immediately after [`RiderBoarded`](Self::RiderBoarded) or
+    /// [`RiderExited`](Self::RiderExited). Useful for real-time capacity
+    /// bar displays in game UIs.
+    CapacityChanged {
+        /// The elevator whose load changed.
+        elevator: EntityId,
+        /// Current total weight aboard after the change.
+        current_load: OrderedFloat<f64>,
+        /// Maximum weight capacity of the elevator.
+        capacity: OrderedFloat<f64>,
+        /// The tick when the change occurred.
         tick: u64,
     },
 

@@ -2715,6 +2715,53 @@ impl Simulation {
         self.world.is_disabled(id)
     }
 
+    // ── Entity type queries ─────────────────────────────────────────
+
+    /// Check if an entity is an elevator.
+    #[must_use]
+    pub fn is_elevator(&self, id: EntityId) -> bool {
+        self.world.elevator(id).is_some()
+    }
+
+    /// Check if an entity is a rider.
+    #[must_use]
+    pub fn is_rider(&self, id: EntityId) -> bool {
+        self.world.rider(id).is_some()
+    }
+
+    /// Check if an entity is a stop.
+    #[must_use]
+    pub fn is_stop(&self, id: EntityId) -> bool {
+        self.world.stop(id).is_some()
+    }
+
+    // ── Aggregate queries ───────────────────────────────────────────
+
+    /// Count of elevators currently in the [`Idle`](ElevatorPhase::Idle) phase.
+    #[must_use]
+    pub fn idle_elevator_count(&self) -> usize {
+        self.world
+            .iter_elevators()
+            .filter(|(_, _, e)| e.phase() == ElevatorPhase::Idle)
+            .count()
+    }
+
+    /// Current total weight aboard an elevator, or `None` if the entity is
+    /// not an elevator.
+    #[must_use]
+    pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
+        self.world.elevator(id).map(|e| e.current_load)
+    }
+
+    /// Count of elevators currently in the given phase.
+    #[must_use]
+    pub fn elevators_in_phase(&self, phase: ElevatorPhase) -> usize {
+        self.world
+            .iter_elevators()
+            .filter(|(_, _, e)| e.phase() == phase)
+            .count()
+    }
+
     // ── Service mode ────────────────────────────────────────────────
 
     /// Set the service mode for an elevator.

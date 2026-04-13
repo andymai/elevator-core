@@ -35,6 +35,7 @@ mod energy_tests;
 mod event_payload_tests;
 mod multi_elevator_tests;
 mod multi_line_tests;
+mod query_event_tests;
 mod reposition_tests;
 mod resident_tests;
 mod service_mode_tests;
