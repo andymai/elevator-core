@@ -1672,14 +1672,19 @@ impl Simulation {
     ///
     /// For Walk legs, looks ahead to the next leg to find the group.
     /// Falls back to `GroupId(0)` when no route exists or no group leg is found.
-    fn group_from_route(route: Option<&Route>) -> GroupId {
-        let Some(route) = route else {
-            return GroupId(0);
-        };
-        // Start from the current leg and scan forward for a Group transport mode.
-        for leg in route.legs.get(route.current_leg..).unwrap_or_default() {
-            if let crate::components::TransportMode::Group(g) = leg.via {
-                return g;
+    fn group_from_route(&self, route: Option<&Route>) -> GroupId {
+        if let Some(route) = route {
+            // Scan forward from current_leg looking for a Group or Line transport mode.
+            for leg in route.legs.iter().skip(route.current_leg) {
+                match leg.via {
+                    crate::components::TransportMode::Group(g) => return g,
+                    crate::components::TransportMode::Line(l) => {
+                        if let Some(line) = self.world.line(l) {
+                            return line.group();
+                        }
+                    }
+                    crate::components::TransportMode::Walk => {}
+                }
             }
         }
         GroupId(0)
@@ -1718,7 +1723,7 @@ impl Simulation {
             reason: "rider has no current stop for reroute".into(),
         })?;
 
-        let group = Self::group_from_route(self.world.route(rider));
+        let group = self.group_from_route(self.world.route(rider));
         self.world
             .set_route(rider, Route::direct(origin, new_destination, group));
 
@@ -1887,7 +1892,7 @@ impl Simulation {
             if let Some(alt_stop) = alternative {
                 // Reroute to nearest alternative.
                 let origin = rider_current_stop.unwrap_or(alt_stop);
-                let group = Self::group_from_route(self.world.route(rid));
+                let group = self.group_from_route(self.world.route(rid));
                 self.world
                     .set_route(rid, Route::direct(origin, alt_stop, group));
                 self.events.emit(Event::RouteInvalidated {

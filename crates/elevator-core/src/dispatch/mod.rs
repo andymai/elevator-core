@@ -175,6 +175,11 @@ impl LineInfo {
         &self.serves
     }
 
+    /// Set the line entity ID (used during snapshot restore).
+    pub(crate) const fn set_entity(&mut self, entity: EntityId) {
+        self.entity = entity;
+    }
+
     /// Mutable access to elevator entities on this line.
     pub const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
         &mut self.elevators

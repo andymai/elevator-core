@@ -151,8 +151,48 @@ impl WorldSnapshot {
         world.insert_resource(SortedStops(sorted));
 
         // Rebuild groups, stop lookup, dispatchers, and extensions (borrows self).
-        let (groups, stop_lookup, dispatchers, strategy_ids) =
+        let (mut groups, stop_lookup, dispatchers, strategy_ids) =
             self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory);
+
+        // Fix legacy snapshots: synthetic LineInfo entries with EntityId::default()
+        // need real line entities spawned in the world.
+        for group in &mut groups {
+            let group_id = group.id();
+            let lines = group.lines_mut();
+            for line_info in lines.iter_mut() {
+                if line_info.entity() != EntityId::default() {
+                    continue;
+                }
+                // Compute min/max position from the line's served stops.
+                let (min_pos, max_pos) = line_info
+                    .serves()
+                    .iter()
+                    .filter_map(|&sid| world.stop(sid).map(|s| s.position))
+                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| {
+                        (lo.min(p), hi.max(p))
+                    });
+                let line_eid = world.spawn();
+                world.set_line(
+                    line_eid,
+                    Line {
+                        name: format!("Legacy-{group_id}"),
+                        group: group_id,
+                        orientation: crate::components::Orientation::Vertical,
+                        position: None,
+                        min_position: if min_pos.is_finite() { min_pos } else { 0.0 },
+                        max_position: if max_pos.is_finite() { max_pos } else { 0.0 },
+                        max_cars: None,
+                    },
+                );
+                // Update all elevators on this line to reference the new entity.
+                for &elev_eid in line_info.elevators() {
+                    if let Some(car) = world.elevator_mut(elev_eid) {
+                        car.line = line_eid;
+                    }
+                }
+                line_info.set_entity(line_eid);
+            }
+        }
 
         // Remap EntityIds in extension data for later deserialization.
         let remapped_exts = Self::remap_extensions(&self.extensions, &id_remap);

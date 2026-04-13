@@ -384,23 +384,6 @@ impl World {
         })
     }
 
-    /// Find a stop served by a specific line at a given position (within epsilon).
-    ///
-    /// Used when a line-aware lookup is needed (e.g., loading system filtering
-    /// by the elevator's line).
-    #[must_use]
-    pub fn find_stop_for_line(&self, position: f64, line_stops: &[EntityId]) -> Option<EntityId> {
-        const EPSILON: f64 = 1e-6;
-        line_stops
-            .iter()
-            .find(|&&id| {
-                self.stops
-                    .get(id)
-                    .is_some_and(|s| (s.position - position).abs() < EPSILON)
-            })
-            .copied()
-    }
-
     /// Find the stop entity nearest to a given position.
     ///
     /// Unlike [`find_stop_at_position`](Self::find_stop_at_position), this finds

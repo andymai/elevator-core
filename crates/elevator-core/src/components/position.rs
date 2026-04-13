@@ -31,23 +31,3 @@ impl Velocity {
         self.value
     }
 }
-
-/// Direction of movement along a line axis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Direction {
-    /// Moving toward higher positions.
-    Up,
-    /// Moving toward lower positions.
-    Down,
-}
-
-impl Direction {
-    /// Reverse the direction.
-    #[must_use]
-    pub const fn reversed(self) -> Self {
-        match self {
-            Self::Up => Self::Down,
-            Self::Down => Self::Up,
-        }
-    }
-}
