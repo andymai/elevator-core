@@ -175,3 +175,53 @@ fn spawn_rider_unknown_destination_returns_error() {
         .unwrap_err();
     assert!(matches!(err, SimError::StopNotFound(StopId(99))));
 }
+
+// ── Error message quality ────────────────────────────────────────
+
+#[test]
+fn stop_not_found_display_is_readable() {
+    let err = SimError::StopNotFound(StopId(42));
+    let msg = format!("{err}");
+    // Should render as "stop not found: StopId(42)" — NOT "StopId(StopId(42))".
+    assert_eq!(msg, "stop not found: StopId(42)");
+    assert!(!msg.contains("StopId(StopId"));
+}
+
+#[test]
+fn duplicate_stop_id_message_readable() {
+    let mut config = default_config();
+    config.building.stops.push(StopConfig {
+        id: StopId(0),
+        name: "Dup".into(),
+        position: 12.0,
+    });
+    let err = Simulation::new(&config, scan()).unwrap_err();
+    let msg = format!("{err}");
+    // Should render "duplicate StopId(0)" not "duplicate StopId(StopId(0))".
+    assert!(
+        msg.contains("duplicate StopId(0)"),
+        "expected readable duplicate message, got: {msg}"
+    );
+    assert!(!msg.contains("StopId(StopId"));
+}
+
+#[test]
+fn no_route_display_formats_groups_cleanly() {
+    use crate::entity::EntityId;
+    use crate::ids::GroupId;
+    use slotmap::KeyData;
+
+    let err = SimError::NoRoute {
+        origin: EntityId::from(KeyData::from_ffi(1)),
+        destination: EntityId::from(KeyData::from_ffi(2)),
+        origin_groups: vec![GroupId(0), GroupId(1)],
+        destination_groups: vec![],
+    };
+    let msg = format!("{err}");
+    // Groups should render as "[GroupId(0), GroupId(1)]" not Debug format.
+    assert!(
+        msg.contains("[GroupId(0), GroupId(1)]"),
+        "expected clean group list, got: {msg}"
+    );
+    assert!(msg.contains("[]"), "empty list should render as []");
+}
