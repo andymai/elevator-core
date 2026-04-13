@@ -1,13 +1,5 @@
 # Changelog
 
-## [3.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v3.0.0...elevator-core-v3.1.0) (2026-04-13)
-
-
-### Features
-
-* add Resident phase, population tracking, and rider lifecycle management ([#13](https://github.com/andymai/elevator-core/pull/13)) ([16d09d7](https://github.com/andymai/elevator-core/commit/16d09d7))
-* add observability, query ergonomics, traffic schedules, and test coverage ([e29c930](https://github.com/andymai/elevator-core/commit/e29c930))
-
 ## [3.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v2.0.0...elevator-core-v3.0.0) (2026-04-13)
 
 
