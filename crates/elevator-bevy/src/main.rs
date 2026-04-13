@@ -8,7 +8,7 @@ mod atmosphere;
 mod breathing;
 /// Camera setup and centering.
 mod camera;
-/// Floor activity glow and label fade system.
+/// Floor activity glow system.
 mod glow;
 /// Keyboard input handling for simulation speed.
 mod input;
@@ -26,8 +26,6 @@ mod sim_bridge;
 mod sparkle;
 /// Elevator light trail system.
 mod trail;
-/// HUD overlay for simulation stats.
-mod ui;
 /// Vascular network — glowing vein segments between floors per shaft line.
 mod vascular;
 
@@ -38,7 +36,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Living Building".into(),
+                title: "Living Depths".into(),
                 resolution: (1600u32, 900u32).into(),
                 ..default()
             }),

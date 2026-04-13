@@ -399,10 +399,10 @@ pub fn spawn_arrival_rings(
 
             let ring_color = if is_express {
                 let lin = palette::CAR_CORE_EXPRESS.to_linear();
-                Color::linear_rgba(lin.red, lin.green, lin.blue, 0.4)
+                Color::linear_rgba(lin.red, lin.green, lin.blue, 0.25)
             } else {
                 let lin = palette::CAR_CORE_LOCAL.to_linear();
-                Color::linear_rgba(lin.red, lin.green, lin.blue, 0.4)
+                Color::linear_rgba(lin.red, lin.green, lin.blue, 0.25)
             };
 
             commands.spawn((
@@ -444,12 +444,12 @@ pub fn update_arrival_rings(
         }
 
         let progress = 1.0 - (ring.remaining / ring.total);
-        // Expand from 0 to 40px radius.
-        let radius = progress * 40.0;
+        // Expand from 0 to 25px radius.
+        let radius = progress * 25.0;
         transform.scale = Vec3::splat(radius);
 
-        // Fade alpha from 0.4 to 0.0.
-        let alpha = 0.4 * (ring.remaining / ring.total);
+        // Fade alpha from 0.25 to 0.0.
+        let alpha = 0.25 * (ring.remaining / ring.total);
         if let Some(mat) = materials.get_mut(mat_handle.id()) {
             let lin = mat.color.to_linear();
             mat.color = Color::linear_rgba(lin.red, lin.green, lin.blue, alpha);

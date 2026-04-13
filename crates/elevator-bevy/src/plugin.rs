@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::atmosphere::{drift_edge_glow, drift_marine_snow, spawn_atmosphere};
 use crate::breathing::{BreathPhase, update_breathing};
 use crate::camera::setup_camera;
-use crate::glow::{update_floor_glow, update_floor_labels};
+use crate::glow::update_floor_glow;
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
@@ -19,7 +19,6 @@ use crate::sparkle::{
     spawn_transfer_arcs, update_arrival_rings, update_sparkles, update_transfer_arcs,
 };
 use crate::trail::{TrailCooldowns, fade_trail_segments, spawn_trail_segments};
-use crate::ui::{spawn_hud, update_hud};
 use crate::vascular::{spawn_vascular, update_vascular};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::scan::ScanDispatch;
@@ -61,13 +60,7 @@ impl Plugin for ElevatorSimPlugin {
             .add_message::<EventWrapper>()
             .add_systems(
                 Startup,
-                (
-                    setup_camera,
-                    spawn_atmosphere,
-                    spawn_building_visuals,
-                    spawn_hud,
-                )
-                    .chain(),
+                (setup_camera, spawn_atmosphere, spawn_building_visuals).chain(),
             )
             .add_systems(Startup, spawn_vascular.after(spawn_building_visuals))
             .add_systems(
@@ -83,7 +76,6 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_sparkles,
                     spawn_transfer_arcs,
                     spawn_arrival_rings,
-                    update_hud,
                 )
                     .chain(),
             )
@@ -94,7 +86,6 @@ impl Plugin for ElevatorSimPlugin {
                     drift_edge_glow,
                     fade_trail_segments,
                     update_floor_glow,
-                    update_floor_labels,
                     update_breathing,
                     update_sparkles,
                     update_transfer_arcs,

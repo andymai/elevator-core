@@ -9,7 +9,7 @@ use crate::rendering::elevator::ElevatorVisual;
 use crate::sim_bridge::SimulationRes;
 
 /// Number of marine snow particles.
-const PARTICLE_COUNT: usize = 180;
+const PARTICLE_COUNT: usize = 120;
 
 /// Component for a drifting marine snow particle.
 #[derive(Component)]
