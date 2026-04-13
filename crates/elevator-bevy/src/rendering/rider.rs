@@ -44,19 +44,39 @@ pub struct RiderMaterials {
     pub abandoned: Handle<ColorMaterial>,
 }
 
+/// Boost a color's RGB by 20% for emissive glow (Bloom will create the halo).
+fn emissive_boost(color: Color) -> Color {
+    let lin = color.to_linear();
+    Color::linear_rgba(lin.red * 1.2, lin.green * 1.2, lin.blue * 1.2, lin.alpha)
+}
+
 /// Initialize rider material resources.
 pub fn init_rider_materials(
     commands: &mut Commands,
     materials: &mut ResMut<Assets<ColorMaterial>>,
 ) {
     let mats = RiderMaterials {
-        calm: materials.add(ColorMaterial::from_color(palette::RIDER_CALM)),
-        impatient: materials.add(ColorMaterial::from_color(palette::RIDER_IMPATIENT)),
-        boarding: materials.add(ColorMaterial::from_color(palette::RIDER_BOARDING)),
-        riding: materials.add(ColorMaterial::from_color(palette::RIDER_RIDING)),
-        exiting: materials.add(ColorMaterial::from_color(palette::RIDER_EXITING)),
-        arrived: materials.add(ColorMaterial::from_color(palette::RIDER_ARRIVED)),
-        abandoned: materials.add(ColorMaterial::from_color(palette::RIDER_ABANDONED)),
+        calm: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_CALM,
+        ))),
+        impatient: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_IMPATIENT,
+        ))),
+        boarding: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_BOARDING,
+        ))),
+        riding: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_RIDING,
+        ))),
+        exiting: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_EXITING,
+        ))),
+        arrived: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_ARRIVED,
+        ))),
+        abandoned: materials.add(ColorMaterial::from_color(emissive_boost(
+            palette::RIDER_ABANDONED,
+        ))),
     };
     commands.insert_resource(mats);
 }
@@ -162,13 +182,13 @@ pub fn update_rider_positions(
             current_tick,
         );
 
-        // Add gentle drift for waiting riders.
+        // Add gentle drift for waiting riders (50% larger amplitude).
         let drift = if matches!(rider.phase(), RiderPhase::Waiting) {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             vis.entity_id.hash(&mut hasher);
             let hash = hasher.finish();
             let phase_offset = (hash % 1000) as f32 * 0.001 * std::f32::consts::TAU;
-            t.mul_add(0.5, phase_offset).sin() * 2.0
+            t.mul_add(0.5, phase_offset).sin() * 3.0
         } else {
             0.0
         };
@@ -176,6 +196,19 @@ pub fn update_rider_positions(
         transform.translation.x = x + drift;
         transform.translation.y = y;
         *mat_handle = MeshMaterial2d(handle);
+
+        // Impatient riders: size pulse for urgency.
+        if matches!(rider.phase(), RiderPhase::Waiting) {
+            let wait_ticks = current_tick.saturating_sub(rider.spawn_tick());
+            if wait_ticks > IMPATIENCE_THRESHOLD_TICKS {
+                let pulse = (t * 3.0).sin().mul_add(0.15, 1.0);
+                transform.scale = Vec3::splat(pulse);
+            } else {
+                transform.scale = Vec3::ONE;
+            }
+        } else {
+            transform.scale = Vec3::ONE;
+        }
     }
 }
 

@@ -28,6 +28,8 @@ mod sparkle;
 mod trail;
 /// HUD overlay for simulation stats.
 mod ui;
+/// Vascular network — glowing vein segments between floors per shaft line.
+mod vascular;
 
 use plugin::ElevatorSimPlugin;
 

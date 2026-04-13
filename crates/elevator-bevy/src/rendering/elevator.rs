@@ -27,6 +27,15 @@ pub struct ElevatorHalo {
     pub entity_id: EntityId,
 }
 
+/// Ghost trail copy behind an express elevator at high speed.
+#[derive(Component)]
+pub struct CometGhost {
+    /// The simulation entity ID of the parent elevator.
+    pub elevator_id: EntityId,
+    /// Trail index: 0, 1, or 2 (determines offset and alpha).
+    pub trail_index: u8,
+}
+
 /// Spawn glowing capsule meshes for each elevator, positioned by line.
 pub fn spawn_elevators(
     commands: &mut Commands,
@@ -77,6 +86,27 @@ pub fn spawn_elevators(
                 door_blend: 0.0,
             },
         ));
+
+        // Spawn comet ghost trails for express elevators (invisible until high speed).
+        if is_express {
+            for trail_index in 0..3u8 {
+                let ghost_color = Color::linear_rgba(
+                    palette::CAR_CORE_EXPRESS.to_linear().red,
+                    palette::CAR_CORE_EXPRESS.to_linear().green,
+                    palette::CAR_CORE_EXPRESS.to_linear().blue,
+                    0.0, // invisible initially
+                );
+                commands.spawn((
+                    Mesh2d(meshes.add(Rectangle::new(car_w, car_h))),
+                    MeshMaterial2d(materials.add(ColorMaterial::from_color(ghost_color))),
+                    Transform::from_xyz(x, y, (trail_index as f32).mul_add(-0.01, 0.48)),
+                    CometGhost {
+                        elevator_id: eid,
+                        trail_index,
+                    },
+                ));
+            }
+        }
     }
 }
 
@@ -93,7 +123,11 @@ fn lerp_color(a: Color, b: Color, t: f32) -> Color {
 }
 
 /// Update elevator capsule positions, smooth door color transitions, and velocity-based stretching.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::type_complexity,
+    clippy::too_many_lines
+)]
 pub fn sync_elevator_visuals(
     sim: Res<SimulationRes>,
     time: Res<Time>,
@@ -103,7 +137,14 @@ pub fn sync_elevator_visuals(
         &mut Transform,
         &mut MeshMaterial2d<ColorMaterial>,
     )>,
-    mut halos: Query<(&ElevatorHalo, &mut Transform), Without<ElevatorVisual>>,
+    mut halos: Query<
+        (&ElevatorHalo, &mut Transform),
+        (Without<ElevatorVisual>, Without<CometGhost>),
+    >,
+    mut ghosts: Query<
+        (&CometGhost, &mut Transform, &MeshMaterial2d<ColorMaterial>),
+        (Without<ElevatorVisual>, Without<ElevatorHalo>),
+    >,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let w = sim.sim.world();
@@ -176,6 +217,61 @@ pub fn sync_elevator_visuals(
             let x = line_eid.map_or(0.0, |l| layout.x_for_line(l));
             transform.translation.x = x;
             transform.translation.y = pos.value() as f32 * PPU;
+        }
+    }
+
+    // Update comet ghost trails for express elevators.
+    // Ghost alpha and offset depend on velocity: visible only at > 80% max speed.
+    let ghost_alphas: [f32; 3] = [0.4, 0.2, 0.1];
+    let ghost_offsets: [f32; 3] = [8.0, 16.0, 24.0];
+
+    for (ghost, mut transform, mat_handle) in &mut ghosts {
+        let Some(pos) = w.position(ghost.elevator_id) else {
+            continue;
+        };
+        let Some(vel) = w.velocity(ghost.elevator_id) else {
+            continue;
+        };
+        let Some(elev) = w.elevator(ghost.elevator_id) else {
+            continue;
+        };
+
+        let line_eid = sim.sim.line_for_elevator(ghost.elevator_id);
+        let x = line_eid.map_or(0.0, |l| layout.x_for_line(l));
+        let y = pos.value() as f32 * PPU;
+        let speed = vel.value().abs();
+        let max_speed = elev.max_speed();
+        let speed_ratio = if max_speed > 0.0 {
+            speed / max_speed
+        } else {
+            0.0
+        };
+
+        let idx = ghost.trail_index as usize;
+        let offset = ghost_offsets.get(idx).copied().unwrap_or(8.0);
+        let target_alpha = ghost_alphas.get(idx).copied().unwrap_or(0.1);
+
+        // "Behind" means opposite to movement direction.
+        let trail_y = if vel.value() > 0.0 {
+            y - offset // moving up, ghosts below
+        } else {
+            y + offset // moving down, ghosts above
+        };
+
+        transform.translation.x = x;
+        transform.translation.y = trail_y;
+
+        // Only visible at > 80% max speed (speed_ratio > 0.8).
+        let alpha = if speed_ratio > 0.8 {
+            let t = ((speed_ratio - 0.8) / 0.2).min(1.0) as f32;
+            target_alpha * t
+        } else {
+            0.0
+        };
+
+        if let Some(mat) = materials.get_mut(mat_handle.id()) {
+            let lin = palette::CAR_CORE_EXPRESS.to_linear();
+            mat.color = Color::linear_rgba(lin.red, lin.green, lin.blue, alpha);
         }
     }
 }

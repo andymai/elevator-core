@@ -76,7 +76,7 @@ impl VisualScale {
             shaft_width: 12.0 * s,
             car_width: 20.0 * s,
             car_height: 8.0 * s,
-            rider_radius: 2.5 * s,
+            rider_radius: 3.5 * s,
             waiting_x_offset: -30.0 * s,
             floor_line_width,
             floor_line_thickness: 1.0 * s,

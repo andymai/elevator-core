@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::hash::{Hash, Hasher};
 
+use crate::palette;
 use crate::rendering::elevator::ElevatorVisual;
 use crate::sim_bridge::SimulationRes;
 
@@ -21,6 +22,15 @@ pub struct MarineSnow {
     sway_phase: f32,
     /// Base alpha for this particle (varies per particle).
     base_alpha: f32,
+}
+
+/// Edge glow particle that drifts toward the top or bottom of the viewport.
+#[derive(Component)]
+pub struct EdgeGlow {
+    /// True = top (drifts upward), false = bottom (drifts downward).
+    is_top: bool,
+    /// Drift speed in pixels per second.
+    drift_speed: f32,
 }
 
 /// Visible vertical bounds for particle wrapping.
@@ -102,6 +112,86 @@ pub fn spawn_atmosphere(
                 base_alpha,
             },
         ));
+    }
+
+    // ── Edge glow particles ──
+
+    // Bottom (Deep Root): 4 large dim blue particles drifting slowly downward.
+    let bottom_color = palette::FLOOR_BOTTOM.to_linear();
+    let bottom_glow = Color::linear_rgba(
+        bottom_color.red,
+        bottom_color.green,
+        bottom_color.blue,
+        0.06,
+    );
+    for i in 0..4 {
+        let size = rng.random_range(6.0f32..8.0);
+        let x = rng.random_range(x_min..x_max);
+        let y = y_min + rng.random_range(0.0f32..40.0);
+        let drift = rng.random_range(2.0f32..5.0);
+        // Slightly vary position based on index for spread.
+        let _ = i;
+
+        commands.spawn((
+            Mesh2d(meshes.add(Circle::new(size))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(bottom_glow))),
+            Transform::from_xyz(x, y, -0.6),
+            EdgeGlow {
+                is_top: false,
+                drift_speed: drift,
+            },
+        ));
+    }
+
+    // Top (Spire): 4 large dim amber particles drifting slowly upward.
+    let top_color = palette::FLOOR_TOP.to_linear();
+    let top_glow = Color::linear_rgba(top_color.red, top_color.green, top_color.blue, 0.06);
+    for _i in 0..4 {
+        let size = rng.random_range(6.0f32..8.0);
+        let x = rng.random_range(x_min..x_max);
+        let y = y_max - rng.random_range(0.0f32..40.0);
+        let drift = rng.random_range(2.0f32..5.0);
+
+        commands.spawn((
+            Mesh2d(meshes.add(Circle::new(size))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(top_glow))),
+            Transform::from_xyz(x, y, -0.6),
+            EdgeGlow {
+                is_top: true,
+                drift_speed: drift,
+            },
+        ));
+    }
+}
+
+/// Drift edge glow particles toward their respective edges, resetting when they leave bounds.
+#[allow(clippy::needless_pass_by_value)]
+pub fn drift_edge_glow(
+    time: Res<Time>,
+    bounds: Res<AtmosphereBounds>,
+    mut query: Query<(&EdgeGlow, &mut Transform)>,
+) {
+    let dt = time.delta_secs();
+    let mut rng = rand::rng();
+
+    for (edge, mut transform) in &mut query {
+        if edge.is_top {
+            // Drift upward.
+            transform.translation.y += edge.drift_speed * dt;
+            if transform.translation.y > bounds.y_max {
+                // Reset to top edge with randomized x.
+                transform.translation.y = bounds.y_max - rng.random_range(0.0f32..40.0);
+                transform.translation.x = rng.random_range(bounds.x_min..bounds.x_max);
+            }
+        } else {
+            // Drift downward.
+            transform.translation.y -= edge.drift_speed * dt;
+            if transform.translation.y < bounds.y_min {
+                // Reset to bottom edge with randomized x.
+                transform.translation.y = bounds.y_min + rng.random_range(0.0f32..40.0);
+                transform.translation.x = rng.random_range(bounds.x_min..bounds.x_max);
+            }
+        }
     }
 }
 
