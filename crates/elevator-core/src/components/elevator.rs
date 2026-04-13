@@ -15,7 +15,7 @@ pub enum ElevatorPhase {
     MovingToStop(EntityId),
     /// Doors are currently opening.
     DoorOpening,
-    /// Doors open; riders may board or alight.
+    /// Doors open; riders may board or exit.
     Loading,
     /// Doors are currently closing.
     DoorClosing,
@@ -62,6 +62,7 @@ pub struct Elevator {
     /// Ticks the door stays fully open.
     pub(crate) door_open_ticks: u32,
     /// Line entity this car belongs to.
+    #[serde(alias = "group")]
     pub(crate) line: EntityId,
 }
 

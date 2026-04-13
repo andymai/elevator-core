@@ -1,6 +1,6 @@
 //! Phase 1: advance transient rider states and tick patience.
 
-use crate::components::{RiderPhase, Route};
+use crate::components::{RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::world::World;
@@ -11,13 +11,73 @@ use super::PhaseContext;
 enum TransientAction {
     /// Boarding → Riding.
     Board(EntityId),
-    /// Alighting → check route or Arrived.
-    Alight,
+    /// Exiting → check route or Arrived.
+    Exit,
+}
+
+/// Handle a rider that has just exited: advance the route and transition to
+/// the appropriate phase. Walk legs are executed immediately (the rider is
+/// teleported to the walk destination).
+fn handle_exit(id: EntityId, world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
+    // Check if the route has more legs.
+    let has_more_legs = world.route_mut(id).is_some_and(Route::advance);
+
+    if has_more_legs {
+        // Check if the next leg is a Walk leg.
+        let is_walk = world
+            .route(id)
+            .and_then(|r| r.current())
+            .is_some_and(|leg| matches!(leg.via, TransportMode::Walk));
+
+        if is_walk {
+            // Walk: move rider to the destination stop of the walk leg.
+            let walk_dest = world.route(id).and_then(Route::current_destination);
+            if let Some(dest) = walk_dest {
+                // Advance past the walk leg.
+                let more = world.route_mut(id).is_some_and(Route::advance);
+                if let Some(r) = world.rider_mut(id) {
+                    r.current_stop = Some(dest);
+                    if more {
+                        r.phase = RiderPhase::Waiting;
+                    } else {
+                        r.phase = RiderPhase::Arrived;
+                    }
+                }
+            }
+        } else {
+            // Transfer: wait at the current stop for the next leg.
+            if let Some(r) = world.rider_mut(id) {
+                r.phase = RiderPhase::Waiting;
+            }
+        }
+    } else if let Some(r) = world.rider_mut(id) {
+        r.phase = RiderPhase::Arrived;
+    }
+
+    // If the rider's next destination is disabled, emit an invalidation event.
+    // The game (or a hook) can then reroute the rider.
+    let still_routing = world
+        .rider(id)
+        .is_some_and(|r| r.phase() == RiderPhase::Waiting);
+    if still_routing {
+        if let Some(route) = world.route(id) {
+            if let Some(dest) = route.current_destination() {
+                if world.is_disabled(dest) {
+                    events.emit(Event::RouteInvalidated {
+                        rider: id,
+                        affected_stop: dest,
+                        reason: crate::events::RouteInvalidReason::StopDisabled,
+                        tick: ctx.tick,
+                    });
+                }
+            }
+        }
+    }
 }
 
 /// Advance transient rider phases.
 ///
-/// Boarding → Riding, Alighting → check route:
+/// Boarding → Riding, Exiting → check route:
 ///   - If more legs remain → Waiting (at transfer stop)
 ///   - If route complete → Arrived
 ///
@@ -33,7 +93,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
             }
             match r.phase {
                 RiderPhase::Boarding(eid) => Some((id, TransientAction::Board(eid))),
-                RiderPhase::Alighting(_) => Some((id, TransientAction::Alight)),
+                RiderPhase::Exiting(_) => Some((id, TransientAction::Exit)),
                 _ => None,
             }
         })
@@ -46,36 +106,7 @@ pub fn run(world: &mut World, events: &mut EventBus, ctx: &PhaseContext) {
                     r.phase = RiderPhase::Riding(eid);
                 }
             }
-            TransientAction::Alight => {
-                // Check if the route has more legs.
-                let has_more_legs = world.route_mut(id).is_some_and(Route::advance);
-
-                if let Some(r) = world.rider_mut(id) {
-                    if has_more_legs {
-                        // Transfer: wait at the current stop for the next leg.
-                        r.phase = RiderPhase::Waiting;
-                    } else {
-                        r.phase = RiderPhase::Arrived;
-                    }
-                }
-
-                // If the rider's next destination is disabled, emit an invalidation event.
-                // The game (or a hook) can then reroute the rider.
-                if has_more_legs {
-                    if let Some(route) = world.route(id) {
-                        if let Some(dest) = route.current_destination() {
-                            if world.is_disabled(dest) {
-                                events.emit(Event::RouteInvalidated {
-                                    rider: id,
-                                    affected_stop: dest,
-                                    reason: crate::events::RouteInvalidReason::StopDisabled,
-                                    tick: ctx.tick,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+            TransientAction::Exit => handle_exit(id, world, events, ctx),
         }
     }
 

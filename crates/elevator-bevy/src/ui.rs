@@ -101,7 +101,7 @@ pub fn update_hud(
     };
 
     // Rider counts — single pass.
-    let (mut on_board, mut boarding, mut alighting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
+    let (mut on_board, mut boarding, mut exiting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
     for (_, r) in w.iter_riders() {
         match r.phase() {
             RiderPhase::Boarding(_) => {
@@ -111,8 +111,8 @@ pub fn update_hud(
             RiderPhase::Riding(_) => {
                 on_board += 1;
             }
-            RiderPhase::Alighting(_) => {
-                alighting += 1;
+            RiderPhase::Exiting(_) => {
+                exiting += 1;
             }
             RiderPhase::Waiting => {
                 waiting += 1;
@@ -142,12 +142,12 @@ pub fn update_hud(
         0.0
     };
 
-    let transfer_str = if boarding > 0 && alighting > 0 {
-        format!("  [{boarding} boarding, {alighting} alighting]")
+    let transfer_str = if boarding > 0 && exiting > 0 {
+        format!("  [{boarding} boarding, {exiting} exiting]")
     } else if boarding > 0 {
         format!("  [{boarding} boarding]")
-    } else if alighting > 0 {
-        format!("  [{alighting} alighting]")
+    } else if exiting > 0 {
+        format!("  [{exiting} exiting]")
     } else {
         String::new()
     };

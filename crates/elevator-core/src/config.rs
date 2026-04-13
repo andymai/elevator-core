@@ -96,7 +96,7 @@ pub struct ElevatorConfig {
     pub starting_stop: StopId,
     /// How many ticks the doors remain fully open before closing.
     ///
-    /// During this window, riders may board or alight. Longer values
+    /// During this window, riders may board or exit. Longer values
     /// increase loading opportunity but reduce throughput.
     ///
     /// Units: simulation ticks.
@@ -105,7 +105,7 @@ pub struct ElevatorConfig {
     /// How many ticks a door open or close transition takes.
     ///
     /// Models the mechanical travel time of the door panels. No boarding
-    /// or alighting occurs during transitions.
+    /// or exiting occurs during transitions.
     ///
     /// Units: simulation ticks.
     /// Default (from `SimulationBuilder`): `5`.

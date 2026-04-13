@@ -99,7 +99,7 @@ impl World {
             match rider.phase {
                 crate::components::RiderPhase::Boarding(elev)
                 | crate::components::RiderPhase::Riding(elev)
-                | crate::components::RiderPhase::Alighting(elev) => {
+                | crate::components::RiderPhase::Exiting(elev) => {
                     if let Some(car) = self.elevators.get_mut(elev) {
                         car.riders.retain(|r| *r != id);
                         car.current_load = (car.current_load - weight).max(0.0);

@@ -637,6 +637,20 @@ impl Simulation {
             for ec in &lc.elevators {
                 Self::validate_elevator_config(ec, building)?;
             }
+
+            // Validate max_cars is not exceeded.
+            if let Some(max) = lc.max_cars {
+                if lc.elevators.len() > max {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.lines.max_cars",
+                        reason: format!(
+                            "line {} has {} elevators but max_cars is {max}",
+                            lc.id,
+                            lc.elevators.len()
+                        ),
+                    });
+                }
+            }
         }
 
         // At least one line with at least one elevator.
@@ -684,6 +698,20 @@ impl Simulation {
                             ),
                         });
                     }
+                }
+            }
+
+            // Check for orphaned lines (not referenced by any group).
+            let referenced_line_ids: HashSet<u32> = group_configs
+                .iter()
+                .flat_map(|g| g.lines.iter().copied())
+                .collect();
+            for lc in line_configs {
+                if !referenced_line_ids.contains(&lc.id) {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.lines",
+                        reason: format!("line {} is not assigned to any group", lc.id),
+                    });
                 }
             }
         }
@@ -1052,6 +1080,20 @@ impl Simulation {
 
     // ── Dynamic topology ────────────────────────────────────────────
 
+    /// Find the (`group_index`, `line_index`) for a line entity.
+    fn find_line(&self, line: EntityId) -> Result<(usize, usize), SimError> {
+        self.groups
+            .iter()
+            .enumerate()
+            .find_map(|(gi, g)| {
+                g.lines()
+                    .iter()
+                    .position(|li| li.entity() == line)
+                    .map(|li_idx| (gi, li_idx))
+            })
+            .ok_or(SimError::LineNotFound(line))
+    }
+
     /// Add a new stop to a group at runtime. Returns its `EntityId`.
     ///
     /// Runtime-added stops have no `StopId` — they are identified purely
@@ -1073,20 +1115,7 @@ impl Simulation {
             .map(|l| l.group)
             .ok_or(SimError::LineNotFound(line))?;
 
-        let (group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                if g.id() != group_id {
-                    return None;
-                }
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (group_idx, line_idx) = self.find_line(line)?;
 
         let eid = self.world.spawn();
         self.world.set_stop(eid, Stop { name, position });
@@ -1135,20 +1164,18 @@ impl Simulation {
             .map(|l| l.group)
             .ok_or(SimError::LineNotFound(line))?;
 
-        let (group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                if g.id() != group_id {
-                    return None;
-                }
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (group_idx, line_idx) = self.find_line(line)?;
+
+        // Enforce max_cars limit.
+        if let Some(max) = self.world.line(line).and_then(Line::max_cars) {
+            let current_count = self.groups[group_idx].lines()[line_idx].elevators().len();
+            if current_count >= max {
+                return Err(SimError::InvalidConfig {
+                    field: "line.max_cars",
+                    reason: format!("line already has {current_count} cars (max {max})"),
+                });
+            }
+        }
 
         let eid = self.world.spawn();
         self.world.set_position(
@@ -1267,18 +1294,7 @@ impl Simulation {
     /// Returns [`SimError::LineNotFound`] if the line entity is not found
     /// in any group.
     pub fn remove_line(&mut self, line: EntityId) -> Result<(), SimError> {
-        // Find the group containing this line.
-        let (group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (group_idx, line_idx) = self.find_line(line)?;
 
         let group_id = self.groups[group_idx].id();
 
@@ -1331,6 +1347,7 @@ impl Simulation {
             .push(ElevatorGroup::new(group_id, name.into(), Vec::new()));
 
         self.dispatchers.insert(group_id, Box::new(dispatch));
+        self.strategy_ids.insert(group_id, BuiltinStrategy::Scan);
         if let Ok(mut g) = self.topo_graph.lock() {
             g.mark_dirty();
         }
@@ -1348,18 +1365,7 @@ impl Simulation {
         line: EntityId,
         new_group: GroupId,
     ) -> Result<GroupId, SimError> {
-        // Find old group containing this line.
-        let (old_group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (old_group_idx, line_idx) = self.find_line(line)?;
 
         // Verify new group exists.
         if !self.groups.iter().any(|g| g.id() == new_group) {
@@ -1402,6 +1408,78 @@ impl Simulation {
         Ok(old_group_id)
     }
 
+    /// Reassign an elevator to a different line (swing-car pattern).
+    ///
+    /// The elevator is moved from its current line to the target line.
+    /// Both lines must be in the same group, or you must reassign the
+    /// line first via [`assign_line_to_group`](Self::assign_line_to_group).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    /// Returns [`SimError::LineNotFound`] if the target line is not found in any group.
+    pub fn reassign_elevator_to_line(
+        &mut self,
+        elevator: EntityId,
+        new_line: EntityId,
+    ) -> Result<(), SimError> {
+        let old_line = self
+            .world
+            .elevator(elevator)
+            .ok_or(SimError::EntityNotFound(elevator))?
+            .line();
+
+        if old_line == new_line {
+            return Ok(());
+        }
+
+        // Validate both lines exist BEFORE mutating anything.
+        let (old_group_idx, old_line_idx) = self.find_line(old_line)?;
+        let (new_group_idx, new_line_idx) = self.find_line(new_line)?;
+
+        // Enforce max_cars on target line.
+        if let Some(max) = self.world.line(new_line).and_then(Line::max_cars) {
+            let current_count = self.groups[new_group_idx].lines()[new_line_idx]
+                .elevators()
+                .len();
+            if current_count >= max {
+                return Err(SimError::InvalidConfig {
+                    field: "line.max_cars",
+                    reason: format!("target line already has {current_count} cars (max {max})"),
+                });
+            }
+        }
+
+        self.groups[old_group_idx].lines_mut()[old_line_idx]
+            .elevators_mut()
+            .retain(|&e| e != elevator);
+        self.groups[new_group_idx].lines_mut()[new_line_idx]
+            .elevators_mut()
+            .push(elevator);
+
+        if let Some(car) = self.world.elevator_mut(elevator) {
+            car.line = new_line;
+        }
+
+        self.groups[old_group_idx].rebuild_caches();
+        if new_group_idx != old_group_idx {
+            self.groups[new_group_idx].rebuild_caches();
+        }
+
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
+
+        self.events.emit(Event::ElevatorReassigned {
+            elevator,
+            old_line,
+            new_line,
+            tick: self.tick,
+        });
+
+        Ok(())
+    }
+
     /// Add a stop to a line's served stops.
     ///
     /// # Errors
@@ -1414,18 +1492,7 @@ impl Simulation {
             return Err(SimError::EntityNotFound(stop));
         }
 
-        // Find the group and LineInfo for this line.
-        let (group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (group_idx, line_idx) = self.find_line(line)?;
 
         let li = &mut self.groups[group_idx].lines_mut()[line_idx];
         if !li.serves().contains(&stop) {
@@ -1450,18 +1517,7 @@ impl Simulation {
         stop: EntityId,
         line: EntityId,
     ) -> Result<(), SimError> {
-        // Find the group and LineInfo for this line.
-        let (group_idx, line_idx) = self
-            .groups
-            .iter()
-            .enumerate()
-            .find_map(|(gi, g)| {
-                g.lines()
-                    .iter()
-                    .position(|li| li.entity() == line)
-                    .map(|li_idx| (gi, li_idx))
-            })
-            .ok_or(SimError::LineNotFound(line))?;
+        let (group_idx, line_idx) = self.find_line(line)?;
 
         self.groups[group_idx].lines_mut()[line_idx]
             .serves_mut()
@@ -1637,7 +1693,7 @@ impl Simulation {
     /// keeping the rider's current stop as origin.
     ///
     /// Returns `Err` if the rider does not exist or is not in `Waiting` phase
-    /// (riding/boarding riders cannot be rerouted until they alight).
+    /// (riding/boarding riders cannot be rerouted until they exit).
     ///
     /// # Errors
     ///
@@ -1788,7 +1844,7 @@ impl Simulation {
             .collect();
 
         // Find all Waiting riders whose route references this stop.
-        // Riding riders are skipped — they'll be rerouted when they alight.
+        // Riding riders are skipped — they'll be rerouted when they exit.
         let rider_ids: Vec<EntityId> = self.world.rider_ids();
         for rid in rider_ids {
             let is_waiting = self

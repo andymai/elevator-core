@@ -233,7 +233,7 @@ impl WorldSnapshot {
                 r.phase = match r.phase {
                     RiderPhase::Boarding(e) => RiderPhase::Boarding(remap(e)),
                     RiderPhase::Riding(e) => RiderPhase::Riding(remap(e)),
-                    RiderPhase::Alighting(e) => RiderPhase::Alighting(remap(e)),
+                    RiderPhase::Exiting(e) => RiderPhase::Exiting(remap(e)),
                     other => other,
                 };
                 world.set_rider(eid, r);

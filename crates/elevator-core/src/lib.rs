@@ -78,7 +78,7 @@ pub mod components;
 pub mod entity;
 /// Simulation error types.
 pub mod error;
-/// Typed identifiers for groups, zones, and other sim concepts.
+/// Typed identifiers for groups and other sim concepts.
 pub mod ids;
 /// ECS-style query builder for iterating entities by component composition.
 pub mod query;

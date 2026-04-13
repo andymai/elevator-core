@@ -48,9 +48,9 @@ Each call to `sim.step()` runs one simulation tick. A tick consists of six phase
 
 Riders in transitional states are advanced to their next phase:
 - `Boarding` -> `Riding` (the rider is now inside the elevator)
-- `Alighting` -> `Arrived` (the rider has left the elevator and is done)
+- `Exiting` -> `Arrived` (the rider has left the elevator and is done)
 
-This ensures that boarding and alighting -- which are set during the Loading phase -- take effect at the start of the *next* tick, giving events a clean boundary.
+This ensures that boarding and exiting -- which are set during the Loading phase -- take effect at the start of the *next* tick, giving events a clean boundary.
 
 ### Phase 2: Dispatch
 
@@ -72,12 +72,12 @@ The door finite-state machine ticks for each elevator. Doors transition through:
 Closed -> Opening (transition ticks) -> Open (hold ticks) -> Closing (transition ticks) -> Closed
 ```
 
-`DoorOpened` and `DoorClosed` events fire at the appropriate moments. Riders can only board or alight when the doors are fully open.
+`DoorOpened` and `DoorClosed` events fire at the appropriate moments. Riders can only board or exit when the doors are fully open.
 
 ### Phase 5: Loading
 
 While an elevator's doors are open at a stop:
-- **Alighting**: riders whose destination matches the current stop exit the elevator.
+- **Exiting**: riders whose destination matches the current stop exit the elevator.
 - **Boarding**: waiting riders at the current stop enter the elevator, subject to weight capacity.
 
 Riders that exceed the elevator's remaining capacity are rejected with a `RiderRejected` event.
@@ -91,7 +91,7 @@ Events from the current tick are processed to update aggregate metrics -- averag
 A rider moves through these phases:
 
 ```text
-Waiting --> Boarding --> Riding --> Alighting --> Arrived
+Waiting --> Boarding --> Riding --> Exiting --> Arrived
                                                    |
 Waiting ----> Abandoned (gave up waiting)    (despawned)
 ```
@@ -100,12 +100,12 @@ Waiting ----> Abandoned (gave up waiting)    (despawned)
 |---|---|---|
 | `Waiting` | At a stop, in the queue | Elevator arrives, doors open, loading phase boards them |
 | `Boarding` | Being loaded into the elevator | Advance Transient phase (next tick) |
-| `Riding` | Inside the elevator | Elevator arrives at destination, doors open, loading phase alights them |
-| `Alighting` | Exiting the elevator | Advance Transient phase (next tick) |
+| `Riding` | Inside the elevator | Elevator arrives at destination, doors open, loading phase exits them |
+| `Exiting` | Exiting the elevator | Advance Transient phase (next tick) |
 | `Arrived` | Done | Game can despawn or ignore |
 | `Abandoned` | Left the stop | Patience ran out (if configured) |
 
-Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderAlighted`, `RiderAbandoned`.
+Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`.
 
 ## Elevator lifecycle
 

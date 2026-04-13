@@ -10,6 +10,7 @@ use crate::ids::GroupId;
 #[non_exhaustive]
 pub enum TransportMode {
     /// Use any elevator in the given dispatch group.
+    #[serde(alias = "Elevator")]
     Group(GroupId),
     /// Use a specific line (pinned routing).
     Line(EntityId),

@@ -92,8 +92,8 @@ pub struct RiderMaterials {
     pub boarding: Handle<ColorMaterial>,
     /// Material for riders in the Riding phase.
     pub riding: Handle<ColorMaterial>,
-    /// Material for riders in the Alighting phase.
-    pub alighting: Handle<ColorMaterial>,
+    /// Material for riders in the Exiting phase.
+    pub exiting: Handle<ColorMaterial>,
 }
 
 /// Spawn building visuals.
@@ -175,7 +175,7 @@ pub fn spawn_building_visuals(
         waiting: materials.add(Color::srgba(0.2, 0.8, 0.3, 1.0)),
         boarding: materials.add(Color::srgba(0.3, 0.9, 0.9, 1.0)),
         riding: materials.add(Color::srgba(0.9, 0.8, 0.2, 1.0)),
-        alighting: materials.add(Color::srgba(0.9, 0.4, 0.2, 1.0)),
+        exiting: materials.add(Color::srgba(0.9, 0.4, 0.2, 1.0)),
     };
     commands.insert_resource(rider_mats);
     commands.insert_resource(vs);
@@ -310,12 +310,12 @@ fn rider_visual_params(
             let x_offset = (idx as f32 % 3.0).mul_add(vs.rider_spacing, -vs.rider_spacing);
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())
         }
-        RiderPhase::Alighting(elev_eid) => {
+        RiderPhase::Exiting(elev_eid) => {
             let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
-                mats.alighting.clone(),
+                mats.exiting.clone(),
             )
         }
         _ => (0.0, 0.0, mats.waiting.clone()),

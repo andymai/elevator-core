@@ -84,13 +84,13 @@ fn part1_basic_simulation() {
             } => {
                 println!("  Rider {rider:?} boarded elevator {elevator:?}");
             }
-            Event::RiderAlighted {
+            Event::RiderExited {
                 rider,
                 elevator,
                 stop,
                 ..
             } => {
-                println!("  Rider {rider:?} alighted elevator {elevator:?} at stop {stop:?}");
+                println!("  Rider {rider:?} exited elevator {elevator:?} at stop {stop:?}");
             }
             Event::ElevatorArrived {
                 elevator, at_stop, ..
@@ -173,7 +173,7 @@ fn part2_custom_dispatch() {
         .count();
     let delivered_count = events
         .iter()
-        .filter(|e| matches!(e, Event::RiderAlighted { .. }))
+        .filter(|e| matches!(e, Event::RiderExited { .. }))
         .count();
 
     println!("ETD dispatch results over {} ticks:", sim.current_tick());

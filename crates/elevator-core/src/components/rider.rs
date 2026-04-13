@@ -14,8 +14,9 @@ pub enum RiderPhase {
     Boarding(EntityId),
     /// Riding in an elevator.
     Riding(EntityId),
-    /// Alighting from an elevator (transient, one tick).
-    Alighting(EntityId),
+    /// Exiting an elevator (transient, one tick).
+    #[serde(alias = "Alighting")]
+    Exiting(EntityId),
     /// Walking between transfer stops.
     Walking,
     /// Reached final destination.
@@ -30,7 +31,7 @@ impl std::fmt::Display for RiderPhase {
             Self::Waiting => write!(f, "Waiting"),
             Self::Boarding(id) => write!(f, "Boarding({id:?})"),
             Self::Riding(id) => write!(f, "Riding({id:?})"),
-            Self::Alighting(id) => write!(f, "Alighting({id:?})"),
+            Self::Exiting(id) => write!(f, "Exiting({id:?})"),
             Self::Walking => write!(f, "Walking"),
             Self::Arrived => write!(f, "Arrived"),
             Self::Abandoned => write!(f, "Abandoned"),
@@ -43,7 +44,7 @@ impl std::fmt::Display for RiderPhase {
 /// This is the minimum data the simulation needs. Games attach
 /// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
 /// for game-specific behavior. An entity with `Rider` but no
-/// Route component can be boarded/alighted manually by game code.
+/// Route component can be boarded/exited manually by game code.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.

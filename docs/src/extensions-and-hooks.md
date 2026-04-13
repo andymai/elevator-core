@@ -172,7 +172,7 @@ let sim = SimulationBuilder::new()
 | `Phase::Dispatch` | Before/after elevator assignment |
 | `Phase::Movement` | Before/after position updates |
 | `Phase::Doors` | Before/after door state machine ticks |
-| `Phase::Loading` | Before/after boarding and alighting |
+| `Phase::Loading` | Before/after boarding and exiting |
 | `Phase::Metrics` | Before/after metric aggregation |
 
 ## Combining extensions and hooks

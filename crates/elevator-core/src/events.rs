@@ -79,15 +79,16 @@ pub enum Event {
         /// The tick when boarding occurred.
         tick: u64,
     },
-    /// A rider alighted (exited) an elevator at a stop.
-    RiderAlighted {
-        /// The rider that alighted.
+    /// A rider exited an elevator at a stop.
+    #[serde(alias = "RiderAlighted")]
+    RiderExited {
+        /// The rider that exited.
         rider: EntityId,
         /// The elevator the rider exited.
         elevator: EntityId,
-        /// The stop where the rider alighted.
+        /// The stop where the rider exited.
         stop: EntityId,
-        /// The tick when alighting occurred.
+        /// The tick when exiting occurred.
         tick: u64,
     },
     /// A rider was rejected from boarding (e.g., over capacity).

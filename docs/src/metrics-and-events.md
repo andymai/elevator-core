@@ -25,7 +25,7 @@ Events are emitted during the tick phases. Here are the main categories:
 |---|---|
 | `RiderSpawned { rider, origin, destination, tick }` | A new rider appears at a stop |
 | `RiderBoarded { rider, elevator, tick }` | A rider enters an elevator |
-| `RiderAlighted { rider, elevator, stop, tick }` | A rider exits at their destination |
+| `RiderExited { rider, elevator, stop, tick }` | A rider exits at their destination |
 | `RiderRejected { rider, elevator, reason, context, tick }` | A rider was refused boarding (over capacity) |
 | `RiderAbandoned { rider, stop, tick }` | A rider gave up waiting |
 | `RiderEjected { rider, elevator, stop, tick }` | A rider was ejected (elevator disabled) |
@@ -55,7 +55,7 @@ for event in sim.drain_events() {
         Event::RiderBoarded { rider, elevator, tick } => {
             println!("[{tick}] {rider:?} boarded {elevator:?}");
         }
-        Event::RiderAlighted { rider, stop, tick, .. } => {
+        Event::RiderExited { rider, stop, tick, .. } => {
             println!("[{tick}] {rider:?} arrived at {stop:?}");
         }
         Event::ElevatorArrived { elevator, at_stop, tick } => {
@@ -100,7 +100,7 @@ fn main() -> Result<(), SimError> {
         .filter(|e| matches!(e, Event::RiderBoarded { .. }))
         .count();
     let arrivals = event_log.iter()
-        .filter(|e| matches!(e, Event::RiderAlighted { .. }))
+        .filter(|e| matches!(e, Event::RiderExited { .. }))
         .count();
 
     println!("Total boardings: {boardings}");
@@ -137,7 +137,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 | Metric | Description |
 |---|---|
 | `avg_wait_time()` | Average ticks from spawn to board, across all riders that boarded |
-| `avg_ride_time()` | Average ticks from board to alight, across all delivered riders |
+| `avg_ride_time()` | Average ticks from board to exit, across all delivered riders |
 | `max_wait_time()` | Longest wait observed (ticks) |
 | `throughput()` | Riders delivered in the current throughput window (default: 3600 ticks) |
 | `total_delivered()` | Cumulative riders successfully delivered |
