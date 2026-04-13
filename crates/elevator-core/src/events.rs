@@ -269,6 +269,17 @@ pub enum Event {
         /// The tick when it arrived.
         tick: u64,
     },
+
+    // -- Observability events --
+    /// An elevator became idle (no more assignments or repositioning).
+    ElevatorIdle {
+        /// The elevator that became idle.
+        elevator: EntityId,
+        /// The stop where it became idle (if at a stop).
+        at_stop: Option<EntityId>,
+        /// The tick when it became idle.
+        tick: u64,
+    },
 }
 
 /// Reason a rider's route was invalidated.

@@ -1,4 +1,32 @@
 //! Pluggable dispatch strategies for assigning elevators to stops.
+//!
+//! # Example: custom dispatch strategy
+//!
+//! ```rust
+//! use elevator_core::prelude::*;
+//!
+//! struct AlwaysFirstStop;
+//!
+//! impl DispatchStrategy for AlwaysFirstStop {
+//!     fn decide(
+//!         &mut self,
+//!         _elevator: EntityId,
+//!         _elevator_position: f64,
+//!         group: &ElevatorGroup,
+//!         _manifest: &DispatchManifest,
+//!         _world: &elevator_core::world::World,
+//!     ) -> DispatchDecision {
+//!         group.stop_entities().first()
+//!             .map(|&stop| DispatchDecision::GoToStop(stop))
+//!             .unwrap_or(DispatchDecision::Idle)
+//!     }
+//! }
+//!
+//! let sim = SimulationBuilder::new()
+//!     .dispatch(AlwaysFirstStop)
+//!     .build()
+//!     .unwrap();
+//! ```
 
 /// Estimated Time to Destination dispatch algorithm.
 pub mod etd;

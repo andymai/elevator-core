@@ -371,6 +371,28 @@ impl World {
         self.stops.keys().collect()
     }
 
+    /// Iterate elevators in `Idle` phase (not disabled).
+    pub fn iter_idle_elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &Elevator)> {
+        use crate::components::ElevatorPhase;
+        self.iter_elevators()
+            .filter(|(id, _, car)| car.phase == ElevatorPhase::Idle && !self.is_disabled(*id))
+    }
+
+    /// Iterate elevators in `MovingToStop` phase (not disabled).
+    pub fn iter_moving_elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &Elevator)> {
+        self.iter_elevators().filter(|(id, _, car)| {
+            matches!(car.phase, crate::components::ElevatorPhase::MovingToStop(_))
+                && !self.is_disabled(*id)
+        })
+    }
+
+    /// Iterate riders in `Waiting` phase (not disabled).
+    pub fn iter_waiting_riders(&self) -> impl Iterator<Item = (EntityId, &Rider)> {
+        use crate::components::RiderPhase;
+        self.iter_riders()
+            .filter(|(id, r)| r.phase == RiderPhase::Waiting && !self.is_disabled(*id))
+    }
+
     /// Find the stop entity at a given position (within epsilon).
     #[must_use]
     pub fn find_stop_at_position(&self, position: f64) -> Option<EntityId> {

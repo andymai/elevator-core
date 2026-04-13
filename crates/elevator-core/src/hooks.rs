@@ -1,4 +1,21 @@
 //! Lifecycle hooks for injecting custom logic before/after simulation phases.
+//!
+//! # Example
+//!
+//! ```rust
+//! use elevator_core::prelude::*;
+//!
+//! let mut sim = SimulationBuilder::new()
+//!     .before(Phase::Dispatch, |world| {
+//!         // Inspect world state before dispatch runs
+//!         let idle_count = world.iter_idle_elevators().count();
+//!         let _ = idle_count; // use it
+//!     })
+//!     .build()
+//!     .unwrap();
+//!
+//! sim.step(); // hooks fire during each step
+//! ```
 
 use crate::ids::GroupId;
 use crate::world::World;
