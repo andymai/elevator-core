@@ -95,8 +95,22 @@ pub fn run(
                     }
                 }
                 DispatchDecision::Idle => {
+                    // Check if elevator was already idle before setting phase.
+                    let was_idle = world
+                        .elevator(eid)
+                        .is_some_and(|car| car.phase == ElevatorPhase::Idle);
                     if let Some(car) = world.elevator_mut(eid) {
                         car.phase = ElevatorPhase::Idle;
+                    }
+                    if !was_idle {
+                        let at_stop = world
+                            .position(eid)
+                            .and_then(|p| world.find_stop_at_position(p.value));
+                        events.emit(Event::ElevatorIdle {
+                            elevator: eid,
+                            at_stop,
+                            tick: ctx.tick,
+                        });
                     }
                 }
             }

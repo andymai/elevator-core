@@ -1,6 +1,7 @@
 //! Aggregate simulation metrics (wait times, throughput, distance).
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::collections::VecDeque;
 
 /// Aggregated simulation metrics, updated each tick from events.
@@ -29,6 +30,14 @@ pub struct Metrics {
     pub(crate) abandonment_rate: f64,
     /// Total distance traveled by all elevators.
     pub(crate) total_distance: f64,
+    /// Per-group instantaneous elevator utilization: fraction of elevators
+    /// currently moving (in `MovingToStop` phase) vs total enabled elevators.
+    /// Overwritten each tick. Key is group name (String for serialization).
+    #[serde(default)]
+    pub(crate) utilization_by_group: HashMap<String, f64>,
+    /// Total distance traveled by elevators while repositioning.
+    #[serde(default)]
+    pub(crate) reposition_distance: f64,
 
     // -- Internal accumulators --
     /// Running sum of wait ticks across all boarded riders.
@@ -118,6 +127,18 @@ impl Metrics {
         self.total_distance
     }
 
+    /// Per-group instantaneous elevator utilization (fraction of elevators moving).
+    #[must_use]
+    pub const fn utilization_by_group(&self) -> &HashMap<String, f64> {
+        &self.utilization_by_group
+    }
+
+    /// Total distance traveled by elevators while repositioning.
+    #[must_use]
+    pub const fn reposition_distance(&self) -> f64 {
+        self.reposition_distance
+    }
+
     /// Window size for throughput calculation (ticks).
     #[must_use]
     pub const fn throughput_window_ticks(&self) -> u64 {
@@ -164,6 +185,11 @@ impl Metrics {
     /// Record elevator distance traveled this tick.
     pub fn record_distance(&mut self, distance: f64) {
         self.total_distance += distance;
+    }
+
+    /// Record elevator distance traveled while repositioning.
+    pub fn record_reposition_distance(&mut self, distance: f64) {
+        self.reposition_distance += distance;
     }
 
     /// Update windowed throughput. Call once per tick.

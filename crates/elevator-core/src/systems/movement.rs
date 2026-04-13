@@ -3,17 +3,20 @@
 use crate::components::ElevatorPhase;
 use crate::door::DoorState;
 use crate::events::{Event, EventBus};
+use crate::metrics::Metrics;
 use crate::movement::tick_movement;
 use crate::world::{SortedStops, World};
 
 use super::PhaseContext;
 
 /// Update position/velocity for all moving elevators.
+#[allow(clippy::too_many_lines)]
 pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     elevator_ids: &[crate::entity::EntityId],
+    metrics: &mut Metrics,
 ) {
     for &eid in elevator_ids {
         if world.is_disabled(eid) {
@@ -70,6 +73,14 @@ pub fn run(
             v.value = result.velocity;
         }
 
+        // Track repositioning distance.
+        if is_repositioning {
+            let dist = (new_pos - old_pos).abs();
+            if dist > 0.0 {
+                metrics.record_reposition_distance(dist);
+            }
+        }
+
         // Emit PassingFloor for any stops crossed between old and new position
         // (excluding the target stop — that gets an ElevatorArrived instead).
         if !result.arrived {
@@ -108,6 +119,11 @@ pub fn run(
                 events.emit(Event::ElevatorRepositioned {
                     elevator: eid,
                     at_stop: target_stop_eid,
+                    tick: ctx.tick,
+                });
+                events.emit(Event::ElevatorIdle {
+                    elevator: eid,
+                    at_stop: Some(target_stop_eid),
                     tick: ctx.tick,
                 });
             } else {
