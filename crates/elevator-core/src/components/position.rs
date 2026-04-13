@@ -36,6 +36,10 @@ impl fmt::Display for Position {
 
 impl From<f64> for Position {
     fn from(value: f64) -> Self {
+        debug_assert!(
+            value.is_finite(),
+            "Position value must be finite, got {value}"
+        );
         Self { value }
     }
 }
@@ -75,6 +79,10 @@ impl fmt::Display for Velocity {
 
 impl From<f64> for Velocity {
     fn from(value: f64) -> Self {
+        debug_assert!(
+            value.is_finite(),
+            "Velocity value must be finite, got {value}"
+        );
         Self { value }
     }
 }

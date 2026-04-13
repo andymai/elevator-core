@@ -159,7 +159,7 @@ impl fmt::Display for RejectionContext {
         } else {
             write!(
                 f,
-                "load {:.1}/{:.1} + {:.1}kg",
+                "load {:.1}kg/{:.1}kg + {:.1}kg",
                 *self.current_load, *self.capacity, *self.attempted_weight,
             )
         }
