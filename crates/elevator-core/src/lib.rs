@@ -5,7 +5,7 @@
 //! This crate provides the building blocks for modeling vertical transportation
 //! systems — from a 3-story office building to an orbital space elevator.
 //! Stops sit at arbitrary positions rather than uniform floors, and the
-//! simulation is driven by a deterministic 6-phase tick loop.
+//! simulation is driven by a deterministic 7-phase tick loop.
 //!
 //! ## Key capabilities
 //!
@@ -66,6 +66,71 @@
 //! | [`hooks`] | Lifecycle hook registration by [`Phase`](hooks::Phase) |
 //! | [`query`] | Entity query builder for filtering by component composition |
 //!
+//! ## Architecture overview
+//!
+//! ### 7-phase tick loop
+//!
+//! Each call to [`Simulation::step()`](sim::Simulation::step) runs these
+//! phases in order:
+//!
+//! 1. **`AdvanceTransient`** — transitions `Boarding→Riding`, `Exiting→Arrived`,
+//!    teleports walkers.
+//! 2. **Dispatch** — builds a [`DispatchManifest`](dispatch::DispatchManifest)
+//!    and calls each group's [`DispatchStrategy`](dispatch::DispatchStrategy).
+//! 3. **Reposition** — optional phase; moves idle elevators via
+//!    [`RepositionStrategy`](dispatch::RepositionStrategy) for better coverage.
+//! 4. **Movement** — applies trapezoidal velocity profiles, detects stop arrivals
+//!    and emits [`PassingFloor`](events::Event::PassingFloor) events.
+//! 5. **Doors** — ticks the [`DoorState`](door::DoorState) FSM per elevator.
+//! 6. **Loading** — boards/exits riders with capacity and preference checks.
+//! 7. **Metrics** — aggregates wait/ride times into [`Metrics`](metrics::Metrics)
+//!    and per-tag accumulators.
+//!
+//! ### Component relationships
+//!
+//! ```text
+//! Group ──contains──▶ Line ──has──▶ Elevator ──carries──▶ Rider
+//!   │                  │              │                      │
+//!   └── DispatchStrategy              └── Position           └── Route (optional)
+//!        RepositionStrategy               Velocity               Patience
+//!                      │                  DoorState               Preferences
+//!                      └── Stop (served stops along the shaft)
+//! ```
+//!
+//! ### Extension storage
+//!
+//! Games attach custom data to any entity without modifying the library:
+//!
+//! ```rust,ignore
+//! // Attach a VIP flag to a rider.
+//! world.insert_ext(rider_id, VipTag { priority: 1 }, "vip_tag");
+//!
+//! // Query it alongside built-in components.
+//! for (id, rider, vip) in world.query::<(EntityId, &Rider, &Ext<VipTag>)>().iter() {
+//!     // ...
+//! }
+//! ```
+//!
+//! Extensions participate in snapshots via `serialize_extensions()` /
+//! `register_ext::<T>(name)` + `load_extensions()`.
+//!
+//! ### Snapshot lifecycle
+//!
+//! 1. Capture: `sim.snapshot()` → [`WorldSnapshot`](snapshot::WorldSnapshot)
+//! 2. Serialize: serde (RON, JSON, bincode, etc.)
+//! 3. Deserialize + restore: `snapshot.restore(factory)` → new `Simulation`
+//! 4. Re-register extensions: `world.register_ext::<T>(name)` per type
+//! 5. Load extension data: `sim.load_extensions()`
+//!
+//! ### Performance
+//!
+//! | Operation | Complexity |
+//! |-----------|-----------|
+//! | Entity iteration | O(n) via `SlotMap` secondary maps |
+//! | Stop-passing detection | O(log n) via `SortedStops` binary search |
+//! | Dispatch manifest build | O(riders) per group |
+//! | Topology graph queries | O(V+E) BFS, lazy rebuild |
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 
@@ -82,7 +147,7 @@ pub mod error;
 pub mod ids;
 /// ECS-style query builder for iterating entities by component composition.
 pub mod query;
-/// Tick-loop system phases (dispatch, movement, doors, loading, metrics).
+/// Tick-loop system phases (dispatch, reposition, movement, doors, loading, metrics).
 pub mod systems;
 /// Central entity/component storage.
 pub mod world;
@@ -145,8 +210,12 @@ pub mod prelude {
         Rider, RiderPhase, Route, Stop, Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
+    pub use crate::dispatch::reposition::{
+        DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
+    };
     pub use crate::dispatch::{
-        BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, RiderInfo,
+        BuiltinReposition, BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy,
+        RepositionStrategy, RiderInfo,
     };
     pub use crate::dispatch::{ElevatorGroup, LineInfo};
     pub use crate::entity::EntityId;

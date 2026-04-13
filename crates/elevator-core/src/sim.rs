@@ -5,7 +5,10 @@ use crate::components::{
     Stop, Velocity,
 };
 use crate::config::SimConfig;
-use crate::dispatch::{BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo};
+use crate::dispatch::{
+    BuiltinReposition, BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo,
+    RepositionStrategy,
+};
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::error::SimError;
@@ -114,6 +117,10 @@ pub struct Simulation {
     dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     /// Serializable strategy identifiers (for snapshot).
     strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
+    /// Reposition strategies keyed by group (optional per group).
+    repositioners: BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
+    /// Serializable reposition strategy identifiers (for snapshot).
+    reposition_ids: BTreeMap<GroupId, BuiltinReposition>,
     /// Aggregated metrics.
     metrics: Metrics,
     /// Time conversion utility.
@@ -222,6 +229,21 @@ impl Simulation {
             }
         }
 
+        // Wire reposition strategies from group configs.
+        let mut repositioners: BTreeMap<GroupId, Box<dyn RepositionStrategy>> = BTreeMap::new();
+        let mut reposition_ids: BTreeMap<GroupId, BuiltinReposition> = BTreeMap::new();
+        if let Some(group_configs) = &config.building.groups {
+            for gc in group_configs {
+                if let Some(ref repo_id) = gc.reposition {
+                    if let Some(strategy) = repo_id.instantiate() {
+                        let gid = GroupId(gc.id);
+                        repositioners.insert(gid, strategy);
+                        reposition_ids.insert(gid, repo_id.clone());
+                    }
+                }
+            }
+        }
+
         Ok(Self {
             world,
             events: EventBus::default(),
@@ -232,6 +254,8 @@ impl Simulation {
             stop_lookup,
             dispatchers,
             strategy_ids,
+            repositioners,
+            reposition_ids,
             metrics: Metrics::new(),
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
@@ -295,6 +319,7 @@ impl Simulation {
                     door_transition_ticks: ec.door_transition_ticks,
                     door_open_ticks: ec.door_open_ticks,
                     line: default_line_eid,
+                    repositioning: false,
                 },
             );
             elevator_entities.push(eid);
@@ -404,6 +429,7 @@ impl Simulation {
                         door_transition_ticks: ec.door_transition_ticks,
                         door_open_ticks: ec.door_open_ticks,
                         line: line_eid,
+                        repositioning: false,
                     },
                 );
                 elevator_entities.push(eid);
@@ -498,6 +524,8 @@ impl Simulation {
             stop_lookup,
             dispatchers,
             strategy_ids,
+            repositioners: BTreeMap::new(),
+            reposition_ids: BTreeMap::new(),
             metrics,
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
@@ -803,6 +831,34 @@ impl Simulation {
     ) {
         self.dispatchers.insert(group, strategy);
         self.strategy_ids.insert(group, id);
+    }
+
+    // ── Reposition management ─────────────────────────────────────────
+
+    /// Set the reposition strategy for a group.
+    ///
+    /// Enables the reposition phase for this group. Idle elevators will
+    /// be repositioned according to the strategy after each dispatch phase.
+    pub fn set_reposition(
+        &mut self,
+        group: GroupId,
+        strategy: Box<dyn RepositionStrategy>,
+        id: BuiltinReposition,
+    ) {
+        self.repositioners.insert(group, strategy);
+        self.reposition_ids.insert(group, id);
+    }
+
+    /// Remove the reposition strategy for a group, disabling repositioning.
+    pub fn remove_reposition(&mut self, group: GroupId) {
+        self.repositioners.remove(&group);
+        self.reposition_ids.remove(&group);
+    }
+
+    /// Get the reposition strategy identifier for a group.
+    #[must_use]
+    pub fn reposition_id(&self, group: GroupId) -> Option<&BuiltinReposition> {
+        self.reposition_ids.get(&group)
     }
 
     // ── Tagging ──────────────────────────────────────────────────────
@@ -1200,6 +1256,7 @@ impl Simulation {
                 door_transition_ticks: params.door_transition_ticks,
                 door_open_ticks: params.door_open_ticks,
                 line,
+                repositioning: false,
             },
         );
         self.groups[group_idx].lines_mut()[line_idx]
@@ -2066,6 +2123,40 @@ impl Simulation {
         self.hooks.run_after(Phase::Loading, &mut self.world);
     }
 
+    /// Run only the reposition phase (with hooks).
+    ///
+    /// Only runs if at least one group has a [`RepositionStrategy`] configured.
+    /// Idle elevators with no pending dispatch assignment are repositioned
+    /// according to their group's strategy.
+    pub fn run_reposition(&mut self) {
+        if self.repositioners.is_empty() {
+            return;
+        }
+        self.hooks.run_before(Phase::Reposition, &mut self.world);
+        // Only run per-group hooks for groups that have a repositioner.
+        for group in &self.groups {
+            if self.repositioners.contains_key(&group.id()) {
+                self.hooks
+                    .run_before_group(Phase::Reposition, group.id(), &mut self.world);
+            }
+        }
+        let ctx = self.phase_context();
+        crate::systems::reposition::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.groups,
+            &mut self.repositioners,
+        );
+        for group in &self.groups {
+            if self.repositioners.contains_key(&group.id()) {
+                self.hooks
+                    .run_after_group(Phase::Reposition, group.id(), &mut self.world);
+            }
+        }
+        self.hooks.run_after(Phase::Reposition, &mut self.world);
+    }
+
     /// Run only the metrics phase (with hooks).
     pub fn run_metrics(&mut self) {
         self.hooks.run_before(Phase::Metrics, &mut self.world);
@@ -2151,6 +2242,7 @@ impl Simulation {
     pub fn step(&mut self) {
         self.run_advance_transient();
         self.run_dispatch();
+        self.run_reposition();
         self.run_movement();
         self.run_doors();
         self.run_loading();

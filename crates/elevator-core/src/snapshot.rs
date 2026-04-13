@@ -104,6 +104,9 @@ pub struct GroupSnapshot {
     /// Per-line snapshot data. Empty in legacy snapshots.
     #[serde(default)]
     pub lines: Vec<LineSnapshotInfo>,
+    /// Optional repositioning strategy for idle elevators.
+    #[serde(default)]
+    pub reposition: Option<crate::dispatch::BuiltinReposition>,
 }
 
 /// Pending extension data from a snapshot, awaiting type registration.
@@ -203,7 +206,7 @@ impl WorldSnapshot {
         tags.remap_entity_ids(&id_remap);
         world.insert_resource(tags);
 
-        crate::sim::Simulation::from_parts(
+        let mut sim = crate::sim::Simulation::from_parts(
             world,
             self.tick,
             self.dt,
@@ -213,7 +216,18 @@ impl WorldSnapshot {
             strategy_ids,
             self.metrics,
             self.ticks_per_second,
-        )
+        );
+
+        // Restore reposition strategies from group snapshots.
+        for gs in &self.groups {
+            if let Some(ref repo_id) = gs.reposition {
+                if let Some(strategy) = repo_id.instantiate() {
+                    sim.set_reposition(gs.id, strategy, repo_id.clone());
+                }
+            }
+        }
+
+        sim
     }
 
     /// Spawn entities in the world and build the old→new `EntityId` mapping.
@@ -491,6 +505,7 @@ impl crate::sim::Simulation {
                         .cloned()
                         .unwrap_or(crate::dispatch::BuiltinStrategy::Scan),
                     lines,
+                    reposition: self.reposition_id(g.id()).cloned(),
                 }
             })
             .collect();

@@ -84,6 +84,7 @@ pub fn run(
                     if let Some(car) = world.elevator_mut(eid) {
                         car.phase = ElevatorPhase::MovingToStop(stop_eid);
                         car.target_stop = Some(stop_eid);
+                        car.repositioning = false;
                     }
                     if let Some(from) = current_stop {
                         events.emit(Event::ElevatorDeparted {

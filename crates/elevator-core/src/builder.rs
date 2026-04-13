@@ -6,8 +6,8 @@ use crate::config::{
     BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
     SimulationParams,
 };
-use crate::dispatch::DispatchStrategy;
 use crate::dispatch::scan::ScanDispatch;
+use crate::dispatch::{BuiltinReposition, DispatchStrategy, RepositionStrategy};
 use crate::error::SimError;
 use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
@@ -37,6 +37,8 @@ pub struct SimulationBuilder {
     config: SimConfig,
     /// Per-group dispatch strategies.
     dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    /// Per-group reposition strategies.
+    repositioners: Vec<(GroupId, Box<dyn RepositionStrategy>, BuiltinReposition)>,
     /// Lifecycle hooks for before/after each tick phase.
     hooks: PhaseHooks,
     /// Deferred extension registrations (applied after build).
@@ -111,6 +113,7 @@ impl SimulationBuilder {
         Self {
             config,
             dispatchers,
+            repositioners: Vec::new(),
             hooks: PhaseHooks::default(),
             ext_registrations: Vec::new(),
         }
@@ -131,6 +134,7 @@ impl SimulationBuilder {
         Self {
             config,
             dispatchers,
+            repositioners: Vec::new(),
             hooks: PhaseHooks::default(),
             ext_registrations: Vec::new(),
         }
@@ -290,6 +294,31 @@ impl SimulationBuilder {
         self
     }
 
+    /// Set a reposition strategy for the default group.
+    ///
+    /// Enables the reposition phase, which runs after dispatch to
+    /// move idle elevators for better coverage.
+    #[must_use]
+    pub fn reposition(
+        self,
+        strategy: impl RepositionStrategy + 'static,
+        id: BuiltinReposition,
+    ) -> Self {
+        self.reposition_for_group(GroupId(0), strategy, id)
+    }
+
+    /// Set a reposition strategy for a specific group.
+    #[must_use]
+    pub fn reposition_for_group(
+        mut self,
+        group: GroupId,
+        strategy: impl RepositionStrategy + 'static,
+        id: BuiltinReposition,
+    ) -> Self {
+        self.repositioners.push((group, Box::new(strategy), id));
+        self
+    }
+
     /// Pre-register an extension type for snapshot deserialization.
     ///
     /// Extensions registered here will be available immediately after [`build()`](Self::build)
@@ -339,6 +368,10 @@ impl SimulationBuilder {
     /// ```
     pub fn build(self) -> Result<Simulation, SimError> {
         let mut sim = Simulation::new_with_hooks(&self.config, self.dispatchers, self.hooks)?;
+
+        for (group, strategy, id) in self.repositioners {
+            sim.set_reposition(group, strategy, id);
+        }
 
         for register in self.ext_registrations {
             register(sim.world_mut());

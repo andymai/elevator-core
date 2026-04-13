@@ -1,46 +1,33 @@
-//! Optional system: reposition idle elevators for better coverage.
+//! Phase 7 (optional): reposition idle elevators for better coverage.
+//!
+//! Runs after dispatch. Only acts on elevators that are still idle
+//! (no pending assignment from the dispatch phase). Each group's
+//! [`RepositionStrategy`] decides where to send idle cars.
 
 use crate::components::ElevatorPhase;
-use crate::dispatch::ElevatorGroup;
+use crate::dispatch::{ElevatorGroup, RepositionStrategy};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
+use crate::ids::GroupId;
 use crate::world::World;
+use std::collections::BTreeMap;
 
 use super::PhaseContext;
 
-/// Reposition idle elevators to minimize expected wait time.
-///
-/// Strategy: distribute idle elevators evenly across the group's stops.
-/// When an elevator has been idle, send it to the stop that maximizes
-/// coverage (farthest from any other elevator in the group).
-///
-/// This is an optional system — games register it if they want repositioning.
+/// Reposition idle elevators according to per-group strategies.
 pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
-    _idle_threshold_ticks: u64,
+    repositioners: &mut BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
 ) {
     for group in groups {
-        // Collect positions of all non-idle elevators in this group.
-        let occupied_positions: Vec<f64> = group
-            .elevator_entities()
-            .iter()
-            .filter_map(|&eid| {
-                if world.is_disabled(eid) {
-                    return None;
-                }
-                let car = world.elevator(eid)?;
-                if car.phase == ElevatorPhase::Idle {
-                    None
-                } else {
-                    world.position(eid).map(|p| p.value)
-                }
-            })
-            .collect();
+        let Some(strategy) = repositioners.get_mut(&group.id()) else {
+            continue;
+        };
 
-        // Collect idle elevators.
+        // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
             .elevator_entities()
             .iter()
@@ -73,49 +60,32 @@ pub fn run(
             continue;
         }
 
-        // For each idle elevator, find the stop that maximizes minimum
-        // distance from all other (non-idle) elevators and already-
-        // assigned idle elevators. This spreads them out.
-        let mut assigned_positions = occupied_positions.clone();
+        let decisions = strategy.reposition(&idle_elevators, &stop_positions, group, world);
 
-        for (elev_eid, elev_pos) in &idle_elevators {
-            // Find the stop position farthest from all assigned positions.
-            let best_stop = stop_positions.iter().max_by(|a, b| {
-                let min_dist_a = min_distance_to(a.1, &assigned_positions);
-                let min_dist_b = min_distance_to(b.1, &assigned_positions);
-                min_dist_a.total_cmp(&min_dist_b)
+        for (elev_eid, target_stop) in decisions {
+            if let Some(car) = world.elevator_mut(elev_eid) {
+                car.phase = ElevatorPhase::MovingToStop(target_stop);
+                car.target_stop = Some(target_stop);
+                car.repositioning = true;
+            }
+
+            events.emit(Event::ElevatorRepositioning {
+                elevator: elev_eid,
+                to_stop: target_stop,
+                tick: ctx.tick,
             });
 
-            if let Some((stop_eid, stop_pos)) = best_stop {
-                // Only reposition if we're not already at this stop.
-                if (*stop_pos - elev_pos).abs() > 1e-6 {
-                    if let Some(car) = world.elevator_mut(*elev_eid) {
-                        car.phase = ElevatorPhase::MovingToStop(*stop_eid);
-                        car.target_stop = Some(*stop_eid);
-                    }
-
-                    let current_stop = world.find_stop_at_position(*elev_pos);
-                    if let Some(from) = current_stop {
-                        events.emit(Event::ElevatorDeparted {
-                            elevator: *elev_eid,
-                            from_stop: from,
-                            tick: ctx.tick,
-                        });
-                    }
+            // Emit departure from current stop if applicable.
+            let elev_pos = world.position(elev_eid).map(|p| p.value);
+            if let Some(pos) = elev_pos {
+                if let Some(from) = world.find_stop_at_position(pos) {
+                    events.emit(Event::ElevatorDeparted {
+                        elevator: elev_eid,
+                        from_stop: from,
+                        tick: ctx.tick,
+                    });
                 }
-                assigned_positions.push(*stop_pos);
             }
         }
     }
-}
-
-/// Minimum distance from `pos` to any value in `others`.
-fn min_distance_to(pos: f64, others: &[f64]) -> f64 {
-    if others.is_empty() {
-        return f64::INFINITY;
-    }
-    others
-        .iter()
-        .map(|&o| (pos - o).abs())
-        .fold(f64::INFINITY, f64::min)
 }

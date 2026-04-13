@@ -107,6 +107,7 @@ fn multi_group_config(
             name: format!("G{g}"),
             lines: group_line_ids,
             dispatch: BuiltinStrategy::Scan,
+            reposition: None,
         });
     }
 

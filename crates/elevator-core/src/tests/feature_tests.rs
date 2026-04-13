@@ -556,6 +556,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             door_transition_ticks: 5,
             door_open_ticks: 10,
             line: EntityId::default(),
+            repositioning: false,
         },
     );
 
@@ -634,6 +635,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             door_transition_ticks: 5,
             door_open_ticks: 10,
             line: EntityId::default(),
+            repositioning: false,
         },
     );
 

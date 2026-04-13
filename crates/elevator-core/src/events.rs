@@ -241,6 +241,34 @@ pub enum Event {
         /// The tick when reassignment occurred.
         tick: u64,
     },
+
+    // -- Repositioning events --
+    /// An elevator is being repositioned to improve coverage.
+    ///
+    /// Emitted when an idle elevator begins moving to a new position
+    /// as decided by the [`RepositionStrategy`](crate::dispatch::RepositionStrategy).
+    ElevatorRepositioning {
+        /// The elevator being repositioned.
+        elevator: EntityId,
+        /// The stop it is being sent to.
+        to_stop: EntityId,
+        /// The tick when repositioning began.
+        tick: u64,
+    },
+    /// An elevator completed repositioning and arrived at its target.
+    ///
+    /// Note: this is detected by the movement system — the elevator
+    /// arrives just like any other movement. Games can distinguish
+    /// repositioning arrivals from dispatch arrivals by tracking
+    /// which elevators received `ElevatorRepositioning` events.
+    ElevatorRepositioned {
+        /// The elevator that completed repositioning.
+        elevator: EntityId,
+        /// The stop it arrived at.
+        at_stop: EntityId,
+        /// The tick when it arrived.
+        tick: u64,
+    },
 }
 
 /// Reason a rider's route was invalidated.
