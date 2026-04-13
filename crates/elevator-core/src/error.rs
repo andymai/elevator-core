@@ -107,6 +107,8 @@ pub enum RejectionReason {
     OverCapacity,
     /// Rider's boarding preferences prevented boarding (e.g., crowding threshold).
     PreferenceBased,
+    /// Rider lacks access to the destination stop, or the elevator cannot serve it.
+    AccessDenied,
 }
 
 impl fmt::Display for RejectionReason {
@@ -114,6 +116,7 @@ impl fmt::Display for RejectionReason {
         match self {
             Self::OverCapacity => write!(f, "over capacity"),
             Self::PreferenceBased => write!(f, "rider preference"),
+            Self::AccessDenied => write!(f, "access denied"),
         }
     }
 }

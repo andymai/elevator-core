@@ -110,6 +110,15 @@ pub struct ElevatorConfig {
     /// Units: simulation ticks.
     /// Default (from `SimulationBuilder`): `5`.
     pub door_transition_ticks: u32,
+    /// Stop IDs this elevator cannot serve (access restriction).
+    ///
+    /// Riders whose current destination is in this list are rejected
+    /// with [`RejectionReason::AccessDenied`](crate::error::RejectionReason::AccessDenied)
+    /// during the loading phase.
+    ///
+    /// Default: empty (no restrictions).
+    #[serde(default)]
+    pub restricted_stops: Vec<StopId>,
 }
 
 /// Global simulation timing parameters.

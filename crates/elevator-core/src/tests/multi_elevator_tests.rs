@@ -41,6 +41,7 @@ fn two_elevator_config() -> SimConfig {
                 starting_stop: StopId(0),
                 door_open_ticks: 5,
                 door_transition_ticks: 3,
+                restricted_stops: Vec::new(),
             },
             ElevatorConfig {
                 id: 1,
@@ -52,6 +53,7 @@ fn two_elevator_config() -> SimConfig {
                 starting_stop: StopId(0),
                 door_open_ticks: 5,
                 door_transition_ticks: 3,
+                restricted_stops: Vec::new(),
             },
         ],
         simulation: SimulationParams {

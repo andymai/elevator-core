@@ -93,8 +93,10 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
         } else {
             1.0
         };
+        let car_restricted_stops = &car.restricted_stops;
         let mut rejected_candidate: Option<EntityId> = None;
         let mut preference_rejected: Option<EntityId> = None;
+        let mut access_rejected: Option<EntityId> = None;
 
         let board_rider = world.iter_riders().find_map(|(rid, rider)| {
             if world.is_disabled(rid) {
@@ -130,6 +132,23 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                     }
                 }
             }
+            // Access control: check rider can reach destination via this elevator.
+            if let Some(dest) = world.route(rid).and_then(Route::current_destination) {
+                if car_restricted_stops.contains(&dest) {
+                    if access_rejected.is_none() {
+                        access_rejected = Some(rid);
+                    }
+                    return None;
+                }
+                if let Some(ac) = world.access_control(rid) {
+                    if !ac.can_access(dest) {
+                        if access_rejected.is_none() {
+                            access_rejected = Some(rid);
+                        }
+                        return None;
+                    }
+                }
+            }
             // Rider preferences: skip crowded elevators.
             if let Some(prefs) = world.preferences(rid)
                 && prefs.skip_full_elevator
@@ -159,7 +178,14 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             continue;
         }
 
-        if let Some(rid) = rejected_candidate {
+        if let Some(rid) = access_rejected {
+            actions.push(LoadAction::Reject {
+                rider: rid,
+                elevator: eid,
+                reason: RejectionReason::AccessDenied,
+                context: None,
+            });
+        } else if let Some(rid) = rejected_candidate {
             actions.push(LoadAction::Reject {
                 rider: rid,
                 elevator: eid,

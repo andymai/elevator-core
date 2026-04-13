@@ -39,6 +39,7 @@ pub fn default_config() -> SimConfig {
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
         }],
         simulation: SimulationParams {
             ticks_per_second: 60.0,

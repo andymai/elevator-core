@@ -406,6 +406,7 @@ fn part6_configuration() {
                 starting_stop: StopId(0),
                 door_open_ticks: 15,
                 door_transition_ticks: 8,
+                restricted_stops: Vec::new(),
             },
             ElevatorConfig {
                 id: 1,
@@ -417,6 +418,7 @@ fn part6_configuration() {
                 starting_stop: StopId(0),
                 door_open_ticks: 15,
                 door_transition_ticks: 8,
+                restricted_stops: Vec::new(),
             },
         ],
         simulation: SimulationParams {

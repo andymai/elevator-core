@@ -8,6 +8,7 @@ use crate::events::Event;
 use crate::ids::GroupId;
 use crate::stop::StopId;
 use crate::world::World;
+use std::collections::HashSet;
 
 use super::helpers::{default_config, scan};
 
@@ -359,6 +360,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         weight_capacity: 800.0,
         door_transition_ticks: 5,
         door_open_ticks: 10,
+        restricted_stops: HashSet::new(),
     };
     let line = sim.lines_in_group(GroupId(0))[0];
     let elev2 = sim.add_elevator(&params, line, 0.0).unwrap();
@@ -557,6 +559,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             door_open_ticks: 10,
             line: EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
 
@@ -636,6 +639,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             door_open_ticks: 10,
             line: EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
 
@@ -743,6 +747,7 @@ fn weight_rejection_boundary() {
             starting_stop: crate::stop::StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 3,
+            restricted_stops: Vec::new(),
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,
@@ -830,6 +835,7 @@ fn passing_floor_events_emitted() {
             starting_stop: crate::stop::StopId(0),
             door_open_ticks: 5,
             door_transition_ticks: 3,
+            restricted_stops: Vec::new(),
         }],
         simulation: crate::config::SimulationParams {
             ticks_per_second: 60.0,

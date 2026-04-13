@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::components::{
-    Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
+    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::query::storage::AnyExtMap;
@@ -43,6 +43,8 @@ pub struct World {
     pub(crate) patience: SecondaryMap<EntityId, Patience>,
     /// Boarding preferences.
     pub(crate) preferences: SecondaryMap<EntityId, Preferences>,
+    /// Per-rider access control (allowed stops).
+    pub(crate) access_controls: SecondaryMap<EntityId, AccessControl>,
 
     /// Disabled marker (entities skipped by all systems).
     pub(crate) disabled: SecondaryMap<EntityId, ()>,
@@ -73,6 +75,7 @@ impl World {
             lines: SecondaryMap::new(),
             patience: SecondaryMap::new(),
             preferences: SecondaryMap::new(),
+            access_controls: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
             ext_names: HashMap::new(),
@@ -132,6 +135,7 @@ impl World {
         self.lines.remove(id);
         self.patience.remove(id);
         self.preferences.remove(id);
+        self.access_controls.remove(id);
         self.disabled.remove(id);
 
         for ext in self.extensions.values_mut() {
@@ -321,6 +325,24 @@ impl World {
     /// Set an entity's preferences.
     pub fn set_preferences(&mut self, id: EntityId, prefs: Preferences) {
         self.preferences.insert(id, prefs);
+    }
+
+    // ── Access control accessors ────────────────────────────────────
+
+    /// Get an entity's access control.
+    #[must_use]
+    pub fn access_control(&self, id: EntityId) -> Option<&AccessControl> {
+        self.access_controls.get(id)
+    }
+
+    /// Get an entity's access control mutably.
+    pub fn access_control_mut(&mut self, id: EntityId) -> Option<&mut AccessControl> {
+        self.access_controls.get_mut(id)
+    }
+
+    /// Set an entity's access control.
+    pub fn set_access_control(&mut self, id: EntityId, ac: AccessControl) {
+        self.access_controls.insert(id, ac);
     }
 
     // ── Typed query helpers ──────────────────────────────────────────

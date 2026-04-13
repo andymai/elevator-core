@@ -1,5 +1,7 @@
 //! Entity components — the data attached to simulation entities.
 
+/// Access control for restricting rider stop access.
+pub mod access;
 /// Elevator state and properties.
 pub mod elevator;
 /// Line (physical path) — shaft, tether, track.
@@ -15,6 +17,7 @@ pub mod route;
 /// Stop (floor/station) data.
 pub mod stop;
 
+pub use access::AccessControl;
 pub use elevator::{Elevator, ElevatorPhase};
 pub use line::{FloorPosition, Line, Orientation};
 pub use patience::{Patience, Preferences};

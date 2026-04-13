@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::components::{Elevator, ElevatorPhase, Position, Rider, RiderPhase, Stop, Velocity};
 use crate::door::DoorState;
 use crate::entity::EntityId;
@@ -41,6 +43,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             door_open_ticks: 10,
             line: EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
 

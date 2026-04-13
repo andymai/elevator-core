@@ -1,6 +1,7 @@
 //! Elevator state and configuration component.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::door::DoorState;
 use crate::entity::EntityId;
@@ -67,6 +68,9 @@ pub struct Elevator {
     /// Whether this elevator is currently repositioning (not serving a dispatch).
     #[serde(default)]
     pub(crate) repositioning: bool,
+    /// Stop entity IDs this elevator cannot serve (access restriction).
+    #[serde(default)]
+    pub(crate) restricted_stops: HashSet<EntityId>,
 }
 
 impl Elevator {
@@ -146,5 +150,11 @@ impl Elevator {
     #[must_use]
     pub const fn repositioning(&self) -> bool {
         self.repositioning
+    }
+
+    /// Stop entity IDs this elevator cannot serve (access restriction).
+    #[must_use]
+    pub const fn restricted_stops(&self) -> &HashSet<EntityId> {
+        &self.restricted_stops
     }
 }

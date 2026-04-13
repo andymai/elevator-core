@@ -8,7 +8,7 @@
 //! own extensions separately and re-attach them after restoring.
 
 use crate::components::{
-    Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
+    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -42,6 +42,9 @@ pub struct EntitySnapshot {
     pub patience: Option<Patience>,
     /// Preferences component (if present).
     pub preferences: Option<Preferences>,
+    /// Access control component (if present).
+    #[serde(default)]
+    pub access_control: Option<AccessControl>,
     /// Whether this entity is disabled.
     pub disabled: bool,
 }
@@ -269,6 +272,7 @@ impl WorldSnapshot {
                 e.riders = e.riders.iter().map(|&r| remap(r)).collect();
                 e.target_stop = remap_opt(e.target_stop);
                 e.line = remap(e.line);
+                e.restricted_stops = e.restricted_stops.iter().map(|&s| remap(s)).collect();
                 e.phase = match e.phase {
                     crate::components::ElevatorPhase::MovingToStop(s) => {
                         crate::components::ElevatorPhase::MovingToStop(remap(s))
@@ -311,6 +315,11 @@ impl WorldSnapshot {
             }
             if let Some(prefs) = snap.preferences {
                 world.set_preferences(eid, prefs);
+            }
+            if let Some(ref ac) = snap.access_control {
+                let remapped =
+                    AccessControl::new(ac.allowed_stops().iter().map(|&s| remap(s)).collect());
+                world.set_access_control(eid, remapped);
             }
             if snap.disabled {
                 world.disable(eid);
@@ -458,6 +467,7 @@ impl crate::sim::Simulation {
                 line: world.line(eid).cloned(),
                 patience: world.patience(eid).copied(),
                 preferences: world.preferences(eid).copied(),
+                access_control: world.access_control(eid).cloned(),
                 disabled: world.is_disabled(eid),
             })
             .collect();

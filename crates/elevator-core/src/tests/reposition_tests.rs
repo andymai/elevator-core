@@ -21,6 +21,7 @@ use crate::dispatch::{DispatchDecision, RiderInfo};
 use crate::door::DoorState;
 use crate::tagged_metrics::MetricTags;
 use crate::world::World;
+use std::collections::HashSet;
 
 /// Build a `World` with `n` stops evenly spaced (0.0, 10.0, 20.0, ...)
 /// and return `(world, stop_entities)`.
@@ -74,6 +75,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> EntityId {
             door_open_ticks: 10,
             line: EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
     eid
@@ -319,6 +321,7 @@ fn build_lobby_sim() -> crate::sim::Simulation {
             starting_stop: StopId(2),
             door_open_ticks: 10,
             door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
         }])
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)
