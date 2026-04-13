@@ -757,7 +757,7 @@ impl Simulation {
             if !seen_ids.insert(stop.id) {
                 return Err(SimError::InvalidConfig {
                     field: "building.stops",
-                    reason: format!("duplicate StopId({:?})", stop.id),
+                    reason: format!("duplicate {}", stop.id),
                 });
             }
         }
@@ -842,7 +842,7 @@ impl Simulation {
         if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
             return Err(SimError::InvalidConfig {
                 field: "elevators.starting_stop",
-                reason: format!("references non-existent StopId({:?})", elev.starting_stop),
+                reason: format!("references non-existent {}", elev.starting_stop),
             });
         }
         Ok(())
