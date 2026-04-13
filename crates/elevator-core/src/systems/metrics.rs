@@ -1,5 +1,7 @@
 //! Phase 6: update aggregate metrics from events emitted this tick.
 
+use crate::components::ElevatorPhase;
+use crate::dispatch::ElevatorGroup;
 use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
 use crate::tagged_metrics::MetricTags;
@@ -8,7 +10,13 @@ use crate::world::World;
 use super::PhaseContext;
 
 /// Update metrics from events emitted this tick.
-pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &PhaseContext) {
+pub fn run(
+    world: &mut World,
+    events: &EventBus,
+    metrics: &mut Metrics,
+    ctx: &PhaseContext,
+    groups: &[ElevatorGroup],
+) {
     // Collect rider-level tag updates deferred until after event processing,
     // because `world` is borrowed immutably inside the event loop.
     let mut tag_spawns: Vec<crate::entity::EntityId> = Vec::new();
@@ -73,6 +81,32 @@ pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &Ph
     }
     if total_dist > 0.0 {
         metrics.record_distance(total_dist);
+    }
+
+    // Compute per-group utilization (fraction of elevators currently moving).
+    for group in groups {
+        let mut total = 0u64;
+        let mut moving = 0u64;
+        for &eid in group.elevator_entities() {
+            if world.is_disabled(eid) {
+                continue;
+            }
+            if let Some(car) = world.elevator(eid) {
+                total += 1;
+                if matches!(car.phase, ElevatorPhase::MovingToStop(_)) {
+                    moving += 1;
+                }
+            }
+        }
+        #[allow(clippy::cast_precision_loss)]
+        let util = if total > 0 {
+            moving as f64 / total as f64
+        } else {
+            0.0
+        };
+        metrics
+            .utilization_by_group
+            .insert(group.name().to_owned(), util);
     }
 
     metrics.update_throughput(ctx.tick);

@@ -170,3 +170,31 @@ impl<'w, Q: WorldQuery, F: QueryFilter> Iterator for QueryIter<'w, Q, F> {
         }
     }
 }
+
+impl<'w, Q: WorldQuery, F: QueryFilter> QueryIter<'w, Q, F> {
+    /// Count the number of matching entities without collecting.
+    #[must_use]
+    pub fn count_matches(self) -> usize {
+        self.count()
+    }
+
+    /// Return `true` if any entity matches the given predicate.
+    pub fn any_match(mut self, predicate: impl FnMut(Q::Item<'w>) -> bool) -> bool {
+        self.any(predicate)
+    }
+
+    /// Return `true` if all matching entities satisfy the predicate.
+    ///
+    /// Returns `true` for an empty query (vacuous truth).
+    pub fn all_match(mut self, predicate: impl FnMut(Q::Item<'w>) -> bool) -> bool {
+        self.all(predicate)
+    }
+
+    /// Find the first entity matching the predicate.
+    pub fn find_match(
+        mut self,
+        predicate: impl FnMut(&Q::Item<'w>) -> bool,
+    ) -> Option<Q::Item<'w>> {
+        self.find(predicate)
+    }
+}
