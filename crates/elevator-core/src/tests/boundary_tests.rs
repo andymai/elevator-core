@@ -10,7 +10,7 @@ use crate::tests::helpers::default_config;
 #[test]
 fn patience_zero_abandons_immediately() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -37,7 +37,7 @@ fn patience_zero_abandons_immediately() {
 #[test]
 fn patience_one_abandons_after_one_tick() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -63,7 +63,7 @@ fn patience_one_abandons_after_one_tick() {
 #[test]
 fn patience_max_never_overflows() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -88,7 +88,7 @@ fn patience_max_never_overflows() {
 #[test]
 fn preferences_zero_crowding_rejects_any_load() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn first rider to create some load.
     let r1 = sim
@@ -147,7 +147,7 @@ fn preferences_zero_crowding_rejects_any_load() {
 #[test]
 fn weight_exactly_at_capacity_boards() {
     let config = default_config();
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // The default config has weight_capacity=800. Spawn a rider weighing exactly 800.
     let rider = sim

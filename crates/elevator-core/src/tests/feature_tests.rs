@@ -3,6 +3,7 @@ use crate::components::{
     Velocity,
 };
 use crate::door::DoorState;
+use crate::entity::EntityId;
 use crate::events::Event;
 use crate::ids::GroupId;
 use crate::stop::StopId;
@@ -359,7 +360,8 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         door_transition_ticks: 5,
         door_open_ticks: 10,
     };
-    let elev2 = sim.add_elevator(&params, GroupId(0), 0.0).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+    let elev2 = sim.add_elevator(&params, line, 0.0).unwrap();
     sim.drain_events();
 
     let elev1 = sim.world().elevator_ids()[0];
@@ -368,7 +370,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
 
     // Spawn a single rider at stop 0 heading to stop 2.
-    let rider = sim.spawn_rider(stop0, stop2, 70.0);
+    let rider = sim.spawn_rider(stop0, stop2, 70.0).unwrap();
     sim.drain_events();
 
     // Force both elevators to Loading at stop 0 simultaneously.
@@ -553,7 +555,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
-            group: GroupId(0),
+            line: EntityId::default(),
         },
     );
 
@@ -631,7 +633,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
-            group: GroupId(0),
+            line: EntityId::default(),
         },
     );
 
@@ -726,6 +728,8 @@ fn weight_rejection_boundary() {
                     position: 10.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,
@@ -747,11 +751,8 @@ fn weight_rejection_boundary() {
         },
     };
 
-    let mut sim = crate::sim::Simulation::new(
-        &config,
-        Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    )
-    .unwrap();
+    let mut sim =
+        crate::sim::Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new()).unwrap();
 
     // Spawn rider1 (weight 60) and rider2 (weight 60) at stop 0 → stop 1.
     // Combined = 120, exceeds capacity 100. Only one should board.
@@ -814,6 +815,8 @@ fn passing_floor_events_emitted() {
                     position: 40.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,
@@ -835,11 +838,8 @@ fn passing_floor_events_emitted() {
         },
     };
 
-    let mut sim = crate::sim::Simulation::new(
-        &config,
-        Box::new(crate::dispatch::scan::ScanDispatch::new()),
-    )
-    .unwrap();
+    let mut sim =
+        crate::sim::Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new()).unwrap();
 
     // Spawn a rider from stop 0 to stop 4 to trigger dispatch.
     sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0)

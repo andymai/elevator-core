@@ -94,7 +94,7 @@ for _ in 0..2000 {
             Event::RiderBoarded { rider, elevator, tick } => {
                 println!("Tick {tick}: rider {rider:?} boarded elevator {elevator:?}");
             }
-            Event::RiderAlighted { rider, tick, .. } => {
+            Event::RiderExited { rider, tick, .. } => {
                 println!("Tick {tick}: rider {rider:?} arrived");
             }
             _ => {}
@@ -155,11 +155,11 @@ Each call to `sim.step()` executes six phases:
 
 | Phase | Description |
 |-------|-------------|
-| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Alighting to Arrived). |
+| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Exiting to Arrived). |
 | **Dispatch** | Assigns idle elevators to stops via the pluggable `DispatchStrategy`. |
 | **Movement** | Updates elevator position and velocity using trapezoidal acceleration profiles. |
 | **Doors** | Ticks door open/close finite-state machines at each stop. |
-| **Loading** | Boards waiting riders onto elevators with open doors and alights riders at their destination. |
+| **Loading** | Boards waiting riders onto elevators with open doors and exits riders at their destination. |
 | **Metrics** | Aggregates wait times, ride times, and throughput from the current tick's events. |
 
 Internally, elevator-core uses an ECS-style struct-of-arrays `World` with typed

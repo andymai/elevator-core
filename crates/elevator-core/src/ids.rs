@@ -1,4 +1,4 @@
-//! Typed identifiers for simulation concepts (groups, zones).
+//! Typed identifiers for simulation concepts (groups).
 
 use serde::{Deserialize, Serialize};
 

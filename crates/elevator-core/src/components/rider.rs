@@ -14,8 +14,9 @@ pub enum RiderPhase {
     Boarding(EntityId),
     /// Riding in an elevator.
     Riding(EntityId),
-    /// Alighting from an elevator (transient, one tick).
-    Alighting(EntityId),
+    /// Exiting an elevator (transient, one tick).
+    #[serde(alias = "Alighting")]
+    Exiting(EntityId),
     /// Walking between transfer stops.
     Walking,
     /// Reached final destination.
@@ -30,7 +31,7 @@ impl std::fmt::Display for RiderPhase {
             Self::Waiting => write!(f, "Waiting"),
             Self::Boarding(id) => write!(f, "Boarding({id:?})"),
             Self::Riding(id) => write!(f, "Riding({id:?})"),
-            Self::Alighting(id) => write!(f, "Alighting({id:?})"),
+            Self::Exiting(id) => write!(f, "Exiting({id:?})"),
             Self::Walking => write!(f, "Walking"),
             Self::Arrived => write!(f, "Arrived"),
             Self::Abandoned => write!(f, "Abandoned"),
@@ -43,17 +44,49 @@ impl std::fmt::Display for RiderPhase {
 /// This is the minimum data the simulation needs. Games attach
 /// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
 /// for game-specific behavior. An entity with `Rider` but no
-/// Route component can be boarded/alighted manually by game code.
+/// Route component can be boarded/exited manually by game code.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.
-    pub weight: f64,
+    pub(crate) weight: f64,
     /// Current rider lifecycle phase.
-    pub phase: RiderPhase,
+    pub(crate) phase: RiderPhase,
     /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
-    pub current_stop: Option<EntityId>,
+    pub(crate) current_stop: Option<EntityId>,
     /// Tick when this rider was spawned.
-    pub spawn_tick: u64,
+    pub(crate) spawn_tick: u64,
     /// Tick when this rider boarded (for ride-time metrics).
-    pub board_tick: Option<u64>,
+    pub(crate) board_tick: Option<u64>,
+}
+
+impl Rider {
+    /// Weight contributed to elevator load.
+    #[must_use]
+    pub const fn weight(&self) -> f64 {
+        self.weight
+    }
+
+    /// Current rider lifecycle phase.
+    #[must_use]
+    pub const fn phase(&self) -> RiderPhase {
+        self.phase
+    }
+
+    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
+    #[must_use]
+    pub const fn current_stop(&self) -> Option<EntityId> {
+        self.current_stop
+    }
+
+    /// Tick when this rider was spawned.
+    #[must_use]
+    pub const fn spawn_tick(&self) -> u64 {
+        self.spawn_tick
+    }
+
+    /// Tick when this rider boarded (for ride-time metrics).
+    #[must_use]
+    pub const fn board_tick(&self) -> Option<u64> {
+        self.board_tick
+    }
 }

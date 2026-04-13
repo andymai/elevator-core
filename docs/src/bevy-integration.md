@@ -81,7 +81,7 @@ Bevy systems can read simulation events using `MessageReader<EventWrapper>`:
 fn my_system(mut events: MessageReader<EventWrapper>) {
     for EventWrapper(event) in events.read() {
         match event {
-            Event::RiderAlighted { rider, stop, tick, .. } => {
+            Event::RiderExited { rider, stop, tick, .. } => {
                 // React to rider arrival in Bevy-land.
             }
             _ => {}

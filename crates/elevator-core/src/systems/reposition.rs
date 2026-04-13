@@ -25,7 +25,7 @@ pub fn run(
     for group in groups {
         // Collect positions of all non-idle elevators in this group.
         let occupied_positions: Vec<f64> = group
-            .elevator_entities
+            .elevator_entities()
             .iter()
             .filter_map(|&eid| {
                 if world.is_disabled(eid) {
@@ -42,7 +42,7 @@ pub fn run(
 
         // Collect idle elevators.
         let idle_elevators: Vec<(EntityId, f64)> = group
-            .elevator_entities
+            .elevator_entities()
             .iter()
             .filter_map(|&eid| {
                 if world.is_disabled(eid) {
@@ -64,7 +64,7 @@ pub fn run(
 
         // Stop positions in this group.
         let stop_positions: Vec<(EntityId, f64)> = group
-            .stop_entities
+            .stop_entities()
             .iter()
             .filter_map(|&sid| world.stop_position(sid).map(|p| (sid, p)))
             .collect();

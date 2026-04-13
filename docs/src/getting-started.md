@@ -95,7 +95,7 @@ while !arrived {
             Event::ElevatorArrived { elevator, at_stop, tick } => {
                 println!("Tick {}: elevator {:?} arrived at stop {:?}", tick, elevator, at_stop);
             }
-            Event::RiderAlighted { rider, stop, tick, .. } => {
+            Event::RiderExited { rider, stop, tick, .. } => {
                 println!("Tick {}: rider {:?} arrived at stop {:?}", tick, rider, stop);
                 if rider == rider_id {
                     arrived = true;
@@ -147,8 +147,8 @@ fn main() -> Result<(), SimError> {
                 Event::ElevatorArrived { elevator, at_stop, tick } => {
                     println!("Tick {tick}: elevator {elevator:?} arrived at {at_stop:?}");
                 }
-                Event::RiderAlighted { rider, stop, tick, .. } => {
-                    println!("Tick {tick}: rider {rider:?} alighted at {stop:?}");
+                Event::RiderExited { rider, stop, tick, .. } => {
+                    println!("Tick {tick}: rider {rider:?} exited at {stop:?}");
                     if rider == rider_id {
                         arrived = true;
                     }
@@ -176,7 +176,7 @@ Run it with `cargo run` and you should see the rider move from the Lobby to Floo
 
 1. The **builder** created a `Simulation` containing a `World` with three stop entities and one elevator entity, plus a SCAN dispatch strategy.
 2. `spawn_rider_by_stop_id` created a rider entity at the Lobby with a route to Floor 3.
-3. Each `step()` ran the six-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and alighted the rider. The **metrics** phase updated aggregate stats.
+3. Each `step()` ran the six-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
 4. Events fired at each significant moment, and we pattern-matched on them to detect arrival.
 
 Next up: [Core Concepts](core-concepts.md) dives deeper into the entity model, the tick loop phases, and the lifecycle of riders and elevators.

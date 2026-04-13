@@ -26,6 +26,8 @@ fn main() {
                         position: 10.0,
                     },
                 ],
+                lines: None,
+                groups: None,
             },
             elevators: vec![ElevatorConfig {
                 id: 0,
@@ -67,7 +69,7 @@ fn main() {
         max_ticks: 500,
     };
 
-    let mut runner = ScenarioRunner::new(scenario, Box::new(ScanDispatch::new())).unwrap();
+    let mut runner = ScenarioRunner::new(scenario, ScanDispatch::new()).unwrap();
     let result = runner.run_to_completion();
 
     println!("Passed: {}", result.passed);

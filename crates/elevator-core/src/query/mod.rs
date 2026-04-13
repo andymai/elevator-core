@@ -4,7 +4,6 @@
 //!
 //! ```
 //! use elevator_core::prelude::*;
-//! use elevator_core::world::World;
 //! use elevator_core::query::{Ext, With, Without};
 //!
 //! use serde::{Serialize, Deserialize};
@@ -12,23 +11,17 @@
 //! #[derive(Debug, Clone, Serialize, Deserialize)]
 //! struct VipTag { level: u32 }
 //!
-//! let mut world = World::new();
+//! let mut sim = SimulationBuilder::new().build().unwrap();
+//! let rider_eid = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
 //!
-//! // Spawn a rider with a position
-//! let r = world.spawn();
-//! world.set_rider(r, Rider {
-//!     weight: 75.0,
-//!     phase: RiderPhase::Waiting,
-//!     current_stop: None,
-//!     spawn_tick: 0,
-//!     board_tick: None,
-//! });
-//! world.set_position(r, Position { value: 0.0 });
-//! world.insert_ext(r, VipTag { level: 5 }, "vip_tag");
+//! // Attach an extension component.
+//! sim.world_mut().insert_ext(rider_eid, VipTag { level: 5 }, "vip_tag");
+//!
+//! let world = sim.world();
 //!
 //! // All riders with a position
 //! for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {
-//!     println!("{id:?}: phase={:?} at {}", rider.phase, pos.value);
+//!     println!("{id:?}: phase={:?} at {}", rider.phase(), pos.value());
 //! }
 //!
 //! // Entities with Position but without Route
@@ -36,7 +29,7 @@
 //!     .without::<Route>()
 //!     .iter()
 //! {
-//!     println!("{id:?} at {}", pos.value);
+//!     println!("{id:?} at {}", pos.value());
 //! }
 //!
 //! // Extension components (cloned)

@@ -1,6 +1,5 @@
 use crate::components::*;
 use crate::door::DoorState;
-use crate::ids::GroupId;
 use crate::world::World;
 
 #[test]
@@ -56,7 +55,7 @@ fn elevator_query_returns_entities_with_both_components() {
             target_stop: None,
             door_transition_ticks: 15,
             door_open_ticks: 60,
-            group: GroupId(0),
+            line: crate::entity::EntityId::default(),
         },
     );
 

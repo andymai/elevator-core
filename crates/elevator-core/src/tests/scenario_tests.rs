@@ -146,7 +146,7 @@ fn events_are_emitted_in_order() {
             Event::DoorOpened { .. } => "door_opened",
             Event::DoorClosed { .. } => "door_closed",
             Event::RiderBoarded { .. } => "boarded",
-            Event::RiderAlighted { .. } => "alighted",
+            Event::RiderExited { .. } => "exited",
             _ => "other",
         })
         .collect();
@@ -156,7 +156,7 @@ fn events_are_emitted_in_order() {
     assert!(event_names.contains(&"arrived"));
     assert!(event_names.contains(&"door_opened"));
     assert!(event_names.contains(&"boarded"));
-    assert!(event_names.contains(&"alighted"));
+    assert!(event_names.contains(&"exited"));
     assert!(event_names.contains(&"door_closed"));
 
     let spawned_idx = event_names.iter().position(|e| *e == "spawned").unwrap();

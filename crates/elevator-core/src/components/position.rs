@@ -6,12 +6,28 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Position {
     /// Absolute position value.
-    pub value: f64,
+    pub(crate) value: f64,
+}
+
+impl Position {
+    /// Absolute position value.
+    #[must_use]
+    pub const fn value(&self) -> f64 {
+        self.value
+    }
 }
 
 /// Velocity along the shaft axis (signed: +up, -down).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Velocity {
     /// Signed velocity value.
-    pub value: f64,
+    pub(crate) value: f64,
+}
+
+impl Velocity {
+    /// Signed velocity value.
+    #[must_use]
+    pub const fn value(&self) -> f64 {
+        self.value
+    }
 }

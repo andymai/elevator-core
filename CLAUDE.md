@@ -28,7 +28,7 @@ Key design decisions:
 - Tick-based with 6-phase loop: advance_transient → dispatch → movement → doors → loading → metrics
 - Pluggable dispatch via `DispatchStrategy` trait, per elevator group
 - Game-agnostic riders: `Rider` = anything that rides; games add semantics via extension storage
-- Route-based loading: riders with `Route` are auto-boarded/alighted; no Route = game manages manually
+- Route-based loading: riders with `Route` are auto-boarded/exited; no Route = game manages manually
 - Trapezoidal velocity profile for movement
 - Config validated at construction time
 
@@ -37,7 +37,7 @@ Key design decisions:
 Commits: conventional commits enforced by hook (`feat:`, `fix:`, `refactor:`, `chore:`, etc.)
 
 Type naming — domain-first, no redundant suffixes:
-- `Rider`, `Elevator`, `Stop`, `Zone` (not `RiderData`, `ElevatorCar`)
+- `Rider`, `Elevator`, `Stop`, `Line` (not `RiderData`, `ElevatorCar`)
 - `RiderPhase`, `ElevatorPhase` (not `*State`); fields use `.phase`
 - `Event`, `RejectionReason` (not `SimEvent`, `String`)
 

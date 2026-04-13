@@ -9,8 +9,11 @@ use crate::ids::GroupId;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum TransportMode {
-    /// Ride an elevator in the given group.
-    Elevator(GroupId),
+    /// Use any elevator in the given dispatch group.
+    #[serde(alias = "Elevator")]
+    Group(GroupId),
+    /// Use a specific line (pinned routing).
+    Line(EntityId),
     /// Walk between adjacent stops.
     Walk,
 }
@@ -43,7 +46,7 @@ impl Route {
             legs: vec![RouteLeg {
                 from,
                 to,
-                via: TransportMode::Elevator(group),
+                via: TransportMode::Group(group),
             }],
             current_leg: 0,
         }

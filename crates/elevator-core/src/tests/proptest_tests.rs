@@ -119,6 +119,8 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
         building: BuildingConfig {
             name: "Proptest Building".into(),
             stops,
+            lines: None,
+            groups: None,
         },
         elevators,
         simulation: SimulationParams {
@@ -232,6 +234,8 @@ proptest! {
                     StopConfig { id: StopId(0), name: "A".into(), position: 0.0 },
                     StopConfig { id: StopId(1), name: "B".into(), position: 10.0 },
                 ],
+                lines: None,
+                groups: None,
             },
             elevators: vec![ElevatorConfig {
                 id: 0,
@@ -251,7 +255,7 @@ proptest! {
             },
         };
 
-        let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+        let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
         // Spawn riders with random weights (but always fitting individually).
         let mut rng_state = seed;
@@ -295,7 +299,7 @@ proptest! {
         seed in 0..u64::MAX,
     ) {
         let config = make_config(stop_count, elevator_count);
-        let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+        let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
         // Simple LCG for deterministic pseudo-random stop pairs.
         let mut rng_state = seed;

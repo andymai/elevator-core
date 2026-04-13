@@ -92,7 +92,7 @@ fn bench_dispatch_comparison(c: &mut Criterion) {
 
     let configs: &[(u32, u32)] = &[(5, 10), (20, 50), (50, 200)];
     let strategies: &[(&str, fn() -> Box<dyn DispatchStrategy>)] = &[
-        ("scan", || Box::new(ScanDispatch::new())),
+        ("scan", || ScanDispatch::new()),
         ("look", || Box::new(LookDispatch::new())),
         ("nearest_car", || Box::new(NearestCarDispatch::new())),
         ("etd", || Box::new(EtdDispatch::new())),

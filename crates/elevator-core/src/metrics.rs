@@ -13,7 +13,7 @@ pub struct Metrics {
     // -- Queryable metrics (accessed via getters) --
     /// Average wait time in ticks (spawn to board).
     pub(crate) avg_wait_time: f64,
-    /// Average ride time in ticks (board to alight).
+    /// Average ride time in ticks (board to exit).
     pub(crate) avg_ride_time: f64,
     /// Maximum wait time observed (ticks).
     pub(crate) max_wait_time: u64,
@@ -70,7 +70,7 @@ impl Metrics {
         self.avg_wait_time
     }
 
-    /// Average ride time in ticks (board to alight).
+    /// Average ride time in ticks (board to exit).
     #[must_use]
     pub const fn avg_ride_time(&self) -> f64 {
         self.avg_ride_time
@@ -142,7 +142,7 @@ impl Metrics {
         }
     }
 
-    /// Record a rider alighting. `ride_ticks` = `tick_alighted` - `tick_boarded`.
+    /// Record a rider exiting. `ride_ticks` = `tick_exited` - `tick_boarded`.
     #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
         self.delivered_count += 1;

@@ -40,7 +40,7 @@ fn roundtrip_sim_event_ron() {
             elevator: e1,
             tick: 15,
         },
-        Event::RiderAlighted {
+        Event::RiderExited {
             rider: e2,
             elevator: e1,
             stop: e3,

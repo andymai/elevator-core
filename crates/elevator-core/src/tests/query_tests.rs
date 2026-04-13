@@ -1,7 +1,6 @@
 use crate::components::{Elevator, ElevatorPhase, Position, Rider, RiderPhase, Stop, Velocity};
 use crate::door::DoorState;
 use crate::entity::EntityId;
-use crate::ids::GroupId;
 use crate::query::Ext;
 use crate::world::World;
 
@@ -40,7 +39,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
-            group: GroupId(0),
+            line: EntityId::default(),
         },
     );
 

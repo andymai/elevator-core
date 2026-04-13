@@ -61,7 +61,7 @@ fn make_config(num_stops: u32, num_elevators: u32) -> SimConfig {
 
 fn make_sim(num_stops: u32, num_elevators: u32, num_riders: u32) -> Simulation {
     let config = make_config(num_stops, num_elevators);
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     for i in 0..num_riders {
         let origin = StopId(i % num_stops);

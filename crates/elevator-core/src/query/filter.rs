@@ -53,7 +53,7 @@ impl_builtin_filter!(crate::components::Elevator, elevators);
 impl_builtin_filter!(crate::components::Stop, stops);
 impl_builtin_filter!(crate::components::Rider, riders);
 impl_builtin_filter!(crate::components::Route, routes);
-impl_builtin_filter!(crate::components::Zone, zones);
+impl_builtin_filter!(crate::components::Line, lines);
 impl_builtin_filter!(crate::components::Patience, patience);
 impl_builtin_filter!(crate::components::Preferences, preferences);
 

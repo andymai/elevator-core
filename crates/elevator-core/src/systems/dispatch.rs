@@ -26,7 +26,7 @@ pub fn run(
 
         // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
-            .elevator_entities
+            .elevator_entities()
             .iter()
             .filter_map(|eid| {
                 if world.is_disabled(*eid) {
@@ -46,7 +46,7 @@ pub fn run(
             continue;
         }
 
-        let Some(dispatch) = dispatchers.get_mut(&group.id) else {
+        let Some(dispatch) = dispatchers.get_mut(&group.id()) else {
             continue;
         };
 
@@ -116,7 +116,7 @@ fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchMa
             continue;
         }
         if let Some(stop) = rider.current_stop
-            && group.stop_entities.contains(&stop)
+            && group.stop_entities().contains(&stop)
         {
             let destination = world.route(rid).and_then(Route::current_destination);
             let wait_ticks = tick.saturating_sub(rider.spawn_tick);
@@ -134,7 +134,7 @@ fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchMa
     }
 
     // Riders currently aboard this group's elevators, grouped by destination.
-    for &elev_eid in &group.elevator_entities {
+    for &elev_eid in group.elevator_entities() {
         if let Some(car) = world.elevator(elev_eid) {
             for &rider_eid in car.riders() {
                 let destination = world.route(rider_eid).and_then(Route::current_destination);

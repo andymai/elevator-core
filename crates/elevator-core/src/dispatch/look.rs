@@ -68,7 +68,7 @@ impl DispatchStrategy for LookDispatch {
         // Collect stops with demand or rider destinations.
         let mut interesting: SmallVec<[(EntityId, f64); 32]> = SmallVec::new();
 
-        for &stop_eid in &group.stop_entities {
+        for &stop_eid in group.stop_entities() {
             if manifest.has_demand(stop_eid)
                 && let Some(pos) = world.stop_position(stop_eid)
             {

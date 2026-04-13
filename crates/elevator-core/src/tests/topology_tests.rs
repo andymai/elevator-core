@@ -1,3 +1,4 @@
+use crate::entity::EntityId;
 use crate::events::Event;
 use crate::ids::GroupId;
 use crate::sim::ElevatorParams;
@@ -9,8 +10,9 @@ use super::helpers::{default_config, scan};
 fn add_stop_at_runtime() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
 
-    let stop = sim.add_stop("Penthouse".into(), 12.0, GroupId(0)).unwrap();
+    let stop = sim.add_stop("Penthouse".into(), 12.0, line).unwrap();
 
     // Stop entity is alive and has correct data.
     assert!(sim.world().is_alive(stop));
@@ -19,7 +21,7 @@ fn add_stop_at_runtime() {
 
     // Stop was added to the group.
     let group = &sim.groups()[0];
-    assert!(group.stop_entities.contains(&stop));
+    assert!(group.stop_entities().contains(&stop));
 
     // StopAdded event was emitted.
     let events = sim.drain_events();
@@ -32,6 +34,7 @@ fn add_stop_at_runtime() {
 fn add_elevator_at_runtime() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
 
     let params = ElevatorParams {
         max_speed: 3.0,
@@ -42,7 +45,7 @@ fn add_elevator_at_runtime() {
         door_open_ticks: 8,
     };
 
-    let elev = sim.add_elevator(&params, GroupId(0), 4.0).unwrap();
+    let elev = sim.add_elevator(&params, line, 4.0).unwrap();
 
     // Elevator entity is alive and positioned correctly.
     assert!(sim.world().is_alive(elev));
@@ -51,7 +54,7 @@ fn add_elevator_at_runtime() {
 
     // Elevator was added to the group.
     let group = &sim.groups()[0];
-    assert!(group.elevator_entities.contains(&elev));
+    assert!(group.elevator_entities().contains(&elev));
 
     // ElevatorAdded event was emitted.
     let events = sim.drain_events();
@@ -61,11 +64,12 @@ fn add_elevator_at_runtime() {
 }
 
 #[test]
-fn add_to_nonexistent_group_returns_error() {
+fn add_to_nonexistent_line_returns_error() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let result = sim.add_stop("X".into(), 0.0, GroupId(99));
+    let bogus = EntityId::default();
+    let result = sim.add_stop("X".into(), 0.0, bogus);
     assert!(result.is_err());
 
     let params = ElevatorParams {
@@ -76,7 +80,7 @@ fn add_to_nonexistent_group_returns_error() {
         door_transition_ticks: 1,
         door_open_ticks: 1,
     };
-    let result = sim.add_elevator(&params, GroupId(99), 0.0);
+    let result = sim.add_elevator(&params, bogus, 0.0);
     assert!(result.is_err());
 }
 
@@ -138,8 +142,9 @@ fn disabled_elevator_not_dispatched() {
 fn runtime_stop_has_no_stop_id() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
 
-    let _stop = sim.add_stop("Runtime".into(), 20.0, GroupId(0)).unwrap();
+    let _stop = sim.add_stop("Runtime".into(), 20.0, line).unwrap();
 
     // Config stop lookup should not contain runtime stops.
     assert_eq!(

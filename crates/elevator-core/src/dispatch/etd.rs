@@ -65,7 +65,7 @@ impl DispatchStrategy for EtdDispatch {
     ) -> Vec<(EntityId, DispatchDecision)> {
         // Collect stops needing service.
         let pending_stops: SmallVec<[(EntityId, f64); 16]> = group
-            .stop_entities
+            .stop_entities()
             .iter()
             .filter_map(|&stop_eid| {
                 if manifest.has_demand(stop_eid) {

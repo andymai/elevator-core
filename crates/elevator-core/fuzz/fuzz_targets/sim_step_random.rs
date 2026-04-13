@@ -63,7 +63,7 @@ fn make_sim() -> Simulation {
         },
     };
 
-    Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap()
+    Simulation::new(&config, ScanDispatch::new()).unwrap()
 }
 
 fuzz_target!(|data: &[u8]| {

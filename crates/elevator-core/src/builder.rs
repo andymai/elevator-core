@@ -3,7 +3,8 @@
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::config::{
-    BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
+    BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
+    SimulationParams,
 };
 use crate::dispatch::DispatchStrategy;
 use crate::dispatch::scan::ScanDispatch;
@@ -78,6 +79,8 @@ impl SimulationBuilder {
                         position: 10.0,
                     },
                 ],
+                lines: None,
+                groups: None,
             },
             elevators: vec![ElevatorConfig {
                 id: 0,
@@ -166,6 +169,46 @@ impl SimulationBuilder {
     #[must_use]
     pub fn elevator(mut self, config: ElevatorConfig) -> Self {
         self.config.elevators.push(config);
+        self
+    }
+
+    /// Add a single line configuration.
+    ///
+    /// Switches from legacy flat-elevator mode to explicit topology.
+    #[must_use]
+    pub fn line(mut self, config: LineConfig) -> Self {
+        self.config
+            .building
+            .lines
+            .get_or_insert_with(Vec::new)
+            .push(config);
+        self
+    }
+
+    /// Replace all lines with the given list.
+    ///
+    /// Switches from legacy flat-elevator mode to explicit topology.
+    #[must_use]
+    pub fn lines(mut self, lines: Vec<LineConfig>) -> Self {
+        self.config.building.lines = Some(lines);
+        self
+    }
+
+    /// Add a single group configuration.
+    #[must_use]
+    pub fn group(mut self, config: GroupConfig) -> Self {
+        self.config
+            .building
+            .groups
+            .get_or_insert_with(Vec::new)
+            .push(config);
+        self
+    }
+
+    /// Replace all groups with the given list.
+    #[must_use]
+    pub fn groups(mut self, groups: Vec<GroupConfig>) -> Self {
+        self.config.building.groups = Some(groups);
         self
     }
 
@@ -295,13 +338,7 @@ impl SimulationBuilder {
     /// assert!(sim.metrics().total_delivered() > 0);
     /// ```
     pub fn build(self) -> Result<Simulation, SimError> {
-        let default_dispatch = self
-            .dispatchers
-            .into_values()
-            .next()
-            .unwrap_or_else(|| Box::new(ScanDispatch::new()));
-
-        let mut sim = Simulation::new_with_hooks(&self.config, default_dispatch, self.hooks)?;
+        let mut sim = Simulation::new_with_hooks(&self.config, self.dispatchers, self.hooks)?;
 
         for register in self.ext_registrations {
             register(sim.world_mut());

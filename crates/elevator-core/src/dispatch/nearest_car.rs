@@ -50,7 +50,7 @@ impl DispatchStrategy for NearestCarDispatch {
     ) -> Vec<(EntityId, DispatchDecision)> {
         // Collect stops that need service (have demand or rider destinations).
         let mut pending_stops: SmallVec<[(EntityId, f64); 16]> = SmallVec::new();
-        for &stop_eid in &group.stop_entities {
+        for &stop_eid in group.stop_entities() {
             if manifest.has_demand(stop_eid)
                 && let Some(pos) = world.stop_position(stop_eid)
             {

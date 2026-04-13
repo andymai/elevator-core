@@ -79,7 +79,7 @@ impl_builtin_query!(crate::components::Elevator, elevators);
 impl_builtin_query!(crate::components::Stop, stops);
 impl_builtin_query!(crate::components::Rider, riders);
 impl_builtin_query!(crate::components::Route, routes);
-impl_builtin_query!(crate::components::Zone, zones);
+impl_builtin_query!(crate::components::Line, lines);
 impl_builtin_query!(crate::components::Patience, patience);
 impl_builtin_query!(crate::components::Preferences, preferences);
 

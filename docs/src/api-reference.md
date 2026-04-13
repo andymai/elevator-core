@@ -24,6 +24,10 @@ Fluent builder for constructing a `Simulation`. Starts with a minimal valid conf
 | `after` | `(Phase, impl Fn(&mut World)) -> Self` | Register an after-phase hook |
 | `before_group` | `(Phase, GroupId, impl Fn(&mut World)) -> Self` | Before-phase hook for a specific group |
 | `after_group` | `(Phase, GroupId, impl Fn(&mut World)) -> Self` | After-phase hook for a specific group |
+| `line` | `(LineConfig) -> Self` | Add a single line configuration (switches to explicit topology mode) |
+| `lines` | `(Vec<LineConfig>) -> Self` | Replace all lines |
+| `group` | `(GroupConfig) -> Self` | Add a single group configuration |
+| `groups` | `(Vec<GroupConfig>) -> Self` | Replace all groups |
 | `with_ext::<T>` | `(&str) -> Self` | Pre-register an extension type for snapshot deserialization |
 | `build` | `() -> Result<Simulation, SimError>` | Validate config and build the simulation |
 
@@ -51,8 +55,11 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `spawn_rider` | `(&mut self, EntityId, EntityId, f64) -> EntityId` | Spawn a rider at origin heading to destination with given weight |
+| `spawn_rider` | `(&mut self, EntityId, EntityId, f64) -> Result<EntityId, SimError>` | Spawn a rider at origin heading to destination; auto-detects group (returns `AmbiguousRoute` if multiple groups serve both stops) |
+| `spawn_rider_with_route` | `(&mut self, EntityId, EntityId, f64, Route) -> Result<EntityId, SimError>` | Spawn a rider with an explicit route |
 | `spawn_rider_by_stop_id` | `(&mut self, StopId, StopId, f64) -> Result<EntityId, SimError>` | Spawn a rider using config `StopId`s |
+| `spawn_rider_in_group` | `(&mut self, EntityId, EntityId, f64, GroupId) -> Result<EntityId, SimError>` | Spawn a rider in a specific group |
+| `spawn_rider_in_group_by_stop_id` | `(&mut self, StopId, StopId, f64, GroupId) -> Result<EntityId, SimError>` | Spawn a rider in a specific group using config `StopId`s |
 | `reroute` | `(&mut self, EntityId, EntityId) -> Result<(), SimError>` | Change a waiting rider's destination |
 | `set_rider_route` | `(&mut self, EntityId, Route) -> Result<(), SimError>` | Replace a rider's entire remaining route |
 
@@ -79,11 +86,33 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `add_stop` | `(&mut self, String, f64, GroupId) -> Result<EntityId, SimError>` | Add a new stop to a group at runtime |
-| `add_elevator` | `(&mut self, &ElevatorParams, GroupId, f64) -> Result<EntityId, SimError>` | Add a new elevator to a group at runtime |
+| `add_stop` | `(&mut self, String, f64, EntityId) -> Result<EntityId, SimError>` | Add a new stop to a line at runtime |
+| `add_elevator` | `(&mut self, &ElevatorParams, EntityId, f64) -> Result<EntityId, SimError>` | Add a new elevator to a line at runtime |
+| `add_line` | `(&mut self, &LineParams) -> Result<EntityId, SimError>` | Add a new line to a group at runtime |
+| `remove_line` | `(&mut self, EntityId) -> Result<(), SimError>` | Remove a line and disable its elevators |
+| `add_group` | `(&mut self, impl Into<String>, impl DispatchStrategy) -> GroupId` | Create a new dispatch group |
+| `assign_line_to_group` | `(&mut self, EntityId, GroupId) -> Result<GroupId, SimError>` | Reassign a line to a different group; returns old `GroupId` |
+| `add_stop_to_line` | `(&mut self, EntityId, EntityId) -> Result<(), SimError>` | Add an existing stop to a line's served-stop list |
+| `remove_stop_from_line` | `(&mut self, EntityId, EntityId) -> Result<(), SimError>` | Remove a stop from a line's served-stop list |
 | `disable` | `(&mut self, EntityId) -> Result<(), SimError>` | Disable an entity (skipped by all systems; ejects riders from elevators) |
 | `enable` | `(&mut self, EntityId) -> Result<(), SimError>` | Re-enable a disabled entity |
 | `is_disabled` | `(&self, EntityId) -> bool` | Check if an entity is disabled |
+
+### Topology Queries
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `all_lines` | `(&self) -> Vec<EntityId>` | All line entities in the simulation |
+| `line_count` | `(&self) -> usize` | Number of lines in the simulation |
+| `lines_in_group` | `(&self, GroupId) -> Vec<EntityId>` | Line entities belonging to a group |
+| `elevators_on_line` | `(&self, EntityId) -> Vec<EntityId>` | Elevator entities on a line |
+| `stops_served_by_line` | `(&self, EntityId) -> Vec<EntityId>` | Stop entities served by a line |
+| `line_for_elevator` | `(&self, EntityId) -> Option<EntityId>` | Find the line an elevator belongs to |
+| `lines_serving_stop` | `(&self, EntityId) -> Vec<EntityId>` | Lines that serve a given stop |
+| `groups_serving_stop` | `(&self, EntityId) -> Vec<GroupId>` | Groups that serve a given stop |
+| `reachable_stops_from` | `(&self, EntityId) -> Vec<EntityId>` | All stops reachable from a stop (via any line/transfer) |
+| `transfer_points` | `(&self) -> Vec<EntityId>` | Stops served by more than one group |
+| `shortest_route` | `(&self, EntityId, EntityId) -> Option<Route>` | Compute the shortest route between two stops |
 
 ### Accessors
 
@@ -136,6 +165,22 @@ Parameters for `add_elevator` at runtime. All fields are public.
 | `door_transition_ticks` | `u32` | `5` | Ticks for a door open/close transition |
 | `door_open_ticks` | `u32` | `10` | Ticks the door stays fully open |
 
+### LineParams
+
+Parameters for `add_line` at runtime. All fields are public.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Human-readable name |
+| `group` | `GroupId` | Dispatch group to add this line to |
+| `orientation` | `Orientation` | Physical orientation (defaults to `Vertical`) |
+| `min_position` | `f64` | Lowest reachable position on the line axis |
+| `max_position` | `f64` | Highest reachable position on the line axis |
+| `position` | `Option<FloorPosition>` | Optional floor-plan position |
+| `max_cars` | `Option<usize>` | Maximum cars on this line (`None` = unlimited) |
+
+Constructor: `LineParams::new(name, group)` — defaults orientation to `Vertical`, positions to `0.0`, no floor-plan position, unlimited cars.
+
 ---
 
 ## World
@@ -164,7 +209,7 @@ Each built-in component has a getter, mutable getter, and setter. The pattern is
 | `Rider` | `rider(EntityId) -> Option<&Rider>` | `rider_mut(EntityId)` | `set_rider(EntityId, Rider)` |
 | `Stop` | `stop(EntityId) -> Option<&Stop>` | `stop_mut(EntityId)` | `set_stop(EntityId, Stop)` |
 | `Route` | `route(EntityId) -> Option<&Route>` | `route_mut(EntityId)` | `set_route(EntityId, Route)` |
-| `Zone` | `zone(EntityId) -> Option<&Zone>` | -- | `set_zone(EntityId, Zone)` |
+| `Line` | `line(EntityId) -> Option<&Line>` | `line_mut(EntityId)` | `set_line(EntityId, Line)` |
 | `Patience` | `patience(EntityId) -> Option<&Patience>` | `patience_mut(EntityId)` | `set_patience(EntityId, Patience)` |
 | `Preferences` | `preferences(EntityId) -> Option<&Preferences>` | -- | `set_preferences(EntityId, Preferences)` |
 
@@ -314,14 +359,25 @@ Metadata about a single rider, available to dispatch strategies.
 
 ### ElevatorGroup
 
-Runtime representation of a set of elevators serving a set of stops.
+Runtime representation of a dispatch group containing one or more lines. The flat `elevator_entities()` and `stop_entities()` accessors are derived caches (union of all lines' elevators/stops), rebuilt automatically via `rebuild_caches()`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `GroupId` | Unique group identifier |
-| `name` | `String` | Human-readable group name |
-| `elevator_entities` | `Vec<EntityId>` | Elevator entities in this group |
-| `stop_entities` | `Vec<EntityId>` | Stop entities served by this group |
+| Getter | Return Type | Description |
+|--------|-------------|-------------|
+| `id()` | `GroupId` | Unique group identifier |
+| `name()` | `&str` | Human-readable group name |
+| `lines()` | `&[LineInfo]` | Lines belonging to this group |
+| `elevator_entities()` | `&[EntityId]` | Derived cache: all elevator entities across lines |
+| `stop_entities()` | `&[EntityId]` | Derived cache: all stop entities across lines |
+
+### LineInfo
+
+Per-line relationship data within an `ElevatorGroup`. Denormalized cache maintained by `Simulation`; the source of truth for intrinsic line properties is the `Line` component in `World`.
+
+| Getter | Return Type | Description |
+|--------|-------------|-------------|
+| `entity()` | `EntityId` | Line entity ID |
+| `elevators()` | `&[EntityId]` | Elevator entities on this line |
+| `serves()` | `&[EntityId]` | Stop entities served by this line |
 
 ### Built-in Strategies
 
@@ -368,7 +424,7 @@ Events are emitted during tick execution and buffered for consumers. Drain them 
 |---------|--------|-------------|
 | `RiderSpawned` | `rider: EntityId`, `origin: EntityId`, `destination: EntityId`, `tick: u64` | A rider appeared at a stop |
 | `RiderBoarded` | `rider: EntityId`, `elevator: EntityId`, `tick: u64` | A rider boarded an elevator |
-| `RiderAlighted` | `rider: EntityId`, `elevator: EntityId`, `stop: EntityId`, `tick: u64` | A rider exited an elevator |
+| `RiderExited` | `rider: EntityId`, `elevator: EntityId`, `stop: EntityId`, `tick: u64` | A rider exited an elevator |
 | `RiderRejected` | `rider: EntityId`, `elevator: EntityId`, `reason: RejectionReason`, `context: Option<RejectionContext>`, `tick: u64` | A rider was rejected from boarding |
 | `RiderAbandoned` | `rider: EntityId`, `stop: EntityId`, `tick: u64` | A rider gave up waiting |
 | `RiderEjected` | `rider: EntityId`, `elevator: EntityId`, `stop: EntityId`, `tick: u64` | A rider was ejected from a disabled/despawned elevator |
@@ -384,8 +440,12 @@ Events are emitted during tick execution and buffered for consumers. Drain them 
 
 | Variant | Fields | Description |
 |---------|--------|-------------|
-| `StopAdded` | `stop: EntityId`, `group: GroupId`, `tick: u64` | A new stop was added at runtime |
-| `ElevatorAdded` | `elevator: EntityId`, `group: GroupId`, `tick: u64` | A new elevator was added at runtime |
+| `StopAdded` | `stop: EntityId`, `line: EntityId`, `group: GroupId`, `tick: u64` | A new stop was added at runtime |
+| `ElevatorAdded` | `elevator: EntityId`, `line: EntityId`, `group: GroupId`, `tick: u64` | A new elevator was added at runtime |
+| `LineAdded` | `line: EntityId`, `group: GroupId`, `tick: u64` | A new line was added to the simulation |
+| `LineRemoved` | `line: EntityId`, `group: GroupId`, `tick: u64` | A line was removed from the simulation |
+| `LineReassigned` | `line: EntityId`, `old_group: GroupId`, `new_group: GroupId`, `tick: u64` | A line was reassigned to a different group |
+| `ElevatorReassigned` | `elevator: EntityId`, `old_line: EntityId`, `new_line: EntityId`, `tick: u64` | An elevator was reassigned to a different line |
 | `EntityDisabled` | `entity: EntityId`, `tick: u64` | An entity was disabled |
 | `EntityEnabled` | `entity: EntityId`, `tick: u64` | An entity was re-enabled |
 | `RouteInvalidated` | `rider: EntityId`, `affected_stop: EntityId`, `reason: RouteInvalidReason`, `tick: u64` | A rider's route was invalidated by topology change |
@@ -431,7 +491,7 @@ Aggregated simulation metrics, updated each tick. Query via `sim.metrics()`.
 | Getter | Return Type | Description |
 |--------|-------------|-------------|
 | `avg_wait_time()` | `f64` | Average wait time in ticks (spawn to board) |
-| `avg_ride_time()` | `f64` | Average ride time in ticks (board to alight) |
+| `avg_ride_time()` | `f64` | Average ride time in ticks (board to exit) |
 | `max_wait_time()` | `u64` | Maximum wait time observed (ticks) |
 | `throughput()` | `u64` | Riders delivered in the current throughput window |
 | `total_delivered()` | `u64` | Total riders delivered |
@@ -524,6 +584,29 @@ All config types derive `Serialize + Deserialize` and are loadable from RON file
 | `mean_interval_ticks` | `u32` | Mean interval between spawns (for Poisson traffic generators) |
 | `weight_range` | `(f64, f64)` | (min, max) weight range for randomly spawned passengers |
 
+### LineConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `u32` | Unique line identifier (within the config) |
+| `name` | `String` | Human-readable name |
+| `serves` | `Vec<StopId>` | Stops served by this line |
+| `elevators` | `Vec<ElevatorConfig>` | Elevators on this line |
+| `orientation` | `Orientation` | Physical orientation (defaults to `Vertical`) |
+| `position` | `Option<FloorPosition>` | Optional floor-plan position |
+| `min_position` | `Option<f64>` | Lowest reachable position (auto-computed from stops if `None`) |
+| `max_position` | `Option<f64>` | Highest reachable position (auto-computed from stops if `None`) |
+| `max_cars` | `Option<usize>` | Max cars on this line (`None` = unlimited) |
+
+### GroupConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `u32` | Unique group identifier |
+| `name` | `String` | Human-readable name |
+| `lines` | `Vec<u32>` | Line IDs belonging to this group (references `LineConfig::id`) |
+| `dispatch` | `BuiltinStrategy` | Dispatch strategy for this group |
+
 ---
 
 ## Components
@@ -534,13 +617,13 @@ Entity components are the data attached to simulation entities. Built-in compone
 
 | Component | Description |
 |-----------|-------------|
-| `Position` | Position along the shaft axis (`value: f64`) |
-| `Velocity` | Velocity along the shaft axis, signed (`value: f64`) |
+| `Position` | Position along the shaft axis (accessed via `value()` getter) |
+| `Velocity` | Velocity along the shaft axis, signed (accessed via `value()` getter) |
 | `Elevator` | Elevator car state and physics parameters |
 | `Rider` | Rider core data (weight, phase, origin, timing) |
-| `Stop` | Stop data (`name: String`, `position: f64`) |
+| `Stop` | Stop data (accessed via `name()` and `position()` getters) |
 | `Route` | Multi-leg route with `legs: Vec<RouteLeg>` and `current_leg: usize` |
-| `Zone` | Group membership (`group: GroupId`) |
+| `Line` | Physical path component (shaft, tether, track) |
 | `Patience` | Wait-limit tracking (`max_wait_ticks: u64`, `waited_ticks: u64`) |
 | `Preferences` | Boarding preferences (`skip_full_elevator: bool`, `max_crowding_factor: f64`) |
 
@@ -551,7 +634,7 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `Idle` | Parked with no pending requests |
 | `MovingToStop(EntityId)` | Travelling toward a specific stop |
 | `DoorOpening` | Doors are currently opening |
-| `Loading` | Doors open; riders may board or alight |
+| `Loading` | Doors open; riders may board or exit |
 | `DoorClosing` | Doors are currently closing |
 | `Stopped` | Stopped at a floor (doors closed, awaiting dispatch) |
 
@@ -570,7 +653,30 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `target_stop()` | `Option<EntityId>` | Stop the car is heading toward |
 | `door_transition_ticks()` | `u32` | Ticks for a door transition |
 | `door_open_ticks()` | `u32` | Ticks the door stays open |
-| `group()` | `GroupId` | Group this car belongs to |
+| `line()` | `EntityId` | Line entity this car belongs to |
+
+### Line Getters
+
+| Getter | Return Type | Description |
+|--------|-------------|-------------|
+| `name()` | `&str` | Human-readable name |
+| `group()` | `GroupId` | Dispatch group this line belongs to |
+| `orientation()` | `Orientation` | Physical orientation |
+| `position()` | `Option<&FloorPosition>` | Optional floor-plan position |
+| `min_position()` | `f64` | Lowest reachable position along the line axis |
+| `max_position()` | `f64` | Highest reachable position along the line axis |
+| `max_cars()` | `Option<usize>` | Maximum number of cars allowed on this line |
+
+### Direction
+
+Direction of movement along a line axis.
+
+| Variant | Description |
+|---------|-------------|
+| `Up` | Moving toward higher positions |
+| `Down` | Moving toward lower positions |
+
+Method: `reversed()` returns the opposite direction.
 
 ### RiderPhase
 
@@ -579,20 +685,20 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `Waiting` | Waiting at a stop |
 | `Boarding(EntityId)` | Boarding an elevator (transient, one tick) |
 | `Riding(EntityId)` | Riding in an elevator |
-| `Alighting(EntityId)` | Alighting from an elevator (transient, one tick) |
+| `Exiting(EntityId)` | Exiting an elevator (transient, one tick) |
 | `Walking` | Walking between transfer stops |
 | `Arrived` | Reached final destination |
 | `Abandoned` | Gave up waiting |
 
-### Rider Fields
+### Rider Getters
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `weight` | `f64` | Weight contributed to elevator load |
-| `phase` | `RiderPhase` | Current lifecycle phase |
-| `current_stop` | `Option<EntityId>` | Stop the rider is at (while Waiting/Arrived/Abandoned) |
-| `spawn_tick` | `u64` | Tick when this rider was spawned |
-| `board_tick` | `Option<u64>` | Tick when this rider boarded (for ride-time metrics) |
+| Getter | Return Type | Description |
+|--------|-------------|-------------|
+| `weight()` | `f64` | Weight contributed to elevator load |
+| `phase()` | `RiderPhase` | Current lifecycle phase |
+| `current_stop()` | `Option<EntityId>` | Stop the rider is at (while Waiting/Arrived/Abandoned) |
+| `spawn_tick()` | `u64` | Tick when this rider was spawned |
+| `board_tick()` | `Option<u64>` | Tick when this rider boarded (for ride-time metrics) |
 
 ### Route and RouteLeg
 
@@ -618,7 +724,8 @@ Entity components are the data attached to simulation entities. Built-in compone
 
 | Variant | Description |
 |---------|-------------|
-| `Elevator(GroupId)` | Ride an elevator in the given group |
+| `Group(GroupId)` | Use any elevator in the given dispatch group |
+| `Line(EntityId)` | Use a specific line (pinned routing) |
 | `Walk` | Walk between adjacent stops |
 
 ---
@@ -644,6 +751,9 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `StopNotFound` | `StopId` | A referenced stop ID does not exist |
 | `GroupNotFound` | `GroupId` | A referenced group does not exist |
 | `InvalidState` | `entity: EntityId`, `reason: String` | Operation attempted on entity in wrong state |
+| `LineNotFound` | `EntityId` | A referenced line entity does not exist |
+| `NoRoute` | `origin: EntityId`, `destination: EntityId` | No route exists between origin and destination across any group |
+| `AmbiguousRoute` | `origin: EntityId`, `destination: EntityId` | Multiple groups serve both origin and destination — caller must specify |
 
 `SimError` implements `std::error::Error` and `Display`. It also has `From<EntityId>`, `From<StopId>`, and `From<GroupId>` conversions.
 
@@ -713,9 +823,9 @@ Simulation phase identifiers for hook registration.
 
 | Variant | Description |
 |---------|-------------|
-| `AdvanceTransient` | Advance transient rider states (Boarding to Riding, Alighting to Arrived) |
+| `AdvanceTransient` | Advance transient rider states (Boarding to Riding, Exiting to Arrived) |
 | `Dispatch` | Assign idle elevators to stops via dispatch strategy |
 | `Movement` | Update elevator position and velocity |
 | `Doors` | Tick door finite-state machines |
-| `Loading` | Board and alight riders |
+| `Loading` | Board and exit riders |
 | `Metrics` | Aggregate metrics from tick events |
