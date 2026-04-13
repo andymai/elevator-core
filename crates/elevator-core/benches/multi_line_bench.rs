@@ -309,13 +309,13 @@ fn bench_topology_queries(c: &mut Criterion) {
     });
 
     group.bench_function("shortest_route", |b| {
-        // Route from first stop to last stop (spans all groups).
-        let first = sim.stop_entity(StopId(0)).unwrap();
-        let last = sim.stop_entity(StopId(total_stops - 1)).unwrap();
-
         b.iter_batched(
             || make_multi_sim(&cfg),
-            |sim| sim.shortest_route(first, last),
+            |sim| {
+                let first = sim.stop_entity(StopId(0)).unwrap();
+                let last = sim.stop_entity(StopId(total_stops - 1)).unwrap();
+                sim.shortest_route(first, last)
+            },
             criterion::BatchSize::SmallInput,
         );
     });

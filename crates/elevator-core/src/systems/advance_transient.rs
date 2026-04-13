@@ -23,29 +23,40 @@ fn handle_exit(id: EntityId, world: &mut World, events: &mut EventBus, ctx: &Pha
     let has_more_legs = world.route_mut(id).is_some_and(Route::advance);
 
     if has_more_legs {
-        // Check if the next leg is a Walk leg.
-        let is_walk = world
-            .route(id)
-            .and_then(|r| r.current())
-            .is_some_and(|leg| matches!(leg.via, TransportMode::Walk));
+        // Consume consecutive Walk legs (teleport rider to each destination).
+        loop {
+            let is_walk = world
+                .route(id)
+                .and_then(|r| r.current())
+                .is_some_and(|leg| matches!(leg.via, TransportMode::Walk));
 
-        if is_walk {
-            // Walk: move rider to the destination stop of the walk leg.
+            if !is_walk {
+                break;
+            }
+
             let walk_dest = world.route(id).and_then(Route::current_destination);
             if let Some(dest) = walk_dest {
-                // Advance past the walk leg.
-                let more = world.route_mut(id).is_some_and(Route::advance);
                 if let Some(r) = world.rider_mut(id) {
                     r.current_stop = Some(dest);
-                    if more {
-                        r.phase = RiderPhase::Waiting;
-                    } else {
+                }
+                let more = world.route_mut(id).is_some_and(Route::advance);
+                if !more {
+                    if let Some(r) = world.rider_mut(id) {
                         r.phase = RiderPhase::Arrived;
                     }
+                    // Route complete after walk — skip to invalidation check.
+                    break;
                 }
+            } else {
+                break;
             }
-        } else {
-            // Transfer: wait at the current stop for the next leg.
+        }
+
+        // If still routing (didn't Arrive during walk), wait for next leg.
+        if world
+            .rider(id)
+            .is_some_and(|r| r.phase() != RiderPhase::Arrived)
+        {
             if let Some(r) = world.rider_mut(id) {
                 r.phase = RiderPhase::Waiting;
             }
