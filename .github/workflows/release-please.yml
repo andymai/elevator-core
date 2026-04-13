@@ -17,7 +17,7 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v4.4.0
         id: release
         with:
           config-file: release-please-config.json
