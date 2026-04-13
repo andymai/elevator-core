@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fmt;
 
 /// Aggregated simulation metrics, updated each tick from events.
 ///
@@ -193,6 +194,16 @@ impl Metrics {
 
     // ── Recording ───────────────────���────────────────────────────────
 
+    /// Overall utilization: average across all groups.
+    #[must_use]
+    pub fn avg_utilization(&self) -> f64 {
+        if self.utilization_by_group.is_empty() {
+            return 0.0;
+        }
+        let sum: f64 = self.utilization_by_group.values().sum();
+        sum / self.utilization_by_group.len() as f64
+    }
+
     /// Record a rider spawning.
     pub(crate) const fn record_spawn(&mut self) {
         self.total_spawned += 1;
@@ -264,5 +275,24 @@ impl Metrics {
             self.delivery_window.pop_front();
         }
         self.throughput = self.delivery_window.len() as u64;
+    }
+}
+
+impl fmt::Display for Metrics {
+    /// Compact one-line summary for HUDs and logs.
+    ///
+    /// ```
+    /// # use elevator_core::metrics::Metrics;
+    /// let m = Metrics::new();
+    /// assert_eq!(format!("{m}"), "0 delivered, avg wait 0.0t, 0% util");
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} delivered, avg wait {:.1}t, {:.0}% util",
+            self.total_delivered,
+            self.avg_wait_time,
+            self.avg_utilization() * 100.0,
+        )
     }
 }
