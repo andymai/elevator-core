@@ -227,12 +227,12 @@ impl LineInfo {
     }
 
     /// Mutable access to elevator entities on this line.
-    pub const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
+    pub(crate) const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
         &mut self.elevators
     }
 
     /// Mutable access to stop entities served by this line.
-    pub const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
+    pub(crate) const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
         &mut self.serves
     }
 }

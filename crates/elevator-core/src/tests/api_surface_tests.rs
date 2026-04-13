@@ -67,26 +67,24 @@ fn remove_elevator_ejects_riders_aboard() {
     }
 
     let elevator_id = sim.groups()[0].elevator_entities()[0];
-    let is_riding = matches!(
-        sim.world().rider(rider_id).unwrap().phase,
-        RiderPhase::Riding(_)
+    assert!(
+        matches!(
+            sim.world().rider(rider_id).unwrap().phase,
+            RiderPhase::Riding(_)
+        ),
+        "rider should have boarded within 300 ticks"
     );
 
-    if is_riding {
-        // Rider is aboard — removing elevator should eject the rider.
-        sim.remove_elevator(elevator_id).unwrap();
-        sim.drain_events(); // consume events
+    // Rider is aboard — removing elevator should eject the rider.
+    sim.remove_elevator(elevator_id).unwrap();
+    sim.drain_events(); // consume events
 
-        let phase = sim.world().rider(rider_id).unwrap().phase;
-        // After ejection, rider is put back to Waiting.
-        assert!(
-            matches!(phase, RiderPhase::Waiting),
-            "rider should be Waiting after elevator removal, got {phase:?}"
-        );
-    } else {
-        // Rider didn't board yet — just verify removal succeeds cleanly.
-        sim.remove_elevator(elevator_id).unwrap();
-    }
+    let phase = sim.world().rider(rider_id).unwrap().phase;
+    // After ejection, rider is put back to Waiting.
+    assert!(
+        matches!(phase, RiderPhase::Waiting),
+        "rider should be Waiting after elevator removal, got {phase:?}"
+    );
 }
 
 #[test]
@@ -112,21 +110,24 @@ fn remove_elevator_ejects_rider_emits_event() {
 
     let elevator_id = sim.groups()[0].elevator_entities()[0];
 
-    if matches!(
-        sim.world().rider(rider_id).unwrap().phase,
-        RiderPhase::Riding(_)
-    ) {
-        sim.remove_elevator(elevator_id).unwrap();
-        let events = sim.drain_events();
+    assert!(
+        matches!(
+            sim.world().rider(rider_id).unwrap().phase,
+            RiderPhase::Riding(_)
+        ),
+        "rider should have boarded within 300 ticks"
+    );
 
-        let ejected = events
-            .iter()
-            .any(|e| matches!(e, Event::RiderEjected { rider, .. } if *rider == rider_id));
-        assert!(
-            ejected,
-            "should emit RiderEjected when removing elevator with rider aboard"
-        );
-    }
+    sim.remove_elevator(elevator_id).unwrap();
+    let events = sim.drain_events();
+
+    let ejected = events
+        .iter()
+        .any(|e| matches!(e, Event::RiderEjected { rider, .. } if *rider == rider_id));
+    assert!(
+        ejected,
+        "should emit RiderEjected when removing elevator with rider aboard"
+    );
 }
 
 #[test]
@@ -926,4 +927,38 @@ fn rider_builder_no_access_control_by_default() {
         sim.world().access_control(rider_id).is_none(),
         "rider should have no AccessControl component by default"
     );
+}
+
+// ── ElevatorRemoved / StopRemoved events ──────────────────────────────────────
+
+#[test]
+fn remove_elevator_emits_elevator_removed_event() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.drain_events();
+
+    let elevator_id = sim.groups()[0].elevator_entities()[0];
+    sim.remove_elevator(elevator_id).unwrap();
+
+    let events = sim.drain_events();
+    let removed = events
+        .iter()
+        .any(|e| matches!(e, Event::ElevatorRemoved { elevator, .. } if *elevator == elevator_id));
+    assert!(removed, "should emit ElevatorRemoved event");
+}
+
+#[test]
+fn remove_stop_emits_stop_removed_event() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.drain_events();
+
+    let stop_eid = sim.stop_entity(StopId(2)).unwrap();
+    sim.remove_stop(stop_eid).unwrap();
+
+    let events = sim.drain_events();
+    let removed = events
+        .iter()
+        .any(|e| matches!(e, Event::StopRemoved { stop, .. } if *stop == stop_eid));
+    assert!(removed, "should emit StopRemoved event");
 }

@@ -1755,6 +1755,7 @@ impl Simulation {
         let _ = self.disable(elevator);
 
         // Find and remove from group/line topology.
+        let mut group_id = GroupId(0);
         if let Ok((group_idx, line_idx)) = self.find_line(line) {
             self.groups[group_idx].lines_mut()[line_idx]
                 .elevators_mut()
@@ -1762,11 +1763,18 @@ impl Simulation {
             self.groups[group_idx].rebuild_caches();
 
             // Notify dispatch strategy.
-            let group_id = self.groups[group_idx].id();
+            group_id = self.groups[group_idx].id();
             if let Some(dispatcher) = self.dispatchers.get_mut(&group_id) {
                 dispatcher.notify_removed(elevator);
             }
         }
+
+        self.events.emit(Event::ElevatorRemoved {
+            elevator,
+            line,
+            group: group_id,
+            tick: self.tick,
+        });
 
         // Despawn from world.
         self.world.despawn(elevator);
@@ -1808,6 +1816,11 @@ impl Simulation {
 
         // Remove from stop_lookup.
         self.stop_lookup.retain(|_, &mut eid| eid != stop);
+
+        self.events.emit(Event::StopRemoved {
+            stop,
+            tick: self.tick,
+        });
 
         // Despawn from world.
         self.world.despawn(stop);
