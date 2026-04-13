@@ -41,6 +41,8 @@ pub struct ElevatorParams {
     pub door_transition_ticks: u32,
     /// Ticks the door stays fully open.
     pub door_open_ticks: u32,
+    /// Stop entity IDs this elevator cannot serve (access restriction).
+    pub restricted_stops: HashSet<EntityId>,
 }
 
 impl Default for ElevatorParams {
@@ -52,6 +54,7 @@ impl Default for ElevatorParams {
             weight_capacity: 800.0,
             door_transition_ticks: 5,
             door_open_ticks: 10,
+            restricted_stops: HashSet::new(),
         }
     }
 }
@@ -308,6 +311,11 @@ impl Simulation {
                 .map_or(0.0, |s| s.position);
             world.set_position(eid, Position { value: start_pos });
             world.set_velocity(eid, Velocity { value: 0.0 });
+            let restricted: HashSet<EntityId> = ec
+                .restricted_stops
+                .iter()
+                .filter_map(|sid| stop_lookup.get(sid).copied())
+                .collect();
             world.set_elevator(
                 eid,
                 Elevator {
@@ -324,6 +332,7 @@ impl Simulation {
                     door_open_ticks: ec.door_open_ticks,
                     line: default_line_eid,
                     repositioning: false,
+                    restricted_stops: restricted,
                 },
             );
             elevator_entities.push(eid);
@@ -418,6 +427,11 @@ impl Simulation {
                     .map_or(0.0, |s| s.position);
                 world.set_position(eid, Position { value: start_pos });
                 world.set_velocity(eid, Velocity { value: 0.0 });
+                let restricted: HashSet<EntityId> = ec
+                    .restricted_stops
+                    .iter()
+                    .filter_map(|sid| stop_lookup.get(sid).copied())
+                    .collect();
                 world.set_elevator(
                     eid,
                     Elevator {
@@ -434,6 +448,7 @@ impl Simulation {
                         door_open_ticks: ec.door_open_ticks,
                         line: line_eid,
                         repositioning: false,
+                        restricted_stops: restricted,
                     },
                 );
                 elevator_entities.push(eid);
@@ -1289,6 +1304,7 @@ impl Simulation {
                 door_open_ticks: params.door_open_ticks,
                 line,
                 repositioning: false,
+                restricted_stops: params.restricted_stops.clone(),
             },
         );
         self.groups[group_idx].lines_mut()[line_idx]
@@ -2002,6 +2018,52 @@ impl Simulation {
             rider: id,
             tick: self.tick,
         });
+        Ok(())
+    }
+
+    // ── Access control ──────────────────────────────────────────────
+
+    /// Set the allowed stops for a rider.
+    ///
+    /// When set, the rider will only be allowed to board elevators that
+    /// can take them to a stop in the allowed set. See
+    /// [`AccessControl`](crate::components::AccessControl) for details.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the rider does not exist.
+    pub fn set_rider_access(
+        &mut self,
+        rider: EntityId,
+        allowed_stops: HashSet<EntityId>,
+    ) -> Result<(), SimError> {
+        if self.world.rider(rider).is_none() {
+            return Err(SimError::EntityNotFound(rider));
+        }
+        self.world
+            .set_access_control(rider, crate::components::AccessControl::new(allowed_stops));
+        Ok(())
+    }
+
+    /// Set the restricted stops for an elevator.
+    ///
+    /// Riders whose current destination is in this set will be rejected
+    /// with [`RejectionReason::AccessDenied`](crate::error::RejectionReason::AccessDenied)
+    /// during the loading phase.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    pub fn set_elevator_restricted_stops(
+        &mut self,
+        elevator: EntityId,
+        restricted_stops: HashSet<EntityId>,
+    ) -> Result<(), SimError> {
+        let car = self
+            .world
+            .elevator_mut(elevator)
+            .ok_or(SimError::EntityNotFound(elevator))?;
+        car.restricted_stops = restricted_stops;
         Ok(())
     }
 

@@ -3,6 +3,7 @@
 /// Shared test utilities.
 mod helpers;
 
+mod access_tests;
 mod builder_tests;
 mod config_tests;
 mod dispatch_tests;

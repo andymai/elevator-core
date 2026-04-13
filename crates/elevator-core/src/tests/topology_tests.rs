@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::entity::EntityId;
 use crate::events::Event;
 use crate::ids::GroupId;
@@ -43,6 +45,7 @@ fn add_elevator_at_runtime() {
         weight_capacity: 1000.0,
         door_transition_ticks: 3,
         door_open_ticks: 8,
+        restricted_stops: HashSet::new(),
     };
 
     let elev = sim.add_elevator(&params, line, 4.0).unwrap();
@@ -79,6 +82,7 @@ fn add_to_nonexistent_line_returns_error() {
         weight_capacity: 100.0,
         door_transition_ticks: 1,
         door_open_ticks: 1,
+        restricted_stops: HashSet::new(),
     };
     let result = sim.add_elevator(&params, bogus, 0.0);
     assert!(result.is_err());

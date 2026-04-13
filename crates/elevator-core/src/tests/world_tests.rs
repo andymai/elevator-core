@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::components::*;
 use crate::door::DoorState;
 use crate::world::World;
@@ -57,6 +59,7 @@ fn elevator_query_returns_entities_with_both_components() {
             door_open_ticks: 60,
             line: crate::entity::EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
 

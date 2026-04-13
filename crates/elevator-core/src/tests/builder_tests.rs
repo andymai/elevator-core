@@ -50,6 +50,7 @@ fn from_config_produces_valid_sim() {
             starting_stop: StopId(0),
             door_open_ticks: 8,
             door_transition_ticks: 4,
+            restricted_stops: Vec::new(),
         }],
         simulation: SimulationParams {
             ticks_per_second: 30.0,
@@ -102,6 +103,7 @@ fn builder_with_stops_and_elevators() {
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
         })
         .ticks_per_second(120.0)
         .build();

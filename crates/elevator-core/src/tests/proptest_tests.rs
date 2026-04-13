@@ -112,6 +112,7 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
         })
         .collect();
 
@@ -247,6 +248,7 @@ proptest! {
                 starting_stop: StopId(0),
                 door_open_ticks: 5,
                 door_transition_ticks: 2,
+                restricted_stops: Vec::new(),
             }],
             simulation: SimulationParams { ticks_per_second: 60.0 },
             passenger_spawning: PassengerSpawnConfig {
