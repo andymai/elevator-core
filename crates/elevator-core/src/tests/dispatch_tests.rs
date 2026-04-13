@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::components::*;
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::look::LookDispatch;
@@ -71,6 +73,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
             door_open_ticks: 60,
             line: crate::entity::EntityId::default(),
             repositioning: false,
+            restricted_stops: HashSet::new(),
         },
     );
     eid

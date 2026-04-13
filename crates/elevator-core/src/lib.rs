@@ -234,8 +234,8 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience, Position, Preferences,
-        Rider, RiderPhase, Route, Stop, Velocity,
+        AccessControl, Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience,
+        Position, Preferences, Rider, RiderPhase, Route, Stop, Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
