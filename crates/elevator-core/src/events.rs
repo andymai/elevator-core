@@ -79,15 +79,16 @@ pub enum Event {
         /// The tick when boarding occurred.
         tick: u64,
     },
-    /// A rider alighted (exited) an elevator at a stop.
-    RiderAlighted {
-        /// The rider that alighted.
+    /// A rider exited an elevator at a stop.
+    #[serde(alias = "RiderAlighted")]
+    RiderExited {
+        /// The rider that exited.
         rider: EntityId,
         /// The elevator the rider exited.
         elevator: EntityId,
-        /// The stop where the rider alighted.
+        /// The stop where the rider exited.
         stop: EntityId,
-        /// The tick when alighting occurred.
+        /// The tick when exiting occurred.
         tick: u64,
     },
     /// A rider was rejected from boarding (e.g., over capacity).
@@ -143,6 +144,8 @@ pub enum Event {
     StopAdded {
         /// The new stop entity.
         stop: EntityId,
+        /// The line the stop was added to.
+        line: EntityId,
         /// The group the stop was added to.
         group: GroupId,
         /// The tick when the stop was added.
@@ -152,6 +155,8 @@ pub enum Event {
     ElevatorAdded {
         /// The new elevator entity.
         elevator: EntityId,
+        /// The line the elevator was added to.
+        line: EntityId,
         /// The group the elevator was added to.
         group: GroupId,
         /// The tick when the elevator was added.
@@ -192,6 +197,48 @@ pub enum Event {
         /// The new destination stop.
         new_destination: EntityId,
         /// The tick when rerouting occurred.
+        tick: u64,
+    },
+
+    // -- Line lifecycle events --
+    /// A line was added to the simulation.
+    LineAdded {
+        /// The new line entity.
+        line: EntityId,
+        /// The group the line was added to.
+        group: GroupId,
+        /// The tick when the line was added.
+        tick: u64,
+    },
+    /// A line was removed from the simulation.
+    LineRemoved {
+        /// The removed line entity.
+        line: EntityId,
+        /// The group the line belonged to.
+        group: GroupId,
+        /// The tick when the line was removed.
+        tick: u64,
+    },
+    /// A line was reassigned to a different group.
+    LineReassigned {
+        /// The line entity that was reassigned.
+        line: EntityId,
+        /// The group the line was previously in.
+        old_group: GroupId,
+        /// The group the line was moved to.
+        new_group: GroupId,
+        /// The tick when reassignment occurred.
+        tick: u64,
+    },
+    /// An elevator was reassigned to a different line.
+    ElevatorReassigned {
+        /// The elevator that was reassigned.
+        elevator: EntityId,
+        /// The line the elevator was previously on.
+        old_line: EntityId,
+        /// The line the elevator was moved to.
+        new_line: EntityId,
+        /// The tick when reassignment occurred.
         tick: u64,
     },
 }

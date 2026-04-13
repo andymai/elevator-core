@@ -28,7 +28,7 @@ pub fn run(world: &mut World, events: &EventBus, metrics: &mut Metrics, ctx: &Ph
                     tag_boards.push((*rider, wait_ticks));
                 }
             }
-            Event::RiderAlighted { rider, tick, .. } => {
+            Event::RiderExited { rider, tick, .. } => {
                 if let Some(rd) = world.rider(*rider) {
                     let ride_ticks = rd.board_tick.map_or(0, |bt| tick.saturating_sub(bt));
                     metrics.record_delivery(ride_ticks, *tick);

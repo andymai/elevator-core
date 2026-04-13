@@ -37,6 +37,8 @@ fn from_config_produces_valid_sim() {
                     position: 10.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![ElevatorConfig {
             id: 0,

@@ -100,18 +100,18 @@ impl DispatchStrategy for HighestFirstDispatch {
         // Find the highest stop (by position) with waiting riders.
         let mut best: Option<(EntityId, f64)> = None;
 
-        for &stop_eid in &group.stop_entities {
+        for &stop_eid in group.stop_entities() {
             if manifest.waiting_count_at(stop_eid) == 0 {
                 continue;
             }
 
             if let Some(stop) = world.stop(stop_eid) {
                 match best {
-                    Some((_, best_pos)) if stop.position > best_pos => {
-                        best = Some((stop_eid, stop.position));
+                    Some((_, best_pos)) if stop.position() > best_pos => {
+                        best = Some((stop_eid, stop.position()));
                     }
                     None => {
-                        best = Some((stop_eid, stop.position));
+                        best = Some((stop_eid, stop.position()));
                     }
                     _ => {}
                 }

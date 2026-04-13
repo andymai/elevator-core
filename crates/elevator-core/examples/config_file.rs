@@ -19,7 +19,7 @@ fn main() {
     println!("Stops: {}", config.building.stops.len());
     println!("Elevators: {}", config.elevators.len());
 
-    let mut sim = Simulation::new(&config, Box::new(ScanDispatch::new())).unwrap();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     sim.spawn_rider_by_stop_id(StopId(0), StopId(4), 75.0)
         .unwrap();

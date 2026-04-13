@@ -24,7 +24,7 @@ fn main() {
         let all_arrived = sim
             .world()
             .iter_riders()
-            .all(|(_, r)| r.phase == RiderPhase::Arrived);
+            .all(|(_, r)| r.phase() == RiderPhase::Arrived);
 
         if all_arrived {
             println!("All riders arrived at tick {tick}!");

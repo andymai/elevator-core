@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::components::{
-    Elevator, Patience, Position, Preferences, Rider, Route, Stop, Velocity, Zone,
+    Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::query::storage::AnyExtMap;
@@ -37,8 +37,8 @@ pub struct World {
     pub(crate) riders: SecondaryMap<EntityId, Rider>,
     /// Multi-leg routes.
     pub(crate) routes: SecondaryMap<EntityId, Route>,
-    /// Group/zone membership.
-    pub(crate) zones: SecondaryMap<EntityId, Zone>,
+    /// Line (physical path) components.
+    pub(crate) lines: SecondaryMap<EntityId, Line>,
     /// Patience tracking.
     pub(crate) patience: SecondaryMap<EntityId, Patience>,
     /// Boarding preferences.
@@ -70,7 +70,7 @@ impl World {
             stops: SecondaryMap::new(),
             riders: SecondaryMap::new(),
             routes: SecondaryMap::new(),
-            zones: SecondaryMap::new(),
+            lines: SecondaryMap::new(),
             patience: SecondaryMap::new(),
             preferences: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
@@ -99,7 +99,7 @@ impl World {
             match rider.phase {
                 crate::components::RiderPhase::Boarding(elev)
                 | crate::components::RiderPhase::Riding(elev)
-                | crate::components::RiderPhase::Alighting(elev) => {
+                | crate::components::RiderPhase::Exiting(elev) => {
                     if let Some(car) = self.elevators.get_mut(elev) {
                         car.riders.retain(|r| *r != id);
                         car.current_load = (car.current_load - weight).max(0.0);
@@ -129,7 +129,7 @@ impl World {
         self.stops.remove(id);
         self.riders.remove(id);
         self.routes.remove(id);
-        self.zones.remove(id);
+        self.lines.remove(id);
         self.patience.remove(id);
         self.preferences.remove(id);
         self.disabled.remove(id);
@@ -264,17 +264,32 @@ impl World {
         self.routes.insert(id, route);
     }
 
-    // ── Zone accessors ───────────────────────────────────────────────
+    // ── Line accessors ─────────────────────────────────────────────��──
 
-    /// Get an entity's zone.
+    /// Get an entity's line component.
     #[must_use]
-    pub fn zone(&self, id: EntityId) -> Option<&Zone> {
-        self.zones.get(id)
+    pub fn line(&self, id: EntityId) -> Option<&Line> {
+        self.lines.get(id)
     }
 
-    /// Set an entity's zone.
-    pub fn set_zone(&mut self, id: EntityId, zone: Zone) {
-        self.zones.insert(id, zone);
+    /// Get an entity's line component mutably.
+    pub fn line_mut(&mut self, id: EntityId) -> Option<&mut Line> {
+        self.lines.get_mut(id)
+    }
+
+    /// Set an entity's line component.
+    pub fn set_line(&mut self, id: EntityId, line: Line) {
+        self.lines.insert(id, line);
+    }
+
+    /// Remove an entity's line component.
+    pub fn remove_line(&mut self, id: EntityId) -> Option<Line> {
+        self.lines.remove(id)
+    }
+
+    /// Iterate all line entities.
+    pub fn iter_lines(&self) -> impl Iterator<Item = (EntityId, &Line)> {
+        self.lines.iter()
     }
 
     // ── Patience accessors ───────────────────────────────────────────
@@ -569,22 +584,14 @@ impl World {
     /// Create a query builder for iterating entities by component composition.
     ///
     /// ```
-    /// use elevator_core::world::World;
     /// use elevator_core::prelude::*;
     ///
-    /// let mut world = World::new();
-    /// let id = world.spawn();
-    /// world.set_rider(id, Rider {
-    ///     weight: 75.0,
-    ///     phase: RiderPhase::Waiting,
-    ///     current_stop: None,
-    ///     spawn_tick: 0,
-    ///     board_tick: None,
-    /// });
-    /// world.set_position(id, Position { value: 0.0 });
+    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
     ///
+    /// let world = sim.world();
     /// for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {
-    ///     println!("{id:?}: {:?} at {}", rider.phase, pos.value);
+    ///     println!("{id:?}: {:?} at {}", rider.phase(), pos.value());
     /// }
     /// ```
     #[must_use]

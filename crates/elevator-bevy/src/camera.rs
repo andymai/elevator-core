@@ -8,7 +8,7 @@ use crate::sim_bridge::SimulationRes;
 #[allow(clippy::needless_pass_by_value)]
 pub fn setup_camera(mut commands: Commands, sim: Res<SimulationRes>, windows: Query<&Window>) {
     let world = sim.sim.world();
-    let positions: Vec<f64> = world.iter_stops().map(|(_, s)| s.position).collect();
+    let positions: Vec<f64> = world.iter_stops().map(|(_, s)| s.position()).collect();
     let min_pos = positions.iter().copied().fold(f64::INFINITY, f64::min);
     let max_pos = positions.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 

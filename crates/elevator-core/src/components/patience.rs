@@ -6,9 +6,23 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Patience {
     /// Maximum ticks the rider will wait before abandoning.
-    pub max_wait_ticks: u64,
+    pub(crate) max_wait_ticks: u64,
     /// Ticks waited so far (incremented while in `Waiting` phase).
-    pub waited_ticks: u64,
+    pub(crate) waited_ticks: u64,
+}
+
+impl Patience {
+    /// Maximum ticks the rider will wait before abandoning.
+    #[must_use]
+    pub const fn max_wait_ticks(&self) -> u64 {
+        self.max_wait_ticks
+    }
+
+    /// Ticks waited so far (incremented while in `Waiting` phase).
+    #[must_use]
+    pub const fn waited_ticks(&self) -> u64 {
+        self.waited_ticks
+    }
 }
 
 impl Default for Patience {
@@ -24,9 +38,23 @@ impl Default for Patience {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Preferences {
     /// If true, the rider will skip a crowded elevator and wait for the next.
-    pub skip_full_elevator: bool,
+    pub(crate) skip_full_elevator: bool,
     /// Maximum load factor (0.0-1.0) the rider will tolerate when boarding.
-    pub max_crowding_factor: f64,
+    pub(crate) max_crowding_factor: f64,
+}
+
+impl Preferences {
+    /// If true, the rider will skip a crowded elevator and wait for the next.
+    #[must_use]
+    pub const fn skip_full_elevator(&self) -> bool {
+        self.skip_full_elevator
+    }
+
+    /// Maximum load factor (0.0-1.0) the rider will tolerate when boarding.
+    #[must_use]
+    pub const fn max_crowding_factor(&self) -> f64 {
+        self.max_crowding_factor
+    }
 }
 
 impl Default for Preferences {

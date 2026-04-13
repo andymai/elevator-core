@@ -1,9 +1,10 @@
-//! Phase 5: board and alight riders at stops with open doors.
+//! Phase 5: board and exit riders at stops with open doors.
 
-use crate::components::{ElevatorPhase, RiderPhase, Route};
+use crate::components::{ElevatorPhase, Line, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::events::{Event, EventBus};
+use crate::ids::GroupId;
 use crate::world::World;
 
 use super::PhaseContext;
@@ -11,12 +12,12 @@ use super::PhaseContext;
 /// Intermediate action collected in the read-only pass, applied in the mutation pass.
 enum LoadAction {
     /// A rider exits the elevator at a stop.
-    Alight {
+    Exit {
         /// Rider entity leaving.
         rider: EntityId,
         /// Elevator entity being exited.
         elevator: EntityId,
-        /// Stop entity where alighting occurs.
+        /// Stop entity where exiting occurs.
         stop: EntityId,
     },
     /// A rider enters the elevator.
@@ -62,8 +63,8 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             continue;
         };
 
-        // Try to alight one rider whose route destination matches the current stop.
-        let alight_rider = car
+        // Try to exit one rider whose route destination matches the current stop.
+        let exit_rider = car
             .riders
             .iter()
             .find(|rid| {
@@ -71,14 +72,18 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             })
             .copied();
 
-        if let Some(rid) = alight_rider {
-            actions.push(LoadAction::Alight {
+        if let Some(rid) = exit_rider {
+            actions.push(LoadAction::Exit {
                 rider: rid,
                 elevator: eid,
                 stop: current_stop,
             });
             continue;
         }
+
+        // Derive this elevator's group from its line component.
+        let elev_line = car.line();
+        let elev_group: Option<GroupId> = world.line(elev_line).map(Line::group);
 
         // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
         let remaining_capacity = car.weight_capacity - car.current_load;
@@ -103,6 +108,26 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 .is_none_or(|route| route.current().is_none_or(|leg| leg.from == current_stop));
             if !route_ok {
                 return None;
+            }
+            // Group/line match: rider must want this elevator's group (or specific line).
+            if let Some(route) = world.route(rid) {
+                if let Some(leg) = route.current() {
+                    match leg.via {
+                        TransportMode::Group(g) => {
+                            if elev_group != Some(g) {
+                                return None;
+                            }
+                        }
+                        TransportMode::Line(l) => {
+                            if elev_line != l {
+                                return None;
+                            }
+                        }
+                        TransportMode::Walk => {
+                            return None; // Walking riders don't board elevators.
+                        }
+                    }
+                }
             }
             // Rider preferences: skip crowded elevators.
             if let Some(prefs) = world.preferences(rid)
@@ -170,13 +195,13 @@ fn apply_actions(
 ) {
     for action in actions {
         match action {
-            LoadAction::Alight {
+            LoadAction::Exit {
                 rider,
                 elevator,
                 stop,
             } => {
                 // Guard: skip if rider is no longer Riding this elevator (another
-                // elevator may have already alighted them in an earlier action).
+                // elevator may have already exited them in an earlier action).
                 if world
                     .rider(rider)
                     .is_none_or(|r| r.phase != RiderPhase::Riding(elevator))
@@ -189,10 +214,10 @@ fn apply_actions(
                     car.current_load = (car.current_load - rider_weight).max(0.0);
                 }
                 if let Some(rd) = world.rider_mut(rider) {
-                    rd.phase = RiderPhase::Alighting(elevator);
+                    rd.phase = RiderPhase::Exiting(elevator);
                     rd.current_stop = Some(stop);
                 }
-                events.emit(Event::RiderAlighted {
+                events.emit(Event::RiderExited {
                     rider,
                     elevator,
                     stop,

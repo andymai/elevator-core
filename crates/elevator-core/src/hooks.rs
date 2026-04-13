@@ -11,7 +11,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Phase {
-    /// Advance transient rider states (Boarding→Riding, Alighting→Arrived).
+    /// Advance transient rider states (Boarding→Riding, Exiting→Arrived).
     AdvanceTransient,
     /// Assign idle elevators to stops via dispatch strategy.
     Dispatch,
@@ -19,7 +19,7 @@ pub enum Phase {
     Movement,
     /// Tick door finite-state machines.
     Doors,
-    /// Board and alight riders.
+    /// Board and exit riders.
     Loading,
     /// Aggregate metrics from tick events.
     Metrics,

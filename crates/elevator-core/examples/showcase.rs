@@ -84,13 +84,13 @@ fn part1_basic_simulation() {
             } => {
                 println!("  Rider {rider:?} boarded elevator {elevator:?}");
             }
-            Event::RiderAlighted {
+            Event::RiderExited {
                 rider,
                 elevator,
                 stop,
                 ..
             } => {
-                println!("  Rider {rider:?} alighted elevator {elevator:?} at stop {stop:?}");
+                println!("  Rider {rider:?} exited elevator {elevator:?} at stop {stop:?}");
             }
             Event::ElevatorArrived {
                 elevator, at_stop, ..
@@ -173,7 +173,7 @@ fn part2_custom_dispatch() {
         .count();
     let delivered_count = events
         .iter()
-        .filter(|e| matches!(e, Event::RiderAlighted { .. }))
+        .filter(|e| matches!(e, Event::RiderExited { .. }))
         .count();
 
     println!("ETD dispatch results over {} ticks:", sim.current_tick());
@@ -268,7 +268,7 @@ fn part4_lifecycle_hooks() {
             // Count how many riders are currently in Riding phase.
             let riding = world
                 .iter_riders()
-                .filter(|(_, r)| matches!(r.phase, RiderPhase::Riding(_)))
+                .filter(|(_, r)| matches!(r.phase(), RiderPhase::Riding(_)))
                 .count();
             if riding > 0 {
                 boarding_count_hook.fetch_add(1, Ordering::Relaxed);
@@ -392,6 +392,8 @@ fn part6_configuration() {
                     position: 20.0,
                 },
             ],
+            lines: None,
+            groups: None,
         },
         elevators: vec![
             ElevatorConfig {

@@ -66,7 +66,7 @@ pub fn update_hud(
     let state_str = match car.phase() {
         ElevatorPhase::Idle => "Idle".to_string(),
         ElevatorPhase::MovingToStop(stop_eid) => {
-            let name = w.stop(stop_eid).map_or("?", |s| s.name.as_str());
+            let name = w.stop(stop_eid).map_or("?", |s| s.name());
             format!("Moving -> {name}")
         }
         ElevatorPhase::DoorOpening => "Doors opening".to_string(),
@@ -76,13 +76,13 @@ pub fn update_hud(
         _ => "Unknown".to_string(),
     };
 
-    let velocity = w.velocity(elev_eid).map_or(0.0, |v| v.value.abs());
+    let velocity = w.velocity(elev_eid).map_or(0.0, |v| v.value().abs());
     let speed_display = format!("{velocity:.1}");
 
     #[allow(clippy::option_if_let_else)]
     let eta_str = if let ElevatorPhase::MovingToStop(stop_eid) = car.phase() {
         if let Some(target_pos) = w.stop_position(stop_eid) {
-            let dist = (target_pos - elev_pos.value).abs();
+            let dist = (target_pos - elev_pos.value()).abs();
             if velocity > 0.001 {
                 let eta_secs = dist / velocity;
                 if eta_secs > 60.0 {
@@ -101,9 +101,9 @@ pub fn update_hud(
     };
 
     // Rider counts — single pass.
-    let (mut on_board, mut boarding, mut alighting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
+    let (mut on_board, mut boarding, mut exiting, mut waiting, mut delivered) = (0, 0, 0, 0, 0);
     for (_, r) in w.iter_riders() {
-        match r.phase {
+        match r.phase() {
             RiderPhase::Boarding(_) => {
                 boarding += 1;
                 on_board += 1;
@@ -111,8 +111,8 @@ pub fn update_hud(
             RiderPhase::Riding(_) => {
                 on_board += 1;
             }
-            RiderPhase::Alighting(_) => {
-                alighting += 1;
+            RiderPhase::Exiting(_) => {
+                exiting += 1;
             }
             RiderPhase::Waiting => {
                 waiting += 1;
@@ -132,22 +132,22 @@ pub fn update_hud(
         0.0
     };
 
-    let positions: Vec<f64> = w.iter_stops().map(|(_, s)| s.position).collect();
+    let positions: Vec<f64> = w.iter_stops().map(|(_, s)| s.position()).collect();
     let min_pos = positions.iter().copied().fold(f64::INFINITY, f64::min);
     let max_pos = positions.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let span = max_pos - min_pos;
     let pos_pct = if span > 0.0 {
-        ((elev_pos.value - min_pos) / span) * 100.0
+        ((elev_pos.value() - min_pos) / span) * 100.0
     } else {
         0.0
     };
 
-    let transfer_str = if boarding > 0 && alighting > 0 {
-        format!("  [{boarding} boarding, {alighting} alighting]")
+    let transfer_str = if boarding > 0 && exiting > 0 {
+        format!("  [{boarding} boarding, {exiting} exiting]")
     } else if boarding > 0 {
         format!("  [{boarding} boarding]")
-    } else if alighting > 0 {
-        format!("  [{alighting} alighting]")
+    } else if exiting > 0 {
+        format!("  [{exiting} exiting]")
     } else {
         String::new()
     };

@@ -1,5 +1,7 @@
 //! Building and elevator configuration (RON-deserializable).
 
+use crate::components::{FloorPosition, Orientation};
+use crate::dispatch::BuiltinStrategy;
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
 
@@ -13,8 +15,10 @@ pub struct SimConfig {
     pub building: BuildingConfig,
     /// Elevator cars to install in the building.
     ///
-    /// Must contain at least one entry. Each elevator is assigned to the
-    /// default group (`GroupId(0)`) at construction time.
+    /// Legacy flat list — used when `building.lines` is `None`.
+    /// When explicit lines are provided, elevators live inside each
+    /// [`LineConfig`] instead.
+    #[serde(default)]
     pub elevators: Vec<ElevatorConfig>,
     /// Global simulation timing parameters.
     pub simulation: SimulationParams,
@@ -37,6 +41,13 @@ pub struct BuildingConfig {
     /// uniformly spaced — this enables buildings, skyscrapers, and space
     /// elevators with varying inter-stop distances.
     pub stops: Vec<StopConfig>,
+    /// Lines (physical paths). If `None`, auto-inferred from the flat
+    /// elevator list on [`SimConfig`].
+    #[serde(default)]
+    pub lines: Option<Vec<LineConfig>>,
+    /// Dispatch groups. If `None`, auto-inferred (single group with all lines).
+    #[serde(default)]
+    pub groups: Option<Vec<GroupConfig>>,
 }
 
 /// Configuration for a single elevator car.
@@ -85,7 +96,7 @@ pub struct ElevatorConfig {
     pub starting_stop: StopId,
     /// How many ticks the doors remain fully open before closing.
     ///
-    /// During this window, riders may board or alight. Longer values
+    /// During this window, riders may board or exit. Longer values
     /// increase loading opportunity but reduce throughput.
     ///
     /// Units: simulation ticks.
@@ -94,7 +105,7 @@ pub struct ElevatorConfig {
     /// How many ticks a door open or close transition takes.
     ///
     /// Models the mechanical travel time of the door panels. No boarding
-    /// or alighting occurs during transitions.
+    /// or exiting occurs during transitions.
     ///
     /// Units: simulation ticks.
     /// Default (from `SimulationBuilder`): `5`.
@@ -137,4 +148,52 @@ pub struct PassengerSpawnConfig {
     /// Units: same as elevator `weight_capacity` (typically kilograms).
     /// Default (from `SimulationBuilder`): `(50.0, 100.0)`.
     pub weight_range: (f64, f64),
+}
+
+/// Configuration for a single line (physical path).
+///
+/// A line represents a shaft, tether, track, or other physical pathway
+/// that one or more elevator cars travel along. Lines belong to a
+/// [`GroupConfig`] for dispatch purposes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LineConfig {
+    /// Unique line identifier (within the config).
+    pub id: u32,
+    /// Human-readable name.
+    pub name: String,
+    /// Stops served by this line (references [`StopConfig::id`]).
+    pub serves: Vec<StopId>,
+    /// Elevators on this line.
+    pub elevators: Vec<ElevatorConfig>,
+    /// Physical orientation (defaults to Vertical).
+    #[serde(default)]
+    pub orientation: Orientation,
+    /// Optional floor-plan position.
+    #[serde(default)]
+    pub position: Option<FloorPosition>,
+    /// Lowest reachable position (auto-computed from stops if `None`).
+    #[serde(default)]
+    pub min_position: Option<f64>,
+    /// Highest reachable position (auto-computed from stops if `None`).
+    #[serde(default)]
+    pub max_position: Option<f64>,
+    /// Max cars on this line (`None` = unlimited).
+    #[serde(default)]
+    pub max_cars: Option<usize>,
+}
+
+/// Configuration for an elevator dispatch group.
+///
+/// A group is the logical dispatch unit containing one or more lines.
+/// All elevators within the group share a single [`BuiltinStrategy`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupConfig {
+    /// Unique group identifier.
+    pub id: u32,
+    /// Human-readable name.
+    pub name: String,
+    /// Line IDs belonging to this group (references [`LineConfig::id`]).
+    pub lines: Vec<u32>,
+    /// Dispatch strategy for this group.
+    pub dispatch: BuiltinStrategy,
 }
