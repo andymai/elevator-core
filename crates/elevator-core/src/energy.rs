@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 /// Per-elevator energy cost parameters.
 ///
 /// Attach to an elevator entity via [`World::set_energy_profile`](crate::world::World::set_energy_profile)
-/// to enable energy tracking for that car.
+/// to enable energy tracking for that car. The energy system automatically
+/// initializes [`EnergyMetrics`] if not already present.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnergyProfile {
     /// Energy consumed per tick while idle (doors closed, stationary).
@@ -72,8 +73,8 @@ pub struct EnergyMetrics {
     pub(crate) total_consumed: f64,
     /// Total energy regenerated over the simulation.
     pub(crate) total_regenerated: f64,
-    /// Number of energy recording events processed.
-    pub(crate) trips_tracked: u32,
+    /// Number of ticks with energy activity recorded.
+    pub(crate) ticks_tracked: u32,
 }
 
 impl EnergyMetrics {
@@ -89,10 +90,10 @@ impl EnergyMetrics {
         self.total_regenerated
     }
 
-    /// Number of recording events processed.
+    /// Number of ticks with energy activity recorded.
     #[must_use]
-    pub const fn trips_tracked(&self) -> u32 {
-        self.trips_tracked
+    pub const fn ticks_tracked(&self) -> u32 {
+        self.ticks_tracked
     }
 
     /// Net energy: consumed minus regenerated.
@@ -105,7 +106,7 @@ impl EnergyMetrics {
     pub(crate) fn record(&mut self, consumed: f64, regenerated: f64) {
         self.total_consumed += consumed;
         self.total_regenerated += regenerated;
-        self.trips_tracked += 1;
+        self.ticks_tracked += 1;
     }
 }
 

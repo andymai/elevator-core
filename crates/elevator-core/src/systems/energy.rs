@@ -36,6 +36,10 @@ pub fn run(
         let (consumed, regenerated) =
             compute_tick_energy(&profile, is_moving, current_load, velocity);
 
+        // Auto-initialize metrics if a profile exists but metrics weren't set.
+        if world.energy_metrics(eid).is_none() {
+            world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+        }
         if let Some(metrics) = world.energy_metrics_mut(eid) {
             metrics.record(consumed, regenerated);
         }
