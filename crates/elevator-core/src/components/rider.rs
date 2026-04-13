@@ -23,6 +23,8 @@ pub enum RiderPhase {
     Arrived,
     /// Gave up waiting.
     Abandoned,
+    /// Parked at a stop, not seeking an elevator.
+    Resident,
 }
 
 impl std::fmt::Display for RiderPhase {
@@ -35,6 +37,7 @@ impl std::fmt::Display for RiderPhase {
             Self::Walking => write!(f, "Walking"),
             Self::Arrived => write!(f, "Arrived"),
             Self::Abandoned => write!(f, "Abandoned"),
+            Self::Resident => write!(f, "Resident"),
         }
     }
 }
@@ -51,7 +54,7 @@ pub struct Rider {
     pub(crate) weight: f64,
     /// Current rider lifecycle phase.
     pub(crate) phase: RiderPhase,
-    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
+    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned/Resident).
     pub(crate) current_stop: Option<EntityId>,
     /// Tick when this rider was spawned.
     pub(crate) spawn_tick: u64,
@@ -72,7 +75,7 @@ impl Rider {
         self.phase
     }
 
-    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned).
+    /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned/Resident).
     #[must_use]
     pub const fn current_stop(&self) -> Option<EntityId> {
         self.current_stop

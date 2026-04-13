@@ -28,6 +28,8 @@ Key design decisions:
 - Tick-based with 6-phase loop: advance_transient → dispatch → movement → doors → loading → metrics
 - Pluggable dispatch via `DispatchStrategy` trait, per elevator group
 - Game-agnostic riders: `Rider` = anything that rides; games add semantics via extension storage
+- Rider lifecycle: Waiting → Boarding → Riding → Exiting → Arrived/Abandoned; consumer can settle (→ Resident) or despawn
+- Population tracking: `RiderIndex` maintains O(1) per-stop queries (residents_at, waiting_at, abandoned_at)
 - Route-based loading: riders with `Route` are auto-boarded/exited; no Route = game manages manually
 - Trapezoidal velocity profile for movement
 - Config validated at construction time

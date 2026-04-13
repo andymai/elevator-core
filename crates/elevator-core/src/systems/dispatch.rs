@@ -7,6 +7,7 @@ use crate::dispatch::{
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::ids::GroupId;
+use crate::rider_index::RiderIndex;
 use crate::world::World;
 
 use std::collections::BTreeMap;
@@ -14,15 +15,16 @@ use std::collections::BTreeMap;
 use super::PhaseContext;
 
 /// Assign idle/stopped elevators to stops via the dispatch strategy.
-pub fn run(
+pub(crate) fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
     dispatchers: &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    rider_index: &RiderIndex,
 ) {
     for group in groups {
-        let manifest = build_manifest(world, group, ctx.tick);
+        let manifest = build_manifest(world, group, ctx.tick, rider_index);
 
         // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
@@ -119,7 +121,12 @@ pub fn run(
 }
 
 /// Build a dispatch manifest with per-rider metadata for a group.
-fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchManifest {
+fn build_manifest(
+    world: &World,
+    group: &ElevatorGroup,
+    tick: u64,
+    rider_index: &RiderIndex,
+) -> DispatchManifest {
     let mut manifest = DispatchManifest::default();
 
     // Waiting riders at this group's stops.
@@ -168,6 +175,14 @@ fn build_manifest(world: &World, group: &ElevatorGroup, tick: u64) -> DispatchMa
                         });
                 }
             }
+        }
+    }
+
+    // Populate resident counts as read-only hints for dispatch strategies.
+    for &stop in group.stop_entities() {
+        let count = rider_index.resident_count_at(stop);
+        if count > 0 {
+            manifest.resident_count_at_stop.insert(stop, count);
         }
     }
 

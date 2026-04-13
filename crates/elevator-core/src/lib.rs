@@ -97,6 +97,31 @@
 //!                      └── Stop (served stops along the shaft)
 //! ```
 //!
+//! ### Rider lifecycle
+//!
+//! Riders progress through phases managed by the simulation:
+//!
+//! ```text
+//! Waiting → Boarding → Riding → Exiting → Arrived
+//!    ↑         (1 tick)           (1 tick)     │
+//!    │                                         ├── settle_rider() → Resident
+//!    │                                         │                       │
+//!    │                                         └── despawn_rider()     │
+//!    │                                                                 │
+//!    └──────── reroute_rider() ────────────────────────────────────────┘
+//!
+//! Waiting ──(patience exceeded)──→ Abandoned ──→ settle/despawn
+//! ```
+//!
+//! - **`Arrived`** / **`Abandoned`**: terminal states; consumer must explicitly
+//!   settle or despawn the rider.
+//! - **`Resident`**: parked at a stop, invisible to dispatch and loading.
+//!   Query with [`Simulation::residents_at()`](sim::Simulation::residents_at).
+//! - **Population queries**: O(1) via maintained reverse index —
+//!   [`residents_at`](sim::Simulation::residents_at),
+//!   [`waiting_at`](sim::Simulation::waiting_at),
+//!   [`abandoned_at`](sim::Simulation::abandoned_at).
+//!
 //! ### Extension storage
 //!
 //! Games attach custom data to any entity without modifying the library:
@@ -129,6 +154,7 @@
 //! | Entity iteration | O(n) via `SlotMap` secondary maps |
 //! | Stop-passing detection | O(log n) via `SortedStops` binary search |
 //! | Dispatch manifest build | O(riders) per group |
+//! | Population queries | O(1) via `RiderIndex` reverse index |
 //! | Topology graph queries | O(V+E) BFS, lazy rebuild |
 //!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
@@ -168,6 +194,8 @@ pub mod hooks;
 pub mod metrics;
 /// Trapezoidal velocity-profile movement math.
 pub mod movement;
+/// Phase-partitioned reverse index for rider population queries.
+mod rider_index;
 /// Scenario replay from recorded event streams.
 pub mod scenario;
 /// Top-level simulation runner.

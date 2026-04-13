@@ -75,4 +75,10 @@ impl Route {
     pub fn current_destination(&self) -> Option<EntityId> {
         self.current().map(|leg| leg.to)
     }
+
+    /// The final destination of the entire route.
+    #[must_use]
+    pub fn final_destination(&self) -> Option<EntityId> {
+        self.legs.last().map(|leg| leg.to)
+    }
 }

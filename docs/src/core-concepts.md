@@ -30,18 +30,18 @@ The library uses several identity types, and it is important to understand which
 
 ## The tick loop
 
-Each call to `sim.step()` runs one simulation tick. A tick consists of six phases, always executed in this order:
+Each call to `sim.step()` runs one simulation tick. A tick consists of seven phases, always executed in this order:
 
 ```text
-+-------------------+   +------------+   +------------+
-| Advance           |-->| Dispatch   |-->| Movement   |
-| Transient         |   |            |   |            |
-+-------------------+   +------------+   +------------+
-                                              |
-+-------------------+   +------------+   +------------+
-| Metrics           |<--| Loading    |<--| Doors      |
-|                   |   |            |   |            |
-+-------------------+   +------------+   +------------+
++-------------------+   +------------+   +--------------+   +------------+
+| Advance           |-->| Dispatch   |-->| Reposition   |-->| Movement   |
+| Transient         |   |            |   |              |   |            |
++-------------------+   +------------+   +--------------+   +------------+
+                                                                  |
+          +-------------------+   +------------+   +------------+
+          | Metrics           |<--| Loading    |<--| Doors      |
+          |                   |   |            |   |            |
+          +-------------------+   +------------+   +------------+
 ```
 
 ### Phase 1: Advance Transient
@@ -58,13 +58,17 @@ The dispatch strategy examines all idle elevators and waiting riders, then decid
 
 The default strategy is SCAN (sweep end-to-end). You can swap in LOOK, NearestCar, ETD, or your own custom strategy -- see [Dispatch Strategies](dispatch.md).
 
-### Phase 3: Movement
+### Phase 3: Reposition
+
+Optional phase; idle elevators are repositioned for better coverage via the `RepositionStrategy`. Only runs if at least one group has a strategy configured.
+
+### Phase 4: Movement
 
 Elevators with a target stop are moved along the shaft axis using a **trapezoidal velocity profile**: accelerate up to max speed, cruise, then decelerate to stop precisely at the target position. This produces realistic motion without requiring complex physics.
 
 When an elevator arrives at its target stop, it emits an `ElevatorArrived` event and transitions to the door-opening state.
 
-### Phase 4: Doors
+### Phase 5: Doors
 
 The door finite-state machine ticks for each elevator. Doors transition through:
 
@@ -74,7 +78,7 @@ Closed -> Opening (transition ticks) -> Open (hold ticks) -> Closing (transition
 
 `DoorOpened` and `DoorClosed` events fire at the appropriate moments. Riders can only board or exit when the doors are fully open.
 
-### Phase 5: Loading
+### Phase 6: Loading
 
 While an elevator's doors are open at a stop:
 - **Exiting**: riders whose destination matches the current stop exit the elevator.
@@ -82,7 +86,7 @@ While an elevator's doors are open at a stop:
 
 Riders that exceed the elevator's remaining capacity are rejected with a `RiderRejected` event.
 
-### Phase 6: Metrics
+### Phase 7: Metrics
 
 Events from the current tick are processed to update aggregate metrics -- average wait time, ride time, throughput, abandonment rate, and total distance. Tagged metrics (per-zone or per-label breakdowns) are also updated here.
 
@@ -92,8 +96,14 @@ A rider moves through these phases:
 
 ```text
 Waiting --> Boarding --> Riding --> Exiting --> Arrived
-                                                   |
-Waiting ----> Abandoned (gave up waiting)    (despawned)
+   ^                                              |
+   |                          settle_rider() --> Resident
+   |                                              |
+   +------------- reroute_rider() ----------------+
+
+Waiting ----> Abandoned (patience expired)
+                  |
+                  +--> settle_rider() --> Resident
 ```
 
 | Phase | Where is the rider? | What triggers the transition? |
@@ -102,10 +112,31 @@ Waiting ----> Abandoned (gave up waiting)    (despawned)
 | `Boarding` | Being loaded into the elevator | Advance Transient phase (next tick) |
 | `Riding` | Inside the elevator | Elevator arrives at destination, doors open, loading phase exits them |
 | `Exiting` | Exiting the elevator | Advance Transient phase (next tick) |
-| `Arrived` | Done | Game can despawn or ignore |
-| `Abandoned` | Left the stop | Patience ran out (if configured) |
+| `Arrived` | Reached final destination | Consumer decides: settle (-> Resident), despawn, or leave |
+| `Abandoned` | Left the stop | Patience ran out; consumer can settle or despawn |
+| `Resident` | Parked at a stop, not seeking an elevator | Consumer calls `settle_rider()` on an Arrived or Abandoned rider |
 
-Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`.
+Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`, `RiderSettled`, `RiderRerouted`, `RiderDespawned`.
+
+### Population tracking
+
+Riders at each stop are tracked by a reverse index, enabling O(1) queries without scanning the full entity list.
+
+Three query methods provide population lookups:
+
+- `sim.residents_at(stop)` -- riders settled at a stop
+- `sim.waiting_at(stop)` -- riders waiting for an elevator at a stop
+- `sim.abandoned_at(stop)` -- riders who gave up waiting at a stop
+
+Each method has a corresponding count variant (e.g., `sim.residents_at(stop).len()`).
+
+Three lifecycle methods manage rider state transitions:
+
+- `sim.settle_rider(id)` -- transitions an Arrived or Abandoned rider to Resident
+- `sim.reroute_rider(id, route)` -- sends a Resident rider back to Waiting with a new route
+- `sim.despawn_rider(id)` -- removes the rider and updates all indexes
+
+Use `sim.despawn_rider(id)` instead of calling `world.despawn()` directly -- it keeps the stop index consistent.
 
 ## Elevator lifecycle
 
@@ -132,6 +163,7 @@ For advanced use cases, you can run individual phases instead of calling `step()
 # let mut sim = SimulationBuilder::new().build()?;
 sim.run_advance_transient();
 sim.run_dispatch();
+sim.run_reposition();
 sim.run_movement();
 sim.run_doors();
 sim.run_loading();
