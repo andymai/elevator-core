@@ -1,10 +1,48 @@
-//! Traffic generation patterns for rider origin/destination distributions.
+//! Traffic generation for rider arrivals.
+//!
+//! This module provides:
+//!
+//! - [`TrafficPattern`] — origin/destination distribution presets (up-peak, down-peak, etc.).
+//! - [`TrafficSchedule`] — time-varying pattern selection across a simulated day.
+//! - [`TrafficSource`] — trait for external traffic generators that feed riders into
+//!   a [`Simulation`](crate::sim::Simulation) each tick.
+//! - [`PoissonSource`] — Poisson-arrival traffic generator using schedules and spawn config.
+//! - [`SpawnRequest`] — a single rider spawn instruction returned by a traffic source.
+//!
+//! # Design
+//!
+//! Traffic generation is **external to the simulation loop**. A [`TrafficSource`]
+//! produces [`SpawnRequest`]s each tick; the consumer feeds them into
+//! [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
+//! (or the [`RiderBuilder`](crate::sim::RiderBuilder) for richer configuration).
+//!
+//! ```rust,ignore
+//! use elevator_core::prelude::*;
+//! use elevator_core::traffic::{PoissonSource, SpawnRequest};
+//!
+//! let config: SimConfig = /* load from RON */;
+//! let mut sim = SimulationBuilder::from_config(&config).build().unwrap();
+//! let mut source = PoissonSource::from_config(&config);
+//!
+//! for _ in 0..10_000 {
+//!     let tick = sim.current_tick();
+//!     for req in source.generate(tick) {
+//!         let _ = sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight);
+//!     }
+//!     sim.step();
+//! }
+//! ```
 
+use crate::config::SimConfig;
 use crate::entity::EntityId;
+use crate::stop::StopId;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+
+// ── TrafficPattern ───────────────────────────────────────────────────
 
 /// Traffic pattern for generating realistic rider origin/destination distributions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum TrafficPattern {
     /// Uniform random: equal probability for all origin/destination pairs.
@@ -19,6 +57,76 @@ pub enum TrafficPattern {
     Mixed,
 }
 
+/// Sample an (origin, destination) index pair from `n` stops.
+///
+/// Returns indices into the stops slice. All pattern logic lives here;
+/// public methods just map indices to their concrete ID types.
+fn sample_indices(pattern: TrafficPattern, n: usize, rng: &mut impl Rng) -> Option<(usize, usize)> {
+    if n < 2 {
+        return None;
+    }
+
+    let lobby = 0;
+    let mid = n / 2;
+
+    match pattern {
+        TrafficPattern::Uniform => Some(uniform_pair_indices(n, rng)),
+
+        TrafficPattern::UpPeak => {
+            // 80% from lobby, 20% inter-floor.
+            if rng.random_range(0.0..1.0) < 0.8 {
+                Some((lobby, rng.random_range(1..n)))
+            } else {
+                Some(uniform_pair_indices(n, rng))
+            }
+        }
+
+        TrafficPattern::DownPeak => {
+            // 80% heading to lobby, 20% inter-floor.
+            if rng.random_range(0.0..1.0) < 0.8 {
+                Some((rng.random_range(1..n), lobby))
+            } else {
+                Some(uniform_pair_indices(n, rng))
+            }
+        }
+
+        TrafficPattern::Lunchtime => {
+            // 40% upper→mid, 40% mid→upper, 20% random.
+            let r: f64 = rng.random_range(0.0..1.0);
+            let upper_start = n / 2 + 1;
+            if r < 0.4 && upper_start < n {
+                Some((rng.random_range(upper_start..n), mid))
+            } else if r < 0.8 && upper_start < n {
+                Some((mid, rng.random_range(upper_start..n)))
+            } else {
+                Some(uniform_pair_indices(n, rng))
+            }
+        }
+
+        TrafficPattern::Mixed => {
+            // 30% up-peak, 30% down-peak, 40% inter-floor.
+            let r: f64 = rng.random_range(0.0..1.0);
+            if r < 0.3 {
+                Some((lobby, rng.random_range(1..n)))
+            } else if r < 0.6 {
+                Some((rng.random_range(1..n), lobby))
+            } else {
+                Some(uniform_pair_indices(n, rng))
+            }
+        }
+    }
+}
+
+/// Pick two distinct random indices from `0..n`.
+fn uniform_pair_indices(n: usize, rng: &mut impl Rng) -> (usize, usize) {
+    let o = rng.random_range(0..n);
+    let mut d = rng.random_range(0..n);
+    while d == o {
+        d = rng.random_range(0..n);
+    }
+    (o, d)
+}
+
 impl TrafficPattern {
     /// Sample an (origin, destination) pair from the given stops.
     ///
@@ -27,97 +135,25 @@ impl TrafficPattern {
     ///
     /// Returns `None` if fewer than 2 stops are provided.
     pub fn sample(&self, stops: &[EntityId], rng: &mut impl Rng) -> Option<(EntityId, EntityId)> {
-        if stops.len() < 2 {
-            return None;
-        }
-
-        let n = stops.len();
-        let lobby = stops[0];
-        let mid = stops[n / 2];
-
-        match self {
-            Self::Uniform => {
-                let origin_idx = rng.random_range(0..n);
-                let mut dest_idx = rng.random_range(0..n);
-                while dest_idx == origin_idx {
-                    dest_idx = rng.random_range(0..n);
-                }
-                Some((stops[origin_idx], stops[dest_idx]))
-            }
-
-            Self::UpPeak => {
-                // 80% from lobby, 20% inter-floor.
-                if rng.random_range(0.0..1.0) < 0.8 {
-                    let dest_idx = rng.random_range(1..n);
-                    Some((lobby, stops[dest_idx]))
-                } else {
-                    Some(Self::uniform_pair(stops, rng))
-                }
-            }
-
-            Self::DownPeak => {
-                // 80% heading to lobby, 20% inter-floor.
-                if rng.random_range(0.0..1.0) < 0.8 {
-                    let origin_idx = rng.random_range(1..n);
-                    Some((stops[origin_idx], lobby))
-                } else {
-                    Some(Self::uniform_pair(stops, rng))
-                }
-            }
-
-            Self::Lunchtime => {
-                // 40% going from upper to mid, 40% from mid to upper, 20% random.
-                let r: f64 = rng.random_range(0.0..1.0);
-                if r < 0.4 {
-                    // Upper stop to mid.
-                    let upper_start = n / 2 + 1;
-                    if upper_start < n {
-                        let origin_idx = rng.random_range(upper_start..n);
-                        Some((stops[origin_idx], mid))
-                    } else {
-                        Some(Self::uniform_pair(stops, rng))
-                    }
-                } else if r < 0.8 {
-                    // Mid to upper stop.
-                    let upper_start = n / 2 + 1;
-                    if upper_start < n {
-                        let dest_idx = rng.random_range(upper_start..n);
-                        Some((mid, stops[dest_idx]))
-                    } else {
-                        Some(Self::uniform_pair(stops, rng))
-                    }
-                } else {
-                    Some(Self::uniform_pair(stops, rng))
-                }
-            }
-
-            Self::Mixed => {
-                // 30% up-peak, 30% down-peak, 40% inter-floor.
-                let r: f64 = rng.random_range(0.0..1.0);
-                if r < 0.3 {
-                    let dest_idx = rng.random_range(1..n);
-                    Some((lobby, stops[dest_idx]))
-                } else if r < 0.6 {
-                    let origin_idx = rng.random_range(1..n);
-                    Some((stops[origin_idx], lobby))
-                } else {
-                    Some(Self::uniform_pair(stops, rng))
-                }
-            }
-        }
+        let (o, d) = sample_indices(*self, stops.len(), rng)?;
+        Some((stops[o], stops[d]))
     }
 
-    /// Sample a uniform random (origin, destination) pair with distinct stops.
-    fn uniform_pair(stops: &[EntityId], rng: &mut impl Rng) -> (EntityId, EntityId) {
-        let n = stops.len();
-        let origin_idx = rng.random_range(0..n);
-        let mut dest_idx = rng.random_range(0..n);
-        while dest_idx == origin_idx {
-            dest_idx = rng.random_range(0..n);
-        }
-        (stops[origin_idx], stops[dest_idx])
+    /// Sample an (origin, destination) pair using config [`StopId`]s.
+    ///
+    /// Same as [`sample`](Self::sample) but works with `StopId` slices for
+    /// use outside the simulation (no `EntityId` resolution needed).
+    pub fn sample_stop_ids(
+        &self,
+        stops: &[StopId],
+        rng: &mut impl Rng,
+    ) -> Option<(StopId, StopId)> {
+        let (o, d) = sample_indices(*self, stops.len(), rng)?;
+        Some((stops[o], stops[d]))
     }
 }
+
+// ── TrafficSchedule ──────────────────────────────────────────────────
 
 /// A time-varying traffic schedule that selects patterns based on tick count.
 ///
@@ -140,7 +176,7 @@ impl TrafficPattern {
 /// let stops = vec![/* ... */];
 /// let (origin, dest) = schedule.sample(tick, &stops, &mut rng).unwrap();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrafficSchedule {
     /// Tick ranges mapped to traffic patterns, in order.
     segments: Vec<(std::ops::Range<u64>, TrafficPattern)>,
@@ -189,6 +225,16 @@ impl TrafficSchedule {
         self.pattern_at(tick).sample(stops, rng)
     }
 
+    /// Sample an (origin, destination) pair by [`StopId`] using the active pattern.
+    pub fn sample_stop_ids(
+        &self,
+        tick: u64,
+        stops: &[StopId],
+        rng: &mut impl Rng,
+    ) -> Option<(StopId, StopId)> {
+        self.pattern_at(tick).sample_stop_ids(stops, rng)
+    }
+
     /// Create a typical office-building daily schedule.
     ///
     /// Assumes `ticks_per_hour` ticks per real-world hour:
@@ -217,4 +263,217 @@ impl TrafficSchedule {
             ),
         ])
     }
+
+    /// Create a constant schedule that uses the same pattern for all ticks.
+    #[must_use]
+    pub const fn constant(pattern: TrafficPattern) -> Self {
+        Self {
+            segments: Vec::new(),
+            fallback: pattern,
+        }
+    }
+}
+
+// ── TrafficSource + SpawnRequest ─────────────────────────────────────
+
+/// A request to spawn a single rider, produced by a [`TrafficSource`].
+///
+/// Feed these into [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
+/// or the [`RiderBuilder`](crate::sim::RiderBuilder) each tick.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpawnRequest {
+    /// Origin stop (config ID).
+    pub origin: StopId,
+    /// Destination stop (config ID).
+    pub destination: StopId,
+    /// Rider weight.
+    pub weight: f64,
+}
+
+/// Trait for external traffic generators.
+///
+/// Implementors produce zero or more [`SpawnRequest`]s per tick. The consumer
+/// is responsible for feeding them into the simulation:
+///
+/// ```rust,ignore
+/// for req in source.generate(tick) {
+///     sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight)?;
+/// }
+/// ```
+///
+/// This design keeps traffic generation external to the simulation loop,
+/// giving consumers full control over when and how riders are spawned.
+pub trait TrafficSource {
+    /// Generate spawn requests for the given tick.
+    ///
+    /// May return an empty vec (no arrivals this tick) or multiple requests
+    /// (burst arrivals). The implementation controls the arrival process.
+    fn generate(&mut self, tick: u64) -> Vec<SpawnRequest>;
+}
+
+// ── PoissonSource ────────────────────────────────────────────────────
+
+/// Poisson-arrival traffic generator with time-varying patterns.
+///
+/// Uses an exponential inter-arrival time model: each tick, the generator
+/// checks whether enough time has elapsed since the last spawn. The mean
+/// interval comes from
+/// [`PassengerSpawnConfig::mean_interval_ticks`](crate::config::PassengerSpawnConfig::mean_interval_ticks).
+///
+/// Origin/destination pairs are sampled from a [`TrafficSchedule`] that
+/// selects the active [`TrafficPattern`] based on the current tick.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use elevator_core::traffic::PoissonSource;
+///
+/// // From a SimConfig (reads stops and spawn parameters).
+/// let mut source = PoissonSource::from_config(&config);
+///
+/// // Or build manually.
+/// let mut source = PoissonSource::new(
+///     stops,
+///     TrafficSchedule::office_day(3600),
+///     120,           // mean_interval_ticks
+///     (60.0, 90.0),  // weight_range
+/// );
+/// ```
+pub struct PoissonSource {
+    /// Sorted stop IDs (lowest position first).
+    stops: Vec<StopId>,
+    /// Time-varying pattern schedule.
+    schedule: TrafficSchedule,
+    /// Mean ticks between arrivals (lambda = 1/mean).
+    mean_interval: u32,
+    /// Weight range `(min, max)` for spawned riders.
+    weight_range: (f64, f64),
+    /// RNG for sampling.
+    rng: rand::rngs::ThreadRng,
+    /// Tick of the next scheduled arrival.
+    next_arrival_tick: u64,
+}
+
+impl PoissonSource {
+    /// Create a new Poisson traffic source.
+    ///
+    /// `stops` should be sorted by position (lowest first) to match
+    /// [`TrafficPattern`] expectations (first stop = lobby).
+    ///
+    /// If `weight_range.0 > weight_range.1`, the values are swapped.
+    #[must_use]
+    pub fn new(
+        stops: Vec<StopId>,
+        schedule: TrafficSchedule,
+        mean_interval_ticks: u32,
+        weight_range: (f64, f64),
+    ) -> Self {
+        let weight_range = if weight_range.0 > weight_range.1 {
+            (weight_range.1, weight_range.0)
+        } else {
+            weight_range
+        };
+        let mut rng = rand::rng();
+        let next = sample_next_arrival(0, mean_interval_ticks, &mut rng);
+        Self {
+            stops,
+            schedule,
+            mean_interval: mean_interval_ticks,
+            weight_range,
+            rng,
+            next_arrival_tick: next,
+        }
+    }
+
+    /// Create a Poisson source from a [`SimConfig`].
+    ///
+    /// Reads stop IDs from the building config and spawn parameters from
+    /// `passenger_spawning`. Uses a constant [`TrafficPattern::Uniform`] schedule
+    /// by default — call [`with_schedule`](Self::with_schedule) to override.
+    #[must_use]
+    pub fn from_config(config: &SimConfig) -> Self {
+        let stops: Vec<StopId> = config.building.stops.iter().map(|s| s.id).collect();
+        let spawn = &config.passenger_spawning;
+        Self::new(
+            stops,
+            TrafficSchedule::constant(TrafficPattern::Uniform),
+            spawn.mean_interval_ticks,
+            spawn.weight_range,
+        )
+    }
+
+    /// Replace the traffic schedule.
+    #[must_use]
+    pub fn with_schedule(mut self, schedule: TrafficSchedule) -> Self {
+        self.schedule = schedule;
+        self
+    }
+
+    /// Replace the mean arrival interval.
+    #[must_use]
+    pub const fn with_mean_interval(mut self, ticks: u32) -> Self {
+        self.mean_interval = ticks;
+        self
+    }
+
+    /// Replace the weight range.
+    ///
+    /// If `range.0 > range.1`, the values are swapped.
+    #[must_use]
+    pub const fn with_weight_range(mut self, range: (f64, f64)) -> Self {
+        if range.0 > range.1 {
+            self.weight_range = (range.1, range.0);
+        } else {
+            self.weight_range = range;
+        }
+        self
+    }
+}
+
+impl TrafficSource for PoissonSource {
+    fn generate(&mut self, tick: u64) -> Vec<SpawnRequest> {
+        let mut requests = Vec::new();
+
+        while tick >= self.next_arrival_tick {
+            if let Some((origin, destination)) =
+                self.schedule
+                    .sample_stop_ids(tick, &self.stops, &mut self.rng)
+            {
+                let weight = self
+                    .rng
+                    .random_range(self.weight_range.0..=self.weight_range.1);
+                requests.push(SpawnRequest {
+                    origin,
+                    destination,
+                    weight,
+                });
+            }
+            self.next_arrival_tick =
+                sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
+        }
+
+        requests
+    }
+}
+
+impl std::fmt::Debug for PoissonSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PoissonSource")
+            .field("stops", &self.stops)
+            .field("schedule", &self.schedule)
+            .field("mean_interval", &self.mean_interval)
+            .field("weight_range", &self.weight_range)
+            .field("next_arrival_tick", &self.next_arrival_tick)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Sample the next arrival tick using exponential inter-arrival time.
+fn sample_next_arrival(current: u64, mean_interval: u32, rng: &mut impl Rng) -> u64 {
+    if mean_interval == 0 {
+        return current + 1;
+    }
+    let u: f64 = rng.random_range(0.0001..1.0);
+    let interval = -(f64::from(mean_interval)) * u.ln();
+    current + (interval as u64).max(1)
 }
