@@ -61,8 +61,8 @@ impl fmt::Display for SimError {
                 write!(f, "invalid config '{field}': {reason}")
             }
             Self::EntityNotFound(id) => write!(f, "entity not found: {id:?}"),
-            Self::StopNotFound(id) => write!(f, "stop not found: {id:?}"),
-            Self::GroupNotFound(id) => write!(f, "group not found: {id:?}"),
+            Self::StopNotFound(id) => write!(f, "stop not found: {id}"),
+            Self::GroupNotFound(id) => write!(f, "group not found: {id}"),
             Self::InvalidState { entity, reason } => {
                 write!(f, "invalid state for {entity:?}: {reason}")
             }
@@ -75,8 +75,9 @@ impl fmt::Display for SimError {
             } => {
                 write!(
                     f,
-                    "no route from {origin:?} to {destination:?} \
-                     (origin served by {origin_groups:?}, destination served by {destination_groups:?})"
+                    "no route from {origin:?} to {destination:?} (origin served by {}, destination served by {})",
+                    format_group_list(origin_groups),
+                    format_group_list(destination_groups),
                 )
             }
             Self::AmbiguousRoute {
@@ -86,7 +87,8 @@ impl fmt::Display for SimError {
             } => {
                 write!(
                     f,
-                    "ambiguous route from {origin:?} to {destination:?}: served by groups {groups:?}"
+                    "ambiguous route from {origin:?} to {destination:?}: served by groups {}",
+                    format_group_list(groups),
                 )
             }
         }
@@ -97,6 +99,15 @@ impl std::error::Error for SimError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
     }
+}
+
+/// Format a list of `GroupId`s as `[GroupId(0), GroupId(1)]` or `[]` if empty.
+fn format_group_list(groups: &[GroupId]) -> String {
+    if groups.is_empty() {
+        return "[]".to_string();
+    }
+    let parts: Vec<String> = groups.iter().map(GroupId::to_string).collect();
+    format!("[{}]", parts.join(", "))
 }
 
 /// Reason a rider was rejected from boarding an elevator.
