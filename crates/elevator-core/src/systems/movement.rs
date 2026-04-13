@@ -27,9 +27,17 @@ pub fn run(
             None => continue,
         };
 
-        let target_pos = world.stop_position(target_stop_eid).unwrap_or(0.0);
-        let pos = world.position(eid).map_or(0.0, |p| p.value);
-        let vel = world.velocity(eid).map_or(0.0, |v| v.value);
+        let Some(target_pos) = world.stop_position(target_stop_eid) else {
+            continue;
+        };
+        let Some(pos_comp) = world.position(eid) else {
+            continue;
+        };
+        let pos = pos_comp.value;
+        let Some(vel_comp) = world.velocity(eid) else {
+            continue;
+        };
+        let vel = vel_comp.value;
 
         // Extract elevator params upfront — we already confirmed elevator(eid) is Some above.
         let Some(car) = world.elevator(eid) else {
@@ -40,6 +48,7 @@ pub fn run(
         let deceleration = car.deceleration;
         let door_transition_ticks = car.door_transition_ticks;
         let door_open_ticks = car.door_open_ticks;
+        let is_repositioning = car.repositioning;
 
         let result = tick_movement(
             pos,
@@ -91,13 +100,25 @@ pub fn run(
             let Some(car) = world.elevator_mut(eid) else {
                 continue;
             };
-            car.phase = ElevatorPhase::DoorOpening;
-            car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);
-            events.emit(Event::ElevatorArrived {
-                elevator: eid,
-                at_stop: target_stop_eid,
-                tick: ctx.tick,
-            });
+            if is_repositioning {
+                // Repositioned elevators go directly to Idle — no door cycle.
+                car.phase = ElevatorPhase::Idle;
+                car.target_stop = None;
+                car.repositioning = false;
+                events.emit(Event::ElevatorRepositioned {
+                    elevator: eid,
+                    at_stop: target_stop_eid,
+                    tick: ctx.tick,
+                });
+            } else {
+                car.phase = ElevatorPhase::DoorOpening;
+                car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);
+                events.emit(Event::ElevatorArrived {
+                    elevator: eid,
+                    at_stop: target_stop_eid,
+                    tick: ctx.tick,
+                });
+            }
         }
     }
 }

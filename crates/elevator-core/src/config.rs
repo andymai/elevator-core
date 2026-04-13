@@ -1,7 +1,7 @@
 //! Building and elevator configuration (RON-deserializable).
 
 use crate::components::{FloorPosition, Orientation};
-use crate::dispatch::BuiltinStrategy;
+use crate::dispatch::{BuiltinReposition, BuiltinStrategy};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
 
@@ -196,4 +196,9 @@ pub struct GroupConfig {
     pub lines: Vec<u32>,
     /// Dispatch strategy for this group.
     pub dispatch: BuiltinStrategy,
+    /// Optional repositioning strategy for idle elevators.
+    ///
+    /// When `None`, idle elevators in this group stay where they stopped.
+    #[serde(default)]
+    pub reposition: Option<BuiltinReposition>,
 }

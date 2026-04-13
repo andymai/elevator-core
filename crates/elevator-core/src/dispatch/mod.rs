@@ -6,6 +6,8 @@ pub mod etd;
 pub mod look;
 /// Nearest-car dispatch algorithm.
 pub mod nearest_car;
+/// Built-in repositioning strategies.
+pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
 
@@ -337,4 +339,75 @@ pub trait DispatchStrategy: Send + Sync {
     /// Implementations with per-elevator state (e.g., direction tracking)
     /// should clean up here to prevent unbounded memory growth. Default: no-op.
     fn notify_removed(&mut self, _elevator: EntityId) {}
+}
+
+/// Pluggable strategy for repositioning idle elevators.
+///
+/// After the dispatch phase, elevators that remain idle (no pending
+/// assignments) are candidates for repositioning. The strategy decides
+/// where each idle elevator should move to improve coverage and reduce
+/// expected response times.
+///
+/// Implementations receive the set of idle elevator positions and the
+/// group's stop positions, then return a target stop for each elevator
+/// (or `None` to leave it in place).
+pub trait RepositionStrategy: Send + Sync {
+    /// Decide where to reposition idle elevators.
+    ///
+    /// Returns a vec of `(elevator_entity, target_stop_entity)` pairs.
+    /// Elevators not in the returned vec remain idle.
+    fn reposition(
+        &mut self,
+        idle_elevators: &[(EntityId, f64)],
+        stop_positions: &[(EntityId, f64)],
+        group: &ElevatorGroup,
+        world: &World,
+    ) -> Vec<(EntityId, EntityId)>;
+}
+
+/// Serializable identifier for built-in repositioning strategies.
+///
+/// Used in config and snapshots to restore the correct strategy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum BuiltinReposition {
+    /// Distribute idle elevators evenly across stops.
+    SpreadEvenly,
+    /// Return idle elevators to a configured home stop.
+    ReturnToLobby,
+    /// Position near stops with historically high demand.
+    DemandWeighted,
+    /// Keep idle elevators where they are (no-op).
+    NearestIdle,
+    /// Custom strategy identified by name.
+    Custom(String),
+}
+
+impl std::fmt::Display for BuiltinReposition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SpreadEvenly => write!(f, "SpreadEvenly"),
+            Self::ReturnToLobby => write!(f, "ReturnToLobby"),
+            Self::DemandWeighted => write!(f, "DemandWeighted"),
+            Self::NearestIdle => write!(f, "NearestIdle"),
+            Self::Custom(name) => write!(f, "Custom({name})"),
+        }
+    }
+}
+
+impl BuiltinReposition {
+    /// Instantiate the reposition strategy for this variant.
+    ///
+    /// Returns `None` for `Custom` — the game must provide those via
+    /// a factory function. `ReturnToLobby` uses stop index 0 as default.
+    #[must_use]
+    pub fn instantiate(&self) -> Option<Box<dyn RepositionStrategy>> {
+        match self {
+            Self::SpreadEvenly => Some(Box::new(reposition::SpreadEvenly)),
+            Self::ReturnToLobby => Some(Box::new(reposition::ReturnToLobby::new())),
+            Self::DemandWeighted => Some(Box::new(reposition::DemandWeighted)),
+            Self::NearestIdle => Some(Box::new(reposition::NearestIdle)),
+            Self::Custom(_) => None,
+        }
+    }
 }

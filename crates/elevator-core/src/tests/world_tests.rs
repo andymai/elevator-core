@@ -56,6 +56,7 @@ fn elevator_query_returns_entities_with_both_components() {
             door_transition_ticks: 15,
             door_open_ticks: 60,
             line: crate::entity::EntityId::default(),
+            repositioning: false,
         },
     );
 

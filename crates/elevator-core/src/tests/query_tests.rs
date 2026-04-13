@@ -40,6 +40,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             door_transition_ticks: 5,
             door_open_ticks: 10,
             line: EntityId::default(),
+            repositioning: false,
         },
     );
 

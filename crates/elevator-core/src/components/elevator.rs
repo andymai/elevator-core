@@ -64,6 +64,9 @@ pub struct Elevator {
     /// Line entity this car belongs to.
     #[serde(alias = "group")]
     pub(crate) line: EntityId,
+    /// Whether this elevator is currently repositioning (not serving a dispatch).
+    #[serde(default)]
+    pub(crate) repositioning: bool,
 }
 
 impl Elevator {
@@ -137,5 +140,11 @@ impl Elevator {
     #[must_use]
     pub const fn line(&self) -> EntityId {
         self.line
+    }
+
+    /// Whether this elevator is currently repositioning (not serving a dispatch).
+    #[must_use]
+    pub const fn repositioning(&self) -> bool {
+        self.repositioning
     }
 }

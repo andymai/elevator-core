@@ -70,6 +70,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
             door_transition_ticks: 15,
             door_open_ticks: 60,
             line: crate::entity::EntityId::default(),
+            repositioning: false,
         },
     );
     eid

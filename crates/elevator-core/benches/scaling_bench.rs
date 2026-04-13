@@ -47,6 +47,8 @@ fn make_config(num_stops: u32, num_elevators: u32) -> SimConfig {
         building: BuildingConfig {
             name: "Scaling".into(),
             stops,
+            lines: None,
+            groups: None,
         },
         elevators,
         simulation: SimulationParams {

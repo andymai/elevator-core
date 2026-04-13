@@ -44,3 +44,7 @@ harness = false
 [[bench]]
 name = "multi_line_bench"
 harness = false
+
+[[bench]]
+name = "query_bench"
+harness = false

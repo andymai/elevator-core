@@ -21,6 +21,8 @@ pub enum Phase {
     Doors,
     /// Board and exit riders.
     Loading,
+    /// Reposition idle elevators for better coverage.
+    Reposition,
     /// Aggregate metrics from tick events.
     Metrics,
 }
