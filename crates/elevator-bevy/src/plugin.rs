@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::atmosphere::{drift_marine_snow, spawn_atmosphere};
+use crate::atmosphere::{drift_edge_glow, drift_marine_snow, spawn_atmosphere};
 use crate::breathing::{BreathPhase, update_breathing};
 use crate::camera::setup_camera;
 use crate::glow::{update_floor_glow, update_floor_labels};
@@ -14,9 +14,13 @@ use crate::rendering::{
     spawn_building_visuals,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
-use crate::sparkle::{PreviousArrivals, spawn_sparkles, update_sparkles};
+use crate::sparkle::{
+    PreviousArrivals, PreviousPhases, PreviousTransferWaiters, spawn_arrival_rings, spawn_sparkles,
+    spawn_transfer_arcs, update_arrival_rings, update_sparkles, update_transfer_arcs,
+};
 use crate::trail::{TrailCooldowns, fade_trail_segments, spawn_trail_segments};
 use crate::ui::{spawn_hud, update_hud};
+use crate::vascular::{spawn_vascular, update_vascular};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::scan::ScanDispatch;
 use elevator_core::sim::Simulation;
@@ -46,6 +50,8 @@ impl Plugin for ElevatorSimPlugin {
             .insert_resource(TrailCooldowns::default())
             .insert_resource(BreathPhase::default())
             .insert_resource(PreviousArrivals::default())
+            .insert_resource(PreviousTransferWaiters::default())
+            .insert_resource(PreviousPhases::default())
             .insert_resource(PassengerSpawnTimer {
                 ticks_until_spawn: spawn_config.mean_interval_ticks,
                 mean_interval: spawn_config.mean_interval_ticks,
@@ -60,8 +66,10 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_atmosphere,
                     spawn_building_visuals,
                     spawn_hud,
-                ),
+                )
+                    .chain(),
             )
+            .add_systems(Startup, spawn_vascular.after(spawn_building_visuals))
             .add_systems(
                 Update,
                 (
@@ -73,6 +81,8 @@ impl Plugin for ElevatorSimPlugin {
                     sync_rider_visuals,
                     update_rider_positions,
                     spawn_sparkles,
+                    spawn_transfer_arcs,
+                    spawn_arrival_rings,
                     update_hud,
                 )
                     .chain(),
@@ -81,11 +91,15 @@ impl Plugin for ElevatorSimPlugin {
                 Update,
                 (
                     drift_marine_snow,
+                    drift_edge_glow,
                     fade_trail_segments,
                     update_floor_glow,
                     update_floor_labels,
                     update_breathing,
                     update_sparkles,
+                    update_transfer_arcs,
+                    update_arrival_rings,
+                    update_vascular,
                 ),
             );
     }
