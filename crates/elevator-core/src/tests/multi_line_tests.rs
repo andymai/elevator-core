@@ -57,6 +57,8 @@ fn two_group_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -79,6 +81,8 @@ fn two_group_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -148,6 +152,8 @@ fn overlapping_groups_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -170,6 +176,8 @@ fn overlapping_groups_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -519,6 +527,8 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -541,6 +551,8 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -825,6 +837,8 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
                     door_open_ticks: 10,
                     door_transition_ticks: 5,
                     restricted_stops: Vec::new(),
+                    #[cfg(feature = "energy")]
+                    energy_profile: None,
                 }],
                 orientation: Orientation::Vertical,
                 position: None,
@@ -967,6 +981,8 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -989,6 +1005,8 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1634,6 +1652,8 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1656,6 +1676,8 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -1778,6 +1800,8 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     },
                     ElevatorConfig {
                         id: 2,
@@ -1790,6 +1814,8 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     },
                 ],
                 orientation: Orientation::Vertical,
@@ -1851,6 +1877,8 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     },
                     ElevatorConfig {
                         id: 2,
@@ -1863,6 +1891,8 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     },
                 ],
                 orientation: Orientation::Vertical,
@@ -1929,6 +1959,8 @@ fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
                     door_open_ticks: 10,
                     door_transition_ticks: 5,
                     restricted_stops: Vec::new(),
+                    #[cfg(feature = "energy")]
+                    energy_profile: None,
                 }],
                 orientation: Orientation::Vertical,
                 position: None,
@@ -2017,6 +2049,8 @@ fn three_group_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2039,6 +2073,8 @@ fn three_group_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2061,6 +2097,8 @@ fn three_group_config() -> SimConfig {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2558,6 +2596,8 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,
@@ -2580,6 +2620,8 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
                         restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
                     }],
                     orientation: Orientation::Vertical,
                     position: None,

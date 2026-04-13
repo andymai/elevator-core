@@ -47,6 +47,14 @@ pub fn run(
                 metrics.record_abandonment();
                 tag_terminals.push((*rider, false));
             }
+            #[cfg(feature = "energy")]
+            Event::EnergyConsumed {
+                consumed,
+                regenerated,
+                ..
+            } => {
+                metrics.record_energy((*consumed).into(), (*regenerated).into());
+            }
             _ => {}
         }
     }

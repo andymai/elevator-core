@@ -47,6 +47,14 @@ pub struct EntitySnapshot {
     pub access_control: Option<AccessControl>,
     /// Whether this entity is disabled.
     pub disabled: bool,
+    /// Energy profile (if present, requires `energy` feature).
+    #[cfg(feature = "energy")]
+    #[serde(default)]
+    pub energy_profile: Option<crate::energy::EnergyProfile>,
+    /// Energy metrics (if present, requires `energy` feature).
+    #[cfg(feature = "energy")]
+    #[serde(default)]
+    pub energy_metrics: Option<crate::energy::EnergyMetrics>,
 }
 
 /// Serializable snapshot of the entire simulation state.
@@ -324,6 +332,14 @@ impl WorldSnapshot {
             if snap.disabled {
                 world.disable(eid);
             }
+            #[cfg(feature = "energy")]
+            if let Some(ref profile) = snap.energy_profile {
+                world.set_energy_profile(eid, profile.clone());
+            }
+            #[cfg(feature = "energy")]
+            if let Some(ref em) = snap.energy_metrics {
+                world.set_energy_metrics(eid, em.clone());
+            }
         }
     }
 
@@ -469,6 +485,10 @@ impl crate::sim::Simulation {
                 preferences: world.preferences(eid).copied(),
                 access_control: world.access_control(eid).cloned(),
                 disabled: world.is_disabled(eid),
+                #[cfg(feature = "energy")]
+                energy_profile: world.energy_profile(eid).cloned(),
+                #[cfg(feature = "energy")]
+                energy_metrics: world.energy_metrics(eid).cloned(),
             })
             .collect();
 
