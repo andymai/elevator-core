@@ -115,9 +115,12 @@ Elevators cycle through these phases:
 |---|---|
 | `Idle` | No target, waiting for dispatch to assign a stop |
 | `MovingToStop(EntityId)` | Traveling toward a target stop |
-| `AtStop` | Stationary at a stop, doors cycling |
+| `DoorOpening` | Doors are currently opening |
+| `Loading` | Doors open; riders may board or exit |
+| `DoorClosing` | Doors are currently closing |
+| `Stopped` | At a floor, doors closed, awaiting dispatch |
 
-An elevator at a stop will open its doors, hold them open for the configured duration, then close. If dispatch assigns a new target, the elevator departs after doors close.
+An elevator arriving at a stop cycles through `DoorOpening` → `Loading` → `DoorClosing` → `Stopped`. If dispatch assigns a new target, the elevator departs from `Stopped`.
 
 ## Sub-stepping
 

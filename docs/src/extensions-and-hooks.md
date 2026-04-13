@@ -203,11 +203,11 @@ fn main() -> Result<(), SimError> {
             let rider_ids: Vec<EntityId> = world.rider_ids();
             for rid in rider_ids {
                 let Some(rider) = world.rider(rid) else { continue };
-                if rider.phase != RiderPhase::Waiting { continue; }
+                if rider.phase() != RiderPhase::Waiting { continue; }
 
                 let current_tick = world.resource::<CurrentTick>()
                     .map_or(0, |t| t.0);
-                let wait = current_tick.saturating_sub(rider.spawn_tick);
+                let wait = current_tick.saturating_sub(rider.spawn_tick());
 
                 if wait > 300 {
                     if let Some(warning) = world.get_ext_mut::<WaitWarning>(rid) {
