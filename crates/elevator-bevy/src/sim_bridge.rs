@@ -1,7 +1,6 @@
 //! Bridge between the core simulation and Bevy: resources, tick system, and event forwarding.
 
 use bevy::prelude::*;
-use elevator_core::events::Event;
 use elevator_core::sim::Simulation;
 
 /// Wraps the core simulation as a Bevy resource.
@@ -18,22 +17,12 @@ pub struct SimSpeed {
     pub multiplier: u32,
 }
 
-/// Bevy message wrapper for core simulation events.
-#[derive(Message, Debug, Clone)]
-#[allow(dead_code)]
-pub struct EventWrapper(pub Event);
-
-/// System that ticks the simulation and emits events into Bevy.
+/// System that ticks the simulation and drains events.
 #[allow(clippy::needless_pass_by_value)]
-pub fn tick_simulation(
-    mut sim: ResMut<SimulationRes>,
-    speed: Res<SimSpeed>,
-    mut events: MessageWriter<EventWrapper>,
-) {
+pub fn tick_simulation(mut sim: ResMut<SimulationRes>, speed: Res<SimSpeed>) {
     for _ in 0..speed.multiplier {
         sim.sim.step();
     }
-    for event in sim.sim.drain_events() {
-        events.write(EventWrapper(event));
-    }
+    // Events must be drained each frame to avoid unbounded growth.
+    let _ = sim.sim.drain_events();
 }
