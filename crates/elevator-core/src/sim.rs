@@ -1901,7 +1901,9 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
-    /// Returns [`SimError::InvalidState`] if the rider is not in `Resident` phase.
+    /// Returns [`SimError::InvalidState`] if the rider is not in `Resident` phase,
+    /// the route has no legs, or the route's first leg origin does not match the
+    /// rider's current stop.
     pub fn reroute_rider(&mut self, id: EntityId, route: Route) -> Result<(), SimError> {
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
 
@@ -1926,6 +1928,19 @@ impl Simulation {
                 entity: id,
                 reason: "route has no legs".into(),
             })?;
+
+        // Validate that the route departs from the rider's current stop.
+        if let Some(leg) = route.current() {
+            if leg.from != stop {
+                return Err(SimError::InvalidState {
+                    entity: id,
+                    reason: format!(
+                        "route origin {:?} does not match rider current_stop {:?}",
+                        leg.from, stop
+                    ),
+                });
+            }
+        }
 
         self.rider_index.remove_resident(stop, id);
         self.rider_index.insert_waiting(stop, id);
@@ -2031,6 +2046,11 @@ impl Simulation {
     ///
     /// If the entity is an elevator in motion, it is reset to `Idle` with
     /// zero velocity to prevent stale target references on re-enable.
+    ///
+    /// **Note on residents:** disabling a stop does not automatically handle
+    /// `Resident` riders parked there. Callers should listen for
+    /// [`Event::EntityDisabled`] and manually reroute or despawn any
+    /// residents at the affected stop.
     ///
     /// Emits `EntityDisabled`. Returns `Err` if the entity does not exist.
     ///

@@ -77,17 +77,6 @@ impl RiderIndex {
         remove(&mut self.abandoned, stop, rider);
     }
 
-    /// Remove a rider from all partitions (fallback when phase is unknown).
-    #[allow(dead_code)]
-    pub(crate) fn remove_all(&mut self, rider: EntityId) {
-        for map in [&mut self.waiting, &mut self.residents, &mut self.abandoned] {
-            map.retain(|_, set| {
-                set.remove(&rider);
-                !set.is_empty()
-            });
-        }
-    }
-
     // ── Queries ─────────────────────────────────────────────────────
 
     /// Waiting riders at a stop.
