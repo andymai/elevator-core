@@ -21,8 +21,8 @@ pub const SHAFT_BORDER: Color = Color::srgba(0.39, 0.59, 0.78, 0.10);
 /// Floor line at rest — very dim.
 pub const FLOOR_DIM: Color = Color::srgba(0.4, 0.5, 0.6, 0.15);
 
-/// Transfer floor (Mid-Depths) — warm purple blending cyan/amber groups.
-pub const FLOOR_TRANSFER: Color = Color::linear_rgba(0.8, 0.6, 1.2, 0.5);
+/// Transfer floor (Mid-Depths) — neutral warm-cool intersection where both groups meet.
+pub const FLOOR_TRANSFER: Color = Color::linear_rgba(1.0, 0.9, 1.0, 0.5);
 
 /// Floor line color at the top of the building — warm amber.
 pub const FLOOR_TOP: Color = Color::linear_rgba(1.2, 0.8, 0.4, 0.3);
@@ -35,28 +35,6 @@ pub const FLOOR_ACTIVE: Color = Color::linear_rgba(0.5, 0.7, 1.0, 0.6);
 
 /// Floor line when elevator is present — brightest.
 pub const FLOOR_ELEVATOR: Color = Color::linear_rgba(0.8, 0.9, 1.2, 0.8);
-
-// ── Floor labels ──
-
-/// Floor label text when inactive — nearly invisible.
-pub const LABEL_DIM: Color = Color::srgba(0.5, 0.6, 0.7, 0.15);
-
-/// Floor label text when active — fades in.
-pub const LABEL_ACTIVE: Color = Color::srgba(0.7, 0.8, 0.9, 0.7);
-
-// ── Elevator capsules ──
-
-/// Elevator car core — warm white-gold emissive (legacy / fallback).
-#[allow(dead_code)]
-pub const CAR_CORE: Color = Color::linear_rgba(2.0, 1.8, 1.2, 1.0);
-
-/// Elevator car when doors open — brightened (legacy / fallback).
-#[allow(dead_code)]
-pub const CAR_DOORS_OPEN: Color = Color::linear_rgba(3.0, 2.7, 1.8, 1.0);
-
-/// Elevator car halo/glow mesh — softer, larger (legacy / fallback).
-#[allow(dead_code)]
-pub const CAR_HALO: Color = Color::linear_rgba(1.0, 0.9, 0.6, 0.3);
 
 // ── Local group — deep cyan/teal ──
 
@@ -116,15 +94,3 @@ pub const RIDER_ARRIVED: Color = Color::linear_rgba(0.8, 1.0, 1.5, 0.4);
 
 /// Rider abandoned — angry red.
 pub const RIDER_ABANDONED: Color = Color::linear_rgba(2.0, 0.3, 0.2, 0.9);
-
-// ── Marine snow / atmosphere particles ──
-
-/// Ambient drifting particle — dim, cool.
-#[allow(dead_code)]
-pub const MARINE_SNOW: Color = Color::srgba(0.5, 0.6, 0.7, 0.12);
-
-// ── HUD ──
-
-/// HUD text color — dim, unobtrusive.
-#[allow(dead_code)]
-pub const HUD_TEXT: Color = Color::srgba(0.5, 0.6, 0.7, 0.5);

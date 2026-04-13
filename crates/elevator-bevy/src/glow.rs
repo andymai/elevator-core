@@ -1,5 +1,4 @@
 //! Floor activity glow — floor lines brighten when riders wait or elevators arrive.
-//! Labels fade in when active, fade out when idle.
 
 use bevy::prelude::*;
 
@@ -8,7 +7,7 @@ use std::f32::consts::TAU;
 use crate::breathing::BreathPhase;
 use crate::palette;
 use crate::rendering::StopRegistry;
-use crate::rendering::shaft::{FloorLabel, FloorLine};
+use crate::rendering::shaft::FloorLine;
 use crate::sim_bridge::SimulationRes;
 use elevator_core::components::RiderPhase;
 use elevator_core::entity::EntityId;
@@ -79,42 +78,5 @@ pub fn update_floor_glow(
         if let Some(mat) = materials.get_mut(mat_handle.id()) {
             mat.color = color;
         }
-    }
-}
-
-/// Fade floor labels in when active, out when idle.
-#[allow(clippy::needless_pass_by_value)]
-pub fn update_floor_labels(
-    sim: Res<SimulationRes>,
-    registry: Res<StopRegistry>,
-    mut labels: Query<(&FloorLabel, &mut TextColor)>,
-) {
-    let w = sim.sim.world();
-
-    // Same activity detection — any waiting riders or nearby elevator.
-    let mut active_stops: std::collections::HashSet<EntityId> = std::collections::HashSet::new();
-    for (_, rider) in w.iter_riders() {
-        if rider.phase() == RiderPhase::Waiting
-            && let Some(stop_id) = rider.current_stop()
-        {
-            active_stops.insert(stop_id);
-        }
-    }
-    for (_eid, pos, _elev) in w.iter_elevators() {
-        for (stop_eid, stop_y, _) in &registry.stops {
-            let dist = (pos.value() as f32 - *stop_y).abs();
-            if dist < ELEVATOR_PROXIMITY {
-                active_stops.insert(*stop_eid);
-            }
-        }
-    }
-
-    for (label, mut text_color) in &mut labels {
-        let is_active = active_stops.contains(&label.stop_id);
-        text_color.0 = if is_active {
-            palette::LABEL_ACTIVE
-        } else {
-            palette::LABEL_DIM
-        };
     }
 }

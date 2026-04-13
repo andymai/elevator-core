@@ -118,16 +118,33 @@ pub fn spawn_floor_lines(
             },
         ));
 
-        // Floor label — starts dim, positioned to the right of all shafts.
-        commands.spawn((
-            Text2d::new(name),
-            TextFont {
-                font_size: vs.font_size,
-                ..default()
-            },
-            TextColor(palette::LABEL_DIM),
-            Transform::from_xyz(vs.label_offset_x, y, 0.1),
-            FloorLabel { stop_id: *eid },
-        ));
+        // Floor labels — only spawn for first (0), transfer (9), and last (19) stops.
+        let last_index = stop_data.len() - 1;
+        if i == 0 || i == 9 || i == last_index {
+            let label_color = if i == 0 {
+                // Deep Root: cool blue tint
+                let c = palette::FLOOR_BOTTOM.to_linear();
+                Color::linear_rgba(c.red, c.green, c.blue, 0.35)
+            } else if i == 9 {
+                // Mid-Depths: warm purple tint
+                let c = palette::FLOOR_TRANSFER.to_linear();
+                Color::linear_rgba(c.red, c.green, c.blue, 0.4)
+            } else {
+                // Spire: warm amber tint
+                let c = palette::FLOOR_TOP.to_linear();
+                Color::linear_rgba(c.red, c.green, c.blue, 0.35)
+            };
+
+            commands.spawn((
+                Text2d::new(name),
+                TextFont {
+                    font_size: vs.font_size,
+                    ..default()
+                },
+                TextColor(label_color),
+                Transform::from_xyz(vs.label_offset_x, y, 0.1),
+                FloorLabel { stop_id: *eid },
+            ));
+        }
     }
 }
