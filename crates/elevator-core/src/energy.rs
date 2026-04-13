@@ -118,7 +118,7 @@ impl EnergyMetrics {
 /// - Moving: consumed = `move_cost_per_tick + weight_factor * current_load`.
 /// - Moving downward (velocity < 0): regenerated = `consumed * regen_factor`.
 #[must_use]
-pub fn compute_tick_energy(
+pub(crate) fn compute_tick_energy(
     profile: &EnergyProfile,
     is_moving: bool,
     current_load: f64,

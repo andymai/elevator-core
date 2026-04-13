@@ -4,6 +4,9 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
+//! use elevator_core::dispatch::{
+//!     DispatchDecision, DispatchManifest, ElevatorGroup,
+//! };
 //!
 //! struct AlwaysFirstStop;
 //!
@@ -38,6 +41,11 @@ pub mod nearest_car;
 pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
+
+pub use etd::EtdDispatch;
+pub use look::LookDispatch;
+pub use nearest_car::NearestCarDispatch;
+pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
