@@ -28,6 +28,7 @@ mod topology_tests;
 mod traffic_tests;
 mod world_tests;
 
+mod api_surface_tests;
 mod boundary_tests;
 #[cfg(feature = "energy")]
 mod energy_tests;

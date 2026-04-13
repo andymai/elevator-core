@@ -1,22 +1,22 @@
 //! Tick-loop system phases run in sequence each simulation step.
 
 /// Advance transient states (boarding/exiting) to their next state.
-pub mod advance_transient;
+pub(crate) mod advance_transient;
 /// Assign idle elevators to stops via dispatch strategy.
-pub mod dispatch;
+pub(crate) mod dispatch;
 /// Door open/close finite-state machine progression.
-pub mod doors;
+pub(crate) mod doors;
 /// Per-tick energy consumption and regeneration tracking.
 #[cfg(feature = "energy")]
-pub mod energy;
+pub(crate) mod energy;
 /// Board and exit riders at stops.
-pub mod loading;
+pub(crate) mod loading;
 /// Aggregate metrics collection.
-pub mod metrics;
+pub(crate) mod metrics;
 /// Trapezoidal-profile elevator movement.
-pub mod movement;
+pub(crate) mod movement;
 /// Reposition idle elevators for coverage.
-pub mod reposition;
+pub(crate) mod reposition;
 
 /// Context passed to every system phase.
 #[derive(Debug, Clone, Copy)]

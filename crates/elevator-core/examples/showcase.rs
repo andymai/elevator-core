@@ -16,6 +16,7 @@ use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use elevator_core::dispatch::etd::EtdDispatch;
+use elevator_core::hooks::Phase;
 use elevator_core::prelude::*;
 use elevator_core::stop::StopConfig;
 use serde::{Deserialize, Serialize};

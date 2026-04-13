@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use super::PhaseContext;
 
 /// Assign idle/stopped elevators to stops via the dispatch strategy.
-pub(crate) fn run(
+pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,

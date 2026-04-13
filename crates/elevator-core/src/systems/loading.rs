@@ -304,7 +304,7 @@ fn apply_actions(
 }
 
 /// One rider boards or exits per tick per elevator.
-pub(crate) fn run(
+pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,

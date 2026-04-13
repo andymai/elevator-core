@@ -14,7 +14,7 @@
 //!   [`dispatch::etd::EtdDispatch`]) plus the [`dispatch::DispatchStrategy`] trait
 //!   for custom implementations.
 //! - **Trapezoidal motion profiles** — realistic acceleration, cruise, and
-//!   deceleration computed per-tick in the [`movement`] module.
+//!   deceleration computed per-tick.
 //! - **Extension components** — attach arbitrary `Serialize + DeserializeOwned`
 //!   data to any entity via [`world::World::insert_ext`] without modifying the
 //!   library.
@@ -196,7 +196,7 @@ pub mod hooks;
 /// Aggregate simulation metrics.
 pub mod metrics;
 /// Trapezoidal velocity-profile movement math.
-pub mod movement;
+pub(crate) mod movement;
 /// Phase-partitioned reverse index for rider population queries.
 mod rider_index;
 /// Scenario replay from recorded event streams.
@@ -244,26 +244,15 @@ pub mod prelude {
     pub use crate::dispatch::reposition::{
         DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
     };
-    pub use crate::dispatch::{
-        BuiltinReposition, BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy,
-        RepositionStrategy, RiderInfo,
-    };
-    pub use crate::dispatch::{ElevatorGroup, LineInfo};
-    #[cfg(feature = "energy")]
-    pub use crate::energy::{EnergyMetrics, EnergyProfile};
+    pub use crate::dispatch::{DispatchStrategy, RepositionStrategy};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
-    pub use crate::events::{Event, EventBus, EventChannel, RouteInvalidReason};
-    pub use crate::hooks::Phase;
+    pub use crate::events::{Event, EventBus};
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
-    pub use crate::sim::{ElevatorParams, LineParams, Simulation};
-    pub use crate::snapshot::WorldSnapshot;
+    pub use crate::sim::{RiderBuilder, Simulation};
     pub use crate::stop::StopId;
-    pub use crate::systems::PhaseContext;
-    pub use crate::tagged_metrics::{MetricTags, TaggedMetric};
     pub use crate::time::TimeAdapter;
-    pub use crate::topology::TopologyGraph;
 }
 
 #[cfg(test)]

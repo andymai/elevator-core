@@ -4,6 +4,9 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
+//! use elevator_core::dispatch::{
+//!     DispatchDecision, DispatchManifest, ElevatorGroup,
+//! };
 //!
 //! struct AlwaysFirstStop;
 //!
@@ -38,6 +41,11 @@ pub mod nearest_car;
 pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
+
+pub use etd::EtdDispatch;
+pub use look::LookDispatch;
+pub use nearest_car::NearestCarDispatch;
+pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
@@ -219,12 +227,12 @@ impl LineInfo {
     }
 
     /// Mutable access to elevator entities on this line.
-    pub const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
+    pub(crate) const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
         &mut self.elevators
     }
 
     /// Mutable access to stop entities served by this line.
-    pub const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
+    pub(crate) const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
         &mut self.serves
     }
 }

@@ -326,6 +326,32 @@ pub enum Event {
         /// The tick when it became idle.
         tick: u64,
     },
+
+    /// An elevator was permanently removed from the simulation.
+    ///
+    /// Distinct from [`EntityDisabled`] — a disabled elevator can be
+    /// re-enabled, but a removed elevator is despawned.
+    ElevatorRemoved {
+        /// The elevator that was removed.
+        elevator: EntityId,
+        /// The line it belonged to.
+        line: EntityId,
+        /// The group it belonged to.
+        group: GroupId,
+        /// The tick when removal occurred.
+        tick: u64,
+    },
+
+    /// A stop was permanently removed from the simulation.
+    ///
+    /// Distinct from [`EntityDisabled`] — a disabled stop can be
+    /// re-enabled, but a removed stop is despawned.
+    StopRemoved {
+        /// The stop that was removed.
+        stop: EntityId,
+        /// The tick when removal occurred.
+        tick: u64,
+    },
 }
 
 /// Reason a rider's route was invalidated.

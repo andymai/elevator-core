@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use elevator_core::prelude::*;
+use elevator_core::snapshot::WorldSnapshot;
 
 #[test]
 fn snapshot_roundtrip_preserves_state() {
