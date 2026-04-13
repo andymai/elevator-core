@@ -42,6 +42,8 @@ fn two_elevator_config() -> SimConfig {
                 door_open_ticks: 5,
                 door_transition_ticks: 3,
                 restricted_stops: Vec::new(),
+                #[cfg(feature = "energy")]
+                energy_profile: None,
             },
             ElevatorConfig {
                 id: 1,
@@ -54,6 +56,8 @@ fn two_elevator_config() -> SimConfig {
                 door_open_ticks: 5,
                 door_transition_ticks: 3,
                 restricted_stops: Vec::new(),
+                #[cfg(feature = "energy")]
+                energy_profile: None,
             },
         ],
         simulation: SimulationParams {

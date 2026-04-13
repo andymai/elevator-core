@@ -119,6 +119,12 @@ pub struct ElevatorConfig {
     /// Default: empty (no restrictions).
     #[serde(default)]
     pub restricted_stops: Vec<StopId>,
+    /// Energy profile for this elevator. If `None`, energy is not tracked.
+    ///
+    /// Requires the `energy` feature.
+    #[cfg(feature = "energy")]
+    #[serde(default)]
+    pub energy_profile: Option<crate::energy::EnergyProfile>,
 }
 
 /// Global simulation timing parameters.

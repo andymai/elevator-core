@@ -6,6 +6,9 @@ pub mod advance_transient;
 pub mod dispatch;
 /// Door open/close finite-state machine progression.
 pub mod doors;
+/// Per-tick energy consumption and regeneration tracking.
+#[cfg(feature = "energy")]
+pub mod energy;
 /// Board and exit riders at stops.
 pub mod loading;
 /// Aggregate metrics collection.

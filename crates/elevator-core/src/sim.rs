@@ -335,6 +335,11 @@ impl Simulation {
                     restricted_stops: restricted,
                 },
             );
+            #[cfg(feature = "energy")]
+            if let Some(ref profile) = ec.energy_profile {
+                world.set_energy_profile(eid, profile.clone());
+                world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+            }
             elevator_entities.push(eid);
         }
 
@@ -451,6 +456,11 @@ impl Simulation {
                         restricted_stops: restricted,
                     },
                 );
+                #[cfg(feature = "energy")]
+                if let Some(ref profile) = ec.energy_profile {
+                    world.set_energy_profile(eid, profile.clone());
+                    world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+                }
                 elevator_entities.push(eid);
             }
 
@@ -2471,6 +2481,19 @@ impl Simulation {
         self.hooks.run_after(Phase::Reposition, &mut self.world);
     }
 
+    /// Run the energy system (no hooks — inline phase).
+    #[cfg(feature = "energy")]
+    fn run_energy(&mut self) {
+        let ctx = self.phase_context();
+        self.world.elevator_ids_into(&mut self.elevator_ids_buf);
+        crate::systems::energy::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.elevator_ids_buf,
+        );
+    }
+
     /// Run only the metrics phase (with hooks).
     pub fn run_metrics(&mut self) {
         self.hooks.run_before(Phase::Metrics, &mut self.world);
@@ -2566,6 +2589,8 @@ impl Simulation {
         self.run_movement();
         self.run_doors();
         self.run_loading();
+        #[cfg(feature = "energy")]
+        self.run_energy();
         self.run_metrics();
         self.advance_tick();
     }

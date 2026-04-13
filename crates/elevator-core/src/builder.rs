@@ -95,6 +95,8 @@ impl SimulationBuilder {
                 door_open_ticks: 10,
                 door_transition_ticks: 5,
                 restricted_stops: Vec::new(),
+                #[cfg(feature = "energy")]
+                energy_profile: None,
             }],
             simulation: SimulationParams {
                 ticks_per_second: 60.0,

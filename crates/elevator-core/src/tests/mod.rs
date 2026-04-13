@@ -29,6 +29,8 @@ mod traffic_tests;
 mod world_tests;
 
 mod boundary_tests;
+#[cfg(feature = "energy")]
+mod energy_tests;
 mod event_payload_tests;
 mod multi_elevator_tests;
 mod multi_line_tests;
