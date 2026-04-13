@@ -2718,6 +2718,15 @@ impl Simulation {
     // ── Entity type queries ─────────────────────────────────────────
 
     /// Check if an entity is an elevator.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let stop = sim.stop_entity(StopId(0)).unwrap();
+    /// assert!(!sim.is_elevator(stop));
+    /// assert!(sim.is_stop(stop));
+    /// ```
     #[must_use]
     pub fn is_elevator(&self, id: EntityId) -> bool {
         self.world.elevator(id).is_some()
@@ -2738,6 +2747,13 @@ impl Simulation {
     // ── Aggregate queries ───────────────────────────────────────────
 
     /// Count of elevators currently in the [`Idle`](ElevatorPhase::Idle) phase.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// assert_eq!(sim.idle_elevator_count(), 1);
+    /// ```
     #[must_use]
     pub fn idle_elevator_count(&self) -> usize {
         self.world
@@ -2748,12 +2764,28 @@ impl Simulation {
 
     /// Current total weight aboard an elevator, or `None` if the entity is
     /// not an elevator.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let stop = sim.stop_entity(StopId(0)).unwrap();
+    /// assert_eq!(sim.elevator_load(stop), None); // not an elevator
+    /// ```
     #[must_use]
     pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
         self.world.elevator(id).map(|e| e.current_load)
     }
 
     /// Count of elevators currently in the given phase.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 1);
+    /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Loading), 0);
+    /// ```
     #[must_use]
     pub fn elevators_in_phase(&self, phase: ElevatorPhase) -> usize {
         self.world

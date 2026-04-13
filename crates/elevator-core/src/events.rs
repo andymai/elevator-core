@@ -321,6 +321,18 @@ pub enum Event {
     /// Emitted immediately after [`RiderBoarded`](Self::RiderBoarded) or
     /// [`RiderExited`](Self::RiderExited). Useful for real-time capacity
     /// bar displays in game UIs.
+    ///
+    /// Load values use [`OrderedFloat`](ordered_float::OrderedFloat) for
+    /// `Eq` compatibility. Dereference to get the inner `f64`:
+    ///
+    /// ```rust,ignore
+    /// use elevator_core::events::Event;
+    ///
+    /// if let Event::CapacityChanged { current_load, capacity, .. } = event {
+    ///     let pct = *current_load / *capacity * 100.0;
+    ///     println!("Elevator at {pct:.0}% capacity");
+    /// }
+    /// ```
     CapacityChanged {
         /// The elevator whose load changed.
         elevator: EntityId,
