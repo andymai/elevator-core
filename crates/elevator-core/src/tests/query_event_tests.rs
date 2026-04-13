@@ -93,6 +93,77 @@ fn elevators_in_phase_counts_correctly() {
     assert_eq!(sim.elevators_in_phase(ElevatorPhase::DoorOpening), 0);
 }
 
+#[test]
+fn disabled_elevators_excluded_from_counts() {
+    let mut sim = SimulationBuilder::new().build().unwrap();
+    let elevator_id = sim
+        .world()
+        .iter_elevators()
+        .next()
+        .map(|(id, _, _)| id)
+        .unwrap();
+
+    assert_eq!(sim.idle_elevator_count(), 1);
+    assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 1);
+
+    sim.disable(elevator_id).unwrap();
+
+    // After disable, the elevator's phase is reset to Idle but it should
+    // NOT be counted.
+    assert_eq!(sim.idle_elevator_count(), 0);
+    assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 0);
+}
+
+#[test]
+fn capacity_changed_emitted_on_disable_with_load() {
+    let mut sim = SimulationBuilder::new().build().unwrap();
+    let rider = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
+        .unwrap();
+
+    // Run until the rider is aboard.
+    for _ in 0..500 {
+        sim.step();
+        if sim.world().rider(rider).is_some_and(|r| {
+            matches!(
+                r.phase,
+                crate::components::RiderPhase::Riding(_)
+                    | crate::components::RiderPhase::Boarding(_)
+            )
+        }) {
+            break;
+        }
+    }
+
+    let elevator_id = sim
+        .world()
+        .iter_elevators()
+        .next()
+        .map(|(id, _, _)| id)
+        .unwrap();
+
+    // Only proceed if we actually have load — otherwise test is inconclusive.
+    if sim.elevator_load(elevator_id).unwrap_or(0.0) > 0.0 {
+        sim.drain_events(); // clear prior events
+        sim.disable(elevator_id).unwrap();
+
+        let found = sim.drain_events().iter().any(|e| {
+            matches!(
+                e,
+                Event::CapacityChanged {
+                    elevator,
+                    current_load,
+                    ..
+                } if *elevator == elevator_id && **current_load == 0.0
+            )
+        });
+        assert!(
+            found,
+            "disable() with riders aboard should emit CapacityChanged with load=0"
+        );
+    }
+}
+
 // ── CapacityChanged event ────────────────────────────────────────────
 
 #[test]

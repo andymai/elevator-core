@@ -2571,11 +2571,26 @@ impl Simulation {
                 }
             }
 
+            let had_load = self
+                .world
+                .elevator(id)
+                .is_some_and(|c| c.current_load > 0.0);
+            let capacity = self.world.elevator(id).map(|c| c.weight_capacity);
             if let Some(car) = self.world.elevator_mut(id) {
                 car.riders.clear();
                 car.current_load = 0.0;
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
+            }
+            if had_load {
+                if let Some(cap) = capacity {
+                    self.events.emit(Event::CapacityChanged {
+                        elevator: id,
+                        current_load: ordered_float::OrderedFloat(0.0),
+                        capacity: ordered_float::OrderedFloat(cap),
+                        tick: self.tick,
+                    });
+                }
             }
         }
         if let Some(vel) = self.world.velocity_mut(id) {
@@ -2748,6 +2763,8 @@ impl Simulation {
 
     /// Count of elevators currently in the [`Idle`](ElevatorPhase::Idle) phase.
     ///
+    /// Excludes disabled elevators (whose phase is reset to `Idle` on disable).
+    ///
     /// ```
     /// use elevator_core::prelude::*;
     ///
@@ -2756,10 +2773,7 @@ impl Simulation {
     /// ```
     #[must_use]
     pub fn idle_elevator_count(&self) -> usize {
-        self.world
-            .iter_elevators()
-            .filter(|(_, _, e)| e.phase() == ElevatorPhase::Idle)
-            .count()
+        self.world.iter_idle_elevators().count()
     }
 
     /// Current total weight aboard an elevator, or `None` if the entity is
@@ -2779,6 +2793,8 @@ impl Simulation {
 
     /// Count of elevators currently in the given phase.
     ///
+    /// Excludes disabled elevators (whose phase is reset to `Idle` on disable).
+    ///
     /// ```
     /// use elevator_core::prelude::*;
     ///
@@ -2790,7 +2806,7 @@ impl Simulation {
     pub fn elevators_in_phase(&self, phase: ElevatorPhase) -> usize {
         self.world
             .iter_elevators()
-            .filter(|(_, _, e)| e.phase() == phase)
+            .filter(|(id, _, e)| e.phase() == phase && !self.world.is_disabled(*id))
             .count()
     }
 
