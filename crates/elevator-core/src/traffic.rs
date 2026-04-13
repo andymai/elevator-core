@@ -392,7 +392,15 @@ impl PoissonSource {
     /// by default — call [`with_schedule`](Self::with_schedule) to override.
     #[must_use]
     pub fn from_config(config: &SimConfig) -> Self {
-        let stops: Vec<StopId> = config.building.stops.iter().map(|s| s.id).collect();
+        // Sort by position so stops[0] is the lobby (lowest position),
+        // matching TrafficPattern's assumption.
+        let mut stop_entries: Vec<_> = config.building.stops.iter().collect();
+        stop_entries.sort_by(|a, b| {
+            a.position
+                .partial_cmp(&b.position)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let stops: Vec<StopId> = stop_entries.iter().map(|s| s.id).collect();
         let spawn = &config.passenger_spawning;
         Self::new(
             stops,
@@ -435,9 +443,12 @@ impl TrafficSource for PoissonSource {
         let mut requests = Vec::new();
 
         while tick >= self.next_arrival_tick {
+            // Use the scheduled arrival tick (not the current tick) so catch-up
+            // arrivals sample from the pattern that was active when they were due.
+            let arrival_tick = self.next_arrival_tick;
             if let Some((origin, destination)) =
                 self.schedule
-                    .sample_stop_ids(tick, &self.stops, &mut self.rng)
+                    .sample_stop_ids(arrival_tick, &self.stops, &mut self.rng)
             {
                 let weight = self
                     .rng
@@ -469,6 +480,10 @@ impl std::fmt::Debug for PoissonSource {
 }
 
 /// Sample the next arrival tick using exponential inter-arrival time.
+///
+/// The uniform sample is clamped to `[0.0001, 1.0)` to avoid `ln(0) = -inf`.
+/// This caps the maximum inter-arrival time at ~9.2× the mean interval,
+/// truncating the exponential tail to prevent rare extreme gaps.
 fn sample_next_arrival(current: u64, mean_interval: u32, rng: &mut impl Rng) -> u64 {
     if mean_interval == 0 {
         return current + 1;
