@@ -190,13 +190,30 @@ pub enum Event {
         /// The tick when invalidation occurred.
         tick: u64,
     },
-    /// A rider was manually rerouted via `sim.reroute()`.
+    /// A rider was manually rerouted via `sim.reroute()` or `sim.reroute_rider()`.
     RiderRerouted {
         /// The rerouted rider.
         rider: EntityId,
         /// The new destination stop.
         new_destination: EntityId,
         /// The tick when rerouting occurred.
+        tick: u64,
+    },
+
+    /// A rider settled at a stop, becoming a resident.
+    RiderSettled {
+        /// The rider that settled.
+        rider: EntityId,
+        /// The stop where the rider settled.
+        stop: EntityId,
+        /// The tick when settlement occurred.
+        tick: u64,
+    },
+    /// A rider was removed from the simulation.
+    RiderDespawned {
+        /// The rider that was removed.
+        rider: EntityId,
+        /// The tick when despawn occurred.
         tick: u64,
     },
 

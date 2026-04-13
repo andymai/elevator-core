@@ -2190,7 +2190,7 @@ fn despawn_waiting_rider_removes_from_world() {
     let rider = sim.spawn_rider(ground, transfer, 70.0).unwrap();
 
     // Rider is Waiting — despawn it.
-    sim.world_mut().despawn(rider);
+    sim.despawn_rider(rider).unwrap();
 
     assert!(
         !sim.world().is_alive(rider),
@@ -2233,7 +2233,7 @@ fn despawn_riding_rider_removes_from_elevator_riders_list() {
     );
 
     // Despawn the riding rider.
-    sim.world_mut().despawn(rider);
+    sim.despawn_rider(rider).unwrap();
 
     assert!(
         !sim.world().is_alive(rider),

@@ -168,6 +168,8 @@ pub mod hooks;
 pub mod metrics;
 /// Trapezoidal velocity-profile movement math.
 pub mod movement;
+/// Phase-partitioned reverse index for rider population queries.
+mod rider_index;
 /// Scenario replay from recorded event streams.
 pub mod scenario;
 /// Top-level simulation runner.

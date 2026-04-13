@@ -16,6 +16,7 @@ use crate::events::{Event, EventBus};
 use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
+use crate::rider_index::RiderIndex;
 use crate::stop::StopId;
 use crate::systems::PhaseContext;
 use crate::time::TimeAdapter;
@@ -131,6 +132,8 @@ pub struct Simulation {
     elevator_ids_buf: Vec<EntityId>,
     /// Lazy-rebuilt connectivity graph for cross-line topology queries.
     topo_graph: Mutex<TopologyGraph>,
+    /// Phase-partitioned reverse index for O(1) population queries.
+    rider_index: RiderIndex,
 }
 
 impl Simulation {
@@ -261,6 +264,7 @@ impl Simulation {
             hooks,
             elevator_ids_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
+            rider_index: RiderIndex::default(),
         })
     }
 
@@ -514,6 +518,8 @@ impl Simulation {
         metrics: Metrics,
         ticks_per_second: f64,
     ) -> Self {
+        let mut rider_index = RiderIndex::default();
+        rider_index.rebuild(&world);
         Self {
             world,
             events: EventBus::default(),
@@ -531,6 +537,7 @@ impl Simulation {
             hooks: PhaseHooks::default(),
             elevator_ids_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
+            rider_index,
         }
     }
 
@@ -1016,6 +1023,7 @@ impl Simulation {
             },
         );
         self.world.set_route(eid, route);
+        self.rider_index.insert_waiting(origin, eid);
         self.events.emit(Event::RiderSpawned {
             rider: eid,
             origin,
@@ -1830,6 +1838,193 @@ impl Simulation {
         Ok(())
     }
 
+    // ── Rider settlement & population ─────────────────────────────
+
+    /// Transition an `Arrived` or `Abandoned` rider to `Resident` at their
+    /// current stop.
+    ///
+    /// Resident riders are parked — invisible to dispatch and loading, but
+    /// queryable via [`residents_at()`](Self::residents_at). They can later
+    /// be given a new route via [`reroute_rider()`](Self::reroute_rider).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
+    /// Returns [`SimError::InvalidState`] if the rider is not in
+    /// `Arrived` or `Abandoned` phase, or has no current stop.
+    pub fn settle_rider(&mut self, id: EntityId) -> Result<(), SimError> {
+        let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+
+        let old_phase = rider.phase;
+        match old_phase {
+            RiderPhase::Arrived | RiderPhase::Abandoned => {}
+            _ => {
+                return Err(SimError::InvalidState {
+                    entity: id,
+                    reason: format!(
+                        "cannot settle rider in {old_phase} phase, expected Arrived or Abandoned"
+                    ),
+                });
+            }
+        }
+
+        let stop = rider.current_stop.ok_or_else(|| SimError::InvalidState {
+            entity: id,
+            reason: "rider has no current_stop".into(),
+        })?;
+
+        // Update index: remove from old partition (only Abandoned is indexed).
+        if old_phase == RiderPhase::Abandoned {
+            self.rider_index.remove_abandoned(stop, id);
+        }
+        self.rider_index.insert_resident(stop, id);
+
+        if let Some(r) = self.world.rider_mut(id) {
+            r.phase = RiderPhase::Resident;
+        }
+
+        self.metrics.record_settle();
+        self.events.emit(Event::RiderSettled {
+            rider: id,
+            stop,
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    /// Give a `Resident` rider a new route, transitioning them to `Waiting`.
+    ///
+    /// The rider begins waiting at their current stop for an elevator
+    /// matching the route's transport mode. If the rider has a [`Patience`]
+    /// component, its `waited_ticks` is reset to zero.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
+    /// Returns [`SimError::InvalidState`] if the rider is not in `Resident` phase.
+    pub fn reroute_rider(&mut self, id: EntityId, route: Route) -> Result<(), SimError> {
+        let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+
+        if rider.phase != RiderPhase::Resident {
+            return Err(SimError::InvalidState {
+                entity: id,
+                reason: format!(
+                    "cannot reroute rider in {} phase, expected Resident",
+                    rider.phase
+                ),
+            });
+        }
+
+        let stop = rider.current_stop.ok_or_else(|| SimError::InvalidState {
+            entity: id,
+            reason: "resident rider has no current_stop".into(),
+        })?;
+
+        let new_destination = route
+            .final_destination()
+            .ok_or_else(|| SimError::InvalidState {
+                entity: id,
+                reason: "route has no legs".into(),
+            })?;
+
+        self.rider_index.remove_resident(stop, id);
+        self.rider_index.insert_waiting(stop, id);
+
+        if let Some(r) = self.world.rider_mut(id) {
+            r.phase = RiderPhase::Waiting;
+        }
+        self.world.set_route(id, route);
+
+        // Reset patience if present.
+        if let Some(p) = self.world.patience_mut(id) {
+            p.waited_ticks = 0;
+        }
+
+        self.metrics.record_reroute();
+        self.events.emit(Event::RiderRerouted {
+            rider: id,
+            new_destination,
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    /// Remove a rider from the simulation entirely.
+    ///
+    /// Cleans up the population index, metric tags, and elevator cross-references
+    /// (if the rider is currently aboard). Emits [`Event::RiderDespawned`].
+    ///
+    /// All rider removal should go through this method rather than calling
+    /// `world.despawn()` directly, to keep the population index consistent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not exist or is
+    /// not a rider.
+    pub fn despawn_rider(&mut self, id: EntityId) -> Result<(), SimError> {
+        let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+
+        // Targeted index removal based on current phase (O(1) vs O(n) scan).
+        if let Some(stop) = rider.current_stop {
+            match rider.phase {
+                RiderPhase::Waiting => self.rider_index.remove_waiting(stop, id),
+                RiderPhase::Resident => self.rider_index.remove_resident(stop, id),
+                RiderPhase::Abandoned => self.rider_index.remove_abandoned(stop, id),
+                _ => {} // Boarding/Riding/Exiting/Walking/Arrived — not indexed
+            }
+        }
+
+        if let Some(tags) = self
+            .world
+            .resource_mut::<crate::tagged_metrics::MetricTags>()
+        {
+            tags.remove_entity(id);
+        }
+
+        self.world.despawn(id);
+
+        self.events.emit(Event::RiderDespawned {
+            rider: id,
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    // ── Population queries ──────────────────────────────────────────
+
+    /// Iterate over resident rider IDs at a stop (O(1) lookup).
+    pub fn residents_at(&self, stop: EntityId) -> impl Iterator<Item = EntityId> + '_ {
+        self.rider_index.residents_at(stop).iter().copied()
+    }
+
+    /// Count of residents at a stop (O(1)).
+    #[must_use]
+    pub fn resident_count_at(&self, stop: EntityId) -> usize {
+        self.rider_index.resident_count_at(stop)
+    }
+
+    /// Iterate over waiting rider IDs at a stop (O(1) lookup).
+    pub fn waiting_at(&self, stop: EntityId) -> impl Iterator<Item = EntityId> + '_ {
+        self.rider_index.waiting_at(stop).iter().copied()
+    }
+
+    /// Count of waiting riders at a stop (O(1)).
+    #[must_use]
+    pub fn waiting_count_at(&self, stop: EntityId) -> usize {
+        self.rider_index.waiting_count_at(stop)
+    }
+
+    /// Iterate over abandoned rider IDs at a stop (O(1) lookup).
+    pub fn abandoned_at(&self, stop: EntityId) -> impl Iterator<Item = EntityId> + '_ {
+        self.rider_index.abandoned_at(stop).iter().copied()
+    }
+
+    /// Count of abandoned riders at a stop (O(1)).
+    #[must_use]
+    pub fn abandoned_count_at(&self, stop: EntityId) -> usize {
+        self.rider_index.abandoned_count_at(stop)
+    }
+
     // ── Entity lifecycle ────────────────────────────────────────────
 
     /// Disable an entity. Disabled entities are skipped by all systems.
@@ -1860,6 +2055,7 @@ impl Simulation {
                     r.board_tick = None;
                 }
                 if let Some(stop) = nearest_stop {
+                    self.rider_index.insert_waiting(stop, *rid);
                     self.events.emit(Event::RiderEjected {
                         rider: *rid,
                         elevator: id,
@@ -1994,6 +2190,10 @@ impl Simulation {
                 if let Some(r) = self.world.rider_mut(rid) {
                     r.phase = RiderPhase::Abandoned;
                 }
+                if let Some(stop) = rider_current_stop {
+                    self.rider_index.remove_waiting(stop, rid);
+                    self.rider_index.insert_abandoned(stop, rid);
+                }
                 self.events.emit(Event::RiderAbandoned {
                     rider: rid,
                     stop: abandon_stop,
@@ -2050,7 +2250,12 @@ impl Simulation {
                 .run_before_group(Phase::AdvanceTransient, group.id(), &mut self.world);
         }
         let ctx = self.phase_context();
-        crate::systems::advance_transient::run(&mut self.world, &mut self.events, &ctx);
+        crate::systems::advance_transient::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &mut self.rider_index,
+        );
         for group in &self.groups {
             self.hooks
                 .run_after_group(Phase::AdvanceTransient, group.id(), &mut self.world);
@@ -2073,6 +2278,7 @@ impl Simulation {
             &ctx,
             &self.groups,
             &mut self.dispatchers,
+            &self.rider_index,
         );
         for group in &self.groups {
             self.hooks
@@ -2140,6 +2346,7 @@ impl Simulation {
             &mut self.events,
             &ctx,
             &self.elevator_ids_buf,
+            &mut self.rider_index,
         );
         for group in &self.groups {
             self.hooks

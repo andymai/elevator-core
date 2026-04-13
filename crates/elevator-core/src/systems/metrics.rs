@@ -47,6 +47,9 @@ pub fn run(
                 metrics.record_abandonment();
                 tag_terminals.push((*rider, false));
             }
+            Event::RiderDespawned { rider, .. } => {
+                tag_terminals.push((*rider, false));
+            }
             _ => {}
         }
     }

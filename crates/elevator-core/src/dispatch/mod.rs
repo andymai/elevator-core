@@ -72,6 +72,8 @@ pub struct DispatchManifest {
     pub waiting_at_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
     /// Riders currently aboard elevators, grouped by their destination stop.
     pub riding_to_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
+    /// Number of residents at each stop (read-only hint for dispatch strategies).
+    pub resident_count_at_stop: BTreeMap<EntityId, usize>,
 }
 
 impl DispatchManifest {
@@ -99,6 +101,12 @@ impl DispatchManifest {
     #[must_use]
     pub fn has_demand(&self, stop: EntityId) -> bool {
         self.waiting_count_at(stop) > 0 || self.riding_count_to(stop) > 0
+    }
+
+    /// Number of residents at a stop (read-only hint, not active demand).
+    #[must_use]
+    pub fn resident_count_at(&self, stop: EntityId) -> usize {
+        self.resident_count_at_stop.get(&stop).copied().unwrap_or(0)
     }
 }
 
