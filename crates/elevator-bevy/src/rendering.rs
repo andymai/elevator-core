@@ -1,7 +1,7 @@
 //! Visual rendering of elevator shafts, cars, stops, and riders.
 
 use bevy::prelude::*;
-use elevator_core::components::RiderPhase;
+use elevator_core::components::{Position, RiderPhase};
 use elevator_core::entity::EntityId;
 use std::hash::{Hash, Hasher};
 
@@ -294,7 +294,7 @@ fn rider_visual_params(
             (offset, stop_y as f32 * PPU, mats.waiting.clone())
         }
         RiderPhase::Boarding(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
+            let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
@@ -302,7 +302,7 @@ fn rider_visual_params(
             )
         }
         RiderPhase::Riding(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
+            let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
             let idx = w
                 .elevator(elev_eid)
                 .and_then(|car| car.riders().iter().position(|r| *r == rider_eid))
@@ -311,7 +311,7 @@ fn rider_visual_params(
             (x_offset, elev_y as f32 * PPU, mats.riding.clone())
         }
         RiderPhase::Exiting(elev_eid) => {
-            let elev_y = w.position(elev_eid).map_or(0.0, |p| p.value());
+            let elev_y = w.position(elev_eid).map_or(0.0, Position::value);
             (
                 vs.waiting_x_offset * 0.5,
                 elev_y as f32 * PPU,
