@@ -3,46 +3,29 @@
 use bevy::prelude::*;
 use elevator_core::components::RiderPhase;
 
-use crate::palette;
 use crate::sim_bridge::{SimSpeed, SimulationRes};
 
 /// Marker for the stats HUD text.
 #[derive(Component)]
 pub struct HudText;
 
-/// Spawn the HUD overlay.
+/// Spawn the HUD overlay — minimal, bottom-right, low alpha.
 pub fn spawn_hud(mut commands: Commands) {
-    // Stats text — top-left, dim.
+    // Stats text — bottom-right, very dim.
     commands.spawn((
         Text::new(""),
-        TextFont {
-            font_size: 12.0,
-            ..default()
-        },
-        TextColor(palette::HUD_TEXT),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(12.0),
-            ..default()
-        },
-        HudText,
-    ));
-
-    // Controls hint — bottom-left, very dim.
-    commands.spawn((
-        Text::new("Space: pause | 1-3: speed"),
         TextFont {
             font_size: 10.0,
             ..default()
         },
-        TextColor(Color::srgba(0.4, 0.5, 0.6, 0.3)),
+        TextColor(Color::srgba(0.5, 0.6, 0.7, 0.3)),
         Node {
             position_type: PositionType::Absolute,
-            bottom: Val::Px(8.0),
-            left: Val::Px(12.0),
+            bottom: Val::Px(12.0),
+            right: Val::Px(12.0),
             ..default()
         },
+        HudText,
     ));
 }
 

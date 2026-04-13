@@ -67,9 +67,14 @@ pub fn spawn_trail_segments(
         }
 
         // Cooldown to avoid too many segments.
+        // Express elevators at high speed spawn every frame with larger segments.
+        let high_speed = vis.is_express && {
+            let max_speed = elev.max_speed();
+            max_speed > 0.0 && vel.value().abs() / max_speed > 0.75
+        };
         let counter = cooldowns.counters.entry(vis.entity_id).or_insert(0);
         *counter += 1;
-        if !(*counter).is_multiple_of(SPAWN_INTERVAL_FRAMES) {
+        if !high_speed && !(*counter).is_multiple_of(SPAWN_INTERVAL_FRAMES) {
             continue;
         }
 
@@ -88,8 +93,12 @@ pub fn spawn_trail_segments(
             palette::TRAIL_NEAR
         };
 
-        // Express trail segments are larger.
-        let size = if vis.is_express { 6.0 } else { 4.0 };
+        // Express trail segments are larger; 50% bigger at high speed.
+        let size = if vis.is_express {
+            if high_speed { 9.0 } else { 6.0 }
+        } else {
+            4.0
+        };
 
         commands.spawn((
             Mesh2d(meshes.add(Circle::new(size))),
