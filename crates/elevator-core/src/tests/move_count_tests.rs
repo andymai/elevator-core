@@ -274,3 +274,57 @@ fn move_count_persists_across_snapshot() {
         Some(per_elev_before)
     );
 }
+
+/// Regression for greptile P1: the arrival increment lived in the non-reposition
+/// branch, so a repositioning elevator that crossed intermediate floors credited
+/// the passing moves but not the final arrival — breaking the
+/// "every rounded-floor crossing (passing + arrival)" contract.
+#[test]
+fn move_count_counts_reposition_arrivals() {
+    use crate::dispatch::reposition::ReturnToLobby;
+    use crate::ids::GroupId;
+
+    // Start the elevator at the top so ReturnToLobby has work to do.
+    let mut config = helpers::default_config();
+    config.elevators[0].starting_stop = StopId(2);
+
+    let mut sim = crate::builder::SimulationBuilder::from_config(config)
+        .reposition_for_group(
+            GroupId(0),
+            ReturnToLobby::new(),
+            crate::dispatch::BuiltinReposition::ReturnToLobby,
+        )
+        .build()
+        .unwrap();
+
+    let elev = sim
+        .world()
+        .iter_elevators()
+        .next()
+        .map(|(id, _, _)| id)
+        .unwrap();
+
+    // Let the repositioning trip run to completion (top → lobby, passing stop 1).
+    for _ in 0..3000 {
+        sim.step();
+        if sim
+            .world()
+            .elevator(elev)
+            .is_some_and(|c| matches!(c.phase(), crate::components::ElevatorPhase::Idle))
+        {
+            break;
+        }
+    }
+
+    // Expected: 1 passing (stop 1) + 1 arrival (stop 0) = 2 moves.
+    let count = sim.elevator_move_count(elev).unwrap();
+    assert!(
+        count >= 2,
+        "expected at least 2 moves (passing + arrival) during reposition, got {count}",
+    );
+    assert_eq!(
+        count as u64,
+        sim.metrics().total_moves(),
+        "aggregate must equal sum of per-elevator counts",
+    );
+}
