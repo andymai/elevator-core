@@ -10,6 +10,7 @@ use crate::world::World;
 use ordered_float::OrderedFloat;
 
 use super::PhaseContext;
+use super::dispatch::update_indicators;
 
 /// Intermediate action collected in the read-only pass, applied in the mutation pass.
 enum LoadAction {
@@ -41,6 +42,15 @@ enum LoadAction {
         reason: RejectionReason,
         /// Numeric details of the rejection.
         context: Option<RejectionContext>,
+    },
+    /// Re-light both direction indicator lamps on a car. Emitted when a
+    /// Loading tick produces no board/exit/reject yet there is at least
+    /// one eligible waiting rider filtered out solely by the car's
+    /// directional lamps — without this, the car would cycle doors
+    /// closed and be re-dispatched to the same stop indefinitely.
+    ResetIndicators {
+        /// Elevator whose lamps are being re-lit.
+        elevator: EntityId,
     },
 }
 
@@ -98,6 +108,10 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
         let mut rejected_candidate: Option<EntityId> = None;
         let mut preference_rejected: Option<EntityId> = None;
         let mut access_rejected: Option<EntityId> = None;
+        // Track riders filtered out only by the car's direction lamps —
+        // used below to detect the "stuck doors" case where every waiting
+        // rider wants to go the opposite direction from the car's indicator.
+        let mut direction_filtered: Option<EntityId> = None;
 
         let board_rider = world.iter_riders().find_map(|(rid, rider)| {
             if world.is_disabled(rid) {
@@ -157,9 +171,15 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 let dest_pos = world.position(dest).map(|p| p.value);
                 if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
                     if dp > cp && !car.going_up {
+                        if direction_filtered.is_none() {
+                            direction_filtered = Some(rid);
+                        }
                         return None;
                     }
                     if dp < cp && !car.going_down {
+                        if direction_filtered.is_none() {
+                            direction_filtered = Some(rid);
+                        }
                         return None;
                     }
                 }
@@ -222,6 +242,19 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                     capacity: car.weight_capacity.into(),
                 }),
             });
+        } else if direction_filtered.is_some()
+            && car.riders.is_empty()
+            && !(car.going_up && car.going_down)
+        {
+            // Empty car, no boards / exits / rejections this tick, but at
+            // least one eligible waiting rider was filtered out purely by
+            // this car's direction lamps. Nothing commits the car to its
+            // current direction — re-light both lamps so the next Loading
+            // tick can board the rider. Otherwise doors would cycle closed
+            // and dispatch would immediately re-send the car to the same
+            // stop (infinite loop). Skipped when the car has riders aboard,
+            // since their destinations legitimately pin the direction.
+            actions.push(LoadAction::ResetIndicators { elevator: eid });
         }
     }
 
@@ -329,6 +362,9 @@ fn apply_actions(
                     context,
                     tick: ctx.tick,
                 });
+            }
+            LoadAction::ResetIndicators { elevator } => {
+                update_indicators(world, events, elevator, true, true, ctx.tick);
             }
         }
     }
