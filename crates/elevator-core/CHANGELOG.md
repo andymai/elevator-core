@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.6.0...elevator-core-v5.7.0) (2026-04-14)
+
+
+### Features
+
+* manual door control API ([#73](https://github.com/andymai/elevator-core/issues/73)) ([380612b](https://github.com/andymai/elevator-core/commit/380612b1aba62908c19052b9082da9185246b3c0))
+
 ## [5.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.5.1...elevator-core-v5.6.0) (2026-04-14)
 
 
