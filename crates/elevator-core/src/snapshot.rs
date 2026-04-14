@@ -1,6 +1,6 @@
 //! World snapshot for save/load functionality.
 //!
-//! Provides [`WorldSnapshot`] which captures the full simulation state
+//! Provides [`WorldSnapshot`](crate::snapshot::WorldSnapshot) which captures the full simulation state
 //! (all entities, components, groups, metrics, tick counter) in a
 //! serializable form. Games choose the serialization format via serde.
 //!
@@ -66,8 +66,8 @@ pub struct EntitySnapshot {
 
 /// Serializable snapshot of the entire simulation state.
 ///
-/// Capture via [`Simulation::snapshot()`] and restore via
-/// [`WorldSnapshot::restore()`]. The game chooses the serde format
+/// Capture via [`Simulation::snapshot()`](crate::sim::Simulation::snapshot)
+/// and restore via [`WorldSnapshot::restore()`]. The game chooses the serde format
 /// (RON, JSON, bincode, etc.).
 ///
 /// Extension components and resources are NOT included. Games must
@@ -147,7 +147,8 @@ impl WorldSnapshot {
     ///
     /// To restore extension components, call `world.register_ext::<T>(name)`
     /// on the returned simulation's world for each extension type, then call
-    /// [`Simulation::load_extensions()`] with this snapshot's `extensions` data.
+    /// [`Simulation::load_extensions()`](crate::sim::Simulation::load_extensions)
+    /// with this snapshot's `extensions` data.
     #[must_use]
     pub fn restore(
         self,

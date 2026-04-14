@@ -1,4 +1,5 @@
-//! Fluent builder for constructing a [`Simulation`] programmatically.
+//! Fluent builder for constructing a [`Simulation`](crate::sim::Simulation)
+//! programmatically.
 
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -60,7 +61,7 @@ impl SimulationBuilder {
     /// [`stops`](Self::stops) / [`stop`](Self::stop) and
     /// [`elevators`](Self::elevators) / [`elevator`](Self::elevator))
     /// before [`build`](Self::build), or the build fails with
-    /// [`SimError::InvalidConfig`](crate::error::SimError::InvalidConfig).
+    /// [`SimError::InvalidConfig`].
     ///
     /// If you want a quick, already-valid sim for prototyping or examples,
     /// use [`demo`](Self::demo).

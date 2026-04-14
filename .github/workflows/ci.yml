@@ -38,3 +38,5 @@ jobs:
 
       - name: Doc check
         run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings

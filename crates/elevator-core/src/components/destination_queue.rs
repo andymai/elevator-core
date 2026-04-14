@@ -15,10 +15,8 @@ use serde::{Deserialize, Serialize};
 ///
 /// Adjacent duplicates are collapsed on push:
 ///
-/// - [`push_back`](Self::push_back) is a no-op if the *last* entry already
-///   equals the new stop.
-/// - [`push_front`](Self::push_front) is a no-op if the *first* entry already
-///   equals the new stop.
+/// - `push_back` is a no-op if the *last* entry already equals the new stop.
+/// - `push_front` is a no-op if the *first* entry already equals the new stop.
 ///
 /// Games interact with the queue via
 /// [`Simulation::push_destination`](crate::sim::Simulation::push_destination),

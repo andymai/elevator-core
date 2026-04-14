@@ -176,8 +176,9 @@ impl Simulation {
     /// Give a `Resident` rider a new route, transitioning them to `Waiting`.
     ///
     /// The rider begins waiting at their current stop for an elevator
-    /// matching the route's transport mode. If the rider has a [`Patience`]
-    /// component, its `waited_ticks` is reset to zero.
+    /// matching the route's transport mode. If the rider has a
+    /// [`Patience`](crate::components::Patience) component, its
+    /// `waited_ticks` is reset to zero.
     ///
     /// # Errors
     ///

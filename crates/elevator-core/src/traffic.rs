@@ -2,17 +2,23 @@
 //!
 //! This module provides:
 //!
-//! - [`TrafficPattern`] — origin/destination distribution presets (up-peak, down-peak, etc.).
-//! - [`TrafficSchedule`] — time-varying pattern selection across a simulated day.
-//! - [`TrafficSource`] — trait for external traffic generators that feed riders into
-//!   a [`Simulation`](crate::sim::Simulation) each tick.
-//! - [`PoissonSource`] — Poisson-arrival traffic generator using schedules and spawn config.
-//! - [`SpawnRequest`] — a single rider spawn instruction returned by a traffic source.
+//! - [`TrafficPattern`](crate::traffic::TrafficPattern) — origin/destination distribution
+//!   presets (up-peak, down-peak, etc.).
+//! - [`TrafficSchedule`](crate::traffic::TrafficSchedule) — time-varying pattern selection
+//!   across a simulated day.
+//! - [`TrafficSource`](crate::traffic::TrafficSource) — trait for external traffic
+//!   generators that feed riders into a [`Simulation`](crate::sim::Simulation)
+//!   each tick.
+//! - [`PoissonSource`](crate::traffic::PoissonSource) — Poisson-arrival traffic generator
+//!   using schedules and spawn config.
+//! - [`SpawnRequest`](crate::traffic::SpawnRequest) — a single rider spawn instruction
+//!   returned by a traffic source.
 //!
 //! # Design
 //!
-//! Traffic generation is **external to the simulation loop**. A [`TrafficSource`]
-//! produces [`SpawnRequest`]s each tick; the consumer feeds them into
+//! Traffic generation is **external to the simulation loop**. A
+//! [`TrafficSource`](crate::traffic::TrafficSource) produces
+//! [`SpawnRequest`](crate::traffic::SpawnRequest)s each tick; the consumer feeds them into
 //! [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
 //! (or the [`RiderBuilder`](crate::sim::RiderBuilder) for richer configuration).
 //!

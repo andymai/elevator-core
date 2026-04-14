@@ -1,7 +1,8 @@
 //! Lazy-rebuilt connectivity graph for cross-line topology queries.
 //!
-//! [`TopologyGraph`] tracks which stops are reachable from which, via which
-//! groups and lines.  It is rebuilt from [`ElevatorGroup`] data on demand
+//! [`TopologyGraph`](crate::topology::TopologyGraph) tracks which stops are reachable
+//! from which, via which groups and lines. It is rebuilt from
+//! [`ElevatorGroup`](crate::dispatch::ElevatorGroup) data on demand
 //! (when marked dirty) and supports BFS-based reachability, transfer-point
 //! detection, and shortest-route computation.
 
@@ -33,7 +34,7 @@ struct Edge {
 pub struct TopologyGraph {
     /// Whether the graph needs rebuild.
     dirty: bool,
-    /// stop -> Vec<Edge> adjacency list.
+    /// stop -> `Vec<Edge>` adjacency list.
     adjacency: HashMap<EntityId, Vec<Edge>>,
 }
 
