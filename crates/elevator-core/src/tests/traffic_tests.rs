@@ -494,3 +494,34 @@ fn traffic_schedule_serde_roundtrip() {
     assert_eq!(deserialized.pattern_at(150), &TrafficPattern::DownPeak);
     assert_eq!(deserialized.pattern_at(999), &TrafficPattern::Mixed);
 }
+
+/// `with_mean_interval` must resample `next_arrival_tick` so the builder
+/// chain `PoissonSource::new(..., tiny_mean, ...).with_mean_interval(big_mean)`
+/// does not leak the tick-0 arrival drawn from `tiny_mean`.
+///
+/// Pre-fix, building with `mean=1` then shifting to `mean=10_000` kept
+/// the `mean=1` draw (`next_arrival` <= ~10). Post-fix, the draw is
+/// redone at the new mean on the builder call.
+#[test]
+fn with_mean_interval_resamples_next_arrival() {
+    use rand::SeedableRng;
+
+    let stops = vec![StopId(0), StopId(1)];
+    let seeded = rand::rngs::StdRng::seed_from_u64(0xD1E7);
+
+    let source = PoissonSource::new(
+        stops,
+        TrafficSchedule::constant(TrafficPattern::Uniform),
+        1, // tiny mean at construction
+        (60.0, 90.0),
+    )
+    .with_rng(seeded) // deterministic resample sequence
+    .with_mean_interval(10_000); // shift to a mean where first draw >> 10
+
+    let first = source.next_arrival_tick();
+    assert!(
+        first > 100,
+        "pre-fix bug: first arrival should reflect the new mean=10_000 \
+         (draw should be well over 100), got {first}"
+    );
+}
