@@ -23,6 +23,9 @@ use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use elevator_bevy::camera::setup_camera;
 use elevator_bevy::cinematic::{Shot, ShotTimeline, apply_cinematic_camera};
+use elevator_bevy::decor::{
+    spawn_decor, sync_call_lamps, sync_occupancy_chips, tick_arrival_flash,
+};
 use elevator_bevy::recorder::{Recorder, capture_frames};
 use elevator_bevy::rendering::{
     spawn_building_visuals, sync_door_panels, sync_elevator_visuals, sync_rider_visuals,
@@ -78,7 +81,7 @@ fn main() {
         .add_message::<EventWrapper>()
         .add_systems(
             Startup,
-            (setup_camera, spawn_building_visuals, spawn_hud).chain(),
+            (setup_camera, spawn_building_visuals, spawn_decor, spawn_hud).chain(),
         )
         .add_systems(
             Update,
@@ -89,6 +92,9 @@ fn main() {
                 sync_door_panels,
                 sync_rider_visuals,
                 update_rider_positions,
+                sync_call_lamps,
+                sync_occupancy_chips,
+                tick_arrival_flash,
                 apply_cinematic_camera,
                 update_hud,
             )

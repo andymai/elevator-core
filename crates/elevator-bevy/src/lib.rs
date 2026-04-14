@@ -8,6 +8,7 @@
 
 pub mod camera;
 pub mod cinematic;
+pub mod decor;
 pub mod input;
 pub mod passenger_ai;
 pub mod plugin;
