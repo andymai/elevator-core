@@ -57,18 +57,18 @@ The simplest buildings (single bank, single shaft) can ignore lines — the buil
 
 ## The tick loop
 
-Each call to `sim.step()` runs one simulation tick. A tick consists of seven phases, always executed in this order:
+Each call to `sim.step()` runs one simulation tick. A tick consists of eight phases, always executed in this order:
 
 ```text
-+-------------------+   +------------+   +--------------+   +------------+
-| Advance           |-->| Dispatch   |-->| Reposition   |-->| Movement   |
-| Transient         |   |            |   |              |   |            |
-+-------------------+   +------------+   +--------------+   +------------+
-                                                                  |
-          +-------------------+   +------------+   +------------+
-          | Metrics           |<--| Loading    |<--| Doors      |
-          |                   |   |            |   |            |
-          +-------------------+   +------------+   +------------+
++------------+   +------------+   +--------------+   +--------------+
+| Advance    |-->| Dispatch   |-->| Reposition   |-->| Advance      |
+| Transient  |   |            |   |              |   | Queue        |
++------------+   +------------+   +--------------+   +--------------+
+                                                           |
+      +------------+   +------------+   +------------+   +------------+
+      | Metrics    |<--| Loading    |<--| Doors      |<--| Movement   |
+      |            |   |            |   |            |   |            |
+      +------------+   +------------+   +------------+   +------------+
 ```
 
 ### Phase 1: Advance Transient
@@ -89,13 +89,17 @@ The default strategy is SCAN (sweep end-to-end). You can swap in LOOK, NearestCa
 
 Optional phase; idle elevators are repositioned for better coverage via the `RepositionStrategy`. Only runs if at least one group has a strategy configured.
 
-### Phase 4: Movement
+### Phase 4: Advance Queue
+
+Reconciles each elevator's current phase/target with the front of its `DestinationQueue`. This is where imperative pushes from game code (`sim.push_destination`, `sim.push_destination_front`) take effect: an idle elevator with a non-empty queue transitions to `MovingToStop(front)`, and an elevator already in transit is redirected if a `push_front` changed the queue head. Zero-impact for games that never touch the queue — dispatch keeps the queue and `target_stop` in sync on its own.
+
+### Phase 5: Movement
 
 Elevators with a target stop are moved along the shaft axis using a **trapezoidal velocity profile**: accelerate up to max speed, cruise, then decelerate to stop precisely at the target position. This produces realistic motion without requiring complex physics.
 
 When an elevator arrives at its target stop, it emits an `ElevatorArrived` event and transitions to the door-opening state.
 
-### Phase 5: Doors
+### Phase 6: Doors
 
 The door finite-state machine ticks for each elevator. Doors transition through:
 
@@ -105,7 +109,7 @@ Closed -> Opening (transition ticks) -> Open (hold ticks) -> Closing (transition
 
 `DoorOpened` and `DoorClosed` events fire at the appropriate moments. Riders can only board or exit when the doors are fully open.
 
-### Phase 6: Loading
+### Phase 7: Loading
 
 While an elevator's doors are open at a stop:
 - **Exiting**: riders whose destination matches the current stop exit the elevator.
@@ -113,7 +117,7 @@ While an elevator's doors are open at a stop:
 
 Riders that exceed the elevator's remaining capacity are rejected with a `RiderRejected` event.
 
-### Phase 7: Metrics
+### Phase 8: Metrics
 
 Events from the current tick are processed to update aggregate metrics -- average wait time, ride time, throughput, abandonment rate, and total distance. Tagged metrics (per-zone or per-label breakdowns) are also updated here.
 

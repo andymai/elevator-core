@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::components::{
-    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, ServiceMode,
-    Stop, Velocity,
+    AccessControl, DestinationQueue, Elevator, Line, Patience, Position, Preferences, Rider, Route,
+    ServiceMode, Stop, Velocity,
 };
 #[cfg(feature = "energy")]
 use crate::energy::{EnergyMetrics, EnergyProfile};
@@ -57,6 +57,8 @@ pub struct World {
     pub(crate) energy_metrics: SecondaryMap<EntityId, EnergyMetrics>,
     /// Elevator service modes.
     pub(crate) service_modes: SecondaryMap<EntityId, ServiceMode>,
+    /// Per-elevator destination queues.
+    pub(crate) destination_queues: SecondaryMap<EntityId, DestinationQueue>,
 
     /// Disabled marker (entities skipped by all systems).
     pub(crate) disabled: SecondaryMap<EntityId, ()>,
@@ -93,6 +95,7 @@ impl World {
             #[cfg(feature = "energy")]
             energy_metrics: SecondaryMap::new(),
             service_modes: SecondaryMap::new(),
+            destination_queues: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
             ext_names: HashMap::new(),
@@ -158,6 +161,7 @@ impl World {
         #[cfg(feature = "energy")]
         self.energy_metrics.remove(id);
         self.service_modes.remove(id);
+        self.destination_queues.remove(id);
         self.disabled.remove(id);
 
         for ext in self.extensions.values_mut() {
@@ -412,6 +416,25 @@ impl World {
     /// Set an entity's service mode.
     pub fn set_service_mode(&mut self, id: EntityId, mode: ServiceMode) {
         self.service_modes.insert(id, mode);
+    }
+
+    // ── Destination queue accessors ─────────────────────────────────
+
+    /// Get an entity's destination queue.
+    #[must_use]
+    pub fn destination_queue(&self, id: EntityId) -> Option<&DestinationQueue> {
+        self.destination_queues.get(id)
+    }
+
+    /// Get an entity's destination queue mutably (crate-internal — games
+    /// mutate via the [`Simulation`](crate::sim::Simulation) helpers).
+    pub(crate) fn destination_queue_mut(&mut self, id: EntityId) -> Option<&mut DestinationQueue> {
+        self.destination_queues.get_mut(id)
+    }
+
+    /// Set an entity's destination queue.
+    pub fn set_destination_queue(&mut self, id: EntityId, queue: DestinationQueue) {
+        self.destination_queues.insert(id, queue);
     }
 
     // ── Typed query helpers ──────────────────────────────────────────
