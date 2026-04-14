@@ -56,13 +56,33 @@ fn moving_target_extracts_target_from_both_variants() {
 
 #[test]
 fn elevator_direction_reflects_lamps() {
-    let sim = SimulationBuilder::demo().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     let elev = sim.world().elevator_ids()[0];
+
     // Fresh demo elevator: both lamps lit → Either.
     assert_eq!(sim.elevator_direction(elev), Some(Direction::Either));
+
     // Non-elevator returns None.
     let stop = sim.stop_entity(StopId(0)).unwrap();
     assert_eq!(sim.elevator_direction(stop), None);
+
+    // Exercise Up / Down / neither-set arms directly — poking the flags
+    // guards against a silent swap or broken match in Elevator::direction.
+    let car = sim.world_mut().elevator_mut(elev).unwrap();
+    car.going_up = true;
+    car.going_down = false;
+    assert_eq!(sim.elevator_direction(elev), Some(Direction::Up));
+
+    let car = sim.world_mut().elevator_mut(elev).unwrap();
+    car.going_up = false;
+    car.going_down = true;
+    assert_eq!(sim.elevator_direction(elev), Some(Direction::Down));
+
+    // Neither lamp lit also collapses to Either (see doc on Direction::Either).
+    let car = sim.world_mut().elevator_mut(elev).unwrap();
+    car.going_up = false;
+    car.going_down = false;
+    assert_eq!(sim.elevator_direction(elev), Some(Direction::Either));
 }
 
 // ── Event::category ──────────────────────────────────────────────────
