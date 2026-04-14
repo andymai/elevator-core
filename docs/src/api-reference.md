@@ -170,6 +170,8 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 | `elevator_going_up` | `(&self, EntityId) -> Option<bool>` | Up-direction indicator lamp state (`None` if not an elevator) |
 | `elevator_going_down` | `(&self, EntityId) -> Option<bool>` | Down-direction indicator lamp state (`None` if not an elevator) |
 | `elevator_move_count` | `(&self, EntityId) -> Option<u64>` | Per-elevator count of rounded-floor transitions (`None` if not an elevator) |
+| `braking_distance` | `(&self, EntityId) -> Option<f64>` | Distance required to brake to a stop from the current velocity at the elevator's deceleration (`v² / 2a`). `Some(0.0)` when stationary; `None` if not an elevator |
+| `future_stop_position` | `(&self, EntityId) -> Option<f64>` | Current position plus signed braking distance in the direction of travel — where the elevator would come to rest if braking began now |
 
 ### Dispatch
 

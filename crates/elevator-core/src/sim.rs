@@ -2826,6 +2826,38 @@ impl Simulation {
         self.world.elevator(id).map(Elevator::move_count)
     }
 
+    /// Distance the elevator would travel while braking to a stop from its
+    /// current velocity, at its configured deceleration rate.
+    ///
+    /// Uses the standard `v² / (2·a)` kinematic formula. A stationary
+    /// elevator returns `Some(0.0)`. Returns `None` if the entity is not
+    /// an elevator or lacks a velocity component.
+    ///
+    /// Useful for writing opportunistic dispatch strategies (e.g. "stop at
+    /// this floor if we can brake in time") without duplicating the physics
+    /// computation.
+    #[must_use]
+    pub fn braking_distance(&self, id: EntityId) -> Option<f64> {
+        let car = self.world.elevator(id)?;
+        let vel = self.world.velocity(id)?.value;
+        Some(crate::movement::braking_distance(vel, car.deceleration))
+    }
+
+    /// The position where the elevator would come to rest if it began braking
+    /// this instant. Current position plus a signed braking distance in the
+    /// direction of travel.
+    ///
+    /// Returns `None` if the entity is not an elevator or lacks the required
+    /// components.
+    #[must_use]
+    pub fn future_stop_position(&self, id: EntityId) -> Option<f64> {
+        let pos = self.world.position(id)?.value;
+        let vel = self.world.velocity(id)?.value;
+        let car = self.world.elevator(id)?;
+        let dist = crate::movement::braking_distance(vel, car.deceleration);
+        Some(vel.signum().mul_add(dist, pos))
+    }
+
     /// Count of elevators currently in the given phase.
     ///
     /// Excludes disabled elevators (whose phase is reset to `Idle` on disable).

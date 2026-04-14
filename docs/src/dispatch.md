@@ -179,6 +179,10 @@ Your strategy receives a `DispatchManifest` with these convenience methods:
 
 For more advanced dispatch (priority-aware, weight-aware, VIP-first), you can iterate `manifest.waiting_at_stop` directly. Each entry contains a `Vec<RiderInfo>` with the rider's `id`, `destination`, `weight`, and `wait_ticks`.
 
+### Opportunistic stops: braking helpers
+
+For strategies that want to consider stopping at a passing floor only if the elevator can brake in time, `sim.braking_distance(elev)` and `sim.future_stop_position(elev)` expose the kinematic answer directly — no need to reimplement the trapezoidal physics. The free function `elevator_core::movement::braking_distance(velocity, deceleration)` is also available for pure computation off a `Simulation`.
+
 ### Group-aware dispatch with `decide_all`
 
 The default `DispatchStrategy` trait calls `decide()` once per idle elevator. If your strategy needs to coordinate across all elevators in a group (to avoid sending two elevators to the same stop), override `decide_all()` instead:
