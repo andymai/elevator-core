@@ -265,20 +265,42 @@ macro_rules! register_extensions {
 ///
 /// # Contents
 ///
-/// - **Builder & simulation:** [`SimulationBuilder`], [`Simulation`],
-///   [`RiderBuilder`]
-/// - **Components:** [`Rider`], [`RiderPhase`], [`Elevator`], [`ElevatorPhase`],
-///   [`Stop`], [`Line`], [`Position`], [`Velocity`], [`FloorPosition`],
-///   [`Route`], [`Patience`], [`Preferences`], [`AccessControl`],
-///   [`Orientation`], [`ServiceMode`]
-/// - **Config:** [`SimConfig`], [`GroupConfig`], [`LineConfig`]
-/// - **Dispatch:** [`DispatchStrategy`], [`RepositionStrategy`], plus the
-///   built-in reposition strategies [`NearestIdle`], [`ReturnToLobby`],
-///   [`SpreadEvenly`], [`DemandWeighted`]
-/// - **Identity:** [`EntityId`], [`StopId`], [`GroupId`]
-/// - **Errors & events:** [`SimError`], [`RejectionReason`],
-///   [`RejectionContext`], [`Event`], [`EventBus`]
-/// - **Misc:** [`Metrics`], [`TimeAdapter`]
+/// - **Builder & simulation:** [`SimulationBuilder`](crate::builder::SimulationBuilder),
+///   [`Simulation`](crate::sim::Simulation),
+///   [`RiderBuilder`](crate::sim::RiderBuilder)
+/// - **Components:** [`Rider`](crate::components::Rider),
+///   [`RiderPhase`](crate::components::RiderPhase),
+///   [`Elevator`](crate::components::Elevator),
+///   [`ElevatorPhase`](crate::components::ElevatorPhase),
+///   [`Stop`](crate::components::Stop), [`Line`](crate::components::Line),
+///   [`Position`](crate::components::Position),
+///   [`Velocity`](crate::components::Velocity),
+///   [`FloorPosition`](crate::components::FloorPosition),
+///   [`Route`](crate::components::Route),
+///   [`Patience`](crate::components::Patience),
+///   [`Preferences`](crate::components::Preferences),
+///   [`AccessControl`](crate::components::AccessControl),
+///   [`Orientation`](crate::components::Orientation),
+///   [`ServiceMode`](crate::components::ServiceMode)
+/// - **Config:** [`SimConfig`](crate::config::SimConfig),
+///   [`GroupConfig`](crate::config::GroupConfig),
+///   [`LineConfig`](crate::config::LineConfig)
+/// - **Dispatch:** [`DispatchStrategy`](crate::dispatch::DispatchStrategy),
+///   [`RepositionStrategy`](crate::dispatch::RepositionStrategy), plus the
+///   built-in reposition strategies
+///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
+///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
+///   [`SpreadEvenly`](crate::dispatch::reposition::SpreadEvenly),
+///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted)
+/// - **Identity:** [`EntityId`](crate::entity::EntityId),
+///   [`StopId`](crate::stop::StopId), [`GroupId`](crate::ids::GroupId)
+/// - **Errors & events:** [`SimError`](crate::error::SimError),
+///   [`RejectionReason`](crate::error::RejectionReason),
+///   [`RejectionContext`](crate::error::RejectionContext),
+///   [`Event`](crate::events::Event),
+///   [`EventBus`](crate::events::EventBus)
+/// - **Misc:** [`Metrics`](crate::metrics::Metrics),
+///   [`TimeAdapter`](crate::time::TimeAdapter)
 ///
 /// # Not included (import explicitly)
 ///

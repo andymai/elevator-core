@@ -1,4 +1,13 @@
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    // Tests legitimately compare against exact-zero / exact-constant floats
+    // produced by deterministic inputs; fuzzy comparisons would obscure intent.
+    clippy::float_cmp,
+    // Scenario tests (especially multi-line) are naturally long.
+    clippy::too_many_lines,
+)]
 
 /// Shared test utilities.
 mod helpers;

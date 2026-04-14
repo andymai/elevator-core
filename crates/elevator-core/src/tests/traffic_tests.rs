@@ -436,7 +436,7 @@ fn custom_traffic_source() {
 
     impl TrafficSource for FixedSource {
         fn generate(&mut self, tick: u64) -> Vec<SpawnRequest> {
-            if tick % self.interval == 0 {
+            if tick.is_multiple_of(self.interval) {
                 vec![SpawnRequest {
                     origin: self.stop_a,
                     destination: self.stop_b,

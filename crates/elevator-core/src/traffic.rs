@@ -2,17 +2,22 @@
 //!
 //! This module provides:
 //!
-//! - [`TrafficPattern`] — origin/destination distribution presets (up-peak, down-peak, etc.).
-//! - [`TrafficSchedule`] — time-varying pattern selection across a simulated day.
-//! - [`TrafficSource`] — trait for external traffic generators that feed riders into
-//!   a [`Simulation`](crate::sim::Simulation) each tick.
-//! - [`PoissonSource`] — Poisson-arrival traffic generator using schedules and spawn config.
-//! - [`SpawnRequest`] — a single rider spawn instruction returned by a traffic source.
+//! - [`TrafficPattern`](crate::traffic::TrafficPattern) — origin/destination distribution
+//!   presets (up-peak, down-peak, etc.).
+//! - [`TrafficSchedule`](crate::traffic::TrafficSchedule) — time-varying pattern selection
+//!   across a simulated day.
+//! - [`TrafficSource`](crate::traffic::TrafficSource) — trait for external traffic
+//!   generators that feed riders into a [`Simulation`](crate::sim::Simulation) each tick.
+//! - [`PoissonSource`](crate::traffic::PoissonSource) — Poisson-arrival traffic generator
+//!   using schedules and spawn config.
+//! - [`SpawnRequest`](crate::traffic::SpawnRequest) — a single rider spawn instruction
+//!   returned by a traffic source.
 //!
 //! # Design
 //!
-//! Traffic generation is **external to the simulation loop**. A [`TrafficSource`]
-//! produces [`SpawnRequest`]s each tick; the consumer feeds them into
+//! Traffic generation is **external to the simulation loop**. A
+//! [`TrafficSource`](crate::traffic::TrafficSource) produces
+//! [`SpawnRequest`](crate::traffic::SpawnRequest)s each tick; the consumer feeds them into
 //! [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
 //! (or the [`RiderBuilder`](crate::sim::RiderBuilder) for richer configuration).
 //!
@@ -348,8 +353,10 @@ pub struct PoissonSource {
     mean_interval: u32,
     /// Weight range `(min, max)` for spawned riders.
     weight_range: (f64, f64),
-    /// RNG for sampling.
-    rng: rand::rngs::ThreadRng,
+    /// RNG for sampling. Defaults to an OS-seeded [`rand::rngs::StdRng`];
+    /// swap in a user-seeded RNG via [`Self::with_rng`] for deterministic
+    /// traffic.
+    rng: rand::rngs::StdRng,
     /// Tick of the next scheduled arrival.
     next_arrival_tick: u64,
 }
@@ -373,7 +380,7 @@ impl PoissonSource {
         } else {
             weight_range
         };
-        let mut rng = rand::rng();
+        let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::from_os_rng();
         let next = sample_next_arrival(0, mean_interval_ticks, &mut rng);
         Self {
             stops,
@@ -421,6 +428,49 @@ impl PoissonSource {
     #[must_use]
     pub const fn with_mean_interval(mut self, ticks: u32) -> Self {
         self.mean_interval = ticks;
+        self
+    }
+
+    /// Replace the internal RNG with a caller-supplied one.
+    ///
+    /// Pair with a seeded [`rand::rngs::StdRng`] (via
+    /// `StdRng::seed_from_u64(...)`) to make `PoissonSource` output
+    /// reproducible across runs — closing the gap called out in
+    /// [Snapshots and Determinism](../docs/src/snapshots-and-determinism.md).
+    ///
+    /// The next scheduled arrival is resampled from the new RNG, anchored
+    /// to the source's current `next_arrival_tick`. That means:
+    ///
+    /// - **At construction time** (the usual pattern, and what the doc
+    ///   example shows) the anchor is still the tick-0-ish draw from
+    ///   [`Self::new`]; resampling produces a fresh interval from there.
+    /// - **Mid-simulation** — if `with_rng` is called after the source has
+    ///   been stepped — the resample starts from the already-advanced
+    ///   anchor, so the next arrival is drawn forward from "now" rather
+    ///   than from tick 0. A naïve `sample_next_arrival(0, ...)` would
+    ///   rewind the anchor and cause the next `generate(tick)` call to
+    ///   catch-up-emit every backlogged arrival in a single burst.
+    ///
+    /// ```
+    /// use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
+    /// use elevator_core::stop::StopId;
+    /// use rand::SeedableRng;
+    ///
+    /// let seeded = rand::rngs::StdRng::seed_from_u64(42);
+    /// let source = PoissonSource::new(
+    ///     vec![StopId(0), StopId(1)],
+    ///     TrafficSchedule::constant(TrafficPattern::Uniform),
+    ///     120,
+    ///     (60.0, 90.0),
+    /// )
+    /// .with_rng(seeded);
+    /// # let _ = source;
+    /// ```
+    #[must_use]
+    pub fn with_rng(mut self, rng: rand::rngs::StdRng) -> Self {
+        self.rng = rng;
+        self.next_arrival_tick =
+            sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
         self
     }
 

@@ -597,11 +597,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
     let line2_eid = sim
         .lines_in_group(GroupId(0))
         .into_iter()
-        .find(|&le| {
-            sim.world()
-                .line(le)
-                .map_or(false, |l| l.name() == "Shaft B")
-        })
+        .find(|&le| sim.world().line(le).is_some_and(|l| l.name() == "Shaft B"))
         .expect("Shaft B line should exist");
 
     let elevators_on_line2 = sim.elevators_on_line(line2_eid);
@@ -611,11 +607,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
     let line1_eid = sim
         .lines_in_group(GroupId(0))
         .into_iter()
-        .find(|&le| {
-            sim.world()
-                .line(le)
-                .map_or(false, |l| l.name() == "Shaft A")
-        })
+        .find(|&le| sim.world().line(le).is_some_and(|l| l.name() == "Shaft A"))
         .expect("Shaft A line should exist");
     let elevators_on_line1 = sim.elevators_on_line(line1_eid);
     let line1_elevator = elevators_on_line1[0];
@@ -2219,7 +2211,7 @@ fn three_group_rider_navigates_all_legs() {
         if sim
             .world()
             .rider(rider)
-            .map_or(false, |r| r.phase == RiderPhase::Arrived)
+            .is_some_and(|r| r.phase == RiderPhase::Arrived)
         {
             break;
         }

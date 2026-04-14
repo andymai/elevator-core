@@ -1,6 +1,6 @@
 //! World snapshot for save/load functionality.
 //!
-//! Provides [`WorldSnapshot`] which captures the full simulation state
+//! Provides [`WorldSnapshot`](crate::snapshot::WorldSnapshot) which captures the full simulation state
 //! (all entities, components, groups, metrics, tick counter) in a
 //! serializable form. Games choose the serialization format via serde.
 //!
@@ -66,8 +66,8 @@ pub struct EntitySnapshot {
 
 /// Serializable snapshot of the entire simulation state.
 ///
-/// Capture via [`Simulation::snapshot()`] and restore via
-/// [`WorldSnapshot::restore()`]. The game chooses the serde format
+/// Capture via [`Simulation::snapshot()`](crate::sim::Simulation::snapshot)
+/// and restore via [`WorldSnapshot::restore()`]. The game chooses the serde format
 /// (RON, JSON, bincode, etc.).
 ///
 /// Extension components and resources are NOT included. Games must
@@ -147,7 +147,8 @@ impl WorldSnapshot {
     ///
     /// To restore extension components, call `world.register_ext::<T>(name)`
     /// on the returned simulation's world for each extension type, then call
-    /// [`Simulation::load_extensions()`] with this snapshot's `extensions` data.
+    /// [`Simulation::load_extensions()`](crate::sim::Simulation::load_extensions)
+    /// with this snapshot's `extensions` data.
     #[must_use]
     pub fn restore(
         self,
@@ -354,12 +355,10 @@ impl WorldSnapshot {
                 world.set_service_mode(eid, mode);
             }
             if let Some(ref dq) = snap.destination_queue {
-                // Remap EntityIds inside the queue.
                 use crate::components::DestinationQueue as DQ;
-                let remapped: Vec<EntityId> = dq.queue().iter().map(|&e| remap(e)).collect();
                 let mut new_dq = DQ::new();
-                for eid_q in remapped {
-                    new_dq.push_back(eid_q);
+                for &e in dq.queue() {
+                    new_dq.push_back(remap(e));
                 }
                 world.set_destination_queue(eid, new_dq);
             }
@@ -487,10 +486,12 @@ impl crate::sim::Simulation {
 
         // Build entity index: map EntityId → position in vec.
         let all_ids: Vec<EntityId> = world.alive.keys().collect();
-        let mut id_to_index: HashMap<EntityId, usize> = HashMap::new();
-        for (i, &eid) in all_ids.iter().enumerate() {
-            id_to_index.insert(eid, i);
-        }
+        let id_to_index: HashMap<EntityId, usize> = all_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, e)| (e, i))
+            .collect();
 
         // Snapshot each entity.
         let entities: Vec<EntitySnapshot> = all_ids

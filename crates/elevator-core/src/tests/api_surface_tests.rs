@@ -1,6 +1,6 @@
-//! Tests for the new public API surface: remove_elevator, remove_stop,
-//! drain_events_where, riders_on, occupancy, iter_repositioning_elevators,
-//! RiderBuilder, and dispatch re-exports.
+//! Tests for the new public API surface: `remove_elevator`, `remove_stop`,
+//! `drain_events_where`, `riders_on`, `occupancy`, `iter_repositioning_elevators`,
+//! `RiderBuilder`, and dispatch re-exports.
 
 use super::helpers::{default_config, scan};
 use crate::builder::SimulationBuilder;
@@ -451,9 +451,8 @@ fn occupancy_returns_zero_for_nonexistent_elevator() {
 fn iter_repositioning_elevators_empty_when_no_reposition() {
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
-    let repositioning: Vec<EntityId> = sim.iter_repositioning_elevators().collect();
     assert!(
-        repositioning.is_empty(),
+        sim.iter_repositioning_elevators().next().is_none(),
         "no elevators should be repositioning without a reposition strategy"
     );
 }
@@ -567,9 +566,8 @@ fn iter_repositioning_elevators_empty_after_reposition_completes() {
         sim.step();
     }
 
-    let repositioning: Vec<EntityId> = sim.iter_repositioning_elevators().collect();
     assert!(
-        repositioning.is_empty(),
+        sim.iter_repositioning_elevators().next().is_none(),
         "no elevators should be repositioning after arrival at home stop"
     );
 }

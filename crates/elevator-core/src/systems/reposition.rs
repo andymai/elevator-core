@@ -76,6 +76,24 @@ pub fn run(
                 car.repositioning = true;
             }
 
+            // Update direction indicators from target vs current position so
+            // loading-phase direction gating matches the actual travel
+            // direction. Mirrors the logic in `systems::dispatch`.
+            let elev_pos = world.position(elev_eid).map(|p| p.value);
+            if let Some(pos) = elev_pos {
+                let target_pos = world.stop_position(target_stop).unwrap_or(pos);
+                let (new_up, new_down) = if target_pos > pos {
+                    (true, false)
+                } else if target_pos < pos {
+                    (false, true)
+                } else {
+                    (true, true)
+                };
+                super::dispatch::update_indicators(
+                    world, events, elev_eid, new_up, new_down, ctx.tick,
+                );
+            }
+
             events.emit(Event::ElevatorRepositioning {
                 elevator: elev_eid,
                 to_stop: target_stop,
@@ -83,7 +101,6 @@ pub fn run(
             });
 
             // Emit departure from current stop if applicable.
-            let elev_pos = world.position(elev_eid).map(|p| p.value);
             if let Some(pos) = elev_pos {
                 if let Some(from) = world.find_stop_at_position(pos) {
                     events.emit(Event::ElevatorDeparted {

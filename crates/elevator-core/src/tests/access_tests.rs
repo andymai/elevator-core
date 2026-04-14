@@ -7,7 +7,7 @@ use crate::stop::StopId;
 
 use super::helpers;
 
-/// Rider rejected when elevator has restricted_stops containing the destination.
+/// Rider rejected when elevator has `restricted_stops` containing the destination.
 #[test]
 fn rider_rejected_by_elevator_restriction() {
     let mut config = helpers::default_config();
@@ -45,7 +45,7 @@ fn rider_rejected_by_elevator_restriction() {
     );
 }
 
-/// Rider rejected when their AccessControl does not include the destination.
+/// Rider rejected when their `AccessControl` does not include the destination.
 #[test]
 fn rider_rejected_by_rider_access_control() {
     let config = helpers::default_config();
@@ -107,7 +107,7 @@ fn rider_boards_without_restrictions() {
     );
 }
 
-/// Rider with AccessControl listing the destination boards normally.
+/// Rider with `AccessControl` listing the destination boards normally.
 #[test]
 fn rider_boards_when_destination_in_allowed_stops() {
     let config = helpers::default_config();
@@ -238,7 +238,7 @@ fn both_restriction_types_work_in_same_sim() {
     );
 }
 
-/// RiderRejected event carries AccessDenied reason with None context.
+/// `RiderRejected` event carries `AccessDenied` reason with `None` context.
 #[test]
 fn rejection_event_has_access_denied_reason() {
     let mut config = helpers::default_config();
@@ -281,7 +281,7 @@ fn rejection_event_has_access_denied_reason() {
     }
 }
 
-/// AccessControl component round-trips through serde.
+/// `AccessControl` component round-trips through serde.
 #[test]
 fn access_control_serde_roundtrip() {
     let stop_id = crate::entity::EntityId::default();
@@ -292,7 +292,7 @@ fn access_control_serde_roundtrip() {
     assert!(deserialized.can_access(stop_id));
 }
 
-/// ElevatorConfig with restricted_stops round-trips through RON serde.
+/// `ElevatorConfig` with `restricted_stops` round-trips through RON serde.
 #[test]
 fn config_restricted_stops_serde_roundtrip() {
     let mut config = helpers::default_config();

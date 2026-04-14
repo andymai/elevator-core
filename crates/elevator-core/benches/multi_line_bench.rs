@@ -296,9 +296,6 @@ fn bench_topology_queries(c: &mut Criterion) {
     let cfg = multi_group_config(10, 5, 1, 10, 3);
     let total_stops = cfg.building.stops.len() as u32;
 
-    // Build a simulation once to get entity IDs for stops.
-    let sim = make_multi_sim(&cfg);
-
     group.bench_function("reachable_stops_from", |b| {
         b.iter_batched(
             || make_multi_sim(&cfg),
