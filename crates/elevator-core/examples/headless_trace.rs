@@ -24,8 +24,12 @@
 //! - `--spawn N`     — number of demo riders to spawn at tick 0 from the
 //!   first stop to the last stop. Default: `5`.
 //!
-//! Each output line is one JSON object: `{"event": <Event>, "tick": N}`.
-//! The final line is a `{"summary": ...}` object with aggregate metrics.
+//! Each output line is one serialized [`Event`](elevator_core::events::Event)
+//! using serde's default externally-tagged enum representation, e.g.
+//! `{"RiderSpawned":{"rider":{"idx":8,"version":1},"origin":...,"tick":0}}`.
+//! Every event variant carries its own `"tick"` field, so no outer wrapping
+//! is needed. The final line is a `{"summary": ...}` object with aggregate
+//! metrics.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

@@ -438,9 +438,18 @@ impl PoissonSource {
     /// reproducible across runs — closing the gap called out in
     /// [Snapshots and Determinism](../docs/src/snapshots-and-determinism.md).
     ///
-    /// The next scheduled arrival is resampled from the new RNG so that
-    /// the pre-existing arrival (drawn in [`Self::new`]) does not leak
-    /// entropy from the default OS seed.
+    /// The next scheduled arrival is resampled from the new RNG, anchored
+    /// to the source's current `next_arrival_tick`. That means:
+    ///
+    /// - **At construction time** (the usual pattern, and what the doc
+    ///   example shows) the anchor is still the tick-0-ish draw from
+    ///   [`Self::new`]; resampling produces a fresh interval from there.
+    /// - **Mid-simulation** — if `with_rng` is called after the source has
+    ///   been stepped — the resample starts from the already-advanced
+    ///   anchor, so the next arrival is drawn forward from "now" rather
+    ///   than from tick 0. A naïve `sample_next_arrival(0, ...)` would
+    ///   rewind the anchor and cause the next `generate(tick)` call to
+    ///   catch-up-emit every backlogged arrival in a single burst.
     ///
     /// ```
     /// use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
@@ -460,7 +469,8 @@ impl PoissonSource {
     #[must_use]
     pub fn with_rng(mut self, rng: rand::rngs::StdRng) -> Self {
         self.rng = rng;
-        self.next_arrival_tick = sample_next_arrival(0, self.mean_interval, &mut self.rng);
+        self.next_arrival_tick =
+            sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
         self
     }
 
