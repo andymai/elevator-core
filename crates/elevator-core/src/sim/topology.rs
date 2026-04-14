@@ -171,13 +171,12 @@ impl Simulation {
 
         // Tag the elevator with its line's "line:{name}" tag.
         let line_name = self.world.line(line).map(|l| l.name.clone());
-        if let Some(name) = line_name {
-            if let Some(tags) = self
+        if let Some(name) = line_name
+            && let Some(tags) = self
                 .world
                 .resource_mut::<crate::tagged_metrics::MetricTags>()
-            {
-                tags.tag(eid, format!("line:{name}"));
-            }
+        {
+            tags.tag(eid, format!("line:{name}"));
         }
 
         self.mark_topo_dirty();
@@ -687,10 +686,10 @@ impl Simulation {
 
     /// Rebuild the topology graph if any mutation has invalidated it.
     pub(super) fn ensure_graph_built(&self) {
-        if let Ok(mut graph) = self.topo_graph.lock() {
-            if graph.is_dirty() {
-                graph.rebuild(&self.groups);
-            }
+        if let Ok(mut graph) = self.topo_graph.lock()
+            && graph.is_dirty()
+        {
+            graph.rebuild(&self.groups);
         }
     }
 

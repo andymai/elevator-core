@@ -104,14 +104,14 @@ pub fn run(
                     }
 
                     // Push onto queue with adjacent dedup; emit event iff appended.
-                    if let Some(q) = world.destination_queue_mut(eid) {
-                        if q.push_back(stop_eid) {
-                            events.emit(Event::DestinationQueued {
-                                elevator: eid,
-                                stop: stop_eid,
-                                tick: ctx.tick,
-                            });
-                        }
+                    if let Some(q) = world.destination_queue_mut(eid)
+                        && q.push_back(stop_eid)
+                    {
+                        events.emit(Event::DestinationQueued {
+                            elevator: eid,
+                            stop: stop_eid,
+                            tick: ctx.tick,
+                        });
                     }
 
                     if let Some(car) = world.elevator_mut(eid) {

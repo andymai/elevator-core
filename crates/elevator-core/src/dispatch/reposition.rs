@@ -194,12 +194,12 @@ impl RepositionStrategy for DemandWeighted {
                     da.total_cmp(&db)
                 });
 
-            if let Some(&(elev_eid, elev_pos)) = closest {
-                if (elev_pos - stop_pos).abs() > 1e-6 {
-                    results.push((elev_eid, *stop_eid));
-                    assigned_elevators.push(elev_eid);
-                    occupied.push(*stop_pos);
-                }
+            if let Some(&(elev_eid, elev_pos)) = closest
+                && (elev_pos - stop_pos).abs() > 1e-6
+            {
+                results.push((elev_eid, *stop_eid));
+                assigned_elevators.push(elev_eid);
+                occupied.push(*stop_pos);
             }
 
             if assigned_elevators.len() == idle_elevators.len() {
