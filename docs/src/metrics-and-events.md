@@ -153,6 +153,7 @@ println!("Total settled:     {}", m.total_settled());
 println!("Total rerouted:    {}", m.total_rerouted());
 println!("Abandonment rate:  {:.1}%", m.abandonment_rate() * 100.0);
 println!("Total distance:    {:.1} units", m.total_distance());
+println!("Total moves:       {}", m.total_moves());
 # }
 ```
 
@@ -171,6 +172,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 | `total_settled()` | Cumulative riders settled as residents |
 | `total_rerouted()` | Cumulative riders rerouted from resident phase |
 | `total_distance()` | Sum of all elevator travel distance |
+| `total_moves()` | Total rounded-floor transitions across all elevators (passing-floor crossings + arrivals; analogous to elevator-saga's `moveCount`) |
 | `utilization_by_group()` | Per-group fraction of elevators currently moving |
 | `avg_utilization()` | Average utilization across all groups |
 | `reposition_distance()` | Total elevator distance traveled while repositioning |
@@ -217,6 +219,7 @@ Common KPIs that games typically display in HUDs:
 | `sim.idle_elevator_count()` | Count of elevators currently idle (excludes disabled) |
 | `sim.elevators_in_phase(phase)` | Count of elevators in a given phase (excludes disabled) |
 | `sim.elevator_load(id)` | Current total weight aboard an elevator, `None` if not an elevator |
+| `sim.elevator_move_count(id)` | Per-elevator count of rounded-floor transitions, `None` if not an elevator |
 
 ```rust,no_run
 # use elevator_core::prelude::*;

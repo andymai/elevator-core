@@ -63,6 +63,7 @@ fn elevator_query_returns_entities_with_both_components() {
             inspection_speed_factor: 0.25,
             going_up: true,
             going_down: true,
+            move_count: 0,
         },
     );
 

@@ -39,6 +39,10 @@ pub struct Metrics {
     /// Total distance traveled by elevators while repositioning.
     #[serde(default)]
     pub(crate) reposition_distance: f64,
+    /// Total rounded-floor transitions across all elevators
+    /// (analogous to elevator-saga's `moveCount`).
+    #[serde(default)]
+    pub(crate) total_moves: u64,
     /// Total riders settled as residents.
     pub(crate) total_settled: u64,
     /// Total riders rerouted from resident phase.
@@ -151,6 +155,13 @@ impl Metrics {
     #[must_use]
     pub const fn reposition_distance(&self) -> f64 {
         self.reposition_distance
+    }
+
+    /// Total rounded-floor transitions across all elevators (passing-floor
+    /// crossings plus arrivals). Analogous to elevator-saga's `moveCount`.
+    #[must_use]
+    pub const fn total_moves(&self) -> u64 {
+        self.total_moves
     }
 
     /// Total riders settled as residents.

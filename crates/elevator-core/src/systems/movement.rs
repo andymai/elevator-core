@@ -91,6 +91,7 @@ pub fn run(
 
         // Emit PassingFloor for any stops crossed between old and new position
         // (excluding the target stop — that gets an ElevatorArrived instead).
+        let mut passing_moves: u64 = 0;
         if !result.arrived {
             let moving_up = new_pos > old_pos;
             let (lo, hi) = if moving_up {
@@ -111,7 +112,16 @@ pub fn run(
                         moving_up,
                         tick: ctx.tick,
                     });
+                    passing_moves += 1;
                 }
+            }
+        }
+        if passing_moves > 0 {
+            // Only credit the aggregate if the per-elevator counter could actually
+            // be incremented — keep the invariant total_moves == sum(per-elevator).
+            if let Some(car) = world.elevator_mut(eid) {
+                car.move_count += passing_moves;
+                metrics.total_moves += passing_moves;
             }
         }
 
@@ -119,6 +129,12 @@ pub fn run(
             let Some(car) = world.elevator_mut(eid) else {
                 continue;
             };
+            // Arrival is a floor crossing too — count it for both repositioning
+            // and normal arrivals so the passing-floor + arrival accounting stays
+            // consistent. Passing floors during a repositioning trip are already
+            // counted above; skipping the arrival here would undercount.
+            car.move_count += 1;
+            metrics.total_moves += 1;
             if is_repositioning {
                 // Repositioned elevators go directly to Idle — no door cycle.
                 car.phase = ElevatorPhase::Idle;
