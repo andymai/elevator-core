@@ -149,6 +149,20 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                         return None;
                     }
                 }
+                // Direction indicator filter: rider must be going in a direction
+                // this car will serve. A filtered rider silently stays waiting —
+                // no rejection event — so a later car in the right direction can
+                // pick them up.
+                let cur_pos = world.position(current_stop).map(|p| p.value);
+                let dest_pos = world.position(dest).map(|p| p.value);
+                if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
+                    if dp > cp && !car.going_up {
+                        return None;
+                    }
+                    if dp < cp && !car.going_down {
+                        return None;
+                    }
+                }
             }
             // Rider preferences: skip crowded elevators.
             if let Some(prefs) = world.preferences(rid)

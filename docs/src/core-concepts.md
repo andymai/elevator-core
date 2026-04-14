@@ -190,6 +190,26 @@ Elevators cycle through these phases:
 
 An elevator arriving at a stop cycles through `DoorOpening` → `Loading` → `DoorClosing` → `Stopped`. If dispatch assigns a new target, the elevator departs from `Stopped`.
 
+### Direction indicators
+
+Every elevator carries two indicator lamps: `going_up` and `going_down`. Together they tell riders (and the loading system) which direction the car will serve next.
+
+| `going_up` | `going_down` | Meaning |
+|---|---|---|
+| `true` | `true` | Idle — the car will accept riders in either direction |
+| `true` | `false` | Committed to an upward trip |
+| `false` | `true` | Committed to a downward trip |
+
+The lamps are auto-managed by the dispatch phase:
+
+- On `DispatchDecision::GoToStop(target)`, the car's indicators are set from `target` vs. current position.
+- On `DispatchDecision::Idle` the pair resets to `(true, true)`.
+- A [`DirectionIndicatorChanged`](metrics-and-events.md) event is emitted only when the pair actually changes.
+
+The loading phase uses these lamps as a filter: a rider whose next route leg heads up (`dest_pos > cur_pos`) won't board a car with `going_up = false`, and vice versa. The rider is silently left waiting — **no rejection event** is emitted — so a later car heading in their direction picks them up naturally. Idle cars (both lamps lit) accept riders in either direction.
+
+Read the lamps through `sim.elevator_going_up(id)` / `sim.elevator_going_down(id)`, or directly off the component via `Elevator::going_up()` / `going_down()`.
+
 ## Sub-stepping
 
 For advanced use cases, you can run individual phases instead of calling `step()`:

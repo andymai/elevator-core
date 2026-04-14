@@ -11,6 +11,8 @@ During the Dispatch phase of each tick, the simulation:
 3. Calls the group's `DispatchStrategy` with this information.
 4. Applies the returned `DispatchDecision` for each elevator -- either `GoToStop(entity_id)` to assign a target, or `Idle` to do nothing.
 
+Direction indicators (`going_up`/`going_down`) are derived automatically from each dispatch decision: `GoToStop` sets them from target vs. current position, `Idle` resets them to both-lit. This means SCAN, LOOK, NearestCar, and ETD -- along with any custom strategy you write -- drive the indicators for free, and downstream boarding gets direction-awareness with no extra work from the strategy. See [Direction indicators](core-concepts.md#direction-indicators) for details.
+
 ## Built-in strategies
 
 | Strategy | Algorithm | Best for | Trade-off |

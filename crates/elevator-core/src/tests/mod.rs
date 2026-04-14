@@ -30,6 +30,7 @@ mod world_tests;
 
 mod api_surface_tests;
 mod boundary_tests;
+mod direction_indicator_tests;
 #[cfg(feature = "energy")]
 mod energy_tests;
 mod event_payload_tests;
