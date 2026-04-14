@@ -73,6 +73,18 @@ pub fn run(
                         tick: ctx.tick,
                     });
 
+                    // Compute direction indicators from target vs current position.
+                    let target_pos = world.stop_position(stop_eid).unwrap_or(pos);
+                    let (new_up, new_down) = if target_pos > pos {
+                        (true, false)
+                    } else if target_pos < pos {
+                        (false, true)
+                    } else {
+                        // At the target already — treat as idle (both lamps lit).
+                        (true, true)
+                    };
+                    update_indicators(world, events, eid, new_up, new_down, ctx.tick);
+
                     // Already at this stop — open doors directly.
                     if current_stop == Some(stop_eid) {
                         events.emit(Event::ElevatorArrived {
@@ -111,6 +123,8 @@ pub fn run(
                     if let Some(car) = world.elevator_mut(eid) {
                         car.phase = ElevatorPhase::Idle;
                     }
+                    // Reset indicators to both-lit when returning to idle.
+                    update_indicators(world, events, eid, true, true, ctx.tick);
                     if !was_idle {
                         let at_stop = world
                             .position(eid)
@@ -125,6 +139,32 @@ pub fn run(
             }
         }
     }
+}
+
+/// Update the direction indicator lamps on an elevator and emit a
+/// [`Event::DirectionIndicatorChanged`] iff the pair actually changed.
+fn update_indicators(
+    world: &mut World,
+    events: &mut EventBus,
+    eid: EntityId,
+    new_up: bool,
+    new_down: bool,
+    tick: u64,
+) {
+    let Some(car) = world.elevator_mut(eid) else {
+        return;
+    };
+    if car.going_up == new_up && car.going_down == new_down {
+        return;
+    }
+    car.going_up = new_up;
+    car.going_down = new_down;
+    events.emit(Event::DirectionIndicatorChanged {
+        elevator: eid,
+        going_up: new_up,
+        going_down: new_down,
+        tick,
+    });
 }
 
 /// Build a dispatch manifest with per-rider metadata for a group.

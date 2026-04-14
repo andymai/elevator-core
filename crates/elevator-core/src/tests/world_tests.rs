@@ -61,6 +61,8 @@ fn elevator_query_returns_entities_with_both_components() {
             repositioning: false,
             restricted_stops: HashSet::new(),
             inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
         },
     );
 

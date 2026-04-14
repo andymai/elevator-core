@@ -74,11 +74,30 @@ pub struct Elevator {
     /// Speed multiplier for Inspection mode (0.0..1.0).
     #[serde(default = "default_inspection_speed_factor")]
     pub(crate) inspection_speed_factor: f64,
+    /// Up-direction indicator lamp: whether this car will serve upward trips.
+    ///
+    /// Auto-managed by the dispatch phase: set true when heading up (or idle),
+    /// false while actively committed to a downward trip. Affects boarding:
+    /// a rider whose next leg goes up will not board a car with `going_up=false`.
+    #[serde(default = "default_true")]
+    pub(crate) going_up: bool,
+    /// Down-direction indicator lamp: whether this car will serve downward trips.
+    ///
+    /// Auto-managed by the dispatch phase: set true when heading down (or idle),
+    /// false while actively committed to an upward trip. Affects boarding:
+    /// a rider whose next leg goes down will not board a car with `going_down=false`.
+    #[serde(default = "default_true")]
+    pub(crate) going_down: bool,
 }
 
 /// Default inspection speed factor (25% of normal speed).
 const fn default_inspection_speed_factor() -> f64 {
     0.25
+}
+
+/// Default value for direction indicator fields (both lamps on = idle/either direction).
+const fn default_true() -> bool {
+    true
 }
 
 impl Elevator {
@@ -170,5 +189,23 @@ impl Elevator {
     #[must_use]
     pub const fn inspection_speed_factor(&self) -> f64 {
         self.inspection_speed_factor
+    }
+
+    /// Whether this car's up-direction indicator lamp is lit.
+    ///
+    /// A lit up-lamp signals the car will serve upward-travelling riders.
+    /// Both lamps lit means the car is idle and will accept either direction.
+    #[must_use]
+    pub const fn going_up(&self) -> bool {
+        self.going_up
+    }
+
+    /// Whether this car's down-direction indicator lamp is lit.
+    ///
+    /// A lit down-lamp signals the car will serve downward-travelling riders.
+    /// Both lamps lit means the car is idle and will accept either direction.
+    #[must_use]
+    pub const fn going_down(&self) -> bool {
+        self.going_down
     }
 }

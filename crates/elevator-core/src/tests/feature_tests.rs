@@ -562,6 +562,8 @@ fn despawn_elevator_resets_rider_to_waiting() {
             repositioning: false,
             restricted_stops: HashSet::new(),
             inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
         },
     );
 
@@ -643,6 +645,8 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             repositioning: false,
             restricted_stops: HashSet::new(),
             inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
         },
     );
 

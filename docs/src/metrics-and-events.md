@@ -22,6 +22,7 @@ Events are emitted during the tick phases. Here are the main categories:
 | `ElevatorRepositioned { elevator, at_stop, tick }` | An elevator completed repositioning |
 | `ElevatorIdle { elevator, at_stop, tick }` | An elevator became idle |
 | `CapacityChanged { elevator, current_load, capacity, tick }` | An elevator's load changed (after board or exit) |
+| `DirectionIndicatorChanged { elevator, going_up, going_down, tick }` | An elevator's direction indicator lamps changed (set by dispatch) |
 
 **Rider events:**
 
