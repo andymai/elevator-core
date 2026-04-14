@@ -43,6 +43,7 @@ mod braking_tests;
 mod destination_dispatch_tests;
 mod destination_queue_tests;
 mod direction_indicator_tests;
+mod door_control_tests;
 #[cfg(feature = "energy")]
 mod energy_tests;
 mod event_payload_tests;
