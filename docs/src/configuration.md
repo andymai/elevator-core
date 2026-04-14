@@ -13,15 +13,12 @@ use elevator_core::stop::StopId;
 use elevator_core::dispatch::etd::EtdDispatch;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::demo()
-        // Clear defaults and define our own building.
-        .stops(vec![])
+    let sim = SimulationBuilder::new()
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Sky Lobby", 50.0)
         .stop(StopId(2), "Observation Deck", 100.0)
 
-        // Clear the default elevator and add two custom ones.
-        .elevators(vec![])
+        // Two identical express cars — override only what differs from Default.
         .elevator(ElevatorConfig {
             id: 0,
             name: "Express A".into(),
@@ -32,6 +29,7 @@ fn main() -> Result<(), SimError> {
             starting_stop: StopId(0),
             door_open_ticks: 60,
             door_transition_ticks: 15,
+            ..Default::default()
         })
         .elevator(ElevatorConfig {
             id: 1,
@@ -43,6 +41,7 @@ fn main() -> Result<(), SimError> {
             starting_stop: StopId(2),
             door_open_ticks: 60,
             door_transition_ticks: 15,
+            ..Default::default()
         })
 
         .building_name("Skyline Tower")

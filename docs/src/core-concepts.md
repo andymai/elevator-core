@@ -220,8 +220,14 @@ For advanced use cases, you can run individual phases instead of calling `step()
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
+# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo().build()?;
+# let mut sim = SimulationBuilder::new()
+#     .stop(StopId(0), "Ground", 0.0)
+#     .stop(StopId(1), "Top", 10.0)
+#     .elevator(ElevatorConfig::default())
+#     .build()?;
 sim.run_advance_transient();
 sim.run_dispatch();
 sim.run_reposition();

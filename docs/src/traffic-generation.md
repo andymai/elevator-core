@@ -8,10 +8,15 @@ Traffic generation is **external to the simulation loop**. A `TrafficSource` pro
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
 
 # fn main() -> Result<(), SimError> {
-let mut sim = SimulationBuilder::demo().build()?;
+let mut sim = SimulationBuilder::new()
+    .stop(StopId(0), "Ground", 0.0)
+    .stop(StopId(1), "Top", 10.0)
+    .elevator(ElevatorConfig::default())
+    .build()?;
 let stops: Vec<StopId> = sim.stop_lookup_iter().map(|(id, _)| *id).collect();
 
 // Poisson arrivals with an office-day schedule.
