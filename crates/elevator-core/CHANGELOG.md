@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.5.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.5.0...elevator-core-v5.5.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* prevent stuck-elevator door-cycle loops in multi-line configs ([#68](https://github.com/andymai/elevator-core/issues/68)) ([d83d1db](https://github.com/andymai/elevator-core/commit/d83d1dbf91c8c5ee2362fd08af98aed65209f44b))
+
 ## [5.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.4.0...elevator-core-v5.5.0) (2026-04-14)
 
 
