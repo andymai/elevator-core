@@ -29,9 +29,14 @@ Call `.with_ext::<T>("name")` on the builder to register the extension type. The
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct VipTag { level: u32, lounge_access: bool }
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::demo()
+    let mut sim = SimulationBuilder::new()
+        .stop(StopId(0), "Ground", 0.0)
+        .stop(StopId(1), "Top", 10.0)
+        .elevator(ElevatorConfig::default())
         .with_ext::<VipTag>("vip_tag")
         .build()?;
     Ok(())
@@ -47,9 +52,15 @@ Use `world.insert_ext()` to attach your component to an entity:
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct VipTag { level: u32, lounge_access: bool }
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo().with_ext::<VipTag>("vip_tag").build()?;
+# let mut sim = SimulationBuilder::new()
+#     .stop(StopId(0), "Ground", 0.0)
+#     .stop(StopId(1), "Top", 10.0)
+#     .elevator(ElevatorConfig::default())
+#     .with_ext::<VipTag>("vip_tag")
+#     .build()?;
 let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
@@ -129,9 +140,14 @@ Hooks let you inject custom logic before or after any of the seven tick phases. 
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::demo()
+    let sim = SimulationBuilder::new()
+        .stop(StopId(0), "Ground", 0.0)
+        .stop(StopId(1), "Top", 10.0)
+        .elevator(ElevatorConfig::default())
         .after(Phase::Loading, |world| {
             // This runs after every Loading phase.
             // Check for newly arrived riders, update scores, etc.
@@ -151,8 +167,14 @@ You can also add hooks to a running simulation:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
+# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo().build()?;
+# let mut sim = SimulationBuilder::new()
+#     .stop(StopId(0), "Ground", 0.0)
+#     .stop(StopId(1), "Top", 10.0)
+#     .elevator(ElevatorConfig::default())
+#     .build()?;
 sim.add_after_hook(Phase::Loading, |world| {
     // Post-loading logic
 });
@@ -166,8 +188,13 @@ For multi-group buildings, you can register hooks that only fire for a specific 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
+# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-let sim = SimulationBuilder::demo()
+let sim = SimulationBuilder::new()
+    .stop(StopId(0), "Ground", 0.0)
+    .stop(StopId(1), "Top", 10.0)
+    .elevator(ElevatorConfig::default())
     .after_group(Phase::Loading, GroupId(0), |world| {
         // Only runs after loading for group 0
     })
@@ -215,6 +242,7 @@ The hook closure cannot call `sim.current_tick()` directly (the simulation is bo
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 use serde::{Serialize, Deserialize};
 
@@ -224,11 +252,11 @@ struct WaitWarning {
 }
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::demo()
-        .stops(vec![])
+    let mut sim = SimulationBuilder::new()
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
+        .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .with_ext::<WaitWarning>("wait_warning")
         .after(Phase::Metrics, |world| {
             // Check all waiting riders for long waits.

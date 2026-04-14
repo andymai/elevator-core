@@ -78,7 +78,7 @@ for _ in 0..1000 {
 println!("Delivered: {}", sim.metrics().total_delivered());
 ```
 
-For quick prototyping `SimulationBuilder::demo()` returns a two-stop, one-elevator building with reasonable physics defaults — useful when the stop layout isn't the point of the example.
+`ElevatorConfig` implements `Default` with sensible physics (max speed 2.0, acceleration 1.5, deceleration 2.0, 800 kg capacity), so `.elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })` is all you need when the physics aren't the point.
 
 ### Custom Dispatch
 
@@ -223,8 +223,15 @@ it to the builder:
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::stop::StopConfig;
 
-let sim = SimulationBuilder::demo()
+let sim = SimulationBuilder::new()
+    .stops(vec![
+        StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
+        StopConfig { id: StopId(1), name: "Top".into(), position: 10.0 },
+    ])
+    .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
     .dispatch_for_group(GroupId(0), my_custom_strategy)
     .build()
     .unwrap();

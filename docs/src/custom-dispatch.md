@@ -187,7 +187,11 @@ const PRIORITY_NAME: &str = "priority";
 // snapshot serialization. The builder's `.dispatch(...)` helper installs
 // the strategy but defaults the id to `BuiltinStrategy::Scan` — fine for
 // the built-in strategies, wrong for custom ones.
-let mut sim = SimulationBuilder::demo().build()?;
+let mut sim = SimulationBuilder::new()
+    .stop(StopId(0), "Ground", 0.0)
+    .stop(StopId(1), "Top", 10.0)
+    .elevator(ElevatorConfig::default())
+    .build()?;
 sim.set_dispatch(
     GroupId(0),
     Box::new(PriorityDispatch::default()),
