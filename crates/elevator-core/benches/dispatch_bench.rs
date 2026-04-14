@@ -14,6 +14,7 @@ use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use elevator_core::dispatch::DispatchStrategy;
+use elevator_core::dispatch::destination::DestinationDispatch;
 use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::dispatch::look::LookDispatch;
 use elevator_core::dispatch::nearest_car::NearestCarDispatch;
@@ -128,6 +129,14 @@ fn bench_dispatch_comparison(c: &mut Criterion) {
             NearestCarDispatch::new()
         );
         bench_strategy!(group, "etd", elevators, stops, riders, EtdDispatch::new());
+        bench_strategy!(
+            group,
+            "destination",
+            elevators,
+            stops,
+            riders,
+            DestinationDispatch::new()
+        );
     }
 
     group.finish();

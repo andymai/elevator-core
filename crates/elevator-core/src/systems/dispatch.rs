@@ -27,6 +27,12 @@ pub fn run(
     for group in groups {
         let manifest = build_manifest(world, group, ctx.tick, rider_index);
 
+        // Give strategies a chance to mutate world state (e.g. write rider
+        // assignments to extension storage) before per-elevator decisions.
+        if let Some(dispatch) = dispatchers.get_mut(&group.id()) {
+            dispatch.pre_dispatch(group, &manifest, world);
+        }
+
         // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
             .elevator_entities()
