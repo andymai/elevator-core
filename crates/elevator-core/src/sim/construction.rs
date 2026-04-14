@@ -174,6 +174,65 @@ impl Simulation {
         })
     }
 
+    /// Spawn a single elevator entity from an `ElevatorConfig` onto `line`.
+    ///
+    /// Sets position, velocity, all `Elevator` fields, optional energy profile,
+    /// optional service mode, and an empty `DestinationQueue`.
+    /// Returns the new entity ID.
+    fn spawn_elevator_entity(
+        world: &mut World,
+        ec: &crate::config::ElevatorConfig,
+        line: EntityId,
+        stop_lookup: &HashMap<StopId, EntityId>,
+        start_pos_lookup: &[crate::stop::StopConfig],
+    ) -> EntityId {
+        let eid = world.spawn();
+        let start_pos = start_pos_lookup
+            .iter()
+            .find(|s| s.id == ec.starting_stop)
+            .map_or(0.0, |s| s.position);
+        world.set_position(eid, Position { value: start_pos });
+        world.set_velocity(eid, Velocity { value: 0.0 });
+        let restricted: HashSet<EntityId> = ec
+            .restricted_stops
+            .iter()
+            .filter_map(|sid| stop_lookup.get(sid).copied())
+            .collect();
+        world.set_elevator(
+            eid,
+            Elevator {
+                phase: ElevatorPhase::Idle,
+                door: DoorState::Closed,
+                max_speed: ec.max_speed,
+                acceleration: ec.acceleration,
+                deceleration: ec.deceleration,
+                weight_capacity: ec.weight_capacity,
+                current_load: 0.0,
+                riders: Vec::new(),
+                target_stop: None,
+                door_transition_ticks: ec.door_transition_ticks,
+                door_open_ticks: ec.door_open_ticks,
+                line,
+                repositioning: false,
+                restricted_stops: restricted,
+                inspection_speed_factor: ec.inspection_speed_factor,
+                going_up: true,
+                going_down: true,
+                move_count: 0,
+            },
+        );
+        #[cfg(feature = "energy")]
+        if let Some(ref profile) = ec.energy_profile {
+            world.set_energy_profile(eid, profile.clone());
+            world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+        }
+        if let Some(mode) = ec.service_mode {
+            world.set_service_mode(eid, mode);
+        }
+        world.set_destination_queue(eid, crate::components::DestinationQueue::new());
+        eid
+    }
+
     /// Build topology from the legacy flat elevator list (single default line + group).
     fn build_legacy_topology(
         world: &mut World,
@@ -205,52 +264,13 @@ impl Simulation {
 
         let mut elevator_entities = Vec::new();
         for ec in &config.elevators {
-            let eid = world.spawn();
-            let start_pos = config
-                .building
-                .stops
-                .iter()
-                .find(|s| s.id == ec.starting_stop)
-                .map_or(0.0, |s| s.position);
-            world.set_position(eid, Position { value: start_pos });
-            world.set_velocity(eid, Velocity { value: 0.0 });
-            let restricted: HashSet<EntityId> = ec
-                .restricted_stops
-                .iter()
-                .filter_map(|sid| stop_lookup.get(sid).copied())
-                .collect();
-            world.set_elevator(
-                eid,
-                Elevator {
-                    phase: ElevatorPhase::Idle,
-                    door: DoorState::Closed,
-                    max_speed: ec.max_speed,
-                    acceleration: ec.acceleration,
-                    deceleration: ec.deceleration,
-                    weight_capacity: ec.weight_capacity,
-                    current_load: 0.0,
-                    riders: Vec::new(),
-                    target_stop: None,
-                    door_transition_ticks: ec.door_transition_ticks,
-                    door_open_ticks: ec.door_open_ticks,
-                    line: default_line_eid,
-                    repositioning: false,
-                    restricted_stops: restricted,
-                    inspection_speed_factor: ec.inspection_speed_factor,
-                    going_up: true,
-                    going_down: true,
-                    move_count: 0,
-                },
+            let eid = Self::spawn_elevator_entity(
+                world,
+                ec,
+                default_line_eid,
+                stop_lookup,
+                &config.building.stops,
             );
-            #[cfg(feature = "energy")]
-            if let Some(ref profile) = ec.energy_profile {
-                world.set_energy_profile(eid, profile.clone());
-                world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
-            }
-            if let Some(mode) = ec.service_mode {
-                world.set_service_mode(eid, mode);
-            }
-            world.set_destination_queue(eid, crate::components::DestinationQueue::new());
             elevator_entities.push(eid);
         }
 
@@ -334,52 +354,13 @@ impl Simulation {
             // Spawn elevators for this line.
             let mut elevator_entities = Vec::new();
             for ec in &lc.elevators {
-                let eid = world.spawn();
-                let start_pos = config
-                    .building
-                    .stops
-                    .iter()
-                    .find(|s| s.id == ec.starting_stop)
-                    .map_or(0.0, |s| s.position);
-                world.set_position(eid, Position { value: start_pos });
-                world.set_velocity(eid, Velocity { value: 0.0 });
-                let restricted: HashSet<EntityId> = ec
-                    .restricted_stops
-                    .iter()
-                    .filter_map(|sid| stop_lookup.get(sid).copied())
-                    .collect();
-                world.set_elevator(
-                    eid,
-                    Elevator {
-                        phase: ElevatorPhase::Idle,
-                        door: DoorState::Closed,
-                        max_speed: ec.max_speed,
-                        acceleration: ec.acceleration,
-                        deceleration: ec.deceleration,
-                        weight_capacity: ec.weight_capacity,
-                        current_load: 0.0,
-                        riders: Vec::new(),
-                        target_stop: None,
-                        door_transition_ticks: ec.door_transition_ticks,
-                        door_open_ticks: ec.door_open_ticks,
-                        line: line_eid,
-                        repositioning: false,
-                        restricted_stops: restricted,
-                        inspection_speed_factor: ec.inspection_speed_factor,
-                        going_up: true,
-                        going_down: true,
-                        move_count: 0,
-                    },
+                let eid = Self::spawn_elevator_entity(
+                    world,
+                    ec,
+                    line_eid,
+                    stop_lookup,
+                    &config.building.stops,
                 );
-                #[cfg(feature = "energy")]
-                if let Some(ref profile) = ec.energy_profile {
-                    world.set_energy_profile(eid, profile.clone());
-                    world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
-                }
-                if let Some(mode) = ec.service_mode {
-                    world.set_service_mode(eid, mode);
-                }
-                world.set_destination_queue(eid, crate::components::DestinationQueue::new());
                 elevator_entities.push(eid);
             }
 

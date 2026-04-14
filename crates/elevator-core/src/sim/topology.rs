@@ -19,6 +19,13 @@ use super::{ElevatorParams, LineParams, Simulation};
 impl Simulation {
     // ── Dynamic topology ────────────────────────────────────────────
 
+    /// Mark the topology graph dirty so it is rebuilt on next query.
+    pub(super) fn mark_topo_dirty(&self) {
+        if let Ok(mut g) = self.topo_graph.lock() {
+            g.mark_dirty();
+        }
+    }
+
     /// Find the (`group_index`, `line_index`) for a line entity.
     pub(super) fn find_line(&self, line: EntityId) -> Result<(usize, usize), SimError> {
         self.groups
@@ -74,9 +81,7 @@ impl Simulation {
             sorted.0.insert(idx, (position, eid));
         }
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         self.events.emit(Event::StopAdded {
             stop: eid,
             line,
@@ -165,9 +170,7 @@ impl Simulation {
             }
         }
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         self.events.emit(Event::ElevatorAdded {
             elevator: eid,
             line,
@@ -220,9 +223,7 @@ impl Simulation {
             tags.tag(eid, line_tag);
         }
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         self.events.emit(Event::LineAdded {
             line: eid,
             group: group_id,
@@ -265,9 +266,7 @@ impl Simulation {
         // Remove Line component from world.
         self.world.remove_line(line);
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         self.events.emit(Event::LineRemoved {
             line,
             group: group_id,
@@ -319,9 +318,7 @@ impl Simulation {
         // Despawn from world.
         self.world.despawn(elevator);
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         Ok(())
     }
 
@@ -365,9 +362,7 @@ impl Simulation {
         // Despawn from world.
         self.world.despawn(stop);
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         Ok(())
     }
 
@@ -390,9 +385,7 @@ impl Simulation {
 
         self.dispatchers.insert(group_id, Box::new(dispatch));
         self.strategy_ids.insert(group_id, BuiltinStrategy::Scan);
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         group_id
     }
 
@@ -437,9 +430,7 @@ impl Simulation {
             line_comp.group = new_group;
         }
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         self.events.emit(Event::LineReassigned {
             line,
             old_group: old_group_id,
@@ -508,9 +499,7 @@ impl Simulation {
             self.groups[new_group_idx].rebuild_caches();
         }
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
 
         self.events.emit(Event::ElevatorReassigned {
             elevator,
@@ -543,9 +532,7 @@ impl Simulation {
 
         self.groups[group_idx].push_stop(stop);
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         Ok(())
     }
 
@@ -568,9 +555,7 @@ impl Simulation {
         // Rebuild group's stop_entities from all lines.
         self.groups[group_idx].rebuild_caches();
 
-        if let Ok(mut g) = self.topo_graph.lock() {
-            g.mark_dirty();
-        }
+        self.mark_topo_dirty();
         Ok(())
     }
 

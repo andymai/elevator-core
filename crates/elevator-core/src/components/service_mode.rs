@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 /// Operational service mode for an elevator, orthogonal to [`ElevatorPhase`](super::ElevatorPhase).
 ///
 /// Normal is the default. Modes modify how simulation phases behave without
-/// replacing `ElevatorPhase` — an elevator in `Independent` mode can still
-/// be `Idle` or `MovingToStop`.
+/// replacing `ElevatorPhase` — an elevator in any service mode may occupy
+/// any phase (`Idle`, `MovingToStop`, `Repositioning`, etc.). `Independent`
+/// elevators are excluded from automatic dispatch and repositioning, so in
+/// practice they only move under direct API control.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ServiceMode {

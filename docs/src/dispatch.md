@@ -75,7 +75,7 @@ use elevator_core::prelude::*;
 use elevator_core::dispatch::look::LookDispatch;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .dispatch(LookDispatch::new())
         .build()?;
     Ok(())
@@ -115,7 +115,7 @@ use elevator_core::dispatch::scan::ScanDispatch;
 use elevator_core::dispatch::etd::EtdDispatch;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .dispatch_for_group(GroupId(0), ScanDispatch::new())
         .dispatch_for_group(GroupId(1), EtdDispatch::new())
         .build()?;
@@ -181,7 +181,7 @@ Then plug it into the builder:
 #     fn decide(&mut self, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &elevator_core::world::World) -> DispatchDecision { DispatchDecision::Idle }
 # }
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .dispatch(HighestFirstDispatch)
         .build()?;
     Ok(())

@@ -304,7 +304,7 @@ pub mod prelude {
     pub use crate::dispatch::{DispatchStrategy, RepositionStrategy};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
-    pub use crate::events::{Event, EventBus};
+    pub use crate::events::{Event, EventBus, EventCategory};
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{RiderBuilder, Simulation};

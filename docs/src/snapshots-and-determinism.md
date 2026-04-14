@@ -27,7 +27,7 @@ A `WorldSnapshot` captures the full simulation state — all entities, component
 ```rust,no_run
 # use elevator_core::prelude::*;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new().build()?;
+# let mut sim = SimulationBuilder::demo().build()?;
 for _ in 0..1000 { sim.step(); }
 
 let snapshot = sim.snapshot();
@@ -127,7 +127,7 @@ To compare dispatch strategies fairly, use identical seeded traffic across runs:
 # use elevator_core::dispatch::scan::ScanDispatch;
 # use elevator_core::dispatch::etd::EtdDispatch;
 # fn build_sim(dispatch: impl DispatchStrategy + 'static) -> Simulation {
-#   SimulationBuilder::new().dispatch(dispatch).build().unwrap()
+#   SimulationBuilder::demo().dispatch(dispatch).build().unwrap()
 # }
 # fn run_with(sim: &mut Simulation) {}
 let mut scan_sim = build_sim(ScanDispatch::new());

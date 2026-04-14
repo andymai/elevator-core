@@ -32,8 +32,9 @@ pub struct Metrics {
     /// Total distance traveled by all elevators.
     pub(crate) total_distance: f64,
     /// Per-group instantaneous elevator utilization: fraction of elevators
-    /// currently moving (in `MovingToStop` phase) vs total enabled elevators.
-    /// Overwritten each tick. Key is group name (String for serialization).
+    /// currently moving (either `MovingToStop` or `Repositioning`) vs total
+    /// enabled elevators. Overwritten each tick. Key is group name (String
+    /// for serialization).
     #[serde(default)]
     pub(crate) utilization_by_group: HashMap<String, f64>,
     /// Total distance traveled by elevators while repositioning.

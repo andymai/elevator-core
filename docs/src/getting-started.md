@@ -50,7 +50,7 @@ use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         // Clear the default stops and define our own.
         .stops(vec![])
         .stop(StopId(0), "Lobby", 0.0)
@@ -63,7 +63,7 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-`SimulationBuilder::new()` gives us one elevator with reasonable physics defaults (max speed 2.0, acceleration 1.5, deceleration 2.0, 800 kg capacity). That is plenty for our tutorial. If you want to customize the elevator, chain `.elevators(vec![])` followed by `.elevator(ElevatorConfig { ... })` -- we will cover that in the [Configuration](configuration.md) chapter.
+`SimulationBuilder::demo()` is the quick-start constructor: it pre-populates two stops plus one elevator with reasonable physics defaults (max speed 2.0, acceleration 1.5, deceleration 2.0, 800 kg capacity), so short examples like this one compile without ceremony. For a real project, start from `SimulationBuilder::new()` (empty) and configure stops + elevators explicitly — we cover that in the [Configuration](configuration.md) chapter.
 
 ## Spawn a rider
 
@@ -73,7 +73,7 @@ A rider is anything that rides an elevator. To spawn one, you provide an origin 
 # use elevator_core::prelude::*;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new()
+# let mut sim = SimulationBuilder::demo()
 #     .stops(vec![])
 #     .stop(StopId(0), "Lobby", 0.0)
 #     .stop(StopId(1), "Floor 2", 4.0)
@@ -99,7 +99,7 @@ Each call to `sim.step()` advances the simulation by one tick, running all eight
 # use elevator_core::prelude::*;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new()
+# let mut sim = SimulationBuilder::demo()
 #     .stops(vec![])
 #     .stop(StopId(0), "Lobby", 0.0)
 #     .stop(StopId(1), "Floor 2", 4.0)
@@ -147,7 +147,7 @@ use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
     // 1. Build a 3-stop building.
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![])
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)

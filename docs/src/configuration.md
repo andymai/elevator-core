@@ -13,7 +13,7 @@ use elevator_core::stop::StopId;
 use elevator_core::dispatch::etd::EtdDispatch;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         // Clear defaults and define our own building.
         .stops(vec![])
         .stop(StopId(0), "Ground", 0.0)

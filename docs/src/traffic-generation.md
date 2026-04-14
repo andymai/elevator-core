@@ -11,7 +11,7 @@ use elevator_core::prelude::*;
 use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
 
 # fn main() -> Result<(), SimError> {
-let mut sim = SimulationBuilder::new().build()?;
+let mut sim = SimulationBuilder::demo().build()?;
 let stops: Vec<StopId> = sim.stop_lookup_iter().map(|(id, _)| *id).collect();
 
 // Poisson arrivals with an office-day schedule.

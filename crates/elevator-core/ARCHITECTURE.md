@@ -149,8 +149,11 @@ elevator is already at the target stop, doors open immediately.
 
 Optional per-group phase. Only acts on elevators still in `Idle` phase after
 dispatch (no pending assignment). Each group's `RepositionStrategy` decides
-where to send idle cars for better coverage. Sets `Elevator.repositioning = true`
-so the movement system can distinguish repositioning from dispatch arrivals.
+where to send idle cars for better coverage. Sets phase to
+`ElevatorPhase::Repositioning(stop)` (distinct from `MovingToStop(stop)`)
+and flips `Elevator.repositioning = true` as a convenience flag for
+call-site predicates that still inspect it; the phase variant is the
+authoritative discriminator.
 
 Groups without a registered strategy skip this phase entirely.
 
