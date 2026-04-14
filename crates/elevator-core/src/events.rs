@@ -322,7 +322,7 @@ pub enum Event {
     /// [`RiderExited`](Self::RiderExited). Useful for real-time capacity
     /// bar displays in game UIs.
     ///
-    /// Load values use [`OrderedFloat`](ordered_float::OrderedFloat) for
+    /// Load values use [`OrderedFloat`] for
     /// `Eq` compatibility. Dereference to get the inner `f64`:
     ///
     /// ```rust,ignore
@@ -376,7 +376,7 @@ pub enum Event {
 
     /// An elevator was permanently removed from the simulation.
     ///
-    /// Distinct from [`EntityDisabled`] — a disabled elevator can be
+    /// Distinct from [`Event::EntityDisabled`] — a disabled elevator can be
     /// re-enabled, but a removed elevator is despawned.
     ElevatorRemoved {
         /// The elevator that was removed.
@@ -407,7 +407,7 @@ pub enum Event {
 
     /// A stop was permanently removed from the simulation.
     ///
-    /// Distinct from [`EntityDisabled`] — a disabled stop can be
+    /// Distinct from [`Event::EntityDisabled`] — a disabled stop can be
     /// re-enabled, but a removed stop is despawned.
     StopRemoved {
         /// The stop that was removed.

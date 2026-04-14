@@ -1,4 +1,67 @@
 //! Top-level simulation runner and tick loop.
+//!
+//! # Essential API
+//!
+//! `Simulation` exposes a large surface, but most users only need the
+//! ~15 methods below, grouped by the order they appear in a typical
+//! game loop.
+//!
+//! ### Construction
+//!
+//! - [`SimulationBuilder::demo()`](crate::builder::SimulationBuilder::demo)
+//!   or [`SimulationBuilder::from_config()`](crate::builder::SimulationBuilder::from_config)
+//!   — fluent entry point; call [`.build()`](crate::builder::SimulationBuilder::build)
+//!   to get a `Simulation`.
+//! - [`Simulation::new()`](crate::sim::Simulation::new) — direct construction from
+//!   `&SimConfig` + a dispatch strategy.
+//!
+//! ### Per-tick driving
+//!
+//! - [`Simulation::step()`](crate::sim::Simulation::step) — run all 8 phases.
+//! - [`Simulation::current_tick()`](crate::sim::Simulation::current_tick) — the
+//!   current tick counter.
+//!
+//! ### Spawning and rerouting riders
+//!
+//! - [`Simulation::spawn_rider_by_stop_id()`](crate::sim::Simulation::spawn_rider_by_stop_id)
+//!   — simple origin/destination/weight spawn.
+//! - [`Simulation::build_rider_by_stop_id()`](crate::sim::Simulation::build_rider_by_stop_id)
+//!   — fluent [`RiderBuilder`](crate::sim::RiderBuilder) for patience, preferences, access
+//!   control, explicit groups, multi-leg routes.
+//! - [`Simulation::reroute()`](crate::sim::Simulation::reroute) — change a waiting
+//!   rider's destination mid-trip.
+//! - [`Simulation::settle_rider()`](crate::sim::Simulation::settle_rider) /
+//!   [`Simulation::despawn_rider()`](crate::sim::Simulation::despawn_rider) —
+//!   terminal-state cleanup for `Arrived`/`Abandoned` riders.
+//!
+//! ### Observability
+//!
+//! - [`Simulation::drain_events()`](crate::sim::Simulation::drain_events) — consume
+//!   the event stream emitted by the last tick.
+//! - [`Simulation::metrics()`](crate::sim::Simulation::metrics) — aggregate
+//!   wait/ride/throughput stats.
+//! - [`Simulation::waiting_at()`](crate::sim::Simulation::waiting_at) /
+//!   [`Simulation::residents_at()`](crate::sim::Simulation::residents_at) — O(1)
+//!   population queries by stop.
+//!
+//! ### Imperative control
+//!
+//! - [`Simulation::push_destination()`](crate::sim::Simulation::push_destination) /
+//!   [`Simulation::push_destination_front()`](crate::sim::Simulation::push_destination_front) /
+//!   [`Simulation::clear_destinations()`](crate::sim::Simulation::clear_destinations)
+//!   — override dispatch by pushing/clearing stops on an elevator's
+//!   [`DestinationQueue`](crate::components::DestinationQueue).
+//!
+//! ### Persistence
+//!
+//! - [`Simulation::snapshot()`](crate::sim::Simulation::snapshot) — capture full
+//!   state as a serializable [`WorldSnapshot`](crate::snapshot::WorldSnapshot).
+//! - [`WorldSnapshot::restore()`](crate::snapshot::WorldSnapshot::restore)
+//!   — rebuild a `Simulation` from a snapshot.
+//!
+//! Everything else (phase-runners, world-level accessors, energy, tag
+//! metrics, topology queries) is available for advanced use but is not
+//! required for the common case.
 
 mod construction;
 mod lifecycle;

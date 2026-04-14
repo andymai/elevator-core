@@ -23,6 +23,7 @@ need.
 - [Dispatch Strategies](#dispatch-strategies)
 - [Configuration](#configuration)
 - [Bevy Integration](#bevy-integration)
+- [Testing](#testing)
 - [Feature Flags](#feature-flags)
 - [License](#license)
 
@@ -262,6 +263,39 @@ and supports configurable simulation speed via keyboard input.
 ```sh
 cargo run                              # default config
 cargo run -- assets/config/space_elevator.ron  # custom config
+```
+
+## Testing
+
+- **442 tests** pass in `cargo test -p elevator-core` (409 unit,
+  5 integration, 28 doc).
+- **5 criterion benchmarks** cover dispatch, scaling, multi-line,
+  query, and tick-loop throughput.
+- **Deterministic replay** is guarded by an end-to-end diff test
+  (`tests/deterministic_replay.rs`) that runs two identical scenarios
+  and compares the full event stream byte-for-byte.
+- **Mutation testing** via `cargo mutants` on the tick-loop hot path
+  (`src/systems/`, `src/dispatch/`, `door.rs`, `movement.rs`,
+  `rider_index.rs`): **299 caught / 168 missed / 31 unviable** →
+  **64.0% mutation score** (467 viable mutants). Reproduce with:
+
+```sh
+cargo mutants --package elevator-core \
+  --file 'crates/elevator-core/src/systems/*.rs' \
+  --file 'crates/elevator-core/src/dispatch/*.rs' \
+  --file 'crates/elevator-core/src/door.rs' \
+  --file 'crates/elevator-core/src/movement.rs' \
+  --file 'crates/elevator-core/src/rider_index.rs'
+```
+
+The headless example below is the shortest path to consuming the
+simulation from a non-Bevy context:
+
+```sh
+cargo run --example headless_trace -- \
+    --config assets/config/default.ron \
+    --ticks 2000 \
+    --output /tmp/trace.ndjson
 ```
 
 ## Feature Flags

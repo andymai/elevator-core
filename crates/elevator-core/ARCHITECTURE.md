@@ -351,8 +351,6 @@ minimizing total cost. The `riding_to_stop` manifest data estimates how many
 existing riders would be delayed by a detour. Weights are configurable via
 `EtdDispatch::with_weights()`.
 
-ETD emits `DispatchCostComputed` events for observability.
-
 ## 6. Repositioning System
 
 ### RepositionStrategy trait
@@ -457,7 +455,7 @@ The `Event` enum has ~25 variants organized by domain:
 |----------------|-----------------------------------------------------------------|
 | Elevator       | `ElevatorDeparted`, `ElevatorArrived`, `DoorOpened`, `DoorClosed`, `PassingFloor` |
 | Rider          | `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderRejected`, `RiderAbandoned`, `RiderEjected` |
-| Dispatch       | `ElevatorAssigned`, `DispatchCostComputed`                      |
+| Dispatch       | `ElevatorAssigned`, `ElevatorIdle`, `DestinationQueued`, `DirectionIndicatorChanged` |
 | Topology       | `StopAdded`, `ElevatorAdded`, `EntityDisabled`, `EntityEnabled`, `RouteInvalidated`, `RiderRerouted` |
 | Line lifecycle | `LineAdded`, `LineRemoved`, `LineReassigned`, `ElevatorReassigned` |
 | Repositioning  | `ElevatorRepositioning`, `ElevatorRepositioned`                 |
