@@ -21,6 +21,27 @@ pub enum ServiceMode {
     /// Inspection mode: reduced speed, doors hold open indefinitely.
     /// Speed is reduced by [`Elevator::inspection_speed_factor`](super::Elevator::inspection_speed_factor).
     Inspection,
+    /// Manual mode: elevator is driven by direct velocity commands from the
+    /// game (see
+    /// [`Simulation::set_target_velocity`](crate::sim::Simulation::set_target_velocity)
+    /// and [`Simulation::emergency_stop`](crate::sim::Simulation::emergency_stop)).
+    /// Excluded from dispatch and repositioning; doors follow the manual
+    /// door-control API. Can stop at any position — the elevator is not
+    /// required to align with a configured stop.
+    Manual,
+}
+
+impl ServiceMode {
+    /// `true` if elevators in this mode are skipped by the automatic
+    /// dispatch and repositioning phases.
+    ///
+    /// Returns `true` for [`Independent`](Self::Independent) and
+    /// [`Manual`](Self::Manual), which both hand elevator movement over
+    /// to the consumer.
+    #[must_use]
+    pub const fn is_dispatch_excluded(self) -> bool {
+        matches!(self, Self::Independent | Self::Manual)
+    }
 }
 
 impl std::fmt::Display for ServiceMode {
@@ -29,6 +50,7 @@ impl std::fmt::Display for ServiceMode {
             Self::Normal => write!(f, "Normal"),
             Self::Independent => write!(f, "Independent"),
             Self::Inspection => write!(f, "Inspection"),
+            Self::Manual => write!(f, "Manual"),
         }
     }
 }

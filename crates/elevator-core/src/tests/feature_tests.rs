@@ -566,6 +566,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             going_down: true,
             move_count: 0,
             door_command_queue: Vec::new(),
+            manual_target_velocity: None,
         },
     );
 
@@ -651,6 +652,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             going_down: true,
             move_count: 0,
             door_command_queue: Vec::new(),
+            manual_target_velocity: None,
         },
     );
 
