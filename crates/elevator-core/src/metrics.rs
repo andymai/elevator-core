@@ -32,15 +32,16 @@ pub struct Metrics {
     /// Total distance traveled by all elevators.
     pub(crate) total_distance: f64,
     /// Per-group instantaneous elevator utilization: fraction of elevators
-    /// currently moving (in `MovingToStop` phase) vs total enabled elevators.
-    /// Overwritten each tick. Key is group name (String for serialization).
+    /// currently moving (either `MovingToStop` or `Repositioning`) vs total
+    /// enabled elevators. Overwritten each tick. Key is group name (String
+    /// for serialization).
     #[serde(default)]
     pub(crate) utilization_by_group: HashMap<String, f64>,
     /// Total distance traveled by elevators while repositioning.
     #[serde(default)]
     pub(crate) reposition_distance: f64,
     /// Total rounded-floor transitions across all elevators
-    /// (analogous to elevator-saga's `moveCount`).
+    /// (passing-floor crossings plus arrivals).
     #[serde(default)]
     pub(crate) total_moves: u64,
     /// Total riders settled as residents.
@@ -158,7 +159,7 @@ impl Metrics {
     }
 
     /// Total rounded-floor transitions across all elevators (passing-floor
-    /// crossings plus arrivals). Analogous to elevator-saga's `moveCount`.
+    /// crossings plus arrivals).
     #[must_use]
     pub const fn total_moves(&self) -> u64 {
         self.total_moves

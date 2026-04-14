@@ -6,7 +6,7 @@
 //! use elevator_core::prelude::*;
 //! use elevator_core::dispatch::BuiltinReposition;
 //!
-//! let sim = SimulationBuilder::new()
+//! let sim = SimulationBuilder::demo()
 //!     .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
 //!     .build()
 //!     .unwrap();

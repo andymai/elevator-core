@@ -6,14 +6,51 @@ use std::collections::HashSet;
 use crate::door::DoorState;
 use crate::entity::EntityId;
 
+/// Direction an elevator's indicator lamps are signalling.
+///
+/// Derived from the pair of `going_up` / `going_down` flags on [`Elevator`].
+/// `Either` corresponds to both lamps lit — the car is idle and will accept
+/// riders heading either way. `Up` / `Down` correspond to an actively
+/// committed direction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum Direction {
+    /// Car will serve upward trips only.
+    Up,
+    /// Car will serve downward trips only.
+    Down,
+    /// Car will serve either direction (idle).
+    Either,
+}
+
+impl std::fmt::Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Up => write!(f, "Up"),
+            Self::Down => write!(f, "Down"),
+            Self::Either => write!(f, "Either"),
+        }
+    }
+}
+
 /// Operational phase of an elevator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ElevatorPhase {
     /// Parked with no pending requests.
     Idle,
-    /// Travelling toward a specific stop.
+    /// Travelling toward a specific stop in response to a dispatch
+    /// assignment (carrying or about to pick up riders).
     MovingToStop(EntityId),
+    /// Travelling toward a stop for repositioning — no rider service
+    /// obligation, will transition directly to [`Idle`] on arrival
+    /// without opening doors. Distinct from [`MovingToStop`] so that
+    /// downstream code (dispatch, UI, metrics) can treat opportunistic
+    /// moves differently from scheduled trips.
+    ///
+    /// [`MovingToStop`]: Self::MovingToStop
+    /// [`Idle`]: Self::Idle
+    Repositioning(EntityId),
     /// Doors are currently opening.
     DoorOpening,
     /// Doors open; riders may board or exit.
@@ -24,11 +61,36 @@ pub enum ElevatorPhase {
     Stopped,
 }
 
+impl ElevatorPhase {
+    /// Whether the elevator is currently travelling (in either a dispatched
+    /// or a repositioning move).
+    #[must_use]
+    pub const fn is_moving(&self) -> bool {
+        matches!(self, Self::MovingToStop(_) | Self::Repositioning(_))
+    }
+
+    /// The target stop of a moving elevator, if any.
+    ///
+    /// Returns `Some(stop)` for both [`MovingToStop`] and [`Repositioning`]
+    /// variants; `None` otherwise.
+    ///
+    /// [`MovingToStop`]: Self::MovingToStop
+    /// [`Repositioning`]: Self::Repositioning
+    #[must_use]
+    pub const fn moving_target(&self) -> Option<EntityId> {
+        match self {
+            Self::MovingToStop(s) | Self::Repositioning(s) => Some(*s),
+            _ => None,
+        }
+    }
+}
+
 impl std::fmt::Display for ElevatorPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Idle => write!(f, "Idle"),
             Self::MovingToStop(id) => write!(f, "MovingToStop({id:?})"),
+            Self::Repositioning(id) => write!(f, "Repositioning({id:?})"),
             Self::DoorOpening => write!(f, "DoorOpening"),
             Self::Loading => write!(f, "Loading"),
             Self::DoorClosing => write!(f, "DoorClosing"),
@@ -88,8 +150,9 @@ pub struct Elevator {
     /// a rider whose next leg goes down will not board a car with `going_down=false`.
     #[serde(default = "default_true")]
     pub(crate) going_down: bool,
-    /// Count of rounded-floor transitions (passing-floors + arrivals). Analogous
-    /// to elevator-saga's `moveCount` scoring axis.
+    /// Count of rounded-floor transitions (passing-floors + arrivals).
+    /// Useful as a scoring axis for efficiency — fewer moves per delivery
+    /// means less wasted travel.
     #[serde(default)]
     pub(crate) move_count: u64,
 }
@@ -213,10 +276,25 @@ impl Elevator {
         self.going_down
     }
 
+    /// Direction this car is currently committed to, derived from the pair
+    /// of indicator-lamp flags.
+    ///
+    /// - `Direction::Up` — only `going_up` is set
+    /// - `Direction::Down` — only `going_down` is set
+    /// - `Direction::Either` — both lamps lit (car is idle / accepting
+    ///   either direction), or neither is set (treated as `Either` too,
+    ///   though the dispatch phase normally keeps at least one lit)
+    #[must_use]
+    pub const fn direction(&self) -> Direction {
+        match (self.going_up, self.going_down) {
+            (true, false) => Direction::Up,
+            (false, true) => Direction::Down,
+            _ => Direction::Either,
+        }
+    }
+
     /// Count of rounded-floor transitions this elevator has made
     /// (both passing-floor crossings and arrivals).
-    ///
-    /// Analogous to elevator-saga's `moveCount` scoring axis.
     #[must_use]
     pub const fn move_count(&self) -> u64 {
         self.move_count

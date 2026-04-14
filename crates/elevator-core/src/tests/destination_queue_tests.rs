@@ -1,5 +1,5 @@
 //! Tests for the per-elevator `DestinationQueue` component and its
-//! imperative push/clear API (inspired by elevator-saga's `destinationQueue`).
+//! imperative push/clear API.
 
 use crate::builder::SimulationBuilder;
 use crate::components::ElevatorPhase;

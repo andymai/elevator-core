@@ -212,7 +212,7 @@ fn independent_excluded_from_reposition() {
     use crate::dispatch::reposition::ReturnToLobby;
     use crate::stop::StopConfig;
 
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),

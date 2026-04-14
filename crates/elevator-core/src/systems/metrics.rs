@@ -1,6 +1,5 @@
 //! Phase 6: update aggregate metrics from events emitted this tick.
 
-use crate::components::ElevatorPhase;
 use crate::dispatch::ElevatorGroup;
 use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
@@ -101,7 +100,7 @@ pub fn run(
             }
             if let Some(car) = world.elevator(eid) {
                 total += 1;
-                if matches!(car.phase, ElevatorPhase::MovingToStop(_)) {
+                if car.phase.is_moving() {
                     moving += 1;
                 }
             }

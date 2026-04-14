@@ -51,7 +51,7 @@ Create a simulation, spawn a rider, and run until delivery.
 ```rust
 use elevator_core::prelude::*;
 
-let mut sim = SimulationBuilder::new()
+let mut sim = SimulationBuilder::demo()
     .stop(StopId(0), "Ground", 0.0)
     .stop(StopId(1), "Floor 2", 4.0)
     .stop(StopId(2), "Floor 3", 8.0)
@@ -77,7 +77,7 @@ Swap in a different dispatch algorithm and react to simulation events.
 use elevator_core::prelude::*;
 use elevator_core::dispatch::etd::EtdDispatch;
 
-let mut sim = SimulationBuilder::new()
+let mut sim = SimulationBuilder::demo()
     .stop(StopId(0), "Lobby", 0.0)
     .stop(StopId(1), "Sky Lounge", 50.0)
     .stop(StopId(2), "Observatory", 120.0)
@@ -117,7 +117,7 @@ struct VipTag {
     level: u32,
 }
 
-let mut sim = SimulationBuilder::new()
+let mut sim = SimulationBuilder::demo()
     .stop(StopId(0), "Ground", 0.0)
     .stop(StopId(1), "Penthouse", 100.0)
     .with_ext::<VipTag>("vip_tag")
@@ -170,6 +170,10 @@ component accessors, per-entity extension storage for game-specific data, and a
 query builder for filtering and iterating entities by component composition.
 Lifecycle hooks let you inject custom logic before or after any phase.
 
+For per-phase semantics (events emitted, edge cases, design rationale), see
+[`ARCHITECTURE.md`](crates/elevator-core/ARCHITECTURE.md) — the single
+canonical reference.
+
 ## Dispatch Strategies
 
 Four built-in strategies ship with the crate. All implement the `DispatchStrategy` trait.
@@ -187,7 +191,7 @@ it to the builder:
 ```rust
 use elevator_core::prelude::*;
 
-let sim = SimulationBuilder::new()
+let sim = SimulationBuilder::demo()
     .dispatch_for_group(GroupId(0), my_custom_strategy)
     .build()
     .unwrap();

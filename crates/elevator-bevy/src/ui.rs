@@ -69,6 +69,10 @@ pub fn update_hud(
             let name = w.stop(stop_eid).map_or("?", |s| s.name());
             format!("Moving -> {name}")
         }
+        ElevatorPhase::Repositioning(stop_eid) => {
+            let name = w.stop(stop_eid).map_or("?", |s| s.name());
+            format!("Repositioning -> {name}")
+        }
         ElevatorPhase::DoorOpening => "Doors opening".to_string(),
         ElevatorPhase::Loading => "Loading".to_string(),
         ElevatorPhase::DoorClosing => "Doors closing".to_string(),
@@ -80,7 +84,7 @@ pub fn update_hud(
     let speed_display = format!("{velocity:.1}");
 
     #[allow(clippy::option_if_let_else)]
-    let eta_str = if let ElevatorPhase::MovingToStop(stop_eid) = car.phase() {
+    let eta_str = if let Some(stop_eid) = car.phase().moving_target() {
         if let Some(target_pos) = w.stop_position(stop_eid) {
             let dist = (target_pos - elev_pos.value()).abs();
             if velocity > 0.001 {
