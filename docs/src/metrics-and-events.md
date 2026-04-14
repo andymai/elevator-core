@@ -98,14 +98,15 @@ Here is a pattern for collecting a complete event log across a simulation run:
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::demo()
-        .stops(vec![])
+    let mut sim = SimulationBuilder::new()
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
+        .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .build()?;
 
     sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
@@ -254,9 +255,14 @@ For per-zone or per-label breakdowns, you can tag entities with string labels an
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo().build()?;
+# let mut sim = SimulationBuilder::new()
+#     .stop(StopId(0), "Ground", 0.0)
+#     .stop(StopId(1), "Top", 10.0)
+#     .elevator(ElevatorConfig::default())
+#     .build()?;
 // Tag a stop.
 let lobby = sim.stop_entity(StopId(0)).unwrap();
 sim.tag_entity(lobby, "zone:lobby");
@@ -291,15 +297,16 @@ Tagged metrics track `avg_wait_time`, `total_delivered`, `total_abandoned`, `tot
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::demo()
-        .stops(vec![])
+    let mut sim = SimulationBuilder::new()
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Low Zone", 4.0)
         .stop(StopId(2), "Mid Zone", 8.0)
         .stop(StopId(3), "High Zone", 12.0)
+        .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .build()?;
 
     // Tag stops by zone.

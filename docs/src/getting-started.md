@@ -42,7 +42,7 @@ Turn off defaults with `default-features = false` if you want a leaner build and
 
 ## Build a simulation
 
-We will use `SimulationBuilder` to set up a 3-stop building. The builder starts with sensible defaults (2 stops, 1 elevator, SCAN dispatch, 60 ticks per second), but we will override the stops to create our own layout.
+We will use `SimulationBuilder` to set up a 3-stop building with one elevator, SCAN dispatch (the builder's default), and 60 ticks per second. `ElevatorConfig` implements `Default` with sensible physics (max speed 2.0, acceleration 1.5, deceleration 2.0, 800 kg capacity) so the elevator is one line; stops we spell out because positions are the whole point.
 
 ```rust,no_run
 use elevator_core::prelude::*;
@@ -50,12 +50,11 @@ use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::demo()
-        // Clear the default stops and define our own.
-        .stops(vec![])
+    let mut sim = SimulationBuilder::new()
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
+        .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .building_name("Tutorial Tower")
         .build()?;
 
@@ -63,7 +62,7 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-`SimulationBuilder::demo()` is the quick-start constructor: it pre-populates two stops plus one elevator with reasonable physics defaults (max speed 2.0, acceleration 1.5, deceleration 2.0, 800 kg capacity), so short examples like this one compile without ceremony. For a real project, start from `SimulationBuilder::new()` (empty) and configure stops + elevators explicitly — we cover that in the [Configuration](configuration.md) chapter.
+Override any `ElevatorConfig` field with struct-update syntax (`ElevatorConfig { max_speed: 4.0, ..Default::default() }`) — the [Configuration](configuration.md) chapter covers every field.
 
 ## Spawn a rider
 
@@ -71,13 +70,14 @@ A rider is anything that rides an elevator. To spawn one, you provide an origin 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo()
-#     .stops(vec![])
+# let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)
 #     .stop(StopId(1), "Floor 2", 4.0)
 #     .stop(StopId(2), "Floor 3", 8.0)
+#     .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
 #     .build()?;
 let rider_id = sim.spawn_rider_by_stop_id(
     StopId(0),  // origin: Lobby
@@ -97,13 +97,14 @@ Each call to `sim.step()` advances the simulation by one tick, running all eight
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::config::ElevatorConfig;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::demo()
-#     .stops(vec![])
+# let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)
 #     .stop(StopId(1), "Floor 2", 4.0)
 #     .stop(StopId(2), "Floor 3", 8.0)
+#     .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
 #     .build()?;
 # let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
 let mut arrived = false;
@@ -143,15 +144,16 @@ Here is everything together as a single runnable file:
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
     // 1. Build a 3-stop building.
-    let mut sim = SimulationBuilder::demo()
-        .stops(vec![])
+    let mut sim = SimulationBuilder::new()
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
+        .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .building_name("Tutorial Tower")
         .build()?;
 
