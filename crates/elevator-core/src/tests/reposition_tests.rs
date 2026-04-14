@@ -128,8 +128,13 @@ fn spread_evenly_distributes_elevators() {
     if result.len() == 2 {
         assert_ne!(result[0].1, result[1].1, "should spread to different stops");
     }
-    // The first elevator should be sent to the farthest unoccupied stop (stop 4 at 40.0),
-    // maximizing min-distance from the other occupied position (elev_b at 20.0).
+    // `elev_b` is also idle so it's excluded from `occupied` when elev_a is
+    // placed — the `occupied` set is empty, `min_distance_to` returns
+    // INFINITY for every stop, and `max_by(..total_cmp)` deterministically
+    // returns the last element (`stops[4]`). The outcome is correct but
+    // the "farthest from other occupied positions" intuition is only what
+    // the strategy *would* do once `elev_b` is assigned a position — here
+    // elev_a is processed first while `occupied` is still empty.
     assert_eq!(result[0].1, stops[4]);
 }
 
@@ -290,6 +295,141 @@ fn nearest_idle_returns_empty() {
     let result = strategy.reposition(&idle, &stop_pos, &group, &world);
 
     assert!(result.is_empty(), "NearestIdle should never generate moves");
+}
+
+// ── Mutation-coverage tests for the return-content of each strategy ──
+// The three live strategies (SpreadEvenly, ReturnToLobby, DemandWeighted)
+// had mutants of the form "replace reposition -> Vec<..> with vec![]" that
+// were not killed by existing tests. These tests assert specific targets
+// rather than just "is_empty or not".
+
+#[test]
+fn spread_evenly_sends_idle_car_to_specific_stop() {
+    // 3 stops at 0/10/20, one idle car at position 0, one busy car at 20.
+    // SpreadEvenly should send the idle car to the stop furthest from 20 —
+    // that's stop 0, but the idle is already at 0, so no movement for idle.
+    // Instead: put idle at 5 so it has to move, and test that target is 0.
+    let (mut world, stops) = test_world_n(3);
+    let idle_elev = spawn_elevator(&mut world, 5.0);
+    let busy_elev = spawn_elevator(&mut world, 20.0);
+    let group = test_group(&stops, vec![idle_elev, busy_elev]);
+
+    let idle = vec![(idle_elev, 5.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = SpreadEvenly;
+    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+
+    assert_eq!(result.len(), 1, "one assignment expected");
+    let (elev, target) = result[0];
+    assert_eq!(elev, idle_elev);
+    assert_eq!(
+        target, stops[0],
+        "SpreadEvenly should pick the stop farthest from the busy car at 20 \
+         (stop 0 at 0.0), got target index unknown"
+    );
+}
+
+#[test]
+fn spread_evenly_empty_inputs_return_empty() {
+    // Kills `replace == with != in SpreadEvenly::reposition` on the
+    // empty-guard clauses.
+    let (world, stops) = test_world_n(3);
+    let group = test_group(&stops, vec![]);
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = SpreadEvenly;
+    assert!(
+        strategy
+            .reposition(&[], &stop_pos, &group, &world)
+            .is_empty(),
+        "no idle elevators → empty result"
+    );
+    assert!(
+        strategy
+            .reposition(&[(EntityId::default(), 0.0)], &[], &group, &world)
+            .is_empty(),
+        "no stop positions → empty result"
+    );
+}
+
+#[test]
+fn return_to_lobby_targets_the_home_stop_specifically() {
+    // Kills `replace RepositionStrategy for NearestIdle::reposition -> Vec
+    // with vec![]` (wrong strategy name but similar mutants exist on RTL)
+    // AND the `home_stop_index` accessor mutations.
+    let (mut world, stops) = test_world_n(3);
+    let elev = spawn_elevator(&mut world, 15.0);
+    let group = test_group(&stops, vec![elev]);
+
+    let idle = vec![(elev, 15.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    // Default home is index 0, which is stops[0] at position 0.
+    let mut rtl = ReturnToLobby::new();
+    let r = rtl.reposition(&idle, &stop_pos, &group, &world);
+    assert_eq!(r, vec![(elev, stops[0])]);
+
+    // with_home(2) picks stops[2] at position 20.0.
+    let mut rtl2 = ReturnToLobby::with_home(2);
+    let r2 = rtl2.reposition(&idle, &stop_pos, &group, &world);
+    assert_eq!(r2, vec![(elev, stops[2])]);
+}
+
+#[test]
+fn return_to_lobby_skips_cars_already_at_home() {
+    // Kills `replace > with >= in ReturnToLobby::reposition` on the
+    // (pos - home_pos).abs() > 1e-6 threshold.
+    let (mut world, stops) = test_world_n(3);
+    let at_home = spawn_elevator(&mut world, 0.0);
+    let away = spawn_elevator(&mut world, 20.0);
+    let group = test_group(&stops, vec![at_home, away]);
+
+    let idle = vec![(at_home, 0.0), (away, 20.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut rtl = ReturnToLobby::new();
+    let r = rtl.reposition(&idle, &stop_pos, &group, &world);
+    assert_eq!(
+        r,
+        vec![(away, stops[0])],
+        "only the car not at home should be reassigned"
+    );
+}
+
+#[test]
+fn demand_weighted_empty_inputs_return_empty() {
+    // Kills the `|| → &&` mutant on DemandWeighted's empty-guard.
+    let (world, stops) = test_world_n(3);
+    let group = test_group(&stops, vec![]);
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = DemandWeighted;
+    assert!(
+        strategy
+            .reposition(&[], &stop_pos, &group, &world)
+            .is_empty()
+    );
+    assert!(
+        strategy
+            .reposition(&[(EntityId::default(), 0.0)], &[], &group, &world)
+            .is_empty()
+    );
 }
 
 // ===== Repositioning Integration Tests =====

@@ -52,4 +52,5 @@ mod phase_helpers_tests;
 mod query_event_tests;
 mod reposition_tests;
 mod resident_tests;
+mod rider_index_tests;
 mod service_mode_tests;
