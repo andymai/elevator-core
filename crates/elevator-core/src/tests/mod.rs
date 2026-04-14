@@ -52,6 +52,7 @@ mod multi_elevator_tests;
 mod multi_line_tests;
 mod mutation_kills_tests;
 mod phase_helpers_tests;
+mod position_interpolation_tests;
 mod query_event_tests;
 mod reposition_tests;
 mod resident_tests;

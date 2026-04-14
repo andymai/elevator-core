@@ -69,6 +69,7 @@ mod topology;
 
 use crate::components::{
     AccessControl, FloorPosition, Orientation, Patience, Preferences, Rider, RiderPhase, Route,
+    Velocity,
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
 use crate::entity::EntityId;
@@ -389,6 +390,39 @@ impl Simulation {
     #[must_use]
     pub const fn dt(&self) -> f64 {
         self.dt
+    }
+
+    /// Interpolated position between the previous and current tick.
+    ///
+    /// `alpha` is clamped to `[0.0, 1.0]`, where `0.0` returns the entity's
+    /// position at the start of the last completed tick and `1.0` returns
+    /// the current position. Intended for smooth rendering when a render
+    /// frame falls between simulation ticks.
+    ///
+    /// Returns `None` if the entity has no position component. Returns the
+    /// current position unchanged if no previous snapshot exists (i.e. before
+    /// the first [`step`](Self::step)).
+    ///
+    /// [`step`]: Self::step
+    #[must_use]
+    pub fn position_at(&self, id: EntityId, alpha: f64) -> Option<f64> {
+        let current = self.world.position(id)?.value;
+        let alpha = if alpha.is_nan() {
+            0.0
+        } else {
+            alpha.clamp(0.0, 1.0)
+        };
+        let prev = self.world.prev_position(id).map_or(current, |p| p.value);
+        Some((current - prev).mul_add(alpha, prev))
+    }
+
+    /// Current velocity of an entity along the shaft axis (signed: +up, -down).
+    ///
+    /// Convenience wrapper over [`World::velocity`] that returns the raw
+    /// `f64` value. Returns `None` if the entity has no velocity component.
+    #[must_use]
+    pub fn velocity(&self, id: EntityId) -> Option<f64> {
+        self.world.velocity(id).map(Velocity::value)
     }
 
     /// Get current simulation metrics.
@@ -1693,6 +1727,7 @@ impl Simulation {
     /// assert_eq!(sim.current_tick(), 1);
     /// ```
     pub fn step(&mut self) {
+        self.world.snapshot_prev_positions();
         self.run_advance_transient();
         self.run_dispatch();
         self.run_reposition();

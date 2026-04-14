@@ -237,6 +237,35 @@
 //!
 //! [dex]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/door_commands.rs
 //!
+//! ## Sub-tick position interpolation
+//!
+//! Games that render at a higher framerate than the simulation ticks (e.g.
+//! a 60 Hz sim driving a 144 Hz camera, or a first-person game where the
+//! player is parented to an elevator car) need a smooth position between
+//! ticks. [`Simulation::position_at`](sim::Simulation::position_at) lerps
+//! between the snapshot taken at the start of the current tick and the
+//! post-tick position, using an `alpha` accumulator clamped to `[0.0, 1.0]`:
+//!
+//! ```text
+//! // typical fixed-timestep render loop
+//! accumulator += frame_dt;
+//! while accumulator >= sim.dt() {
+//!     sim.step();
+//!     accumulator -= sim.dt();
+//! }
+//! let alpha = accumulator / sim.dt();
+//! let y = sim.position_at(car, alpha).unwrap();
+//! ```
+//!
+//! The previous-position snapshot is refreshed automatically at the start
+//! of every [`step`](sim::Simulation::step). [`Simulation::velocity`] is
+//! a convenience that returns the raw `f64` along the shaft axis (signed:
+//! +up, -down) for camera tilt, motion blur, or cabin-sway effects.
+//!
+//! See [`examples/fp_player_rider.rs`][fpe] for a runnable demo.
+//!
+//! [fpe]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/fp_player_rider.rs
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 

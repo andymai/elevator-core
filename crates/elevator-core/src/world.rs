@@ -30,6 +30,9 @@ pub struct World {
     // -- Built-in component storages (crate-internal) --
     /// Shaft-axis positions.
     pub(crate) positions: SecondaryMap<EntityId, Position>,
+    /// Snapshot of `positions` taken at the start of the current tick.
+    /// Enables sub-tick interpolation for smooth rendering between steps.
+    pub(crate) prev_positions: SecondaryMap<EntityId, Position>,
     /// Shaft-axis velocities.
     pub(crate) velocities: SecondaryMap<EntityId, Velocity>,
     /// Elevator components.
@@ -81,6 +84,7 @@ impl World {
         Self {
             alive: SlotMap::with_key(),
             positions: SecondaryMap::new(),
+            prev_positions: SecondaryMap::new(),
             velocities: SecondaryMap::new(),
             elevators: SecondaryMap::new(),
             stops: SecondaryMap::new(),
@@ -147,6 +151,7 @@ impl World {
 
         self.alive.remove(id);
         self.positions.remove(id);
+        self.prev_positions.remove(id);
         self.velocities.remove(id);
         self.elevators.remove(id);
         self.stops.remove(id);
@@ -202,6 +207,27 @@ impl World {
     /// Set an entity's position.
     pub fn set_position(&mut self, id: EntityId, pos: Position) {
         self.positions.insert(id, pos);
+    }
+
+    /// Snapshot of an entity's position at the start of the current tick.
+    ///
+    /// Pairs with [`position`](Self::position) to support sub-tick interpolation
+    /// (see [`Simulation::position_at`](crate::sim::Simulation::position_at)).
+    #[must_use]
+    pub fn prev_position(&self, id: EntityId) -> Option<&Position> {
+        self.prev_positions.get(id)
+    }
+
+    /// Snapshot all current positions into `prev_positions`.
+    ///
+    /// Called at the start of each tick by
+    /// [`Simulation::step`](crate::sim::Simulation::step) before any phase
+    /// mutates positions.
+    pub(crate) fn snapshot_prev_positions(&mut self) {
+        self.prev_positions.clear();
+        for (id, pos) in &self.positions {
+            self.prev_positions.insert(id, *pos);
+        }
     }
 
     // ── Velocity accessors ───────────────────────────────────────────
