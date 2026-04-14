@@ -31,6 +31,31 @@ pub enum DoorState {
     },
 }
 
+/// A manual door-control command submitted by game code.
+///
+/// Submitted via
+/// [`Simulation::request_door_open`](crate::sim::Simulation::request_door_open),
+/// [`Simulation::request_door_close`](crate::sim::Simulation::request_door_close),
+/// [`Simulation::hold_door_open`](crate::sim::Simulation::hold_door_open),
+/// and [`Simulation::cancel_door_hold`](crate::sim::Simulation::cancel_door_hold).
+/// Commands are queued on the target elevator and processed at the start of
+/// the door phase; those that are not yet valid stay queued until they are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum DoorCommand {
+    /// Open the doors now (or on arrival at the next stop).
+    Open,
+    /// Close the doors now (or as soon as loading is done).
+    Close,
+    /// Extend the open dwell by `ticks`. Cumulative across calls.
+    HoldOpen {
+        /// Additional ticks to hold the doors open.
+        ticks: u32,
+    },
+    /// Cancel any pending hold extension.
+    CancelHold,
+}
+
 /// Transition emitted when the door state changes phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]

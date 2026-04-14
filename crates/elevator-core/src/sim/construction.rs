@@ -219,6 +219,7 @@ impl Simulation {
                 going_up: true,
                 going_down: true,
                 move_count: 0,
+                door_command_queue: Vec::new(),
             },
         );
         #[cfg(feature = "energy")]

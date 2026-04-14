@@ -23,7 +23,7 @@ pub mod stop;
 
 pub use access::AccessControl;
 pub use destination_queue::DestinationQueue;
-pub use elevator::{Direction, Elevator, ElevatorPhase};
+pub use elevator::{DOOR_COMMAND_QUEUE_CAP, Direction, Elevator, ElevatorPhase};
 pub use line::{FloorPosition, Line, Orientation};
 pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};

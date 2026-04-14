@@ -64,6 +64,7 @@ fn elevator_query_returns_entities_with_both_components() {
             going_up: true,
             going_down: true,
             move_count: 0,
+            door_command_queue: Vec::new(),
         },
     );
 
