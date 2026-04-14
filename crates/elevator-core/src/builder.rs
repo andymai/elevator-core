@@ -134,13 +134,12 @@ impl SimulationBuilder {
         }
     }
 
-    /// Create a pre-populated builder suitable for doctests, examples, and
-    /// quick prototyping.
+    /// Pre-populated builder for zero-config examples, doctests, and quick
+    /// prototyping where the building layout isn't the point.
     ///
     /// Provides two stops (Ground at 0.0, Top at 10.0) and one elevator
-    /// with SCAN dispatch. Override any piece with the fluent methods
-    /// before [`build`](Self::build). For a blank slate, use
-    /// [`new`](Self::new).
+    /// with SCAN dispatch. Use this when you want a working `Simulation`
+    /// in one call and don't care about the specific stops.
     ///
     /// ```
     /// use elevator_core::prelude::*;
@@ -149,28 +148,12 @@ impl SimulationBuilder {
     /// assert_eq!(sim.current_tick(), 0);
     /// ```
     ///
-    /// # Customizing the demo stops
-    ///
-    /// [`.stop()`](Self::stop) is a *push*: calling it after `demo()`
-    /// appends to the two default stops rather than replacing them,
-    /// which silently duplicates `StopId(0)` and produces two stops
-    /// at position 0.0. To replace the defaults, use
-    /// [`.stops(vec![...])`](Self::stops) with the full list:
-    ///
-    /// ```
-    /// use elevator_core::prelude::*;
-    /// use elevator_core::stop::StopConfig;
-    ///
-    /// let sim = SimulationBuilder::demo()
-    ///     .stops(vec![
-    ///         StopConfig { id: StopId(0), name: "Lobby".into(),   position: 0.0 },
-    ///         StopConfig { id: StopId(1), name: "Mezzanine".into(), position: 4.0 },
-    ///         StopConfig { id: StopId(2), name: "Roof".into(),     position: 8.0 },
-    ///     ])
-    ///     .build()
-    ///     .unwrap();
-    /// # let _ = sim;
-    /// ```
+    /// If you need a specific stop layout or elevator physics, use
+    /// [`new`](Self::new) and configure every field explicitly — it reads
+    /// more clearly than threading overrides on top of `demo`'s defaults.
+    /// [`.stop()`](Self::stop) is a *push* onto the current stops list,
+    /// so calling it after `demo()` appends to the two defaults rather
+    /// than replacing them.
     #[must_use]
     pub fn demo() -> Self {
         let mut b = Self::new();
