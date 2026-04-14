@@ -41,13 +41,10 @@ fn independent_skips_dispatch() {
     }
 
     // Rider should still be waiting since the elevator is independent.
-    let waiting: Vec<_> = sim
-        .world()
-        .iter_riders()
-        .filter(|(_, r)| r.phase() == RiderPhase::Waiting)
-        .collect();
     assert!(
-        !waiting.is_empty(),
+        sim.world()
+            .iter_riders()
+            .any(|(_, r)| r.phase() == RiderPhase::Waiting),
         "rider should still be waiting with Independent elevator"
     );
     assert_eq!(sim.metrics().total_delivered(), 0);
@@ -89,12 +86,12 @@ fn inspection_reduced_speed() {
             }
 
             // Detect arrival at any stop while moving.
-            if mode_set && depart_tick.is_some() {
+            if let (true, Some(depart)) = (mode_set, depart_tick) {
                 let car = sim.world().elevator(elev).unwrap();
                 if !matches!(car.phase(), ElevatorPhase::MovingToStop(_))
-                    && sim.current_tick() > depart_tick.unwrap()
+                    && sim.current_tick() > depart
                 {
-                    return sim.current_tick() - depart_tick.unwrap();
+                    return sim.current_tick() - depart;
                 }
             }
         }
@@ -150,7 +147,7 @@ fn inspection_doors_hold_open() {
     );
 }
 
-/// 5. ServiceModeChanged event is emitted on mode change.
+/// 5. `ServiceModeChanged` event is emitted on mode change.
 #[test]
 fn service_mode_changed_event() {
     let config = default_config();
@@ -194,12 +191,10 @@ fn noop_mode_change_no_event() {
     sim.set_service_mode(elev, ServiceMode::Normal).unwrap();
 
     let events = sim.drain_events();
-    let mode_events: Vec<_> = events
-        .iter()
-        .filter(|e| matches!(e, Event::ServiceModeChanged { .. }))
-        .collect();
     assert!(
-        mode_events.is_empty(),
+        !events
+            .iter()
+            .any(|e| matches!(e, Event::ServiceModeChanged { .. })),
         "no event should be emitted for no-op mode change"
     );
 }
