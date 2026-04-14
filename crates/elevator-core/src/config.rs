@@ -138,6 +138,46 @@ const fn default_inspection_speed_factor() -> f64 {
     0.25
 }
 
+impl Default for ElevatorConfig {
+    /// Reasonable defaults matching the physics values the rest of
+    /// this struct's field docs advertise. Override any field with
+    /// struct-update syntax:
+    ///
+    /// ```
+    /// use elevator_core::config::ElevatorConfig;
+    /// use elevator_core::stop::StopId;
+    ///
+    /// let fast = ElevatorConfig {
+    ///     name: "Express".into(),
+    ///     max_speed: 6.0,
+    ///     starting_stop: StopId(0),
+    ///     ..Default::default()
+    /// };
+    /// # let _ = fast;
+    /// ```
+    ///
+    /// `starting_stop` defaults to `StopId(0)` — the conventional lobby
+    /// id. Override if your config uses a different bottom-stop id.
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: "Elevator 1".into(),
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 10,
+            door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: default_inspection_speed_factor(),
+        }
+    }
+}
+
 /// Global simulation timing parameters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationParams {
