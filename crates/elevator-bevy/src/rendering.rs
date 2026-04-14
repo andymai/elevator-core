@@ -155,9 +155,10 @@ pub struct QueueSlots(pub HashMap<EntityId, usize>);
 #[derive(Component)]
 pub struct BobPhase(pub f32);
 
-/// Scale-based lifecycle fade for rider visuals. `current` drifts toward
-/// `target` at [`FADE_STEP`] per frame; when both are below a small
-/// threshold the entity is despawned.
+/// Scale-based lifecycle fade for rider visuals.
+///
+/// `current` drifts toward `target` at `FADE_STEP` per frame; when both
+/// are below a small threshold the entity is despawned.
 #[derive(Component)]
 pub struct RiderFade {
     /// Current scale (0 = invisible, 1 = full size).
@@ -668,7 +669,7 @@ fn bob_phase_for(eid: EntityId) -> f32 {
 /// Update positions and colors of existing rider visuals.
 ///
 /// Positions interpolate toward the target with exponential damping
-/// ([`RIDER_LERP_ALPHA`]) so boarding/exiting doesn't snap. Waiting riders
+/// (`RIDER_LERP_ALPHA`) so boarding/exiting doesn't snap. Waiting riders
 /// get a small sinusoidal bob keyed on sim tick + per-rider phase, so the
 /// queue feels alive without anyone moving in lockstep.
 #[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
