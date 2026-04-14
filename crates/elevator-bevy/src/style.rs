@@ -44,6 +44,15 @@ pub struct VisualStyle {
     pub dashed_stop_lines: bool,
     /// Draw a thin vertical dashed cable inside each shaft.
     pub shaft_cables: bool,
+    /// Optional building-exterior backdrop drawn behind the shafts.
+    /// `None` = no backdrop (current default).
+    pub building_backdrop: Option<Color>,
+    /// Optional alternating-floor band colors `(odd, even)` painted as
+    /// horizontal stripes inside the backdrop.
+    pub floor_band: Option<(Color, Color)>,
+    /// Per-car body colors. If shorter than the elevator count, the last
+    /// color repeats. If empty, `car` is used for every car.
+    pub car_palette: Vec<Color>,
 }
 
 impl Default for VisualStyle {
@@ -66,33 +75,48 @@ impl Default for VisualStyle {
             sliding_doors: false,
             dashed_stop_lines: false,
             shaft_cables: false,
+            building_backdrop: None,
+            floor_band: None,
+            car_palette: Vec::new(),
         }
     }
 }
 
 impl VisualStyle {
-    /// Minimal "blueprint" palette: paper background, dark line art, indigo
-    /// car, mint/red riders by direction. Designed for the demo GIF.
+    /// SimTower-inspired palette: pale-blue sky background, cream
+    /// building exterior with subtle floor banding, dark elevator
+    /// shafts, three differently-colored cars so they read as distinct
+    /// vehicles even when stacked vertically.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // Color::srgba is not const.
-    pub fn blueprint() -> Self {
+    #[allow(clippy::missing_const_for_fn)] // Color::srgba and vec! are not const.
+    pub fn simtower() -> Self {
         Self {
-            background: Color::srgba(0.968, 0.960, 0.933, 1.0), // #f7f5ee
-            shaft: Color::srgba(0.88, 0.87, 0.84, 1.0),
-            stop_line: Color::srgba(0.16, 0.16, 0.16, 1.0),
-            text: Color::srgba(0.10, 0.10, 0.10, 1.0),
-            car: Color::srgba(0.117, 0.251, 0.686, 1.0), // #1e40af
-            door_panel: Color::srgba(0.85, 0.87, 0.92, 1.0),
-            rider_up: Color::srgba(0.019, 0.588, 0.412, 1.0), // #059669
-            rider_down: Color::srgba(0.862, 0.149, 0.149, 1.0), // #dc2626
-            rider_boarding: Color::srgba(0.117, 0.251, 0.686, 1.0),
-            rider_exiting: Color::srgba(0.39, 0.39, 0.39, 1.0),
+            background: Color::srgba(0.65, 0.78, 0.90, 1.0), // sky blue
+            shaft: Color::srgba(0.18, 0.18, 0.22, 1.0),      // dark slate
+            stop_line: Color::srgba(0.30, 0.27, 0.22, 1.0),  // brown
+            text: Color::srgba(0.14, 0.14, 0.16, 1.0),
+            car: Color::srgba(0.78, 0.18, 0.18, 1.0), // unused when car_palette set
+            door_panel: Color::srgba(0.95, 0.93, 0.86, 1.0),
+            rider_up: Color::srgba(0.10, 0.38, 0.66, 1.0),
+            rider_down: Color::srgba(0.78, 0.30, 0.20, 1.0),
+            rider_boarding: Color::srgba(0.95, 0.78, 0.20, 1.0),
+            rider_exiting: Color::srgba(0.40, 0.40, 0.45, 1.0),
             shaft_spacing_units: 3.5,
             stop_lines_span_all_shafts: true,
             humanoid_riders: true,
             sliding_doors: true,
-            dashed_stop_lines: true,
-            shaft_cables: true,
+            dashed_stop_lines: false,
+            shaft_cables: false,
+            building_backdrop: Some(Color::srgba(0.95, 0.92, 0.83, 1.0)),
+            floor_band: Some((
+                Color::srgba(0.97, 0.95, 0.88, 1.0),
+                Color::srgba(0.92, 0.88, 0.78, 1.0),
+            )),
+            car_palette: vec![
+                Color::srgba(0.78, 0.18, 0.18, 1.0), // red
+                Color::srgba(0.95, 0.65, 0.10, 1.0), // amber
+                Color::srgba(0.10, 0.42, 0.20, 1.0), // green
+            ],
         }
     }
 }

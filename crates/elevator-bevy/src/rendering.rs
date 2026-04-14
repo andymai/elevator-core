@@ -285,6 +285,40 @@ pub fn spawn_building_visuals(
     let shaft_height = span.mul_add(PPU, vs.car_height * 2.0);
     let shaft_center_y = f64::midpoint(min_pos, max_pos) as f32 * PPU;
 
+    // Optional building-exterior backdrop drawn behind everything.
+    if let Some(backdrop) = style.building_backdrop {
+        let backdrop_mat = materials.add(backdrop);
+        let pad_x = vs.label_offset_x * 1.1;
+        let pad_y = vs.car_height * 1.5;
+        let backdrop_w = vs.bank_width() + pad_x * 2.0;
+        let backdrop_h = shaft_height + pad_y * 2.0;
+        commands.spawn((
+            Mesh2d(meshes.add(Rectangle::new(backdrop_w, backdrop_h))),
+            MeshMaterial2d(backdrop_mat),
+            Transform::from_xyz(0.0, shaft_center_y, -0.2),
+        ));
+
+        // Optional alternating floor bands inside the backdrop.
+        if let Some((odd, even)) = style.floor_band {
+            let mut sorted_y: Vec<f32> = stop_positions
+                .iter()
+                .map(|(_, p, _)| *p as f32 * PPU)
+                .collect();
+            sorted_y.sort_by(f32::total_cmp);
+            for (i, ys) in sorted_y.windows(2).enumerate() {
+                let (y0, y1) = (ys[0], ys[1]);
+                let mid = f32::midpoint(y0, y1);
+                let height = (y1 - y0).abs();
+                let mat = materials.add(if i % 2 == 0 { odd } else { even });
+                commands.spawn((
+                    Mesh2d(meshes.add(Rectangle::new(backdrop_w, height))),
+                    MeshMaterial2d(mat),
+                    Transform::from_xyz(0.0, mid, -0.15),
+                ));
+            }
+        }
+    }
+
     let shaft_mat = materials.add(style.shaft);
     let cable_mat = materials.add(style.stop_line.with_alpha(0.35));
     for i in 0..shaft_count {
@@ -354,11 +388,21 @@ pub fn spawn_building_visuals(
         ));
     }
 
-    // Elevator cars (with optional door panels as children).
-    let car_mat = materials.add(style.car);
+    // Elevator cars (with optional door panels as children). Each car
+    // pulls its body color from `car_palette` so they read as distinct
+    // vehicles; if the palette is empty we fall back to `style.car`.
     let door_mat = materials.add(style.door_panel);
     let car_mesh = meshes.add(Rectangle::new(vs.car_width, vs.car_height));
-    let panel_mesh = meshes.add(Rectangle::new(vs.car_width * 0.5, vs.car_height * 0.9));
+    // Door panels occupy the central horizontal band of the car so the
+    // colored body stays visible at top and bottom even when closed.
+    let panel_mesh = meshes.add(Rectangle::new(vs.car_width * 0.5, vs.car_height * 0.65));
+    let car_color = |idx: usize| -> Color {
+        if style.car_palette.is_empty() {
+            style.car
+        } else {
+            style.car_palette[idx % style.car_palette.len()]
+        }
+    };
 
     let mut shaft_index_map: HashMap<EntityId, u32> = HashMap::new();
     for (i, (eid, pos)) in elevators.iter().enumerate() {
@@ -366,10 +410,11 @@ pub fn spawn_building_visuals(
         shaft_index_map.insert(*eid, idx);
         let x = vs.shaft_x(idx);
         let y = *pos as f32 * PPU;
+        let car_mat = materials.add(car_color(i));
 
         let mut car = commands.spawn((
             Mesh2d(car_mesh.clone()),
-            MeshMaterial2d(car_mat.clone()),
+            MeshMaterial2d(car_mat),
             Transform::from_xyz(x, y, 0.5),
             ElevatorVisual {
                 entity_id: *eid,
@@ -382,7 +427,7 @@ pub fn spawn_building_visuals(
             // Travel = car_width/4 from closed center to fully open.
             let travel = vs.car_width * 0.25;
             let arrow_mesh = meshes.add(RegularPolygon::new(vs.rider_radius * 0.9, 3));
-            let arrow_mat = materials.add(style.background);
+            let arrow_mat = materials.add(style.text);
             car.with_children(|parent| {
                 for side in [-1.0_f32, 1.0_f32] {
                     parent.spawn((

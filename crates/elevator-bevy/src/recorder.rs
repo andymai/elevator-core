@@ -31,6 +31,12 @@ pub struct Recorder {
     pub start_tick: u64,
     /// Exit the app after the final frame is captured.
     pub exit_when_done: bool,
+    /// Render frames to wait between the final screenshot trigger and
+    /// `AppExit` so the async screenshot observer can flush its PNG
+    /// before the channel closes.
+    pub flush_frames: u32,
+    /// Render frames elapsed since `captured == total_frames`.
+    pub frames_since_done: u32,
 }
 
 impl Recorder {
@@ -46,6 +52,8 @@ impl Recorder {
             last_capture_tick: None,
             start_tick: 0,
             exit_when_done: true,
+            flush_frames: 6,
+            frames_since_done: 0,
         }
     }
 }
@@ -60,7 +68,10 @@ pub fn capture_frames(
 ) {
     if recorder.captured >= recorder.total_frames {
         if recorder.exit_when_done {
-            exit.write(AppExit::Success);
+            recorder.frames_since_done += 1;
+            if recorder.frames_since_done >= recorder.flush_frames {
+                exit.write(AppExit::Success);
+            }
         }
         return;
     }

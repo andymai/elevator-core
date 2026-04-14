@@ -37,7 +37,7 @@ use elevator_bevy::ui::{ShowControlsHint, spawn_hud, update_hud};
 use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
-use elevator_core::dispatch::scan::ScanDispatch;
+use elevator_core::dispatch::nearest_car::NearestCarDispatch;
 use elevator_core::sim::Simulation;
 use elevator_core::stop::{StopConfig, StopId};
 
@@ -57,6 +57,13 @@ const RECORD_OUT_DIR: &str = ".recording";
 
 fn main() {
     let record = std::env::args().any(|a| a == "--record");
+    // --snapshot[=tick] writes a single PNG (default tick 220 ≈ mid-recording)
+    // to .recording/frame_00000.png and exits. Useful for iteration.
+    let snapshot_at: Option<u64> = std::env::args().find_map(|a| {
+        a.strip_prefix("--snapshot=")
+            .and_then(|v| v.parse().ok())
+            .or_else(|| (a == "--snapshot").then_some(220))
+    });
 
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -71,18 +78,20 @@ fn main() {
 
     // Build the scene: 3 elevators × 8 floors.
     let config = build_showcase_config();
-    let sim = Simulation::new(&config, ScanDispatch::new())
+    let sim = Simulation::new(&config, NearestCarDispatch::new())
         .unwrap_or_else(|e| panic!("invalid showcase config: {e}"));
 
+    let headless = record || snapshot_at.is_some();
+
     // Showcase-only resources.
-    app.insert_resource(VisualStyle::blueprint())
-        .insert_resource(ShowControlsHint(!record))
+    app.insert_resource(VisualStyle::simtower())
+        .insert_resource(ShowControlsHint(!headless))
         .insert_resource(SimulationRes { sim })
         .insert_resource(SimSpeed {
-            multiplier: if record { TICKS_PER_FRAME } else { 1 },
+            multiplier: if headless { TICKS_PER_FRAME } else { 1 },
         })
-        .insert_resource(RushHourSpawner::new(record))
-        .insert_resource(build_timeline(if record { WARMUP_TICKS } else { 0 }))
+        .insert_resource(RushHourSpawner::new(headless))
+        .insert_resource(build_timeline(if headless { WARMUP_TICKS } else { 0 }))
         .add_message::<EventWrapper>()
         .add_systems(
             Startup,
@@ -116,12 +125,19 @@ fn main() {
 
     // The interactive HUD is useful when running manually but chrome in a
     // 10s demo GIF, so skip spawning and updating it while recording.
-    if !record {
+    if !headless {
         app.add_systems(Startup, spawn_hud)
             .add_systems(Update, update_hud);
     }
 
-    if record {
+    if let Some(target_tick) = snapshot_at {
+        let out_dir = PathBuf::from(RECORD_OUT_DIR);
+        prepare_record_dir(out_dir.as_path());
+        let mut recorder = Recorder::new(out_dir, 1);
+        recorder.start_tick = target_tick;
+        app.insert_resource(recorder)
+            .add_systems(Update, capture_frames);
+    } else if record {
         let out_dir = PathBuf::from(RECORD_OUT_DIR);
         prepare_record_dir(out_dir.as_path());
         let mut recorder = Recorder::new(out_dir, RECORD_FRAMES);
@@ -147,6 +163,10 @@ fn build_showcase_config() -> SimConfig {
         })
         .collect();
 
+    // Stagger starting stops so the cars don't all lurch together for the
+    // first calls — without this NearestCarDispatch still picks the same
+    // "nearest" car when all three sit at the lobby.
+    let starts = [StopId(0), StopId(3), StopId(6)];
     let elevators = (0..3)
         .map(|i| ElevatorConfig {
             id: i,
@@ -155,7 +175,7 @@ fn build_showcase_config() -> SimConfig {
             acceleration: 1.8,
             deceleration: 2.2,
             weight_capacity: 800.0,
-            starting_stop: StopId(0),
+            starting_stop: starts[i as usize],
             door_open_ticks: 45,
             door_transition_ticks: 12,
             ..Default::default()
