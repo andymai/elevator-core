@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.5.1...elevator-core-v5.6.0) (2026-04-14)
+
+
+### Features
+
+* add Destination Dispatch (DCS) strategy ([#70](https://github.com/andymai/elevator-core/issues/70)) ([4c8ab64](https://github.com/andymai/elevator-core/commit/4c8ab64aacb9998cd24c06970687125a3cb1d5c3))
+* runtime elevator upgrade API ([#72](https://github.com/andymai/elevator-core/issues/72)) ([f32a345](https://github.com/andymai/elevator-core/commit/f32a34589f414e42df1a3ddd68809a26a028a6ae))
+
 ## [5.5.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.5.0...elevator-core-v5.5.1) (2026-04-14)
 
 
