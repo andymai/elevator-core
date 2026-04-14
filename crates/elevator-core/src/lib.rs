@@ -180,6 +180,24 @@
 //! | Population queries | O(1) via `RiderIndex` reverse index |
 //! | Topology graph queries | O(V+E) BFS, lazy rebuild |
 //!
+//! ## Runtime upgrades
+//!
+//! Elevator kinematic and door-timing parameters can be mutated at runtime
+//! via the `Simulation::set_*` setters — handy for RPG-style upgrade systems
+//! or scripted events that boost speed, capacity, or door behavior mid-game.
+//!
+//! Each setter validates its input, mutates the underlying component, and
+//! emits an [`Event::ElevatorUpgraded`](events::Event::ElevatorUpgraded) so
+//! game code can react (score popups, SFX, UI). Velocity is preserved when
+//! kinematic parameters change — the integrator picks up the new values on
+//! the next tick without jerk. Door-timing changes apply to the next door
+//! cycle and never retroactively retime an in-progress transition.
+//!
+//! See [`examples/runtime_upgrades.rs`][rte] for an end-to-end demonstration
+//! that doubles a car's `max_speed` mid-run and prints the throughput delta.
+//!
+//! [rte]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/runtime_upgrades.rs
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 
