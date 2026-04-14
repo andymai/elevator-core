@@ -34,11 +34,11 @@ fn dispatch_upward_sets_going_up_only() {
     let mut saw_moving = false;
     for _ in 0..1_000 {
         sim.step();
-        if let Some(car) = sim.world().elevator(elev) {
-            if matches!(car.phase(), ElevatorPhase::MovingToStop(_)) {
-                saw_moving = true;
-                break;
-            }
+        if let Some(car) = sim.world().elevator(elev)
+            && matches!(car.phase(), ElevatorPhase::MovingToStop(_))
+        {
+            saw_moving = true;
+            break;
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");
@@ -60,11 +60,11 @@ fn dispatch_downward_sets_going_down_only() {
     let mut saw_moving = false;
     for _ in 0..1_000 {
         sim.step();
-        if let Some(car) = sim.world().elevator(elev) {
-            if matches!(car.phase(), ElevatorPhase::MovingToStop(_)) {
-                saw_moving = true;
-                break;
-            }
+        if let Some(car) = sim.world().elevator(elev)
+            && matches!(car.phase(), ElevatorPhase::MovingToStop(_))
+        {
+            saw_moving = true;
+            break;
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");

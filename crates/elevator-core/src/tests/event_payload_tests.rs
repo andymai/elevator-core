@@ -24,10 +24,9 @@ fn rider_boarded_event_has_correct_elevator() {
             if let Event::RiderBoarded {
                 rider: r, elevator, ..
             } = e
+                && *r == rider
             {
-                if *r == rider {
-                    boarded_event = Some(*elevator);
-                }
+                boarded_event = Some(*elevator);
             }
         }
         if boarded_event.is_some() {

@@ -143,12 +143,12 @@ impl Simulation {
         let mut reposition_ids: BTreeMap<GroupId, BuiltinReposition> = BTreeMap::new();
         if let Some(group_configs) = &config.building.groups {
             for gc in group_configs {
-                if let Some(ref repo_id) = gc.reposition {
-                    if let Some(strategy) = repo_id.instantiate() {
-                        let gid = GroupId(gc.id);
-                        repositioners.insert(gid, strategy);
-                        reposition_ids.insert(gid, repo_id.clone());
-                    }
+                if let Some(ref repo_id) = gc.reposition
+                    && let Some(strategy) = repo_id.instantiate()
+                {
+                    let gid = GroupId(gc.id);
+                    repositioners.insert(gid, strategy);
+                    reposition_ids.insert(gid, repo_id.clone());
                 }
             }
         }
@@ -605,17 +605,17 @@ impl Simulation {
             }
 
             // Validate max_cars is not exceeded.
-            if let Some(max) = lc.max_cars {
-                if lc.elevators.len() > max {
-                    return Err(SimError::InvalidConfig {
-                        field: "building.lines.max_cars",
-                        reason: format!(
-                            "line {} has {} elevators but max_cars is {max}",
-                            lc.id,
-                            lc.elevators.len()
-                        ),
-                    });
-                }
+            if let Some(max) = lc.max_cars
+                && lc.elevators.len() > max
+            {
+                return Err(SimError::InvalidConfig {
+                    field: "building.lines.max_cars",
+                    reason: format!(
+                        "line {} has {} elevators but max_cars is {max}",
+                        lc.id,
+                        lc.elevators.len()
+                    ),
+                });
             }
         }
 

@@ -33,7 +33,8 @@ See [Snapshots and Determinism](snapshots-and-determinism.md) for save/load, rep
 
 ## Stability and MSRV
 
-- **MSRV:** Rust 1.87.
+- **MSRV:** Rust 1.88. (The crate uses let-chains, which stabilized in
+  1.88; a CI job pinned to the exact MSRV keeps this honest.)
 - **Versioning:** Semver. Breaking API changes bump the major version. Adding variants to `#[non_exhaustive]` enums (events, errors) is **not** considered breaking.
 - **Release cadence:** Managed via release-please; see `CHANGELOG.md` in the repo.
 

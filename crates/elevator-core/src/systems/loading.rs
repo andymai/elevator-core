@@ -114,22 +114,22 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 return None;
             }
             // Group/line match: rider must want this elevator's group (or specific line).
-            if let Some(route) = world.route(rid) {
-                if let Some(leg) = route.current() {
-                    match leg.via {
-                        TransportMode::Group(g) => {
-                            if elev_group != Some(g) {
-                                return None;
-                            }
+            if let Some(route) = world.route(rid)
+                && let Some(leg) = route.current()
+            {
+                match leg.via {
+                    TransportMode::Group(g) => {
+                        if elev_group != Some(g) {
+                            return None;
                         }
-                        TransportMode::Line(l) => {
-                            if elev_line != l {
-                                return None;
-                            }
+                    }
+                    TransportMode::Line(l) => {
+                        if elev_line != l {
+                            return None;
                         }
-                        TransportMode::Walk => {
-                            return None; // Walking riders don't board elevators.
-                        }
+                    }
+                    TransportMode::Walk => {
+                        return None; // Walking riders don't board elevators.
                     }
                 }
             }
@@ -141,13 +141,13 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                     }
                     return None;
                 }
-                if let Some(ac) = world.access_control(rid) {
-                    if !ac.can_access(dest) {
-                        if access_rejected.is_none() {
-                            access_rejected = Some(rid);
-                        }
-                        return None;
+                if let Some(ac) = world.access_control(rid)
+                    && !ac.can_access(dest)
+                {
+                    if access_rejected.is_none() {
+                        access_rejected = Some(rid);
                     }
+                    return None;
                 }
                 // Direction indicator filter: rider must be going in a direction
                 // this car will serve. A filtered rider silently stays waiting —

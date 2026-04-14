@@ -101,14 +101,14 @@ pub fn run(
             });
 
             // Emit departure from current stop if applicable.
-            if let Some(pos) = elev_pos {
-                if let Some(from) = world.find_stop_at_position(pos) {
-                    events.emit(Event::ElevatorDeparted {
-                        elevator: elev_eid,
-                        from_stop: from,
-                        tick: ctx.tick,
-                    });
-                }
+            if let Some(pos) = elev_pos
+                && let Some(from) = world.find_stop_at_position(pos)
+            {
+                events.emit(Event::ElevatorDeparted {
+                    elevator: elev_eid,
+                    from_stop: from,
+                    tick: ctx.tick,
+                });
             }
         }
     }

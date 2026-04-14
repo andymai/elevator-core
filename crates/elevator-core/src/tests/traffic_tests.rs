@@ -176,10 +176,10 @@ fn schedule_sample_delegates_to_active_pattern() {
     // Sample outside segment — should use fallback (Uniform), less lobby bias.
     let mut lobby_origins_fallback = 0;
     for _ in 0..total {
-        if let Some((o, _)) = schedule.sample(200, &stops, &mut rng) {
-            if o == lobby {
-                lobby_origins_fallback += 1;
-            }
+        if let Some((o, _)) = schedule.sample(200, &stops, &mut rng)
+            && o == lobby
+        {
+            lobby_origins_fallback += 1;
         }
     }
     let fallback_ratio = lobby_origins_fallback as f64 / total as f64;

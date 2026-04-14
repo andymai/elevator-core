@@ -138,10 +138,10 @@ pub fn run(
 
         if result.arrived {
             // Pop the queue front if it matches the target we arrived at.
-            if let Some(q) = world.destination_queue_mut(eid) {
-                if q.front() == Some(target_stop_eid) {
-                    q.pop_front();
-                }
+            if let Some(q) = world.destination_queue_mut(eid)
+                && q.front() == Some(target_stop_eid)
+            {
+                q.pop_front();
             }
             let Some(car) = world.elevator_mut(eid) else {
                 continue;

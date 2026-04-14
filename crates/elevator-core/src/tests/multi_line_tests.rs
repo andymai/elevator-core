@@ -433,10 +433,10 @@ fn cross_group_rider_arrives_via_explicit_two_leg_route() {
     // Run until rider arrives or we time out.
     for _ in 0..5000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if r.phase == RiderPhase::Arrived {
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && r.phase == RiderPhase::Arrived
+        {
+            break;
         }
     }
 
@@ -480,11 +480,11 @@ fn rider_only_boards_elevator_from_matching_group() {
     let mut boarding_elevator = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase {
-                boarding_elevator = Some(eid);
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase
+        {
+            boarding_elevator = Some(eid);
+            break;
         }
     }
 
@@ -630,11 +630,11 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
     let mut boarding_elevator = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase {
-                boarding_elevator = Some(eid);
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase
+        {
+            boarding_elevator = Some(eid);
+            break;
         }
     }
 
@@ -1439,10 +1439,10 @@ fn walk_leg_teleports_rider_to_destination() {
 
     for _ in 0..5000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if r.phase == RiderPhase::Arrived {
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && r.phase == RiderPhase::Arrived
+        {
+            break;
         }
     }
 
@@ -1506,11 +1506,11 @@ fn remove_line_with_riders_aboard_ejects_riders() {
     let mut is_riding = false;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if matches!(r.phase, RiderPhase::Riding(_)) {
-                is_riding = true;
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && matches!(r.phase, RiderPhase::Riding(_))
+        {
+            is_riding = true;
+            break;
         }
     }
     assert!(is_riding, "rider should board elevator within 3000 ticks");
@@ -2364,11 +2364,11 @@ fn despawn_riding_rider_removes_from_elevator_riders_list() {
     let mut elevator_id = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if let RiderPhase::Riding(e) = r.phase {
-                elevator_id = Some(e);
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && let RiderPhase::Riding(e) = r.phase
+        {
+            elevator_id = Some(e);
+            break;
         }
     }
     let elev = elevator_id.expect("rider should board within 3000 ticks");

@@ -632,10 +632,10 @@ impl World {
     ) {
         for (name, entries) in data {
             // Find the TypeId by name.
-            if let Some((&type_id, _)) = self.ext_names.iter().find(|(_, n)| *n == name) {
-                if let Some(map) = self.extensions.get_mut(&type_id) {
-                    map.deserialize_entries(entries);
-                }
+            if let Some((&type_id, _)) = self.ext_names.iter().find(|(_, n)| *n == name)
+                && let Some(map) = self.extensions.get_mut(&type_id)
+            {
+                map.deserialize_entries(entries);
             }
         }
     }

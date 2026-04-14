@@ -110,10 +110,10 @@ fn preferences_zero_crowding_rejects_any_load() {
     // Run until first rider boards.
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(r1) {
-            if matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived) {
-                break;
-            }
+        if let Some(r) = sim.world().rider(r1)
+            && matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived)
+        {
+            break;
         }
     }
 
@@ -158,14 +158,14 @@ fn weight_exactly_at_capacity_boards() {
     let mut boarded = false;
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if matches!(
+        if let Some(r) = sim.world().rider(rider)
+            && matches!(
                 r.phase,
                 RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
-            ) {
-                boarded = true;
-                break;
-            }
+            )
+        {
+            boarded = true;
+            break;
         }
     }
 

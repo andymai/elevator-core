@@ -212,16 +212,16 @@ impl Simulation {
             })?;
 
         // Validate that the route departs from the rider's current stop.
-        if let Some(leg) = route.current() {
-            if leg.from != stop {
-                return Err(SimError::InvalidState {
-                    entity: id,
-                    reason: format!(
-                        "route origin {:?} does not match rider current_stop {:?}",
-                        leg.from, stop
-                    ),
-                });
-            }
+        if let Some(leg) = route.current()
+            && leg.from != stop
+        {
+            return Err(SimError::InvalidState {
+                entity: id,
+                reason: format!(
+                    "route origin {:?} does not match rider current_stop {:?}",
+                    leg.from, stop
+                ),
+            });
         }
 
         self.rider_index.remove_resident(stop, id);
@@ -444,15 +444,13 @@ impl Simulation {
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
             }
-            if had_load {
-                if let Some(cap) = capacity {
-                    self.events.emit(Event::CapacityChanged {
-                        elevator: id,
-                        current_load: ordered_float::OrderedFloat(0.0),
-                        capacity: ordered_float::OrderedFloat(cap),
-                        tick: self.tick,
-                    });
-                }
+            if had_load && let Some(cap) = capacity {
+                self.events.emit(Event::CapacityChanged {
+                    elevator: id,
+                    current_load: ordered_float::OrderedFloat(0.0),
+                    capacity: ordered_float::OrderedFloat(cap),
+                    tick: self.tick,
+                });
             }
         }
         if let Some(vel) = self.world.velocity_mut(id) {

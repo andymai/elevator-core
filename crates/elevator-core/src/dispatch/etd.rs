@@ -211,17 +211,17 @@ impl EtdDispatch {
         // would be delayed by roughly the detour time.
         let mut existing_rider_delay = 0.0_f64;
         for &rider_eid in car.riders() {
-            if let Some(dest) = world.route(rider_eid).and_then(Route::current_destination) {
-                if let Some(dest_pos) = world.stop_position(dest) {
-                    // The rider wants to go to dest_pos. If the detour to
-                    // target_pos takes the elevator away from dest_pos, that's
-                    // a delay proportional to the extra distance.
-                    let direct_dist = (elev_pos - dest_pos).abs();
-                    let detour_dist = (elev_pos - target_pos).abs() + (target_pos - dest_pos).abs();
-                    let extra = (detour_dist - direct_dist).max(0.0);
-                    if car.max_speed > 0.0 {
-                        existing_rider_delay += extra / car.max_speed;
-                    }
+            if let Some(dest) = world.route(rider_eid).and_then(Route::current_destination)
+                && let Some(dest_pos) = world.stop_position(dest)
+            {
+                // The rider wants to go to dest_pos. If the detour to
+                // target_pos takes the elevator away from dest_pos, that's
+                // a delay proportional to the extra distance.
+                let direct_dist = (elev_pos - dest_pos).abs();
+                let detour_dist = (elev_pos - target_pos).abs() + (target_pos - dest_pos).abs();
+                let extra = (detour_dist - direct_dist).max(0.0);
+                if car.max_speed > 0.0 {
+                    existing_rider_delay += extra / car.max_speed;
                 }
             }
         }
