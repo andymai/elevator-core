@@ -48,6 +48,7 @@ mod event_payload_tests;
 mod move_count_tests;
 mod multi_elevator_tests;
 mod multi_line_tests;
+mod mutation_kills_tests;
 mod phase_helpers_tests;
 mod query_event_tests;
 mod reposition_tests;
