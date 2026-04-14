@@ -30,13 +30,21 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
 
       # Pull the previous nightly's Criterion baseline so the current run
-      # compares against it. If the cache miss is clean (first run), the
-      # criterion baseline comparison just shows absolute numbers.
+      # compares against it. The save-step's key is suffixed with
+      # `github.run_id` (so every run writes a unique key — GHA cache
+      # entries are immutable), so the restore here has to use
+      # `restore-keys` with a shared prefix to match *any* prior
+      # nightly's key. Without this the restore silently misses on every
+      # run and `cargo bench` only sees absolute numbers, making the
+      # nightly's whole point — regression detection vs yesterday —
+      # inoperative.
       - name: Restore previous criterion baseline
         uses: actions/cache/restore@v4
         with:
           path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}
+          key: criterion-baseline-${{ github.ref_name }}-never-matches-sentinel
+          restore-keys: |
+            criterion-baseline-${{ github.ref_name }}-
 
       - name: Run benchmarks
         id: bench
