@@ -30,7 +30,9 @@ jobs:
     steps:
       - name: Mint App installation token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        # SHA-pinned to v1 (d72941d) so a future compromised tag can't
+        # silently swap the action. Bump the SHA when upgrading.
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
         with:
           app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
           private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
