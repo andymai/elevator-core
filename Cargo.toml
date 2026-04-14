@@ -38,6 +38,6 @@ unsafe_code = "deny"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
-ron = "0.9"
+ron = "0.12"
 rand = "0.9"
 slotmap = { version = "1", features = ["serde"] }
