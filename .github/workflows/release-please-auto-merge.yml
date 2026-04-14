@@ -1,0 +1,55 @@
+name: Release-please auto-approve and merge
+
+# Auto-approve and auto-merge release-please PRs via the "release-kun"
+# GitHub App. Release-please PRs are machine-generated from commit
+# history and release-please-config.json, so a human approve-click
+# is pure ceremony that would otherwise block the release pipeline.
+#
+# Safety rails:
+#   - Only fires on PRs authored by the `release-please[bot]` login.
+#   - Uses a dedicated App (release-kun) with scoped permissions, so
+#     the approval and merge credentials don't leak into regular CI.
+#   - `gh pr merge --auto` waits for required status checks to pass
+#     before merging, so the release-please PR can't skip CI.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'release-please[bot]'
+    runs-on: ubuntu-latest
+    # The token minted below needs to both approve and merge. The App
+    # itself is granted `pull_requests: write` via the installation;
+    # these permissions are for the default GITHUB_TOKEN which we do
+    # not use but still declare for clarity.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Mint App installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
+          private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
+
+      # `gh pr review --approve` from the App acts as a review from
+      # the App identity, which is distinct from the repo owner — so
+      # this satisfies a "1 approval required" branch-protection rule
+      # without the owner having to self-approve.
+      - name: Approve release-please PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr review --approve --body "Auto-approved by release-kun." "$PR_URL"
+
+      # `--auto` defers the merge until required checks pass. Uses
+      # squash to keep main history linear; release-please manages
+      # changelog + version-bump commits so a squash loses nothing.
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
