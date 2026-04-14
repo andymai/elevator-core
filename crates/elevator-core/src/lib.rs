@@ -234,6 +234,38 @@ macro_rules! register_extensions {
 }
 
 /// Common imports for consumers of this library.
+///
+/// `use elevator_core::prelude::*;` pulls in the types you need for the vast
+/// majority of simulations — building a sim, stepping it, spawning riders,
+/// reading events and metrics, and writing custom dispatch strategies.
+///
+/// # Contents
+///
+/// - **Builder & simulation:** [`SimulationBuilder`], [`Simulation`],
+///   [`RiderBuilder`]
+/// - **Components:** [`Rider`], [`RiderPhase`], [`Elevator`], [`ElevatorPhase`],
+///   [`Stop`], [`Line`], [`Position`], [`Velocity`], [`FloorPosition`],
+///   [`Route`], [`Patience`], [`Preferences`], [`AccessControl`],
+///   [`Orientation`], [`ServiceMode`]
+/// - **Config:** [`SimConfig`], [`GroupConfig`], [`LineConfig`]
+/// - **Dispatch:** [`DispatchStrategy`], [`RepositionStrategy`], plus the
+///   built-in reposition strategies [`NearestIdle`], [`ReturnToLobby`],
+///   [`SpreadEvenly`], [`DemandWeighted`]
+/// - **Identity:** [`EntityId`], [`StopId`], [`GroupId`]
+/// - **Errors & events:** [`SimError`], [`RejectionReason`],
+///   [`RejectionContext`], [`Event`], [`EventBus`]
+/// - **Misc:** [`Metrics`], [`TimeAdapter`]
+///
+/// # Not included (import explicitly)
+///
+/// - Concrete dispatch implementations: `dispatch::scan::ScanDispatch`,
+///   `dispatch::look::LookDispatch`, `dispatch::nearest_car::NearestCarDispatch`,
+///   `dispatch::etd::EtdDispatch`
+/// - `ElevatorConfig` and `StopConfig` from [`crate::config`]
+/// - Traffic generation types from [`crate::traffic`] (feature-gated)
+/// - Snapshot types from [`crate::snapshot`]
+/// - The [`World`](crate::world::World) type (accessed via `sim.world()`,
+///   but required as a parameter when implementing custom dispatch)
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{

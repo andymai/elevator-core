@@ -16,6 +16,30 @@ The prelude re-exports everything you need for typical usage:
 use elevator_core::prelude::*;
 ```
 
+This brings in, at a glance:
+
+| Group | Items |
+|---|---|
+| Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Config | `SimConfig`, `GroupConfig`, `LineConfig` |
+| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
+| Identity | `EntityId`, `StopId`, `GroupId` |
+| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Misc | `Metrics`, `TimeAdapter` |
+
+**Not in the prelude** (import explicitly): the concrete built-in dispatch types (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch` — see [Dispatch Strategies](dispatch.md)), `ElevatorConfig` and `StopConfig` from `elevator_core::config`, the `traffic` module (feature-gated), the `snapshot` module, and the `World` type (needed as a parameter when implementing custom dispatch).
+
+## Feature flags
+
+| Flag | Default? | Enables |
+|---|---|---|
+| `traffic` | yes | `traffic` module: `PoissonSource`, `TrafficPattern`, `TrafficSchedule`. Pulls in `rand`. |
+| `energy` | no | Per-elevator `EnergyProfile`/`EnergyMetrics` components and snapshot fields. |
+
+Turn off defaults with `default-features = false` if you want a leaner build and intend to write your own rider spawning.
+
 ## Build a simulation
 
 We will use `SimulationBuilder` to set up a 3-stop building. The builder starts with sensible defaults (2 stops, 1 elevator, SCAN dispatch, 60 ticks per second), but we will override the stops to create our own layout.

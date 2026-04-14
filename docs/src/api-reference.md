@@ -4,6 +4,31 @@ This chapter is a quick-reference for the public API of the `elevator-core` crat
 
 ---
 
+## Prelude
+
+`use elevator_core::prelude::*;` re-exports these items. Anything else must be imported from its module explicitly.
+
+| Category | Items |
+|---|---|
+| Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Config | `SimConfig`, `GroupConfig`, `LineConfig` |
+| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
+| Identity | `EntityId`, `StopId`, `GroupId` |
+| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Misc | `Metrics`, `TimeAdapter` |
+
+Not in the prelude (import explicitly):
+
+- `elevator_core::dispatch::scan::ScanDispatch`, `dispatch::look::LookDispatch`, `dispatch::nearest_car::NearestCarDispatch`, `dispatch::etd::EtdDispatch`
+- `elevator_core::config::{ElevatorConfig, StopConfig}`
+- `elevator_core::traffic::*` (feature-gated behind `traffic`)
+- `elevator_core::snapshot::WorldSnapshot`
+- `elevator_core::world::World` (parameter type for custom dispatch)
+
+---
+
 ## SimulationBuilder
 
 Fluent builder for constructing a `Simulation`. Starts with a minimal valid config (2 stops, 1 elevator, SCAN dispatch, 60 TPS). Override any part before calling `build()`.

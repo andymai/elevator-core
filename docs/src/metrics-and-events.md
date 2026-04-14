@@ -79,6 +79,17 @@ for event in sim.drain_events() {
 
 You can call `drain_events()` after every tick, every N ticks, or only when you need to -- events accumulate until drained. The metrics system processes events independently each tick, so draining does not affect metric calculations.
 
+### Event ordering guarantees
+
+- **Within a tick:** events fire in tick-phase order (Advance Transient → Dispatch → Reposition → Movement → Doors → Loading → Metrics). Events from a later phase are always later in the drained vec than events from an earlier phase of the same tick.
+- **Across ticks:** events from tick N are drained before events from tick N+1. Every event carries its `tick` field, so you can reconstruct a strict timeline even if you drain in batches.
+- **Within a phase:** ordering between events of the same phase is stable but not part of the public contract — do not rely on, e.g., "elevator 0's `RiderBoarded` always precedes elevator 1's" across library versions.
+- **Pair invariants:** `RiderBoarded` always precedes the matching `RiderExited` for the same rider; `DoorOpened` always precedes `DoorClosed` for the same elevator at a given stop.
+
+### Buffer size and memory
+
+`drain_events()` empties the internal buffer. If you never drain, the buffer grows unbounded — in long-running sims, drain at least periodically (every tick in most games, every N ticks in headless analyses). Each event is a small enum (tens of bytes); a 1M-rider simulation at 60 TPS produces on the order of a few million events over its run.
+
 ### Building an event log
 
 Here is a pattern for collecting a complete event log across a simulation run:
