@@ -17,11 +17,49 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
     steps:
+      # Mint the App token first so release-please-action creates its
+      # PR using the App identity (release-kun). PRs created via the
+      # default GITHUB_TOKEN do NOT trigger downstream workflows
+      # (GitHub anti-loop protection), so without this the release
+      # PR would never see CI / branch-protection checks fire.
+      - name: Mint release-kun App token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
+          private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@v4.4.0
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          token: ${{ steps.app-token.outputs.token }}
+
+      # Inline approve + auto-merge in the same workflow run that
+      # opened the PR. Approval uses the default GITHUB_TOKEN
+      # (`github-actions[bot]` actor), which is distinct from the App
+      # that authored the PR — GitHub forbids self-review, so the two
+      # actors must differ. The merge call uses the App token so
+      # branch-protection rules requiring a PR approval are satisfied.
+      - name: Auto-approve release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review ${{ fromJSON(steps.release.outputs.pr).number }} \
+            --approve \
+            --body "Auto-approved by release pipeline." \
+            --repo ${{ github.repository }}
+
+      - name: Auto-merge release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr merge ${{ fromJSON(steps.release.outputs.pr).number }} \
+            --auto --squash \
+            --repo ${{ github.repository }}
 
   publish:
     needs: release-please
