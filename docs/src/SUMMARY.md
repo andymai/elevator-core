@@ -7,6 +7,7 @@
 - [Getting Started](getting-started.md)
 - [Core Concepts](core-concepts.md)
 - [Dispatch Strategies](dispatch.md)
+  - [Writing a Custom Strategy](custom-dispatch.md)
 - [Extensions and Hooks](extensions-and-hooks.md)
 - [Configuration](configuration.md)
 - [Traffic Generation](traffic-generation.md)
