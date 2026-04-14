@@ -51,19 +51,19 @@ Create a simulation, spawn a rider, and run until delivery.
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopConfig;
 
-// `::demo()` pre-populates two stops (Ground at 0.0, Top at 10.0) and
-// one elevator with SCAN dispatch. `.stops(vec![...])` *replaces* the
-// default stops so the building matches this example exactly — using
-// the singular `.stop(...)` instead would push, leaving the defaults
-// intact and duplicating StopId(0).
-let mut sim = SimulationBuilder::demo()
+let mut sim = SimulationBuilder::new()
     .stops(vec![
         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
         StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
         StopConfig { id: StopId(2), name: "Floor 3".into(), position: 8.0 },
     ])
+    .elevator(ElevatorConfig {
+        starting_stop: StopId(0),
+        ..Default::default()
+    })
     .build()
     .unwrap();
 
@@ -78,21 +78,33 @@ for _ in 0..1000 {
 println!("Delivered: {}", sim.metrics().total_delivered());
 ```
 
+For quick prototyping `SimulationBuilder::demo()` returns a two-stop, one-elevator building with reasonable physics defaults — useful when the stop layout isn't the point of the example.
+
 ### Custom Dispatch
 
 Swap in a different dispatch algorithm and react to simulation events.
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::stop::StopConfig;
 
-let mut sim = SimulationBuilder::demo()
+let mut sim = SimulationBuilder::new()
     .stops(vec![
         StopConfig { id: StopId(0), name: "Lobby".into(), position: 0.0 },
         StopConfig { id: StopId(1), name: "Sky Lounge".into(), position: 50.0 },
         StopConfig { id: StopId(2), name: "Observatory".into(), position: 120.0 },
     ])
+    .elevator(ElevatorConfig {
+        name: "Sky Car".into(),
+        max_speed: 6.0,                 // taller building → faster car
+        acceleration: 2.0,
+        deceleration: 2.5,
+        weight_capacity: 1200.0,
+        starting_stop: StopId(0),
+        ..Default::default()
+    })
     .dispatch(EtdDispatch::new())
     .build()
     .unwrap();
@@ -122,6 +134,7 @@ Attach custom data to entities and inject logic into the tick loop.
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopConfig;
 use serde::{Serialize, Deserialize};
 
@@ -130,11 +143,16 @@ struct VipTag {
     level: u32,
 }
 
-let mut sim = SimulationBuilder::demo()
+let mut sim = SimulationBuilder::new()
     .stops(vec![
         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
         StopConfig { id: StopId(1), name: "Penthouse".into(), position: 100.0 },
     ])
+    .elevator(ElevatorConfig {
+        max_speed: 4.0,                 // tall building → faster car
+        starting_stop: StopId(0),
+        ..Default::default()
+    })
     .with_ext::<VipTag>("vip_tag")
     .after(Phase::Loading, |world| {
         // Custom logic runs after the loading phase every tick.
