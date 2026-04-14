@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.1.0...elevator-core-v5.2.0) (2026-04-14)
+
+
+### Features
+
+* add move_count metric for floor crossings ([#36](https://github.com/andymai/elevator-core/issues/36)) ([fba79d5](https://github.com/andymai/elevator-core/commit/fba79d55dfc61ac2d7caef9aa2f7f722f43b4e66))
+* elevator direction indicators and direction-aware boarding ([#31](https://github.com/andymai/elevator-core/issues/31)) ([ca0fd4e](https://github.com/andymai/elevator-core/commit/ca0fd4e3dbe2fb86403e895acb47a7f566e94a87))
+
 ## [5.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.0.0...elevator-core-v5.1.0) (2026-04-14)
 
 
