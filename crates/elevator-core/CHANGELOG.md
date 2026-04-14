@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.3.0...elevator-core-v5.4.0) (2026-04-14)
+
+
+### Features
+
+* **ci:** auto-approve and merge release-please PRs via release-kun app ([#45](https://github.com/andymai/elevator-core/issues/45)) ([a7cf67f](https://github.com/andymai/elevator-core/commit/a7cf67f4822cb8220299986ebdeca0a041607fd2))
+* release hygiene — cargo-deny, MSRV check, corrected MSRV ([#44](https://github.com/andymai/elevator-core/issues/44)) ([f33b702](https://github.com/andymai/elevator-core/commit/f33b7029931222f7ea5af2d86e5da8a68d463920))
+
+
+### Bug Fixes
+
+* correctness bugs surfaced by review pass ([#46](https://github.com/andymai/elevator-core/issues/46)) ([4d397a4](https://github.com/andymai/elevator-core/commit/4d397a497c094f596ece5d5b7f746a6a9f6127fd))
+
 ## [5.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.2.0...elevator-core-v5.3.0) (2026-04-14)
 
 
