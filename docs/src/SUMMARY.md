@@ -15,3 +15,4 @@
 - [Performance](performance.md)
 - [API Reference](api-reference.md)
 - [Bevy Integration](bevy-integration.md)
+- [Non-Bevy Integration](non-bevy-integration.md)
