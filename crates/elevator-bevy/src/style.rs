@@ -10,6 +10,7 @@ use bevy::prelude::*;
 
 /// Palette + layout knobs consulted by the rendering module.
 #[derive(Resource, Clone)]
+#[allow(clippy::struct_excessive_bools)] // Flat flags are clearer than a nested enum here.
 pub struct VisualStyle {
     /// Clear color / background.
     pub background: Color,
@@ -39,6 +40,10 @@ pub struct VisualStyle {
     pub humanoid_riders: bool,
     /// Render two-panel sliding doors on the elevator car.
     pub sliding_doors: bool,
+    /// Draw stop lines as short dashes instead of one continuous bar.
+    pub dashed_stop_lines: bool,
+    /// Draw a thin vertical dashed cable inside each shaft.
+    pub shaft_cables: bool,
 }
 
 impl Default for VisualStyle {
@@ -59,6 +64,8 @@ impl Default for VisualStyle {
             stop_lines_span_all_shafts: false,
             humanoid_riders: false,
             sliding_doors: false,
+            dashed_stop_lines: false,
+            shaft_cables: false,
         }
     }
 }
@@ -84,6 +91,8 @@ impl VisualStyle {
             stop_lines_span_all_shafts: true,
             humanoid_riders: true,
             sliding_doors: true,
+            dashed_stop_lines: true,
+            shaft_cables: true,
         }
     }
 }

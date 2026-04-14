@@ -30,6 +30,39 @@ pub const PPU: f32 = 40.0;
 /// Matches the `door_transition_ticks` default in `ElevatorConfig`.
 const CLOSING_FALLBACK_TICKS: f32 = 30.0;
 
+/// One cable segment's position and length.
+struct CableSeg {
+    /// Y offset from the shaft center.
+    offset: f32,
+    /// Dash length in pixels.
+    len: f32,
+}
+
+/// Compute dash offsets + lengths for a vertical cable of `total_height`
+/// pixels, alternating between `dash` and `gap`. Returns one entry per dash.
+fn cable_segments(total_height: f32, dash: f32, gap: f32) -> Vec<CableSeg> {
+    let period = dash + gap;
+    let count = (total_height / period).floor() as i32;
+    let start = (-total_height).mul_add(0.5, dash * 0.5);
+    (0..count)
+        .map(|i| CableSeg {
+            offset: (i as f32).mul_add(period, start),
+            len: dash,
+        })
+        .collect()
+}
+
+/// Centre x coordinates for horizontal dashes across `total_width`, with
+/// `dash`-long segments separated by `gap`-wide empty space.
+fn segment_positions(total_width: f32, dash: f32, gap: f32) -> Vec<f32> {
+    let period = dash + gap;
+    let count = (total_width / period).floor() as i32;
+    let start = (-total_width).mul_add(0.5, dash * 0.5);
+    (0..count)
+        .map(|i| (i as f32).mul_add(period, start))
+        .collect()
+}
+
 /// Computed per-scene visual sizes.
 #[derive(Resource)]
 pub struct VisualScale {
@@ -221,6 +254,7 @@ pub fn spawn_building_visuals(
     let shaft_center_y = f64::midpoint(min_pos, max_pos) as f32 * PPU;
 
     let shaft_mat = materials.add(style.shaft);
+    let cable_mat = materials.add(style.stop_line.with_alpha(0.35));
     for i in 0..shaft_count {
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(vs.shaft_width, shaft_height))),
@@ -228,11 +262,24 @@ pub fn spawn_building_visuals(
             Transform::from_xyz(vs.shaft_x(i), shaft_center_y, 0.0),
             ShaftVisual,
         ));
+
+        if style.shaft_cables {
+            // Thin dashed vertical cable drawn just in front of the shaft
+            // background — gives the empty shaft a bit of technical detail.
+            let cable_width = (vs.shaft_width * 0.1).max(1.0);
+            for seg in cable_segments(shaft_height, 16.0, 10.0) {
+                commands.spawn((
+                    Mesh2d(meshes.add(Rectangle::new(cable_width, seg.len))),
+                    MeshMaterial2d(cable_mat.clone()),
+                    Transform::from_xyz(vs.shaft_x(i), shaft_center_y + seg.offset, 0.05),
+                ));
+            }
+        }
     }
 
     // Stop indicators + labels.
     let stop_line_material = materials.add(style.stop_line);
-    let line_width = if style.stop_lines_span_all_shafts {
+    let total_line_width = if style.stop_lines_span_all_shafts {
         vs.bank_width() + vs.shaft_width
     } else {
         vs.shaft_width * 5.0
@@ -241,12 +288,27 @@ pub fn spawn_building_visuals(
     for (_eid, pos, name) in &stop_positions {
         let y = *pos as f32 * PPU;
 
-        commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(line_width, vs.stop_line_thickness))),
-            MeshMaterial2d(stop_line_material.clone()),
-            Transform::from_xyz(0.0, y, 0.1),
-            StopVisual,
-        ));
+        if style.dashed_stop_lines {
+            // Short dashes separated by small gaps across the full span.
+            let dash_len = 14.0;
+            let gap_len = 9.0;
+            let segments = segment_positions(total_line_width, dash_len, gap_len);
+            for seg_x in segments {
+                commands.spawn((
+                    Mesh2d(meshes.add(Rectangle::new(dash_len, vs.stop_line_thickness))),
+                    MeshMaterial2d(stop_line_material.clone()),
+                    Transform::from_xyz(seg_x, y, 0.1),
+                    StopVisual,
+                ));
+            }
+        } else {
+            commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(total_line_width, vs.stop_line_thickness))),
+                MeshMaterial2d(stop_line_material.clone()),
+                Transform::from_xyz(0.0, y, 0.1),
+                StopVisual,
+            ));
+        }
 
         commands.spawn((
             Text2d::new(name.clone()),

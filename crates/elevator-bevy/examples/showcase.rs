@@ -24,7 +24,7 @@ use rand::{Rng, SeedableRng, rngs::StdRng};
 use elevator_bevy::camera::setup_camera;
 use elevator_bevy::cinematic::{Shot, ShotTimeline, apply_cinematic_camera};
 use elevator_bevy::decor::{
-    spawn_decor, sync_call_lamps, sync_occupancy_chips, tick_arrival_flash,
+    spawn_corner_marks, spawn_decor, sync_call_lamps, sync_occupancy_chips, tick_arrival_flash,
 };
 use elevator_bevy::recorder::{Recorder, capture_frames};
 use elevator_bevy::rendering::{
@@ -86,7 +86,13 @@ fn main() {
         .add_message::<EventWrapper>()
         .add_systems(
             Startup,
-            (setup_camera, spawn_building_visuals, spawn_decor, spawn_hud).chain(),
+            (
+                setup_camera,
+                spawn_building_visuals,
+                spawn_decor,
+                spawn_corner_marks,
+            )
+                .chain(),
         )
         .add_systems(
             Update,
@@ -102,10 +108,16 @@ fn main() {
                 sync_occupancy_chips,
                 tick_arrival_flash,
                 apply_cinematic_camera,
-                update_hud,
             )
                 .chain(),
         );
+
+    // The interactive HUD is useful when running manually but chrome in a
+    // 10s demo GIF, so skip spawning and updating it while recording.
+    if !record {
+        app.add_systems(Startup, spawn_hud)
+            .add_systems(Update, update_hud);
+    }
 
     if record {
         let out_dir = PathBuf::from(RECORD_OUT_DIR);
@@ -125,9 +137,9 @@ fn build_showcase_config() -> SimConfig {
         .map(|i| StopConfig {
             id: StopId(i),
             name: if i == 0 {
-                "Lobby".into()
+                "L".into()
             } else {
-                format!("Floor {}", i + 1)
+                (i + 1).to_string()
             },
             position: f64::from(i) * 4.0,
         })

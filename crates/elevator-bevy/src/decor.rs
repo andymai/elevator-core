@@ -187,6 +187,65 @@ pub fn tick_arrival_flash(
     }
 }
 
+/// Spawn four small L-shaped blueprint corner marks as screen-space UI.
+/// Visually frames the scene like a drafting sheet without adding any
+/// moving chrome.
+#[allow(clippy::needless_pass_by_value)]
+pub fn spawn_corner_marks(mut commands: Commands, style: Res<VisualStyle>) {
+    const MARGIN: f32 = 16.0;
+    const ARM: f32 = 18.0;
+    const THICK: f32 = 1.5;
+
+    let color = muted_text(style.text);
+
+    // (is_top, is_left) — orientation of each corner's L.
+    for (is_top, is_left) in [(true, true), (true, false), (false, true), (false, false)] {
+        let (top, bottom, left, right) = edges(is_top, is_left, MARGIN);
+
+        // Horizontal arm.
+        commands.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top,
+                bottom,
+                left,
+                right,
+                width: Val::Px(ARM),
+                height: Val::Px(THICK),
+                ..default()
+            },
+            BackgroundColor(color),
+        ));
+
+        // Vertical arm.
+        commands.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top,
+                bottom,
+                left,
+                right,
+                width: Val::Px(THICK),
+                height: Val::Px(ARM),
+                ..default()
+            },
+            BackgroundColor(color),
+        ));
+    }
+}
+
+/// Compute the `(top, bottom, left, right)` `Val`s for a given corner mark.
+const fn edges(is_top: bool, is_left: bool, margin: f32) -> (Val, Val, Val, Val) {
+    let m = Val::Px(margin);
+    let auto = Val::Auto;
+    (
+        if is_top { m } else { auto },
+        if is_top { auto } else { m },
+        if is_left { m } else { auto },
+        if is_left { auto } else { m },
+    )
+}
+
 /// Mute a color by 40% toward background-agnostic midpoint (shared with ui.rs).
 fn muted_text(c: Color) -> Color {
     let l = c.to_linear();
