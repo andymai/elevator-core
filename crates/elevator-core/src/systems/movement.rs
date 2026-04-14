@@ -61,7 +61,16 @@ pub fn run(
         let deceleration = car.deceleration;
         let door_transition_ticks = car.door_transition_ticks;
         let door_open_ticks = car.door_open_ticks;
-        let is_repositioning = car.repositioning;
+        // Authoritative source for "is this a reposition trip?" is the
+        // phase variant. The `repositioning` bool is a legacy mirror kept
+        // around for downstream predicates (e.g. `Elevator::repositioning`)
+        // — asserted equivalent below so a desync in either direction is
+        // caught early in debug builds.
+        let is_repositioning = matches!(car.phase, ElevatorPhase::Repositioning(_));
+        debug_assert_eq!(
+            is_repositioning, car.repositioning,
+            "ElevatorPhase::Repositioning and car.repositioning flag diverged at eid={eid:?}"
+        );
 
         let result = tick_movement(
             pos,

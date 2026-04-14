@@ -67,8 +67,36 @@ impl SimulationBuilder {
     ///
     /// ```
     /// use elevator_core::prelude::*;
+    /// use elevator_core::config::ElevatorConfig;
+    /// use elevator_core::stop::StopConfig;
     ///
-    /// let sim = SimulationBuilder::demo().build().unwrap();
+    /// // An empty builder errors on build — you must configure it first.
+    /// assert!(SimulationBuilder::new().build().is_err());
+    ///
+    /// // Minimum valid configuration: at least one stop and one elevator.
+    /// let sim = SimulationBuilder::new()
+    ///     .stops(vec![
+    ///         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
+    ///         StopConfig { id: StopId(1), name: "Top".into(), position: 10.0 },
+    ///     ])
+    ///     .elevator(ElevatorConfig {
+    ///         id: 0,
+    ///         name: "Main".into(),
+    ///         max_speed: 2.0,
+    ///         acceleration: 1.5,
+    ///         deceleration: 2.0,
+    ///         weight_capacity: 800.0,
+    ///         starting_stop: StopId(0),
+    ///         door_open_ticks: 10,
+    ///         door_transition_ticks: 5,
+    ///         restricted_stops: Vec::new(),
+    ///         # #[cfg(feature = "energy")]
+    ///         # energy_profile: None,
+    ///         service_mode: None,
+    ///         inspection_speed_factor: 0.25,
+    ///     })
+    ///     .build()
+    ///     .unwrap();
     /// assert_eq!(sim.current_tick(), 0);
     /// ```
     #[must_use]
