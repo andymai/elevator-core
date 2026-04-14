@@ -56,11 +56,11 @@ fn snapshot_roundtrip_remaps_repositioning_phase() {
     let mut saw_repositioning = false;
     for _ in 0..2000 {
         sim.step();
-        if let Some(car) = sim.world().elevator(elev) {
-            if matches!(car.phase(), ElevatorPhase::Repositioning(_)) {
-                saw_repositioning = true;
-                break;
-            }
+        if let Some(car) = sim.world().elevator(elev)
+            && matches!(car.phase(), ElevatorPhase::Repositioning(_))
+        {
+            saw_repositioning = true;
+            break;
         }
     }
     assert!(

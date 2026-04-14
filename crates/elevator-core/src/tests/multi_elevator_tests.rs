@@ -118,11 +118,11 @@ fn disable_elevator_mid_route_ejects_riders() {
     let mut boarded_elevator = None;
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if let RiderPhase::Riding(eid) = r.phase {
-                boarded_elevator = Some(eid);
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && let RiderPhase::Riding(eid) = r.phase
+        {
+            boarded_elevator = Some(eid);
+            break;
         }
     }
 

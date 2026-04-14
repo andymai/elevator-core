@@ -11,10 +11,10 @@ use super::helpers::{default_config, scan};
 fn run_until_arrived(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider_id) {
-            if r.phase() == RiderPhase::Arrived {
-                return;
-            }
+        if let Some(r) = sim.world().rider(rider_id)
+            && r.phase() == RiderPhase::Arrived
+        {
+            return;
         }
     }
     panic!("rider did not arrive within 10,000 ticks");
@@ -24,10 +24,10 @@ fn run_until_arrived(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
 fn run_until_abandoned(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider_id) {
-            if r.phase() == RiderPhase::Abandoned {
-                return;
-            }
+        if let Some(r) = sim.world().rider(rider_id)
+            && r.phase() == RiderPhase::Abandoned
+        {
+            return;
         }
     }
     panic!("rider did not abandon within 10,000 ticks");
@@ -200,10 +200,10 @@ fn despawn_riding_rider_cleans_elevator() {
     // Run until rider is Riding.
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider) {
-            if matches!(r.phase(), RiderPhase::Riding(_)) {
-                break;
-            }
+        if let Some(r) = sim.world().rider(rider)
+            && matches!(r.phase(), RiderPhase::Riding(_))
+        {
+            break;
         }
     }
 

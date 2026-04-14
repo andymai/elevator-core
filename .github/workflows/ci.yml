@@ -59,7 +59,7 @@ jobs:
       # Pinned to the rust-version declared in the workspace Cargo.toml.
       # Only elevator-core commits to an MSRV; elevator-bevy depends on a
       # newer toolchain via bevy and is intentionally excluded.
-      - uses: dtolnay/rust-toolchain@1.87
+      - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
 
       - name: Build elevator-core on MSRV

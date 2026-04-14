@@ -81,19 +81,17 @@ fn handle_exit(
     let still_routing = world
         .rider(id)
         .is_some_and(|r| r.phase() == RiderPhase::Waiting);
-    if still_routing {
-        if let Some(route) = world.route(id) {
-            if let Some(dest) = route.current_destination() {
-                if world.is_disabled(dest) {
-                    events.emit(Event::RouteInvalidated {
-                        rider: id,
-                        affected_stop: dest,
-                        reason: crate::events::RouteInvalidReason::StopDisabled,
-                        tick: ctx.tick,
-                    });
-                }
-            }
-        }
+    if still_routing
+        && let Some(route) = world.route(id)
+        && let Some(dest) = route.current_destination()
+        && world.is_disabled(dest)
+    {
+        events.emit(Event::RouteInvalidated {
+            rider: id,
+            affected_stop: dest,
+            reason: crate::events::RouteInvalidReason::StopDisabled,
+            tick: ctx.tick,
+        });
     }
 }
 

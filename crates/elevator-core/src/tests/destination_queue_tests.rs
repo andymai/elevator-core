@@ -141,10 +141,10 @@ fn imperative_push_drives_elevator() {
             if let Event::ElevatorArrived {
                 elevator, at_stop, ..
             } = ev
+                && elevator == elev
+                && at_stop == s2
             {
-                if elevator == elev && at_stop == s2 {
-                    arrived = true;
-                }
+                arrived = true;
             }
         }
         if arrived {
@@ -180,11 +180,10 @@ fn push_front_overrides_current_target() {
             if let Event::ElevatorArrived {
                 elevator, at_stop, ..
             } = ev
+                && elevator == elev
             {
-                if elevator == elev {
-                    arrived_at = Some(at_stop);
-                    break;
-                }
+                arrived_at = Some(at_stop);
+                break;
             }
         }
         if arrived_at.is_some() {

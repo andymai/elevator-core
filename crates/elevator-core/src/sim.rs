@@ -744,16 +744,16 @@ impl Simulation {
         if self.world.stop(origin).is_none() {
             return Err(SimError::EntityNotFound(origin));
         }
-        if let Some(leg) = route.current() {
-            if leg.from != origin {
-                return Err(SimError::InvalidState {
-                    entity: origin,
-                    reason: format!(
-                        "origin {origin:?} does not match route first leg from {:?}",
-                        leg.from
-                    ),
-                });
-            }
+        if let Some(leg) = route.current()
+            && leg.from != origin
+        {
+            return Err(SimError::InvalidState {
+                entity: origin,
+                reason: format!(
+                    "origin {origin:?} does not match route first leg from {:?}",
+                    leg.from
+                ),
+            });
         }
         Ok(self.spawn_rider_inner(origin, destination, weight, route))
     }
