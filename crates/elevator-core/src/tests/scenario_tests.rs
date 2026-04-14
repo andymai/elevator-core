@@ -167,6 +167,109 @@ fn events_are_emitted_in_order() {
     );
 }
 
+/// Documented invariant (metrics-and-events.md): for any given rider,
+/// `RiderBoarded` always fires before `RiderExited`. Exercised with multiple
+/// riders so per-rider ordering is the actual thing being tested (a global
+/// "any boarded before any exited" check would be weaker).
+#[test]
+fn rider_boarded_precedes_rider_exited_per_rider() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let r1 = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    let r2 = sim
+        .spawn_rider_by_stop_id(StopId(2), StopId(0), 60.0)
+        .unwrap();
+    let r3 = sim
+        .spawn_rider_by_stop_id(StopId(1), StopId(2), 65.0)
+        .unwrap();
+
+    let mut boarded_at: std::collections::HashMap<_, usize> = std::collections::HashMap::new();
+    let mut exited_at: std::collections::HashMap<_, usize> = std::collections::HashMap::new();
+    let mut idx = 0usize;
+
+    for _ in 0..20_000 {
+        sim.step();
+        for ev in sim.drain_events() {
+            match ev {
+                Event::RiderBoarded { rider, .. } => {
+                    boarded_at.entry(rider).or_insert(idx);
+                }
+                Event::RiderExited { rider, .. } => {
+                    exited_at.insert(rider, idx);
+                }
+                _ => {}
+            }
+            idx += 1;
+        }
+        if all_riders_arrived(&sim) {
+            break;
+        }
+    }
+
+    for rid in [r1, r2, r3] {
+        let b = boarded_at
+            .get(&rid)
+            .unwrap_or_else(|| panic!("rider {rid:?} never boarded"));
+        let e = exited_at
+            .get(&rid)
+            .unwrap_or_else(|| panic!("rider {rid:?} never exited"));
+        assert!(
+            b < e,
+            "RiderBoarded (idx {b}) must precede RiderExited (idx {e}) for {rid:?}",
+        );
+    }
+}
+
+/// Documented invariant (metrics-and-events.md): for a given elevator visit
+/// to a stop, `DoorOpened` always precedes the matching `DoorClosed`. Locks
+/// this pairing down so future refactors can't silently violate it.
+#[test]
+fn door_opened_precedes_door_closed() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 60.0)
+        .unwrap();
+
+    // Per-elevator open/close sequence; pairs must alternate open→close.
+    let mut per_elevator: std::collections::HashMap<_, Vec<&'static str>> =
+        std::collections::HashMap::new();
+
+    for _ in 0..20_000 {
+        sim.step();
+        for ev in sim.drain_events() {
+            match ev {
+                Event::DoorOpened { elevator, .. } => {
+                    per_elevator.entry(elevator).or_default().push("open");
+                }
+                Event::DoorClosed { elevator, .. } => {
+                    per_elevator.entry(elevator).or_default().push("close");
+                }
+                _ => {}
+            }
+        }
+        if all_riders_arrived(&sim) {
+            break;
+        }
+    }
+
+    assert!(!per_elevator.is_empty(), "expected at least one door event");
+    for (eid, seq) in per_elevator {
+        // Every even index must be "open", every odd "close" — strict pairing.
+        for (i, kind) in seq.iter().enumerate() {
+            let expected = if i % 2 == 0 { "open" } else { "close" };
+            assert_eq!(
+                *kind, expected,
+                "elevator {eid:?} door sequence violated at index {i}: {seq:?}",
+            );
+        }
+    }
+}
+
 #[test]
 fn deterministic_replay() {
     let config = default_config();

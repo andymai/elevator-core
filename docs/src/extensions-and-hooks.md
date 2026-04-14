@@ -109,9 +109,21 @@ if let Some(value) = sim.world_mut().resource_mut::<u32>() {
 
 Resources are useful for game state that hooks need to read or write -- score counters, time-of-day multipliers, spawn rate controllers, and so on.
 
+### Extension vs. resource: which do I want?
+
+| Need | Use |
+|---|---|
+| Per-entity data that varies by rider/elevator (VIP status, mood, cargo manifest) | **Extension** (`with_ext` + `insert_ext`) |
+| One-of value for the whole sim (score, difficulty, tick clock mirror) | **Resource** (`insert_resource`) |
+| Data that must survive snapshot save/load | **Extension** (register by name; resources are not snapshotted) |
+| Quick scratchpad you can wipe between ticks | **Resource** |
+| Query "all entities that have X" | **Extension** (iterate `world.rider_ids()` and filter on `get_ext::<T>`) |
+
+Extensions are auto-cleaned on `despawn_rider`; resources persist until you remove them.
+
 ## Lifecycle hooks
 
-Hooks let you inject custom logic before or after any of the six tick phases. They receive `&mut World`, so they can read and modify any entity or resource.
+Hooks let you inject custom logic before or after any of the seven tick phases. They receive `&mut World`, so they can read and modify any entity or resource.
 
 ### Registering hooks on the builder
 
@@ -164,12 +176,32 @@ let sim = SimulationBuilder::new()
 # }
 ```
 
+### What hooks can (and can't) do
+
+Hooks receive `&mut World` — not `&mut Simulation`. This means:
+
+- **You can:** read/mutate any component, insert/remove extensions, add/remove resources, read tick state via a resource mirror (see example below).
+- **You cannot:** call `sim.step()`, `sim.spawn_rider_by_stop_id()`, `sim.snapshot()` or other `Simulation`-level methods while a tick is in flight — the simulation is borrowed.
+- **Spawning during a hook:** use `world.spawn()` + direct component inserts, or queue `SpawnRequest`s into a resource and drain them after `sim.step()` returns. The `before(Phase::Dispatch, ...)` slot is a convenient place to inject riders because the next phase will see them.
+- **Events:** hooks do not emit events directly. Use an extension/resource to record side effects and translate to events in game code.
+
+Hook execution order within a tick:
+
+```text
+before(AdvanceTransient) -> [phase] -> after(AdvanceTransient)
+before(Dispatch)         -> [phase] -> after(Dispatch)
+  ... and so on for each phase
+```
+
+Group-specific hooks run alongside global hooks for the same phase; all `before` hooks fire before the phase body, all `after` hooks fire after.
+
 ### Available phases
 
 | Phase | When hooks run |
 |---|---|
 | `Phase::AdvanceTransient` | Before/after transitional states advance |
 | `Phase::Dispatch` | Before/after elevator assignment |
+| `Phase::Reposition` | Before/after idle-elevator repositioning (no-op if no reposition strategy configured) |
 | `Phase::Movement` | Before/after position updates |
 | `Phase::Doors` | Before/after door state machine ticks |
 | `Phase::Loading` | Before/after boarding and exiting |

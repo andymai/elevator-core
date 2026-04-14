@@ -4,6 +4,31 @@ This chapter is a quick-reference for the public API of the `elevator-core` crat
 
 ---
 
+## Prelude
+
+`use elevator_core::prelude::*;` re-exports these items. Anything else must be imported from its module explicitly.
+
+| Category | Items |
+|---|---|
+| Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Config | `SimConfig`, `GroupConfig`, `LineConfig` |
+| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
+| Identity | `EntityId`, `StopId`, `GroupId` |
+| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Misc | `Metrics`, `TimeAdapter` |
+
+Not in the prelude (import explicitly):
+
+- `elevator_core::dispatch::scan::ScanDispatch`, `dispatch::look::LookDispatch`, `dispatch::nearest_car::NearestCarDispatch`, `dispatch::etd::EtdDispatch`
+- `elevator_core::config::{ElevatorConfig, StopConfig}`
+- `elevator_core::traffic::*` (feature-gated behind `traffic`)
+- `elevator_core::snapshot::WorldSnapshot`
+- `elevator_core::world::World` (parameter type for custom dispatch)
+
+---
+
 ## SimulationBuilder
 
 Fluent builder for constructing a `Simulation`. Starts with a minimal valid config (2 stops, 1 elevator, SCAN dispatch, 60 TPS). Override any part before calling `build()`.
@@ -41,10 +66,11 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `step` | `(&mut self)` | Run all 6 phases and advance the tick counter |
+| `step` | `(&mut self)` | Run all 7 phases and advance the tick counter |
 | `advance_tick` | `(&mut self)` | Increment tick counter and flush events to output buffer |
 | `run_advance_transient` | `(&mut self)` | Run the advance-transient phase (with hooks) |
 | `run_dispatch` | `(&mut self)` | Run the dispatch phase (with hooks) |
+| `run_reposition` | `(&mut self)` | Run the reposition phase (with hooks) |
 | `run_movement` | `(&mut self)` | Run the movement phase (with hooks) |
 | `run_doors` | `(&mut self)` | Run the doors phase (with hooks) |
 | `run_loading` | `(&mut self)` | Run the loading phase (with hooks) |
