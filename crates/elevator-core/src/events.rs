@@ -389,6 +389,22 @@ pub enum Event {
         tick: u64,
     },
 
+    /// A stop was queued as a destination for an elevator.
+    ///
+    /// Emitted by [`Simulation::push_destination`](crate::sim::Simulation::push_destination),
+    /// [`Simulation::push_destination_front`](crate::sim::Simulation::push_destination_front),
+    /// and the built-in dispatch phase whenever it actually appends a stop
+    /// to an elevator's [`DestinationQueue`](crate::components::DestinationQueue).
+    /// Adjacent-duplicate pushes (that are deduplicated) do not emit.
+    DestinationQueued {
+        /// The elevator whose queue was updated.
+        elevator: EntityId,
+        /// The stop that was queued.
+        stop: EntityId,
+        /// The tick when the push occurred.
+        tick: u64,
+    },
+
     /// A stop was permanently removed from the simulation.
     ///
     /// Distinct from [`EntityDisabled`] — a disabled stop can be

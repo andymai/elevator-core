@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 use super::PhaseContext;
 
 /// Assign idle/stopped elevators to stops via the dispatch strategy.
+#[allow(clippy::too_many_lines)]
 pub fn run(
     world: &mut World,
     events: &mut EventBus,
@@ -85,7 +86,7 @@ pub fn run(
                     };
                     update_indicators(world, events, eid, new_up, new_down, ctx.tick);
 
-                    // Already at this stop — open doors directly.
+                    // Already at this stop — open doors directly, don't push.
                     if current_stop == Some(stop_eid) {
                         events.emit(Event::ElevatorArrived {
                             elevator: eid,
@@ -100,6 +101,17 @@ pub fn run(
                             );
                         }
                         continue;
+                    }
+
+                    // Push onto queue with adjacent dedup; emit event iff appended.
+                    if let Some(q) = world.destination_queue_mut(eid) {
+                        if q.push_back(stop_eid) {
+                            events.emit(Event::DestinationQueued {
+                                elevator: eid,
+                                stop: stop_eid,
+                                tick: ctx.tick,
+                            });
+                        }
                     }
 
                     if let Some(car) = world.elevator_mut(eid) {
@@ -143,7 +155,10 @@ pub fn run(
 
 /// Update the direction indicator lamps on an elevator and emit a
 /// [`Event::DirectionIndicatorChanged`] iff the pair actually changed.
-fn update_indicators(
+///
+/// Shared with `systems::advance_queue` so both dispatch- and
+/// imperative-driven movement keep the indicators in sync.
+pub fn update_indicators(
     world: &mut World,
     events: &mut EventBus,
     eid: EntityId,

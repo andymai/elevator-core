@@ -41,6 +41,8 @@ pub enum Phase {
     Loading,
     /// Reposition idle elevators for better coverage.
     Reposition,
+    /// Reconcile elevator phase with its `DestinationQueue` front.
+    AdvanceQueue,
     /// Aggregate metrics from tick events.
     Metrics,
 }

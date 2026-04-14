@@ -93,7 +93,7 @@ println!("Spawned rider: {:?}", rider_id);
 
 ## Run the simulation loop
 
-Each call to `sim.step()` advances the simulation by one tick, running all seven phases of the tick loop (advance transient, dispatch, reposition, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
+Each call to `sim.step()` advances the simulation by one tick, running all eight phases of the tick loop (advance transient, dispatch, reposition, advance queue, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
 
 ```rust,no_run
 # use elevator_core::prelude::*;

@@ -1,5 +1,7 @@
 //! Tick-loop system phases run in sequence each simulation step.
 
+/// Reconcile elevator phase with its destination queue front.
+pub(crate) mod advance_queue;
 /// Advance transient states (boarding/exiting) to their next state.
 pub(crate) mod advance_transient;
 /// Assign idle elevators to stops via dispatch strategy.

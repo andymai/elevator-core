@@ -515,6 +515,7 @@ impl Simulation {
             if let Some(mode) = ec.service_mode {
                 world.set_service_mode(eid, mode);
             }
+            world.set_destination_queue(eid, crate::components::DestinationQueue::new());
             elevator_entities.push(eid);
         }
 
@@ -643,6 +644,7 @@ impl Simulation {
                 if let Some(mode) = ec.service_mode {
                     world.set_service_mode(eid, mode);
                 }
+                world.set_destination_queue(eid, crate::components::DestinationQueue::new());
                 elevator_entities.push(eid);
             }
 
@@ -1035,6 +1037,120 @@ impl Simulation {
     #[must_use]
     pub fn pending_events(&self) -> &[Event] {
         &self.pending_output
+    }
+
+    // ── Destination queue (saga-style imperative dispatch) ──────────
+
+    /// Read-only view of an elevator's destination queue (FIFO of target
+    /// stop `EntityId`s).
+    ///
+    /// Returns `None` if `elev` is not an elevator entity. Returns
+    /// `Some(&[])` for elevators with an empty queue.
+    #[must_use]
+    pub fn destination_queue(&self, elev: EntityId) -> Option<&[EntityId]> {
+        self.world
+            .destination_queue(elev)
+            .map(crate::components::DestinationQueue::queue)
+    }
+
+    /// Push a stop onto the back of an elevator's destination queue.
+    ///
+    /// Adjacent duplicates are suppressed: if the last entry already equals
+    /// `stop`, the queue is unchanged and no event is emitted.
+    /// Otherwise emits [`Event::DestinationQueued`].
+    ///
+    /// # Errors
+    ///
+    /// - [`SimError::InvalidState`] if `elev` is not an elevator.
+    /// - [`SimError::InvalidState`] if `stop` is not a stop.
+    pub fn push_destination(&mut self, elev: EntityId, stop: EntityId) -> Result<(), SimError> {
+        self.validate_push_targets(elev, stop)?;
+        let appended = self
+            .world
+            .destination_queue_mut(elev)
+            .is_some_and(|q| q.push_back(stop));
+        if appended {
+            self.events.emit(Event::DestinationQueued {
+                elevator: elev,
+                stop,
+                tick: self.tick,
+            });
+        }
+        Ok(())
+    }
+
+    /// Insert a stop at the front of an elevator's destination queue
+    /// (elevator-saga's `forceNow`).
+    ///
+    /// On the next `AdvanceQueue` phase (between Dispatch and Movement),
+    /// the elevator redirects to this new front if it differs from the
+    /// current target.
+    ///
+    /// Adjacent duplicates are suppressed: if the first entry already equals
+    /// `stop`, the queue is unchanged and no event is emitted.
+    ///
+    /// # Errors
+    ///
+    /// - [`SimError::InvalidState`] if `elev` is not an elevator.
+    /// - [`SimError::InvalidState`] if `stop` is not a stop.
+    pub fn push_destination_front(
+        &mut self,
+        elev: EntityId,
+        stop: EntityId,
+    ) -> Result<(), SimError> {
+        self.validate_push_targets(elev, stop)?;
+        let inserted = self
+            .world
+            .destination_queue_mut(elev)
+            .is_some_and(|q| q.push_front(stop));
+        if inserted {
+            self.events.emit(Event::DestinationQueued {
+                elevator: elev,
+                stop,
+                tick: self.tick,
+            });
+        }
+        Ok(())
+    }
+
+    /// Clear an elevator's destination queue.
+    ///
+    /// TODO: clearing does not currently abort an in-flight movement — the
+    /// elevator will finish its current leg and then go idle (since the
+    /// queue is empty). A future change can add a phase transition to
+    /// cancel mid-flight.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidState`] if `elev` is not an elevator.
+    pub fn clear_destinations(&mut self, elev: EntityId) -> Result<(), SimError> {
+        if self.world.elevator(elev).is_none() {
+            return Err(SimError::InvalidState {
+                entity: elev,
+                reason: "not an elevator".into(),
+            });
+        }
+        if let Some(q) = self.world.destination_queue_mut(elev) {
+            q.clear();
+        }
+        Ok(())
+    }
+
+    /// Validate that `elev` is an elevator and `stop` is a stop.
+    fn validate_push_targets(&self, elev: EntityId, stop: EntityId) -> Result<(), SimError> {
+        if self.world.elevator(elev).is_none() {
+            return Err(SimError::InvalidState {
+                entity: elev,
+                reason: "not an elevator".into(),
+            });
+        }
+        if self.world.stop(stop).is_none() {
+            return Err(SimError::InvalidState {
+                entity: stop,
+                reason: "not a stop".into(),
+            });
+        }
+        Ok(())
     }
 
     // ── Dispatch management ──────────────────────────────────────────
@@ -1618,6 +1734,8 @@ impl Simulation {
                 move_count: 0,
             },
         );
+        self.world
+            .set_destination_queue(eid, crate::components::DestinationQueue::new());
         self.groups[group_idx].lines_mut()[line_idx]
             .elevators_mut()
             .push(eid);
@@ -3067,6 +3185,32 @@ impl Simulation {
         self.hooks.run_after(Phase::Loading, &mut self.world);
     }
 
+    /// Run only the advance-queue phase (with hooks).
+    ///
+    /// Reconciles each elevator's phase/target with the front of its
+    /// [`DestinationQueue`](crate::components::DestinationQueue). Runs
+    /// between Reposition and Movement.
+    pub fn run_advance_queue(&mut self) {
+        self.hooks.run_before(Phase::AdvanceQueue, &mut self.world);
+        for group in &self.groups {
+            self.hooks
+                .run_before_group(Phase::AdvanceQueue, group.id(), &mut self.world);
+        }
+        let ctx = self.phase_context();
+        self.world.elevator_ids_into(&mut self.elevator_ids_buf);
+        crate::systems::advance_queue::run(
+            &mut self.world,
+            &mut self.events,
+            &ctx,
+            &self.elevator_ids_buf,
+        );
+        for group in &self.groups {
+            self.hooks
+                .run_after_group(Phase::AdvanceQueue, group.id(), &mut self.world);
+        }
+        self.hooks.run_after(Phase::AdvanceQueue, &mut self.world);
+    }
+
     /// Run only the reposition phase (with hooks).
     ///
     /// Only runs if at least one group has a [`RepositionStrategy`] configured.
@@ -3206,6 +3350,7 @@ impl Simulation {
         self.run_advance_transient();
         self.run_dispatch();
         self.run_reposition();
+        self.run_advance_queue();
         self.run_movement();
         self.run_doors();
         self.run_loading();

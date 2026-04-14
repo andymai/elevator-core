@@ -23,6 +23,7 @@ Events are emitted during the tick phases. Here are the main categories:
 | `ElevatorIdle { elevator, at_stop, tick }` | An elevator became idle |
 | `CapacityChanged { elevator, current_load, capacity, tick }` | An elevator's load changed (after board or exit) |
 | `DirectionIndicatorChanged { elevator, going_up, going_down, tick }` | An elevator's direction indicator lamps changed (set by dispatch) |
+| `DestinationQueued { elevator, stop, tick }` | A stop was pushed onto an elevator's `DestinationQueue` (via dispatch or `sim.push_destination*`). Adjacent-duplicate pushes that are deduplicated do not emit. |
 
 **Rider events:**
 

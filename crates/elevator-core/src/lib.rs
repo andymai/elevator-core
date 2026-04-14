@@ -5,7 +5,7 @@
 //! This crate provides the building blocks for modeling vertical transportation
 //! systems — from a 3-story office building to an orbital space elevator.
 //! Stops sit at arbitrary positions rather than uniform floors, and the
-//! simulation is driven by a deterministic 7-phase tick loop.
+//! simulation is driven by a deterministic 8-phase tick loop.
 //!
 //! ## Key capabilities
 //!
@@ -18,7 +18,7 @@
 //! - **Extension components** — attach arbitrary `Serialize + DeserializeOwned`
 //!   data to any entity via [`world::World::insert_ext`] without modifying the
 //!   library.
-//! - **Lifecycle hooks** — inject logic before or after any of the seven
+//! - **Lifecycle hooks** — inject logic before or after any of the eight
 //!   simulation phases. See [`hooks::Phase`].
 //! - **Metrics and events** — query aggregate wait/ride times through
 //!   [`metrics::Metrics`] and react to fine-grained tick events via
@@ -68,7 +68,7 @@
 //!
 //! ## Architecture overview
 //!
-//! ### 7-phase tick loop
+//! ### 8-phase tick loop
 //!
 //! Each call to [`Simulation::step()`](sim::Simulation::step) runs these
 //! phases in order:
@@ -79,11 +79,14 @@
 //!    and calls each group's [`DispatchStrategy`](dispatch::DispatchStrategy).
 //! 3. **Reposition** — optional phase; moves idle elevators via
 //!    [`RepositionStrategy`](dispatch::RepositionStrategy) for better coverage.
-//! 4. **Movement** — applies trapezoidal velocity profiles, detects stop arrivals
+//! 4. **`AdvanceQueue`** — reconciles each elevator's phase/target with the
+//!    front of its [`DestinationQueue`](components::DestinationQueue), so
+//!    imperative pushes from game code take effect before movement.
+//! 5. **Movement** — applies trapezoidal velocity profiles, detects stop arrivals
 //!    and emits [`PassingFloor`](events::Event::PassingFloor) events.
-//! 5. **Doors** — ticks the [`DoorState`](door::DoorState) FSM per elevator.
-//! 6. **Loading** — boards/exits riders with capacity and preference checks.
-//! 7. **Metrics** — aggregates wait/ride times into [`Metrics`](metrics::Metrics)
+//! 6. **Doors** — ticks the [`DoorState`](door::DoorState) FSM per elevator.
+//! 7. **Loading** — boards/exits riders with capacity and preference checks.
+//! 8. **Metrics** — aggregates wait/ride times into [`Metrics`](metrics::Metrics)
 //!    and per-tag accumulators.
 //!
 //! ### Component relationships
@@ -273,8 +276,8 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        AccessControl, Elevator, ElevatorPhase, FloorPosition, Line, Orientation, Patience,
-        Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop, Velocity,
+        AccessControl, DestinationQueue, Elevator, ElevatorPhase, FloorPosition, Line, Orientation,
+        Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop, Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{

@@ -13,6 +13,28 @@ During the Dispatch phase of each tick, the simulation:
 
 Direction indicators (`going_up`/`going_down`) are derived automatically from each dispatch decision: `GoToStop` sets them from target vs. current position, `Idle` resets them to both-lit. This means SCAN, LOOK, NearestCar, and ETD -- along with any custom strategy you write -- drive the indicators for free, and downstream boarding gets direction-awareness with no extra work from the strategy. See [Direction indicators](core-concepts.md#direction-indicators) for details.
 
+## Imperative dispatch (destination queue)
+
+If you want saga-style "just tell the elevator where to go" control, you don't need to implement a `DispatchStrategy`. Every elevator carries a `DestinationQueue` (a FIFO of stop `EntityId`s) that you can push to directly:
+
+```rust,no_run
+# use elevator_core::prelude::*;
+# let mut sim: Simulation = todo!();
+# let elev: EntityId = todo!();
+# let stop_a: EntityId = todo!();
+# let stop_b: EntityId = todo!();
+sim.push_destination(elev, stop_a).unwrap();        // enqueue at back
+sim.push_destination_front(elev, stop_b).unwrap();  // saga's forceNow
+sim.clear_destinations(elev).unwrap();              // cancel pending work
+let queue: &[EntityId] = sim.destination_queue(elev).unwrap();
+```
+
+Adjacent duplicates are suppressed: pushing the same stop twice in a row is a no-op (and emits a single `DestinationQueued` event, not two).
+
+Between the Dispatch and Movement phases, an `AdvanceQueue` phase reconciles each elevator's phase/target with the front of its queue. Idle elevators with a non-empty queue begin moving toward the front entry; elevators mid-flight whose queue front has changed (because you called `push_destination_front`) are redirected. Movement pops the front on arrival.
+
+You can mix the two modes freely: dispatch keeps the queue in sync with its own decisions, so games can observe the queue for visualization and intervene only when needed.
+
 ## Built-in strategies
 
 | Strategy | Algorithm | Best for | Trade-off |

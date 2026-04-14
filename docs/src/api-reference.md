@@ -66,11 +66,12 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `step` | `(&mut self)` | Run all 7 phases and advance the tick counter |
+| `step` | `(&mut self)` | Run all 8 phases and advance the tick counter |
 | `advance_tick` | `(&mut self)` | Increment tick counter and flush events to output buffer |
 | `run_advance_transient` | `(&mut self)` | Run the advance-transient phase (with hooks) |
 | `run_dispatch` | `(&mut self)` | Run the dispatch phase (with hooks) |
 | `run_reposition` | `(&mut self)` | Run the reposition phase (with hooks) |
+| `run_advance_queue` | `(&mut self)` | Run the advance-queue phase — reconcile `DestinationQueue` (with hooks) |
 | `run_movement` | `(&mut self)` | Run the movement phase (with hooks) |
 | `run_doors` | `(&mut self)` | Run the doors phase (with hooks) |
 | `run_loading` | `(&mut self)` | Run the loading phase (with hooks) |

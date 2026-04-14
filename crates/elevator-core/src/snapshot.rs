@@ -8,7 +8,8 @@
 //! own extensions separately and re-attach them after restoring.
 
 use crate::components::{
-    AccessControl, Elevator, Line, Patience, Position, Preferences, Rider, Route, Stop, Velocity,
+    AccessControl, DestinationQueue, Elevator, Line, Patience, Position, Preferences, Rider, Route,
+    Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -58,6 +59,9 @@ pub struct EntitySnapshot {
     /// Service mode (if present).
     #[serde(default)]
     pub service_mode: Option<crate::components::ServiceMode>,
+    /// Destination queue (per-elevator; absent in legacy snapshots).
+    #[serde(default)]
+    pub destination_queue: Option<DestinationQueue>,
 }
 
 /// Serializable snapshot of the entire simulation state.
@@ -346,6 +350,16 @@ impl WorldSnapshot {
             if let Some(mode) = snap.service_mode {
                 world.set_service_mode(eid, mode);
             }
+            if let Some(ref dq) = snap.destination_queue {
+                // Remap EntityIds inside the queue.
+                use crate::components::DestinationQueue as DQ;
+                let remapped: Vec<EntityId> = dq.queue().iter().map(|&e| remap(e)).collect();
+                let mut new_dq = DQ::new();
+                for eid_q in remapped {
+                    new_dq.push_back(eid_q);
+                }
+                world.set_destination_queue(eid, new_dq);
+            }
         }
     }
 
@@ -496,6 +510,7 @@ impl crate::sim::Simulation {
                 #[cfg(feature = "energy")]
                 energy_metrics: world.energy_metrics(eid).cloned(),
                 service_mode: world.service_mode(eid).copied(),
+                destination_queue: world.destination_queue(eid).cloned(),
             })
             .collect();
 

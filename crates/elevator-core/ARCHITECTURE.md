@@ -80,9 +80,9 @@ for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() { ... }
 world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| { tag.level += 1; });
 ```
 
-## 3. The 7-Phase Tick Loop
+## 3. The 8-Phase Tick Loop
 
-Each call to `sim.step()` runs all seven phases in order, then advances the
+Each call to `sim.step()` runs all eight phases in order, then advances the
 tick counter. Events emitted during a tick are buffered and available to
 consumers via `drain_events()` after the tick completes.
 
@@ -97,16 +97,19 @@ consumers via `drain_events()` after the tick completes.
 │ 3. Reposition         │  systems/reposition.rs
 │                       │  Move idle elevators via RepositionStrategy (optional)
 ├───────────────────────┤
-│ 4. Movement           │  systems/movement.rs
+│ 4. AdvanceQueue       │  systems/advance_queue.rs
+│                       │  Reconcile phase/target with DestinationQueue front
+├───────────────────────┤
+│ 5. Movement           │  systems/movement.rs
 │                       │  Trapezoidal velocity profile, PassingFloor detection
 ├───────────────────────┤
-│ 5. Doors              │  systems/doors.rs
+│ 6. Doors              │  systems/doors.rs
 │                       │  DoorState FSM: Opening→Open→Closing→Closed
 ├───────────────────────┤
-│ 6. Loading            │  systems/loading.rs
+│ 7. Loading            │  systems/loading.rs
 │                       │  Board/exit riders, capacity checks, rejections
 ├───────────────────────┤
-│ 7. Metrics            │  systems/metrics.rs
+│ 8. Metrics            │  systems/metrics.rs
 │                       │  Aggregate wait/ride times, throughput, tagged metrics
 └───────────┬───────────┘
             ▼
