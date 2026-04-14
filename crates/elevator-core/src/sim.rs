@@ -504,6 +504,7 @@ impl Simulation {
                     inspection_speed_factor: ec.inspection_speed_factor,
                     going_up: true,
                     going_down: true,
+                    move_count: 0,
                 },
             );
             #[cfg(feature = "energy")]
@@ -631,6 +632,7 @@ impl Simulation {
                         inspection_speed_factor: ec.inspection_speed_factor,
                         going_up: true,
                         going_down: true,
+                        move_count: 0,
                     },
                 );
                 #[cfg(feature = "energy")]
@@ -1613,6 +1615,7 @@ impl Simulation {
                 inspection_speed_factor: params.inspection_speed_factor,
                 going_up: true,
                 going_down: true,
+                move_count: 0,
             },
         );
         self.groups[group_idx].lines_mut()[line_idx]
@@ -2813,6 +2816,14 @@ impl Simulation {
     #[must_use]
     pub fn elevator_going_down(&self, id: EntityId) -> Option<bool> {
         self.world.elevator(id).map(Elevator::going_down)
+    }
+
+    /// Count of rounded-floor transitions for an elevator (passing-floor
+    /// crossings plus arrivals). Returns `None` if the entity is not an
+    /// elevator. Analogous to elevator-saga's `moveCount`.
+    #[must_use]
+    pub fn elevator_move_count(&self, id: EntityId) -> Option<u64> {
+        self.world.elevator(id).map(Elevator::move_count)
     }
 
     /// Count of elevators currently in the given phase.
