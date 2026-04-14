@@ -500,6 +500,9 @@ impl Simulation {
             }
         }
 
+        let old_group_id = self.groups[old_group_idx].id();
+        let new_group_id = self.groups[new_group_idx].id();
+
         self.groups[old_group_idx].lines_mut()[old_line_idx]
             .elevators_mut()
             .retain(|&e| e != elevator);
@@ -514,10 +517,18 @@ impl Simulation {
         self.groups[old_group_idx].rebuild_caches();
         if new_group_idx != old_group_idx {
             self.groups[new_group_idx].rebuild_caches();
+
+            // Notify the old group's dispatcher so it clears per-elevator
+            // state (ScanDispatch/LookDispatch track direction by
+            // EntityId). Matches the symmetry with `remove_elevator`.
+            if let Some(old_dispatcher) = self.dispatchers.get_mut(&old_group_id) {
+                old_dispatcher.notify_removed(elevator);
+            }
         }
 
         self.mark_topo_dirty();
 
+        let _ = new_group_id; // reserved for symmetric notify_added once the trait gains one
         self.events.emit(Event::ElevatorReassigned {
             elevator,
             old_line,
