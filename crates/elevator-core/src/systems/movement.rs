@@ -22,6 +22,13 @@ pub fn run(
         if world.is_disabled(eid) {
             continue;
         }
+        if world
+            .service_mode(eid)
+            .is_some_and(|m| *m == crate::components::ServiceMode::Manual)
+        {
+            tick_manual(world, events, ctx, eid);
+            continue;
+        }
         let target_stop_eid = match world.elevator(eid) {
             Some(car) => match car.phase {
                 ElevatorPhase::MovingToStop(stop_eid) | ElevatorPhase::Repositioning(stop_eid) => {
@@ -177,5 +184,88 @@ pub fn run(
                 });
             }
         }
+    }
+}
+
+/// One tick of manual-mode physics: ramp velocity toward
+/// `manual_target_velocity` using the car's `acceleration`/`deceleration`
+/// caps, then integrate position. Emits [`Event::PassingFloor`] for any
+/// stops crossed during the tick.
+fn tick_manual(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    eid: crate::entity::EntityId,
+) {
+    let Some(car) = world.elevator(eid) else {
+        return;
+    };
+    let target = car.manual_target_velocity.unwrap_or(0.0);
+    let accel = car.acceleration;
+    let decel = car.deceleration;
+    let max_speed = car.max_speed;
+    let Some(pos_comp) = world.position(eid) else {
+        return;
+    };
+    let old_pos = pos_comp.value;
+    let Some(vel_comp) = world.velocity(eid) else {
+        return;
+    };
+    let vel = vel_comp.value;
+
+    // Signed clamp of target to the kinematic cap.
+    let target = target.clamp(-max_speed, max_speed);
+
+    // Pick the right rate: if we're slowing down (target is closer to 0
+    // than current speed, or opposite sign), use deceleration; otherwise
+    // use acceleration.
+    let slowing = target.abs() < vel.abs() || target.signum() * vel.signum() < 0.0;
+    let rate = if slowing { decel } else { accel };
+    let dv_max = rate * ctx.dt;
+
+    let new_vel = if (target - vel).abs() <= dv_max {
+        target
+    } else if target > vel {
+        vel + dv_max
+    } else {
+        vel - dv_max
+    };
+
+    let new_pos = new_vel.mul_add(ctx.dt, old_pos);
+
+    if let Some(p) = world.position_mut(eid) {
+        p.value = new_pos;
+    }
+    if let Some(v) = world.velocity_mut(eid) {
+        v.value = new_vel;
+    }
+
+    // PassingFloor for every stop actually crossed.
+    let mut passing_moves: u64 = 0;
+    let (lo, hi) = if new_pos >= old_pos {
+        (old_pos, new_pos)
+    } else {
+        (new_pos, old_pos)
+    };
+    let moving_up = new_pos > old_pos;
+    if (hi - lo) > 1e-9
+        && let Some(sorted) = world.resource::<SortedStops>()
+    {
+        let start = sorted.0.partition_point(|&(p, _)| p <= lo + 1e-9);
+        let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
+        for &(_, stop_eid) in &sorted.0[start..end] {
+            events.emit(Event::PassingFloor {
+                elevator: eid,
+                stop: stop_eid,
+                moving_up,
+                tick: ctx.tick,
+            });
+            passing_moves += 1;
+        }
+    }
+    if passing_moves > 0
+        && let Some(car) = world.elevator_mut(eid)
+    {
+        car.move_count += passing_moves;
     }
 }

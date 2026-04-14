@@ -760,6 +760,13 @@ impl Simulation {
         if old == mode {
             return Ok(());
         }
+        // Leaving Manual: clear any pending velocity command so a later
+        // re-entry to Manual doesn't pick up a stale target.
+        if old == crate::components::ServiceMode::Manual
+            && let Some(car) = self.world.elevator_mut(elevator)
+        {
+            car.manual_target_velocity = None;
+        }
         self.world.set_service_mode(elevator, mode);
         self.events.emit(Event::ServiceModeChanged {
             elevator,

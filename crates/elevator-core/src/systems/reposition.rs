@@ -35,10 +35,10 @@ pub fn run(
                 if world.is_disabled(eid) {
                     return None;
                 }
-                // Skip elevators in Independent service mode.
+                // Skip elevators that opt out of automatic dispatch.
                 if world
                     .service_mode(eid)
-                    .is_some_and(|m| *m == crate::components::ServiceMode::Independent)
+                    .is_some_and(|m| m.is_dispatch_excluded())
                 {
                     return None;
                 }

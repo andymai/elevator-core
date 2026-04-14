@@ -469,6 +469,22 @@ pub enum Event {
         /// The tick when the upgrade was applied.
         tick: u64,
     },
+
+    /// A velocity command was submitted to an elevator running in
+    /// [`ServiceMode::Manual`](crate::components::ServiceMode::Manual).
+    ///
+    /// Emitted by
+    /// [`Simulation::set_target_velocity`](crate::sim::Simulation::set_target_velocity)
+    /// and [`Simulation::emergency_stop`](crate::sim::Simulation::emergency_stop).
+    ManualVelocityCommanded {
+        /// The elevator targeted by the command.
+        elevator: EntityId,
+        /// The new target velocity (clamped to `[-max_speed, max_speed]`),
+        /// or `None` when the command clears the target.
+        target_velocity: Option<ordered_float::OrderedFloat<f64>>,
+        /// The tick when the command was submitted.
+        tick: u64,
+    },
 }
 
 /// Identifies which elevator parameter was changed in an
@@ -620,7 +636,8 @@ impl Event {
             Self::DirectionIndicatorChanged { .. } => EventCategory::Direction,
             Self::ServiceModeChanged { .. }
             | Self::CapacityChanged { .. }
-            | Self::ElevatorUpgraded { .. } => EventCategory::Observability,
+            | Self::ElevatorUpgraded { .. }
+            | Self::ManualVelocityCommanded { .. } => EventCategory::Observability,
             #[cfg(feature = "energy")]
             Self::EnergyConsumed { .. } => EventCategory::Observability,
         }

@@ -266,6 +266,33 @@
 //!
 //! [fpe]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/fp_player_rider.rs
 //!
+//! ## Manual-drive mode
+//!
+//! Games where the player *is* the elevator — driving the car with a
+//! velocity stick, slamming an emergency brake, stopping between floors
+//! — use [`ServiceMode::Manual`](components::ServiceMode::Manual). Manual
+//! elevators are skipped by the automatic dispatch and repositioning
+//! phases; the consumer drives movement via:
+//!
+//! - [`Simulation::set_target_velocity`](sim::Simulation::set_target_velocity) — signed target speed (+up, -down), clamped to the car's `max_speed`.
+//! - [`Simulation::emergency_stop`](sim::Simulation::emergency_stop) — commands an immediate deceleration to zero.
+//!
+//! Physics still apply: velocity ramps toward the target using the car's
+//! `acceleration` / `deceleration` caps, and positions update at the same
+//! rate as normal elevators. Manual elevators can come to rest at any
+//! position — they are not required to align with a configured stop.
+//! Door behaviour is governed by the [manual door-control API](#door-control);
+//! nothing opens or closes automatically. Leaving `Manual` clears any
+//! pending velocity command.
+//!
+//! Each command emits
+//! [`Event::ManualVelocityCommanded`](events::Event::ManualVelocityCommanded)
+//! with the clamped target, or `None` for an emergency stop.
+//!
+//! See [`examples/manual_driver.rs`][mde] for a runnable demo.
+//!
+//! [mde]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/manual_driver.rs
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 

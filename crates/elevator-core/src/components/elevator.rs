@@ -166,6 +166,14 @@ pub struct Elevator {
     /// doors phase; commands that aren't yet valid remain queued.
     #[serde(default)]
     pub(crate) door_command_queue: Vec<DoorCommand>,
+    /// Target velocity commanded by the game while in
+    /// [`ServiceMode::Manual`](crate::components::ServiceMode::Manual).
+    ///
+    /// `None` means no command is active — the car coasts to a stop using
+    /// `deceleration`. Read the current target via
+    /// [`Elevator::manual_target_velocity`].
+    #[serde(default)]
+    pub(crate) manual_target_velocity: Option<f64>,
 }
 
 /// Default inspection speed factor (25% of normal speed).
@@ -320,5 +328,16 @@ impl Elevator {
     #[must_use]
     pub fn door_command_queue(&self) -> &[DoorCommand] {
         &self.door_command_queue
+    }
+
+    /// Currently commanded target velocity for
+    /// [`ServiceMode::Manual`](crate::components::ServiceMode::Manual).
+    ///
+    /// Returns `None` if no target is set, meaning the car coasts to a
+    /// stop using the configured deceleration. Positive values command
+    /// upward travel, negative values command downward travel.
+    #[must_use]
+    pub const fn manual_target_velocity(&self) -> Option<f64> {
+        self.manual_target_velocity
     }
 }
