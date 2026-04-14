@@ -36,6 +36,8 @@ pub fn setup_camera(
 
     commands.spawn((
         Camera2d,
+        // Disable MSAA so the rendered output stays crisp pixel-art.
+        bevy::render::view::Msaa::Off,
         Transform::from_xyz(0.0, center_y, 0.0),
         Projection::Orthographic(OrthographicProjection {
             scale,

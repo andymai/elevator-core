@@ -103,7 +103,7 @@ impl VisualScale {
             shaft_width: 10.0 * s,
             car_width: 80.0 * s,
             car_height: 30.0 * s,
-            rider_radius: 6.0 * s,
+            rider_radius: 8.0 * s,
             // Queue starts close to the leftmost shaft and grows leftward
             // as more riders arrive — labels live further out at
             // `label_offset_x` so the two never collide.
@@ -285,10 +285,14 @@ pub fn spawn_building_visuals(
     let shaft_height = span.mul_add(PPU, vs.car_height * 2.0);
     let shaft_center_y = f64::midpoint(min_pos, max_pos) as f32 * PPU;
 
-    // Optional building-exterior backdrop drawn behind everything.
+    // Optional building-exterior backdrop drawn behind everything,
+    // sandwiched between a darker roof strip above and a darker
+    // foundation strip below to suggest "this is a building".
     if let Some(backdrop) = style.building_backdrop {
         let backdrop_mat = materials.add(backdrop);
-        let pad_x = vs.label_offset_x * 1.1;
+        // Wider squat profile: pad_x is generous so the building fills
+        // most of a 16:9 viewport even for short towers.
+        let pad_x = vs.label_offset_x * 1.6;
         let pad_y = vs.car_height * 1.5;
         let backdrop_w = vs.bank_width() + pad_x * 2.0;
         let backdrop_h = shaft_height + pad_y * 2.0;
@@ -296,6 +300,28 @@ pub fn spawn_building_visuals(
             Mesh2d(meshes.add(Rectangle::new(backdrop_w, backdrop_h))),
             MeshMaterial2d(backdrop_mat),
             Transform::from_xyz(0.0, shaft_center_y, -0.2),
+        ));
+
+        // Solid dark brown/slate so roof+foundation read clearly against
+        // both the cream backdrop and the sky background.
+        let trim_color = style.shaft;
+        let trim_mat = materials.add(trim_color);
+        let trim_h = vs.car_height * 0.7;
+        let backdrop_top = shaft_center_y + backdrop_h * 0.5;
+        let backdrop_bot = shaft_center_y - backdrop_h * 0.5;
+
+        // Roof strip.
+        commands.spawn((
+            Mesh2d(meshes.add(Rectangle::new(backdrop_w, trim_h))),
+            MeshMaterial2d(trim_mat.clone()),
+            Transform::from_xyz(0.0, backdrop_top - trim_h * 0.5, -0.18),
+        ));
+
+        // Foundation strip.
+        commands.spawn((
+            Mesh2d(meshes.add(Rectangle::new(backdrop_w, trim_h))),
+            MeshMaterial2d(trim_mat),
+            Transform::from_xyz(0.0, backdrop_bot + trim_h * 0.5, -0.18),
         ));
 
         // Optional alternating floor bands inside the backdrop.
@@ -638,7 +664,16 @@ pub fn sync_rider_visuals(
         let (x, y, mat) =
             rider_visual_params(rider_eid, rider, w, &vs, &rider_mats, &shaft_idx, &slots);
         let phase = bob_phase_for(rider_eid);
-        let mut initial_tf = Transform::from_xyz(x, y, 1.0);
+        // Waiting riders enter from off the bank — the existing
+        // exponential-damped lerp in `update_rider_positions` then
+        // walks them toward their queue slot, reading as a person
+        // approaching the elevators.
+        let initial_x = if rider.phase() == RiderPhase::Waiting {
+            vs.label_offset_x.mul_add(-1.4, vs.leftmost_x())
+        } else {
+            x
+        };
+        let mut initial_tf = Transform::from_xyz(initial_x, y, 1.0);
         initial_tf.scale = Vec3::splat(FADE_STEP);
 
         if style.humanoid_riders {

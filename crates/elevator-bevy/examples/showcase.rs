@@ -34,11 +34,11 @@ use elevator_bevy::rendering::{
 use elevator_bevy::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use elevator_bevy::style::VisualStyle;
 use elevator_bevy::ui::{ShowControlsHint, spawn_hud, update_hud};
-use elevator_core::config::{
-    BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
-};
+use elevator_core::builder::SimulationBuilder;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::dispatch::BuiltinReposition;
 use elevator_core::dispatch::nearest_car::NearestCarDispatch;
-use elevator_core::sim::Simulation;
+use elevator_core::dispatch::reposition::SpreadEvenly;
 use elevator_core::stop::{StopConfig, StopId};
 
 /// Window dimensions used by the showcase and recorder.
@@ -77,9 +77,7 @@ fn main() {
     }));
 
     // Build the scene: 3 elevators × 8 floors.
-    let config = build_showcase_config();
-    let sim = Simulation::new(&config, NearestCarDispatch::new())
-        .unwrap_or_else(|e| panic!("invalid showcase config: {e}"));
+    let sim = build_showcase_sim();
 
     let headless = record || snapshot_at.is_some();
 
@@ -149,9 +147,10 @@ fn main() {
     app.run();
 }
 
-/// 3 elevators, 8 floors. Stops at 4m spacing = realistic office tower.
-fn build_showcase_config() -> SimConfig {
-    let stops = (0..8)
+/// Build the showcase simulation: 3 elevators × 8 floors, `NearestCar`
+/// dispatch with `SpreadEvenly` reposition so idle cars don't clump.
+fn build_showcase_sim() -> elevator_core::sim::Simulation {
+    let stops: Vec<StopConfig> = (0..8)
         .map(|i| StopConfig {
             id: StopId(i),
             name: if i == 0 {
@@ -163,11 +162,11 @@ fn build_showcase_config() -> SimConfig {
         })
         .collect();
 
-    // Stagger starting stops so the cars don't all lurch together for the
-    // first calls — without this NearestCarDispatch still picks the same
-    // "nearest" car when all three sit at the lobby.
+    // Stagger starting stops so cars don't all lurch together for the
+    // first calls — NearestCar still picks the same "nearest" car if
+    // all three sit at the lobby.
     let starts = [StopId(0), StopId(3), StopId(6)];
-    let elevators = (0..3)
+    let elevators: Vec<ElevatorConfig> = (0..3)
         .map(|i| ElevatorConfig {
             id: i,
             name: format!("Car {}", i + 1),
@@ -182,22 +181,14 @@ fn build_showcase_config() -> SimConfig {
         })
         .collect();
 
-    SimConfig {
-        building: BuildingConfig {
-            name: "Showcase Tower".into(),
-            stops,
-            lines: None,
-            groups: None,
-        },
-        elevators,
-        simulation: SimulationParams {
-            ticks_per_second: 60.0,
-        },
-        passenger_spawning: PassengerSpawnConfig {
-            mean_interval_ticks: 35,
-            weight_range: (55.0, 95.0),
-        },
-    }
+    SimulationBuilder::new()
+        .building_name("Showcase Tower")
+        .stops(stops)
+        .elevators(elevators)
+        .dispatch(NearestCarDispatch::new())
+        .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
+        .build()
+        .unwrap_or_else(|e| panic!("invalid showcase config: {e}"))
 }
 
 /// Scripted camera for a clean 10-second loop (≤600 ticks relative to
@@ -265,8 +256,8 @@ impl RushHourSpawner {
         let seed = if record { 424_242 } else { 0 };
         Self {
             rng: StdRng::seed_from_u64(seed),
-            ticks_until_spawn: 12,
-            mean_interval: 38,
+            ticks_until_spawn: 8,
+            mean_interval: 22,
             preloaded: false,
         }
     }
