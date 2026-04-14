@@ -81,6 +81,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> EntityId {
             going_down: true,
             move_count: 0,
             door_command_queue: Vec::new(),
+            manual_target_velocity: None,
         },
     );
     eid

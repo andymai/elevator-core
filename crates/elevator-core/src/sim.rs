@@ -948,6 +948,89 @@ impl Simulation {
         Ok(())
     }
 
+    /// Set the target velocity for a manual-mode elevator.
+    ///
+    /// The velocity is clamped to the elevator's `[-max_speed, max_speed]`
+    /// range after validation. The car ramps toward the target each tick
+    /// using `acceleration` (speeding up, or starting from rest) or
+    /// `deceleration` (slowing down, or reversing direction). Positive
+    /// values command upward travel, negative values command downward travel.
+    ///
+    /// # Errors
+    /// - Entity is not an elevator, or is disabled.
+    /// - Elevator is not in [`ServiceMode::Manual`].
+    /// - `velocity` is not finite (NaN or infinite).
+    ///
+    /// [`ServiceMode::Manual`]: crate::components::ServiceMode::Manual
+    pub fn set_target_velocity(
+        &mut self,
+        elevator: EntityId,
+        velocity: f64,
+    ) -> Result<(), SimError> {
+        self.require_enabled_elevator(elevator)?;
+        self.require_manual_mode(elevator)?;
+        if !velocity.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "target_velocity",
+                reason: format!("must be finite, got {velocity}"),
+            });
+        }
+        let max = self
+            .world
+            .elevator(elevator)
+            .map_or(f64::INFINITY, |c| c.max_speed);
+        let clamped = velocity.clamp(-max, max);
+        if let Some(car) = self.world.elevator_mut(elevator) {
+            car.manual_target_velocity = Some(clamped);
+        }
+        self.events.emit(Event::ManualVelocityCommanded {
+            elevator,
+            target_velocity: Some(ordered_float::OrderedFloat(clamped)),
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    /// Command an immediate stop on a manual-mode elevator.
+    ///
+    /// Sets the target velocity to zero; the car decelerates at its
+    /// configured `deceleration` rate. Equivalent to
+    /// `set_target_velocity(elevator, 0.0)` but emits a distinct
+    /// [`Event::ManualVelocityCommanded`] with `None` payload so games can
+    /// distinguish an emergency stop from a deliberate hold.
+    ///
+    /// # Errors
+    /// Same as [`set_target_velocity`](Self::set_target_velocity), minus
+    /// the finite-velocity check.
+    pub fn emergency_stop(&mut self, elevator: EntityId) -> Result<(), SimError> {
+        self.require_enabled_elevator(elevator)?;
+        self.require_manual_mode(elevator)?;
+        if let Some(car) = self.world.elevator_mut(elevator) {
+            car.manual_target_velocity = Some(0.0);
+        }
+        self.events.emit(Event::ManualVelocityCommanded {
+            elevator,
+            target_velocity: None,
+            tick: self.tick,
+        });
+        Ok(())
+    }
+
+    /// Internal: require an elevator be in `ServiceMode::Manual`.
+    fn require_manual_mode(&self, elevator: EntityId) -> Result<(), SimError> {
+        let is_manual = self
+            .world
+            .service_mode(elevator)
+            .is_some_and(|m| *m == crate::components::ServiceMode::Manual);
+        if !is_manual {
+            return Err(SimError::InvalidState {
+                entity: elevator,
+                reason: "elevator is not in ServiceMode::Manual".into(),
+            });
+        }
+        Ok(())
+    }
+
     /// Internal: push a command onto the queue, collapsing adjacent
     /// duplicates, capping length, and emitting `DoorCommandQueued`.
     fn enqueue_door_command(&mut self, elevator: EntityId, command: crate::door::DoorCommand) {

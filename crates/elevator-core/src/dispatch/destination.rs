@@ -103,7 +103,7 @@ impl DispatchStrategy for DestinationDispatch {
             .filter(|eid| {
                 !world
                     .service_mode(*eid)
-                    .is_some_and(|m| *m == crate::components::ServiceMode::Independent)
+                    .is_some_and(|m| m.is_dispatch_excluded())
             })
             .filter(|eid| world.elevator(*eid).is_some())
             .collect();
