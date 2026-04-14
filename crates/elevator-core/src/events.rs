@@ -415,6 +415,93 @@ pub enum Event {
         /// The tick when removal occurred.
         tick: u64,
     },
+
+    /// An elevator parameter was mutated at runtime via one of the
+    /// `Simulation::set_*` upgrade setters (e.g. buying a speed upgrade
+    /// in an RPG, or a scripted event changing capacity mid-game).
+    ///
+    /// Emitted immediately when the setter succeeds. Games can use this
+    /// to trigger score popups, SFX, or UI updates.
+    ElevatorUpgraded {
+        /// The elevator whose parameter changed.
+        elevator: EntityId,
+        /// Which field was changed.
+        field: UpgradeField,
+        /// Previous value of the field.
+        old: UpgradeValue,
+        /// New value of the field.
+        new: UpgradeValue,
+        /// The tick when the upgrade was applied.
+        tick: u64,
+    },
+}
+
+/// Identifies which elevator parameter was changed in an
+/// [`Event::ElevatorUpgraded`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum UpgradeField {
+    /// Maximum travel speed (distance/tick).
+    MaxSpeed,
+    /// Acceleration rate (distance/tick^2).
+    Acceleration,
+    /// Deceleration rate (distance/tick^2).
+    Deceleration,
+    /// Maximum weight the car can carry.
+    WeightCapacity,
+    /// Ticks for a door open/close transition.
+    DoorTransitionTicks,
+    /// Ticks the door stays fully open.
+    DoorOpenTicks,
+}
+
+impl std::fmt::Display for UpgradeField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MaxSpeed => write!(f, "max_speed"),
+            Self::Acceleration => write!(f, "acceleration"),
+            Self::Deceleration => write!(f, "deceleration"),
+            Self::WeightCapacity => write!(f, "weight_capacity"),
+            Self::DoorTransitionTicks => write!(f, "door_transition_ticks"),
+            Self::DoorOpenTicks => write!(f, "door_open_ticks"),
+        }
+    }
+}
+
+/// Old-or-new value carried by [`Event::ElevatorUpgraded`].
+///
+/// Uses [`OrderedFloat`] for the float variant so the event enum
+/// remains `Eq`-comparable alongside the other observability events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum UpgradeValue {
+    /// A floating-point parameter value (speed, accel, decel, capacity).
+    Float(OrderedFloat<f64>),
+    /// An integral tick-count parameter value (door timings).
+    Ticks(u32),
+}
+
+impl UpgradeValue {
+    /// Construct a float-valued upgrade payload.
+    #[must_use]
+    pub const fn float(v: f64) -> Self {
+        Self::Float(OrderedFloat(v))
+    }
+
+    /// Construct a tick-valued upgrade payload.
+    #[must_use]
+    pub const fn ticks(v: u32) -> Self {
+        Self::Ticks(v)
+    }
+}
+
+impl std::fmt::Display for UpgradeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Float(v) => write!(f, "{}", **v),
+            Self::Ticks(v) => write!(f, "{v}"),
+        }
+    }
 }
 
 /// Reason a rider's route was invalidated.
@@ -494,9 +581,9 @@ impl Event {
                 EventCategory::Reposition
             }
             Self::DirectionIndicatorChanged { .. } => EventCategory::Direction,
-            Self::ServiceModeChanged { .. } | Self::CapacityChanged { .. } => {
-                EventCategory::Observability
-            }
+            Self::ServiceModeChanged { .. }
+            | Self::CapacityChanged { .. }
+            | Self::ElevatorUpgraded { .. } => EventCategory::Observability,
             #[cfg(feature = "energy")]
             Self::EnergyConsumed { .. } => EventCategory::Observability,
         }
