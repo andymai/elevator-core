@@ -502,6 +502,8 @@ impl Simulation {
                     repositioning: false,
                     restricted_stops: restricted,
                     inspection_speed_factor: ec.inspection_speed_factor,
+                    going_up: true,
+                    going_down: true,
                 },
             );
             #[cfg(feature = "energy")]
@@ -627,6 +629,8 @@ impl Simulation {
                         repositioning: false,
                         restricted_stops: restricted,
                         inspection_speed_factor: ec.inspection_speed_factor,
+                        going_up: true,
+                        going_down: true,
                     },
                 );
                 #[cfg(feature = "energy")]
@@ -1607,6 +1611,8 @@ impl Simulation {
                 repositioning: false,
                 restricted_stops: params.restricted_stops.clone(),
                 inspection_speed_factor: params.inspection_speed_factor,
+                going_up: true,
+                going_down: true,
             },
         );
         self.groups[group_idx].lines_mut()[line_idx]
@@ -2789,6 +2795,24 @@ impl Simulation {
     #[must_use]
     pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
         self.world.elevator(id).map(|e| e.current_load)
+    }
+
+    /// Whether the elevator's up-direction indicator lamp is lit.
+    ///
+    /// Returns `None` if the entity is not an elevator. See
+    /// [`Elevator::going_up`] for semantics.
+    #[must_use]
+    pub fn elevator_going_up(&self, id: EntityId) -> Option<bool> {
+        self.world.elevator(id).map(Elevator::going_up)
+    }
+
+    /// Whether the elevator's down-direction indicator lamp is lit.
+    ///
+    /// Returns `None` if the entity is not an elevator. See
+    /// [`Elevator::going_down`] for semantics.
+    #[must_use]
+    pub fn elevator_going_down(&self, id: EntityId) -> Option<bool> {
+        self.world.elevator(id).map(Elevator::going_down)
     }
 
     /// Count of elevators currently in the given phase.

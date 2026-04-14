@@ -75,6 +75,8 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
             repositioning: false,
             restricted_stops: HashSet::new(),
             inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
         },
     );
     eid

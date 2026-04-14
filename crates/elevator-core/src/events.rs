@@ -354,6 +354,26 @@ pub enum Event {
         tick: u64,
     },
 
+    /// An elevator's direction indicator lamps changed.
+    ///
+    /// Emitted by the dispatch phase when the pair
+    /// `(going_up, going_down)` transitions to a new value — e.g. when
+    /// a car is assigned a target above it (up-only), below it (down-only),
+    /// or returns to idle (both lamps lit).
+    ///
+    /// Games can use this for UI (lighting up-arrow / down-arrow indicators
+    /// on a car) without polling the elevator each tick.
+    DirectionIndicatorChanged {
+        /// The elevator whose indicator lamps changed.
+        elevator: EntityId,
+        /// New state of the up-direction lamp.
+        going_up: bool,
+        /// New state of the down-direction lamp.
+        going_down: bool,
+        /// The tick when the change occurred.
+        tick: u64,
+    },
+
     /// An elevator was permanently removed from the simulation.
     ///
     /// Distinct from [`EntityDisabled`] — a disabled elevator can be

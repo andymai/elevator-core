@@ -167,6 +167,8 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 | `idle_elevator_count` | `(&self) -> usize` | Count of elevators in `Idle` phase (excludes disabled) |
 | `elevators_in_phase` | `(&self, ElevatorPhase) -> usize` | Count of elevators in a given phase (excludes disabled) |
 | `elevator_load` | `(&self, EntityId) -> Option<f64>` | Current weight aboard an elevator |
+| `elevator_going_up` | `(&self, EntityId) -> Option<bool>` | Up-direction indicator lamp state (`None` if not an elevator) |
+| `elevator_going_down` | `(&self, EntityId) -> Option<bool>` | Down-direction indicator lamp state (`None` if not an elevator) |
 
 ### Dispatch
 
@@ -457,6 +459,7 @@ Events are emitted during tick execution and buffered for consumers. Drain them 
 | `PassingFloor` | `elevator: EntityId`, `stop: EntityId`, `moving_up: bool`, `tick: u64` | Elevator passed a stop without stopping |
 | `ElevatorIdle` | `elevator: EntityId`, `at_stop: Option<EntityId>`, `tick: u64` | Elevator became idle |
 | `CapacityChanged` | `elevator: EntityId`, `current_load: OrderedFloat<f64>`, `capacity: OrderedFloat<f64>`, `tick: u64` | Elevator load changed after board or exit |
+| `DirectionIndicatorChanged` | `elevator: EntityId`, `going_up: bool`, `going_down: bool`, `tick: u64` | Direction indicator lamps changed (dispatch-driven) |
 
 ### Rider Events
 
@@ -694,6 +697,8 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `door_transition_ticks()` | `u32` | Ticks for a door transition |
 | `door_open_ticks()` | `u32` | Ticks the door stays open |
 | `line()` | `EntityId` | Line entity this car belongs to |
+| `going_up()` | `bool` | Up-direction indicator lamp (set by dispatch; both lamps lit when idle) |
+| `going_down()` | `bool` | Down-direction indicator lamp (set by dispatch; both lamps lit when idle) |
 
 ### Line Getters
 
