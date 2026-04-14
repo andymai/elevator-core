@@ -66,7 +66,11 @@ pub enum TrafficPattern {
 ///
 /// Returns indices into the stops slice. All pattern logic lives here;
 /// public methods just map indices to their concrete ID types.
-fn sample_indices(pattern: TrafficPattern, n: usize, rng: &mut impl RngExt) -> Option<(usize, usize)> {
+fn sample_indices(
+    pattern: TrafficPattern,
+    n: usize,
+    rng: &mut impl RngExt,
+) -> Option<(usize, usize)> {
     if n < 2 {
         return None;
     }
@@ -139,7 +143,11 @@ impl TrafficPattern {
     /// is treated as the "lobby" for peak patterns.
     ///
     /// Returns `None` if fewer than 2 stops are provided.
-    pub fn sample(&self, stops: &[EntityId], rng: &mut impl RngExt) -> Option<(EntityId, EntityId)> {
+    pub fn sample(
+        &self,
+        stops: &[EntityId],
+        rng: &mut impl RngExt,
+    ) -> Option<(EntityId, EntityId)> {
         let (o, d) = sample_indices(*self, stops.len(), rng)?;
         Some((stops[o], stops[d]))
     }
