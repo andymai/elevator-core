@@ -148,9 +148,16 @@ impl DispatchStrategy for DestinationDispatch {
             std::collections::BTreeMap::new();
         for (rid, rider) in world.iter_riders() {
             use crate::components::RiderPhase;
+            // Count riders whose weight is "committed" to a specific car:
+            // actively aboard (Boarding/Riding) or still-Waiting with a
+            // sticky assignment. Terminal phases (Exiting, Arrived,
+            // Abandoned, Resident, Walking) must not contribute — AssignedCar
+            // is sticky and never cleared, so including them would permanently
+            // inflate the former car's committed load over long runs.
             let car = match rider.phase() {
                 RiderPhase::Riding(c) | RiderPhase::Boarding(c) => Some(c),
-                _ => world.get_ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
+                RiderPhase::Waiting => world.get_ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
+                _ => None,
             };
             if let Some(c) = car {
                 *committed_load.entry(c).or_insert(0.0) += rider.weight;

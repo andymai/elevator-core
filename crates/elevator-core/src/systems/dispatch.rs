@@ -118,7 +118,12 @@ pub fn run(
                     }
 
                     // Push onto queue with adjacent dedup; emit event iff appended.
+                    // Strategies with `pre_dispatch` (e.g. DestinationDispatch)
+                    // may have already committed `stop_eid` to the queue —
+                    // short-circuit to avoid a duplicate entry and a phantom
+                    // `DestinationQueued` event.
                     if let Some(q) = world.destination_queue_mut(eid)
+                        && !q.contains(&stop_eid)
                         && q.push_back(stop_eid)
                     {
                         events.emit(Event::DestinationQueued {
