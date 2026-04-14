@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.2.0...elevator-core-v5.3.0) (2026-04-14)
+
+
+### Features
+
+* DestinationQueue component for imperative elevator control ([#34](https://github.com/andymai/elevator-core/issues/34)) ([071816d](https://github.com/andymai/elevator-core/commit/071816dcdc33a79cbc59fa0a01d37ba80573a2c3))
+* expose braking-distance helpers on the simulation API ([#33](https://github.com/andymai/elevator-core/issues/33)) ([68ea94b](https://github.com/andymai/elevator-core/commit/68ea94bd6839ff1973dfd3c09a831c715e766862))
+
 ## [5.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.1.0...elevator-core-v5.2.0) (2026-04-14)
 
 
