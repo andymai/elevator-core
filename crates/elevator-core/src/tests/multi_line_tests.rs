@@ -3008,4 +3008,10 @@ fn advance_queue_arrive_in_place_resets_direction_indicators() {
         car.going_up(),
         car.going_down()
     );
+    assert_eq!(
+        car.target_stop(),
+        Some(ground),
+        "advance_queue arrive-in-place must set target_stop, mirroring \
+         dispatch.rs's arrive-in-place semantics"
+    );
 }

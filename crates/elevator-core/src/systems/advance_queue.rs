@@ -90,6 +90,7 @@ pub fn run(
                     });
                     if let Some(car) = world.elevator_mut(eid) {
                         car.phase = ElevatorPhase::DoorOpening;
+                        car.target_stop = Some(next);
                         car.door =
                             DoorState::request_open(car.door_transition_ticks, car.door_open_ticks);
                     }
