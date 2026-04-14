@@ -73,7 +73,6 @@ fn main() {
         .insert_resource(SimSpeed {
             multiplier: if record { TICKS_PER_FRAME } else { 1 },
         })
-        .insert_resource(ClearColor(VisualStyle::blueprint().background))
         .insert_resource(RushHourSpawner::new(record))
         .insert_resource(build_timeline())
         .add_message::<EventWrapper>()
@@ -158,9 +157,7 @@ fn build_showcase_config() -> SimConfig {
 /// Bank x extends roughly ±140 px (3 shafts × 140 px spacing ÷ 2).
 fn build_timeline() -> ShotTimeline {
     // Sim-pixel heights (PPU = 40, spacing 4 units): lobby=0, top=1120.
-    let lobby_y = 0.0;
-    let mid_y = 560.0;
-    let wide_center_y = 560.0;
+    let center_y = 560.0; // mid-tower and wide-shot share the same y.
 
     ShotTimeline::new(vec![
         // 0. Establishing wide on the full bank.
@@ -168,7 +165,7 @@ fn build_timeline() -> ShotTimeline {
             start_tick: 0,
             blend_ticks: 0,
             target_x: 0.0,
-            target_y: wide_center_y,
+            target_y: center_y,
             scale: 2.55,
         },
         // 1. Glide down to the lobby — watch the first pickups.
@@ -176,7 +173,7 @@ fn build_timeline() -> ShotTimeline {
             start_tick: 120,
             blend_ticks: 90,
             target_x: -40.0,
-            target_y: lobby_y + 40.0,
+            target_y: 40.0,
             scale: 1.45,
         },
         // 2. Rise with the middle car to mid-tower.
@@ -184,7 +181,7 @@ fn build_timeline() -> ShotTimeline {
             start_tick: 260,
             blend_ticks: 120,
             target_x: 0.0,
-            target_y: mid_y,
+            target_y: center_y,
             scale: 1.55,
         },
         // 3. Pull out to a wide finale for the loop.
@@ -192,7 +189,7 @@ fn build_timeline() -> ShotTimeline {
             start_tick: 430,
             blend_ticks: 120,
             target_x: 0.0,
-            target_y: wide_center_y,
+            target_y: center_y,
             scale: 2.55,
         },
     ])

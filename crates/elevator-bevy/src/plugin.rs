@@ -40,10 +40,14 @@ impl Plugin for ElevatorSimPlugin {
         if !app.world().contains_resource::<VisualStyle>() {
             app.insert_resource(VisualStyle::default());
         }
+        let background = app
+            .world()
+            .get_resource::<VisualStyle>()
+            .map_or(Color::BLACK, |s| s.background);
 
         app.insert_resource(SimulationRes { sim })
             .insert_resource(SimSpeed { multiplier: 1 })
-            .insert_resource(ClearColor(Color::srgba(0.08, 0.08, 0.1, 1.0)))
+            .insert_resource(ClearColor(background))
             .insert_resource(PassengerSpawnTimer {
                 ticks_until_spawn: spawn_config.mean_interval_ticks,
                 mean_interval: spawn_config.mean_interval_ticks,
