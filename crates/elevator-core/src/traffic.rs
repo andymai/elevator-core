@@ -7,8 +7,7 @@
 //! - [`TrafficSchedule`](crate::traffic::TrafficSchedule) — time-varying pattern selection
 //!   across a simulated day.
 //! - [`TrafficSource`](crate::traffic::TrafficSource) — trait for external traffic
-//!   generators that feed riders into a [`Simulation`](crate::sim::Simulation)
-//!   each tick.
+//!   generators that feed riders into a [`Simulation`](crate::sim::Simulation) each tick.
 //! - [`PoissonSource`](crate::traffic::PoissonSource) — Poisson-arrival traffic generator
 //!   using schedules and spawn config.
 //! - [`SpawnRequest`](crate::traffic::SpawnRequest) — a single rider spawn instruction

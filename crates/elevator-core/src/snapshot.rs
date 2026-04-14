@@ -355,12 +355,10 @@ impl WorldSnapshot {
                 world.set_service_mode(eid, mode);
             }
             if let Some(ref dq) = snap.destination_queue {
-                // Remap EntityIds inside the queue.
                 use crate::components::DestinationQueue as DQ;
-                let remapped: Vec<EntityId> = dq.queue().iter().map(|&e| remap(e)).collect();
                 let mut new_dq = DQ::new();
-                for eid_q in remapped {
-                    new_dq.push_back(eid_q);
+                for &e in dq.queue() {
+                    new_dq.push_back(remap(e));
                 }
                 world.set_destination_queue(eid, new_dq);
             }
@@ -488,10 +486,12 @@ impl crate::sim::Simulation {
 
         // Build entity index: map EntityId → position in vec.
         let all_ids: Vec<EntityId> = world.alive.keys().collect();
-        let mut id_to_index: HashMap<EntityId, usize> = HashMap::new();
-        for (i, &eid) in all_ids.iter().enumerate() {
-            id_to_index.insert(eid, i);
-        }
+        let id_to_index: HashMap<EntityId, usize> = all_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, e)| (e, i))
+            .collect();
 
         // Snapshot each entity.
         let entities: Vec<EntitySnapshot> = all_ids

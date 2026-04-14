@@ -91,10 +91,6 @@ impl DestinationQueue {
 
     /// Remove and return the front entry.
     pub(crate) fn pop_front(&mut self) -> Option<EntityId> {
-        if self.queue.is_empty() {
-            None
-        } else {
-            Some(self.queue.remove(0))
-        }
+        (!self.queue.is_empty()).then(|| self.queue.remove(0))
     }
 }
