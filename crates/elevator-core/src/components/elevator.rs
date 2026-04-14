@@ -3,8 +3,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::door::DoorState;
+use crate::door::{DoorCommand, DoorState};
 use crate::entity::EntityId;
+
+/// Maximum number of manual door commands queued per elevator.
+///
+/// Beyond this cap, the oldest entry is dropped (after adjacent-duplicate
+/// collapsing). Prevents runaway growth if a game submits commands faster
+/// than the sim can apply them.
+pub const DOOR_COMMAND_QUEUE_CAP: usize = 16;
 
 /// Direction an elevator's indicator lamps are signalling.
 ///
@@ -155,6 +162,10 @@ pub struct Elevator {
     /// means less wasted travel.
     #[serde(default)]
     pub(crate) move_count: u64,
+    /// Pending manual door-control commands. Processed at the start of the
+    /// doors phase; commands that aren't yet valid remain queued.
+    #[serde(default)]
+    pub(crate) door_command_queue: Vec<DoorCommand>,
 }
 
 /// Default inspection speed factor (25% of normal speed).
@@ -298,5 +309,16 @@ impl Elevator {
     #[must_use]
     pub const fn move_count(&self) -> u64 {
         self.move_count
+    }
+
+    /// Pending manual door-control commands for this elevator.
+    ///
+    /// Populated by
+    /// [`Simulation::request_door_open`](crate::sim::Simulation::request_door_open)
+    /// and its siblings. Commands are drained at the start of each doors-phase
+    /// tick; any that aren't yet valid remain queued.
+    #[must_use]
+    pub fn door_command_queue(&self) -> &[DoorCommand] {
+        &self.door_command_queue
     }
 }

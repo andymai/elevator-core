@@ -422,6 +422,41 @@ pub enum Event {
     ///
     /// Emitted immediately when the setter succeeds. Games can use this
     /// to trigger score popups, SFX, or UI updates.
+    /// A manual door-control command was received and either applied
+    /// immediately or stored for later.
+    ///
+    /// Emitted by
+    /// [`Simulation::request_door_open`](crate::sim::Simulation::request_door_open),
+    /// [`Simulation::request_door_close`](crate::sim::Simulation::request_door_close),
+    /// [`Simulation::hold_door_open`](crate::sim::Simulation::hold_door_open),
+    /// and [`Simulation::cancel_door_hold`](crate::sim::Simulation::cancel_door_hold)
+    /// when the command is accepted. Paired with
+    /// [`Event::DoorCommandApplied`] when the command eventually takes effect.
+    DoorCommandQueued {
+        /// The elevator targeted by the command.
+        elevator: EntityId,
+        /// The command that was queued.
+        command: crate::door::DoorCommand,
+        /// The tick when the command was submitted.
+        tick: u64,
+    },
+    /// A queued door-control command actually took effect — doors began
+    /// opening/closing or a hold was applied.
+    DoorCommandApplied {
+        /// The elevator the command applied to.
+        elevator: EntityId,
+        /// The command that was applied.
+        command: crate::door::DoorCommand,
+        /// The tick when the command was applied.
+        tick: u64,
+    },
+
+    /// An elevator parameter was mutated at runtime via one of the
+    /// `Simulation::set_*` upgrade setters (e.g. buying a speed upgrade
+    /// in an RPG, or a scripted event changing capacity mid-game).
+    ///
+    /// Emitted immediately when the setter succeeds. Games can use this
+    /// to trigger score popups, SFX, or UI updates.
     ElevatorUpgraded {
         /// The elevator whose parameter changed.
         elevator: EntityId,
@@ -552,6 +587,8 @@ impl Event {
             | Self::ElevatorArrived { .. }
             | Self::DoorOpened { .. }
             | Self::DoorClosed { .. }
+            | Self::DoorCommandQueued { .. }
+            | Self::DoorCommandApplied { .. }
             | Self::PassingFloor { .. }
             | Self::ElevatorIdle { .. } => EventCategory::Elevator,
             Self::RiderSpawned { .. }

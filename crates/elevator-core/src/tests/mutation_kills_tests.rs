@@ -220,6 +220,7 @@ fn spawn_elev(world: &mut World, pos: f64, n: usize) -> Vec<EntityId> {
                     going_up: true,
                     going_down: true,
                     move_count: 0,
+                    door_command_queue: Vec::new(),
                 },
             );
             eid

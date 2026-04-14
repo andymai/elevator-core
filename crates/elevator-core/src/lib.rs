@@ -198,6 +198,45 @@
 //!
 //! [rte]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/runtime_upgrades.rs
 //!
+//! ## Door control
+//!
+//! Games that want to drive elevator doors directly — e.g. the player
+//! pressing "open" or "close" on a cab panel in a first-person game, or an
+//! RPG where the player *is* the elevator — use the manual door-control
+//! API on [`Simulation`](sim::Simulation):
+//!
+//! - [`request_door_open`](sim::Simulation::request_door_open)
+//! - [`request_door_close`](sim::Simulation::request_door_close)
+//! - [`hold_door_open`](sim::Simulation::hold_door_open) (cumulative)
+//! - [`cancel_door_hold`](sim::Simulation::cancel_door_hold)
+//!
+//! Each call is either applied immediately (if the car is in a matching
+//! door-FSM state) or queued on the elevator's
+//! [`door_command_queue`](components::Elevator::door_command_queue) and
+//! re-tried every tick until it can be applied. The only hard errors are
+//! "not an elevator" / "elevator disabled" and (for `hold_door_open`) a
+//! zero-tick argument — the rest return `Ok(())` and let the engine pick
+//! the right moment. A [`DoorCommand`](door::DoorCommand) can be:
+//!
+//! - `Open` — reverses a closing door; no-op if already open or opening;
+//!   queues while the car is moving.
+//! - `Close` — forces an early close from `Loading`. Waits one tick if a
+//!   rider is mid-boarding/exiting (safe-close).
+//! - `HoldOpen { ticks }` — adds to the remaining open dwell; two calls
+//!   of 30 ticks stack to 60. Queues if doors aren't open yet.
+//! - `CancelHold` — clamps any accumulated hold back to the base dwell.
+//!
+//! Every command emits
+//! [`Event::DoorCommandQueued`](events::Event::DoorCommandQueued) when
+//! submitted and
+//! [`Event::DoorCommandApplied`](events::Event::DoorCommandApplied) when
+//! it actually takes effect — useful for driving UI feedback (button
+//! flashes, SFX) without polling the elevator every tick.
+//!
+//! See [`examples/door_commands.rs`][dex] for a runnable demo.
+//!
+//! [dex]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/door_commands.rs
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 
