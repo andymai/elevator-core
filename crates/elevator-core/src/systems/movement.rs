@@ -91,6 +91,7 @@ pub fn run(
 
         // Emit PassingFloor for any stops crossed between old and new position
         // (excluding the target stop — that gets an ElevatorArrived instead).
+        let mut passing_moves: u64 = 0;
         if !result.arrived {
             let moving_up = new_pos > old_pos;
             let (lo, hi) = if moving_up {
@@ -111,8 +112,15 @@ pub fn run(
                         moving_up,
                         tick: ctx.tick,
                     });
+                    passing_moves += 1;
                 }
             }
+        }
+        if passing_moves > 0 {
+            if let Some(car) = world.elevator_mut(eid) {
+                car.move_count += passing_moves;
+            }
+            metrics.total_moves += passing_moves;
         }
 
         if result.arrived {
@@ -137,6 +145,8 @@ pub fn run(
             } else {
                 car.phase = ElevatorPhase::DoorOpening;
                 car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);
+                car.move_count += 1;
+                metrics.total_moves += 1;
                 events.emit(Event::ElevatorArrived {
                     elevator: eid,
                     at_stop: target_stop_eid,

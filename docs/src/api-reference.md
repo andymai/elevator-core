@@ -169,6 +169,7 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 | `elevator_load` | `(&self, EntityId) -> Option<f64>` | Current weight aboard an elevator |
 | `elevator_going_up` | `(&self, EntityId) -> Option<bool>` | Up-direction indicator lamp state (`None` if not an elevator) |
 | `elevator_going_down` | `(&self, EntityId) -> Option<bool>` | Down-direction indicator lamp state (`None` if not an elevator) |
+| `elevator_move_count` | `(&self, EntityId) -> Option<u64>` | Per-elevator count of rounded-floor transitions (`None` if not an elevator) |
 
 ### Dispatch
 
@@ -542,6 +543,7 @@ Aggregated simulation metrics, updated each tick. Query via `sim.metrics()`.
 | `total_spawned()` | `u64` | Total riders spawned |
 | `abandonment_rate()` | `f64` | Abandonment rate (0.0 - 1.0) |
 | `total_distance()` | `f64` | Total distance traveled by all elevators |
+| `total_moves()` | `u64` | Total rounded-floor transitions across all elevators |
 | `throughput_window_ticks()` | `u64` | Window size for throughput calculation (default: 3600) |
 
 Builder method: `Metrics::new().with_throughput_window(window_ticks)`.
@@ -699,6 +701,7 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `line()` | `EntityId` | Line entity this car belongs to |
 | `going_up()` | `bool` | Up-direction indicator lamp (set by dispatch; both lamps lit when idle) |
 | `going_down()` | `bool` | Down-direction indicator lamp (set by dispatch; both lamps lit when idle) |
+| `move_count()` | `u64` | Count of rounded-floor transitions (passing-floor crossings + arrivals) |
 
 ### Line Getters
 
