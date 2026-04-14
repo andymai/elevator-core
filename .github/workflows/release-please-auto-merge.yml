@@ -6,13 +6,17 @@ name: Release-please auto-approve and merge
 # is pure ceremony that would otherwise block the release pipeline.
 #
 # Safety rails:
-#   - Only fires on PRs authored by a release-please bot identity AND
-#     whose title matches the release-please title prefix. `release-
-#     please-action` creates PRs using the workflow's GITHUB_TOKEN by
-#     default, which makes the author `github-actions[bot]` — not
-#     `release-please[bot]`. The paired author + title check lets the
-#     workflow match in either configuration without false-positive on
-#     unrelated `github-actions[bot]` PRs.
+#   - The `paths:` filter below limits the workflow to PRs that touch
+#     the exact set of files release-please modifies. Other PRs don't
+#     register a workflow run at all, so the "auto-merge / SKIPPED"
+#     status check no longer appears on every PR.
+#   - The job-level `if:` is a belt-and-suspenders guard: even if a
+#     human PR happens to touch one of the release-please paths, the
+#     auto-approval only fires when the PR author is a known bot
+#     identity AND the title matches release-please's canonical
+#     `chore(main): release` prefix. `release-please-action` creates
+#     PRs using the workflow's `GITHUB_TOKEN` by default, which makes
+#     the author `github-actions[bot]` — not `release-please[bot]`.
 #   - Uses a dedicated App (release-kun) with scoped permissions, so
 #     the approval and merge credentials don't leak into regular CI.
 #   - `gh pr merge --auto` waits for required status checks to pass
@@ -21,6 +25,13 @@ name: Release-please auto-approve and merge
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      # Exactly the files release-please modifies in this repo, per
+      # `release-please-config.json`. Keep in sync if the manifest
+      # gains additional packages.
+      - '.release-please-manifest.json'
+      - 'crates/elevator-core/Cargo.toml'
+      - 'crates/elevator-core/CHANGELOG.md'
 
 jobs:
   auto-merge:
