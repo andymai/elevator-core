@@ -564,6 +564,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             inspection_speed_factor: 0.25,
             going_up: true,
             going_down: true,
+            move_count: 0,
         },
     );
 
@@ -647,6 +648,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             inspection_speed_factor: 0.25,
             going_up: true,
             going_down: true,
+            move_count: 0,
         },
     );
 
