@@ -130,6 +130,18 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 | `dispatchers` | `(&self) -> &BTreeMap<GroupId, Box<dyn DispatchStrategy>>` | Get the dispatch strategies map |
 | `dispatchers_mut` | `(&mut self) -> &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>>` | Get the dispatch strategies map mutably |
 
+### Inspection Queries
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `is_elevator` | `(&self, EntityId) -> bool` | Check if an entity has an `Elevator` component |
+| `is_rider` | `(&self, EntityId) -> bool` | Check if an entity has a `Rider` component |
+| `is_stop` | `(&self, EntityId) -> bool` | Check if an entity has a `Stop` component |
+| `is_disabled` | `(&self, EntityId) -> bool` | Check if an entity is disabled |
+| `idle_elevator_count` | `(&self) -> usize` | Count of elevators in `Idle` phase (excludes disabled) |
+| `elevators_in_phase` | `(&self, ElevatorPhase) -> usize` | Count of elevators in a given phase (excludes disabled) |
+| `elevator_load` | `(&self, EntityId) -> Option<f64>` | Current weight aboard an elevator |
+
 ### Dispatch
 
 | Method | Signature | Description |
@@ -417,6 +429,8 @@ Events are emitted during tick execution and buffered for consumers. Drain them 
 | `DoorOpened` | `elevator: EntityId`, `tick: u64` | Doors finished opening |
 | `DoorClosed` | `elevator: EntityId`, `tick: u64` | Doors finished closing |
 | `PassingFloor` | `elevator: EntityId`, `stop: EntityId`, `moving_up: bool`, `tick: u64` | Elevator passed a stop without stopping |
+| `ElevatorIdle` | `elevator: EntityId`, `at_stop: Option<EntityId>`, `tick: u64` | Elevator became idle |
+| `CapacityChanged` | `elevator: EntityId`, `current_load: OrderedFloat<f64>`, `capacity: OrderedFloat<f64>`, `tick: u64` | Elevator load changed after board or exit |
 
 ### Rider Events
 
@@ -829,3 +843,73 @@ Simulation phase identifiers for hook registration.
 | `Doors` | Tick door finite-state machines |
 | `Loading` | Board and exit riders |
 | `Metrics` | Aggregate metrics from tick events |
+
+---
+
+## Traffic Generation
+
+Available when the `traffic` feature is enabled (on by default). See the [Traffic Generation](traffic-generation.md) chapter for a guided walkthrough.
+
+### TrafficPattern
+
+Preset origin/destination distributions.
+
+| Variant | Description |
+|---------|-------------|
+| `Uniform` | Equal probability for all pairs |
+| `UpPeak` | 80% from lobby, 20% inter-floor |
+| `DownPeak` | 80% to lobby, 20% inter-floor |
+| `Lunchtime` | 40% upper→mid, 40% mid→upper, 20% random |
+| `Mixed` | 30% up-peak, 30% down-peak, 40% inter-floor |
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `sample` | `(&self, &[EntityId], &mut impl Rng) -> Option<(EntityId, EntityId)>` | Sample a pair from entity IDs |
+| `sample_stop_ids` | `(&self, &[StopId], &mut impl Rng) -> Option<(StopId, StopId)>` | Sample a pair from config stop IDs |
+
+### TrafficSchedule
+
+Time-varying pattern selection.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `new` | `(Vec<(Range<u64>, TrafficPattern)>) -> Self` | Build from segment list |
+| `with_fallback` | `(self, TrafficPattern) -> Self` | Set the out-of-range fallback |
+| `constant` | `(TrafficPattern) -> Self` | Schedule with a single pattern for all ticks |
+| `office_day` | `(ticks_per_hour: u64) -> Self` | 9-hour office day preset |
+| `pattern_at` | `(&self, u64) -> &TrafficPattern` | Get the active pattern at a tick |
+| `sample` | `(&self, u64, &[EntityId], &mut impl Rng) -> Option<(EntityId, EntityId)>` | Sample using the active pattern |
+| `sample_stop_ids` | `(&self, u64, &[StopId], &mut impl Rng) -> Option<(StopId, StopId)>` | Same, by stop ID |
+
+### TrafficSource
+
+Trait for external traffic generators.
+
+```rust,ignore
+pub trait TrafficSource {
+    fn generate(&mut self, tick: u64) -> Vec<SpawnRequest>;
+}
+```
+
+### SpawnRequest
+
+```rust,ignore
+pub struct SpawnRequest {
+    pub origin: StopId,
+    pub destination: StopId,
+    pub weight: f64,
+}
+```
+
+### PoissonSource
+
+Poisson-arrival traffic generator.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `new` | `(Vec<StopId>, TrafficSchedule, u32, (f64, f64)) -> Self` | Build with stops, schedule, mean interval, weight range |
+| `from_config` | `(&SimConfig) -> Self` | Build from simulation config |
+| `with_schedule` | `(self, TrafficSchedule) -> Self` | Replace the schedule |
+| `with_mean_interval` | `(self, u32) -> Self` | Replace the mean arrival interval |
+| `with_weight_range` | `(self, (f64, f64)) -> Self` | Replace the weight range (min/max auto-swapped) |
+| `generate` | `(&mut self, u64) -> Vec<SpawnRequest>` | Generate spawn requests for a tick (from `TrafficSource`) |
