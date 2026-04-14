@@ -52,7 +52,86 @@ Run with:
 cargo bench -p elevator-core
 ```
 
-Results go to `target/criterion/` with HTML reports. Use these as a baseline when writing custom dispatch strategies — if your strategy's `dispatch_bench` time is 10× the ETD baseline, expect a 10× slowdown in loaded simulations.
+Results go to `target/criterion/` with HTML reports. A nightly GitHub
+Actions job (`.github/workflows/bench-nightly.yml`) reruns the full
+suite daily, caches a baseline, and opens an issue when Criterion
+flags a significant regression. There is no PR gate — bench noise on
+shared runners tends to swamp a strict per-PR check.
+
+### Current baselines
+
+Measured on a 32-core Linux x86_64 workstation (Rust stable, release
+profile, Criterion defaults: 3 s warmup, 5 s measurement). Numbers are
+the Criterion median unless noted. Shared-runner numbers will be
+noisier; treat these as orders of magnitude, not tight SLAs.
+
+#### Primitives
+
+| Item | Time |
+|---|---|
+| `tick_movement` (single call) | ~1.3 ns |
+| `sim_bench / dispatch / 3e_10s` | ~4.0 µs |
+| `sim_bench / dispatch / 10e_50s` | ~12 µs |
+
+#### Full tick throughput (`scaling_bench`)
+
+| Scenario | Time per run | Per tick |
+|---|---|---|
+| 50 elevators, 200 stops, 2 000 riders, 100 ticks | ~14 ms | **~143 µs/tick** |
+| 500 elevators, 5 000 stops, 50 000 riders, 10 ticks | ~520 ms | ~52 ms/tick |
+| 10 000-rider spawn pressure test | ~4.9 ms | — |
+
+The realistic row is the one most consumers should care about: a
+medium office tower with 2 000 concurrent riders runs the full 8-phase
+tick in well under a millisecond on a single core.
+
+#### Dispatch strategy comparison (`dispatch_bench`)
+
+Per `step()` cost at three scales, holding everything else constant:
+
+| Scale | SCAN | LOOK | NearestCar | ETD |
+|---|---:|---:|---:|---:|
+| 5e, 10s | 61 µs | 67 µs | 63 µs | 66 µs |
+| 20e, 50s | 436 µs | 395 µs | 423 µs | 413 µs |
+| 50e, 200s | 2.18 ms | 2.00 ms | 2.04 ms | 1.96 ms |
+
+The four built-in strategies land within ~15 % of each other at every
+scale. ETD is competitive despite its richer cost model because the
+other phases dominate wall-clock time. Pick the strategy that fits
+your dispatch *behavior* needs; they're all fast enough.
+
+#### Query surface (`query_bench`)
+
+O(n) over entity population, as the API docs promise:
+
+| Query | 100 | 1 000 | 10 000 |
+|---|---:|---:|---:|
+| `query<Rider>` | 13 µs | 60 µs | 744 µs |
+| `query_tuple<&Rider, &Patience>` | 12 µs | 52 µs | 859 µs |
+| `query_elevators` (10/50/200) | 4 µs | 5 µs | 13 µs |
+
+Population queries on `RiderIndex` (`residents_at` / `waiting_at` /
+`abandoned_at`) are O(1) and don't appear here — they run in tens of
+nanoseconds.
+
+#### Multi-group topology (`multi_line_bench`)
+
+| Scenario | Time |
+|---|---|
+| `multi_3g_2l_5e_20s / step()` | ~920 µs |
+| `cross_group_routing / 10 groups` | ~330 µs |
+| `topology_queries / reachable_stops_from` | ~177 µs |
+| `topology_queries / shortest_route` | ~161 µs |
+| `dynamic_topology / add_line` | ~2.5 µs |
+| `dynamic_topology / topology_rebuild` | ~21 µs |
+
+Runtime topology mutations (`add_line`, `remove_line`, `add_stop_to_line`)
+are single-digit microseconds because the graph is rebuilt lazily on
+next query, not eagerly on every mutation.
+
+Use these as a baseline when writing custom dispatch strategies — if
+your strategy's `dispatch_bench` time is 10× the ETD baseline, expect
+a 10× slowdown in loaded simulations.
 
 ## Scaling checklist
 
