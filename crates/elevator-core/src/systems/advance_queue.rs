@@ -24,6 +24,18 @@ use crate::events::{Event, EventBus};
 use crate::world::World;
 
 use super::PhaseContext;
+use super::dispatch::update_indicators;
+
+/// Compute directional indicator flags for an elevator heading from
+/// `from_pos` toward the stop at `target`. Returns `(going_up, going_down)`.
+/// Equal or missing target positions leave both lamps lit.
+fn indicators_for_travel(world: &World, target: EntityId, from_pos: f64) -> (bool, bool) {
+    match world.stop_position(target) {
+        Some(p) if p > from_pos => (true, false),
+        Some(p) if p < from_pos => (false, true),
+        _ => (true, true),
+    }
+}
 
 /// Reconcile every elevator's phase with its destination-queue front.
 pub fn run(
@@ -72,10 +84,12 @@ pub fn run(
                     }
                 } else {
                     let from_stop = at_stop;
+                    let (new_up, new_down) = indicators_for_travel(world, next, pos);
                     if let Some(car) = world.elevator_mut(eid) {
                         car.phase = ElevatorPhase::MovingToStop(next);
                         car.target_stop = Some(next);
                     }
+                    update_indicators(world, events, eid, new_up, new_down, ctx.tick);
                     if let Some(from) = from_stop {
                         events.emit(Event::ElevatorDeparted {
                             elevator: eid,
@@ -92,10 +106,13 @@ pub fn run(
                 }
                 match front {
                     Some(new_target) => {
+                        let pos = world.position(eid).map_or(0.0, |p| p.value);
+                        let (new_up, new_down) = indicators_for_travel(world, new_target, pos);
                         if let Some(car) = world.elevator_mut(eid) {
                             car.phase = ElevatorPhase::MovingToStop(new_target);
                             car.target_stop = Some(new_target);
                         }
+                        update_indicators(world, events, eid, new_up, new_down, ctx.tick);
                     }
                     None => {
                         // Queue was cleared; leave current target in place for

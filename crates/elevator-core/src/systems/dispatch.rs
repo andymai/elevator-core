@@ -155,7 +155,10 @@ pub fn run(
 
 /// Update the direction indicator lamps on an elevator and emit a
 /// [`Event::DirectionIndicatorChanged`] iff the pair actually changed.
-fn update_indicators(
+///
+/// Shared with `systems::advance_queue` so both dispatch- and
+/// imperative-driven movement keep the indicators in sync.
+pub fn update_indicators(
     world: &mut World,
     events: &mut EventBus,
     eid: EntityId,

@@ -285,3 +285,45 @@ fn push_destination_errors_on_non_stop() {
     let result = sim.push_destination(elev, elev);
     assert!(result.is_err());
 }
+
+// Regression for greptile P1: when `advance_queue` redirects a moving
+// elevator via `push_destination_front`, the direction indicators used
+// by loading.rs to gate boarding must be updated — otherwise downward
+// riders get silently rejected by a physically-descending car still
+// flagged as going up.
+#[test]
+fn redirect_via_push_front_updates_direction_indicators() {
+    let mut sim = build_sim();
+    let elev = first_elevator(&sim);
+
+    // Dispatch sends the elevator upward toward stop 2.
+    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
+        .unwrap();
+    // Let dispatch push to the queue and the elevator begin moving up.
+    for _ in 0..20 {
+        sim.step();
+        if matches!(
+            sim.world()
+                .elevator(elev)
+                .map(crate::components::Elevator::phase),
+            Some(ElevatorPhase::MovingToStop(_))
+        ) {
+            break;
+        }
+    }
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(false));
+
+    // Game imperatively redirects to a stop below the current position.
+    let stop_0 = sim.stop_entity(StopId(0)).unwrap();
+    sim.push_destination_front(elev, stop_0).unwrap();
+    // One step of advance_queue flips the target and must refresh the lamps.
+    sim.step();
+
+    assert_eq!(
+        sim.elevator_going_up(elev),
+        Some(false),
+        "push_destination_front to a lower stop must clear going_up",
+    );
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
+}
