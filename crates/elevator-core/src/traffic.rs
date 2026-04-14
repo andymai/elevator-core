@@ -424,11 +424,30 @@ impl PoissonSource {
         self
     }
 
-    /// Replace the mean arrival interval.
+    /// Replace the mean arrival interval and resample the next arrival.
+    ///
+    /// The first scheduled arrival is drawn in [`Self::new`] using whatever
+    /// mean the constructor received. Without resampling here, a chain like
+    /// `PoissonSource::new(stops, schedule, 1, range).with_mean_interval(1200)`
+    /// silently keeps the tick-0-ish arrival drawn at lambda = 1 — users
+    /// get their first rider ~1 tick in despite asking for one every 1200.
+    ///
+    /// The method now draws `next_arrival_tick` afresh from the updated
+    /// mean so the builder chain behaves as the docs imply.
     #[must_use]
-    pub const fn with_mean_interval(mut self, ticks: u32) -> Self {
+    pub fn with_mean_interval(mut self, ticks: u32) -> Self {
         self.mean_interval = ticks;
+        self.next_arrival_tick = sample_next_arrival(0, self.mean_interval, &mut self.rng);
         self
+    }
+
+    /// Tick of the next scheduled arrival.
+    ///
+    /// Exposed so callers (and tests) can confirm when the next spawn is
+    /// due without advancing the simulation.
+    #[must_use]
+    pub const fn next_arrival_tick(&self) -> u64 {
+        self.next_arrival_tick
     }
 
     /// Replace the internal RNG with a caller-supplied one.
