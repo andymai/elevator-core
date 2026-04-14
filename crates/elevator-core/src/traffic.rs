@@ -432,12 +432,16 @@ impl PoissonSource {
     /// silently keeps the tick-0-ish arrival drawn at lambda = 1 — users
     /// get their first rider ~1 tick in despite asking for one every 1200.
     ///
-    /// The method now draws `next_arrival_tick` afresh from the updated
-    /// mean so the builder chain behaves as the docs imply.
+    /// The method draws `next_arrival_tick` afresh from the updated mean,
+    /// anchored to the source's current `next_arrival_tick` so that mid-
+    /// simulation calls do not rewind the anchor and trigger a catch-up
+    /// burst on the next [`generate`](TrafficSource::generate). See
+    /// [`with_rng`](Self::with_rng) for the analogous rationale.
     #[must_use]
     pub fn with_mean_interval(mut self, ticks: u32) -> Self {
         self.mean_interval = ticks;
-        self.next_arrival_tick = sample_next_arrival(0, self.mean_interval, &mut self.rng);
+        self.next_arrival_tick =
+            sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
         self
     }
 
