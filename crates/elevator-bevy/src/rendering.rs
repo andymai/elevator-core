@@ -26,9 +26,9 @@ const IDLE_BOB_FREQ: f32 = 0.14;
 /// Pixels per simulation distance unit.
 pub const PPU: f32 = 40.0;
 
-/// Fallback close duration (ticks) for `DoorState::Closing`, which drops the
-/// total because the core FSM doesn't retain it through the transition.
-/// Matches the `door_transition_ticks` default in `ElevatorConfig`.
+/// Fallback close duration (ticks) used when `DoorState::Closing` arrives
+/// from a snapshot written before the variant carried `total_duration`.
+/// Matches the historical `door_transition_ticks` default in `ElevatorConfig`.
 const CLOSING_FALLBACK_TICKS: f32 = 30.0;
 
 /// One cable segment's position and length.
@@ -526,9 +526,18 @@ fn door_open_fraction(state: DoorState) -> f32 {
             }
         }
         DoorState::Open { .. } => 1.0,
-        DoorState::Closing { ticks_remaining } => {
-            // `Closing` drops `close_duration`; fall back to the known default.
-            (ticks_remaining as f32).clamp(0.0, CLOSING_FALLBACK_TICKS) / CLOSING_FALLBACK_TICKS
+        DoorState::Closing {
+            ticks_remaining,
+            total_duration,
+        } => {
+            // total_duration == 0 means a pre-field snapshot; use the
+            // historical default so the panels still animate plausibly.
+            let total = if total_duration == 0 {
+                CLOSING_FALLBACK_TICKS
+            } else {
+                total_duration as f32
+            };
+            (ticks_remaining as f32 / total).clamp(0.0, 1.0)
         }
         _ => 0.0, // Closed and any future non-exhaustive variants.
     }

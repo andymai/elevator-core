@@ -34,13 +34,13 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    /// Create a recorder with defaults: 24fps at 60 ticks/s ⇒ 2.5 ticks/frame,
-    /// rounded to 2 so we oversample and drop frames evenly in ffmpeg.
+    /// Create a recorder that captures at 20 fps source rate
+    /// (60 ticks/s ÷ 3 ticks/frame); ffmpeg can resample to any output rate.
     #[must_use]
     pub const fn new(out_dir: PathBuf, total_frames: u32) -> Self {
         Self {
             out_dir,
-            ticks_per_frame: 3, // 60/20 ⇒ 20fps source; ffmpeg resamples to 24.
+            ticks_per_frame: 3,
             total_frames,
             captured: 0,
             last_capture_tick: None,

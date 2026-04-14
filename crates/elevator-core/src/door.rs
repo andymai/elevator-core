@@ -28,6 +28,14 @@ pub enum DoorState {
     Closing {
         /// Ticks left in the closing transition.
         ticks_remaining: u32,
+        /// Total ticks the closing transition takes (carried so consumers
+        /// like animation layers can compute a closing fraction without
+        /// looking up the elevator config).
+        ///
+        /// Defaults to `0` for snapshots written before this field existed
+        /// — consumers should treat `0` as "duration unknown".
+        #[serde(default)]
+        total_duration: u32,
     },
 }
 
@@ -55,7 +63,9 @@ impl std::fmt::Display for DoorState {
             Self::Open {
                 ticks_remaining, ..
             } => write!(f, "Open({ticks_remaining})"),
-            Self::Closing { ticks_remaining } => write!(f, "Closing({ticks_remaining})"),
+            Self::Closing {
+                ticks_remaining, ..
+            } => write!(f, "Closing({ticks_remaining})"),
         }
     }
 }
@@ -113,6 +123,7 @@ impl DoorState {
                     let cd = *close_duration;
                     *self = Self::Closing {
                         ticks_remaining: cd,
+                        total_duration: cd,
                     };
                     DoorTransition::FinishedOpen
                 } else {
@@ -120,7 +131,9 @@ impl DoorState {
                     DoorTransition::None
                 }
             }
-            Self::Closing { ticks_remaining } => {
+            Self::Closing {
+                ticks_remaining, ..
+            } => {
                 if *ticks_remaining <= 1 {
                     *self = Self::Closed;
                     DoorTransition::FinishedClosing
