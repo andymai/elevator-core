@@ -48,6 +48,11 @@ const HEIGHT: u32 = 540;
 /// Recording: 200 frames at 20 fps → 10-second loop.
 const RECORD_FRAMES: u32 = 200;
 const TICKS_PER_FRAME: u32 = 3; // 60 tps ÷ 20 fps
+/// Sim ticks to run before capturing the first frame so the recording
+/// opens on a busy state rather than an empty lobby. Also gives the
+/// cinematic an anchor for its start/end wide shots, which is what lets
+/// the GIF loop look continuous.
+const WARMUP_TICKS: u64 = 90;
 const RECORD_OUT_DIR: &str = ".recording";
 
 fn main() {
@@ -77,7 +82,7 @@ fn main() {
             multiplier: if record { TICKS_PER_FRAME } else { 1 },
         })
         .insert_resource(RushHourSpawner::new(record))
-        .insert_resource(build_timeline())
+        .insert_resource(build_timeline(if record { WARMUP_TICKS } else { 0 }))
         .add_message::<EventWrapper>()
         .add_systems(
             Startup,
@@ -105,7 +110,9 @@ fn main() {
     if record {
         let out_dir = PathBuf::from(RECORD_OUT_DIR);
         prepare_record_dir(out_dir.as_path());
-        app.insert_resource(Recorder::new(out_dir, RECORD_FRAMES))
+        let mut recorder = Recorder::new(out_dir, RECORD_FRAMES);
+        recorder.start_tick = WARMUP_TICKS;
+        app.insert_resource(recorder)
             .add_systems(Update, capture_frames);
     }
 
@@ -159,17 +166,23 @@ fn build_showcase_config() -> SimConfig {
     }
 }
 
-/// Scripted camera for a clean 10-second loop (≤600 ticks).
-/// World coordinates: sim y ranges 0..28 units (0..1120 px at PPU=40).
-/// Bank x extends roughly ±140 px (3 shafts × 140 px spacing ÷ 2).
-fn build_timeline() -> ShotTimeline {
+/// Scripted camera for a clean 10-second loop (≤600 ticks relative to
+/// `offset`). Start and end shots are identical wide shots — the loop
+/// seam between the GIF's last and first frame is visually continuous so
+/// long as the sim state is also comparable (guaranteed by the timeline
+/// landing on the same wide shot for the first ~30 and last ~30 ticks).
+///
+/// `offset` shifts every shot's `start_tick` forward; used during
+/// recording to skip the warm-up ticks while the timeline is authored in
+/// relative ticks.
+fn build_timeline(offset: u64) -> ShotTimeline {
     // Sim-pixel heights (PPU = 40, spacing 4 units): lobby=0, top=1120.
     let center_y = 560.0; // mid-tower and wide-shot share the same y.
 
     ShotTimeline::new(vec![
         // 0. Establishing wide on the full bank.
         Shot {
-            start_tick: 0,
+            start_tick: offset,
             blend_ticks: 0,
             target_x: 0.0,
             target_y: center_y,
@@ -177,7 +190,7 @@ fn build_timeline() -> ShotTimeline {
         },
         // 1. Glide down to the lobby — watch the first pickups.
         Shot {
-            start_tick: 120,
+            start_tick: offset + 120,
             blend_ticks: 90,
             target_x: -40.0,
             target_y: 40.0,
@@ -185,7 +198,7 @@ fn build_timeline() -> ShotTimeline {
         },
         // 2. Rise with the middle car to mid-tower.
         Shot {
-            start_tick: 260,
+            start_tick: offset + 260,
             blend_ticks: 120,
             target_x: 0.0,
             target_y: center_y,
@@ -193,7 +206,7 @@ fn build_timeline() -> ShotTimeline {
         },
         // 3. Pull out to a wide finale for the loop.
         Shot {
-            start_tick: 430,
+            start_tick: offset + 430,
             blend_ticks: 120,
             target_x: 0.0,
             target_y: center_y,
