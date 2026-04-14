@@ -10,10 +10,17 @@ use elevator_core::door::DoorState;
 use elevator_core::entity::EntityId;
 use elevator_core::world::World;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use crate::sim_bridge::SimulationRes;
 use crate::style::VisualStyle;
+
+/// Fraction of the distance to the target a rider covers each render frame
+/// (exponential approach). Higher = snappier, lower = softer.
+const RIDER_LERP_ALPHA: f32 = 0.28;
+/// Idle bob amplitude (pixels) for waiting riders.
+const IDLE_BOB_PX: f32 = 1.6;
+/// Idle bob angular frequency (radians per sim tick).
+const IDLE_BOB_FREQ: f32 = 0.14;
 
 /// Pixels per simulation distance unit.
 pub const PPU: f32 = 40.0;
@@ -101,6 +108,18 @@ impl VisualScale {
 /// Maps an elevator entity to its visual shaft index (0..n).
 #[derive(Resource, Default)]
 pub struct ElevatorShaftIndex(pub HashMap<EntityId, u32>);
+
+/// Per-stop queue slot index for each waiting rider.
+///
+/// Rebuilt each frame. Slots are assigned by sorted-by-`EntityId` order so
+/// when a rider boards, everyone behind them shifts deterministically
+/// one slot forward.
+#[derive(Resource, Default)]
+pub struct QueueSlots(pub HashMap<EntityId, usize>);
+
+/// Per-rider bob phase offset so waiting riders don't all bob in sync.
+#[derive(Component)]
+pub struct BobPhase(pub f32);
 
 /// Marker for shaft background visuals.
 #[derive(Component)]
@@ -293,7 +312,37 @@ pub fn spawn_building_visuals(
     };
     commands.insert_resource(rider_mats);
     commands.insert_resource(ElevatorShaftIndex(shaft_index_map));
+    commands.insert_resource(QueueSlots::default());
     commands.insert_resource(vs);
+}
+
+/// Rebuild [`QueueSlots`] from the current waiting-rider population.
+///
+/// Riders at each stop are sorted by their `EntityId` — stable within a
+/// scene — and assigned slot indices `0..`. When a rider boards, everyone
+/// else shifts up one slot naturally.
+#[allow(clippy::needless_pass_by_value)]
+pub fn compute_queue_slots(sim: Res<SimulationRes>, mut slots: ResMut<QueueSlots>) {
+    let w = sim.sim.world();
+
+    // Bucket waiting rider ids by stop, then sort each bucket for determinism.
+    let mut buckets: HashMap<EntityId, Vec<EntityId>> = HashMap::new();
+    for (eid, r) in w.iter_riders() {
+        if r.phase() != RiderPhase::Waiting {
+            continue;
+        }
+        if let Some(stop) = r.current_stop() {
+            buckets.entry(stop).or_default().push(eid);
+        }
+    }
+
+    slots.0.clear();
+    for bucket in buckets.values_mut() {
+        bucket.sort_unstable();
+        for (i, eid) in bucket.iter().enumerate() {
+            slots.0.insert(*eid, i);
+        }
+    }
 }
 
 /// Update elevator car positions.
@@ -358,6 +407,7 @@ pub fn sync_rider_visuals(
     rider_mats: Res<RiderMaterials>,
     style: Res<VisualStyle>,
     shaft_idx: Res<ElevatorShaftIndex>,
+    slots: Res<QueueSlots>,
 ) {
     let w = sim.sim.world();
 
@@ -384,7 +434,9 @@ pub fn sync_rider_visuals(
             continue;
         }
 
-        let (x, y, mat) = rider_visual_params(rider_eid, rider, w, &vs, &rider_mats, &shaft_idx);
+        let (x, y, mat) =
+            rider_visual_params(rider_eid, rider, w, &vs, &rider_mats, &shaft_idx, &slots);
+        let phase = bob_phase_for(rider_eid);
 
         if style.humanoid_riders {
             // Body (pill) on z=1.0, head (circle) on z=1.1 as child.
@@ -399,12 +451,13 @@ pub fn sync_rider_visuals(
                     RiderVisual {
                         entity_id: rider_eid,
                     },
+                    BobPhase(phase),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
                         Mesh2d(meshes.add(Circle::new(head_r))),
                         MeshMaterial2d(mat.clone()),
-                        Transform::from_xyz(0.0, body_h * 0.5 + head_r * 0.7, 0.05),
+                        Transform::from_xyz(0.0, head_r.mul_add(0.7, body_h * 0.5), 0.05),
                         RiderHead,
                     ));
                 });
@@ -416,17 +469,33 @@ pub fn sync_rider_visuals(
                 RiderVisual {
                     entity_id: rider_eid,
                 },
+                BobPhase(phase),
             ));
         }
     }
 }
 
+/// Derive a deterministic bob-phase offset (radians) from the rider id so
+/// everyone bobs out of sync — prevents the crowd from breathing as one.
+fn bob_phase_for(eid: EntityId) -> f32 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    eid.hash(&mut h);
+    (h.finish() % 6283) as f32 / 1000.0
+}
+
 /// Update positions and colors of existing rider visuals.
-#[allow(clippy::needless_pass_by_value)]
+///
+/// Positions interpolate toward the target with exponential damping
+/// ([`RIDER_LERP_ALPHA`]) so boarding/exiting doesn't snap. Waiting riders
+/// get a small sinusoidal bob keyed on sim tick + per-rider phase, so the
+/// queue feels alive without anyone moving in lockstep.
+#[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
 pub fn update_rider_positions(
     sim: Res<SimulationRes>,
     mut query: Query<(
         &RiderVisual,
+        &BobPhase,
         &mut Transform,
         &mut MeshMaterial2d<ColorMaterial>,
         &Children,
@@ -438,10 +507,12 @@ pub fn update_rider_positions(
     rider_mats: Res<RiderMaterials>,
     vs: Res<VisualScale>,
     shaft_idx: Res<ElevatorShaftIndex>,
+    slots: Res<QueueSlots>,
 ) {
     let w = sim.sim.world();
+    let tick_f = sim.sim.current_tick() as f32;
 
-    for (vis, mut transform, mut mat_handle, children) in &mut query {
+    for (vis, bob, mut transform, mut mat_handle, children) in &mut query {
         let Some(rider) = w.rider(vis.entity_id) else {
             continue;
         };
@@ -449,10 +520,28 @@ pub fn update_rider_positions(
             continue;
         }
 
-        let (x, y, handle) =
-            rider_visual_params(vis.entity_id, rider, w, &vs, &rider_mats, &shaft_idx);
-        transform.translation.x = x;
-        transform.translation.y = y;
+        let (x, target_y, handle) = rider_visual_params(
+            vis.entity_id,
+            rider,
+            w,
+            &vs,
+            &rider_mats,
+            &shaft_idx,
+            &slots,
+        );
+
+        let y = if rider.phase() == RiderPhase::Waiting {
+            tick_f
+                .mul_add(IDLE_BOB_FREQ, bob.0)
+                .sin()
+                .mul_add(IDLE_BOB_PX, target_y)
+        } else {
+            target_y
+        };
+
+        let t = RIDER_LERP_ALPHA;
+        transform.translation.x = (x - transform.translation.x).mul_add(t, transform.translation.x);
+        transform.translation.y = (y - transform.translation.y).mul_add(t, transform.translation.y);
         *mat_handle = MeshMaterial2d(handle.clone());
 
         // Keep the head color in sync.
@@ -472,6 +561,7 @@ fn rider_visual_params(
     vs: &VisualScale,
     mats: &RiderMaterials,
     shaft_idx: &ElevatorShaftIndex,
+    slots: &QueueSlots,
 ) -> (f32, f32, Handle<ColorMaterial>) {
     match rider.phase() {
         RiderPhase::Waiting => {
@@ -479,10 +569,8 @@ fn rider_visual_params(
                 .current_stop()
                 .and_then(|s| w.stop_position(s))
                 .unwrap_or(0.0);
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            rider_eid.hash(&mut hasher);
-            let hash = hasher.finish();
-            let col = (hash % 5) as f32;
+            let slot = slots.0.get(&rider_eid).copied().unwrap_or(0);
+            let col = (slot % 5) as f32;
             let x = vs.leftmost_x() + vs.waiting_x_offset - col * vs.rider_spacing;
             (
                 x,

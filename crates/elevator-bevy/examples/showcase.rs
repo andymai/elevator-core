@@ -28,8 +28,8 @@ use elevator_bevy::decor::{
 };
 use elevator_bevy::recorder::{Recorder, capture_frames};
 use elevator_bevy::rendering::{
-    spawn_building_visuals, sync_door_panels, sync_elevator_visuals, sync_rider_visuals,
-    update_rider_positions,
+    compute_queue_slots, spawn_building_visuals, sync_door_panels, sync_elevator_visuals,
+    sync_rider_visuals, update_rider_positions,
 };
 use elevator_bevy::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use elevator_bevy::style::VisualStyle;
@@ -90,6 +90,7 @@ fn main() {
                 tick_simulation,
                 sync_elevator_visuals,
                 sync_door_panels,
+                compute_queue_slots,
                 sync_rider_visuals,
                 update_rider_positions,
                 sync_call_lamps,

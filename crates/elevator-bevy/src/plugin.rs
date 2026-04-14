@@ -6,8 +6,8 @@ use crate::camera::setup_camera;
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
-    spawn_building_visuals, sync_door_panels, sync_elevator_visuals, sync_rider_visuals,
-    update_rider_positions,
+    compute_queue_slots, spawn_building_visuals, sync_door_panels, sync_elevator_visuals,
+    sync_rider_visuals, update_rider_positions,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
 use crate::style::VisualStyle;
@@ -64,6 +64,7 @@ impl Plugin for ElevatorSimPlugin {
                     tick_simulation,
                     sync_elevator_visuals,
                     sync_door_panels,
+                    compute_queue_slots,
                     sync_rider_visuals,
                     update_rider_positions,
                     update_hud,
