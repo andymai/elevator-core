@@ -354,8 +354,10 @@ pub struct PoissonSource {
     mean_interval: u32,
     /// Weight range `(min, max)` for spawned riders.
     weight_range: (f64, f64),
-    /// RNG for sampling.
-    rng: rand::rngs::ThreadRng,
+    /// RNG for sampling. Defaults to an OS-seeded [`rand::rngs::StdRng`];
+    /// swap in a user-seeded RNG via [`Self::with_rng`] for deterministic
+    /// traffic.
+    rng: rand::rngs::StdRng,
     /// Tick of the next scheduled arrival.
     next_arrival_tick: u64,
 }
@@ -379,7 +381,7 @@ impl PoissonSource {
         } else {
             weight_range
         };
-        let mut rng = rand::rng();
+        let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::from_os_rng();
         let next = sample_next_arrival(0, mean_interval_ticks, &mut rng);
         Self {
             stops,
@@ -427,6 +429,39 @@ impl PoissonSource {
     #[must_use]
     pub const fn with_mean_interval(mut self, ticks: u32) -> Self {
         self.mean_interval = ticks;
+        self
+    }
+
+    /// Replace the internal RNG with a caller-supplied one.
+    ///
+    /// Pair with a seeded [`rand::rngs::StdRng`] (via
+    /// `StdRng::seed_from_u64(...)`) to make `PoissonSource` output
+    /// reproducible across runs — closing the gap called out in
+    /// [Snapshots and Determinism](../docs/src/snapshots-and-determinism.md).
+    ///
+    /// The next scheduled arrival is resampled from the new RNG so that
+    /// the pre-existing arrival (drawn in [`Self::new`]) does not leak
+    /// entropy from the default OS seed.
+    ///
+    /// ```
+    /// use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
+    /// use elevator_core::stop::StopId;
+    /// use rand::SeedableRng;
+    ///
+    /// let seeded = rand::rngs::StdRng::seed_from_u64(42);
+    /// let source = PoissonSource::new(
+    ///     vec![StopId(0), StopId(1)],
+    ///     TrafficSchedule::constant(TrafficPattern::Uniform),
+    ///     120,
+    ///     (60.0, 90.0),
+    /// )
+    /// .with_rng(seeded);
+    /// # let _ = source;
+    /// ```
+    #[must_use]
+    pub fn with_rng(mut self, rng: rand::rngs::StdRng) -> Self {
+        self.rng = rng;
+        self.next_arrival_tick = sample_next_arrival(0, self.mean_interval, &mut self.rng);
         self
     }
 
