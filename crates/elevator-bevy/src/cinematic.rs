@@ -68,10 +68,7 @@ impl ShotTimeline {
             let next = &self.shots[active_idx + 1];
             let blend_start = next.start_tick.saturating_sub(u64::from(next.blend_ticks));
             if tick >= blend_start && next.blend_ticks > 0 {
-                let t = (tick - blend_start) as f32
-                    / f32::from(
-                        u16::try_from(next.blend_ticks.min(u32::from(u16::MAX))).unwrap_or(1),
-                    );
+                let t = (tick - blend_start) as f32 / next.blend_ticks as f32;
                 let t = ease_in_out(t.clamp(0.0, 1.0));
                 return Some((
                     lerp(current.target_x, next.target_x, t),
