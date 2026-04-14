@@ -78,6 +78,11 @@ pub fn run(
                     if let Some(q) = world.destination_queue_mut(eid) {
                         q.pop_front();
                     }
+                    // Reset indicators to both-lit so stale direction flags
+                    // from a prior trip don't filter out waiting riders in
+                    // the loading phase. Mirrors dispatch.rs's arrive-in-place
+                    // semantics.
+                    update_indicators(world, events, eid, true, true, ctx.tick);
                     events.emit(Event::ElevatorArrived {
                         elevator: eid,
                         at_stop: next,

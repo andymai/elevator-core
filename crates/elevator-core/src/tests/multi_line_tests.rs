@@ -1,12 +1,13 @@
 //! Tests for multi-line and multi-group simulation support.
 
-use crate::components::{Orientation, RiderPhase, Route, RouteLeg, TransportMode};
+use crate::components::{ElevatorPhase, Orientation, RiderPhase, Route, RouteLeg, TransportMode};
 use crate::config::{
     BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
     SimulationParams,
 };
 use crate::dispatch::scan::ScanDispatch;
 use crate::error::SimError;
+use crate::events::Event as SimEvent;
 use crate::ids::GroupId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
@@ -2754,5 +2755,257 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
             })
         ),
         "expected InvalidConfig for orphan line, got {result:?}"
+    );
+}
+
+// ── 20. Dispatch group-filter regression ─────────────────────────────────────
+
+/// When two groups share a stop and a rider is bound for Group B, Group A's
+/// elevator must not be dispatched to serve that phantom demand (which would
+/// otherwise cause a perpetual open/close oscillation: dispatch → arrive →
+/// open → no eligible rider → close → re-dispatch).
+#[test]
+fn dispatch_ignores_waiting_rider_targeting_another_group() {
+    let config = overlapping_groups_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let bottom = sim.stop_entity(StopId(0)).unwrap();
+    let top = sim.stop_entity(StopId(1)).unwrap();
+
+    // Group A's elevator starts at Stop 0 (Bottom), idle with doors closed.
+    let group_a_elevator = sim
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(0))
+        .unwrap()
+        .elevator_entities()[0];
+
+    // Spawn a rider at Bottom waiting to ride Group B to Top.
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: bottom,
+            to: top,
+            via: TransportMode::Group(GroupId(1)),
+        }],
+        current_leg: 0,
+    };
+    let rider = sim
+        .spawn_rider_with_route(bottom, top, 70.0, route)
+        .unwrap();
+    assert_eq!(sim.world().rider(rider).unwrap().phase, RiderPhase::Waiting);
+
+    // Tick for a while. Group A's elevator should never open its doors
+    // because no Group-A rider is waiting.
+    let mut saw_door_opening = false;
+    for _ in 0..100 {
+        sim.step();
+        let phase = sim.world().elevator(group_a_elevator).unwrap().phase;
+        if matches!(
+            phase,
+            ElevatorPhase::DoorOpening | ElevatorPhase::Loading | ElevatorPhase::DoorClosing
+        ) {
+            saw_door_opening = true;
+            break;
+        }
+    }
+
+    assert!(
+        !saw_door_opening,
+        "Group A elevator must not open/close doors when only a Group B rider is waiting"
+    );
+}
+
+// ── 21. Direction-indicator silent-skip regression (Bug A) ───────────────────
+
+/// When a car arrives at a stop committed to one direction and every waiting
+/// rider there wants the opposite direction, Loading would silently skip all
+/// of them — doors cycle shut, dispatch re-sends the car, repeat forever.
+/// With the fix, Loading detects the direction-filter-only skip and re-lights
+/// both indicator lamps so the rider boards within a bounded number of ticks.
+#[test]
+fn car_with_opposite_indicator_eventually_boards_waiting_rider() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+
+    // Group 0's elevator starts at Ground, serves Ground+Transfer.
+    let g0_elev = sim
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(0))
+        .unwrap()
+        .elevator_entities()[0];
+
+    // Spawn a rider at Transfer heading down to Ground via Group 0.
+    // Group 0's car will be dispatched up to Transfer (indicators: up only),
+    // arrive, and — pre-fix — silently skip the rider since they want to
+    // travel down (going_down=false on the car).
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: transfer,
+            to: ground,
+            via: TransportMode::Group(GroupId(0)),
+        }],
+        current_leg: 0,
+    };
+    let rider = sim
+        .spawn_rider_with_route(transfer, ground, 70.0, route)
+        .unwrap();
+
+    // Run until the rider boards (or times out), collecting events so we can
+    // observe how many door-open/close cycles it took. Without the fix, the
+    // car arrives, silently skips the rider during its first Loading session,
+    // cycles doors closed, gets re-dispatched in-place (which resets lamps
+    // via dispatch.rs's arrive-in-place branch), and only THEN boards —
+    // costing an extra door cycle per stuck pass. With the fix, Loading
+    // re-lights the lamps mid-session and the rider boards before doors
+    // close.
+    let mut events: Vec<SimEvent> = Vec::new();
+    let mut boarded = false;
+    for _ in 0..3000 {
+        sim.step();
+        events.extend(sim.drain_events());
+        if let Some(r) = sim.world().rider(rider)
+            && matches!(
+                r.phase,
+                RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
+            )
+        {
+            boarded = true;
+            break;
+        }
+    }
+    assert!(
+        boarded,
+        "rider going the opposite direction of the car's indicator should still board \
+         (car entity {g0_elev:?})"
+    );
+
+    // Count door-close events on this elevator before the rider boarded.
+    // Pre-fix: at least one close cycle happens before boarding. Post-fix:
+    // the rider boards during the first Loading session, so zero door-close
+    // events precede the RiderBoarded event.
+    let mut door_closes_before_board = 0;
+    for e in &events {
+        match e {
+            SimEvent::DoorClosed { elevator, .. } if *elevator == g0_elev => {
+                door_closes_before_board += 1;
+            }
+            SimEvent::RiderBoarded { rider: r, .. } if *r == rider => break,
+            _ => {}
+        }
+    }
+    assert_eq!(
+        door_closes_before_board, 0,
+        "direction-filtered rider should board during the car's first Loading \
+         session — a non-zero count means doors cycled shut with the rider \
+         still waiting (Bug A)"
+    );
+}
+
+// ── 22. Dispatch arrive-in-place consistency (Bug B) ─────────────────────────
+
+/// When dispatch assigns an elevator to the stop it's already parked at, it
+/// must set `target_stop` and pop that stop from the destination queue —
+/// mirroring the semantics of the non-trivial branch and of `advance_queue`.
+#[test]
+fn dispatch_arrive_in_place_sets_target_and_pops_queue() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+
+    // Group 0's elevator starts at Ground.
+    let elev = sim
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(0))
+        .unwrap()
+        .elevator_entities()[0];
+
+    // Seed the queue with the current stop so we can observe the pop.
+    sim.push_destination(elev, ground).unwrap();
+    assert_eq!(sim.destination_queue(elev).unwrap().len(), 1);
+
+    // Spawn a rider at Ground so dispatch has demand at this stop.
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: ground,
+            to: transfer,
+            via: TransportMode::Group(GroupId(0)),
+        }],
+        current_leg: 0,
+    };
+    let _rider = sim
+        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .unwrap();
+
+    // One step runs dispatch; the Idle car will be assigned Ground and, since
+    // it is already there, take the arrive-in-place branch.
+    sim.step();
+
+    let car = sim.world().elevator(elev).unwrap();
+    assert_eq!(
+        car.target_stop(),
+        Some(ground),
+        "arrive-in-place dispatch must set target_stop to the assigned stop"
+    );
+    assert!(
+        !sim.destination_queue(elev).unwrap().contains(&ground),
+        "arrive-in-place dispatch must pop the matching queue front"
+    );
+}
+
+// ── 23. advance_queue arrive-in-place indicator reset (Bug C) ────────────────
+
+/// An imperative `push_destination_front` onto a car already parked at that
+/// stop must re-light both indicator lamps before doors open, so stale
+/// direction state from a prior trip doesn't feed into loading's filter.
+#[test]
+fn advance_queue_arrive_in_place_resets_direction_indicators() {
+    use crate::components::ServiceMode;
+
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let elev = sim
+        .groups()
+        .iter()
+        .find(|g| g.id() == GroupId(0))
+        .unwrap()
+        .elevator_entities()[0];
+
+    // Put the car in Independent mode so dispatch/reposition skip it —
+    // otherwise dispatch's arrive-in-place branch would reset indicators
+    // before advance_queue gets a chance, masking the bug under test.
+    sim.set_service_mode(elev, ServiceMode::Independent)
+        .unwrap();
+
+    // Manually set stale indicators — as if the car had just finished a
+    // downward trip.
+    {
+        let car = sim.world_mut().elevator_mut(elev).unwrap();
+        car.going_up = false;
+        car.going_down = true;
+    }
+
+    // Queue the car to its own stop via the imperative front-push API.
+    sim.push_destination_front(elev, ground).unwrap();
+
+    // One step: advance_queue runs, sees at_stop == front, pops and opens
+    // doors — and must reset lamps to (true, true) along the way.
+    sim.step();
+
+    let car = sim.world().elevator(elev).unwrap();
+    assert!(
+        car.going_up() && car.going_down(),
+        "advance_queue arrive-in-place must re-light both indicator lamps \
+         (got going_up={}, going_down={})",
+        car.going_up(),
+        car.going_down()
     );
 }

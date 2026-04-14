@@ -1,6 +1,6 @@
 //! Phase 2: assign idle/stopped elevators to stops via the dispatch strategy.
 
-use crate::components::{ElevatorPhase, RiderPhase, Route};
+use crate::components::{ElevatorPhase, RiderPhase, Route, TransportMode};
 use crate::dispatch::{
     DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
@@ -88,6 +88,13 @@ pub fn run(
 
                     // Already at this stop — open doors directly, don't push.
                     if current_stop == Some(stop_eid) {
+                        // Pop the queue front if it equals this stop, mirroring
+                        // the arrive-in-place branch of advance_queue.
+                        if let Some(q) = world.destination_queue_mut(eid)
+                            && q.front() == Some(stop_eid)
+                        {
+                            q.pop_front();
+                        }
                         events.emit(Event::ElevatorArrived {
                             elevator: eid,
                             at_stop: stop_eid,
@@ -95,6 +102,7 @@ pub fn run(
                         });
                         if let Some(car) = world.elevator_mut(eid) {
                             car.phase = ElevatorPhase::DoorOpening;
+                            car.target_stop = Some(stop_eid);
                             car.door = crate::door::DoorState::request_open(
                                 car.door_transition_ticks,
                                 car.door_open_ticks,
@@ -202,6 +210,26 @@ fn build_manifest(
         if let Some(stop) = rider.current_stop
             && group.stop_entities().contains(&stop)
         {
+            // Group/line match: only include riders whose current route leg targets
+            // this group (or one of its lines). Mirrors the filter in systems/loading.rs
+            // so dispatch and loading agree about which riders this group can serve.
+            if let Some(route) = world.route(rid)
+                && let Some(leg) = route.current()
+            {
+                match leg.via {
+                    TransportMode::Group(g) => {
+                        if g != group.id() {
+                            continue;
+                        }
+                    }
+                    TransportMode::Line(l) => {
+                        if !group.lines().iter().any(|line| line.entity() == l) {
+                            continue;
+                        }
+                    }
+                    TransportMode::Walk => continue,
+                }
+            }
             let destination = world.route(rid).and_then(Route::current_destination);
             let wait_ticks = tick.saturating_sub(rider.spawn_tick);
             manifest
