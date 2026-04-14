@@ -6,7 +6,13 @@ name: Release-please auto-approve and merge
 # is pure ceremony that would otherwise block the release pipeline.
 #
 # Safety rails:
-#   - Only fires on PRs authored by the `release-please[bot]` login.
+#   - Only fires on PRs authored by a release-please bot identity AND
+#     whose title matches the release-please title prefix. `release-
+#     please-action` creates PRs using the workflow's GITHUB_TOKEN by
+#     default, which makes the author `github-actions[bot]` — not
+#     `release-please[bot]`. The paired author + title check lets the
+#     workflow match in either configuration without false-positive on
+#     unrelated `github-actions[bot]` PRs.
 #   - Uses a dedicated App (release-kun) with scoped permissions, so
 #     the approval and merge credentials don't leak into regular CI.
 #   - `gh pr merge --auto` waits for required status checks to pass
@@ -18,7 +24,10 @@ on:
 
 jobs:
   auto-merge:
-    if: github.event.pull_request.user.login == 'release-please[bot]'
+    if: |
+      (github.event.pull_request.user.login == 'release-please[bot]' ||
+       github.event.pull_request.user.login == 'github-actions[bot]') &&
+      startsWith(github.event.pull_request.title, 'chore(main): release')
     runs-on: ubuntu-latest
     # The token minted below needs to both approve and merge. The App
     # itself is granted `pull_requests: write` via the installation;
