@@ -104,11 +104,14 @@ impl VisualScale {
             car_width: 80.0 * s,
             car_height: 30.0 * s,
             rider_radius: 6.0 * s,
-            waiting_x_offset: -60.0 * s,
+            // Queue starts close to the leftmost shaft and grows leftward
+            // as more riders arrive — labels live further out at
+            // `label_offset_x` so the two never collide.
+            waiting_x_offset: -25.0 * s,
             stop_line_thickness: 2.0 * s,
-            label_offset_x: 60.0 * s,
+            label_offset_x: 200.0 * s,
             font_size: 14.0 * s,
-            rider_spacing: 14.0 * s,
+            rider_spacing: 12.0 * s,
             shaft_spacing_px: style.shaft_spacing_units * PPU,
             shaft_count,
         }
@@ -169,6 +172,10 @@ pub struct RiderFade {
 
 /// Per-frame change in rider scale during spawn-in / fade-out (~6 frames to reach 1).
 const FADE_STEP: f32 = 1.0 / 6.0;
+
+/// Maximum queue depth that's actually drawn; later slots overflow onto
+/// the last column. The chip on the right shows the true count.
+const MAX_QUEUE_COLS: usize = 6;
 
 /// Marker for shaft background visuals.
 #[derive(Component)]
@@ -752,7 +759,7 @@ fn rider_visual_params(
                 .and_then(|s| w.stop_position(s))
                 .unwrap_or(0.0);
             let slot = slots.0.get(&rider_eid).copied().unwrap_or(0);
-            let col = (slot % 5) as f32;
+            let col = slot.min(MAX_QUEUE_COLS - 1) as f32;
             let x = vs.leftmost_x() + vs.waiting_x_offset - col * vs.rider_spacing;
             (
                 x,

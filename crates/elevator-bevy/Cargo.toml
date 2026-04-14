@@ -22,7 +22,7 @@ path = "examples/showcase.rs"
 
 [dependencies]
 elevator-core = { path = "../elevator-core" }
-bevy = { version = "0.18", default-features = false, features = ["2d", "png"] }
+bevy = { version = "0.18", default-features = false, features = ["2d", "png", "x11"] }
 serde.workspace = true
 ron.workspace = true
 rand.workspace = true

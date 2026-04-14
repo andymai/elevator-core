@@ -174,7 +174,7 @@ fn build_showcase_config() -> SimConfig {
             ticks_per_second: 60.0,
         },
         passenger_spawning: PassengerSpawnConfig {
-            mean_interval_ticks: 12,
+            mean_interval_ticks: 35,
             weight_range: (55.0, 95.0),
         },
     }
@@ -245,8 +245,8 @@ impl RushHourSpawner {
         let seed = if record { 424_242 } else { 0 };
         Self {
             rng: StdRng::seed_from_u64(seed),
-            ticks_until_spawn: 8,
-            mean_interval: 18,
+            ticks_until_spawn: 12,
+            mean_interval: 38,
             preloaded: false,
         }
     }
@@ -267,9 +267,9 @@ fn rush_hour_spawn(
         return;
     }
 
-    // Preload 12 waiting riders at the lobby so the opening shot has content.
+    // Preload a handful of waiting riders so the opening shot isn't empty.
     if !spawner.preloaded {
-        for _ in 0..12 {
+        for _ in 0..5 {
             let dest = stop_ids[spawner.rng.random_range(1..stop_ids.len())];
             let w = spawner.rng.random_range(55.0..95.0);
             let _ = sim.sim.spawn_rider(stop_ids[0], dest, w);
