@@ -1,0 +1,48 @@
+# cargo-deny configuration
+# See https://embarkstudios.github.io/cargo-deny/ for schema documentation.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+# Deny any known vulnerability.
+yanked = "warn"
+# `unmaintained` defaults to "workspace" in v2; we want warnings, not failures.
+unmaintained = "workspace"
+ignore = []
+
+[licenses]
+version = 2
+# Licenses compatible with this crate's MIT OR Apache-2.0 dual-license.
+allow = [
+    "MIT",
+    # MIT-0 (MIT No Attribution): strictly more permissive than MIT; pulled in by encase v0.12 via bevy.
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "MPL-2.0",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "ISC",
+    "CC0-1.0",
+    "Zlib",
+]
+confidence-threshold = 0.8
+
+[bans]
+# The bevy dependency tree brings in transitive duplicates; warn rather than fail.
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+# Deny unknown registries and git sources.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+github = []
