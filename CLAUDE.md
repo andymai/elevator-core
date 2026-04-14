@@ -25,7 +25,7 @@ ECS-like internal architecture (no ECS crate dependency). Struct-of-arrays `Worl
 Key design decisions:
 - Core crate is an unopinionated engine library — suggest primitives, not game mechanics
 - "Stops" at arbitrary distances, not uniform floors — supports buildings and space elevators
-- Tick-based with 6-phase loop: advance_transient → dispatch → movement → doors → loading → metrics
+- Tick-based with 8-phase loop: advance_transient → dispatch → reposition → advance_queue → movement → doors → loading → metrics
 - Pluggable dispatch via `DispatchStrategy` trait, per elevator group
 - Game-agnostic riders: `Rider` = anything that rides; games add semantics via extension storage
 - Rider lifecycle: Waiting → Boarding → Riding → Exiting → Arrived/Abandoned; consumer can settle (→ Resident) or despawn

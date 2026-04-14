@@ -2,6 +2,8 @@
 
 /// Access control for restricting rider stop access.
 pub mod access;
+/// Per-elevator ordered destination queue.
+pub mod destination_queue;
 /// Elevator state and properties.
 pub mod elevator;
 /// Line (physical path) — shaft, tether, track.
@@ -20,6 +22,7 @@ pub mod service_mode;
 pub mod stop;
 
 pub use access::AccessControl;
+pub use destination_queue::DestinationQueue;
 pub use elevator::{Elevator, ElevatorPhase};
 pub use line::{FloorPosition, Line, Orientation};
 pub use patience::{Patience, Preferences};
