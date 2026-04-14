@@ -148,6 +148,29 @@ impl SimulationBuilder {
     /// let sim = SimulationBuilder::demo().build().unwrap();
     /// assert_eq!(sim.current_tick(), 0);
     /// ```
+    ///
+    /// # Customizing the demo stops
+    ///
+    /// [`.stop()`](Self::stop) is a *push*: calling it after `demo()`
+    /// appends to the two default stops rather than replacing them,
+    /// which silently duplicates `StopId(0)` and produces two stops
+    /// at position 0.0. To replace the defaults, use
+    /// [`.stops(vec![...])`](Self::stops) with the full list:
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    /// use elevator_core::stop::StopConfig;
+    ///
+    /// let sim = SimulationBuilder::demo()
+    ///     .stops(vec![
+    ///         StopConfig { id: StopId(0), name: "Lobby".into(),   position: 0.0 },
+    ///         StopConfig { id: StopId(1), name: "Mezzanine".into(), position: 4.0 },
+    ///         StopConfig { id: StopId(2), name: "Roof".into(),     position: 8.0 },
+    ///     ])
+    ///     .build()
+    ///     .unwrap();
+    /// # let _ = sim;
+    /// ```
     #[must_use]
     pub fn demo() -> Self {
         let mut b = Self::new();

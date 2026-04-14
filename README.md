@@ -51,11 +51,19 @@ Create a simulation, spawn a rider, and run until delivery.
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::stop::StopConfig;
 
+// `::demo()` pre-populates two stops (Ground at 0.0, Top at 10.0) and
+// one elevator with SCAN dispatch. `.stops(vec![...])` *replaces* the
+// default stops so the building matches this example exactly — using
+// the singular `.stop(...)` instead would push, leaving the defaults
+// intact and duplicating StopId(0).
 let mut sim = SimulationBuilder::demo()
-    .stop(StopId(0), "Ground", 0.0)
-    .stop(StopId(1), "Floor 2", 4.0)
-    .stop(StopId(2), "Floor 3", 8.0)
+    .stops(vec![
+        StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
+        StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
+        StopConfig { id: StopId(2), name: "Floor 3".into(), position: 8.0 },
+    ])
     .build()
     .unwrap();
 
@@ -77,11 +85,14 @@ Swap in a different dispatch algorithm and react to simulation events.
 ```rust
 use elevator_core::prelude::*;
 use elevator_core::dispatch::etd::EtdDispatch;
+use elevator_core::stop::StopConfig;
 
 let mut sim = SimulationBuilder::demo()
-    .stop(StopId(0), "Lobby", 0.0)
-    .stop(StopId(1), "Sky Lounge", 50.0)
-    .stop(StopId(2), "Observatory", 120.0)
+    .stops(vec![
+        StopConfig { id: StopId(0), name: "Lobby".into(), position: 0.0 },
+        StopConfig { id: StopId(1), name: "Sky Lounge".into(), position: 50.0 },
+        StopConfig { id: StopId(2), name: "Observatory".into(), position: 120.0 },
+    ])
     .dispatch(EtdDispatch::new())
     .build()
     .unwrap();
@@ -111,6 +122,7 @@ Attach custom data to entities and inject logic into the tick loop.
 
 ```rust
 use elevator_core::prelude::*;
+use elevator_core::stop::StopConfig;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -119,8 +131,10 @@ struct VipTag {
 }
 
 let mut sim = SimulationBuilder::demo()
-    .stop(StopId(0), "Ground", 0.0)
-    .stop(StopId(1), "Penthouse", 100.0)
+    .stops(vec![
+        StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
+        StopConfig { id: StopId(1), name: "Penthouse".into(), position: 100.0 },
+    ])
     .with_ext::<VipTag>("vip_tag")
     .after(Phase::Loading, |world| {
         // Custom logic runs after the loading phase every tick.
