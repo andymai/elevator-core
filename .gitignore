@@ -12,3 +12,4 @@ mutants.out.old/
 .vscode/
 *.code-workspace
 *.log
+/.recording/

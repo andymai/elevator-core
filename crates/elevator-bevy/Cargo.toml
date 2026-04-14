@@ -8,9 +8,21 @@ publish = false
 [lints]
 workspace = true
 
+[lib]
+name = "elevator_bevy"
+path = "src/lib.rs"
+
+[[bin]]
+name = "elevator-bevy"
+path = "src/main.rs"
+
+[[example]]
+name = "showcase"
+path = "examples/showcase.rs"
+
 [dependencies]
 elevator-core = { path = "../elevator-core" }
-bevy = { version = "0.18", default-features = false, features = ["2d"] }
+bevy = { version = "0.18", default-features = false, features = ["2d", "png"] }
 serde.workspace = true
 ron.workspace = true
 rand.workspace = true

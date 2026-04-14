@@ -6,9 +6,11 @@ use crate::camera::setup_camera;
 use crate::input::handle_speed_input;
 use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
-    spawn_building_visuals, sync_elevator_visuals, sync_rider_visuals, update_rider_positions,
+    spawn_building_visuals, sync_door_panels, sync_elevator_visuals, sync_rider_visuals,
+    update_rider_positions,
 };
 use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::style::VisualStyle;
 use crate::ui::{spawn_hud, update_hud};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::scan::ScanDispatch;
@@ -34,8 +36,14 @@ impl Plugin for ElevatorSimPlugin {
         let sim = Simulation::new(&config, ScanDispatch::new())
             .unwrap_or_else(|e| panic!("Invalid simulation config: {e}"));
 
+        // Default style unless an earlier plugin/example inserted one.
+        if !app.world().contains_resource::<VisualStyle>() {
+            app.insert_resource(VisualStyle::default());
+        }
+
         app.insert_resource(SimulationRes { sim })
             .insert_resource(SimSpeed { multiplier: 1 })
+            .insert_resource(ClearColor(Color::srgba(0.08, 0.08, 0.1, 1.0)))
             .insert_resource(PassengerSpawnTimer {
                 ticks_until_spawn: spawn_config.mean_interval_ticks,
                 mean_interval: spawn_config.mean_interval_ticks,
@@ -51,6 +59,7 @@ impl Plugin for ElevatorSimPlugin {
                     spawn_ai_passengers,
                     tick_simulation,
                     sync_elevator_visuals,
+                    sync_door_panels,
                     sync_rider_visuals,
                     update_rider_positions,
                     update_hud,

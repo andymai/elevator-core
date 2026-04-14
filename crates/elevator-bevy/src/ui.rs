@@ -4,20 +4,36 @@ use bevy::prelude::*;
 use elevator_core::components::{ElevatorPhase, RiderPhase};
 
 use crate::sim_bridge::{SimSpeed, SimulationRes};
+use crate::style::VisualStyle;
 
 /// Marker for the stats HUD text.
 #[derive(Component)]
 pub struct HudText;
 
+/// Controls visibility of the keybinding help text at the bottom-left.
+#[derive(Resource, Clone, Copy)]
+pub struct ShowControlsHint(pub bool);
+
+impl Default for ShowControlsHint {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
 /// Spawn the HUD overlay.
-pub fn spawn_hud(mut commands: Commands) {
+#[allow(clippy::needless_pass_by_value)]
+pub fn spawn_hud(
+    mut commands: Commands,
+    style: Res<VisualStyle>,
+    show_hint: Option<Res<ShowControlsHint>>,
+) {
     commands.spawn((
         Text::new(""),
         TextFont {
             font_size: 16.0,
             ..default()
         },
-        TextColor(Color::WHITE),
+        TextColor(style.text),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(10.0),
@@ -27,20 +43,33 @@ pub fn spawn_hud(mut commands: Commands) {
         HudText,
     ));
 
-    commands.spawn((
-        Text::new("Space: pause | 1: 1x | 2: 2x | 3: 10x"),
-        TextFont {
-            font_size: 13.0,
-            ..default()
-        },
-        TextColor(Color::srgba(0.6, 0.6, 0.6, 1.0)),
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(10.0),
-            left: Val::Px(10.0),
-            ..default()
-        },
-    ));
+    if show_hint.is_none_or(|r| r.0) {
+        commands.spawn((
+            Text::new("Space: pause | 1: 1x | 2: 2x | 3: 10x"),
+            TextFont {
+                font_size: 13.0,
+                ..default()
+            },
+            TextColor(muted(style.text)),
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(10.0),
+                left: Val::Px(10.0),
+                ..default()
+            },
+        ));
+    }
+}
+
+/// Dim a text color by ~40% toward its background-agnostic midpoint.
+fn muted(c: Color) -> Color {
+    let l = c.to_linear();
+    Color::linear_rgba(
+        l.red.mul_add(0.55, 0.22),
+        l.green.mul_add(0.55, 0.22),
+        l.blue.mul_add(0.55, 0.22),
+        l.alpha,
+    )
 }
 
 /// Update the HUD each frame with detailed stats.

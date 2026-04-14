@@ -10,6 +10,8 @@ strategies, realistic trapezoidal motion profiles, O(1) population tracking
 per stop, and an extension system let you build exactly the simulation you
 need.
 
+![Showcase: 3 elevators serving 8 floors during a rush-hour scene](assets/demo.gif)
+
 [Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
 
 ## Table of Contents
@@ -303,6 +305,19 @@ and supports configurable simulation speed via keyboard input.
 cargo run                              # default config
 cargo run -- assets/config/space_elevator.ron  # custom config
 ```
+
+The `showcase` example in the same crate assembles a 3-elevator × 8-floor
+scene with a blueprint palette and a scripted cinematic camera. It's what
+produces the GIF at the top of this README:
+
+```sh
+cargo run --release --example showcase              # interactive
+./scripts/record_gif.sh                             # re-record assets/demo.gif
+```
+
+Recording requires `ffmpeg`. The example writes PNG frames into
+`.recording/` and the script invokes ffmpeg's two-pass palette encoding to
+produce `assets/demo.gif`.
 
 ## Testing
 
