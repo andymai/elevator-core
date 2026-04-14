@@ -21,6 +21,7 @@ Events are emitted during the tick phases. Here are the main categories:
 | `ElevatorRepositioning { elevator, to_stop, tick }` | An idle elevator begins repositioning |
 | `ElevatorRepositioned { elevator, at_stop, tick }` | An elevator completed repositioning |
 | `ElevatorIdle { elevator, at_stop, tick }` | An elevator became idle |
+| `CapacityChanged { elevator, current_load, capacity, tick }` | An elevator's load changed (after board or exit) |
 
 **Rider events:**
 
@@ -159,9 +160,62 @@ println!("Total distance:    {:.1} units", m.total_distance());
 | `total_rerouted()` | Cumulative riders rerouted from resident phase |
 | `total_distance()` | Sum of all elevator travel distance |
 | `utilization_by_group()` | Per-group fraction of elevators currently moving |
+| `avg_utilization()` | Average utilization across all groups |
 | `reposition_distance()` | Total elevator distance traveled while repositioning |
 
 Metrics are updated during the Metrics phase of each tick. They are always available and always reflect the latest tick, regardless of whether you drain events.
+
+### Compact summary
+
+`Metrics` implements `Display` for a one-line KPI summary suitable for HUDs and logs:
+
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation) {
+println!("{}", sim.metrics());
+// Output: "42 delivered, avg wait 87.3t, 65% util"
+# }
+```
+
+## Inspection queries
+
+The `Simulation` exposes several read-only query helpers for game UIs and dispatch logic.
+
+### Entity type checks
+
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, id: EntityId) {
+if sim.is_elevator(id) {
+    // ...
+} else if sim.is_rider(id) {
+    // ...
+} else if sim.is_stop(id) {
+    // ...
+}
+# }
+```
+
+### Aggregate queries
+
+Common KPIs that games typically display in HUDs:
+
+| Method | Returns |
+|---|---|
+| `sim.idle_elevator_count()` | Count of elevators currently idle (excludes disabled) |
+| `sim.elevators_in_phase(phase)` | Count of elevators in a given phase (excludes disabled) |
+| `sim.elevator_load(id)` | Current total weight aboard an elevator, `None` if not an elevator |
+
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation) {
+let idle = sim.idle_elevator_count();
+let loading = sim.elevators_in_phase(ElevatorPhase::Loading);
+println!("{idle} idle, {loading} loading");
+# }
+```
+
+Disabled elevators are excluded from phase counts — their phase is reset to `Idle` on disable, but they should not appear as "available" in game UIs.
 
 ### Converting ticks to seconds
 

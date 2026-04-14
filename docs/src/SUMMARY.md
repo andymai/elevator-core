@@ -9,6 +9,7 @@
 - [Dispatch Strategies](dispatch.md)
 - [Extensions and Hooks](extensions-and-hooks.md)
 - [Configuration](configuration.md)
+- [Traffic Generation](traffic-generation.md)
 - [Metrics and Events](metrics-and-events.md)
 - [API Reference](api-reference.md)
 - [Bevy Integration](bevy-integration.md)

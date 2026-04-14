@@ -130,6 +130,16 @@ Three query methods provide population lookups:
 
 Each method has a corresponding count variant (e.g., `sim.residents_at(stop).len()`).
 
+### Entity type checks
+
+To identify what an `EntityId` refers to, use the type-check helpers:
+
+- `sim.is_elevator(id)` — the entity has an `Elevator` component
+- `sim.is_rider(id)` — the entity has a `Rider` component
+- `sim.is_stop(id)` — the entity has a `Stop` component
+
+These are preferable to querying `world.elevator(id).is_some()` etc., and make game code more readable.
+
 Three lifecycle methods manage rider state transitions:
 
 - `sim.settle_rider(id)` -- transitions an Arrived or Abandoned rider to Resident
