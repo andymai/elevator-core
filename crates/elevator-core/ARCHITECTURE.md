@@ -29,40 +29,50 @@ system function.
 pub struct World {
     alive:       SlotMap<EntityId, ()>,
 
-    // Built-in component storages
-    positions:   SecondaryMap<EntityId, Position>,
-    velocities:  SecondaryMap<EntityId, Velocity>,
-    elevators:   SecondaryMap<EntityId, Elevator>,
-    riders:      SecondaryMap<EntityId, Rider>,
-    stops:       SecondaryMap<EntityId, Stop>,
-    routes:      SecondaryMap<EntityId, Route>,
-    lines:       SecondaryMap<EntityId, Line>,
-    patience:    SecondaryMap<EntityId, Patience>,
-    preferences: SecondaryMap<EntityId, Preferences>,
-    disabled:    SecondaryMap<EntityId, ()>,
+    // Built-in component storages (one SecondaryMap per component type)
+    positions, velocities, floor_positions,
+    elevators, riders, stops, routes, lines,
+    patience, preferences, access_control,
+    destination_queues, service_modes,
+    disabled: SecondaryMap<EntityId, ()>,
 
     // Extension storage (game-specific components)
     extensions:  HashMap<TypeId, Box<dyn AnyExtMap>>,
     ext_names:   HashMap<TypeId, String>,
 
-    // Global resources (singletons)
+    // Global resources (singletons — e.g. SortedStops, MetricTags)
     resources:   HashMap<TypeId, Box<dyn Any + Send + Sync>>,
 }
 ```
 
+The listing above elides the individual `SecondaryMap<EntityId, T>`
+types for readability; see [`world.rs`](../src/world.rs) for the
+concrete struct definition.
+
 ### Built-in components
 
-| Component     | Attached to   | Purpose                                     |
-|---------------|---------------|---------------------------------------------|
-| `Position`    | Elevator       | Shaft-axis position (`f64`)                |
-| `Velocity`    | Elevator       | Shaft-axis velocity (`f64`)                |
-| `Elevator`    | Elevator       | Phase, door FSM, riders, capacity, physics |
-| `Rider`       | Rider          | Phase, weight, spawn/board tick            |
-| `Stop`        | Stop           | Name, position                             |
-| `Route`       | Rider          | Multi-leg route (optional)                 |
-| `Line`        | Line           | Group, orientation, axis bounds            |
-| `Patience`    | Rider          | Patience threshold and tick tracking       |
-| `Preferences` | Rider          | Boarding preferences                       |
+| Component          | Attached to       | Purpose                                                          |
+|--------------------|-------------------|------------------------------------------------------------------|
+| `Position`         | Elevator, Stop    | Shaft-axis position (`f64`). Stops use it for lookup.            |
+| `Velocity`         | Elevator          | Shaft-axis velocity (`f64`, signed).                             |
+| `FloorPosition`    | Line              | Optional floor-plan position for rendering.                      |
+| `Elevator`         | Elevator          | Phase, door FSM, riders, capacity, physics, direction lamps.     |
+| `Rider`            | Rider             | Phase, weight, spawn/board tick.                                 |
+| `Stop`             | Stop              | Name + position pair.                                            |
+| `Line`             | Line              | Group, orientation, axis bounds, optional `max_cars`.            |
+| `Route`            | Rider             | Multi-leg route (optional — Route-less riders are game-managed). |
+| `Patience`         | Rider             | Patience threshold and tick tracking for abandonment.            |
+| `Preferences`      | Rider             | Boarding preferences (`skip_full_elevator`, `max_crowding_factor`). |
+| `AccessControl`    | Rider             | Per-rider allowlist of reachable stops.                          |
+| `DestinationQueue` | Elevator          | FIFO of pushed target stops; imperative-dispatch escape hatch.   |
+| `ServiceMode`      | Elevator          | `Normal` / `Independent` / `Inspection`.                         |
+| `Orientation`      | Line              | Vertical vs horizontal axis (for visualization).                 |
+
+All components above are re-exported from `elevator_core::prelude` so
+consumers don't need to dig into the `components` submodule for
+everyday code. Games attach additional per-entity data via the
+[extension storage system](#extension-storage) without modifying the
+library.
 
 ### Query builder
 
