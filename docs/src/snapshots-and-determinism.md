@@ -75,7 +75,7 @@ let sim = snapshot.restore(Some(&|name: &str| match name {
 # }
 ```
 
-Custom strategies are registered with `BuiltinStrategy::Custom("name")` via `sim.set_dispatch(group, BuiltinStrategy::Custom("HighestFirst".into()), Box::new(HighestFirstDispatch))`. That registered name is what the snapshot stores and what the factory closure receives on restore — make sure the two match.
+Custom strategies are registered with `BuiltinStrategy::Custom("name")` via `sim.set_dispatch(group, Box::new(HighestFirstDispatch), BuiltinStrategy::Custom("HighestFirst".into()))`. That registered name is what the snapshot stores and what the factory closure receives on restore — make sure the two match.
 
 ### Extensions across restore
 

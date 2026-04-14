@@ -123,7 +123,7 @@ Extensions are auto-cleaned on `despawn_rider`; resources persist until you remo
 
 ## Lifecycle hooks
 
-Hooks let you inject custom logic before or after any of the six tick phases. They receive `&mut World`, so they can read and modify any entity or resource.
+Hooks let you inject custom logic before or after any of the seven tick phases. They receive `&mut World`, so they can read and modify any entity or resource.
 
 ### Registering hooks on the builder
 
@@ -201,6 +201,7 @@ Group-specific hooks run alongside global hooks for the same phase; all `before`
 |---|---|
 | `Phase::AdvanceTransient` | Before/after transitional states advance |
 | `Phase::Dispatch` | Before/after elevator assignment |
+| `Phase::Reposition` | Before/after idle-elevator repositioning (no-op if no reposition strategy configured) |
 | `Phase::Movement` | Before/after position updates |
 | `Phase::Doors` | Before/after door state machine ticks |
 | `Phase::Loading` | Before/after boarding and exiting |

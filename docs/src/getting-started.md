@@ -93,7 +93,7 @@ println!("Spawned rider: {:?}", rider_id);
 
 ## Run the simulation loop
 
-Each call to `sim.step()` advances the simulation by one tick, running all six phases of the tick loop (advance transient, dispatch, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
+Each call to `sim.step()` advances the simulation by one tick, running all seven phases of the tick loop (advance transient, dispatch, reposition, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -204,7 +204,7 @@ Total ticks: 482
 
 1. The **builder** created a `Simulation` containing a `World` with three stop entities and one elevator entity, plus a SCAN dispatch strategy.
 2. `spawn_rider_by_stop_id` created a rider entity at the Lobby with a route to Floor 3.
-3. Each `step()` ran the six-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
+3. Each `step()` ran the seven-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **reposition** phase was a no-op (no reposition strategy configured). The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
 4. Events fired at each significant moment, and we pattern-matched on them to detect arrival.
 
 Next up: [Core Concepts](core-concepts.md) dives deeper into the entity model, the tick loop phases, and the lifecycle of riders and elevators.

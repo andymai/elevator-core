@@ -18,7 +18,7 @@
 //! - **Extension components** — attach arbitrary `Serialize + DeserializeOwned`
 //!   data to any entity via [`world::World::insert_ext`] without modifying the
 //!   library.
-//! - **Lifecycle hooks** — inject logic before or after any of the six
+//! - **Lifecycle hooks** — inject logic before or after any of the seven
 //!   simulation phases. See [`hooks::Phase`].
 //! - **Metrics and events** — query aggregate wait/ride times through
 //!   [`metrics::Metrics`] and react to fine-grained tick events via
