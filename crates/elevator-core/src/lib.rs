@@ -196,7 +196,11 @@ pub mod hooks;
 /// Aggregate simulation metrics.
 pub mod metrics;
 /// Trapezoidal velocity-profile movement math.
-pub(crate) mod movement;
+///
+/// Exposes [`braking_distance`](movement::braking_distance) for consumers
+/// writing opportunistic dispatch strategies that need the kinematic answer
+/// without constructing a `Simulation`.
+pub mod movement;
 /// Phase-partitioned reverse index for rider population queries.
 mod rider_index;
 /// Scenario replay from recorded event streams.

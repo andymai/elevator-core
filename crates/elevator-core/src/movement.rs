@@ -1,5 +1,20 @@
 //! Trapezoidal velocity-profile movement physics.
 
+/// Distance required to brake to a stop from a given velocity at a fixed
+/// deceleration rate.
+///
+/// Uses the standard kinematic formula `v² / (2·a)`. Returns `0.0` for a
+/// stationary object or a non-positive deceleration (defensive: avoids
+/// division-by-zero / negative-distance footguns in consumer code).
+#[must_use]
+pub fn braking_distance(velocity: f64, deceleration: f64) -> f64 {
+    if deceleration <= 0.0 {
+        return 0.0;
+    }
+    let speed = velocity.abs();
+    speed * speed / (2.0 * deceleration)
+}
+
 /// Result of one tick of movement physics.
 #[derive(Debug, Clone, Copy)]
 pub struct MovementResult {
