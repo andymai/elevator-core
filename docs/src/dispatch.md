@@ -20,6 +20,28 @@ During the Dispatch phase of each tick, the simulation:
 | `NearestCarDispatch` | Assign each call to the closest idle elevator | Multi-elevator groups | Low average wait, but can cause bunching when elevators cluster |
 | `EtdDispatch` | Minimize estimated time to destination across all riders | Multi-elevator groups with mixed traffic | Best average performance, higher per-tick computation |
 
+### Choosing a strategy
+
+Use this rough decision guide:
+
+```text
+                            +-- 1 elevator? ------------------> ScanDispatch (or LookDispatch for bursty demand)
+                            |
+Does the group have ...  ---+-- 2+ elevators, simple ---------> NearestCarDispatch
+                            |
+                            +-- 2+ elevators, mixed traffic --> EtdDispatch
+                                with SLA-sensitive riders
+```
+
+Concrete guidance:
+
+- **ScanDispatch** — Start here. Deterministic, fair, easy to reason about. Good baseline for benchmarking custom strategies.
+- **LookDispatch** — Swap in when SCAN wastes obvious time at the extremes (sparse/clustered requests).
+- **NearestCarDispatch** — The default "obvious" multi-car policy. Watch for bunching under heavy load.
+- **EtdDispatch** — Best average wait/ride time in most realistic mixes, at a higher per-tick cost. Use the `delay_weight` to favor existing riders vs. new calls.
+
+For everything else (priority, weight, fairness, accessibility) write a custom strategy.
+
 ## Swapping strategies on the builder
 
 The builder defaults to `ScanDispatch`. To use a different strategy, call `.dispatch()`:

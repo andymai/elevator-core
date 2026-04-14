@@ -1,17 +1,24 @@
 //! Phase-partitioned reverse index: stop → rider entity IDs.
 //!
 //! Maintained incrementally by [`Simulation`](crate::sim::Simulation) methods
-//! and the loading/advance-transient systems. Uses `BTreeMap`/`BTreeSet` for
-//! deterministic iteration.
+//! and the loading/advance-transient systems.
+//!
+//! The outer `stop → set` map is a `HashMap` for O(1) per-stop lookup, which
+//! is what the public `residents_at` / `waiting_at` / `abandoned_at` methods
+//! promise. The inner per-stop `BTreeSet` preserves deterministic iteration
+//! order when callers walk the riders at a stop.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 
 use crate::components::RiderPhase;
 use crate::entity::EntityId;
 use crate::world::World;
 
 /// Partition map type used by each phase bucket.
-type Partition = BTreeMap<EntityId, BTreeSet<EntityId>>;
+///
+/// Outer `HashMap` for O(1) lookup; inner `BTreeSet` for deterministic
+/// iteration of the riders at a stop.
+type Partition = HashMap<EntityId, BTreeSet<EntityId>>;
 
 /// Phase-partitioned reverse index mapping stops to the riders present there.
 #[derive(Debug, Clone, Default)]

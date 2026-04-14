@@ -16,6 +16,30 @@ The prelude re-exports everything you need for typical usage:
 use elevator_core::prelude::*;
 ```
 
+This brings in, at a glance:
+
+| Group | Items |
+|---|---|
+| Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Config | `SimConfig`, `GroupConfig`, `LineConfig` |
+| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
+| Identity | `EntityId`, `StopId`, `GroupId` |
+| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Misc | `Metrics`, `TimeAdapter` |
+
+**Not in the prelude** (import explicitly): the concrete built-in dispatch types (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch` — see [Dispatch Strategies](dispatch.md)), `ElevatorConfig` and `StopConfig` from `elevator_core::config`, the `traffic` module (feature-gated), the `snapshot` module, and the `World` type (needed as a parameter when implementing custom dispatch).
+
+## Feature flags
+
+| Flag | Default? | Enables |
+|---|---|---|
+| `traffic` | yes | `traffic` module: `PoissonSource`, `TrafficPattern`, `TrafficSchedule`. Pulls in `rand`. |
+| `energy` | no | Per-elevator `EnergyProfile`/`EnergyMetrics` components and snapshot fields. |
+
+Turn off defaults with `default-features = false` if you want a leaner build and intend to write your own rider spawning.
+
 ## Build a simulation
 
 We will use `SimulationBuilder` to set up a 3-stop building. The builder starts with sensible defaults (2 stops, 1 elevator, SCAN dispatch, 60 ticks per second), but we will override the stops to create our own layout.
@@ -69,7 +93,7 @@ println!("Spawned rider: {:?}", rider_id);
 
 ## Run the simulation loop
 
-Each call to `sim.step()` advances the simulation by one tick, running all six phases of the tick loop (advance transient, dispatch, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
+Each call to `sim.step()` advances the simulation by one tick, running all seven phases of the tick loop (advance transient, dispatch, reposition, movement, doors, loading, metrics). After stepping, you can drain events to see what happened:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -180,7 +204,7 @@ Total ticks: 482
 
 1. The **builder** created a `Simulation` containing a `World` with three stop entities and one elevator entity, plus a SCAN dispatch strategy.
 2. `spawn_rider_by_stop_id` created a rider entity at the Lobby with a route to Floor 3.
-3. Each `step()` ran the six-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
+3. Each `step()` ran the seven-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **reposition** phase was a no-op (no reposition strategy configured). The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
 4. Events fired at each significant moment, and we pattern-matched on them to detect arrival.
 
 Next up: [Core Concepts](core-concepts.md) dives deeper into the entity model, the tick loop phases, and the lifecycle of riders and elevators.

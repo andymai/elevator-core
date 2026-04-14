@@ -28,6 +28,33 @@ The library uses several identity types, and it is important to understand which
 
 `StopId` is a config-level concept. When the simulation boots, each `StopId` is mapped to an `EntityId`. At runtime you work with `EntityId` everywhere -- events, world queries, dispatch. Use `sim.stop_entity(StopId(0))` if you need to convert.
 
+## Topology: groups, lines, elevators, stops
+
+Multi-bank buildings are modeled with a three-level hierarchy:
+
+```text
+Group (GroupId)
+  +-- Line (LineConfig)        <-- a physical shaft or column of stops
+  |     +-- Elevator           <-- one car running on this line
+  |     +-- Elevator
+  +-- Line
+        +-- Elevator
+```
+
+- A **Group** owns a dispatch strategy and a set of stops it serves. Typical use: "low-rise group" and "high-rise group" in a tall building.
+- A **Line** represents a shaft (or columnar group of shafts sharing the same physical path). Elevators are assigned to a line; they only serve stops their line reaches.
+- A **Stop** may be shared across lines (e.g., a sky lobby served by both low-rise and high-rise groups).
+- An **Elevator** belongs to exactly one line within one group at a time. Use `ElevatorReassigned` / `LineReassigned` events to observe runtime moves.
+
+The simplest buildings (single bank, single shaft) can ignore lines — the builder auto-creates one default line and one default group, and you can just call `.stop(...)` / `.elevator(...)` without touching `LineConfig` or `GroupConfig`.
+
+## Coordinate system and units
+
+- **Axis.** All positions are scalars along a single shaft axis. Higher values = higher up (or further along the axis for horizontal configs like the space elevator). There is no 2D/3D geometry in the core.
+- **Units are unspecified.** The library does not enforce meters, feet, or any other unit — positions, velocities, accelerations, and weights are just `f64` values. Internally consistent is all that matters. Convention: meters + kg + ticks.
+- **Origin.** There is no privileged zero. Stop 0 does not have to be at position `0.0`. Positions may be negative (useful for basements below a lobby at `0.0`, or for space elevators anchored at a non-zero reference frame).
+- **Time.** The fundamental unit is the **tick**. Convert to seconds via `sim.time().ticks_to_seconds(t)` (uses `ticks_per_second` from config). The default is 60 ticks/second.
+
 ## The tick loop
 
 Each call to `sim.step()` runs one simulation tick. A tick consists of seven phases, always executed in this order:

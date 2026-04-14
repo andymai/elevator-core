@@ -132,6 +132,50 @@ let source = PoissonSource::new(stops, TrafficSchedule::constant(TrafficPattern:
 # }
 ```
 
+## Determinism and seeding
+
+`PoissonSource` uses a thread-local RNG (`rand::rng()`) internally, so two runs of the same config will produce different traffic. This is convenient for exploration but unsuitable for replay, regression testing, or research comparisons.
+
+For reproducible traffic, write a custom [`TrafficSource`](#custom-traffic-sources) that owns a seeded RNG:
+
+```rust,no_run
+use elevator_core::traffic::{TrafficSource, SpawnRequest, TrafficPattern};
+use elevator_core::stop::StopId;
+use rand::{Rng, SeedableRng, rngs::StdRng};
+
+struct SeededPoisson {
+    stops: Vec<StopId>,
+    rng: StdRng,
+    mean_interval: u32,
+    next: u64,
+}
+
+impl SeededPoisson {
+    fn new(stops: Vec<StopId>, seed: u64, mean_interval: u32) -> Self {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let next = rng.random_range(1..=(mean_interval * 2) as u64);
+        Self { stops, rng, mean_interval, next }
+    }
+}
+
+impl TrafficSource for SeededPoisson {
+    fn generate(&mut self, tick: u64) -> Vec<SpawnRequest> {
+        let mut out = Vec::new();
+        while tick >= self.next {
+            if let Some((origin, destination)) =
+                TrafficPattern::Uniform.sample_stop_ids(&self.stops, &mut self.rng)
+            {
+                out.push(SpawnRequest { origin, destination, weight: 75.0 });
+            }
+            self.next += self.rng.random_range(1..=(self.mean_interval * 2) as u64);
+        }
+        out
+    }
+}
+```
+
+With a fixed seed, identical config, and a deterministic dispatch strategy, `sim.snapshot()` outputs byte-for-byte match across runs.
+
 ## Custom traffic sources
 
 The `TrafficSource` trait is trivial to implement for game-specific logic:
