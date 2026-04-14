@@ -299,17 +299,15 @@ cargo run -- assets/config/space_elevator.ron  # custom config
 
 ## Testing
 
-- **442 tests** pass in `cargo test -p elevator-core` (409 unit,
-  5 integration, 28 doc).
-- **5 criterion benchmarks** cover dispatch, scaling, multi-line,
-  query, and tick-loop throughput.
+- Unit, integration, and doc tests run under `cargo test -p elevator-core`.
+- Criterion benchmarks cover dispatch, scaling, multi-line, query, and
+  tick-loop throughput (`cargo bench -p elevator-core`).
 - **Deterministic replay** is guarded by an end-to-end diff test
   (`tests/deterministic_replay.rs`) that runs two identical scenarios
   and compares the full event stream byte-for-byte.
 - **Mutation testing** via `cargo mutants` on the tick-loop hot path
   (`src/systems/`, `src/dispatch/`, `door.rs`, `movement.rs`,
-  `rider_index.rs`): **299 caught / 168 missed / 31 unviable** →
-  **64.0% mutation score** (467 viable mutants). Reproduce with:
+  `rider_index.rs`). Reproduce with:
 
 ```sh
 cargo mutants --package elevator-core \
