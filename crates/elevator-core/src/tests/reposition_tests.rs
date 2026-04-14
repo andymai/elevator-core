@@ -128,8 +128,13 @@ fn spread_evenly_distributes_elevators() {
     if result.len() == 2 {
         assert_ne!(result[0].1, result[1].1, "should spread to different stops");
     }
-    // The first elevator should be sent to the farthest unoccupied stop (stop 4 at 40.0),
-    // maximizing min-distance from the other occupied position (elev_b at 20.0).
+    // `elev_b` is also idle so it's excluded from `occupied` when elev_a is
+    // placed — the `occupied` set is empty, `min_distance_to` returns
+    // INFINITY for every stop, and `max_by(..total_cmp)` deterministically
+    // returns the last element (`stops[4]`). The outcome is correct but
+    // the "farthest from other occupied positions" intuition is only what
+    // the strategy *would* do once `elev_b` is assigned a position — here
+    // elev_a is processed first while `occupied` is still empty.
     assert_eq!(result[0].1, stops[4]);
 }
 
