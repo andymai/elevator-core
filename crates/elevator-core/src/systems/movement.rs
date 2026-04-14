@@ -24,7 +24,9 @@ pub fn run(
         }
         let target_stop_eid = match world.elevator(eid) {
             Some(car) => match car.phase {
-                ElevatorPhase::MovingToStop(stop_eid) => stop_eid,
+                ElevatorPhase::MovingToStop(stop_eid) | ElevatorPhase::Repositioning(stop_eid) => {
+                    stop_eid
+                }
                 _ => continue,
             },
             None => continue,

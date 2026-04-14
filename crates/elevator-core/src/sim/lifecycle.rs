@@ -598,7 +598,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let sim = SimulationBuilder::demo().build().unwrap();
     /// let stop = sim.stop_entity(StopId(0)).unwrap();
     /// assert!(!sim.is_elevator(stop));
     /// assert!(sim.is_stop(stop));
@@ -629,7 +629,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let sim = SimulationBuilder::demo().build().unwrap();
     /// assert_eq!(sim.idle_elevator_count(), 1);
     /// ```
     #[must_use]
@@ -643,7 +643,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let sim = SimulationBuilder::demo().build().unwrap();
     /// let stop = sim.stop_entity(StopId(0)).unwrap();
     /// assert_eq!(sim.elevator_load(stop), None); // not an elevator
     /// ```
@@ -668,6 +668,13 @@ impl Simulation {
     #[must_use]
     pub fn elevator_going_down(&self, id: EntityId) -> Option<bool> {
         self.world.elevator(id).map(Elevator::going_down)
+    }
+
+    /// Direction the elevator is currently signalling, derived from the
+    /// indicator-lamp pair. Returns `None` if the entity is not an elevator.
+    #[must_use]
+    pub fn elevator_direction(&self, id: EntityId) -> Option<crate::components::Direction> {
+        self.world.elevator(id).map(Elevator::direction)
     }
 
     /// Count of rounded-floor transitions for an elevator (passing-floor
@@ -717,7 +724,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let sim = SimulationBuilder::demo().build().unwrap();
     /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 1);
     /// assert_eq!(sim.elevators_in_phase(ElevatorPhase::Loading), 0);
     /// ```

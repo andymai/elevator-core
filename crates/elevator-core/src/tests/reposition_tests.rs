@@ -356,8 +356,8 @@ fn repositioning_flag_lifecycle() {
         "elevator should be repositioning after first tick"
     );
     assert!(
-        matches!(car.phase(), ElevatorPhase::MovingToStop(_)),
-        "elevator should be MovingToStop while repositioning"
+        matches!(car.phase(), ElevatorPhase::Repositioning(_)),
+        "elevator should be in Repositioning phase while repositioning"
     );
 
     // Run enough ticks for the elevator to arrive at lobby (20 units at 2.0 u/s, ~600 ticks).

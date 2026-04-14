@@ -292,6 +292,9 @@ impl WorldSnapshot {
                     crate::components::ElevatorPhase::MovingToStop(s) => {
                         crate::components::ElevatorPhase::MovingToStop(remap(s))
                     }
+                    crate::components::ElevatorPhase::Repositioning(s) => {
+                        crate::components::ElevatorPhase::Repositioning(remap(s))
+                    }
                     other => other,
                 };
                 world.set_elevator(eid, e);

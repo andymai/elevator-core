@@ -227,24 +227,23 @@ impl EtdDispatch {
         }
 
         // Bonus: if the elevator is already heading toward this stop
-        // (same direction), reduce cost.
-        let direction_bonus = match car.phase {
-            ElevatorPhase::MovingToStop(current_target) => world
-                .stop_position(current_target)
-                .map_or(0.0, |current_target_pos| {
-                    let moving_up = current_target_pos > elev_pos;
-                    let target_is_ahead = if moving_up {
-                        target_pos > elev_pos && target_pos <= current_target_pos
-                    } else {
-                        target_pos < elev_pos && target_pos >= current_target_pos
-                    };
-                    if target_is_ahead {
-                        -travel_time * 0.5
-                    } else {
-                        0.0
-                    }
-                }),
-            ElevatorPhase::Idle => -travel_time * 0.3, // Slight bonus for idle elevators.
+        // (same direction), reduce cost. Both dispatched (`MovingToStop`)
+        // and repositioning cars are redirectable and get the same bonus.
+        let direction_bonus = match car.phase.moving_target() {
+            Some(current_target) => world.stop_position(current_target).map_or(0.0, |ctp| {
+                let moving_up = ctp > elev_pos;
+                let target_is_ahead = if moving_up {
+                    target_pos > elev_pos && target_pos <= ctp
+                } else {
+                    target_pos < elev_pos && target_pos >= ctp
+                };
+                if target_is_ahead {
+                    -travel_time * 0.5
+                } else {
+                    0.0
+                }
+            }),
+            None if car.phase == ElevatorPhase::Idle => -travel_time * 0.3, // Slight bonus for idle elevators.
             _ => 0.0,
         };
 

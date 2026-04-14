@@ -48,7 +48,7 @@ impl DispatchStrategy for RoundRobinDispatch {
 }
 
 fn main() {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .dispatch(RoundRobinDispatch::new())
         .build()
         .unwrap();

@@ -25,7 +25,7 @@
 //!     }
 //! }
 //!
-//! let sim = SimulationBuilder::new()
+//! let sim = SimulationBuilder::demo()
 //!     .dispatch(AlwaysFirstStop)
 //!     .build()
 //!     .unwrap();

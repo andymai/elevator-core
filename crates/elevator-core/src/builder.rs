@@ -25,13 +25,14 @@ type ExtRegistration = Box<dyn FnOnce(&mut World) + Send>;
 /// Provides a more ergonomic API for programmatic construction compared to
 /// assembling a config struct manually.
 ///
-/// # Default configuration
+/// # Constructors
 ///
-/// `SimulationBuilder::new()` starts with a minimal valid config:
-/// - 2 stops at positions 0.0 and 10.0
-/// - 1 elevator with reasonable defaults
-/// - `ScanDispatch` strategy
-/// - 60 ticks per second
+/// - [`SimulationBuilder::new`] — empty builder. You must add at least one
+///   stop and at least one elevator before `.build()`, or it errors.
+///   `ScanDispatch` is the default strategy, 60 ticks/s the default rate.
+/// - [`SimulationBuilder::demo`] — pre-populated with two stops (Ground at
+///   0.0, Top at 10.0) and one elevator, for doctests and quick
+///   prototyping. Override any piece with the fluent methods.
 pub struct SimulationBuilder {
     /// Simulation configuration (stops, elevators, timing).
     config: SimConfig,
@@ -52,54 +53,34 @@ impl Default for SimulationBuilder {
 }
 
 impl SimulationBuilder {
-    /// Create a builder with a minimal valid default configuration.
+    /// Create an empty builder — no stops, no elevators, `ScanDispatch` as
+    /// the default strategy, and 60 ticks per second.
     ///
-    /// The default gives you two stops (Ground at 0.0, Top at 10.0) and one
-    /// elevator with SCAN dispatch. Override any part with the fluent methods
-    /// before calling [`build`](Self::build).
+    /// You must add at least one stop and at least one elevator (via
+    /// [`stops`](Self::stops) / [`stop`](Self::stop) and
+    /// [`elevators`](Self::elevators) / [`elevator`](Self::elevator))
+    /// before [`build`](Self::build), or the build fails with
+    /// [`SimError::InvalidConfig`](crate::error::SimError::InvalidConfig).
+    ///
+    /// If you want a quick, already-valid sim for prototyping or examples,
+    /// use [`demo`](Self::demo).
     ///
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let sim = SimulationBuilder::new().build().unwrap();
+    /// let sim = SimulationBuilder::demo().build().unwrap();
     /// assert_eq!(sim.current_tick(), 0);
     /// ```
     #[must_use]
     pub fn new() -> Self {
         let config = SimConfig {
             building: BuildingConfig {
-                name: "Default".into(),
-                stops: vec![
-                    StopConfig {
-                        id: StopId(0),
-                        name: "Ground".into(),
-                        position: 0.0,
-                    },
-                    StopConfig {
-                        id: StopId(1),
-                        name: "Top".into(),
-                        position: 10.0,
-                    },
-                ],
+                name: "Untitled".into(),
+                stops: Vec::new(),
                 lines: None,
                 groups: None,
             },
-            elevators: vec![ElevatorConfig {
-                id: 0,
-                name: "Elevator 1".into(),
-                max_speed: 2.0,
-                acceleration: 1.5,
-                deceleration: 2.0,
-                weight_capacity: 800.0,
-                starting_stop: StopId(0),
-                door_open_ticks: 10,
-                door_transition_ticks: 5,
-                restricted_stops: Vec::new(),
-                #[cfg(feature = "energy")]
-                energy_profile: None,
-                service_mode: None,
-                inspection_speed_factor: 0.25,
-            }],
+            elevators: Vec::new(),
             simulation: SimulationParams {
                 ticks_per_second: 60.0,
             },
@@ -122,6 +103,55 @@ impl SimulationBuilder {
             hooks: PhaseHooks::default(),
             ext_registrations: Vec::new(),
         }
+    }
+
+    /// Create a pre-populated builder suitable for doctests, examples, and
+    /// quick prototyping.
+    ///
+    /// Provides two stops (Ground at 0.0, Top at 10.0) and one elevator
+    /// with SCAN dispatch. Override any piece with the fluent methods
+    /// before [`build`](Self::build). For a blank slate, use
+    /// [`new`](Self::new).
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let sim = SimulationBuilder::demo().build().unwrap();
+    /// assert_eq!(sim.current_tick(), 0);
+    /// ```
+    #[must_use]
+    pub fn demo() -> Self {
+        let mut b = Self::new();
+        b.config.building.name = "Demo".into();
+        b.config.building.stops = vec![
+            StopConfig {
+                id: StopId(0),
+                name: "Ground".into(),
+                position: 0.0,
+            },
+            StopConfig {
+                id: StopId(1),
+                name: "Top".into(),
+                position: 10.0,
+            },
+        ];
+        b.config.elevators = vec![ElevatorConfig {
+            id: 0,
+            name: "Elevator 1".into(),
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 10,
+            door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
+        }];
+        b
     }
 
     /// Create a builder from an existing [`SimConfig`].
@@ -368,7 +398,7 @@ impl SimulationBuilder {
     /// use elevator_core::prelude::*;
     /// use elevator_core::stop::StopConfig;
     ///
-    /// let mut sim = SimulationBuilder::new()
+    /// let mut sim = SimulationBuilder::demo()
     ///     .stops(vec![
     ///         StopConfig { id: StopId(0), name: "Lobby".into(), position: 0.0 },
     ///         StopConfig { id: StopId(1), name: "Roof".into(), position: 20.0 },

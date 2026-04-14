@@ -492,12 +492,12 @@ impl World {
             .filter(|(id, _, car)| car.phase == ElevatorPhase::Idle && !self.is_disabled(*id))
     }
 
-    /// Iterate elevators in `MovingToStop` phase (not disabled).
+    /// Iterate elevators that are currently moving — either on a dispatched
+    /// trip (`MovingToStop`) or a repositioning trip (`Repositioning`).
+    /// Excludes disabled elevators.
     pub fn iter_moving_elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &Elevator)> {
-        self.iter_elevators().filter(|(id, _, car)| {
-            matches!(car.phase, crate::components::ElevatorPhase::MovingToStop(_))
-                && !self.is_disabled(*id)
-        })
+        self.iter_elevators()
+            .filter(|(id, _, car)| car.phase.is_moving() && !self.is_disabled(*id))
     }
 
     /// Iterate riders in `Waiting` phase (not disabled).
@@ -722,7 +722,7 @@ impl World {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
     ///
     /// let world = sim.world();

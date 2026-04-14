@@ -7,7 +7,7 @@ use elevator_core::snapshot::WorldSnapshot;
 
 #[test]
 fn snapshot_roundtrip_preserves_state() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
 
     // Spawn riders and run for a while.
     for _ in 0..3 {

@@ -102,7 +102,7 @@ impl LineParams {
 /// ```
 /// use elevator_core::prelude::*;
 ///
-/// let mut sim = SimulationBuilder::new().build().unwrap();
+/// let mut sim = SimulationBuilder::demo().build().unwrap();
 /// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
 ///     .unwrap()
 ///     .weight(80.0)
@@ -532,7 +532,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let s0 = sim.stop_entity(StopId(0)).unwrap();
     /// let s1 = sim.stop_entity(StopId(1)).unwrap();
     /// let rider = sim.build_rider(s0, s1)
@@ -567,7 +567,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
     ///     .unwrap()
     ///     .weight(80.0)
@@ -760,7 +760,7 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// // Default builder has StopId(0) and StopId(1).
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     ///
     /// let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 80.0).unwrap();
     /// sim.step(); // metrics are updated during the tick
@@ -844,7 +844,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     ///
     /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
     /// sim.step();
@@ -867,7 +867,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
     /// sim.step();
     ///
@@ -1153,7 +1153,7 @@ impl Simulation {
     /// ```
     /// use elevator_core::prelude::*;
     ///
-    /// let mut sim = SimulationBuilder::new().build().unwrap();
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// sim.step();
     /// assert_eq!(sim.current_tick(), 1);
     /// ```

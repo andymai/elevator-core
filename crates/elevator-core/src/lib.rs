@@ -33,7 +33,7 @@
 //! use elevator_core::prelude::*;
 //! use elevator_core::stop::StopConfig;
 //!
-//! let mut sim = SimulationBuilder::new()
+//! let mut sim = SimulationBuilder::demo()
 //!     .stops(vec![
 //!         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
 //!         StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
@@ -247,7 +247,7 @@ pub mod traffic;
 /// #[derive(Clone, Debug, Serialize, Deserialize)]
 /// struct Priority { rank: u8 }
 ///
-/// let mut sim = SimulationBuilder::new().build().unwrap();
+/// let mut sim = SimulationBuilder::demo().build().unwrap();
 /// register_extensions!(sim.world_mut(), VipTag => "vip_tag", Priority => "priority");
 /// ```
 #[macro_export]
@@ -293,8 +293,9 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        AccessControl, DestinationQueue, Elevator, ElevatorPhase, FloorPosition, Line, Orientation,
-        Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop, Velocity,
+        AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, FloorPosition, Line,
+        Orientation, Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop,
+        Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{

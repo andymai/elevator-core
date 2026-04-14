@@ -5,7 +5,7 @@ use elevator_core::prelude::*;
 use elevator_core::stop::StopConfig;
 
 fn main() {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),

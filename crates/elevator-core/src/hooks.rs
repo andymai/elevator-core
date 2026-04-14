@@ -6,7 +6,7 @@
 //! use elevator_core::prelude::*;
 //! use elevator_core::hooks::Phase;
 //!
-//! let mut sim = SimulationBuilder::new()
+//! let mut sim = SimulationBuilder::demo()
 //!     .before(Phase::Dispatch, |world| {
 //!         // Inspect world state before dispatch runs
 //!         let idle_count = world.iter_idle_elevators().count();
