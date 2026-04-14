@@ -55,6 +55,16 @@ impl Simulation {
         position: f64,
         line: EntityId,
     ) -> Result<EntityId, SimError> {
+        if !position.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "position",
+                reason: format!(
+                    "stop position must be finite (got {position}); NaN/±inf \
+                     corrupt SortedStops ordering and find_stop_at_position lookup"
+                ),
+            });
+        }
+
         let group_id = self
             .world
             .line(line)
