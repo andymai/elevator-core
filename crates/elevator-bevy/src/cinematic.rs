@@ -87,9 +87,12 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
     t.mul_add(b - a, a)
 }
 
-/// Smoothstep easing: `3t² − 2t³`, zero slope at `t=0` and `t=1`.
+/// Smootherstep (quintic) easing: `6t⁵ − 15t⁴ + 10t³`. Zero slope *and*
+/// zero second-derivative at `t=0` and `t=1` — the mid-acceleration is
+/// more gradual than classic smoothstep so the camera moves look less
+/// mechanical.
 fn ease_in_out(t: f32) -> f32 {
-    t * t * 2.0f32.mul_add(-t, 3.0)
+    t * t * t * t.mul_add(t.mul_add(6.0, -15.0), 10.0)
 }
 
 /// System that updates the camera from the timeline. Runs in `Update`.

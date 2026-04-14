@@ -5,11 +5,12 @@
 //! Waiting riders queue to the left of shaft 0.
 
 use bevy::prelude::*;
-use elevator_core::components::{Position, Rider, RiderPhase};
+use elevator_core::components::{ElevatorPhase, Position, Rider, RiderPhase};
 use elevator_core::door::DoorState;
 use elevator_core::entity::EntityId;
 use elevator_core::world::World;
 use std::collections::HashMap;
+use std::f32::consts::PI;
 
 use crate::sim_bridge::SimulationRes;
 use crate::style::VisualStyle;
@@ -154,6 +155,20 @@ pub struct QueueSlots(pub HashMap<EntityId, usize>);
 #[derive(Component)]
 pub struct BobPhase(pub f32);
 
+/// Scale-based lifecycle fade for rider visuals. `current` drifts toward
+/// `target` at [`FADE_STEP`] per frame; when both are below a small
+/// threshold the entity is despawned.
+#[derive(Component)]
+pub struct RiderFade {
+    /// Current scale (0 = invisible, 1 = full size).
+    pub current: f32,
+    /// Target scale the component is easing toward.
+    pub target: f32,
+}
+
+/// Per-frame change in rider scale during spawn-in / fade-out (~6 frames to reach 1).
+const FADE_STEP: f32 = 1.0 / 6.0;
+
 /// Marker for shaft background visuals.
 #[derive(Component)]
 pub struct ShaftVisual;
@@ -195,6 +210,15 @@ pub struct DoorPanel {
     pub elevator: EntityId,
     /// Panel half-travel in pixels (from closed center to fully-open edge).
     pub travel: f32,
+}
+
+/// Small triangle on the elevator car that points in the travel direction.
+/// Visible only while the elevator is moving on a dispatched or
+/// repositioning trip; hidden during dwell/Idle.
+#[derive(Component)]
+pub struct DirectionArrow {
+    /// The elevator this arrow tracks.
+    pub elevator: EntityId,
 }
 
 /// Pre-allocated rider materials.
@@ -349,6 +373,8 @@ pub fn spawn_building_visuals(
             // Panels drawn *in front of* the car on z=0.6.
             // Travel = car_width/4 from closed center to fully open.
             let travel = vs.car_width * 0.25;
+            let arrow_mesh = meshes.add(RegularPolygon::new(vs.rider_radius * 0.9, 3));
+            let arrow_mat = materials.add(style.background);
             car.with_children(|parent| {
                 for side in [-1.0_f32, 1.0_f32] {
                     parent.spawn((
@@ -362,6 +388,14 @@ pub fn spawn_building_visuals(
                         },
                     ));
                 }
+                // Direction arrow (hidden by default; sync system toggles).
+                parent.spawn((
+                    Mesh2d(arrow_mesh),
+                    MeshMaterial2d(arrow_mat),
+                    Transform::from_xyz(0.0, 0.0, 0.2),
+                    Visibility::Hidden,
+                    DirectionArrow { elevator: *eid },
+                ));
             });
         }
     }
@@ -420,6 +454,48 @@ pub fn sync_elevator_visuals(
     }
 }
 
+/// Show/hide and orient each car's direction arrow.
+///
+/// Arrow points up for ascending trips, down for descending, and is
+/// hidden while the car is idle, loading, or its doors are operating.
+#[allow(clippy::needless_pass_by_value)]
+pub fn sync_direction_arrows(
+    sim: Res<SimulationRes>,
+    mut arrows: Query<(&DirectionArrow, &mut Visibility, &mut Transform)>,
+) {
+    let w = sim.sim.world();
+    for (arrow, mut vis, mut tf) in &mut arrows {
+        let Some(car) = w.elevator(arrow.elevator) else {
+            *vis = Visibility::Hidden;
+            continue;
+        };
+        let target = match car.phase() {
+            ElevatorPhase::MovingToStop(target) | ElevatorPhase::Repositioning(target) => {
+                Some(target)
+            }
+            _ => None,
+        };
+        let Some(target_stop) = target else {
+            *vis = Visibility::Hidden;
+            continue;
+        };
+        let (Some(car_pos), Some(target_pos)) =
+            (w.position(arrow.elevator), w.stop_position(target_stop))
+        else {
+            *vis = Visibility::Hidden;
+            continue;
+        };
+        let going_up = target_pos > car_pos.value();
+        *vis = Visibility::Visible;
+        // RegularPolygon(sides=3) points up by default; rotate 180° to point down.
+        tf.rotation = if going_up {
+            Quat::IDENTITY
+        } else {
+            Quat::from_rotation_z(PI)
+        };
+    }
+}
+
 /// Update door-panel child transforms from the core `DoorState`.
 #[allow(clippy::needless_pass_by_value)]
 pub fn sync_door_panels(sim: Res<SimulationRes>, mut query: Query<(&DoorPanel, &mut Transform)>) {
@@ -458,13 +534,14 @@ fn door_open_fraction(state: DoorState) -> f32 {
     }
 }
 
-/// Spawn visuals for newly-appeared riders and despawn for gone ones.
+/// Spawn visuals for newly-appeared riders and mark gone ones for
+/// fade-out ([`tick_rider_fades`] despawns them once they've shrunk to 0).
 #[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
 pub fn sync_rider_visuals(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     sim: Res<SimulationRes>,
-    existing: Query<(Entity, &RiderVisual)>,
+    mut existing: Query<(Entity, &RiderVisual, &mut RiderFade)>,
     vs: Res<VisualScale>,
     rider_mats: Res<RiderMaterials>,
     style: Res<VisualStyle>,
@@ -479,14 +556,14 @@ pub fn sync_rider_visuals(
         .map(|(eid, _)| eid)
         .collect();
 
-    for (entity, vis) in &existing {
-        if !active_ids.contains(&vis.entity_id) {
-            commands.entity(entity).despawn();
+    for (_entity, vis, mut fade) in &mut existing {
+        if !active_ids.contains(&vis.entity_id) && fade.target > 0.0 {
+            fade.target = 0.0;
         }
     }
 
     let existing_ids: std::collections::HashSet<EntityId> =
-        existing.iter().map(|(_, v)| v.entity_id).collect();
+        existing.iter().map(|(_, v, _)| v.entity_id).collect();
 
     for (rider_eid, rider) in w.iter_riders() {
         if matches!(rider.phase(), RiderPhase::Arrived | RiderPhase::Abandoned) {
@@ -499,6 +576,8 @@ pub fn sync_rider_visuals(
         let (x, y, mat) =
             rider_visual_params(rider_eid, rider, w, &vs, &rider_mats, &shaft_idx, &slots);
         let phase = bob_phase_for(rider_eid);
+        let mut initial_tf = Transform::from_xyz(x, y, 1.0);
+        initial_tf.scale = Vec3::splat(FADE_STEP);
 
         if style.humanoid_riders {
             // Body (pill) on z=1.0, head (circle) on z=1.1 as child.
@@ -509,11 +588,15 @@ pub fn sync_rider_visuals(
                 .spawn((
                     Mesh2d(meshes.add(Rectangle::new(body_w, body_h))),
                     MeshMaterial2d(mat.clone()),
-                    Transform::from_xyz(x, y, 1.0),
+                    initial_tf,
                     RiderVisual {
                         entity_id: rider_eid,
                     },
                     BobPhase(phase),
+                    RiderFade {
+                        current: FADE_STEP,
+                        target: 1.0,
+                    },
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -527,12 +610,39 @@ pub fn sync_rider_visuals(
             commands.spawn((
                 Mesh2d(meshes.add(Circle::new(vs.rider_radius))),
                 MeshMaterial2d(mat),
-                Transform::from_xyz(x, y, 1.0),
+                initial_tf,
                 RiderVisual {
                     entity_id: rider_eid,
                 },
                 BobPhase(phase),
+                RiderFade {
+                    current: FADE_STEP,
+                    target: 1.0,
+                },
             ));
+        }
+    }
+}
+
+/// Ease [`RiderFade::current`] toward `target` and apply it to the
+/// rider's Transform scale. Despawns once shrunken to ~0.
+#[allow(clippy::needless_pass_by_value)]
+pub fn tick_rider_fades(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut RiderFade, &mut Transform)>,
+) {
+    for (entity, mut fade, mut tf) in &mut query {
+        let delta = fade.target - fade.current;
+        if delta.abs() > FADE_STEP * 0.5 {
+            fade.current += delta.signum() * FADE_STEP;
+        } else {
+            fade.current = fade.target;
+        }
+        fade.current = fade.current.clamp(0.0, 1.0);
+        tf.scale = Vec3::splat(fade.current);
+
+        if fade.target <= 0.01 && fade.current <= 0.01 {
+            commands.entity(entity).despawn();
         }
     }
 }
