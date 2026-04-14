@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.4.0...elevator-core-v5.5.0) (2026-04-14)
+
+
+### Features
+
+* Default impl for ElevatorConfig; rewrite README with ::new() ([#53](https://github.com/andymai/elevator-core/issues/53)) ([4a6e1be](https://github.com/andymai/elevator-core/commit/4a6e1bef8e5be6719b73cde1f69e35bf8063128d))
+
 ## [5.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.3.0...elevator-core-v5.4.0) (2026-04-14)
 
 
