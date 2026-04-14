@@ -50,3 +50,17 @@ jobs:
         with:
           command: check
           arg: --workspace
+
+  msrv:
+    name: MSRV (elevator-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to the rust-version declared in the workspace Cargo.toml.
+      # Only elevator-core commits to an MSRV; elevator-bevy depends on a
+      # newer toolchain via bevy and is intentionally excluded.
+      - uses: dtolnay/rust-toolchain@1.87
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build elevator-core on MSRV
+        run: cargo build -p elevator-core --all-features
