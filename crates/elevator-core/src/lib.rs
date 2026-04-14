@@ -337,7 +337,9 @@ pub mod prelude {
     pub use crate::dispatch::reposition::{
         DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
     };
-    pub use crate::dispatch::{DispatchStrategy, RepositionStrategy};
+    pub use crate::dispatch::{
+        AssignedCar, DestinationDispatch, DispatchStrategy, RepositionStrategy,
+    };
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
     pub use crate::events::{Event, EventBus, EventCategory};

@@ -127,6 +127,15 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             if !route_ok {
                 return None;
             }
+            // Sticky hall-call destination assignment: if this rider has been
+            // assigned to another car, the current car must skip them so the
+            // assigned car can pick them up.
+            if let Some(crate::dispatch::AssignedCar(assigned)) =
+                world.get_ext::<crate::dispatch::AssignedCar>(rid)
+                && assigned != eid
+            {
+                return None;
+            }
             // Group/line match: rider must want this elevator's group (or specific line).
             if let Some(route) = world.route(rid)
                 && let Some(leg) = route.current()

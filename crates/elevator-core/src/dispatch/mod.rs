@@ -31,6 +31,8 @@
 //!     .unwrap();
 //! ```
 
+/// Hall-call destination dispatch algorithm.
+pub mod destination;
 /// Estimated Time to Destination dispatch algorithm.
 pub mod etd;
 /// LOOK dispatch algorithm.
@@ -42,6 +44,7 @@ pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
 
+pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
 pub use look::LookDispatch;
 pub use nearest_car::NearestCarDispatch;
@@ -134,6 +137,8 @@ pub enum BuiltinStrategy {
     NearestCar,
     /// Estimated Time to Destination — minimizes total cost.
     Etd,
+    /// Hall-call destination dispatch — sticky per-rider assignment.
+    Destination,
     /// Custom strategy identified by name. The game must provide a factory.
     Custom(String),
 }
@@ -145,6 +150,7 @@ impl std::fmt::Display for BuiltinStrategy {
             Self::Look => write!(f, "Look"),
             Self::NearestCar => write!(f, "NearestCar"),
             Self::Etd => write!(f, "Etd"),
+            Self::Destination => write!(f, "Destination"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -162,6 +168,7 @@ impl BuiltinStrategy {
             Self::Look => Some(Box::new(look::LookDispatch::new())),
             Self::NearestCar => Some(Box::new(nearest_car::NearestCarDispatch::new())),
             Self::Etd => Some(Box::new(etd::EtdDispatch::new())),
+            Self::Destination => Some(Box::new(destination::DestinationDispatch::new())),
             Self::Custom(_) => None,
         }
     }
@@ -353,6 +360,25 @@ impl ElevatorGroup {
 /// Convenience methods provide aggregate counts; implementations
 /// can also iterate individual riders for priority/weight-aware dispatch.
 pub trait DispatchStrategy: Send + Sync {
+    /// Optional hook called once before the per-group dispatch pass.
+    ///
+    /// Strategies that need to mutate [`World`] extension storage (e.g.
+    /// [`DestinationDispatch`] writing sticky rider → car assignments) or
+    /// [`crate::components::DestinationQueue`] entries before per-elevator
+    /// decisions override this. The default is a no-op.
+    ///
+    /// Called by [`crate::systems::dispatch::run`] for every group with
+    /// mutable world access. The corresponding [`DispatchManifest`] is
+    /// rebuilt internally so downstream `decide`/`decide_all` calls see
+    /// consistent state.
+    fn pre_dispatch(
+        &mut self,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &mut World,
+    ) {
+    }
+
     /// Decide for a single elevator.
     fn decide(
         &mut self,

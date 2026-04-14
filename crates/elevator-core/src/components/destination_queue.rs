@@ -89,6 +89,14 @@ impl DestinationQueue {
         self.queue.clear();
     }
 
+    /// Replace the queue contents with `stops` (order preserved).
+    ///
+    /// Used by direction-aware dispatch strategies that rebuild the
+    /// queue as a two-run monotone sequence.
+    pub(crate) fn replace(&mut self, stops: Vec<EntityId>) {
+        self.queue = stops;
+    }
+
     /// Retain only entries that satisfy `predicate`.
     ///
     /// Used by `remove_stop` to scrub references to a despawned stop.

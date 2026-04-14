@@ -40,6 +40,7 @@ mod world_tests;
 mod api_surface_tests;
 mod boundary_tests;
 mod braking_tests;
+mod destination_dispatch_tests;
 mod destination_queue_tests;
 mod direction_indicator_tests;
 #[cfg(feature = "energy")]
