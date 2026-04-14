@@ -1,4 +1,9 @@
 //! SCAN (elevator) dispatch algorithm — sweeps end-to-end before reversing.
+//!
+//! Originally described for disk-arm scheduling in Denning, P. J. (1967),
+//! "Effects of Scheduling on File Memory Operations", *Proc. AFIPS Spring
+//! Joint Computer Conference*, 9–21. The same sweep discipline is the
+//! textbook "elevator" algorithm.
 
 use std::collections::HashMap;
 

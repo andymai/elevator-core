@@ -1,0 +1,796 @@
+//! Simulation construction, validation, and topology assembly.
+//!
+//! Split out from `sim.rs` to keep each concern readable. Holds:
+//!
+//! - [`Simulation::new`] and [`Simulation::new_with_hooks`]
+//! - Config validation ([`Simulation::validate_config`] and helpers)
+//! - Legacy and explicit topology builders
+//! - [`Simulation::from_parts`] for snapshot restore
+//! - Dispatch, reposition, and hook registration helpers
+//!
+//! Since this is a child module of `crate::sim`, it can access `Simulation`'s
+//! private fields directly — no visibility relaxation required.
+
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Mutex;
+
+use crate::components::{Elevator, ElevatorPhase, Line, Orientation, Position, Stop, Velocity};
+use crate::config::SimConfig;
+use crate::dispatch::{
+    BuiltinReposition, BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo,
+    RepositionStrategy,
+};
+use crate::door::DoorState;
+use crate::entity::EntityId;
+use crate::error::SimError;
+use crate::events::EventBus;
+use crate::hooks::{Phase, PhaseHooks};
+use crate::ids::GroupId;
+use crate::metrics::Metrics;
+use crate::rider_index::RiderIndex;
+use crate::stop::StopId;
+use crate::time::TimeAdapter;
+use crate::topology::TopologyGraph;
+use crate::world::World;
+
+use super::Simulation;
+
+/// Bundled topology result: groups, dispatchers, and strategy IDs.
+type TopologyResult = (
+    Vec<ElevatorGroup>,
+    BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    BTreeMap<GroupId, BuiltinStrategy>,
+);
+
+impl Simulation {
+    /// Create a new simulation from config and a dispatch strategy.
+    ///
+    /// Returns `Err` if the config is invalid (zero stops, duplicate IDs,
+    /// negative speeds, etc.).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::InvalidConfig`] if the configuration has zero stops,
+    /// duplicate stop IDs, zero elevators, non-positive physics parameters,
+    /// invalid starting stops, or non-positive tick rate.
+    pub fn new(
+        config: &SimConfig,
+        dispatch: impl DispatchStrategy + 'static,
+    ) -> Result<Self, SimError> {
+        let mut dispatchers = BTreeMap::new();
+        dispatchers.insert(GroupId(0), Box::new(dispatch) as Box<dyn DispatchStrategy>);
+        Self::new_with_hooks(config, dispatchers, PhaseHooks::default())
+    }
+
+    /// Create a simulation with pre-configured lifecycle hooks.
+    ///
+    /// Used by [`SimulationBuilder`](crate::builder::SimulationBuilder).
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn new_with_hooks(
+        config: &SimConfig,
+        builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+        hooks: PhaseHooks,
+    ) -> Result<Self, SimError> {
+        Self::validate_config(config)?;
+
+        let mut world = World::new();
+
+        // Create stop entities.
+        let mut stop_lookup: HashMap<StopId, EntityId> = HashMap::new();
+        for sc in &config.building.stops {
+            let eid = world.spawn();
+            world.set_stop(
+                eid,
+                Stop {
+                    name: sc.name.clone(),
+                    position: sc.position,
+                },
+            );
+            world.set_position(eid, Position { value: sc.position });
+            stop_lookup.insert(sc.id, eid);
+        }
+
+        // Build sorted-stops index for O(log n) PassingFloor detection.
+        let mut sorted: Vec<(f64, EntityId)> = world
+            .iter_stops()
+            .map(|(eid, stop)| (stop.position, eid))
+            .collect();
+        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+        world.insert_resource(crate::world::SortedStops(sorted));
+
+        let (groups, dispatchers, strategy_ids) = if let Some(line_configs) = &config.building.lines
+        {
+            Self::build_explicit_topology(
+                &mut world,
+                config,
+                line_configs,
+                &stop_lookup,
+                builder_dispatchers,
+            )
+        } else {
+            Self::build_legacy_topology(&mut world, config, &stop_lookup, builder_dispatchers)
+        };
+
+        let dt = 1.0 / config.simulation.ticks_per_second;
+
+        world.insert_resource(crate::tagged_metrics::MetricTags::default());
+
+        // Collect line tag info (entity + name + elevator entities) before
+        // borrowing world mutably for MetricTags.
+        let line_tag_info: Vec<(EntityId, String, Vec<EntityId>)> = groups
+            .iter()
+            .flat_map(|group| {
+                group.lines().iter().filter_map(|li| {
+                    let line_comp = world.line(li.entity())?;
+                    Some((li.entity(), line_comp.name.clone(), li.elevators().to_vec()))
+                })
+            })
+            .collect();
+
+        // Tag line entities and their elevators with "line:{name}".
+        if let Some(tags) = world.resource_mut::<crate::tagged_metrics::MetricTags>() {
+            for (line_eid, name, elevators) in &line_tag_info {
+                let tag = format!("line:{name}");
+                tags.tag(*line_eid, tag.clone());
+                for elev_eid in elevators {
+                    tags.tag(*elev_eid, tag.clone());
+                }
+            }
+        }
+
+        // Wire reposition strategies from group configs.
+        let mut repositioners: BTreeMap<GroupId, Box<dyn RepositionStrategy>> = BTreeMap::new();
+        let mut reposition_ids: BTreeMap<GroupId, BuiltinReposition> = BTreeMap::new();
+        if let Some(group_configs) = &config.building.groups {
+            for gc in group_configs {
+                if let Some(ref repo_id) = gc.reposition {
+                    if let Some(strategy) = repo_id.instantiate() {
+                        let gid = GroupId(gc.id);
+                        repositioners.insert(gid, strategy);
+                        reposition_ids.insert(gid, repo_id.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(Self {
+            world,
+            events: EventBus::default(),
+            pending_output: Vec::new(),
+            tick: 0,
+            dt,
+            groups,
+            stop_lookup,
+            dispatchers,
+            strategy_ids,
+            repositioners,
+            reposition_ids,
+            metrics: Metrics::new(),
+            time: TimeAdapter::new(config.simulation.ticks_per_second),
+            hooks,
+            elevator_ids_buf: Vec::new(),
+            topo_graph: Mutex::new(TopologyGraph::new()),
+            rider_index: RiderIndex::default(),
+        })
+    }
+
+    /// Build topology from the legacy flat elevator list (single default line + group).
+    fn build_legacy_topology(
+        world: &mut World,
+        config: &SimConfig,
+        stop_lookup: &HashMap<StopId, EntityId>,
+        builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    ) -> TopologyResult {
+        let all_stop_entities: Vec<EntityId> = stop_lookup.values().copied().collect();
+        let stop_positions: Vec<f64> = config.building.stops.iter().map(|s| s.position).collect();
+        let min_pos = stop_positions.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_pos = stop_positions
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        let default_line_eid = world.spawn();
+        world.set_line(
+            default_line_eid,
+            Line {
+                name: "Default".into(),
+                group: GroupId(0),
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: min_pos,
+                max_position: max_pos,
+                max_cars: None,
+            },
+        );
+
+        let mut elevator_entities = Vec::new();
+        for ec in &config.elevators {
+            let eid = world.spawn();
+            let start_pos = config
+                .building
+                .stops
+                .iter()
+                .find(|s| s.id == ec.starting_stop)
+                .map_or(0.0, |s| s.position);
+            world.set_position(eid, Position { value: start_pos });
+            world.set_velocity(eid, Velocity { value: 0.0 });
+            let restricted: HashSet<EntityId> = ec
+                .restricted_stops
+                .iter()
+                .filter_map(|sid| stop_lookup.get(sid).copied())
+                .collect();
+            world.set_elevator(
+                eid,
+                Elevator {
+                    phase: ElevatorPhase::Idle,
+                    door: DoorState::Closed,
+                    max_speed: ec.max_speed,
+                    acceleration: ec.acceleration,
+                    deceleration: ec.deceleration,
+                    weight_capacity: ec.weight_capacity,
+                    current_load: 0.0,
+                    riders: Vec::new(),
+                    target_stop: None,
+                    door_transition_ticks: ec.door_transition_ticks,
+                    door_open_ticks: ec.door_open_ticks,
+                    line: default_line_eid,
+                    repositioning: false,
+                    restricted_stops: restricted,
+                    inspection_speed_factor: ec.inspection_speed_factor,
+                    going_up: true,
+                    going_down: true,
+                    move_count: 0,
+                },
+            );
+            #[cfg(feature = "energy")]
+            if let Some(ref profile) = ec.energy_profile {
+                world.set_energy_profile(eid, profile.clone());
+                world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+            }
+            if let Some(mode) = ec.service_mode {
+                world.set_service_mode(eid, mode);
+            }
+            world.set_destination_queue(eid, crate::components::DestinationQueue::new());
+            elevator_entities.push(eid);
+        }
+
+        let default_line_info =
+            LineInfo::new(default_line_eid, elevator_entities, all_stop_entities);
+
+        let group = ElevatorGroup::new(GroupId(0), "Default".into(), vec![default_line_info]);
+
+        // Use builder-provided dispatcher or default Scan.
+        let mut dispatchers = BTreeMap::new();
+        let dispatch = builder_dispatchers.into_iter().next().map_or_else(
+            || Box::new(crate::dispatch::scan::ScanDispatch::new()) as Box<dyn DispatchStrategy>,
+            |(_, d)| d,
+        );
+        dispatchers.insert(GroupId(0), dispatch);
+
+        let mut strategy_ids = BTreeMap::new();
+        strategy_ids.insert(GroupId(0), BuiltinStrategy::Scan);
+
+        (vec![group], dispatchers, strategy_ids)
+    }
+
+    /// Build topology from explicit `LineConfig`/`GroupConfig` definitions.
+    #[allow(clippy::too_many_lines)]
+    fn build_explicit_topology(
+        world: &mut World,
+        config: &SimConfig,
+        line_configs: &[crate::config::LineConfig],
+        stop_lookup: &HashMap<StopId, EntityId>,
+        builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+    ) -> TopologyResult {
+        // Map line config id → (line EntityId, LineInfo).
+        let mut line_map: HashMap<u32, (EntityId, LineInfo)> = HashMap::new();
+
+        for lc in line_configs {
+            // Resolve served stop entities.
+            let served_entities: Vec<EntityId> = lc
+                .serves
+                .iter()
+                .filter_map(|sid| stop_lookup.get(sid).copied())
+                .collect();
+
+            // Compute min/max from stops if not explicitly set.
+            let stop_positions: Vec<f64> = lc
+                .serves
+                .iter()
+                .filter_map(|sid| {
+                    config
+                        .building
+                        .stops
+                        .iter()
+                        .find(|s| s.id == *sid)
+                        .map(|s| s.position)
+                })
+                .collect();
+            let auto_min = stop_positions.iter().copied().fold(f64::INFINITY, f64::min);
+            let auto_max = stop_positions
+                .iter()
+                .copied()
+                .fold(f64::NEG_INFINITY, f64::max);
+
+            let min_pos = lc.min_position.unwrap_or(auto_min);
+            let max_pos = lc.max_position.unwrap_or(auto_max);
+
+            let line_eid = world.spawn();
+            // The group assignment will be set when we process GroupConfigs.
+            // Default to GroupId(0) initially.
+            world.set_line(
+                line_eid,
+                Line {
+                    name: lc.name.clone(),
+                    group: GroupId(0),
+                    orientation: lc.orientation,
+                    position: lc.position,
+                    min_position: min_pos,
+                    max_position: max_pos,
+                    max_cars: lc.max_cars,
+                },
+            );
+
+            // Spawn elevators for this line.
+            let mut elevator_entities = Vec::new();
+            for ec in &lc.elevators {
+                let eid = world.spawn();
+                let start_pos = config
+                    .building
+                    .stops
+                    .iter()
+                    .find(|s| s.id == ec.starting_stop)
+                    .map_or(0.0, |s| s.position);
+                world.set_position(eid, Position { value: start_pos });
+                world.set_velocity(eid, Velocity { value: 0.0 });
+                let restricted: HashSet<EntityId> = ec
+                    .restricted_stops
+                    .iter()
+                    .filter_map(|sid| stop_lookup.get(sid).copied())
+                    .collect();
+                world.set_elevator(
+                    eid,
+                    Elevator {
+                        phase: ElevatorPhase::Idle,
+                        door: DoorState::Closed,
+                        max_speed: ec.max_speed,
+                        acceleration: ec.acceleration,
+                        deceleration: ec.deceleration,
+                        weight_capacity: ec.weight_capacity,
+                        current_load: 0.0,
+                        riders: Vec::new(),
+                        target_stop: None,
+                        door_transition_ticks: ec.door_transition_ticks,
+                        door_open_ticks: ec.door_open_ticks,
+                        line: line_eid,
+                        repositioning: false,
+                        restricted_stops: restricted,
+                        inspection_speed_factor: ec.inspection_speed_factor,
+                        going_up: true,
+                        going_down: true,
+                        move_count: 0,
+                    },
+                );
+                #[cfg(feature = "energy")]
+                if let Some(ref profile) = ec.energy_profile {
+                    world.set_energy_profile(eid, profile.clone());
+                    world.set_energy_metrics(eid, crate::energy::EnergyMetrics::default());
+                }
+                if let Some(mode) = ec.service_mode {
+                    world.set_service_mode(eid, mode);
+                }
+                world.set_destination_queue(eid, crate::components::DestinationQueue::new());
+                elevator_entities.push(eid);
+            }
+
+            let line_info = LineInfo::new(line_eid, elevator_entities, served_entities);
+            line_map.insert(lc.id, (line_eid, line_info));
+        }
+
+        // Build groups from GroupConfigs, or auto-infer a single group.
+        let group_configs = config.building.groups.as_deref();
+        let mut groups = Vec::new();
+        let mut dispatchers = BTreeMap::new();
+        let mut strategy_ids = BTreeMap::new();
+
+        if let Some(gcs) = group_configs {
+            for gc in gcs {
+                let group_id = GroupId(gc.id);
+
+                let mut group_lines = Vec::new();
+
+                for &lid in &gc.lines {
+                    if let Some((line_eid, li)) = line_map.get(&lid) {
+                        // Update the line's group assignment.
+                        if let Some(line_comp) = world.line_mut(*line_eid) {
+                            line_comp.group = group_id;
+                        }
+                        group_lines.push(li.clone());
+                    }
+                }
+
+                let group = ElevatorGroup::new(group_id, gc.name.clone(), group_lines);
+                groups.push(group);
+
+                // GroupConfig strategy; builder overrides applied after this loop.
+                let dispatch: Box<dyn DispatchStrategy> = gc
+                    .dispatch
+                    .instantiate()
+                    .unwrap_or_else(|| Box::new(crate::dispatch::scan::ScanDispatch::new()));
+                dispatchers.insert(group_id, dispatch);
+                strategy_ids.insert(group_id, gc.dispatch.clone());
+            }
+        } else {
+            // No explicit groups — create a single default group with all lines.
+            let group_id = GroupId(0);
+            let mut group_lines = Vec::new();
+
+            for (line_eid, li) in line_map.values() {
+                if let Some(line_comp) = world.line_mut(*line_eid) {
+                    line_comp.group = group_id;
+                }
+                group_lines.push(li.clone());
+            }
+
+            let group = ElevatorGroup::new(group_id, "Default".into(), group_lines);
+            groups.push(group);
+
+            let dispatch: Box<dyn DispatchStrategy> =
+                Box::new(crate::dispatch::scan::ScanDispatch::new());
+            dispatchers.insert(group_id, dispatch);
+            strategy_ids.insert(group_id, BuiltinStrategy::Scan);
+        }
+
+        // Override with builder-provided dispatchers (they take precedence).
+        for (gid, d) in builder_dispatchers {
+            dispatchers.insert(gid, d);
+        }
+
+        (groups, dispatchers, strategy_ids)
+    }
+
+    /// Restore a simulation from pre-built parts (used by snapshot restore).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_parts(
+        world: World,
+        tick: u64,
+        dt: f64,
+        groups: Vec<ElevatorGroup>,
+        stop_lookup: HashMap<StopId, EntityId>,
+        dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
+        strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
+        metrics: Metrics,
+        ticks_per_second: f64,
+    ) -> Self {
+        let mut rider_index = RiderIndex::default();
+        rider_index.rebuild(&world);
+        Self {
+            world,
+            events: EventBus::default(),
+            pending_output: Vec::new(),
+            tick,
+            dt,
+            groups,
+            stop_lookup,
+            dispatchers,
+            strategy_ids,
+            repositioners: BTreeMap::new(),
+            reposition_ids: BTreeMap::new(),
+            metrics,
+            time: TimeAdapter::new(ticks_per_second),
+            hooks: PhaseHooks::default(),
+            elevator_ids_buf: Vec::new(),
+            topo_graph: Mutex::new(TopologyGraph::new()),
+            rider_index,
+        }
+    }
+
+    /// Validate configuration before constructing the simulation.
+    pub(crate) fn validate_config(config: &SimConfig) -> Result<(), SimError> {
+        if config.building.stops.is_empty() {
+            return Err(SimError::InvalidConfig {
+                field: "building.stops",
+                reason: "at least one stop is required".into(),
+            });
+        }
+
+        // Check for duplicate stop IDs.
+        let mut seen_ids = HashSet::new();
+        for stop in &config.building.stops {
+            if !seen_ids.insert(stop.id) {
+                return Err(SimError::InvalidConfig {
+                    field: "building.stops",
+                    reason: format!("duplicate {}", stop.id),
+                });
+            }
+        }
+
+        let stop_ids: HashSet<StopId> = config.building.stops.iter().map(|s| s.id).collect();
+
+        if let Some(line_configs) = &config.building.lines {
+            // ── Explicit topology validation ──
+            Self::validate_explicit_topology(line_configs, &stop_ids, &config.building)?;
+        } else {
+            // ── Legacy flat elevator list validation ──
+            Self::validate_legacy_elevators(&config.elevators, &config.building)?;
+        }
+
+        if config.simulation.ticks_per_second <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "simulation.ticks_per_second",
+                reason: format!(
+                    "must be positive, got {}",
+                    config.simulation.ticks_per_second
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate the legacy flat elevator list.
+    fn validate_legacy_elevators(
+        elevators: &[crate::config::ElevatorConfig],
+        building: &crate::config::BuildingConfig,
+    ) -> Result<(), SimError> {
+        if elevators.is_empty() {
+            return Err(SimError::InvalidConfig {
+                field: "elevators",
+                reason: "at least one elevator is required".into(),
+            });
+        }
+
+        for elev in elevators {
+            Self::validate_elevator_config(elev, building)?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate a single elevator config's physics and starting stop.
+    fn validate_elevator_config(
+        elev: &crate::config::ElevatorConfig,
+        building: &crate::config::BuildingConfig,
+    ) -> Result<(), SimError> {
+        if elev.max_speed <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.max_speed",
+                reason: format!("must be positive, got {}", elev.max_speed),
+            });
+        }
+        if elev.acceleration <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.acceleration",
+                reason: format!("must be positive, got {}", elev.acceleration),
+            });
+        }
+        if elev.deceleration <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.deceleration",
+                reason: format!("must be positive, got {}", elev.deceleration),
+            });
+        }
+        if elev.weight_capacity <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.weight_capacity",
+                reason: format!("must be positive, got {}", elev.weight_capacity),
+            });
+        }
+        if elev.inspection_speed_factor <= 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.inspection_speed_factor",
+                reason: format!("must be positive, got {}", elev.inspection_speed_factor),
+            });
+        }
+        if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.starting_stop",
+                reason: format!("references non-existent {}", elev.starting_stop),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate explicit line/group topology.
+    fn validate_explicit_topology(
+        line_configs: &[crate::config::LineConfig],
+        stop_ids: &HashSet<StopId>,
+        building: &crate::config::BuildingConfig,
+    ) -> Result<(), SimError> {
+        // No duplicate line IDs.
+        let mut seen_line_ids = HashSet::new();
+        for lc in line_configs {
+            if !seen_line_ids.insert(lc.id) {
+                return Err(SimError::InvalidConfig {
+                    field: "building.lines",
+                    reason: format!("duplicate line id {}", lc.id),
+                });
+            }
+        }
+
+        // Every line's serves must reference existing stops.
+        for lc in line_configs {
+            for sid in &lc.serves {
+                if !stop_ids.contains(sid) {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.lines.serves",
+                        reason: format!("line {} references non-existent {}", lc.id, sid),
+                    });
+                }
+            }
+            // Validate elevators within each line.
+            for ec in &lc.elevators {
+                Self::validate_elevator_config(ec, building)?;
+            }
+
+            // Validate max_cars is not exceeded.
+            if let Some(max) = lc.max_cars {
+                if lc.elevators.len() > max {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.lines.max_cars",
+                        reason: format!(
+                            "line {} has {} elevators but max_cars is {max}",
+                            lc.id,
+                            lc.elevators.len()
+                        ),
+                    });
+                }
+            }
+        }
+
+        // At least one line with at least one elevator.
+        let has_elevator = line_configs.iter().any(|lc| !lc.elevators.is_empty());
+        if !has_elevator {
+            return Err(SimError::InvalidConfig {
+                field: "building.lines",
+                reason: "at least one line must have at least one elevator".into(),
+            });
+        }
+
+        // No orphaned stops: every stop must be served by at least one line.
+        let served: HashSet<StopId> = line_configs
+            .iter()
+            .flat_map(|lc| lc.serves.iter().copied())
+            .collect();
+        for sid in stop_ids {
+            if !served.contains(sid) {
+                return Err(SimError::InvalidConfig {
+                    field: "building.lines",
+                    reason: format!("orphaned stop {sid} not served by any line"),
+                });
+            }
+        }
+
+        // Validate groups if present.
+        if let Some(group_configs) = &building.groups {
+            let line_id_set: HashSet<u32> = line_configs.iter().map(|lc| lc.id).collect();
+
+            let mut seen_group_ids = HashSet::new();
+            for gc in group_configs {
+                if !seen_group_ids.insert(gc.id) {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.groups",
+                        reason: format!("duplicate group id {}", gc.id),
+                    });
+                }
+                for &lid in &gc.lines {
+                    if !line_id_set.contains(&lid) {
+                        return Err(SimError::InvalidConfig {
+                            field: "building.groups.lines",
+                            reason: format!(
+                                "group {} references non-existent line id {}",
+                                gc.id, lid
+                            ),
+                        });
+                    }
+                }
+            }
+
+            // Check for orphaned lines (not referenced by any group).
+            let referenced_line_ids: HashSet<u32> = group_configs
+                .iter()
+                .flat_map(|g| g.lines.iter().copied())
+                .collect();
+            for lc in line_configs {
+                if !referenced_line_ids.contains(&lc.id) {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.lines",
+                        reason: format!("line {} is not assigned to any group", lc.id),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    // ── Dispatch management ──────────────────────────────────────────
+
+    /// Replace the dispatch strategy for a group.
+    ///
+    /// The `id` parameter identifies the strategy for snapshot serialization.
+    /// Use `BuiltinStrategy::Custom("name")` for custom strategies.
+    pub fn set_dispatch(
+        &mut self,
+        group: GroupId,
+        strategy: Box<dyn DispatchStrategy>,
+        id: crate::dispatch::BuiltinStrategy,
+    ) {
+        self.dispatchers.insert(group, strategy);
+        self.strategy_ids.insert(group, id);
+    }
+
+    // ── Reposition management ─────────────────────────────────────────
+
+    /// Set the reposition strategy for a group.
+    ///
+    /// Enables the reposition phase for this group. Idle elevators will
+    /// be repositioned according to the strategy after each dispatch phase.
+    pub fn set_reposition(
+        &mut self,
+        group: GroupId,
+        strategy: Box<dyn RepositionStrategy>,
+        id: BuiltinReposition,
+    ) {
+        self.repositioners.insert(group, strategy);
+        self.reposition_ids.insert(group, id);
+    }
+
+    /// Remove the reposition strategy for a group, disabling repositioning.
+    pub fn remove_reposition(&mut self, group: GroupId) {
+        self.repositioners.remove(&group);
+        self.reposition_ids.remove(&group);
+    }
+
+    /// Get the reposition strategy identifier for a group.
+    #[must_use]
+    pub fn reposition_id(&self, group: GroupId) -> Option<&BuiltinReposition> {
+        self.reposition_ids.get(&group)
+    }
+
+    // ── Hooks ────────────────────────────────────────────────────────
+
+    /// Register a hook to run before a simulation phase.
+    ///
+    /// Hooks are called in registration order. The hook receives mutable
+    /// access to the world, allowing entity inspection or modification.
+    pub fn add_before_hook(
+        &mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_before(phase, Box::new(hook));
+    }
+
+    /// Register a hook to run after a simulation phase.
+    ///
+    /// Hooks are called in registration order. The hook receives mutable
+    /// access to the world, allowing entity inspection or modification.
+    pub fn add_after_hook(
+        &mut self,
+        phase: Phase,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_after(phase, Box::new(hook));
+    }
+
+    /// Register a hook to run before a phase for a specific group.
+    pub fn add_before_group_hook(
+        &mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_before_group(phase, group, Box::new(hook));
+    }
+
+    /// Register a hook to run after a phase for a specific group.
+    pub fn add_after_group_hook(
+        &mut self,
+        phase: Phase,
+        group: GroupId,
+        hook: impl Fn(&mut World) + Send + Sync + 'static,
+    ) {
+        self.hooks.add_after_group(phase, group, Box::new(hook));
+    }
+}

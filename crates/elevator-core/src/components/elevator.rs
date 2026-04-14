@@ -88,8 +88,9 @@ pub struct Elevator {
     /// a rider whose next leg goes down will not board a car with `going_down=false`.
     #[serde(default = "default_true")]
     pub(crate) going_down: bool,
-    /// Count of rounded-floor transitions (passing-floors + arrivals). Analogous
-    /// to elevator-saga's `moveCount` scoring axis.
+    /// Count of rounded-floor transitions (passing-floors + arrivals).
+    /// Useful as a scoring axis for efficiency — fewer moves per delivery
+    /// means less wasted travel.
     #[serde(default)]
     pub(crate) move_count: u64,
 }
@@ -215,8 +216,6 @@ impl Elevator {
 
     /// Count of rounded-floor transitions this elevator has made
     /// (both passing-floor crossings and arrivals).
-    ///
-    /// Analogous to elevator-saga's `moveCount` scoring axis.
     #[must_use]
     pub const fn move_count(&self) -> u64 {
         self.move_count

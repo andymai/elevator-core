@@ -89,6 +89,12 @@
 //! 8. **Metrics** — aggregates wait/ride times into [`Metrics`](metrics::Metrics)
 //!    and per-tag accumulators.
 //!
+//! For full per-phase semantics (events emitted, edge cases, design rationale),
+//! see [`ARCHITECTURE.md`][arch] §3. This crate-level summary is the short
+//! form; `ARCHITECTURE.md` is canonical.
+//!
+//! [arch]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/ARCHITECTURE.md
+//!
 //! ### Component relationships
 //!
 //! ```text
@@ -230,7 +236,18 @@ pub mod traffic;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use elevator_core::prelude::*;
+/// use elevator_core::register_extensions;
+/// use serde::{Deserialize, Serialize};
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// struct VipTag { level: u32 }
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// struct Priority { rank: u8 }
+///
+/// let mut sim = SimulationBuilder::new().build().unwrap();
 /// register_extensions!(sim.world_mut(), VipTag => "vip_tag", Priority => "priority");
 /// ```
 #[macro_export]

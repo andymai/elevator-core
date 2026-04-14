@@ -40,7 +40,7 @@ pub struct Metrics {
     #[serde(default)]
     pub(crate) reposition_distance: f64,
     /// Total rounded-floor transitions across all elevators
-    /// (analogous to elevator-saga's `moveCount`).
+    /// (passing-floor crossings plus arrivals).
     #[serde(default)]
     pub(crate) total_moves: u64,
     /// Total riders settled as residents.
@@ -158,7 +158,7 @@ impl Metrics {
     }
 
     /// Total rounded-floor transitions across all elevators (passing-floor
-    /// crossings plus arrivals). Analogous to elevator-saga's `moveCount`.
+    /// crossings plus arrivals).
     #[must_use]
     pub const fn total_moves(&self) -> u64 {
         self.total_moves

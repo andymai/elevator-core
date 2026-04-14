@@ -2,12 +2,27 @@
 #![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items)]
 
 use elevator_core::prelude::*;
+use elevator_core::stop::StopConfig;
 
 fn main() {
     let mut sim = SimulationBuilder::new()
-        .stop(StopId(0), "Ground", 0.0)
-        .stop(StopId(1), "Floor 2", 4.0)
-        .stop(StopId(2), "Floor 3", 8.0)
+        .stops(vec![
+            StopConfig {
+                id: StopId(0),
+                name: "Ground".into(),
+                position: 0.0,
+            },
+            StopConfig {
+                id: StopId(1),
+                name: "Floor 2".into(),
+                position: 4.0,
+            },
+            StopConfig {
+                id: StopId(2),
+                name: "Floor 3".into(),
+                position: 8.0,
+            },
+        ])
         .build()
         .unwrap();
 

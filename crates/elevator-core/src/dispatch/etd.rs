@@ -1,4 +1,10 @@
 //! Estimated Time to Destination (ETD) dispatch algorithm.
+//!
+//! The per-call cost-minimization approach is drawn from Barney, G. C. &
+//! dos Santos, S. M., *Elevator Traffic Analysis, Design and Control* (2nd
+//! ed., 1985). Commercial controllers (Otis Elevonic, KONE Polaris, etc.)
+//! use variants of the same idea; this implementation is a simplified
+//! educational model, not a faithful reproduction of any vendor's system.
 
 use smallvec::SmallVec;
 
