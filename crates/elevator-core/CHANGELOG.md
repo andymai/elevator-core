@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.7.0...elevator-core-v5.8.0) (2026-04-14)
+
+
+### Features
+
+* ServiceMode::Manual with direct velocity commands ([#77](https://github.com/andymai/elevator-core/issues/77)) ([284d3bb](https://github.com/andymai/elevator-core/commit/284d3bbdca9f783fd5d7e32730e6a14eb1cbaf80))
+* sub-tick position interpolation ([#75](https://github.com/andymai/elevator-core/issues/75)) ([2ebd1df](https://github.com/andymai/elevator-core/commit/2ebd1df7520ec069b0f803e142c8c764557ad37d))
+
 ## [5.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.6.0...elevator-core-v5.7.0) (2026-04-14)
 
 
