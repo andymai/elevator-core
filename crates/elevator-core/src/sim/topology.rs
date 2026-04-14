@@ -55,6 +55,16 @@ impl Simulation {
         position: f64,
         line: EntityId,
     ) -> Result<EntityId, SimError> {
+        if !position.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "position",
+                reason: format!(
+                    "stop position must be finite (got {position}); NaN/±inf \
+                     corrupt SortedStops ordering and find_stop_at_position lookup"
+                ),
+            });
+        }
+
         let group_id = self
             .world
             .line(line)
@@ -338,6 +348,23 @@ impl Simulation {
         // Disable first to invalidate routes referencing this stop.
         let _ = self.disable(stop);
 
+        // Scrub references to the removed stop from every elevator so the
+        // post-despawn tick loop does not chase a dead EntityId through
+        // `target_stop`, the destination queue, or access-control checks.
+        let elevator_ids: Vec<EntityId> =
+            self.world.iter_elevators().map(|(eid, _, _)| eid).collect();
+        for eid in elevator_ids {
+            if let Some(car) = self.world.elevator_mut(eid) {
+                if car.target_stop == Some(stop) {
+                    car.target_stop = None;
+                }
+                car.restricted_stops.remove(&stop);
+            }
+            if let Some(q) = self.world.destination_queue_mut(eid) {
+                q.retain(|s| s != stop);
+            }
+        }
+
         // Remove from all lines and groups.
         for group in &mut self.groups {
             for line_info in group.lines_mut() {
@@ -483,6 +510,9 @@ impl Simulation {
             }
         }
 
+        let old_group_id = self.groups[old_group_idx].id();
+        let new_group_id = self.groups[new_group_idx].id();
+
         self.groups[old_group_idx].lines_mut()[old_line_idx]
             .elevators_mut()
             .retain(|&e| e != elevator);
@@ -497,10 +527,18 @@ impl Simulation {
         self.groups[old_group_idx].rebuild_caches();
         if new_group_idx != old_group_idx {
             self.groups[new_group_idx].rebuild_caches();
+
+            // Notify the old group's dispatcher so it clears per-elevator
+            // state (ScanDispatch/LookDispatch track direction by
+            // EntityId). Matches the symmetry with `remove_elevator`.
+            if let Some(old_dispatcher) = self.dispatchers.get_mut(&old_group_id) {
+                old_dispatcher.notify_removed(elevator);
+            }
         }
 
         self.mark_topo_dirty();
 
+        let _ = new_group_id; // reserved for symmetric notify_added once the trait gains one
         self.events.emit(Event::ElevatorReassigned {
             elevator,
             old_line,

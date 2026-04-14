@@ -67,6 +67,30 @@ fn add_elevator_at_runtime() {
     )));
 }
 
+/// `add_stop` must reject non-finite positions instead of silently
+/// inserting them into `SortedStops` (where `partition_point` on NaN
+/// is undefined behavior for ordering) and the position map (where
+/// `find_stop_at_position` with `f64::NAN` returns nondeterministic
+/// results).
+#[test]
+fn add_stop_rejects_non_finite_position() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    for (label, value) in [
+        ("NaN", f64::NAN),
+        ("+inf", f64::INFINITY),
+        ("-inf", f64::NEG_INFINITY),
+    ] {
+        let result = sim.add_stop(label.into(), value, line);
+        assert!(
+            matches!(result, Err(crate::error::SimError::InvalidConfig { .. })),
+            "add_stop with {label} position must return InvalidConfig, got {result:?}"
+        );
+    }
+}
+
 #[test]
 fn add_to_nonexistent_line_returns_error() {
     let config = default_config();

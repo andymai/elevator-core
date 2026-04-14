@@ -1585,6 +1585,67 @@ fn remove_line_marks_topology_graph_dirty() {
 
 // ── 14. Elevator reassignment (swing car) ────────────────────────────────────
 
+/// Cross-group reassignment must notify the old group's dispatcher so it
+/// clears per-elevator state (e.g. `ScanDispatch::direction`,
+/// `LookDispatch::direction`). Pre-fix the old dispatcher kept the stale
+/// entry, leaking memory and — for strategies that consult it — mis-
+/// dispatching the next call.
+#[test]
+fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
+    use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
+    use crate::entity::EntityId;
+    use crate::world::World;
+    use std::sync::{Arc, Mutex};
+
+    /// Dispatcher that records every `notify_removed` call it receives.
+    struct TrackingDispatch {
+        removed: Arc<Mutex<Vec<EntityId>>>,
+        inner: ScanDispatch,
+    }
+    impl DispatchStrategy for TrackingDispatch {
+        fn decide(
+            &mut self,
+            elevator: EntityId,
+            position: f64,
+            group: &ElevatorGroup,
+            manifest: &DispatchManifest,
+            world: &World,
+        ) -> DispatchDecision {
+            self.inner
+                .decide(elevator, position, group, manifest, world)
+        }
+        fn notify_removed(&mut self, elevator: EntityId) {
+            self.removed.lock().unwrap().push(elevator);
+            self.inner.notify_removed(elevator);
+        }
+    }
+
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let old_removed = Arc::new(Mutex::new(Vec::<EntityId>::new()));
+    sim.dispatchers_mut().insert(
+        GroupId(0),
+        Box::new(TrackingDispatch {
+            removed: old_removed.clone(),
+            inner: ScanDispatch::new(),
+        }),
+    );
+
+    let low_line = sim.lines_in_group(GroupId(0))[0];
+    let high_line = sim.lines_in_group(GroupId(1))[0];
+    let low_elevator = sim.elevators_on_line(low_line)[0];
+
+    sim.reassign_elevator_to_line(low_elevator, high_line)
+        .unwrap();
+
+    let saw_removal = old_removed.lock().unwrap().contains(&low_elevator);
+    assert!(
+        saw_removal,
+        "old group's dispatcher should receive notify_removed for cross-group reassignment"
+    );
+}
+
 #[test]
 fn reassign_elevator_to_line_moves_elevator() {
     let config = two_group_config();

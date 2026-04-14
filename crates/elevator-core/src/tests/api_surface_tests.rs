@@ -219,6 +219,61 @@ fn remove_stop_with_waiting_rider_invalidates_route() {
     );
 }
 
+/// `remove_stop` must not leave dangling references in elevator state.
+/// Pre-fix: `target_stop`, `DestinationQueue`, and `restricted_stops` all
+/// kept pointing at the despawned `EntityId`, which caused subsequent
+/// `movement`/`advance_queue` phases to ask `world.stop_position(target_stop)`
+/// and get `None`, potentially stalling the elevator.
+#[test]
+fn remove_stop_clears_dangling_references_on_elevator() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let stop2 = sim.stop_entity(StopId(2)).unwrap();
+    let elev = sim.groups()[0].elevator_entities()[0];
+
+    // Queue stop 2 as a destination, then dispatch so the elevator picks
+    // it as its target.
+    sim.push_destination(elev, stop2).unwrap();
+    sim.step();
+
+    // Seed the restricted_stops set directly (normally populated via
+    // config but we want to cover the cleanup path).
+    if let Some(car) = sim.world_mut().elevator_mut(elev) {
+        car.restricted_stops.insert(stop2);
+    }
+
+    // Sanity: the references exist before removal.
+    let car = sim.world().elevator(elev).unwrap();
+    assert!(
+        car.target_stop == Some(stop2)
+            || sim
+                .destination_queue(elev)
+                .is_some_and(|q| q.contains(&stop2)),
+        "test precondition: elevator should reference stop2 somehow"
+    );
+    assert!(car.restricted_stops.contains(&stop2));
+
+    sim.remove_stop(stop2).unwrap();
+
+    let car = sim.world().elevator(elev).unwrap();
+    assert_ne!(
+        car.target_stop,
+        Some(stop2),
+        "target_stop must be cleared when the referenced stop is removed"
+    );
+    if let Some(q) = sim.destination_queue(elev) {
+        assert!(
+            !q.contains(&stop2),
+            "DestinationQueue must not contain the removed stop"
+        );
+    }
+    assert!(
+        !car.restricted_stops.contains(&stop2),
+        "restricted_stops must not contain the removed stop"
+    );
+}
+
 #[test]
 fn remove_nonexistent_stop_returns_entity_not_found() {
     let config = default_config();
