@@ -89,6 +89,19 @@ impl DestinationQueue {
         self.queue.clear();
     }
 
+    /// Retain only entries that satisfy `predicate`.
+    ///
+    /// Used by `remove_stop` to scrub references to a despawned stop.
+    pub(crate) fn retain(&mut self, mut predicate: impl FnMut(EntityId) -> bool) {
+        self.queue.retain(|&eid| predicate(eid));
+    }
+
+    /// `true` if the queue contains `stop` anywhere.
+    #[must_use]
+    pub fn contains(&self, stop: &EntityId) -> bool {
+        self.queue.contains(stop)
+    }
+
     /// Remove and return the front entry.
     pub(crate) fn pop_front(&mut self) -> Option<EntityId> {
         (!self.queue.is_empty()).then(|| self.queue.remove(0))

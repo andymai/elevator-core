@@ -338,6 +338,23 @@ impl Simulation {
         // Disable first to invalidate routes referencing this stop.
         let _ = self.disable(stop);
 
+        // Scrub references to the removed stop from every elevator so the
+        // post-despawn tick loop does not chase a dead EntityId through
+        // `target_stop`, the destination queue, or access-control checks.
+        let elevator_ids: Vec<EntityId> =
+            self.world.iter_elevators().map(|(eid, _, _)| eid).collect();
+        for eid in elevator_ids {
+            if let Some(car) = self.world.elevator_mut(eid) {
+                if car.target_stop == Some(stop) {
+                    car.target_stop = None;
+                }
+                car.restricted_stops.remove(&stop);
+            }
+            if let Some(q) = self.world.destination_queue_mut(eid) {
+                q.retain(|s| s != stop);
+            }
+        }
+
         // Remove from all lines and groups.
         for group in &mut self.groups {
             for line_info in group.lines_mut() {
