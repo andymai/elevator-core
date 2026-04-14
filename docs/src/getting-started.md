@@ -159,18 +159,22 @@ fn main() -> Result<(), SimError> {
     }
 
     // 4. Print summary metrics.
-    let m = sim.metrics();
     println!("\n--- Summary ---");
-    println!("Total ticks:    {}", sim.current_tick());
-    println!("Avg wait time:  {:.1} ticks", m.avg_wait_time());
-    println!("Avg ride time:  {:.1} ticks", m.avg_ride_time());
-    println!("Delivered:      {}", m.total_delivered());
+    println!("Total ticks: {}", sim.current_tick());
+    // Metrics implements Display for a compact one-liner.
+    println!("{}", sim.metrics());
 
     Ok(())
 }
 ```
 
-Run it with `cargo run` and you should see the rider move from the Lobby to Floor 3, with events printed along the way.
+Run it with `cargo run` and you should see the rider move from the Lobby to Floor 3, with events printed along the way. The summary output looks like:
+
+```text
+--- Summary ---
+Total ticks: 482
+1 delivered, avg wait 87.3t, 0% util
+```
 
 ## What just happened?
 
