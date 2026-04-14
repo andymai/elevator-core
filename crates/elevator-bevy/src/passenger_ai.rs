@@ -1,7 +1,7 @@
 //! AI-driven rider spawning at random stops with configurable intervals.
 
 use bevy::prelude::*;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::sim_bridge::{SimSpeed, SimulationRes};
 

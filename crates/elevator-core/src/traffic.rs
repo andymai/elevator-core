@@ -41,7 +41,7 @@
 use crate::config::SimConfig;
 use crate::entity::EntityId;
 use crate::stop::StopId;
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 // ── TrafficPattern ───────────────────────────────────────────────────
@@ -66,7 +66,11 @@ pub enum TrafficPattern {
 ///
 /// Returns indices into the stops slice. All pattern logic lives here;
 /// public methods just map indices to their concrete ID types.
-fn sample_indices(pattern: TrafficPattern, n: usize, rng: &mut impl Rng) -> Option<(usize, usize)> {
+fn sample_indices(
+    pattern: TrafficPattern,
+    n: usize,
+    rng: &mut impl RngExt,
+) -> Option<(usize, usize)> {
     if n < 2 {
         return None;
     }
@@ -123,7 +127,7 @@ fn sample_indices(pattern: TrafficPattern, n: usize, rng: &mut impl Rng) -> Opti
 }
 
 /// Pick two distinct random indices from `0..n`.
-fn uniform_pair_indices(n: usize, rng: &mut impl Rng) -> (usize, usize) {
+fn uniform_pair_indices(n: usize, rng: &mut impl RngExt) -> (usize, usize) {
     let o = rng.random_range(0..n);
     let mut d = rng.random_range(0..n);
     while d == o {
@@ -139,7 +143,11 @@ impl TrafficPattern {
     /// is treated as the "lobby" for peak patterns.
     ///
     /// Returns `None` if fewer than 2 stops are provided.
-    pub fn sample(&self, stops: &[EntityId], rng: &mut impl Rng) -> Option<(EntityId, EntityId)> {
+    pub fn sample(
+        &self,
+        stops: &[EntityId],
+        rng: &mut impl RngExt,
+    ) -> Option<(EntityId, EntityId)> {
         let (o, d) = sample_indices(*self, stops.len(), rng)?;
         Some((stops[o], stops[d]))
     }
@@ -151,7 +159,7 @@ impl TrafficPattern {
     pub fn sample_stop_ids(
         &self,
         stops: &[StopId],
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Option<(StopId, StopId)> {
         let (o, d) = sample_indices(*self, stops.len(), rng)?;
         Some((stops[o], stops[d]))
@@ -225,7 +233,7 @@ impl TrafficSchedule {
         &self,
         tick: u64,
         stops: &[EntityId],
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Option<(EntityId, EntityId)> {
         self.pattern_at(tick).sample(stops, rng)
     }
@@ -235,7 +243,7 @@ impl TrafficSchedule {
         &self,
         tick: u64,
         stops: &[StopId],
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Option<(StopId, StopId)> {
         self.pattern_at(tick).sample_stop_ids(stops, rng)
     }
@@ -380,7 +388,7 @@ impl PoissonSource {
         } else {
             weight_range
         };
-        let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::from_os_rng();
+        let mut rng = rand::make_rng::<rand::rngs::StdRng>();
         let next = sample_next_arrival(0, mean_interval_ticks, &mut rng);
         Self {
             stops,
@@ -557,7 +565,7 @@ impl std::fmt::Debug for PoissonSource {
 /// The uniform sample is clamped to `[0.0001, 1.0)` to avoid `ln(0) = -inf`.
 /// This caps the maximum inter-arrival time at ~9.2× the mean interval,
 /// truncating the exponential tail to prevent rare extreme gaps.
-fn sample_next_arrival(current: u64, mean_interval: u32, rng: &mut impl Rng) -> u64 {
+fn sample_next_arrival(current: u64, mean_interval: u32, rng: &mut impl RngExt) -> u64 {
     if mean_interval == 0 {
         return current + 1;
     }
