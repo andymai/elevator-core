@@ -6,7 +6,7 @@ use elevator_core::prelude::*;
 
 #[test]
 fn riders_arrive_at_destination() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
 
     // Spawn 5 riders going from ground to top.
     for _ in 0..5 {

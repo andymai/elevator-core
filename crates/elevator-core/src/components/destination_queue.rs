@@ -1,8 +1,8 @@
 //! Per-elevator destination queue (FIFO of target stop `EntityId`s).
 //!
-//! Inspired by elevator-saga's `destinationQueue` / `goToFloor(n, forceNow)`
-//! API: games can push stops to the back or the front of the queue, or clear
-//! it entirely, without writing a custom `DispatchStrategy`.
+//! Games can push stops to the back or front of the queue, or clear it
+//! entirely, without writing a custom `DispatchStrategy`. This is the
+//! imperative-dispatch escape hatch for scripted scenarios.
 //!
 //! The built-in dispatch also writes to the queue (via
 //! [`Simulation::push_destination`](crate::sim::Simulation::push_destination)),
@@ -74,7 +74,7 @@ impl DestinationQueue {
         true
     }
 
-    /// Insert a stop at the front of the queue (saga's `forceNow`).
+    /// Insert a stop at the front of the queue (jump to this destination next).
     ///
     /// Returns `true` if the stop was actually inserted. Returns `false` if
     /// the queue is non-empty and its first entry already equals `stop`.

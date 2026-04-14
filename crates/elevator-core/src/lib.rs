@@ -33,7 +33,7 @@
 //! use elevator_core::prelude::*;
 //! use elevator_core::stop::StopConfig;
 //!
-//! let mut sim = SimulationBuilder::new()
+//! let mut sim = SimulationBuilder::demo()
 //!     .stops(vec![
 //!         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
 //!         StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
@@ -88,6 +88,12 @@
 //! 7. **Loading** — boards/exits riders with capacity and preference checks.
 //! 8. **Metrics** — aggregates wait/ride times into [`Metrics`](metrics::Metrics)
 //!    and per-tag accumulators.
+//!
+//! For full per-phase semantics (events emitted, edge cases, design rationale),
+//! see [`ARCHITECTURE.md`][arch] §3. This crate-level summary is the short
+//! form; `ARCHITECTURE.md` is canonical.
+//!
+//! [arch]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/ARCHITECTURE.md
 //!
 //! ### Component relationships
 //!
@@ -230,7 +236,18 @@ pub mod traffic;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use elevator_core::prelude::*;
+/// use elevator_core::register_extensions;
+/// use serde::{Deserialize, Serialize};
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// struct VipTag { level: u32 }
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// struct Priority { rank: u8 }
+///
+/// let mut sim = SimulationBuilder::demo().build().unwrap();
 /// register_extensions!(sim.world_mut(), VipTag => "vip_tag", Priority => "priority");
 /// ```
 #[macro_export]
@@ -276,8 +293,9 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        AccessControl, DestinationQueue, Elevator, ElevatorPhase, FloorPosition, Line, Orientation,
-        Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop, Velocity,
+        AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, FloorPosition, Line,
+        Orientation, Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop,
+        Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
@@ -286,7 +304,7 @@ pub mod prelude {
     pub use crate::dispatch::{DispatchStrategy, RepositionStrategy};
     pub use crate::entity::EntityId;
     pub use crate::error::{RejectionContext, RejectionReason, SimError};
-    pub use crate::events::{Event, EventBus};
+    pub use crate::events::{Event, EventBus, EventCategory};
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{RiderBuilder, Simulation};

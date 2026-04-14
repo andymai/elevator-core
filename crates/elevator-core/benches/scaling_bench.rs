@@ -40,6 +40,11 @@ fn make_config(num_stops: u32, num_elevators: u32) -> SimConfig {
             starting_stop: StopId(i % num_stops),
             door_open_ticks: 5,
             door_transition_ticks: 3,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
         })
         .collect();
 

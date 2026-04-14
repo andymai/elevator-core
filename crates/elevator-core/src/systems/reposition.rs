@@ -71,7 +71,7 @@ pub fn run(
 
         for (elev_eid, target_stop) in decisions {
             if let Some(car) = world.elevator_mut(elev_eid) {
-                car.phase = ElevatorPhase::MovingToStop(target_stop);
+                car.phase = ElevatorPhase::Repositioning(target_stop);
                 car.target_stop = Some(target_stop);
                 car.repositioning = true;
             }

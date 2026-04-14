@@ -8,8 +8,16 @@ use crate::stop::{StopConfig, StopId};
 use std::sync::{Arc, Mutex};
 
 #[test]
-fn default_builder_produces_valid_sim() {
-    let sim = SimulationBuilder::new().build();
+fn empty_builder_fails_build() {
+    // `new()` is empty by contract; building without configuring stops and
+    // elevators must fail loudly rather than silently producing a toy sim.
+    let result = SimulationBuilder::new().build();
+    assert!(result.is_err(), "empty builder must not build successfully");
+}
+
+#[test]
+fn demo_builder_produces_valid_sim() {
+    let sim = SimulationBuilder::demo().build();
     assert!(sim.is_ok());
     let sim = sim.unwrap();
     assert_eq!(sim.current_tick(), 0);
@@ -71,7 +79,7 @@ fn from_config_produces_valid_sim() {
 
 #[test]
 fn custom_dispatch_strategy() {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .dispatch(LookDispatch::new())
         .build();
     assert!(sim.is_ok());
@@ -130,7 +138,7 @@ fn builder_hooks_are_passed_through() {
     let log = Arc::new(Mutex::new(Vec::new()));
     let log_clone = Arc::clone(&log);
 
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .before(Phase::Movement, move |_world| {
             log_clone.lock().unwrap().push("before_movement");
         })
@@ -144,7 +152,7 @@ fn builder_hooks_are_passed_through() {
 
 #[test]
 fn builder_ticks_per_second() {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .ticks_per_second(120.0)
         .build()
         .unwrap();

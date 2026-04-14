@@ -427,6 +427,82 @@ pub enum RouteInvalidReason {
     NoAlternative,
 }
 
+/// Coarse-grained classification of an [`Event`].
+///
+/// Exposes the same grouping that the `Event` variants are already
+/// commented under, so consumers can filter a drained event stream with
+/// one match arm per category rather than enumerating ~25 variants.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum EventCategory {
+    /// Elevator motion, arrival/departure, and door state.
+    Elevator,
+    /// Rider lifecycle: spawn, board, exit, reject, abandon, despawn, settle, reroute.
+    Rider,
+    /// Dispatch decisions and bookkeeping.
+    Dispatch,
+    /// Runtime topology mutations (entities/lines/groups added, removed, reassigned).
+    Topology,
+    /// Idle-elevator repositioning activity.
+    Reposition,
+    /// Direction indicator lamp state changes.
+    Direction,
+    /// Observability and misc signals (capacity, service mode, energy, etc.).
+    Observability,
+}
+
+impl Event {
+    /// Classify this event into a coarse-grained [`EventCategory`].
+    ///
+    /// Useful when a consumer only cares about, say, rider activity and
+    /// wants to skip elevator-motion and topology chatter without
+    /// enumerating every variant. The exhaustive match inside guarantees
+    /// the method stays in sync when new variants are added.
+    #[must_use]
+    pub const fn category(&self) -> EventCategory {
+        match self {
+            Self::ElevatorDeparted { .. }
+            | Self::ElevatorArrived { .. }
+            | Self::DoorOpened { .. }
+            | Self::DoorClosed { .. }
+            | Self::PassingFloor { .. }
+            | Self::ElevatorIdle { .. } => EventCategory::Elevator,
+            Self::RiderSpawned { .. }
+            | Self::RiderBoarded { .. }
+            | Self::RiderExited { .. }
+            | Self::RiderRejected { .. }
+            | Self::RiderAbandoned { .. }
+            | Self::RiderEjected { .. }
+            | Self::RouteInvalidated { .. }
+            | Self::RiderRerouted { .. }
+            | Self::RiderSettled { .. }
+            | Self::RiderDespawned { .. } => EventCategory::Rider,
+            Self::ElevatorAssigned { .. } | Self::DestinationQueued { .. } => {
+                EventCategory::Dispatch
+            }
+            Self::StopAdded { .. }
+            | Self::StopRemoved { .. }
+            | Self::ElevatorAdded { .. }
+            | Self::ElevatorRemoved { .. }
+            | Self::EntityDisabled { .. }
+            | Self::EntityEnabled { .. }
+            | Self::LineAdded { .. }
+            | Self::LineRemoved { .. }
+            | Self::LineReassigned { .. }
+            | Self::ElevatorReassigned { .. } => EventCategory::Topology,
+            Self::ElevatorRepositioning { .. } | Self::ElevatorRepositioned { .. } => {
+                EventCategory::Reposition
+            }
+            Self::DirectionIndicatorChanged { .. } => EventCategory::Direction,
+            Self::ServiceModeChanged { .. } | Self::CapacityChanged { .. } => {
+                EventCategory::Observability
+            }
+            #[cfg(feature = "energy")]
+            Self::EnergyConsumed { .. } => EventCategory::Observability,
+        }
+    }
+}
+
 /// Collects simulation events for consumers to drain.
 #[derive(Debug, Default)]
 pub struct EventBus {

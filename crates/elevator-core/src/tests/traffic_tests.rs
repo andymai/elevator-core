@@ -358,7 +358,7 @@ fn poisson_source_no_arrivals_with_huge_interval() {
 fn poisson_source_from_config() {
     use crate::builder::SimulationBuilder;
 
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     // SimulationBuilder doesn't store config, but we can build a source manually
     // using the same defaults.
     let stops: Vec<StopId> = sim.stop_lookup_iter().map(|(id, _)| *id).collect();
@@ -381,7 +381,7 @@ fn poisson_source_from_config() {
 fn poisson_source_integration_with_simulation() {
     use crate::builder::SimulationBuilder;
 
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     let stops: Vec<StopId> = sim.stop_lookup_iter().map(|(id, _)| *id).collect();
 
     let mut source = PoissonSource::new(

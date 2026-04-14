@@ -7,7 +7,7 @@ use crate::stop::StopId;
 
 #[test]
 fn is_elevator_returns_true_for_elevators() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     let elevator_id = sim
         .world()
         .iter_elevators()
@@ -21,7 +21,7 @@ fn is_elevator_returns_true_for_elevators() {
 
 #[test]
 fn is_stop_returns_true_for_stops() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     let stop_id = sim.stop_entity(StopId(0)).unwrap();
     assert!(sim.is_stop(stop_id));
     assert!(!sim.is_elevator(stop_id));
@@ -30,7 +30,7 @@ fn is_stop_returns_true_for_stops() {
 
 #[test]
 fn is_rider_returns_true_for_riders() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
         .unwrap();
@@ -43,13 +43,13 @@ fn is_rider_returns_true_for_riders() {
 
 #[test]
 fn idle_elevator_count_starts_at_one() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     assert_eq!(sim.idle_elevator_count(), 1);
 }
 
 #[test]
 fn idle_elevator_count_decreases_when_moving() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
         .unwrap();
 
@@ -68,7 +68,7 @@ fn idle_elevator_count_decreases_when_moving() {
 
 #[test]
 fn elevator_load_starts_at_zero() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     let elevator_id = sim
         .world()
         .iter_elevators()
@@ -80,14 +80,14 @@ fn elevator_load_starts_at_zero() {
 
 #[test]
 fn elevator_load_returns_none_for_non_elevator() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     let stop_id = sim.stop_entity(StopId(0)).unwrap();
     assert_eq!(sim.elevator_load(stop_id), None);
 }
 
 #[test]
 fn elevators_in_phase_counts_correctly() {
-    let sim = SimulationBuilder::new().build().unwrap();
+    let sim = SimulationBuilder::demo().build().unwrap();
     assert_eq!(sim.elevators_in_phase(ElevatorPhase::Idle), 1);
     assert_eq!(sim.elevators_in_phase(ElevatorPhase::Loading), 0);
     assert_eq!(sim.elevators_in_phase(ElevatorPhase::DoorOpening), 0);
@@ -95,7 +95,7 @@ fn elevators_in_phase_counts_correctly() {
 
 #[test]
 fn disabled_elevators_excluded_from_counts() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     let elevator_id = sim
         .world()
         .iter_elevators()
@@ -116,7 +116,7 @@ fn disabled_elevators_excluded_from_counts() {
 
 #[test]
 fn capacity_changed_emitted_on_disable_with_load() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     let rider = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
         .unwrap();
@@ -168,7 +168,7 @@ fn capacity_changed_emitted_on_disable_with_load() {
 
 #[test]
 fn capacity_changed_emitted_on_boarding() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
         .unwrap();
 
@@ -200,7 +200,7 @@ fn capacity_changed_emitted_on_boarding() {
 
 #[test]
 fn capacity_changed_emitted_on_exit() {
-    let mut sim = SimulationBuilder::new().build().unwrap();
+    let mut sim = SimulationBuilder::demo().build().unwrap();
     sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
         .unwrap();
 

@@ -11,7 +11,7 @@
 //! #[derive(Debug, Clone, Serialize, Deserialize)]
 //! struct VipTag { level: u32 }
 //!
-//! let mut sim = SimulationBuilder::new().build().unwrap();
+//! let mut sim = SimulationBuilder::demo().build().unwrap();
 //! let rider_eid = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
 //!
 //! // Attach an extension component.

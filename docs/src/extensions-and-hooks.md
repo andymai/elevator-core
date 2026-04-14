@@ -31,7 +31,7 @@ Call `.with_ext::<T>("name")` on the builder to register the extension type. The
 use elevator_core::prelude::*;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .with_ext::<VipTag>("vip_tag")
         .build()?;
     Ok(())
@@ -49,7 +49,7 @@ Use `world.insert_ext()` to attach your component to an entity:
 # use elevator_core::prelude::*;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new().with_ext::<VipTag>("vip_tag").build()?;
+# let mut sim = SimulationBuilder::demo().with_ext::<VipTag>("vip_tag").build()?;
 let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
@@ -131,7 +131,7 @@ Hooks let you inject custom logic before or after any of the seven tick phases. 
 use elevator_core::prelude::*;
 
 fn main() -> Result<(), SimError> {
-    let sim = SimulationBuilder::new()
+    let sim = SimulationBuilder::demo()
         .after(Phase::Loading, |world| {
             // This runs after every Loading phase.
             // Check for newly arrived riders, update scores, etc.
@@ -152,7 +152,7 @@ You can also add hooks to a running simulation:
 ```rust,no_run
 # use elevator_core::prelude::*;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new().build()?;
+# let mut sim = SimulationBuilder::demo().build()?;
 sim.add_after_hook(Phase::Loading, |world| {
     // Post-loading logic
 });
@@ -167,7 +167,7 @@ For multi-group buildings, you can register hooks that only fire for a specific 
 ```rust,no_run
 # use elevator_core::prelude::*;
 # fn main() -> Result<(), SimError> {
-let sim = SimulationBuilder::new()
+let sim = SimulationBuilder::demo()
     .after_group(Phase::Loading, GroupId(0), |world| {
         // Only runs after loading for group 0
     })
@@ -224,7 +224,7 @@ struct WaitWarning {
 }
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![])
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)

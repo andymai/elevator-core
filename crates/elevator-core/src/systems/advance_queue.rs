@@ -14,8 +14,11 @@
 //!   if we're already at that stop, pop it and open doors; otherwise
 //!   transition to `MovingToStop(front)`.
 //! - If phase is `MovingToStop(t)` and `queue.front() != Some(t)`:
-//!   redirect to the new front (or fall back to `Idle` if the queue is empty
-//!   and we are not repositioning).
+//!   redirect to the new front.
+//! - If phase is `Repositioning(t)` and `queue.front()` exists and differs
+//!   from `t`: the imperative push wins. The repositioning move is
+//!   cancelled (flag cleared, variant promoted to `MovingToStop(front)`)
+//!   so game-driven itineraries override opportunistic reposition moves.
 
 use crate::components::ElevatorPhase;
 use crate::door::DoorState;
@@ -51,16 +54,19 @@ pub fn run(
         let Some(car) = world.elevator(eid) else {
             continue;
         };
-        // Don't interfere with repositioning — it has its own lifecycle.
-        if car.repositioning {
-            continue;
-        }
         let phase = car.phase;
         let current_target = car.target_stop;
+        let is_repositioning = car.repositioning;
         let Some(queue) = world.destination_queue(eid) else {
             continue;
         };
         let front = queue.front();
+
+        // A repositioning car with no imperative push in its queue keeps
+        // repositioning — only explicit game-driven pushes should override.
+        if is_repositioning && front.is_none() {
+            continue;
+        }
 
         match phase {
             ElevatorPhase::Idle | ElevatorPhase::Stopped => {
@@ -99,7 +105,7 @@ pub fn run(
                     }
                 }
             }
-            ElevatorPhase::MovingToStop(t) => {
+            ElevatorPhase::MovingToStop(t) | ElevatorPhase::Repositioning(t) => {
                 if front == Some(t) {
                     // In sync — nothing to do.
                     continue;
@@ -109,8 +115,12 @@ pub fn run(
                         let pos = world.position(eid).map_or(0.0, |p| p.value);
                         let (new_up, new_down) = indicators_for_travel(world, new_target, pos);
                         if let Some(car) = world.elevator_mut(eid) {
+                            // Imperative push promotes a reposition move
+                            // into a dispatched trip; clear the flag so
+                            // Movement phase runs the full arrival cycle.
                             car.phase = ElevatorPhase::MovingToStop(new_target);
                             car.target_stop = Some(new_target);
+                            car.repositioning = false;
                         }
                         update_indicators(world, events, eid, new_up, new_down, ctx.tick);
                     }

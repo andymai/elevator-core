@@ -204,6 +204,7 @@ impl Default for TopologyGraph {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::dispatch::LineInfo;
@@ -330,9 +331,7 @@ mod tests {
         let mut graph = TopologyGraph::new();
         graph.rebuild(&groups);
 
-        let route = graph.shortest_route(a, b);
-        assert!(route.is_some());
-        let route = route.map_or_else(|| panic!("expected Some"), |r| r);
+        let route = graph.shortest_route(a, b).expect("expected direct route");
         assert_eq!(route.legs.len(), 1);
         assert_eq!(route.legs[0].from, a);
         assert_eq!(route.legs[0].to, b);
@@ -354,9 +353,7 @@ mod tests {
         let mut graph = TopologyGraph::new();
         graph.rebuild(&groups);
 
-        let route = graph.shortest_route(a, c);
-        assert!(route.is_some());
-        let route = route.map_or_else(|| panic!("expected Some"), |r| r);
+        let route = graph.shortest_route(a, c).expect("expected transfer route");
         assert_eq!(route.legs.len(), 2);
         assert_eq!(route.legs[0].from, a);
         assert_eq!(route.legs[0].to, b);

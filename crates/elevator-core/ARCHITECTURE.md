@@ -149,14 +149,30 @@ elevator is already at the target stop, doors open immediately.
 
 Optional per-group phase. Only acts on elevators still in `Idle` phase after
 dispatch (no pending assignment). Each group's `RepositionStrategy` decides
-where to send idle cars for better coverage. Sets `Elevator.repositioning = true`
-so the movement system can distinguish repositioning from dispatch arrivals.
+where to send idle cars for better coverage. Sets phase to
+`ElevatorPhase::Repositioning(stop)` (distinct from `MovingToStop(stop)`)
+and flips `Elevator.repositioning = true` as a convenience flag for
+call-site predicates that still inspect it; the phase variant is the
+authoritative discriminator.
 
 Groups without a registered strategy skip this phase entirely.
 
 **Events:** `ElevatorRepositioning`
 
-### Phase 4: Movement (`systems/movement.rs`)
+### Phase 4: AdvanceQueue (`systems/advance_queue.rs`)
+
+Reconciles each elevator's phase and target stop with the front of its
+[`DestinationQueue`]. When imperative callers have pushed a stop via
+`push_destination` or `push_destination_front`, this phase redirects the
+car before movement is applied. If the front of the queue matches the
+current target, the phase is a no-op.
+
+Queue entries are consumed when a loading cycle completes at the target
+stop, so imperative and dispatch-driven itineraries compose naturally.
+
+**Events:** `ElevatorAssigned` (when a new target is adopted from the queue)
+
+### Phase 5: Movement (`systems/movement.rs`)
 
 Applies trapezoidal velocity profile physics (via `movement::tick_movement`)
 to all elevators in `MovingToStop` phase. The profile has three regions:
@@ -175,7 +191,7 @@ emit `ElevatorRepositioned` instead of `ElevatorArrived`.
 **Key design:** Physics parameters (max_speed, acceleration, deceleration) are
 per-elevator, stored on the `Elevator` component.
 
-### Phase 5: Doors (`systems/doors.rs`)
+### Phase 6: Doors (`systems/doors.rs`)
 
 Ticks the `DoorState` finite-state machine for each elevator:
 
@@ -190,7 +206,7 @@ Phase transitions on completion:
 
 **Events:** `DoorOpened`, `DoorClosed`
 
-### Phase 6: Loading (`systems/loading.rs`)
+### Phase 7: Loading (`systems/loading.rs`)
 
 Boards and exits riders at elevators in `Loading` phase. Uses a **two-pass
 read-then-write** approach to avoid aliasing issues:
@@ -206,7 +222,7 @@ Boarding checks weight capacity and rider preferences; failures emit
 
 **Events:** `RiderBoarded`, `RiderExited`, `RiderRejected`
 
-### Phase 7: Metrics (`systems/metrics.rs`)
+### Phase 8: Metrics (`systems/metrics.rs`)
 
 Reads events emitted during the current tick (via `EventBus::peek()`) and
 updates aggregate `Metrics`:

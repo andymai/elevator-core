@@ -101,7 +101,7 @@ use elevator_core::prelude::*;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![])
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Floor 2", 4.0)
@@ -173,7 +173,7 @@ println!("Total moves:       {}", m.total_moves());
 | `total_settled()` | Cumulative riders settled as residents |
 | `total_rerouted()` | Cumulative riders rerouted from resident phase |
 | `total_distance()` | Sum of all elevator travel distance |
-| `total_moves()` | Total rounded-floor transitions across all elevators (passing-floor crossings + arrivals; analogous to elevator-saga's `moveCount`) |
+| `total_moves()` | Total rounded-floor transitions across all elevators (passing-floor crossings + arrivals) |
 | `utilization_by_group()` | Per-group fraction of elevators currently moving |
 | `avg_utilization()` | Average utilization across all groups |
 | `reposition_distance()` | Total elevator distance traveled while repositioning |
@@ -256,7 +256,7 @@ For per-zone or per-label breakdowns, you can tag entities with string labels an
 # use elevator_core::prelude::*;
 # use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
-# let mut sim = SimulationBuilder::new().build()?;
+# let mut sim = SimulationBuilder::demo().build()?;
 // Tag a stop.
 let lobby = sim.stop_entity(StopId(0)).unwrap();
 sim.tag_entity(lobby, "zone:lobby");
@@ -294,7 +294,7 @@ use elevator_core::prelude::*;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![])
         .stop(StopId(0), "Lobby", 0.0)
         .stop(StopId(1), "Low Zone", 4.0)

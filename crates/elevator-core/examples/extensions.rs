@@ -12,7 +12,7 @@ struct VipTag {
 }
 
 fn main() {
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .with_ext::<VipTag>("vip_tag")
         .build()
         .unwrap();

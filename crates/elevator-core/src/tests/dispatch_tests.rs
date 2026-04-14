@@ -489,7 +489,7 @@ fn custom_dispatch_strategy() {
     use crate::builder::SimulationBuilder;
     use crate::stop::StopId;
 
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .dispatch(AlwaysIdleDispatch)
         .build()
         .unwrap();

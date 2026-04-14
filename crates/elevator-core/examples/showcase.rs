@@ -41,7 +41,7 @@ fn part1_basic_simulation() {
 
     // Build a simple 3-stop building with one elevator.
     // `stops()` replaces the builder's default stops entirely.
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),
@@ -123,7 +123,7 @@ fn part2_custom_dispatch() {
 
     // The ETD (Estimated Time to Destination) algorithm minimizes the total
     // cost of serving new riders while considering delay to existing ones.
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),
@@ -203,7 +203,7 @@ fn part3_extensions() {
     println!("=== Part 3: Extensions ===\n");
 
     // Register the extension type at build time for snapshot support.
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),
@@ -252,7 +252,7 @@ fn part4_lifecycle_hooks() {
     let boarding_count = Arc::new(AtomicU64::new(0));
     let boarding_count_hook = Arc::clone(&boarding_count);
 
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),
@@ -301,7 +301,7 @@ fn part4_lifecycle_hooks() {
 fn part5_metrics_deep_dive() {
     println!("=== Part 5: Metrics Deep Dive (Tags) ===\n");
 
-    let mut sim = SimulationBuilder::new()
+    let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
                 id: StopId(0),

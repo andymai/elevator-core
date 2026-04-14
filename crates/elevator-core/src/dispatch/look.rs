@@ -1,4 +1,8 @@
 //! LOOK dispatch algorithm — reverses at the last request, not the shaft end.
+//!
+//! Introduced in Merten, A. G. (1970), "Some Quantitative Techniques for
+//! File Organization" (Univ. Wisconsin tech report) as an improvement on
+//! SCAN that avoids unnecessary travel past the furthest pending request.
 
 use std::collections::HashMap;
 
