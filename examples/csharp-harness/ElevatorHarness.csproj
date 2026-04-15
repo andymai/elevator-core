@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ElevatorHarness</RootNamespace>
+    <AssemblyName>elevator-harness</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <!--
+    Stage the host-platform native cdylib next to the assembly so dlopen finds
+    it without LD_LIBRARY_PATH. The justfile populates runtimes/<rid>/native/
+    before invoking dotnet.
+  -->
+  <ItemGroup>
+    <None Include="runtimes/linux-x64/native/*" CopyToOutputDirectory="PreserveNewest" Visible="false">
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="runtimes/win-x64/native/*" CopyToOutputDirectory="PreserveNewest" Visible="false">
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="runtimes/osx-arm64/native/*" CopyToOutputDirectory="PreserveNewest" Visible="false">
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+</Project>
