@@ -2132,6 +2132,12 @@ impl Simulation {
         if self.world.hall_call(stop, direction).is_none() {
             let mut call = crate::components::HallCall::new(stop, direction, self.tick);
             call.destination = destination;
+            call.ack_latency_ticks = self.ack_latency_for_stop(stop);
+            if call.ack_latency_ticks == 0 {
+                // Controller has zero-tick latency — mark acknowledged
+                // immediately so dispatch sees the call this same tick.
+                call.acknowledged_at = Some(self.tick);
+            }
             if let Some(rid) = rider {
                 call.pending_riders.push(rid);
             }
@@ -2155,7 +2161,34 @@ impl Simulation {
                 direction,
                 tick: self.tick,
             });
+            // Zero-latency controllers acknowledge on the press tick.
+            if let Some(call) = self.world.hall_call(stop, direction)
+                && call.acknowledged_at == Some(self.tick)
+            {
+                self.events.emit(Event::HallCallAcknowledged {
+                    stop,
+                    direction,
+                    tick: self.tick,
+                });
+            }
         }
+    }
+
+    /// Ack latency for the group that serves `stop`. Defaults to 0 if
+    /// the stop belongs to no group (unreachable in normal builds).
+    fn ack_latency_for_stop(&self, stop: EntityId) -> u32 {
+        self.groups
+            .iter()
+            .find(|g| g.stop_entities().contains(&stop))
+            .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
+    }
+
+    /// Ack latency for the group that owns `car`.
+    fn ack_latency_for_car(&self, car: EntityId) -> u32 {
+        self.groups
+            .iter()
+            .find(|g| g.elevator_entities().contains(&car))
+            .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
     }
 
     /// Create or aggregate into a car call for `(car, floor)`.
@@ -2163,6 +2196,7 @@ impl Simulation {
     /// by other riders append to `pending_riders` without re-emitting.
     fn ensure_car_call(&mut self, car: EntityId, floor: EntityId, rider: Option<EntityId>) {
         let press_tick = self.tick;
+        let ack_latency = self.ack_latency_for_car(car);
         let Some(queue) = self.world.car_calls_mut(car) else {
             return;
         };
@@ -2176,6 +2210,10 @@ impl Simulation {
             }
         } else {
             let mut call = crate::components::CarCall::new(car, floor, press_tick);
+            call.ack_latency_ticks = ack_latency;
+            if ack_latency == 0 {
+                call.acknowledged_at = Some(press_tick);
+            }
             if let Some(rid) = rider {
                 call.pending_riders.push(rid);
             }

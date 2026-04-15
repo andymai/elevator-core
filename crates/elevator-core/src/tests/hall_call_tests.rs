@@ -92,3 +92,63 @@ fn pin_assignment_pins_and_assigns() {
 // API exists to construct a group in Destination mode (config wiring
 // lands in a follow-up commit). The runtime behavior is covered by
 // `register_hall_call_for_rider` internally.
+
+/// With `ack_latency_ticks = 0` (default), a call is acknowledged on
+/// the same tick it was pressed.
+#[test]
+fn zero_latency_acknowledges_immediately() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
+    assert_eq!(
+        call.acknowledged_at,
+        Some(sim.current_tick()),
+        "zero-latency controller should ack on press tick"
+    );
+    // A matching HallCallAcknowledged event should have fired.
+    let events = sim.drain_events();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::HallCallAcknowledged { .. })),
+        "zero-latency press should emit HallCallAcknowledged immediately"
+    );
+}
+
+/// When the car opens doors at a stop, any hall call in the car's
+/// indicated direction is cleared and a `HallCallCleared` event fires.
+#[test]
+fn door_opening_clears_hall_call() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    assert!(sim.world().hall_call(origin, CallDirection::Up).is_some());
+
+    // Step until a HallCallCleared event fires for the origin.
+    let mut cleared = false;
+    for _ in 0..500 {
+        sim.step();
+        for e in sim.drain_events() {
+            if let Event::HallCallCleared {
+                stop,
+                direction: CallDirection::Up,
+                ..
+            } = e
+                && stop == origin
+            {
+                cleared = true;
+            }
+        }
+        if cleared {
+            break;
+        }
+    }
+    assert!(cleared, "HallCallCleared should fire when car opens doors");
+    assert!(
+        sim.world().hall_call(origin, CallDirection::Up).is_none(),
+        "hall call should be removed once cleared"
+    );
+}

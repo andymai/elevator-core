@@ -15,6 +15,10 @@ pub fn run(
     ctx: &PhaseContext,
     elevator_ids: &[crate::entity::EntityId],
 ) {
+    // Cars that just finished opening doors — collected so hall-call
+    // clearing can run outside the `&mut Elevator` borrow below.
+    let mut just_opened: Vec<(EntityId, EntityId, bool, bool)> = Vec::new();
+
     for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
@@ -44,10 +48,15 @@ pub fn run(
         match transition {
             DoorTransition::FinishedOpening => {
                 car.phase = ElevatorPhase::Loading;
+                let (up, down) = (car.going_up, car.going_down);
+                let at_stop = car.target_stop;
                 events.emit(Event::DoorOpened {
                     elevator: eid,
                     tick: ctx.tick,
                 });
+                if let Some(stop) = at_stop {
+                    just_opened.push((eid, stop, up, down));
+                }
             }
             DoorTransition::FinishedOpen => {
                 car.phase = ElevatorPhase::DoorClosing;
@@ -62,6 +71,45 @@ pub fn run(
             }
             DoorTransition::None => {}
         }
+    }
+
+    // Mirror real-world button-light behavior: clear hall calls at the
+    // stop whose direction the arriving car is signalling. Runs outside
+    // the per-car `&mut Elevator` borrow so it can mutate `hall_calls`.
+    for (car, stop, going_up, going_down) in just_opened {
+        clear_matching_hall_calls(world, events, car, stop, going_up, going_down, ctx.tick);
+    }
+}
+
+/// Clear hall calls at `stop` whose direction matches the car's lamps.
+/// Both lamps lit (idle-at-stop) clears both sides.
+fn clear_matching_hall_calls(
+    world: &mut World,
+    events: &mut EventBus,
+    car: EntityId,
+    stop: EntityId,
+    going_up: bool,
+    going_down: bool,
+    tick: u64,
+) {
+    use crate::components::CallDirection;
+    if going_up && world.hall_call(stop, CallDirection::Up).is_some() {
+        world.remove_hall_call(stop, CallDirection::Up);
+        events.emit(Event::HallCallCleared {
+            stop,
+            direction: CallDirection::Up,
+            car,
+            tick,
+        });
+    }
+    if going_down && world.hall_call(stop, CallDirection::Down).is_some() {
+        world.remove_hall_call(stop, CallDirection::Down);
+        events.emit(Event::HallCallCleared {
+            stop,
+            direction: CallDirection::Down,
+            car,
+            tick,
+        });
     }
 }
 

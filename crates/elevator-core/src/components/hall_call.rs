@@ -76,6 +76,13 @@ pub struct HallCall {
     /// Tick at which dispatch first sees this call (after ack latency).
     /// `None` while still pending acknowledgement.
     pub acknowledged_at: Option<u64>,
+    /// Ticks the controller took to acknowledge this call, copied from
+    /// the serving group's [`ElevatorGroup::ack_latency_ticks`](
+    /// crate::dispatch::ElevatorGroup::ack_latency_ticks) when the
+    /// button was first pressed. Stored on the call itself so
+    /// `advance_transient` can tick the counter without needing to
+    /// look up the group.
+    pub ack_latency_ticks: u32,
     /// Riders currently waiting on this call. Empty in
     /// [`HallCallMode::Destination`](crate::dispatch::HallCallMode) mode
     /// — calls there carry a single destination per press instead of a
@@ -102,6 +109,7 @@ impl HallCall {
             direction,
             press_tick,
             acknowledged_at: None,
+            ack_latency_ticks: 0,
             pending_riders: Vec::new(),
             destination: None,
             assigned_car: None,

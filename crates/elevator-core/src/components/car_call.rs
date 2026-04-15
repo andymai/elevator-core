@@ -33,6 +33,9 @@ pub struct CarCall {
     /// Tick dispatch first sees this call (after ack latency).
     /// `None` while still pending acknowledgement.
     pub acknowledged_at: Option<u64>,
+    /// Ticks the controller takes to acknowledge this call. Populated
+    /// from the serving group's `ack_latency_ticks` on first press.
+    pub ack_latency_ticks: u32,
     /// Riders who pressed the button (usually one; aggregated if multiple
     /// riders heading to the same floor board together).
     pub pending_riders: Vec<EntityId>,
@@ -47,6 +50,7 @@ impl CarCall {
             floor,
             press_tick,
             acknowledged_at: None,
+            ack_latency_ticks: 0,
             pending_riders: Vec::new(),
         }
     }

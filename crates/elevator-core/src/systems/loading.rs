@@ -52,6 +52,16 @@ enum LoadAction {
         /// Elevator whose lamps are being re-lit.
         elevator: EntityId,
     },
+    /// A rider balked at an otherwise-eligible car (skipped it because
+    /// their preferences flagged it too crowded).
+    Balk {
+        /// Rider who balked.
+        rider: EntityId,
+        /// Elevator they declined to board.
+        elevator: EntityId,
+        /// Stop where the balking happened.
+        at_stop: EntityId,
+    },
 }
 
 /// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
@@ -251,6 +261,18 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                     capacity: car.weight_capacity.into(),
                 }),
             });
+            // A preference-filtered rider just balked at a crowded car.
+            // Emit an observable signal so games can animate it; the
+            // rider remains Waiting unless they also hit `rebalk_on_full`
+            // which escalates to abandonment in the next `advance_transient`
+            // pass via their balk_threshold budget.
+            if let Some(stop) = world.rider(rid).and_then(|r| r.current_stop) {
+                actions.push(LoadAction::Balk {
+                    rider: rid,
+                    elevator: eid,
+                    at_stop: stop,
+                });
+            }
         } else if direction_filtered.is_some()
             && car.riders.is_empty()
             && !(car.going_up && car.going_down)
@@ -271,6 +293,7 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
 }
 
 /// Mutation pass: apply collected actions to the world and emit events.
+#[allow(clippy::too_many_lines)]
 fn apply_actions(
     actions: Vec<LoadAction>,
     world: &mut World,
@@ -357,6 +380,18 @@ fn apply_actions(
                         tick: ctx.tick,
                     });
                 }
+                // Car-call registration: the rider "presses a floor
+                // button" for their destination. Aggregates with any
+                // existing call for the same floor. CarCall events are
+                // only meaningful in Classic mode; in Destination mode
+                // the destination was already known at press time, but
+                // emitting here is still harmless bookkeeping.
+                if let Some(dest) = world
+                    .route(rider)
+                    .and_then(crate::components::Route::current_destination)
+                {
+                    register_car_call(world, events, elevator, dest, rider, ctx.tick);
+                }
             }
             LoadAction::Reject {
                 rider,
@@ -375,8 +410,55 @@ fn apply_actions(
             LoadAction::ResetIndicators { elevator } => {
                 update_indicators(world, events, elevator, true, true, ctx.tick);
             }
+            LoadAction::Balk {
+                rider,
+                elevator,
+                at_stop,
+            } => {
+                events.emit(Event::RiderBalked {
+                    rider,
+                    elevator,
+                    at_stop,
+                    tick: ctx.tick,
+                });
+            }
         }
     }
+}
+
+/// Register a car-call on behalf of a rider who just boarded, emitting
+/// [`Event::CarButtonPressed`] for the first press per floor.
+fn register_car_call(
+    world: &mut World,
+    events: &mut EventBus,
+    car: EntityId,
+    floor: EntityId,
+    rider: EntityId,
+    tick: u64,
+) {
+    let Some(calls) = world.car_calls_mut(car) else {
+        return;
+    };
+    if let Some(existing) = calls.iter_mut().find(|c| c.floor == floor) {
+        if !existing.pending_riders.contains(&rider) {
+            existing.pending_riders.push(rider);
+        }
+        return;
+    }
+    let mut call = crate::components::CarCall::new(car, floor, tick);
+    call.pending_riders.push(rider);
+    // Loading doesn't know the group's ack latency without a groups
+    // slice in its signature. Conservative default: immediate ack —
+    // real latency enforcement happens for hall calls (the user-facing
+    // signal). CarCall latency can be plumbed through later.
+    call.acknowledged_at = Some(tick);
+    calls.push(call);
+    events.emit(Event::CarButtonPressed {
+        car,
+        floor,
+        rider,
+        tick,
+    });
 }
 
 /// One rider boards or exits per tick per elevator.
