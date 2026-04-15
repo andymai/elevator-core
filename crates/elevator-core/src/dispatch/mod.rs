@@ -258,6 +258,34 @@ impl LineInfo {
     }
 }
 
+/// How hall calls expose rider destinations to dispatch.
+///
+/// Different building eras and controller designs reveal destinations
+/// at different moments. Groups pick a mode so the sim can model both
+/// traditional up/down collective-control elevators and modern
+/// destination-dispatch lobby kiosks within the same simulation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[non_exhaustive]
+pub enum HallCallMode {
+    /// Traditional collective-control ("classic" Otis/Westinghouse).
+    ///
+    /// Riders press an up or down button in the hall; the destination
+    /// is revealed only *after* boarding, via a
+    /// [`CarCall`](crate::components::CarCall). Dispatch sees a direction
+    /// per call but does not know individual rider destinations until
+    /// they're aboard.
+    #[default]
+    Classic,
+    /// Modern destination dispatch ("DCS" — Otis `CompassPlus`, KONE
+    /// Polaris, Schindler PORT).
+    ///
+    /// Riders enter their destination at a hall kiosk, so each
+    /// [`HallCall`](crate::components::HallCall) carries a destination
+    /// stop from the moment it's pressed. Required by
+    /// [`DestinationDispatch`].
+    Destination,
+}
+
 /// Runtime elevator group: a set of lines sharing a dispatch strategy.
 ///
 /// A group is the logical dispatch unit. It contains one or more
@@ -275,6 +303,12 @@ pub struct ElevatorGroup {
     name: String,
     /// Lines belonging to this group.
     lines: Vec<LineInfo>,
+    /// How hall calls reveal destinations to dispatch (Classic vs DCS).
+    hall_call_mode: HallCallMode,
+    /// Ticks between a button press and dispatch first seeing the call.
+    /// `0` = immediate (current behavior). Realistic values: 5–30 ticks
+    /// at 60 Hz, modeling controller processing latency.
+    ack_latency_ticks: u32,
     /// Derived flat cache — rebuilt by `rebuild_caches()`.
     elevator_entities: Vec<EntityId>,
     /// Derived flat cache — rebuilt by `rebuild_caches()`.
@@ -283,17 +317,46 @@ pub struct ElevatorGroup {
 
 impl ElevatorGroup {
     /// Create a new group with the given lines. Caches are built automatically.
+    /// Defaults: [`HallCallMode::Classic`], `ack_latency_ticks = 0`.
     #[must_use]
     pub fn new(id: GroupId, name: String, lines: Vec<LineInfo>) -> Self {
         let mut group = Self {
             id,
             name,
             lines,
+            hall_call_mode: HallCallMode::default(),
+            ack_latency_ticks: 0,
             elevator_entities: Vec::new(),
             stop_entities: Vec::new(),
         };
         group.rebuild_caches();
         group
+    }
+
+    /// Override the hall call mode for this group.
+    #[must_use]
+    pub const fn with_hall_call_mode(mut self, mode: HallCallMode) -> Self {
+        self.hall_call_mode = mode;
+        self
+    }
+
+    /// Override the ack latency for this group.
+    #[must_use]
+    pub const fn with_ack_latency_ticks(mut self, ticks: u32) -> Self {
+        self.ack_latency_ticks = ticks;
+        self
+    }
+
+    /// Hall call mode for this group.
+    #[must_use]
+    pub const fn hall_call_mode(&self) -> HallCallMode {
+        self.hall_call_mode
+    }
+
+    /// Controller ack latency for this group.
+    #[must_use]
+    pub const fn ack_latency_ticks(&self) -> u32 {
+        self.ack_latency_ticks
     }
 
     /// Unique group identifier.
