@@ -178,6 +178,50 @@ fn leaving_manual_clears_target_velocity() {
 }
 
 #[test]
+fn manual_mode_updates_total_moves_metric() {
+    // Regression: tick_manual used to bump car.move_count but not
+    // metrics.total_moves, breaking the invariant that total_moves equals
+    // the sum of per-elevator move_count.
+    let (mut sim, elev) = make_manual();
+    sim.set_target_velocity(elev, 2.0).unwrap();
+    for _ in 0..300 {
+        sim.step();
+        if sim.world().position(elev).unwrap().value() > 8.5 {
+            break;
+        }
+    }
+    let car_count = sim.world().elevator(elev).unwrap().move_count();
+    assert!(car_count > 0, "expected per-elevator move_count > 0");
+    assert_eq!(
+        sim.metrics().total_moves(),
+        car_count,
+        "metrics.total_moves must match per-elevator move_count"
+    );
+}
+
+#[test]
+fn leaving_manual_zeroes_velocity() {
+    // Regression: leaving Manual while the car was moving would leave a
+    // lingering velocity that the Normal movement system never updates.
+    let (mut sim, elev) = make_manual();
+    sim.set_target_velocity(elev, 2.0).unwrap();
+    for _ in 0..200 {
+        sim.step();
+    }
+    assert!(
+        sim.velocity(elev).unwrap().abs() > 0.1,
+        "needs to be moving"
+    );
+
+    sim.set_service_mode(elev, ServiceMode::Normal).unwrap();
+    assert_eq!(
+        sim.velocity(elev).unwrap(),
+        0.0,
+        "velocity should be zeroed on Manual exit"
+    );
+}
+
+#[test]
 fn manual_mode_emits_passing_floor_events() {
     let (mut sim, elev) = make_manual();
     sim.set_target_velocity(elev, 2.0).unwrap();

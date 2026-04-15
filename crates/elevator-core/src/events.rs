@@ -416,12 +416,6 @@ pub enum Event {
         tick: u64,
     },
 
-    /// An elevator parameter was mutated at runtime via one of the
-    /// `Simulation::set_*` upgrade setters (e.g. buying a speed upgrade
-    /// in an RPG, or a scripted event changing capacity mid-game).
-    ///
-    /// Emitted immediately when the setter succeeds. Games can use this
-    /// to trigger score popups, SFX, or UI updates.
     /// A manual door-control command was received and either applied
     /// immediately or stored for later.
     ///
