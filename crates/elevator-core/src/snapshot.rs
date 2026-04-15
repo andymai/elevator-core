@@ -615,9 +615,12 @@ impl crate::sim::Simulation {
     /// the same crate version; cross-version restores return
     /// [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion).
     ///
-    /// Extension components are included as in [`Simulation::snapshot`];
-    /// custom dispatch strategies and arbitrary `World` resources are
-    /// not.
+    /// Extension component *data* is serialized (identical to
+    /// [`Simulation::snapshot`]); after restore you must still call
+    /// `world.register_ext::<T>(name)` for each extension type and then
+    /// [`Simulation::load_extensions`] to materialize them. Custom
+    /// dispatch strategies and arbitrary `World` resources are not
+    /// included.
     ///
     /// # Errors
     /// Returns [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
@@ -650,9 +653,15 @@ impl crate::sim::Simulation {
         bytes: &[u8],
         custom_strategy_factory: CustomStrategyFactory<'_>,
     ) -> Result<Self, crate::error::SimError> {
-        let (envelope, _consumed): (SnapshotEnvelope, usize) =
+        let (envelope, consumed): (SnapshotEnvelope, usize) =
             bincode::serde::decode_from_slice(bytes, bincode::config::standard())
                 .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
+        if consumed != bytes.len() {
+            return Err(crate::error::SimError::SnapshotFormat(format!(
+                "trailing bytes: consumed {consumed} of {}",
+                bytes.len()
+            )));
+        }
         if envelope.magic != SNAPSHOT_MAGIC {
             return Err(crate::error::SimError::SnapshotFormat(
                 "magic bytes do not match".to_string(),
