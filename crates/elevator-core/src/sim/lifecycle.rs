@@ -760,12 +760,18 @@ impl Simulation {
         if old == mode {
             return Ok(());
         }
-        // Leaving Manual: clear any pending velocity command so a later
-        // re-entry to Manual doesn't pick up a stale target.
-        if old == crate::components::ServiceMode::Manual
-            && let Some(car) = self.world.elevator_mut(elevator)
-        {
-            car.manual_target_velocity = None;
+        // Leaving Manual: clear the pending velocity command and zero
+        // the velocity component. Otherwise a car moving at transition
+        // time is stranded — the Normal movement system only runs for
+        // MovingToStop/Repositioning phases, so velocity would linger
+        // forever without producing any position change.
+        if old == crate::components::ServiceMode::Manual {
+            if let Some(car) = self.world.elevator_mut(elevator) {
+                car.manual_target_velocity = None;
+            }
+            if let Some(v) = self.world.velocity_mut(elevator) {
+                v.value = 0.0;
+            }
         }
         self.world.set_service_mode(elevator, mode);
         self.events.emit(Event::ServiceModeChanged {

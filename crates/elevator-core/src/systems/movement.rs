@@ -26,7 +26,7 @@ pub fn run(
             .service_mode(eid)
             .is_some_and(|m| *m == crate::components::ServiceMode::Manual)
         {
-            tick_manual(world, events, ctx, eid);
+            tick_manual(world, events, ctx, eid, metrics);
             continue;
         }
         let target_stop_eid = match world.elevator(eid) {
@@ -196,6 +196,7 @@ fn tick_manual(
     events: &mut EventBus,
     ctx: &PhaseContext,
     eid: crate::entity::EntityId,
+    metrics: &mut Metrics,
 ) {
     let Some(car) = world.elevator(eid) else {
         return;
@@ -267,5 +268,6 @@ fn tick_manual(
         && let Some(car) = world.elevator_mut(eid)
     {
         car.move_count += passing_moves;
+        metrics.total_moves += passing_moves;
     }
 }
