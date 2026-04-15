@@ -263,7 +263,7 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             });
             // A preference-filtered rider just balked at a crowded car.
             // Emit an observable signal so games can animate it; the
-            // rider remains Waiting unless they also hit `rebalk_on_full`
+            // rider remains Waiting unless they also hit `abandon_on_full`
             // which escalates to abandonment in the next `advance_transient`
             // pass via their balk_threshold budget.
             if let Some(stop) = world.rider(rid).and_then(|r| r.current_stop) {
@@ -429,11 +429,11 @@ fn apply_actions(
                     at_stop,
                     tick: ctx.tick,
                 });
-                // Honor `Preferences::rebalk_on_full`: the rider doesn't
+                // Honor `Preferences::abandon_on_full`: the rider doesn't
                 // wait for another car — they abandon immediately.
                 let escalate = world
                     .preferences(rider)
-                    .is_some_and(Preferences::rebalk_on_full);
+                    .is_some_and(Preferences::abandon_on_full);
                 if escalate
                     && world
                         .rider(rider)
