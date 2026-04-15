@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use slotmap::{SecondaryMap, SlotMap};
 
 use crate::components::{
-    AccessControl, DestinationQueue, Elevator, Line, Patience, Position, Preferences, Rider, Route,
-    ServiceMode, Stop, Velocity,
+    AccessControl, CallDirection, CarCall, DestinationQueue, Elevator, HallCall, Line, Patience,
+    Position, Preferences, Rider, Route, ServiceMode, Stop, Velocity,
 };
 #[cfg(feature = "energy")]
 use crate::energy::{EnergyMetrics, EnergyProfile};
@@ -62,6 +62,10 @@ pub struct World {
     pub(crate) service_modes: SecondaryMap<EntityId, ServiceMode>,
     /// Per-elevator destination queues.
     pub(crate) destination_queues: SecondaryMap<EntityId, DestinationQueue>,
+    /// Up/down hall call buttons per stop. At most two per stop.
+    pub(crate) hall_calls: SecondaryMap<EntityId, StopCalls>,
+    /// Floor buttons pressed inside each car (Classic mode).
+    pub(crate) car_calls: SecondaryMap<EntityId, Vec<CarCall>>,
 
     /// Disabled marker (entities skipped by all systems).
     pub(crate) disabled: SecondaryMap<EntityId, ()>,
@@ -100,6 +104,8 @@ impl World {
             energy_metrics: SecondaryMap::new(),
             service_modes: SecondaryMap::new(),
             destination_queues: SecondaryMap::new(),
+            hall_calls: SecondaryMap::new(),
+            car_calls: SecondaryMap::new(),
             disabled: SecondaryMap::new(),
             extensions: HashMap::new(),
             ext_names: HashMap::new(),
@@ -463,6 +469,89 @@ impl World {
         self.destination_queues.insert(id, queue);
     }
 
+    // ── Hall call / car call accessors ──────────────────────────────
+    //
+    // Phase wiring in follow-up commits consumes the mutators. Until
+    // that lands, `#[allow(dead_code)]` suppresses warnings that would
+    // otherwise block the build under the workspace's `deny(warnings)`.
+
+    /// Get the `(up, down)` hall call pair at a stop, if any exist.
+    #[must_use]
+    pub fn stop_calls(&self, stop: EntityId) -> Option<&StopCalls> {
+        self.hall_calls.get(stop)
+    }
+
+    /// Get a specific directional hall call at a stop.
+    #[must_use]
+    pub fn hall_call(&self, stop: EntityId, direction: CallDirection) -> Option<&HallCall> {
+        self.hall_calls.get(stop).and_then(|c| c.get(direction))
+    }
+
+    /// Mutable access to a directional hall call (crate-internal).
+    #[allow(dead_code)]
+    pub(crate) fn hall_call_mut(
+        &mut self,
+        stop: EntityId,
+        direction: CallDirection,
+    ) -> Option<&mut HallCall> {
+        self.hall_calls
+            .get_mut(stop)
+            .and_then(|c| c.get_mut(direction))
+    }
+
+    /// Insert (or replace) a hall call at `stop` in `direction`.
+    /// Returns `false` if the stop entity no longer exists in the world.
+    #[allow(dead_code)]
+    pub(crate) fn set_hall_call(&mut self, call: HallCall) -> bool {
+        let Some(entry) = self.hall_calls.entry(call.stop) else {
+            return false;
+        };
+        let slot = entry.or_default();
+        match call.direction {
+            CallDirection::Up => slot.up = Some(call),
+            CallDirection::Down => slot.down = Some(call),
+        }
+        true
+    }
+
+    /// Remove and return the hall call at `(stop, direction)`, if any.
+    #[allow(dead_code)]
+    pub(crate) fn remove_hall_call(
+        &mut self,
+        stop: EntityId,
+        direction: CallDirection,
+    ) -> Option<HallCall> {
+        let entry = self.hall_calls.get_mut(stop)?;
+        match direction {
+            CallDirection::Up => entry.up.take(),
+            CallDirection::Down => entry.down.take(),
+        }
+    }
+
+    /// Iterate every active hall call across the world.
+    pub fn iter_hall_calls(&self) -> impl Iterator<Item = &HallCall> {
+        self.hall_calls.values().flat_map(StopCalls::iter)
+    }
+
+    /// Mutable iteration over every active hall call (crate-internal).
+    #[allow(dead_code)]
+    pub(crate) fn iter_hall_calls_mut(&mut self) -> impl Iterator<Item = &mut HallCall> {
+        self.hall_calls.values_mut().flat_map(StopCalls::iter_mut)
+    }
+
+    /// Car calls currently registered inside `car`.
+    #[must_use]
+    pub fn car_calls(&self, car: EntityId) -> &[CarCall] {
+        self.car_calls.get(car).map_or(&[], Vec::as_slice)
+    }
+
+    /// Mutable access to the car-call list (crate-internal). Returns
+    /// `None` if the car entity no longer exists.
+    #[allow(dead_code)]
+    pub(crate) fn car_calls_mut(&mut self, car: EntityId) -> Option<&mut Vec<CarCall>> {
+        Some(self.car_calls.entry(car)?.or_default())
+    }
+
     // ── Typed query helpers ──────────────────────────────────────────
 
     /// Iterate all elevator entities (have `Elevator` + `Position`).
@@ -790,3 +879,45 @@ impl Default for World {
 /// Used by the movement system to detect `PassingFloor` events in O(log n)
 /// instead of O(n) per moving elevator per tick.
 pub(crate) struct SortedStops(pub(crate) Vec<(f64, EntityId)>);
+
+/// The up/down hall call pair at a single stop.
+///
+/// At most two calls coexist at a stop (one per [`CallDirection`]);
+/// this struct owns the slots. Stored in [`World::hall_calls`] keyed by
+/// the stop's entity id.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct StopCalls {
+    /// Pending upward call, if the up button is pressed.
+    pub up: Option<HallCall>,
+    /// Pending downward call, if the down button is pressed.
+    pub down: Option<HallCall>,
+}
+
+impl StopCalls {
+    /// Borrow the call for a specific direction.
+    #[must_use]
+    pub const fn get(&self, direction: CallDirection) -> Option<&HallCall> {
+        match direction {
+            CallDirection::Up => self.up.as_ref(),
+            CallDirection::Down => self.down.as_ref(),
+        }
+    }
+
+    /// Mutable borrow of the call for a direction.
+    pub const fn get_mut(&mut self, direction: CallDirection) -> Option<&mut HallCall> {
+        match direction {
+            CallDirection::Up => self.up.as_mut(),
+            CallDirection::Down => self.down.as_mut(),
+        }
+    }
+
+    /// Iterate both calls in (Up, Down) order, skipping empty slots.
+    pub fn iter(&self) -> impl Iterator<Item = &HallCall> {
+        self.up.iter().chain(self.down.iter())
+    }
+
+    /// Mutable iteration over both calls.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut HallCall> {
+        self.up.iter_mut().chain(self.down.iter_mut())
+    }
+}

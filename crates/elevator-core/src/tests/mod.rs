@@ -48,6 +48,7 @@ mod door_control_tests;
 mod energy_tests;
 mod eta_tests;
 mod event_payload_tests;
+mod hall_call_tests;
 mod manual_mode_tests;
 mod move_count_tests;
 mod multi_elevator_tests;

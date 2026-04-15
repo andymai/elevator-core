@@ -33,7 +33,30 @@ pub fn run(
             dispatch.pre_dispatch(group, &manifest, world);
         }
 
-        // Collect idle elevators in this group.
+        // Apply pinned hall-call assignments first. Pinned pairs are
+        // committed straight to `GoToStop` and excluded from the normal
+        // Hungarian matching so neither the car nor the stop can be
+        // reassigned while the pin is in effect.
+        let pinned_pairs: Vec<(EntityId, EntityId)> = world
+            .iter_hall_calls()
+            .filter(|c| c.pinned)
+            .filter_map(|c| {
+                c.assigned_car.and_then(|car| {
+                    if group.stop_entities().contains(&c.stop)
+                        && group.elevator_entities().contains(&car)
+                    {
+                        Some((car, c.stop))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        // Dispatch pool: idle/stopped cars, plus pre-pickup cars with
+        // no riders aboard. The second class enables reassignment mid-
+        // trip for cars that haven't picked anyone up yet. Cars carrying
+        // riders stay committed to their current trip.
         let idle_elevators: Vec<(EntityId, f64)> = group
             .elevator_entities()
             .iter()
@@ -41,15 +64,21 @@ pub fn run(
                 if world.is_disabled(*eid) {
                     return None;
                 }
-                // Skip elevators that opt out of automatic dispatch.
                 if world
                     .service_mode(*eid)
                     .is_some_and(|m| m.is_dispatch_excluded())
                 {
                     return None;
                 }
+                if pinned_pairs.iter().any(|(car, _)| car == eid) {
+                    return None;
+                }
                 let car = world.elevator(*eid)?;
-                if matches!(car.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped) {
+                let eligible = matches!(car.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
+                    || (matches!(car.phase, ElevatorPhase::MovingToStop(_))
+                        && car.riders.is_empty()
+                        && !car.repositioning);
+                if eligible {
                     let pos = world.position(*eid)?.value;
                     Some((*eid, pos))
                 } else {
@@ -57,6 +86,21 @@ pub fn run(
                 }
             })
             .collect();
+
+        // Commit pinned pairs directly — they bypass the Hungarian
+        // solver. Mirror the idle-pool eligibility gate so a pin can't
+        // clobber a car mid-door-cycle. Cars in Loading / DoorOpening /
+        // DoorClosing retain their current trip until doors are back to
+        // closed; the pin is honored next tick.
+        for (car_eid, stop_eid) in pinned_pairs.iter().copied() {
+            let eligible = world.elevator(car_eid).is_some_and(|c| {
+                matches!(c.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
+                    || (matches!(c.phase, ElevatorPhase::MovingToStop(_)) && c.riders.is_empty())
+            });
+            if eligible {
+                commit_go_to_stop(world, events, ctx, car_eid, stop_eid);
+            }
+        }
 
         if idle_elevators.is_empty() {
             continue;
@@ -71,80 +115,13 @@ pub fn run(
         for (eid, decision) in result.decisions {
             match decision {
                 DispatchDecision::GoToStop(stop_eid) => {
-                    let pos = world.position(eid).map_or(0.0, |p| p.value);
-                    let current_stop = world.find_stop_at_position(pos);
-
-                    events.emit(Event::ElevatorAssigned {
-                        elevator: eid,
-                        stop: stop_eid,
-                        tick: ctx.tick,
-                    });
-
-                    // Compute direction indicators from target vs current position.
-                    let target_pos = world.stop_position(stop_eid).unwrap_or(pos);
-                    let (new_up, new_down) = if target_pos > pos {
-                        (true, false)
-                    } else if target_pos < pos {
-                        (false, true)
-                    } else {
-                        // At the target already — treat as idle (both lamps lit).
-                        (true, true)
-                    };
-                    update_indicators(world, events, eid, new_up, new_down, ctx.tick);
-
-                    // Already at this stop — open doors directly, don't push.
-                    if current_stop == Some(stop_eid) {
-                        // Pop the queue front if it equals this stop, mirroring
-                        // the arrive-in-place branch of advance_queue.
-                        if let Some(q) = world.destination_queue_mut(eid)
-                            && q.front() == Some(stop_eid)
-                        {
-                            q.pop_front();
-                        }
-                        events.emit(Event::ElevatorArrived {
-                            elevator: eid,
-                            at_stop: stop_eid,
-                            tick: ctx.tick,
-                        });
-                        if let Some(car) = world.elevator_mut(eid) {
-                            car.phase = ElevatorPhase::DoorOpening;
-                            car.target_stop = Some(stop_eid);
-                            car.door = crate::door::DoorState::request_open(
-                                car.door_transition_ticks,
-                                car.door_open_ticks,
-                            );
-                        }
-                        continue;
-                    }
-
-                    // Push onto queue with adjacent dedup; emit event iff appended.
-                    // Strategies with `pre_dispatch` (e.g. DestinationDispatch)
-                    // may have already committed `stop_eid` to the queue —
-                    // short-circuit to avoid a duplicate entry and a phantom
-                    // `DestinationQueued` event.
-                    if let Some(q) = world.destination_queue_mut(eid)
-                        && !q.contains(&stop_eid)
-                        && q.push_back(stop_eid)
-                    {
-                        events.emit(Event::DestinationQueued {
-                            elevator: eid,
-                            stop: stop_eid,
-                            tick: ctx.tick,
-                        });
-                    }
-
-                    if let Some(car) = world.elevator_mut(eid) {
-                        car.phase = ElevatorPhase::MovingToStop(stop_eid);
-                        car.target_stop = Some(stop_eid);
-                        car.repositioning = false;
-                    }
-                    if let Some(from) = current_stop {
-                        events.emit(Event::ElevatorDeparted {
-                            elevator: eid,
-                            from_stop: from,
-                            tick: ctx.tick,
-                        });
-                    }
+                    commit_go_to_stop(world, events, ctx, eid, stop_eid);
+                    // Update the call's `assigned_car` so games querying
+                    // `sim.assigned_car(...)` see dispatch's choice. The
+                    // direction written matches the car's travel
+                    // direction toward the stop — opposite-direction
+                    // calls at the same floor keep their own bookkeeping.
+                    record_hall_assignment(world, stop_eid, eid);
                 }
                 DispatchDecision::Idle => {
                     // Check if elevator was already idle before setting phase.
@@ -169,6 +146,130 @@ pub fn run(
                 }
             }
         }
+    }
+}
+
+/// Commit a `GoToStop(stop_eid)` decision for `eid`. Encapsulates the
+/// indicator update, arrive-in-place short-circuit, destination-queue
+/// bookkeeping, phase transition, and departure event emission so
+/// both the main dispatch loop and the pin-enforcement path share one
+/// implementation.
+fn commit_go_to_stop(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    eid: EntityId,
+    stop_eid: EntityId,
+) {
+    // Short-circuit the common reassignment case: the same car
+    // already committed to the same stop on a prior tick. Re-emitting
+    // `ElevatorAssigned` each tick would drown observability consumers
+    // (metrics, UI) in redundant events.
+    if let Some(car) = world.elevator(eid)
+        && car.phase == ElevatorPhase::MovingToStop(stop_eid)
+    {
+        return;
+    }
+
+    let pos = world.position(eid).map_or(0.0, |p| p.value);
+    let current_stop = world.find_stop_at_position(pos);
+
+    events.emit(Event::ElevatorAssigned {
+        elevator: eid,
+        stop: stop_eid,
+        tick: ctx.tick,
+    });
+
+    let target_pos = world.stop_position(stop_eid).unwrap_or(pos);
+    let (new_up, new_down) = if target_pos > pos {
+        (true, false)
+    } else if target_pos < pos {
+        (false, true)
+    } else {
+        (true, true)
+    };
+    update_indicators(world, events, eid, new_up, new_down, ctx.tick);
+
+    if current_stop == Some(stop_eid) {
+        if let Some(q) = world.destination_queue_mut(eid)
+            && q.front() == Some(stop_eid)
+        {
+            q.pop_front();
+        }
+        events.emit(Event::ElevatorArrived {
+            elevator: eid,
+            at_stop: stop_eid,
+            tick: ctx.tick,
+        });
+        if let Some(car) = world.elevator_mut(eid) {
+            car.phase = ElevatorPhase::DoorOpening;
+            car.target_stop = Some(stop_eid);
+            car.door = crate::door::DoorState::request_open(
+                car.door_transition_ticks,
+                car.door_open_ticks,
+            );
+        }
+        return;
+    }
+
+    if let Some(q) = world.destination_queue_mut(eid)
+        && !q.contains(&stop_eid)
+        && q.push_back(stop_eid)
+    {
+        events.emit(Event::DestinationQueued {
+            elevator: eid,
+            stop: stop_eid,
+            tick: ctx.tick,
+        });
+    }
+
+    if let Some(car) = world.elevator_mut(eid) {
+        car.phase = ElevatorPhase::MovingToStop(stop_eid);
+        car.target_stop = Some(stop_eid);
+        car.repositioning = false;
+    }
+    if let Some(from) = current_stop {
+        events.emit(Event::ElevatorDeparted {
+            elevator: eid,
+            from_stop: from,
+            tick: ctx.tick,
+        });
+    }
+}
+
+/// Mirror dispatch's choice back onto the hall call so games querying
+/// `Simulation::assigned_car` see which elevator is coming.
+///
+/// The direction is inferred from the car's travel vector toward the
+/// stop: traveling up → serves the Up call; down → Down. An
+/// already-at-stop commit (equal positions) writes to whichever
+/// direction has a pending call, preferring Up if both exist. Only the
+/// matching direction is updated — the other direction's call keeps
+/// its own assignment bookkeeping.
+fn record_hall_assignment(world: &mut World, stop: EntityId, car: EntityId) {
+    use crate::components::CallDirection;
+    let Some(car_pos) = world.position(car).map(|p| p.value) else {
+        return;
+    };
+    let Some(stop_pos) = world.stop_position(stop) else {
+        return;
+    };
+    let direction = if stop_pos > car_pos {
+        CallDirection::Up
+    } else if stop_pos < car_pos {
+        CallDirection::Down
+    } else {
+        // Same position — prefer whichever call exists (Up first).
+        if world.hall_call(stop, CallDirection::Up).is_some() {
+            CallDirection::Up
+        } else {
+            CallDirection::Down
+        }
+    };
+    if let Some(call) = world.hall_call_mut(stop, direction)
+        && !call.pinned
+    {
+        call.assigned_car = Some(car);
     }
 }
 

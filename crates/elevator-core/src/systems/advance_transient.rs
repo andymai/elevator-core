@@ -1,6 +1,6 @@
 //! Phase 1: advance transient rider states and tick patience.
 
-use crate::components::{RiderPhase, Route, TransportMode};
+use crate::components::{Patience, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::rider_index::RiderIndex;
@@ -182,5 +182,96 @@ pub fn run(
             stop,
             tick: ctx.tick,
         });
+    }
+
+    // Balk-threshold abandonment: riders with `Preferences::balk_threshold_ticks`
+    // give up once their *waiting* time exceeds their budget. Uses
+    // `Patience::waited_ticks` when available — that counter only
+    // increments while the rider is in `Waiting`, so it correctly
+    // excludes ride time for multi-leg routes. Riders without
+    // `Patience` fall back to `tick - spawn_tick` (a lifetime budget)
+    // which is accurate for single-leg trips, the common case. Runs
+    // after the patience path so both limits can coexist.
+    let balk_abandon: Vec<(EntityId, EntityId)> = world
+        .iter_riders()
+        .filter_map(|(id, r)| {
+            if world.is_disabled(id) || r.phase != RiderPhase::Waiting {
+                return None;
+            }
+            let prefs = world.preferences(id)?;
+            let threshold = prefs.balk_threshold_ticks()?;
+            let stop = r.current_stop?;
+            let waited = world.patience(id).map_or_else(
+                || ctx.tick.saturating_sub(r.spawn_tick),
+                Patience::waited_ticks,
+            );
+            if waited >= u64::from(threshold) {
+                Some((id, stop))
+            } else {
+                None
+            }
+        })
+        .collect();
+    for (id, stop) in balk_abandon {
+        if let Some(r) = world.rider_mut(id) {
+            r.phase = RiderPhase::Abandoned;
+        }
+        rider_index.remove_waiting(stop, id);
+        rider_index.insert_abandoned(stop, id);
+        events.emit(Event::RiderAbandoned {
+            rider: id,
+            stop,
+            tick: ctx.tick,
+        });
+    }
+
+    // Acknowledge hall/car calls whose latency window has elapsed.
+    ack_hall_calls(world, events, ctx.tick);
+    ack_car_calls(world, events, ctx.tick);
+}
+
+/// Mark hall calls acknowledged once their ack-latency window elapses
+/// and emit [`Event::HallCallAcknowledged`] for each newly-visible call.
+fn ack_hall_calls(world: &mut World, events: &mut EventBus, tick: u64) {
+    use crate::components::CallDirection;
+    // Collect first to avoid long-lived mutable borrow over the iter.
+    let mut to_ack: Vec<(EntityId, CallDirection)> = Vec::new();
+    for call in world.iter_hall_calls() {
+        if call.acknowledged_at.is_some() {
+            continue;
+        }
+        if tick.saturating_sub(call.press_tick) >= u64::from(call.ack_latency_ticks) {
+            to_ack.push((call.stop, call.direction));
+        }
+    }
+    for (stop, direction) in to_ack {
+        if let Some(call) = world.hall_call_mut(stop, direction) {
+            call.acknowledged_at = Some(tick);
+        }
+        events.emit(Event::HallCallAcknowledged {
+            stop,
+            direction,
+            tick,
+        });
+    }
+}
+
+/// Same as [`ack_hall_calls`] but for per-car floor buttons.
+fn ack_car_calls(world: &mut World, _events: &mut EventBus, tick: u64) {
+    let car_ids: Vec<EntityId> = world.elevator_ids();
+    for car in car_ids {
+        let calls = world.car_calls_mut(car);
+        let Some(calls) = calls else { continue };
+        for call in calls.iter_mut() {
+            if call.acknowledged_at.is_some() {
+                continue;
+            }
+            if tick.saturating_sub(call.press_tick) >= u64::from(call.ack_latency_ticks) {
+                call.acknowledged_at = Some(tick);
+                // Car-call acks don't currently emit an event; dispatch
+                // reads `acknowledged_at` directly. Left silent so games
+                // don't drown in one event per rider per trip.
+            }
+        }
     }
 }
