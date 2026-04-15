@@ -141,9 +141,11 @@ pub unsafe extern "C" fn ev_set_log_callback(cb: Option<EvLogFn>) {
 }
 
 fn with_log_callback(f: impl FnOnce(EvLogFn)) {
-    if let Ok(slot) = LOG_CALLBACK.lock()
-        && let Some(cb) = *slot
-    {
+    // Copy the function pointer out before releasing the guard so the user
+    // callback can re-enter `ev_set_log_callback` (e.g. to deregister itself
+    // after the first fire) without deadlocking on the same mutex.
+    let maybe_cb = LOG_CALLBACK.lock().ok().and_then(|slot| *slot);
+    if let Some(cb) = maybe_cb {
         f(cb);
     }
 }
@@ -528,14 +530,14 @@ fn populate_frame(ev: &mut EvSim) {
     let sim = &ev.sim;
     let world = sim.world();
     let groups = sim.groups();
-    let resolve_group = |elev: EntityId| -> u32 {
-        for g in groups {
-            if g.elevator_entities().contains(&elev) {
-                return g.id().0;
-            }
-        }
-        u32::MAX
-    };
+    // Build an O(1) elevator → group lookup once per frame. Without this,
+    // `populate_frame` is O(elevators × groups × elevators-per-group).
+    let group_by_elevator: std::collections::HashMap<EntityId, u32> = groups
+        .iter()
+        .flat_map(|g| g.elevator_entities().iter().map(move |e| (*e, g.id().0)))
+        .collect();
+    let resolve_group =
+        |elev: EntityId| -> u32 { group_by_elevator.get(&elev).copied().unwrap_or(u32::MAX) };
 
     for (eid, pos, elev) in world.iter_elevators() {
         let velocity = world.velocity(eid).map_or(0.0, Velocity::value);
@@ -695,14 +697,16 @@ pub unsafe extern "C" fn ev_sim_set_strategy(
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &mut *handle };
         let builtin = strategy.as_builtin();
-        let Some(boxed) = builtin.instantiate() else {
-            set_last_error("strategy could not be instantiated");
-            return EvStatus::InvalidArg;
-        };
+        // Validate group existence before allocating the strategy box, so the
+        // NotFound path doesn't waste a heap allocation.
         if !ev.sim.groups().iter().any(|g| g.id() == GroupId(group_id)) {
             set_last_error(format!("group {group_id} not found"));
             return EvStatus::NotFound;
         }
+        let Some(boxed) = builtin.instantiate() else {
+            set_last_error("strategy could not be instantiated");
+            return EvStatus::InvalidArg;
+        };
         ev.sim.set_dispatch(GroupId(group_id), boxed, builtin);
         EvStatus::Ok
     })
