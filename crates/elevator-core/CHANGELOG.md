@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.9.1...elevator-core-v5.10.0) (2026-04-15)
+
+
+### Features
+
+* ETA query API for queued elevators ([#85](https://github.com/andymai/elevator-core/issues/85)) ([f3d3827](https://github.com/andymai/elevator-core/commit/f3d38278dd368f83d61ebf2a8ef542eec15d2fca))
+
 ## [5.9.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.9.0...elevator-core-v5.9.1) (2026-04-15)
 
 
