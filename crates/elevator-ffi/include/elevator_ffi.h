@@ -268,6 +268,40 @@ typedef struct EvFrame {
 } EvFrame;
 
 /**
+ * C-ABI-flat projection of a `HallCall` for FFI consumers.
+ */
+typedef struct EvHallCall {
+    /**
+     * Stop entity id (same encoding as elsewhere in the FFI).
+     */
+    uint64_t stop_entity_id;
+    /**
+     * `1` = Up, `-1` = Down.
+     */
+    int8_t direction;
+    /**
+     * Tick at which the button was pressed.
+     */
+    uint64_t press_tick;
+    /**
+     * Tick at which the call was acknowledged; `u64::MAX` if pending.
+     */
+    uint64_t acknowledged_at;
+    /**
+     * Car currently assigned to serve the call; `0` if none.
+     */
+    uint64_t assigned_car;
+    /**
+     * `1` when pinned, `0` otherwise.
+     */
+    uint8_t pinned;
+    /**
+     * Number of riders aggregated onto this call.
+     */
+    uint32_t pending_rider_count;
+} EvHallCall;
+
+/**
  * Return the ABI version compiled into this shared library.
  */
 uint32_t ev_abi_version(void);
@@ -363,5 +397,112 @@ enum EvStatus ev_sim_best_eta(struct EvSim *handle,
 enum EvStatus ev_sim_set_strategy(struct EvSim *handle,
                                   uint32_t group_id,
                                   enum EvStrategy strategy);
+
+/**
+ * Press an up/down hall button at `stop_entity_id`. Games use this
+ * for scripted NPCs, player input, or cutscene cues.
+ *
+ * `direction` uses `1` = Up, `-1` = Down.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_press_hall_button(struct EvSim *handle,
+                                       uint64_t stop_entity_id,
+                                       int8_t direction);
+
+/**
+ * Press a floor button inside a car.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_press_car_button(struct EvSim *handle,
+                                      uint64_t car_entity_id,
+                                      uint64_t floor_entity_id);
+
+/**
+ * Pin the hall call at `(stop, direction)` to a specific car.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_pin_assignment(struct EvSim *handle,
+                                    uint64_t car_entity_id,
+                                    uint64_t stop_entity_id,
+                                    int8_t direction);
+
+/**
+ * Release a previous pin at `(stop, direction)`. No-op if none.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_unpin_assignment(struct EvSim *handle,
+                                      uint64_t stop_entity_id,
+                                      int8_t direction);
+
+/**
+ * Car currently assigned to serve the hall call at `(stop, direction)`.
+ *
+ * Writes the car's entity id to `out_elevator`, or `0` if no call
+ * exists or no car is assigned.
+ *
+ * # Safety
+ *
+ * `handle` and `out_elevator` must be valid pointers.
+ */
+enum EvStatus ev_sim_assigned_car(struct EvSim *handle,
+                                  uint64_t stop_entity_id,
+                                  int8_t direction,
+                                  uint64_t *out_elevator);
+
+/**
+ * Estimated ticks remaining before the assigned car reaches the call.
+ *
+ * Writes the tick count to `out_ticks`, or `u64::MAX` when no car is
+ * assigned or no call exists at that `(stop, direction)`.
+ *
+ * # Safety
+ *
+ * `handle` and `out_ticks` must be valid pointers.
+ */
+enum EvStatus ev_sim_eta_for_call(struct EvSim *handle,
+                                  uint64_t stop_entity_id,
+                                  int8_t direction,
+                                  uint64_t *out_ticks);
+
+/**
+ * Number of active hall calls across the whole simulation. Use as a
+ * pre-check before allocating a buffer for
+ * [`ev_sim_hall_calls_snapshot`].
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_hall_call_count(struct EvSim *handle);
+
+/**
+ * Snapshot a flat representation of every active hall call into `out`.
+ *
+ * The caller supplies a buffer of `capacity` [`EvHallCall`] entries;
+ * the actual number written is returned in `out_written`. If
+ * `capacity` is smaller than the live count, the buffer is filled
+ * and the remainder is dropped.
+ *
+ * # Safety
+ *
+ * `handle`, `out`, and `out_written` must be valid pointers. `out`
+ * must point to a buffer of at least `capacity` `EvHallCall`s.
+ */
+enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
+                                         struct EvHallCall *out,
+                                         uint32_t capacity,
+                                         uint32_t *out_written);
 
 #endif  /* ELEVATOR_FFI_H */

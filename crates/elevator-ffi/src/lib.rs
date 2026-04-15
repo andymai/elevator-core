@@ -724,6 +724,333 @@ pub unsafe extern "C" fn ev_sim_set_strategy(
     })
 }
 
+// ── Hall / car call FFI ─────────────────────────────────────────────
+
+/// Translate an FFI direction flag to a [`CallDirection`]. `1` → Up,
+/// `-1` → Down. Other values are invalid.
+const fn call_direction_from_i8(d: i8) -> Option<elevator_core::components::CallDirection> {
+    use elevator_core::components::CallDirection;
+    match d {
+        1 => Some(CallDirection::Up),
+        -1 => Some(CallDirection::Down),
+        _ => None,
+    }
+}
+
+/// Press an up/down hall button at `stop_entity_id`. Games use this
+/// for scripted NPCs, player input, or cutscene cues.
+///
+/// `direction` uses `1` = Up, `-1` = Down.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_press_hall_button(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    direction: i8,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.press_hall_button(stop, dir) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::NotFound
+            }
+        }
+    })
+}
+
+/// Press a floor button inside a car.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_press_car_button(
+    handle: *mut EvSim,
+    car_entity_id: u64,
+    floor_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(car) = entity_from_u64(car_entity_id) else {
+            set_last_error("invalid car_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let Some(floor) = entity_from_u64(floor_entity_id) else {
+            set_last_error("invalid floor_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &mut *handle };
+        match ev.sim.press_car_button(car, floor) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::NotFound
+            }
+        }
+    })
+}
+
+/// Pin the hall call at `(stop, direction)` to a specific car.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_pin_assignment(
+    handle: *mut EvSim,
+    car_entity_id: u64,
+    stop_entity_id: u64,
+    direction: i8,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(car) = entity_from_u64(car_entity_id) else {
+            set_last_error("invalid car_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &mut *handle };
+        match ev.sim.pin_assignment(car, stop, dir) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::InvalidArg
+            }
+        }
+    })
+}
+
+/// Release a previous pin at `(stop, direction)`. No-op if none.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_unpin_assignment(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    direction: i8,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &mut *handle };
+        ev.sim.unpin_assignment(stop, dir);
+        EvStatus::Ok
+    })
+}
+
+/// Car currently assigned to serve the hall call at `(stop, direction)`.
+///
+/// Writes the car's entity id to `out_elevator`, or `0` if no call
+/// exists or no car is assigned.
+///
+/// # Safety
+///
+/// `handle` and `out_elevator` must be valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_assigned_car(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    direction: i8,
+    out_elevator: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_elevator.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        let id = ev.sim.assigned_car(stop, dir).map_or(0, entity_to_u64);
+        // Safety: validated non-null above.
+        unsafe { std::ptr::write(out_elevator, id) };
+        EvStatus::Ok
+    })
+}
+
+/// Estimated ticks remaining before the assigned car reaches the call.
+///
+/// Writes the tick count to `out_ticks`, or `u64::MAX` when no car is
+/// assigned or no call exists at that `(stop, direction)`.
+///
+/// # Safety
+///
+/// `handle` and `out_ticks` must be valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_eta_for_call(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    direction: i8,
+    out_ticks: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_ticks.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        let ticks = ev.sim.eta_for_call(stop, dir).unwrap_or(u64::MAX);
+        // Safety: validated non-null above.
+        unsafe { std::ptr::write(out_ticks, ticks) };
+        EvStatus::Ok
+    })
+}
+
+/// Number of active hall calls across the whole simulation. Use as a
+/// pre-check before allocating a buffer for
+/// [`ev_sim_hall_calls_snapshot`].
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_hall_call_count(handle: *mut EvSim) -> u32 {
+    if handle.is_null() {
+        return 0;
+    }
+    // Safety: validity guaranteed by caller.
+    let ev = unsafe { &*handle };
+    u32::try_from(ev.sim.hall_calls().count()).unwrap_or(u32::MAX)
+}
+
+/// Snapshot a flat representation of every active hall call into `out`.
+///
+/// The caller supplies a buffer of `capacity` [`EvHallCall`] entries;
+/// the actual number written is returned in `out_written`. If
+/// `capacity` is smaller than the live count, the buffer is filled
+/// and the remainder is dropped.
+///
+/// # Safety
+///
+/// `handle`, `out`, and `out_written` must be valid pointers. `out`
+/// must point to a buffer of at least `capacity` `EvHallCall`s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
+    handle: *mut EvSim,
+    out: *mut EvHallCall,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out.is_null() || out_written.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let ev = unsafe { &*handle };
+        let mut written: u32 = 0;
+        for call in ev.sim.hall_calls().take(capacity as usize) {
+            let record = EvHallCall {
+                stop_entity_id: entity_to_u64(call.stop),
+                direction: match call.direction {
+                    elevator_core::components::CallDirection::Up => 1,
+                    elevator_core::components::CallDirection::Down => -1,
+                    // Future variants default to 0 rather than panic —
+                    // forward-compat keeps the C side stable.
+                    _ => 0,
+                },
+                press_tick: call.press_tick,
+                acknowledged_at: call.acknowledged_at.unwrap_or(u64::MAX),
+                assigned_car: call.assigned_car.map_or(0, entity_to_u64),
+                pinned: u8::from(call.pinned),
+                pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
+            };
+            // Safety: caller guarantees `out` has at least `capacity` entries
+            // and we wrote fewer than `capacity` before this increment.
+            unsafe {
+                std::ptr::write(out.add(written as usize), record);
+            }
+            written += 1;
+        }
+        // Safety: validated non-null above.
+        unsafe { std::ptr::write(out_written, written) };
+        EvStatus::Ok
+    })
+}
+
+/// C-ABI-flat projection of a `HallCall` for FFI consumers.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvHallCall {
+    /// Stop entity id (same encoding as elsewhere in the FFI).
+    pub stop_entity_id: u64,
+    /// `1` = Up, `-1` = Down.
+    pub direction: i8,
+    /// Tick at which the button was pressed.
+    pub press_tick: u64,
+    /// Tick at which the call was acknowledged; `u64::MAX` if pending.
+    pub acknowledged_at: u64,
+    /// Car currently assigned to serve the call; `0` if none.
+    pub assigned_car: u64,
+    /// `1` when pinned, `0` otherwise.
+    pub pinned: u8,
+    /// Number of riders aggregated onto this call.
+    pub pending_rider_count: u32,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

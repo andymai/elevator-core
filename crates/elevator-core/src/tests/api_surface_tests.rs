@@ -710,6 +710,8 @@ fn rider_builder_with_preferences() {
     let prefs = Preferences {
         skip_full_elevator: true,
         max_crowding_factor: 0.5,
+        balk_threshold_ticks: None,
+        rebalk_on_full: false,
     };
 
     let rider_id = sim
