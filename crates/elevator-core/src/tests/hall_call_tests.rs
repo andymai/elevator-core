@@ -704,3 +704,122 @@ fn group_config_ron_defaults_to_classic_zero_latency() {
     assert_eq!(gc2.hall_call_mode, Some(HallCallMode::Destination));
     assert_eq!(gc2.ack_latency_ticks, Some(10));
 }
+
+/// A custom dispatch strategy can observe hall-call state via
+/// `DispatchManifest::hall_call_at(...)` without reaching into `World`
+/// directly. This exercises the #102 contract end-to-end.
+#[test]
+fn custom_strategy_reads_hall_calls_from_manifest() {
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+    use crate::world::World;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Records how many times `rank` observed the pressed up-call at
+    /// the target stop through the manifest.
+    struct Observer {
+        target_stop: Arc<std::sync::Mutex<Option<EntityId>>>,
+        saw_call: Arc<AtomicUsize>,
+    }
+
+    impl DispatchStrategy for Observer {
+        fn rank(
+            &mut self,
+            _car: EntityId,
+            car_pos: f64,
+            stop: EntityId,
+            stop_pos: f64,
+            _group: &ElevatorGroup,
+            manifest: &DispatchManifest,
+            _world: &World,
+        ) -> Option<f64> {
+            let target = *self.target_stop.lock().unwrap();
+            if Some(stop) == target && manifest.hall_call_at(stop, CallDirection::Up).is_some() {
+                self.saw_call.fetch_add(1, Ordering::Relaxed);
+            }
+            Some((car_pos - stop_pos).abs())
+        }
+    }
+
+    let saw_call = Arc::new(AtomicUsize::new(0));
+    let target_stop = Arc::new(std::sync::Mutex::new(None));
+    let observer = Observer {
+        target_stop: Arc::clone(&target_stop),
+        saw_call: Arc::clone(&saw_call),
+    };
+    let mut sim = Simulation::new(&default_config(), observer).unwrap();
+    let stop = sim.stop_entity(StopId(0)).unwrap();
+    *target_stop.lock().unwrap() = Some(stop);
+    // Spawning a rider auto-presses the up-button at stop 0 AND
+    // registers waiting demand there, so `dispatch::assign` will
+    // consider stop 0 a candidate and call `rank` for it.
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+
+    // One tick runs dispatch, building the manifest with the pressed
+    // hall call at stop 0 and calling `rank(car, stop)` for every
+    // (car, stop) pair with demand. The observer fires whenever it
+    // sees a hall call at the target stop through the manifest.
+    sim.step();
+    assert!(
+        saw_call.load(Ordering::Relaxed) > 0,
+        "strategy should see the pressed hall call through DispatchManifest::hall_call_at",
+    );
+}
+
+/// Car calls are exposed to dispatch strategies via
+/// `DispatchManifest::car_calls_for(car)`. After a rider boards, the
+/// car's in-cab floor button press is visible without reaching into
+/// `World`.
+#[test]
+fn custom_strategy_reads_car_calls_from_manifest() {
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+    use crate::world::World;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Observer {
+        saw_car_call: Arc<AtomicUsize>,
+    }
+    impl DispatchStrategy for Observer {
+        fn rank(
+            &mut self,
+            car: EntityId,
+            car_pos: f64,
+            _stop: EntityId,
+            stop_pos: f64,
+            _group: &ElevatorGroup,
+            manifest: &DispatchManifest,
+            _world: &World,
+        ) -> Option<f64> {
+            if !manifest.car_calls_for(car).is_empty() {
+                self.saw_car_call.fetch_add(1, Ordering::Relaxed);
+            }
+            Some((car_pos - stop_pos).abs())
+        }
+    }
+
+    let saw = Arc::new(AtomicUsize::new(0));
+    let observer = Observer {
+        saw_car_call: Arc::clone(&saw),
+    };
+    let mut sim = Simulation::new(&default_config(), observer).unwrap();
+    // Spawn a rider — they press the hall call (creating dispatch demand)
+    // and on boarding will press a car button, which the strategy sees
+    // through `car_calls_for` as soon as dispatch runs next.
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    // Step until the rider boards and a car call exists; then one
+    // further step triggers a dispatch pass with the car call visible.
+    let car = sim.world().elevator_ids()[0];
+    for _ in 0..200 {
+        sim.step();
+        if !sim.car_calls(car).is_empty() && saw.load(Ordering::Relaxed) > 0 {
+            break;
+        }
+    }
+    assert!(
+        saw.load(Ordering::Relaxed) > 0,
+        "strategy should see car calls via DispatchManifest::car_calls_for once the rider boards",
+    );
+}
