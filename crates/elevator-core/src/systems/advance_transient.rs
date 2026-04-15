@@ -1,6 +1,6 @@
 //! Phase 1: advance transient rider states and tick patience.
 
-use crate::components::{RiderPhase, Route, TransportMode};
+use crate::components::{Patience, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::rider_index::RiderIndex;
@@ -185,8 +185,13 @@ pub fn run(
     }
 
     // Balk-threshold abandonment: riders with `Preferences::balk_threshold_ticks`
-    // give up once `tick - spawn_tick` exceeds their budget. Runs after
-    // the patience path so both limits can coexist.
+    // give up once their *waiting* time exceeds their budget. Uses
+    // `Patience::waited_ticks` when available — that counter only
+    // increments while the rider is in `Waiting`, so it correctly
+    // excludes ride time for multi-leg routes. Riders without
+    // `Patience` fall back to `tick - spawn_tick` (a lifetime budget)
+    // which is accurate for single-leg trips, the common case. Runs
+    // after the patience path so both limits can coexist.
     let balk_abandon: Vec<(EntityId, EntityId)> = world
         .iter_riders()
         .filter_map(|(id, r)| {
@@ -196,7 +201,10 @@ pub fn run(
             let prefs = world.preferences(id)?;
             let threshold = prefs.balk_threshold_ticks()?;
             let stop = r.current_stop?;
-            let waited = ctx.tick.saturating_sub(r.spawn_tick);
+            let waited = world.patience(id).map_or_else(
+                || ctx.tick.saturating_sub(r.spawn_tick),
+                Patience::waited_ticks,
+            );
             if waited >= u64::from(threshold) {
                 Some((id, stop))
             } else {

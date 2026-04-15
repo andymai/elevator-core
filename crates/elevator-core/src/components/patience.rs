@@ -45,6 +45,12 @@ pub struct Preferences {
     /// based abandonment; `Some(n)` causes the rider to enter
     /// [`RiderPhase::Abandoned`](crate::components::RiderPhase) after
     /// `n` ticks of being [`Waiting`](crate::components::RiderPhase::Waiting).
+    ///
+    /// The counter consulted is [`Patience::waited_ticks`] when a
+    /// [`Patience`] component is attached — that counter only
+    /// increments during `Waiting` and correctly excludes ride time for
+    /// multi-leg routes. Without `Patience`, the budget degrades to
+    /// lifetime ticks since spawn, which matches single-leg behavior.
     pub(crate) balk_threshold_ticks: Option<u32>,
     /// When a full car arrives and this rider skips it, should that
     /// count as a balk-and-abandon rather than a silent pass? When

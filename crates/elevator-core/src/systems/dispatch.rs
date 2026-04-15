@@ -87,9 +87,19 @@ pub fn run(
             })
             .collect();
 
-        // Commit pinned pairs directly — they bypass the Hungarian solver.
+        // Commit pinned pairs directly — they bypass the Hungarian
+        // solver. Mirror the idle-pool eligibility gate so a pin can't
+        // clobber a car mid-door-cycle. Cars in Loading / DoorOpening /
+        // DoorClosing retain their current trip until doors are back to
+        // closed; the pin is honored next tick.
         for (car_eid, stop_eid) in pinned_pairs.iter().copied() {
-            commit_go_to_stop(world, events, ctx, car_eid, stop_eid);
+            let eligible = world.elevator(car_eid).is_some_and(|c| {
+                matches!(c.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
+                    || (matches!(c.phase, ElevatorPhase::MovingToStop(_)) && c.riders.is_empty())
+            });
+            if eligible {
+                commit_go_to_stop(world, events, ctx, car_eid, stop_eid);
+            }
         }
 
         if idle_elevators.is_empty() {

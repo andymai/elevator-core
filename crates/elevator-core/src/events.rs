@@ -525,8 +525,12 @@ pub enum Event {
         car: EntityId,
         /// Floor the rider requested.
         floor: EntityId,
-        /// Rider who pressed the button.
-        rider: EntityId,
+        /// Rider who pressed the button. `None` when the press is
+        /// synthetic — e.g. issued via
+        /// [`Simulation::press_car_button`](crate::sim::Simulation::press_car_button)
+        /// for scripted events, player input, or cutscene cues with no
+        /// associated rider entity.
+        rider: Option<EntityId>,
         /// Tick of the press.
         tick: u64,
     },

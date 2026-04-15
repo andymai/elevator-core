@@ -1,6 +1,6 @@
 //! Phase 5: board and exit riders at stops with open doors.
 
-use crate::components::{ElevatorPhase, Line, RiderPhase, Route, TransportMode};
+use crate::components::{ElevatorPhase, Line, Preferences, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::events::{Event, EventBus};
@@ -429,6 +429,27 @@ fn apply_actions(
                     at_stop,
                     tick: ctx.tick,
                 });
+                // Honor `Preferences::rebalk_on_full`: the rider doesn't
+                // wait for another car — they abandon immediately.
+                let escalate = world
+                    .preferences(rider)
+                    .is_some_and(Preferences::rebalk_on_full);
+                if escalate
+                    && world
+                        .rider(rider)
+                        .is_some_and(|r| r.phase == RiderPhase::Waiting)
+                {
+                    if let Some(r) = world.rider_mut(rider) {
+                        r.phase = RiderPhase::Abandoned;
+                    }
+                    rider_index.remove_waiting(at_stop, rider);
+                    rider_index.insert_abandoned(at_stop, rider);
+                    events.emit(Event::RiderAbandoned {
+                        rider,
+                        stop: at_stop,
+                        tick: ctx.tick,
+                    });
+                }
             }
         }
     }
@@ -464,7 +485,7 @@ fn register_car_call(
     events.emit(Event::CarButtonPressed {
         car,
         floor,
-        rider,
+        rider: Some(rider),
         tick,
     });
 }

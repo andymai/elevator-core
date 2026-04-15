@@ -1,6 +1,7 @@
 //! Tests for the hall-call / car-call public API.
 
 use crate::components::CallDirection;
+use crate::entity::EntityId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -210,6 +211,127 @@ fn car_call_removed_on_exit() {
     assert!(
         sim.car_calls(car).is_empty(),
         "car_calls should be drained once the rider exits"
+    );
+}
+
+/// An explicit `press_car_button` (no rider associated) emits
+/// `CarButtonPressed { rider: None, ... }`. Regression against the
+/// previous sentinel-entity behavior flagged in PR review.
+#[test]
+fn press_car_button_without_rider_emits_none_rider() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let car = sim.world().elevator_ids()[0];
+    let floor = sim.stop_entity(StopId(2)).unwrap();
+    sim.press_car_button(car, floor).unwrap();
+    let events = sim.drain_events();
+    let pressed = events
+        .iter()
+        .find_map(|e| match e {
+            Event::CarButtonPressed { rider, .. } => Some(*rider),
+            _ => None,
+        })
+        .expect("CarButtonPressed should fire");
+    assert_eq!(
+        pressed, None,
+        "synthetic press should emit None rider, not EntityId::default()"
+    );
+}
+
+/// A pin applied while a car is in `Loading` phase must not clobber its
+/// door-cycle state. Regression against the PR-review finding that the
+/// pin pre-commit bypassed the phase-eligibility gate.
+#[test]
+fn pinned_pin_does_not_clobber_loading_car() {
+    use crate::components::ElevatorPhase;
+
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    // Run until the car reaches Loading phase at some stop.
+    let car = sim.world().elevator_ids()[0];
+    let mut loading_stop: Option<EntityId> = None;
+    for _ in 0..2000 {
+        sim.step();
+        if let Some(c) = sim.world().elevator(car)
+            && c.phase == ElevatorPhase::Loading
+        {
+            loading_stop = c.target_stop;
+            break;
+        }
+    }
+    let loading_stop = loading_stop.expect("car should reach Loading phase within 2000 ticks");
+    // Spawn a second rider elsewhere and pin the loading car to that stop.
+    let other = sim.stop_entity(StopId(1)).unwrap();
+    if other != loading_stop {
+        sim.press_hall_button(other, CallDirection::Down).ok();
+        let _ = sim.pin_assignment(car, other, CallDirection::Down);
+        sim.drain_events();
+        // One tick of dispatch must not yank the car out of Loading.
+        sim.step();
+        let phase_after = sim.world().elevator(car).map(|c| c.phase);
+        assert!(
+            !matches!(phase_after, Some(ElevatorPhase::MovingToStop(s)) if s == other),
+            "pin should not override a Loading car mid-door-cycle"
+        );
+    }
+}
+
+/// `rebalk_on_full = true` escalates a balk into immediate abandonment.
+/// Regression guard — the flag was documented but previously inert.
+#[test]
+fn rebalk_on_full_abandons_immediately() {
+    use crate::components::Preferences;
+    let mut config = default_config();
+    // Tight capacity so any preload fills the car.
+    config.elevators[0].weight_capacity = 100.0;
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    // Rider with rebalk_on_full who skips anything with load > 0.5.
+    let picky = sim
+        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .unwrap()
+        .weight(30.0)
+        .preferences(Preferences::default().with_rebalk_on_full(true))
+        .spawn()
+        .unwrap();
+    // Note: Preferences::default has skip_full_elevator = false, but
+    // max_crowding_factor 0.8 means a 60-weight preload still exceeds.
+    sim.world_mut().set_preferences(
+        picky,
+        Preferences {
+            skip_full_elevator: true,
+            max_crowding_factor: 0.5,
+            balk_threshold_ticks: None,
+            rebalk_on_full: true,
+        },
+    );
+
+    // Force the elevator to Loading phase at the picky rider's stop
+    // with a ballast preload that trips the preference filter.
+    let elev = sim.world().elevator_ids()[0];
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
+    let stop0_pos = sim.world().stop(stop0).unwrap().position;
+    {
+        let w = sim.world_mut();
+        if let Some(pos) = w.position_mut(elev) {
+            pos.value = stop0_pos;
+        }
+        if let Some(vel) = w.velocity_mut(elev) {
+            vel.value = 0.0;
+        }
+        if let Some(car) = w.elevator_mut(elev) {
+            car.phase = crate::components::ElevatorPhase::Loading;
+            car.current_load = 60.0;
+            car.target_stop = None;
+        }
+    }
+    sim.run_loading();
+    sim.advance_tick();
+    let phase = sim.world().rider(picky).map(|r| r.phase);
+    assert_eq!(
+        phase,
+        Some(crate::components::RiderPhase::Abandoned),
+        "rebalk_on_full should escalate the balk into Abandoned"
     );
 }
 

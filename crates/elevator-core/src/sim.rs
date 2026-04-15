@@ -2253,7 +2253,7 @@ impl Simulation {
             self.events.emit(Event::CarButtonPressed {
                 car,
                 floor,
-                rider: rider.unwrap_or_default(),
+                rider,
                 tick: press_tick,
             });
         }
