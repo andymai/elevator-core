@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v7.0.0...elevator-core-v7.0.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* persist hall/car calls and group hall mode in snapshots ([#104](https://github.com/andymai/elevator-core/issues/104)) ([8e5183e](https://github.com/andymai/elevator-core/commit/8e5183e256b8408c63d1b34906ad486136cc1bab)), closes [#93](https://github.com/andymai/elevator-core/issues/93)
+
 ## [7.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v6.0.0...elevator-core-v7.0.0) (2026-04-15)
 
 
