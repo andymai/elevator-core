@@ -10,6 +10,10 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# Default to read-only on the workflow token; jobs can opt up if needed.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Check

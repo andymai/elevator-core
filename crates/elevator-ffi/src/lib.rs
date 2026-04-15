@@ -733,22 +733,22 @@ mod tests {
         let c_path = CString::new(config.to_str().expect("utf8 path")).unwrap();
 
         let handle = unsafe { ev_sim_create(c_path.as_ptr()) };
-        assert!(!handle.is_null(), "sim should build");
+        // Safety: ev_sim_create returns either a valid Box pointer or null;
+        // NonNull's pointer-to-reference conversion validates non-null in a
+        // way static analyzers can track across the conversion.
+        let ev = unsafe { handle.as_mut() }.expect("sim should build");
 
         // The core library doesn't auto-spawn riders from passenger_spawning;
-        // seed some via the Rust API directly. Safety: handle just created.
-        unsafe {
-            let ev = &mut *handle;
-            let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
-            let last = ev
-                .sim
-                .stop_lookup_iter()
-                .max_by_key(|(s, _)| s.0)
-                .map(|(s, _)| *s)
-                .unwrap();
-            for _ in 0..20 {
-                ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
-            }
+        // seed some via the Rust API directly.
+        let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
+        let last = ev
+            .sim
+            .stop_lookup_iter()
+            .max_by_key(|(s, _)| s.0)
+            .map(|(s, _)| *s)
+            .unwrap();
+        for _ in 0..20 {
+            ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
         }
 
         for _ in 0..3000 {
