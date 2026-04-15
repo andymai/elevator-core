@@ -95,14 +95,17 @@ fn eta_actual_arrival_within_estimate_tolerance() {
     // Step until the elevator's phase moves past MovingToStop into a
     // door cycle (i.e. arrival).
     let mut actual_ticks = 0_u64;
+    let mut arrived = false;
     for _ in 0..2000 {
         sim.step();
         actual_ticks += 1;
         let phase = sim.world().elevator(elev).unwrap().phase();
         if !phase.is_moving() && !matches!(phase, crate::components::ElevatorPhase::Idle) {
+            arrived = true;
             break;
         }
     }
+    assert!(arrived, "elevator never arrived within 2000 ticks");
     let drift = actual_ticks.abs_diff(estimated_ticks);
     assert!(
         drift <= 2,

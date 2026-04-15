@@ -659,7 +659,13 @@ impl Simulation {
         let vel_signed = self.world.velocity(elev).map_or(0.0, Velocity::value);
 
         for (idx, &s) in route.iter().enumerate() {
-            let s_pos = self.world.stop_position(s)?;
+            let Some(s_pos) = self.world.stop_position(s) else {
+                // A queued entry without a position can only mean the stop
+                // entity was despawned out from under us. Bail rather than
+                // returning a partial accumulation that would silently
+                // understate the ETA.
+                return None;
+            };
             let dist = (s_pos - pos).abs();
             // Only the first leg can carry initial velocity, and only if
             // the car is already moving toward this stop and not stuck in
