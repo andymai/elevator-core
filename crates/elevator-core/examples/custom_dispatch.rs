@@ -1,4 +1,5 @@
-//! Writing a custom `DispatchStrategy`.
+//! Writing a custom `DispatchStrategy`, and composing it with the
+//! hall-call layer (scripted presses and pinned assignments).
 //!
 //! This example walks through the score-based trait:
 //!
@@ -9,6 +10,14 @@
 //!   optional, used by sticky strategies like destination dispatch.
 //! * [`DispatchStrategy::notify_removed`] — per-elevator state cleanup,
 //!   required if the strategy carries a `HashMap<EntityId, _>`.
+//!
+//! …plus how the strategy interacts with the hall-call API:
+//! `Simulation::press_hall_button` registers scripted presses, and
+//! `Simulation::pin_assignment` forces a specific car to service a call
+//! regardless of the strategy's ranking. Pinned calls bypass the
+//! Hungarian solver entirely — a critical escape hatch for games that
+//! need deterministic overrides (building scripts, cutscenes,
+//! DCS lobby kiosks).
 //!
 //! Run with:
 //! ```sh
@@ -22,6 +31,7 @@
 
 use std::collections::HashMap;
 
+use elevator_core::components::CallDirection;
 use elevator_core::dispatch::{BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup};
 use elevator_core::entity::EntityId;
 use elevator_core::ids::GroupId;
@@ -140,6 +150,24 @@ fn main() {
         .unwrap();
     sim.spawn_rider_by_stop_id(StopId(2), StopId(1), 80.0)
         .unwrap();
+
+    // Hall-call layer demo: press a scripted hall button without
+    // spawning a rider (e.g. a building-sim "NPC on their way to the
+    // lobby") and pin a specific car to service it. The pin bypasses
+    // the Hungarian solver — the custom strategy's ranks do not
+    // decide this one, the scripted policy does. This is how games
+    // compose custom dispatch with building scripts or DCS overrides.
+    let mezzanine = sim.stop_entity(StopId(1)).unwrap();
+    let lobby_car = sim.world().elevator_ids()[0];
+    sim.press_hall_button(mezzanine, CallDirection::Down)
+        .unwrap();
+    sim.pin_assignment(lobby_car, mezzanine, CallDirection::Down)
+        .unwrap();
+    println!(
+        "Pinned car {:?} to mezzanine down-call. Active hall calls now: {}",
+        lobby_car,
+        sim.hall_calls().count(),
+    );
 
     for _ in 0..5000 {
         sim.step();
