@@ -392,7 +392,13 @@ impl Simulation {
                     }
                 }
 
-                let group = ElevatorGroup::new(group_id, gc.name.clone(), group_lines);
+                let mut group = ElevatorGroup::new(group_id, gc.name.clone(), group_lines);
+                if let Some(mode) = gc.hall_call_mode {
+                    group.set_hall_call_mode(mode);
+                }
+                if let Some(ticks) = gc.ack_latency_ticks {
+                    group.set_ack_latency_ticks(ticks);
+                }
                 groups.push(group);
 
                 // GroupConfig strategy; builder overrides applied after this loop.
