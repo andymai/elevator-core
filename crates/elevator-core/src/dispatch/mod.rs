@@ -55,6 +55,8 @@ pub mod nearest_car;
 pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
+/// Shared sweep-direction logic used by SCAN and LOOK.
+pub(crate) mod sweep;
 
 pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
@@ -467,8 +469,11 @@ pub struct AssignmentResult {
 
 /// Sentinel weight used to pad unavailable `(car, stop)` pairs when
 /// building the cost matrix for the Hungarian solver. Chosen so that
-/// `n * SENTINEL` cannot overflow `i64` for realistic group sizes.
-const ASSIGNMENT_SENTINEL: i64 = 1 << 56;
+/// `n · SENTINEL` can't overflow `i64`: the Kuhn–Munkres implementation
+/// sums weights and potentials across each row/column internally, so
+/// headroom of ~2¹⁵ above the sentinel lets groups scale past 30 000
+/// cars or stops before any arithmetic risk appears.
+const ASSIGNMENT_SENTINEL: i64 = 1 << 48;
 /// Fixed-point scale for converting `f64` costs to the `i64` values the
 /// Hungarian solver requires. One unit ≈ one micro-tick / millimeter.
 const ASSIGNMENT_SCALE: f64 = 1_000_000.0;
@@ -481,12 +486,9 @@ fn scale_cost(cost: f64) -> i64 {
         return ASSIGNMENT_SENTINEL;
     }
     // Cap at just below sentinel so any real rank always beats unavailable.
-    let scaled = (cost * ASSIGNMENT_SCALE).round();
-    if scaled >= (ASSIGNMENT_SENTINEL as f64) {
-        ASSIGNMENT_SENTINEL - 1
-    } else {
-        scaled as i64
-    }
+    (cost * ASSIGNMENT_SCALE)
+        .round()
+        .clamp(0.0, (ASSIGNMENT_SENTINEL - 1) as f64) as i64
 }
 
 /// Run one group's assignment pass: build the cost matrix, solve the

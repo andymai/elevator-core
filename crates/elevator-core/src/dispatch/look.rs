@@ -15,36 +15,15 @@ use std::collections::HashMap;
 use crate::entity::EntityId;
 use crate::world::World;
 
+use super::sweep::{self, SweepDirection, SweepMode};
 use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
-
-/// Tolerance for floating-point position comparisons.
-const EPSILON: f64 = 1e-9;
-
-/// Sweep direction for a single car.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub(crate) enum Direction {
-    /// Traveling upward (increasing position).
-    Up,
-    /// Traveling downward (decreasing position).
-    Down,
-}
-
-/// Per-car accept mode, mirroring the SCAN strategy. See `scan::Mode`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Mode {
-    /// Accept only strictly-ahead stops.
-    Strict,
-    /// Sweep just reversed; accept stops in the non-strict half.
-    Lenient,
-}
 
 /// Elevator dispatch using the LOOK algorithm. See module docs.
 pub struct LookDispatch {
     /// Per-elevator sweep direction.
-    direction: HashMap<EntityId, Direction>,
+    direction: HashMap<EntityId, SweepDirection>,
     /// Per-elevator accept mode for the current dispatch pass.
-    mode: HashMap<EntityId, Mode>,
+    mode: HashMap<EntityId, SweepMode>,
 }
 
 impl LookDispatch {
@@ -58,35 +37,16 @@ impl LookDispatch {
     }
 
     /// Sweep direction for `car`, defaulting to `Up` for first-time callers.
-    fn direction_for(&self, car: EntityId) -> Direction {
-        self.direction.get(&car).copied().unwrap_or(Direction::Up)
+    fn direction_for(&self, car: EntityId) -> SweepDirection {
+        self.direction
+            .get(&car)
+            .copied()
+            .unwrap_or(SweepDirection::Up)
     }
 
     /// Accept mode for `car` in the current pass, defaulting to `Strict`.
-    fn mode_for(&self, car: EntityId) -> Mode {
-        self.mode.get(&car).copied().unwrap_or(Mode::Strict)
-    }
-
-    /// True if any demanded stop is strictly ahead of `car_pos` in `dir`.
-    fn strict_demand_ahead(
-        dir: Direction,
-        car_pos: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> bool {
-        group.stop_entities().iter().any(|&s| {
-            if !manifest.has_demand(s) {
-                return false;
-            }
-            let Some(p) = world.stop_position(s) else {
-                return false;
-            };
-            match dir {
-                Direction::Up => p > car_pos + EPSILON,
-                Direction::Down => p < car_pos - EPSILON,
-            }
-        })
+    fn mode_for(&self, car: EntityId) -> SweepMode {
+        self.mode.get(&car).copied().unwrap_or(SweepMode::Strict)
     }
 }
 
@@ -106,15 +66,11 @@ impl DispatchStrategy for LookDispatch {
         world: &World,
     ) {
         let current = self.direction_for(car);
-        if Self::strict_demand_ahead(current, car_position, group, manifest, world) {
-            self.mode.insert(car, Mode::Strict);
+        if sweep::strict_demand_ahead(current, car_position, group, manifest, world) {
+            self.mode.insert(car, SweepMode::Strict);
         } else {
-            let reversed = match current {
-                Direction::Up => Direction::Down,
-                Direction::Down => Direction::Up,
-            };
-            self.direction.insert(car, reversed);
-            self.mode.insert(car, Mode::Lenient);
+            self.direction.insert(car, current.reversed());
+            self.mode.insert(car, SweepMode::Lenient);
         }
     }
 
@@ -128,19 +84,12 @@ impl DispatchStrategy for LookDispatch {
         _manifest: &DispatchManifest,
         _world: &World,
     ) -> Option<f64> {
-        let direction = self.direction_for(car);
-        let mode = self.mode_for(car);
-        let accept = match (mode, direction) {
-            (Mode::Strict, Direction::Up) => stop_position > car_position + EPSILON,
-            (Mode::Strict, Direction::Down) => stop_position < car_position - EPSILON,
-            (Mode::Lenient, Direction::Up) => stop_position > car_position - EPSILON,
-            (Mode::Lenient, Direction::Down) => stop_position < car_position + EPSILON,
-        };
-        if accept {
-            Some((car_position - stop_position).abs())
-        } else {
-            None
-        }
+        sweep::rank(
+            self.mode_for(car),
+            self.direction_for(car),
+            car_position,
+            stop_position,
+        )
     }
 
     fn notify_removed(&mut self, elevator: EntityId) {

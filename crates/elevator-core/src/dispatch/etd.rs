@@ -81,107 +81,101 @@ impl DispatchStrategy for EtdDispatch {
         manifest: &DispatchManifest,
         world: &World,
     ) -> Option<f64> {
-        let cost = compute_cost(
-            self,
-            car,
-            car_position,
-            stop_position,
-            group,
-            manifest,
-            world,
-        );
+        let cost = self.compute_cost(car, car_position, stop_position, group, manifest, world);
         if cost.is_finite() { Some(cost) } else { None }
     }
 }
 
-/// Compute ETD cost for assigning an elevator to serve a stop.
-///
-/// Cost = `wait_weight` * travel\_time + `delay_weight` * existing\_rider\_delay
-///      + `door_weight` * door\_overhead + direction\_bonus
-fn compute_cost(
-    strategy: &EtdDispatch,
-    elev_eid: EntityId,
-    elev_pos: f64,
-    target_pos: f64,
-    group: &ElevatorGroup,
-    manifest: &DispatchManifest,
-    world: &World,
-) -> f64 {
-    let Some(car) = world.elevator(elev_eid) else {
-        return f64::INFINITY;
-    };
+impl EtdDispatch {
+    /// Compute ETD cost for assigning an elevator to serve a stop.
+    ///
+    /// Cost = `wait_weight` * travel\_time + `delay_weight` * existing\_rider\_delay
+    ///      + `door_weight` * door\_overhead + direction\_bonus
+    fn compute_cost(
+        &self,
+        elev_eid: EntityId,
+        elev_pos: f64,
+        target_pos: f64,
+        group: &ElevatorGroup,
+        manifest: &DispatchManifest,
+        world: &World,
+    ) -> f64 {
+        let Some(car) = world.elevator(elev_eid) else {
+            return f64::INFINITY;
+        };
 
-    let distance = (elev_pos - target_pos).abs();
-    let travel_time = if car.max_speed > 0.0 {
-        distance / car.max_speed
-    } else {
-        return f64::INFINITY;
-    };
+        let distance = (elev_pos - target_pos).abs();
+        let travel_time = if car.max_speed > 0.0 {
+            distance / car.max_speed
+        } else {
+            return f64::INFINITY;
+        };
 
-    let door_overhead_per_stop = f64::from(car.door_transition_ticks * 2 + car.door_open_ticks);
+        let door_overhead_per_stop = f64::from(car.door_transition_ticks * 2 + car.door_open_ticks);
 
-    // Intervening pending stops between car and target contribute door overhead.
-    let (lo, hi) = if elev_pos < target_pos {
-        (elev_pos, target_pos)
-    } else {
-        (target_pos, elev_pos)
-    };
-    let mut pending_positions: SmallVec<[f64; 16]> = SmallVec::new();
-    for &s in group.stop_entities() {
-        if manifest.has_demand(s)
-            && let Some(p) = world.stop_position(s)
-        {
-            pending_positions.push(p);
-        }
-    }
-    let intervening_stops = pending_positions
-        .iter()
-        .filter(|p| **p > lo + 1e-9 && **p < hi - 1e-9)
-        .count() as f64;
-    let door_cost = intervening_stops * door_overhead_per_stop;
-
-    let mut existing_rider_delay = 0.0_f64;
-    for &rider_eid in car.riders() {
-        if let Some(dest) = world.route(rider_eid).and_then(Route::current_destination)
-            && let Some(dest_pos) = world.stop_position(dest)
-        {
-            let direct_dist = (elev_pos - dest_pos).abs();
-            let detour_dist = (elev_pos - target_pos).abs() + (target_pos - dest_pos).abs();
-            let extra = (detour_dist - direct_dist).max(0.0);
-            if car.max_speed > 0.0 {
-                existing_rider_delay += extra / car.max_speed;
+        // Intervening pending stops between car and target contribute door overhead.
+        let (lo, hi) = if elev_pos < target_pos {
+            (elev_pos, target_pos)
+        } else {
+            (target_pos, elev_pos)
+        };
+        let mut pending_positions: SmallVec<[f64; 16]> = SmallVec::new();
+        for &s in group.stop_entities() {
+            if manifest.has_demand(s)
+                && let Some(p) = world.stop_position(s)
+            {
+                pending_positions.push(p);
             }
         }
-    }
+        let intervening_stops = pending_positions
+            .iter()
+            .filter(|p| **p > lo + 1e-9 && **p < hi - 1e-9)
+            .count() as f64;
+        let door_cost = intervening_stops * door_overhead_per_stop;
 
-    // Direction bonus: if the car is already heading this way, subtract.
-    // Scoring model requires non-negative costs, so clamp at zero — losing
-    // a small amount of discriminative power vs. a pure free-for-all when
-    // two assignments tie.
-    let direction_bonus = match car.phase.moving_target() {
-        Some(current_target) => world.stop_position(current_target).map_or(0.0, |ctp| {
-            let moving_up = ctp > elev_pos;
-            let target_is_ahead = if moving_up {
-                target_pos > elev_pos && target_pos <= ctp
-            } else {
-                target_pos < elev_pos && target_pos >= ctp
-            };
-            if target_is_ahead {
-                -travel_time * 0.5
-            } else {
-                0.0
+        let mut existing_rider_delay = 0.0_f64;
+        for &rider_eid in car.riders() {
+            if let Some(dest) = world.route(rider_eid).and_then(Route::current_destination)
+                && let Some(dest_pos) = world.stop_position(dest)
+            {
+                let direct_dist = (elev_pos - dest_pos).abs();
+                let detour_dist = (elev_pos - target_pos).abs() + (target_pos - dest_pos).abs();
+                let extra = (detour_dist - direct_dist).max(0.0);
+                if car.max_speed > 0.0 {
+                    existing_rider_delay += extra / car.max_speed;
+                }
             }
-        }),
-        None if car.phase == ElevatorPhase::Idle => -travel_time * 0.3,
-        _ => 0.0,
-    };
+        }
 
-    let raw = strategy.wait_weight.mul_add(
-        travel_time,
-        strategy.delay_weight.mul_add(
-            existing_rider_delay,
-            strategy.door_weight.mul_add(door_cost, direction_bonus),
-        ),
-    );
-    raw.max(0.0)
+        // Direction bonus: if the car is already heading this way, subtract.
+        // Scoring model requires non-negative costs, so clamp at zero — losing
+        // a small amount of discriminative power vs. a pure free-for-all when
+        // two assignments tie.
+        let direction_bonus = match car.phase.moving_target() {
+            Some(current_target) => world.stop_position(current_target).map_or(0.0, |ctp| {
+                let moving_up = ctp > elev_pos;
+                let target_is_ahead = if moving_up {
+                    target_pos > elev_pos && target_pos <= ctp
+                } else {
+                    target_pos < elev_pos && target_pos >= ctp
+                };
+                if target_is_ahead {
+                    -travel_time * 0.5
+                } else {
+                    0.0
+                }
+            }),
+            None if car.phase == ElevatorPhase::Idle => -travel_time * 0.3,
+            _ => 0.0,
+        };
+
+        let raw = self.wait_weight.mul_add(
+            travel_time,
+            self.delay_weight.mul_add(
+                existing_rider_delay,
+                self.door_weight.mul_add(door_cost, direction_bonus),
+            ),
+        );
+        raw.max(0.0)
+    }
 }

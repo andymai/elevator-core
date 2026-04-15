@@ -559,3 +559,50 @@ fn nearest_car_ignores_zero_demand() {
     // Should skip stop[1] (0 demand) and go to stop[3].
     assert_eq!(dec.1, DispatchDecision::GoToStop(stops[3]));
 }
+
+/// Stress the Hungarian matrix with a realistic large group to verify the
+/// sentinel + scaling bounds don't overflow `i64` in the solver's internal
+/// potential sums. Mirrors the upper end of `benches/dispatch_bench.rs`.
+#[test]
+fn assign_handles_large_group_without_overflow() {
+    let mut world = World::new();
+    let stop_count = 64;
+    let car_count = 32;
+    let stops: Vec<_> = (0..stop_count)
+        .map(|i| {
+            let eid = world.spawn();
+            world.set_stop(
+                eid,
+                Stop {
+                    name: format!("S{i}"),
+                    position: i as f64 * 4.0,
+                },
+            );
+            eid
+        })
+        .collect();
+    let cars: Vec<_> = (0..car_count)
+        .map(|i| spawn_elevator(&mut world, (i as f64) * 4.0))
+        .collect();
+    let group = test_group(&stops, cars.clone());
+    let mut manifest = DispatchManifest::default();
+    for &s in &stops {
+        add_demand(&mut manifest, &mut world, s, 70.0);
+    }
+    let positions: Vec<_> = cars
+        .iter()
+        .map(|&c| (c, world.position(c).unwrap().value))
+        .collect();
+
+    let mut nc = NearestCarDispatch::new();
+    let decisions = decide_all(&mut nc, &positions, &group, &manifest, &world);
+    // Every car should be assigned to a distinct stop (car_count < stop_count).
+    let assigned_stops: HashSet<_> = decisions
+        .iter()
+        .filter_map(|(_, d)| match d {
+            DispatchDecision::GoToStop(s) => Some(*s),
+            DispatchDecision::Idle => None,
+        })
+        .collect();
+    assert_eq!(assigned_stops.len(), car_count);
+}
