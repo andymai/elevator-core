@@ -1,5 +1,16 @@
 # Changelog
 
+## [7.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v6.0.0...elevator-core-v7.0.0) (2026-04-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* hall calls, car calls, pinning, and mid-trip reassignment ([#91](https://github.com/andymai/elevator-core/issues/91))
+
+### Features
+
+* hall calls, car calls, pinning, and mid-trip reassignment ([#91](https://github.com/andymai/elevator-core/issues/91)) ([4197558](https://github.com/andymai/elevator-core/commit/41975589b2853739e88fd4bc4e19c37c20abdab5))
+
 ## [6.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.10.0...elevator-core-v6.0.0) (2026-04-15)
 
 
