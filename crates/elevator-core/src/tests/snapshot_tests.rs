@@ -390,3 +390,109 @@ fn snapshot_bytes_midrun_determinism() {
         via_snapshot.metrics().total_moves(),
     );
 }
+
+#[test]
+fn snapshot_preserves_hall_calls_and_pinning() {
+    use crate::components::CallDirection;
+
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    let stop = sim.stop_entity(StopId(1)).unwrap();
+    let car = sim.world().elevator_ids()[0];
+    sim.press_hall_button(stop, CallDirection::Up).unwrap();
+    sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    let restored_stop = restored.stop_entity(StopId(1)).unwrap();
+    let call = restored
+        .world()
+        .hall_call(restored_stop, CallDirection::Up)
+        .expect("hall call should survive snapshot/restore");
+    assert_eq!(call.direction, CallDirection::Up);
+    assert!(call.pinned, "pinning flag must round-trip");
+    assert!(
+        call.assigned_car.is_some(),
+        "assigned_car must round-trip (remapped to new EntityId)"
+    );
+}
+
+#[test]
+fn snapshot_preserves_car_calls() {
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    let car = sim.world().elevator_ids()[0];
+    let floor = sim.stop_entity(StopId(2)).unwrap();
+    sim.press_car_button(car, floor).unwrap();
+    assert_eq!(sim.car_calls(car).len(), 1);
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    let restored_car = restored.world().elevator_ids()[0];
+    let calls = restored.car_calls(restored_car);
+    assert_eq!(calls.len(), 1, "car call must round-trip");
+    // Floor reference must have been remapped to a valid stop entity.
+    assert!(restored.world().stop(calls[0].floor).is_some());
+}
+
+#[test]
+fn snapshot_preserves_group_hall_mode_and_ack_latency() {
+    use crate::dispatch::HallCallMode;
+
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    sim.groups_mut()[0].set_hall_call_mode(HallCallMode::Destination);
+    sim.groups_mut()[0].set_ack_latency_ticks(12);
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    assert_eq!(
+        restored.groups()[0].hall_call_mode(),
+        HallCallMode::Destination,
+    );
+    assert_eq!(restored.groups()[0].ack_latency_ticks(), 12);
+}
+
+#[test]
+fn snapshot_preserves_hall_call_ack_state_under_latency() {
+    use crate::components::CallDirection;
+    use crate::dispatch::HallCallMode;
+
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    sim.groups_mut()[0].set_hall_call_mode(HallCallMode::Destination);
+    sim.groups_mut()[0].set_ack_latency_ticks(10);
+
+    let stop = sim.stop_entity(StopId(1)).unwrap();
+    sim.press_hall_button(stop, CallDirection::Up).unwrap();
+    // Advance a few ticks so the ack-latency counter has started ticking
+    // but not yet expired — we must preserve the partial state.
+    for _ in 0..3 {
+        sim.step();
+    }
+    let original_press_tick = sim
+        .world()
+        .hall_call(stop, CallDirection::Up)
+        .unwrap()
+        .press_tick;
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None);
+
+    let restored_stop = restored.stop_entity(StopId(1)).unwrap();
+    let call = restored
+        .world()
+        .hall_call(restored_stop, CallDirection::Up)
+        .unwrap();
+    assert_eq!(call.press_tick, original_press_tick);
+    assert!(
+        !call.is_acknowledged(),
+        "call should still be pending ack after 3 of 10 latency ticks"
+    );
+    assert_eq!(call.ack_latency_ticks, 10);
+}
