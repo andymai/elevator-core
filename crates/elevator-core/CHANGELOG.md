@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.9.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.9.0...elevator-core-v5.9.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* swap bincode for postcard (unblock main CI) ([#83](https://github.com/andymai/elevator-core/issues/83)) ([617aaf5](https://github.com/andymai/elevator-core/commit/617aaf5ca63e5a3df3ceeb8a79d6729718fe069d))
+
 ## [5.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.8.1...elevator-core-v5.9.0) (2026-04-15)
 
 
