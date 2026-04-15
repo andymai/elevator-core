@@ -1,0 +1,33 @@
+[package]
+name = "elevator-ffi"
+version = "0.1.0"
+edition.workspace = true
+description = "C ABI for elevator-core (Unity / native interop)"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "allow"
+module_name_repetitions = "allow"
+missing_errors_doc = "warn"
+missing_panics_doc = "allow"
+missing_safety_doc = "allow"
+
+[dependencies]
+elevator-core = { path = "../elevator-core" }
+ron = { workspace = true }
+serde = { workspace = true }
+slotmap = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.29"
