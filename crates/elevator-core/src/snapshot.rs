@@ -8,8 +8,8 @@
 //! own extensions separately and re-attach them after restoring.
 
 use crate::components::{
-    AccessControl, DestinationQueue, Elevator, Line, Patience, Position, Preferences, Rider, Route,
-    Stop, Velocity,
+    AccessControl, CarCall, DestinationQueue, Elevator, HallCall, Line, Patience, Position,
+    Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -62,6 +62,9 @@ pub struct EntitySnapshot {
     /// Destination queue (per-elevator; absent in legacy snapshots).
     #[serde(default)]
     pub destination_queue: Option<DestinationQueue>,
+    /// Car calls pressed inside this elevator (per-car; absent in legacy snapshots).
+    #[serde(default)]
+    pub car_calls: Vec<CarCall>,
 }
 
 /// Serializable snapshot of the entire simulation state.
@@ -93,6 +96,9 @@ pub struct WorldSnapshot {
     pub extensions: HashMap<String, HashMap<EntityId, String>>,
     /// Ticks per second (for `TimeAdapter` reconstruction).
     pub ticks_per_second: f64,
+    /// All pending hall calls across every stop. Absent in legacy snapshots.
+    #[serde(default)]
+    pub hall_calls: Vec<HallCall>,
 }
 
 /// Per-line snapshot info within a group.
@@ -125,6 +131,12 @@ pub struct GroupSnapshot {
     /// Optional repositioning strategy for idle elevators.
     #[serde(default)]
     pub reposition: Option<crate::dispatch::BuiltinReposition>,
+    /// Hall call mode for this group. Legacy snapshots default to `Classic`.
+    #[serde(default)]
+    pub hall_call_mode: crate::dispatch::HallCallMode,
+    /// Controller ack latency in ticks. Legacy snapshots default to `0`.
+    #[serde(default)]
+    pub ack_latency_ticks: u32,
 }
 
 /// Pending extension data from a snapshot, awaiting type registration.
@@ -163,6 +175,9 @@ impl WorldSnapshot {
 
         // Phase 2: attach components with remapped EntityIds.
         Self::attach_components(&mut world, &self.entities, &index_to_id, &id_remap);
+
+        // Phase 2b: re-register hall calls (cross-reference stops/cars/riders).
+        self.attach_hall_calls(&mut world, &id_remap);
 
         // Rebuild sorted stops index.
         let mut sorted: Vec<(f64, EntityId)> = world
@@ -362,6 +377,51 @@ impl WorldSnapshot {
                 }
                 world.set_destination_queue(eid, new_dq);
             }
+            Self::attach_car_calls(world, eid, &snap.car_calls, id_remap);
+        }
+    }
+
+    /// Re-register per-car floor button presses after entities are spawned.
+    fn attach_car_calls(
+        world: &mut crate::world::World,
+        car: EntityId,
+        car_calls: &[CarCall],
+        id_remap: &HashMap<EntityId, EntityId>,
+    ) {
+        if car_calls.is_empty() {
+            return;
+        }
+        let remap = |old: EntityId| -> EntityId { id_remap.get(&old).copied().unwrap_or(old) };
+        let Some(slot) = world.car_calls_mut(car) else {
+            return;
+        };
+        for cc in car_calls {
+            let mut c = cc.clone();
+            c.car = car;
+            c.floor = remap(c.floor);
+            c.pending_riders = c.pending_riders.iter().map(|&r| remap(r)).collect();
+            slot.push(c);
+        }
+    }
+
+    /// Re-register hall calls in the world after entities are spawned.
+    ///
+    /// `HallCall` cross-references stops, cars, riders, and optional
+    /// destinations — all `EntityId`s must be remapped through `id_remap`.
+    fn attach_hall_calls(
+        &self,
+        world: &mut crate::world::World,
+        id_remap: &HashMap<EntityId, EntityId>,
+    ) {
+        let remap = |old: EntityId| -> EntityId { id_remap.get(&old).copied().unwrap_or(old) };
+        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(&remap) };
+        for hc in &self.hall_calls {
+            let mut c = hc.clone();
+            c.stop = remap(c.stop);
+            c.destination = remap_opt(c.destination);
+            c.assigned_car = remap_opt(c.assigned_car);
+            c.pending_riders = c.pending_riders.iter().map(|&r| remap(r)).collect();
+            world.set_hall_call(c);
         }
     }
 
@@ -423,6 +483,8 @@ impl WorldSnapshot {
                 };
 
                 ElevatorGroup::new(gs.id, gs.name.clone(), lines)
+                    .with_hall_call_mode(gs.hall_call_mode)
+                    .with_ack_latency_ticks(gs.ack_latency_ticks)
             })
             .collect();
 
@@ -533,6 +595,7 @@ impl crate::sim::Simulation {
                 energy_metrics: world.energy_metrics(eid).cloned(),
                 service_mode: world.service_mode(eid).copied(),
                 destination_queue: world.destination_queue(eid).cloned(),
+                car_calls: world.car_calls(eid).to_vec(),
             })
             .collect();
 
@@ -580,6 +643,8 @@ impl crate::sim::Simulation {
                         .unwrap_or(crate::dispatch::BuiltinStrategy::Scan),
                     lines,
                     reposition: self.reposition_id(g.id()).cloned(),
+                    hall_call_mode: g.hall_call_mode(),
+                    ack_latency_ticks: g.ack_latency_ticks(),
                 }
             })
             .collect();
@@ -604,6 +669,7 @@ impl crate::sim::Simulation {
                 .unwrap_or_default(),
             extensions: self.world().serialize_extensions(),
             ticks_per_second: 1.0 / self.dt(),
+            hall_calls: world.iter_hall_calls().cloned().collect(),
         }
     }
 
