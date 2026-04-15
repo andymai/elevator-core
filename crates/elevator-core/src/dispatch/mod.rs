@@ -66,6 +66,7 @@ pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
+use crate::components::{CallDirection, CarCall, HallCall};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -99,6 +100,15 @@ pub struct DispatchManifest {
     pub riding_to_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
     /// Number of residents at each stop (read-only hint for dispatch strategies).
     pub resident_count_at_stop: BTreeMap<EntityId, usize>,
+    /// Pending hall calls at each stop — at most two entries per stop
+    /// (one per [`CallDirection`]). Populated only for stops served by
+    /// the group being dispatched. Strategies read this to rank based on
+    /// call age, pending-rider count, pin flags, or DCS destinations.
+    pub hall_calls_at_stop: BTreeMap<EntityId, Vec<HallCall>>,
+    /// Floor buttons pressed inside each car in the group. Keyed by car
+    /// entity. Strategies read this to plan intermediate stops without
+    /// poking into `World` directly.
+    pub car_calls_by_car: BTreeMap<EntityId, Vec<CarCall>>,
 }
 
 impl DispatchManifest {
@@ -132,6 +142,31 @@ impl DispatchManifest {
     #[must_use]
     pub fn resident_count_at(&self, stop: EntityId) -> usize {
         self.resident_count_at_stop.get(&stop).copied().unwrap_or(0)
+    }
+
+    /// The hall call at `(stop, direction)`, if pressed.
+    #[must_use]
+    pub fn hall_call_at(&self, stop: EntityId, direction: CallDirection) -> Option<&HallCall> {
+        self.hall_calls_at_stop
+            .get(&stop)?
+            .iter()
+            .find(|c| c.direction == direction)
+    }
+
+    /// All hall calls across every stop in the group (flattened iterator).
+    ///
+    /// No `#[must_use]` needed: `impl Iterator` already carries that
+    /// annotation, and adding our own triggers clippy's
+    /// `double_must_use` lint.
+    pub fn iter_hall_calls(&self) -> impl Iterator<Item = &HallCall> {
+        self.hall_calls_at_stop.values().flatten()
+    }
+
+    /// Floor buttons currently pressed inside `car`. Empty slice if the
+    /// car has no aboard riders or no outstanding presses.
+    #[must_use]
+    pub fn car_calls_for(&self, car: EntityId) -> &[CarCall] {
+        self.car_calls_by_car.get(&car).map_or(&[], Vec::as_slice)
     }
 }
 
