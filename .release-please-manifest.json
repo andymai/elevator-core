@@ -1,4 +1,4 @@
 {
-  "crates/elevator-core": "8.0.0",
+  "crates/elevator-core": "8.1.0",
   "crates/elevator-ffi": "0.3.0"
 }

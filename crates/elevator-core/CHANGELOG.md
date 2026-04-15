@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.0.0...elevator-core-v8.1.0) (2026-04-15)
+
+
+### Features
+
+* wire hall_call_mode and ack_latency_ticks through GroupConfig ([#105](https://github.com/andymai/elevator-core/issues/105)) ([99a36dc](https://github.com/andymai/elevator-core/commit/99a36dc5b7d20e410062ad0f42692a051d331547))
+
 ## [8.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v7.0.1...elevator-core-v8.0.0) (2026-04-15)
 
 
