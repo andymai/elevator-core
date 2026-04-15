@@ -363,7 +363,7 @@ fn loading_preference_boundary_allows_exact_match() {
             skip_full_elevator: true,
             max_crowding_factor: 0.0,
             balk_threshold_ticks: None,
-            rebalk_on_full: false,
+            abandon_on_full: false,
         })
         .spawn()
         .unwrap();

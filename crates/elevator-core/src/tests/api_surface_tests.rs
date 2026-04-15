@@ -711,7 +711,7 @@ fn rider_builder_with_preferences() {
         skip_full_elevator: true,
         max_crowding_factor: 0.5,
         balk_threshold_ticks: None,
-        rebalk_on_full: false,
+        abandon_on_full: false,
     };
 
     let rider_id = sim

@@ -276,22 +276,22 @@ fn pinned_pin_does_not_clobber_loading_car() {
     }
 }
 
-/// `rebalk_on_full = true` escalates a balk into immediate abandonment.
+/// `abandon_on_full = true` escalates a balk into immediate abandonment.
 /// Regression guard — the flag was documented but previously inert.
 #[test]
-fn rebalk_on_full_abandons_immediately() {
+fn abandon_on_full_abandons_immediately() {
     use crate::components::Preferences;
     let mut config = default_config();
     // Tight capacity so any preload fills the car.
     config.elevators[0].weight_capacity = 100.0;
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    // Rider with rebalk_on_full who skips anything with load > 0.5.
+    // Rider with abandon_on_full who skips anything with load > 0.5.
     let picky = sim
         .build_rider_by_stop_id(StopId(0), StopId(2))
         .unwrap()
         .weight(30.0)
-        .preferences(Preferences::default().with_rebalk_on_full(true))
+        .preferences(Preferences::default().with_abandon_on_full(true))
         .spawn()
         .unwrap();
     // Note: Preferences::default has skip_full_elevator = false, but
@@ -302,7 +302,7 @@ fn rebalk_on_full_abandons_immediately() {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
             balk_threshold_ticks: None,
-            rebalk_on_full: true,
+            abandon_on_full: true,
         },
     );
 
@@ -331,7 +331,64 @@ fn rebalk_on_full_abandons_immediately() {
     assert_eq!(
         phase,
         Some(crate::components::RiderPhase::Abandoned),
-        "rebalk_on_full should escalate the balk into Abandoned"
+        "abandon_on_full should escalate the balk into Abandoned"
+    );
+}
+
+/// `abandon_on_full` and `balk_threshold_ticks` are independent axes.
+/// Setting both with `abandon_on_full = true` and a large threshold
+/// proves the event-triggered path fires before the time-triggered
+/// one — the two do not gate each other.
+#[test]
+fn abandon_on_full_fires_before_balk_threshold_elapses() {
+    use crate::components::Preferences;
+    let mut config = default_config();
+    config.elevators[0].weight_capacity = 100.0;
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let picky = sim
+        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .unwrap()
+        .weight(30.0)
+        .preferences(Preferences::default())
+        .spawn()
+        .unwrap();
+    // Both fields set: a very large threshold that would never fire in
+    // this test, plus abandon_on_full = true. The rider should abandon
+    // on the first full-car skip — not wait the threshold out.
+    sim.world_mut().set_preferences(
+        picky,
+        Preferences {
+            skip_full_elevator: true,
+            max_crowding_factor: 0.5,
+            balk_threshold_ticks: Some(1_000_000),
+            abandon_on_full: true,
+        },
+    );
+
+    let elev = sim.world().elevator_ids()[0];
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
+    let stop0_pos = sim.world().stop(stop0).unwrap().position;
+    {
+        let w = sim.world_mut();
+        if let Some(pos) = w.position_mut(elev) {
+            pos.value = stop0_pos;
+        }
+        if let Some(vel) = w.velocity_mut(elev) {
+            vel.value = 0.0;
+        }
+        if let Some(car) = w.elevator_mut(elev) {
+            car.phase = crate::components::ElevatorPhase::Loading;
+            car.current_load = 60.0;
+            car.target_stop = None;
+        }
+    }
+    sim.run_loading();
+    sim.advance_tick();
+    assert_eq!(
+        sim.world().rider(picky).map(|r| r.phase),
+        Some(crate::components::RiderPhase::Abandoned),
+        "abandon_on_full should fire on first full-car contact regardless of threshold",
     );
 }
 

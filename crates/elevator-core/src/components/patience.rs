@@ -52,11 +52,25 @@ pub struct Preferences {
     /// multi-leg routes. Without `Patience`, the budget degrades to
     /// lifetime ticks since spawn, which matches single-leg behavior.
     pub(crate) balk_threshold_ticks: Option<u32>,
-    /// When a full car arrives and this rider skips it, should that
-    /// count as a balk-and-abandon rather than a silent pass? When
-    /// `true`, the rider abandons immediately instead of waiting for
-    /// `balk_threshold_ticks` to elapse. Default `false`.
-    pub(crate) rebalk_on_full: bool,
+    /// Abandon on the first full-car skip, rather than silently
+    /// passing and continuing to wait. Default `false`.
+    ///
+    /// This is an **independent** abandonment axis from
+    /// [`balk_threshold_ticks`](Self::balk_threshold_ticks) — the two
+    /// do not compose or gate each other:
+    ///
+    /// - `abandon_on_full` is *event-triggered* from the loading phase
+    ///   (`systems::loading`), firing on a full-car balk.
+    /// - `balk_threshold_ticks` is *time-triggered* from the transient
+    ///   phase (`systems::advance_transient`), firing when the rider's
+    ///   wait budget elapses.
+    ///
+    /// Both paths set [`RiderPhase::Abandoned`](crate::components::RiderPhase);
+    /// whichever condition is reached first wins. Setting
+    /// `abandon_on_full = true` with `balk_threshold_ticks = None` is
+    /// valid and abandons on the first full-car skip regardless of
+    /// wait time.
+    pub(crate) abandon_on_full: bool,
 }
 
 impl Preferences {
@@ -81,8 +95,8 @@ impl Preferences {
 
     /// Should balking a full car convert directly to abandonment?
     #[must_use]
-    pub const fn rebalk_on_full(&self) -> bool {
-        self.rebalk_on_full
+    pub const fn abandon_on_full(&self) -> bool {
+        self.abandon_on_full
     }
 
     /// Builder: set `balk_threshold_ticks`.
@@ -92,10 +106,10 @@ impl Preferences {
         self
     }
 
-    /// Builder: set `rebalk_on_full`.
+    /// Builder: set `abandon_on_full`.
     #[must_use]
-    pub const fn with_rebalk_on_full(mut self, rebalk: bool) -> Self {
-        self.rebalk_on_full = rebalk;
+    pub const fn with_abandon_on_full(mut self, abandon: bool) -> Self {
+        self.abandon_on_full = abandon;
         self
     }
 }
@@ -106,7 +120,7 @@ impl Default for Preferences {
             skip_full_elevator: false,
             max_crowding_factor: 0.8,
             balk_threshold_ticks: None,
-            rebalk_on_full: false,
+            abandon_on_full: false,
         }
     }
 }

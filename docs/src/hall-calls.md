@@ -85,7 +85,7 @@ rider behavior:
 - `balk_threshold_ticks: Option<u32>` — abandon after `N` ticks of
   waiting time (uses `Patience::waited_ticks` when present so multi-
   leg routes don't over-count ride time).
-- `rebalk_on_full: bool` — when set, a rider who is filtered out of a
+- `abandon_on_full: bool` — when set, a rider who is filtered out of a
   car via `skip_full_elevator` abandons immediately rather than
   waiting for the next one. Emits `RiderAbandoned` on the spot.
 
@@ -109,7 +109,7 @@ UI can react to individual behavioral beats.
 | `HallCallAcknowledged` | Ack-latency window elapsed | UI confirmation signal |
 | `HallCallCleared` | Assigned car opens doors at stop | Clears the button light |
 | `CarButtonPressed` | First press per (car, floor) | `rider` is `None` for synthetic presses |
-| `RiderBalked` | Preference filter rejects a candidate car | Rider may still board a later car unless `rebalk_on_full` |
+| `RiderBalked` | Preference filter rejects a candidate car | Rider may still board a later car unless `abandon_on_full` |
 
 ## FFI
 

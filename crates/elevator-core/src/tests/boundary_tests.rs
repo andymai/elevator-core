@@ -105,7 +105,7 @@ fn preferences_zero_crowding_rejects_any_load() {
             skip_full_elevator: true,
             max_crowding_factor: 0.0,
             balk_threshold_ticks: None,
-            rebalk_on_full: false,
+            abandon_on_full: false,
         },
     );
 
