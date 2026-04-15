@@ -29,7 +29,7 @@ rand = { workspace = true, optional = true }
 slotmap.workspace = true
 ordered-float = { version = "5", features = ["serde"] }
 smallvec = { version = "1", features = ["serde"] }
-bincode.workspace = true
+postcard.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
