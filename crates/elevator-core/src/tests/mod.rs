@@ -46,6 +46,7 @@ mod direction_indicator_tests;
 mod door_control_tests;
 #[cfg(feature = "energy")]
 mod energy_tests;
+mod eta_tests;
 mod event_payload_tests;
 mod manual_mode_tests;
 mod move_count_tests;
