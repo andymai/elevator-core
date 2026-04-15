@@ -102,7 +102,7 @@ consumers via `drain_events()` after the tick completes.
 │                       │  Boarding→Riding, Exiting→Arrived, walk legs, patience
 ├───────────────────────┤
 │ 2. Dispatch           │  systems/dispatch.rs
-│                       │  Build manifest, call DispatchStrategy.decide_all()
+│                       │  Build manifest, rank (car, stop) pairs, Hungarian match
 ├───────────────────────┤
 │ 3. Reposition         │  systems/reposition.rs
 │                       │  Move idle elevators via RepositionStrategy (optional)
@@ -143,7 +143,7 @@ Transitions riders through their one-tick transient states:
 ### Phase 2: Dispatch (`systems/dispatch.rs`)
 
 Builds a `DispatchManifest` from current rider state, then calls each group's
-`DispatchStrategy.decide_all()` for idle/stopped elevators.
+`DispatchStrategy::rank()` for every idle/stopped elevator × demanded stop, then runs the Hungarian solver.
 
 The manifest contains per-rider metadata (`RiderInfo`) grouped into two maps:
 - `waiting_at_stop`: riders at each stop wanting service
@@ -293,30 +293,31 @@ Key relationship invariants:
 
 ```rust
 pub trait DispatchStrategy: Send + Sync {
-    fn decide(
+    fn rank(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
+        car: EntityId,
+        car_position: f64,
+        stop: EntityId,
+        stop_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision;
+    ) -> Option<f64>;
 
-    fn decide_all(
-        &mut self,
-        elevators: &[(EntityId, f64)],
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)>;
-
+    fn pre_dispatch(&mut self, _group: &ElevatorGroup, _manifest: &DispatchManifest, _world: &mut World) {}
+    fn prepare_car(&mut self, _car: EntityId, _pos: f64, _group: &ElevatorGroup, _manifest: &DispatchManifest, _world: &World) {}
+    fn fallback(&mut self, _car: EntityId, _pos: f64, _group: &ElevatorGroup, _manifest: &DispatchManifest, _world: &World) -> DispatchDecision { DispatchDecision::Idle }
     fn notify_removed(&mut self, _elevator: EntityId) {}
 }
 ```
 
-`decide()` handles a single elevator; `decide_all()` enables group-wide
-coordination (default: calls `decide()` per elevator). Strategies receive
-full `&World` access for reading extension components or custom state.
+Strategies score `(car, stop)` pairs via `rank()` — lower is better, `None` excludes
+the pair. The dispatch system builds a cost matrix from every strategy's ranks and
+runs the Hungarian (Kuhn–Munkres) algorithm to produce the globally optimal
+assignment, so coordination — one car per hall call — is a library invariant
+rather than a per-strategy responsibility. Cars left unassigned fall through to
+`fallback`. `prepare_car` lets strategies that depend on whole-group state
+(SCAN/LOOK sweep direction) settle it before any ranks are computed.
 
 ### DispatchManifest
 

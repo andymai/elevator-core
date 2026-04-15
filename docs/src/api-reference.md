@@ -353,19 +353,28 @@ for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() {
 
 ```rust
 pub trait DispatchStrategy: Send + Sync {
-    fn decide(
+    // Required: cost of sending `car` to `stop`. None excludes the pair.
+    fn rank(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
+        car: EntityId,
+        car_position: f64,
+        stop: EntityId,
+        stop_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision;
+    ) -> Option<f64>;
 
-    // Optional: batch decision for all idle elevators (default calls decide per elevator)
-    fn decide_all(...) -> Vec<(EntityId, DispatchDecision)>;
+    // Optional: per-group pre-pass with mutable world access.
+    fn pre_dispatch(&mut self, group: &ElevatorGroup, manifest: &DispatchManifest, world: &mut World);
 
-    // Optional: cleanup when an elevator is removed (default no-op)
+    // Optional: per-car setup called before the car's rank loop.
+    fn prepare_car(&mut self, car: EntityId, car_position: f64, group: &ElevatorGroup, manifest: &DispatchManifest, world: &World);
+
+    // Optional: policy for cars left unassigned after the Hungarian match.
+    fn fallback(&mut self, car: EntityId, car_position: f64, group: &ElevatorGroup, manifest: &DispatchManifest, world: &World) -> DispatchDecision;
+
+    // Optional: cleanup when an elevator is removed (default no-op).
     fn notify_removed(&mut self, elevator: EntityId);
 }
 ```

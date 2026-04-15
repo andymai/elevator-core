@@ -1,19 +1,19 @@
 //! Writing a custom `DispatchStrategy`.
 //!
-//! This example walks through all three trait methods:
+//! This example walks through the score-based trait:
 //!
-//! * [`DispatchStrategy::decide`] — per-elevator, required.
-//! * [`DispatchStrategy::decide_all`] — per-group coordination, optional.
+//! * [`DispatchStrategy::rank`] — cost of sending a car to a stop; required.
+//! * [`DispatchStrategy::fallback`] — policy for unassigned cars; optional.
+//! * [`DispatchStrategy::prepare_car`] — per-car state setup; optional.
+//! * [`DispatchStrategy::pre_dispatch`] — per-group world-mutation hook;
+//!   optional, used by sticky strategies like destination dispatch.
 //! * [`DispatchStrategy::notify_removed`] — per-elevator state cleanup,
-//!   optional but required if the strategy carries a `HashMap<EntityId, _>`.
+//!   required if the strategy carries a `HashMap<EntityId, _>`.
 //!
 //! Run with:
 //! ```sh
 //! cargo run --example custom_dispatch
 //! ```
-//!
-//! See [`docs/src/custom-dispatch.md`](../../../docs/src/custom-dispatch.md)
-//! for the narrative tutorial.
 #![allow(
     clippy::unwrap_used,
     clippy::missing_docs_in_private_items,
@@ -22,98 +22,88 @@
 
 use std::collections::HashMap;
 
-use elevator_core::dispatch::{
-    BuiltinStrategy, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup,
-};
+use elevator_core::dispatch::{BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup};
 use elevator_core::entity::EntityId;
 use elevator_core::ids::GroupId;
 use elevator_core::prelude::*;
 use elevator_core::stop::StopConfig;
 use elevator_core::world::World;
 
-/// Round-robin across stops with demand, coordinating across idle cars
-/// so two elevators never get pointed at the same stop in one tick.
+/// Weighted nearest-car: distance plus a penalty proportional to how
+/// many ticks this car has been idle since it last served a call.
 ///
-/// This strategy carries one piece of per-instance state (the next-stop
-/// index) and one piece of per-elevator state (last-served tick, for
-/// observability only), which makes it a good vehicle for demonstrating
-/// `notify_removed`.
+/// The library's [Hungarian assignment](elevator_core::dispatch) combines
+/// every car's ranks and picks the globally minimum-total-cost matching,
+/// so two cars are never sent to the same hall call.
 #[derive(Default)]
-struct RoundRobin {
-    /// Cycles through the group's demand list so every stop gets a
-    /// chance eventually, regardless of waiting count.
-    next_index: usize,
-
-    /// Per-elevator last-served tick. Not used by `decide` here — it
-    /// just demonstrates the `notify_removed` contract.
+struct IdlePenaltyDispatch {
+    /// Tick of the last call each car was assigned to. Used to penalize
+    /// cars that have sat unused for a while so the fleet rotates fairly.
     last_served_tick: HashMap<EntityId, u64>,
+    /// Idle ticks resolved once per car in `prepare_car` and read by `rank`.
+    /// Keeping mutation out of `rank` keeps the cost matrix order-independent.
+    idle_for: HashMap<EntityId, f64>,
+    /// Current tick, refreshed once per group pass via `pre_dispatch`.
+    tick: u64,
 }
 
-impl DispatchStrategy for RoundRobin {
-    fn decide(
+impl DispatchStrategy for IdlePenaltyDispatch {
+    /// Refresh the tick counter once per group pass.
+    fn pre_dispatch(
         &mut self,
-        _elevator: EntityId,
-        _elevator_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &mut World,
+    ) {
+        self.tick = self.tick.saturating_add(1);
+    }
+
+    /// Record how long this car has been idle, once, before the `rank`
+    /// loop. The `last_served` bookkeeping updates here too, so `rank`
+    /// is a pure read.
+    fn prepare_car(
+        &mut self,
+        car: EntityId,
+        _car_position: f64,
         _group: &ElevatorGroup,
         _manifest: &DispatchManifest,
         _world: &World,
-    ) -> DispatchDecision {
-        // Required by the trait. When `decide_all` is overridden, the
-        // default trait impl routes through `decide_all` so this method
-        // is unreachable on the dispatch hot path — returning `Idle`
-        // here is a belt-and-suspenders default.
-        DispatchDecision::Idle
+    ) {
+        let last = self.last_served_tick.get(&car).copied().unwrap_or(0);
+        let idle = self.tick.saturating_sub(last) as f64;
+        self.idle_for.insert(car, idle);
+        self.last_served_tick.insert(car, self.tick);
     }
 
-    /// Coordinate across all idle elevators so each stop with demand is
-    /// served by at most one car per tick.
-    fn decide_all(
+    /// Cost is distance minus a small bonus for cars that haven't been
+    /// used recently. Returning `None` would exclude a `(car, stop)`
+    /// pair entirely — useful for capacity limits or restricted stops.
+    fn rank(
         &mut self,
-        elevators: &[(EntityId, f64)],
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
+        car: EntityId,
+        car_position: f64,
+        _stop: EntityId,
+        stop_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
         _world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)> {
-        // Collect stops with demand, in the group's canonical order.
-        let demand_stops: Vec<EntityId> = group
-            .stop_entities()
-            .iter()
-            .copied()
-            .filter(|&s| manifest.has_demand(s))
-            .collect();
-
-        // Pair each idle elevator with a unique stop from the rotation.
-        // `next_index` advances once per *call*, not once per elevator —
-        // so over time every stop gets picked first even under uneven
-        // demand. Elevators beyond the demand list go idle.
-        let mut results = Vec::with_capacity(elevators.len());
-        for (i, &(eid, _)) in elevators.iter().enumerate() {
-            let decision = if demand_stops.is_empty() {
-                DispatchDecision::Idle
-            } else {
-                let stop = demand_stops[(self.next_index + i) % demand_stops.len()];
-                DispatchDecision::GoToStop(stop)
-            };
-            results.push((eid, decision));
-        }
-        if !demand_stops.is_empty() {
-            self.next_index = (self.next_index + 1) % demand_stops.len();
-        }
-        results
+    ) -> Option<f64> {
+        let distance = (car_position - stop_position).abs();
+        let idle_for = self.idle_for.get(&car).copied().unwrap_or(0.0);
+        // Bias toward long-idle cars; clamp so cost stays non-negative.
+        Some(0.01f64.mul_add(-idle_for, distance).max(0.0))
     }
 
-    /// CRITICAL: the framework calls this when an elevator is removed
-    /// from the group (either via `Simulation::remove_elevator` or by
-    /// cross-group reassignment). Without the cleanup, the
-    /// `last_served_tick` map would grow unbounded over long runs.
+    /// The framework calls this when an elevator leaves the group — via
+    /// `Simulation::remove_elevator` or cross-group reassignment. Drop
+    /// per-elevator state here to prevent unbounded growth.
     fn notify_removed(&mut self, elevator: EntityId) {
         self.last_served_tick.remove(&elevator);
+        self.idle_for.remove(&elevator);
     }
 }
 
 fn main() {
-    // Build a simulation with three stops and two elevators so the
-    // `decide_all` coordination has something to chew on.
     let mut sim = SimulationBuilder::demo()
         .stops(vec![
             StopConfig {
@@ -135,18 +125,15 @@ fn main() {
         .build()
         .unwrap();
 
-    // Install the custom strategy *after* build via `set_dispatch`,
-    // which takes both the boxed strategy and the `BuiltinStrategy`
-    // id used for snapshot serialization. Use a stable name — changing
-    // it breaks previously-saved snapshots.
+    // Install the custom strategy after build. `BuiltinStrategy::Custom`
+    // gives it a stable name for snapshot serialization — changing the
+    // name breaks previously-saved snapshots.
     sim.set_dispatch(
         GroupId(0),
-        Box::new(RoundRobin::default()),
-        BuiltinStrategy::Custom("round_robin".into()),
+        Box::new(IdlePenaltyDispatch::default()),
+        BuiltinStrategy::Custom("idle_penalty".into()),
     );
 
-    // Give each stop a rider going to a different stop so the round-
-    // robin has demand on every axis.
     sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
     sim.spawn_rider_by_stop_id(StopId(1), StopId(0), 72.0)
@@ -154,10 +141,6 @@ fn main() {
     sim.spawn_rider_by_stop_id(StopId(2), StopId(1), 80.0)
         .unwrap();
 
-    // Run long enough for everyone to arrive under the round-robin —
-    // it's deliberately inefficient (stops are served in cycle order
-    // regardless of demand volume), so it takes more ticks than
-    // `ScanDispatch` would.
     for _ in 0..5000 {
         sim.step();
     }
@@ -168,7 +151,6 @@ fn main() {
     println!("Avg ride:      {:.1} ticks", m.avg_ride_time());
     println!("Total dist:    {:.1} units", m.total_distance());
 
-    // Strategy identity persists for snapshots.
     match sim.strategy_id(GroupId(0)) {
         Some(BuiltinStrategy::Custom(name)) => {
             println!("Strategy name: {name} (will round-trip through snapshots)");

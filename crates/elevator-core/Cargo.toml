@@ -30,6 +30,7 @@ slotmap.workspace = true
 ordered-float = { version = "5", features = ["serde"] }
 smallvec = { version = "1", features = ["serde"] }
 postcard.workspace = true
+pathfinding = { version = "4", default-features = false }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }

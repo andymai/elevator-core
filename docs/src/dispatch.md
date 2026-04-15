@@ -135,49 +135,29 @@ fn main() -> Result<(), SimError> {
 
 ## Writing a custom strategy
 
-To implement your own dispatch algorithm, implement the `DispatchStrategy` trait:
+Strategies express preferences as costs on `(car, stop)` pairs; the dispatch system runs an optimal bipartite matching across the whole group, so no two cars can be sent to the same hall call. See [Writing a Custom Dispatch Strategy](custom-dispatch.md) for the full tutorial.
 
 ```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::world::World;
 
-/// Always sends the elevator to the highest stop that has waiting riders.
+/// Prefer the highest demanded stop — cost decreases with position.
 struct HighestFirstDispatch;
 
 impl DispatchStrategy for HighestFirstDispatch {
-    fn decide(
+    fn rank(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> DispatchDecision {
-        // Find the highest stop (by position) with waiting riders.
-        let mut best: Option<(EntityId, f64)> = None;
-
-        for &stop_eid in group.stop_entities() {
-            if manifest.waiting_count_at(stop_eid) == 0 {
-                continue;
-            }
-
-            if let Some(stop) = world.stop(stop_eid) {
-                match best {
-                    Some((_, best_pos)) if stop.position() > best_pos => {
-                        best = Some((stop_eid, stop.position()));
-                    }
-                    None => {
-                        best = Some((stop_eid, stop.position()));
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        match best {
-            Some((stop_eid, _)) => DispatchDecision::GoToStop(stop_eid),
-            None => DispatchDecision::Idle,
-        }
+        _car: EntityId,
+        _car_position: f64,
+        _stop: EntityId,
+        stop_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) -> Option<f64> {
+        // Use position as a negative score: higher stops are cheaper.
+        // Clamp to keep costs non-negative for the Hungarian solver.
+        Some((1000.0 - stop_position).max(0.0))
     }
 }
 ```
@@ -188,9 +168,10 @@ Then plug it into the builder:
 # use elevator_core::prelude::*;
 # use elevator_core::config::ElevatorConfig;
 # use elevator_core::stop::StopId;
+# use elevator_core::world::World;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
-#     fn decide(&mut self, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &elevator_core::world::World) -> DispatchDecision { DispatchDecision::Idle }
+#     fn rank(&mut self, _: EntityId, _: f64, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &World) -> Option<f64> { Some(0.0) }
 # }
 fn main() -> Result<(), SimError> {
     let sim = SimulationBuilder::new()
@@ -220,45 +201,11 @@ For more advanced dispatch (priority-aware, weight-aware, VIP-first), you can it
 
 For strategies that want to consider stopping at a passing floor only if the elevator can brake in time, `sim.braking_distance(elev)` and `sim.future_stop_position(elev)` expose the kinematic answer directly — no need to reimplement the trapezoidal physics. The free function `elevator_core::movement::braking_distance(velocity, deceleration)` is also available for pure computation off a `Simulation`.
 
-### Group-aware dispatch with `decide_all`
+### Group-aware coordination is automatic
 
-The default `DispatchStrategy` trait calls `decide()` once per idle elevator. If your strategy needs to coordinate across all elevators in a group (to avoid sending two elevators to the same stop), override `decide_all()` instead:
+Coordination across cars is a library invariant: the dispatch system collects every strategy's `(car, stop)` scores into a cost matrix and solves it with the Hungarian / Kuhn–Munkres algorithm. As long as your strategy's `rank` reflects the cost you want to minimize, you can't accidentally send two cars to the same hall call.
 
-```rust,no_run
-# use elevator_core::prelude::*;
-# use elevator_core::world::World;
-# struct MyStrategy;
-impl DispatchStrategy for MyStrategy {
-    fn decide(
-        &mut self,
-        _elevator: EntityId,
-        _pos: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> DispatchDecision {
-        // Required by the trait. When decide_all is overridden, the
-        // default trait impl calls decide_all instead of this method.
-        DispatchDecision::Idle
-    }
-
-    fn decide_all(
-        &mut self,
-        elevators: &[(EntityId, f64)],
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)> {
-        // Your group-level coordination logic here.
-        elevators
-            .iter()
-            .map(|(eid, _)| (*eid, DispatchDecision::Idle))
-            .collect()
-    }
-}
-```
-
-Both `NearestCarDispatch` and `EtdDispatch` use this pattern internally to prevent duplicate assignments.
+Strategies with per-car state that depends on whole-group demand (for example the sweep direction used by SCAN/LOOK) set that state in `prepare_car`, which runs once per car before any `rank` calls for that car.
 
 ## Next steps
 

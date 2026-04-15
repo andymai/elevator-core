@@ -5,8 +5,7 @@ use crate::components::{ElevatorPhase, RiderPhase};
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::reposition::{DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly};
 use crate::dispatch::{
-    BuiltinReposition, DispatchManifest, DispatchStrategy, ElevatorGroup, LineInfo,
-    RepositionStrategy,
+    self, BuiltinReposition, DispatchManifest, ElevatorGroup, LineInfo, RepositionStrategy,
 };
 use crate::entity::EntityId;
 use crate::events::Event;
@@ -657,7 +656,7 @@ fn etd_closer_elevator_wins() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 30.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     // elev_a is closer to stop 1 (distance 10) vs elev_b (distance 20).
     let a_dec = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();
@@ -686,7 +685,7 @@ fn etd_direction_bonus() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 5.0), (elev_b, 5.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     // elev_a is already moving up and stop 1 is ahead — should get direction bonus
     // (-0.5 * travel_time). elev_b is idle, bonus is -0.3 * travel_time.
@@ -725,7 +724,7 @@ fn etd_rider_delay_penalizes() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 20.0), (elev_b, 20.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     // elev_b (no riders) should win because elev_a would delay its rider.
     let b_dec = decisions.iter().find(|(e, _)| *e == elev_b).unwrap();
@@ -735,45 +734,43 @@ fn etd_rider_delay_penalizes() {
     assert_eq!(a_dec.1, DispatchDecision::Idle);
 }
 
-// 12. Door overhead: intervening pending stops increase cost.
-//     Verify that an elevator with intervening pending stops pays more than one without.
+// 12. Door overhead: intervening pending stops raise cost enough to reorder
+//     the optimal assignment away from a naive-distance match.
 #[test]
 fn etd_door_overhead_for_intervening_stops() {
     let (mut world, stops) = test_world_n(4);
-    // 3 elevators, 3 pending stops. Elevators A and B handle stops 1 and 2,
-    // leaving elevator C to compete for stop 3.
-    let elev_a = spawn_elevator(&mut world, 0.0);
-    let elev_b = spawn_elevator(&mut world, 10.0);
-    let elev_c = spawn_elevator(&mut world, 25.0);
-    let group = test_group(&stops, vec![elev_a, elev_b, elev_c]);
+    // elev_a at stop 1 (pos 10), elev_b at stop 2 (pos 20).
+    // Two demands: stop 0 (pos 0) and stop 3 (pos 30). Symmetric by raw
+    // distance — each elevator is 10 from its near demand and 20 from
+    // the far demand, so pure nearest-car ties. Intervening overhead
+    // breaks the tie: elev_a's 20-unit reach to stop 3 passes elev_b's
+    // stop at pos 20 (intervening), while elev_b's 20-unit reach to
+    // stop 0 passes elev_a's stop at pos 10 (intervening). With a high
+    // door weight the optimal assignment is the "no intervening" one:
+    // each car serves the demand on its own side.
+    let elev_a = spawn_elevator(&mut world, 10.0);
+    let elev_b = spawn_elevator(&mut world, 20.0);
+    let group = test_group(&stops, vec![elev_a, elev_b]);
 
     let mut manifest = DispatchManifest::default();
-    add_demand(&mut manifest, &mut world, stops[1], 70.0);
-    add_demand(&mut manifest, &mut world, stops[2], 70.0);
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
     add_demand(&mut manifest, &mut world, stops[3], 70.0);
 
-    // High door weight makes intervening stop overhead dominate.
     let mut etd = EtdDispatch::with_weights(1.0, 1.0, 10.0);
-    let elevators = vec![(elev_a, 0.0), (elev_b, 10.0), (elev_c, 25.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
-
-    // Stop 1 (pos 10): elev_b is right there (cost ~0). Gets stop 1.
-    // Stop 2 (pos 20): elev_a at 0 (dist 20, intervening stop 1 at 10) vs elev_c at 25 (dist 5, no intervening).
-    //   With door_weight=10, elev_a pays 10 * door_overhead for 1 intervening stop. elev_c wins.
-    // Stop 3 (pos 30): only elev_a left. Gets stop 3.
-    // Key: the mechanism works because intervening pending stops raise the cost.
-    let c_dec = decisions.iter().find(|(e, _)| *e == elev_c).unwrap();
-    assert_eq!(
-        c_dec.1,
-        DispatchDecision::GoToStop(stops[2]),
-        "elevator C at 25.0 should serve stop 2 (pos 20) due to lower door overhead vs elevator A"
-    );
+    let elevators = vec![(elev_a, 10.0), (elev_b, 20.0)];
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     let a_dec = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();
     assert_eq!(
         a_dec.1,
+        DispatchDecision::GoToStop(stops[0]),
+        "elev_a should serve stop 0 (no intervening)"
+    );
+    let b_dec = decisions.iter().find(|(e, _)| *e == elev_b).unwrap();
+    assert_eq!(
+        b_dec.1,
         DispatchDecision::GoToStop(stops[3]),
-        "elevator A should get stop 3 since B and C already assigned"
+        "elev_b should serve stop 3 (no intervening)"
     );
 }
 
@@ -808,7 +805,7 @@ fn etd_custom_weights() {
     // High wait weight (2.0), low delay weight (0.5), zero door weight.
     let mut etd = EtdDispatch::with_weights(2.0, 0.5, 0.0);
     let elevators = vec![(elev_a, 0.0), (elev_b, 20.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     // elev_b is at stop 2 (distance 0), elev_a is 20 away.
     // Even with rider delay, elev_b should win because wait_weight is high
@@ -833,7 +830,7 @@ fn etd_zero_max_speed_infinite_cost() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 20.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = dispatch::assign(&mut etd, &elevators, &group, &manifest, &world).decisions;
 
     // elev_a with max_speed=0 should NOT be assigned.
     let a_dec = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();

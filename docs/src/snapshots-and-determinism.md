@@ -71,7 +71,7 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`) are auto-restored by n
 # use elevator_core::world::World;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
-#   fn decide(&mut self, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &World) -> DispatchDecision { DispatchDecision::Idle }
+#   fn rank(&mut self, _: EntityId, _: f64, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &World) -> Option<f64> { Some(0.0) }
 # }
 # fn run(snapshot: WorldSnapshot) {
 let sim = snapshot.restore(Some(&|name: &str| match name {

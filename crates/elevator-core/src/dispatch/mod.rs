@@ -1,5 +1,12 @@
 //! Pluggable dispatch strategies for assigning elevators to stops.
 //!
+//! Strategies express preferences as scores on `(car, stop)` pairs via
+//! [`DispatchStrategy::rank`]. The dispatch system then runs an optimal
+//! bipartite assignment (Kuhn–Munkres / Hungarian algorithm) so coordination
+//! — one car per hall call — is a library invariant, not a per-strategy
+//! responsibility. Cars left unassigned are handed to
+//! [`DispatchStrategy::fallback`] for per-car policy (idle, park, etc.).
+//!
 //! # Example: custom dispatch strategy
 //!
 //! ```rust
@@ -11,17 +18,22 @@
 //! struct AlwaysFirstStop;
 //!
 //! impl DispatchStrategy for AlwaysFirstStop {
-//!     fn decide(
+//!     fn rank(
 //!         &mut self,
-//!         _elevator: EntityId,
-//!         _elevator_position: f64,
+//!         _car: EntityId,
+//!         car_position: f64,
+//!         stop: EntityId,
+//!         stop_position: f64,
 //!         group: &ElevatorGroup,
 //!         _manifest: &DispatchManifest,
 //!         _world: &elevator_core::world::World,
-//!     ) -> DispatchDecision {
-//!         group.stop_entities().first()
-//!             .map(|&stop| DispatchDecision::GoToStop(stop))
-//!             .unwrap_or(DispatchDecision::Idle)
+//!     ) -> Option<f64> {
+//!         // Prefer the group's first stop; everything else is unavailable.
+//!         if Some(&stop) == group.stop_entities().first() {
+//!             Some((car_position - stop_position).abs())
+//!         } else {
+//!             None
+//!         }
 //!     }
 //! }
 //!
@@ -43,6 +55,8 @@ pub mod nearest_car;
 pub mod reposition;
 /// SCAN dispatch algorithm.
 pub mod scan;
+/// Shared sweep-direction logic used by SCAN and LOOK.
+pub(crate) mod sweep;
 
 pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
@@ -356,21 +370,24 @@ impl ElevatorGroup {
 
 /// Pluggable dispatch algorithm.
 ///
-/// Receives a manifest with per-rider metadata grouped by stop.
-/// Convenience methods provide aggregate counts; implementations
-/// can also iterate individual riders for priority/weight-aware dispatch.
+/// Strategies implement [`rank`](Self::rank) to score each `(car, stop)`
+/// pair; the dispatch system then performs an optimal assignment across
+/// the whole group, guaranteeing that no two cars are sent to the same
+/// hall call.
+///
+/// Returning `None` from `rank` excludes a pair from assignment — useful
+/// for capacity limits, direction preferences, restricted stops, or
+/// sticky commitments.
+///
+/// Cars that receive no stop fall through to [`fallback`](Self::fallback),
+/// which returns the policy for that car (idle, park, etc.).
 pub trait DispatchStrategy: Send + Sync {
-    /// Optional hook called once before the per-group dispatch pass.
+    /// Optional hook called once per group before the assignment pass.
     ///
     /// Strategies that need to mutate [`World`] extension storage (e.g.
-    /// [`DestinationDispatch`] writing sticky rider → car assignments) or
-    /// [`crate::components::DestinationQueue`] entries before per-elevator
-    /// decisions override this. The default is a no-op.
-    ///
-    /// Called by [`crate::systems::dispatch::run`] for every group with
-    /// mutable world access. The corresponding [`DispatchManifest`] is
-    /// rebuilt internally so downstream `decide`/`decide_all` calls see
-    /// consistent state.
+    /// [`DestinationDispatch`] writing sticky rider → car assignments)
+    /// or pre-populate [`crate::components::DestinationQueue`] entries
+    /// override this. Default: no-op.
     fn pre_dispatch(
         &mut self,
         _group: &ElevatorGroup,
@@ -379,36 +396,187 @@ pub trait DispatchStrategy: Send + Sync {
     ) {
     }
 
-    /// Decide for a single elevator.
-    fn decide(
+    /// Optional hook called once per candidate car, before any
+    /// [`rank`](Self::rank) calls for that car in the current pass.
+    ///
+    /// Strategies whose ranking depends on stable per-car state (e.g. the
+    /// sweep direction used by SCAN/LOOK) set that state here so later
+    /// `rank` calls see a consistent view regardless of iteration order.
+    /// The default is a no-op.
+    fn prepare_car(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> DispatchDecision;
+        _car: EntityId,
+        _car_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) {
+    }
 
-    /// Decide for all idle elevators in a group.
-    /// Default: calls `decide()` per elevator.
-    fn decide_all(
+    /// Score the cost of sending `car` to `stop`. Lower is better.
+    ///
+    /// Returning `None` marks this `(car, stop)` pair as unavailable;
+    /// the assignment algorithm will never pair them. Use this for
+    /// capacity limits, wrong-direction stops, stops outside the line's
+    /// topology, or pairs already committed via a sticky assignment.
+    ///
+    /// Must return a finite, non-negative value if `Some` — infinities
+    /// and NaN can destabilize the underlying Hungarian solver.
+    ///
+    /// Implementations must not mutate per-car state inside `rank`: the
+    /// dispatch system calls `rank(car, stop_0..stop_m)` in a loop, so
+    /// mutating `self` on one call affects subsequent calls for the same
+    /// car within the same pass and produces an asymmetric cost matrix
+    /// whose results depend on iteration order. Use
+    /// [`prepare_car`](Self::prepare_car) to compute and store any
+    /// per-car state before `rank` is called.
+    #[allow(clippy::too_many_arguments)]
+    fn rank(
         &mut self,
-        elevators: &[(EntityId, f64)], // (entity, position)
+        car: EntityId,
+        car_position: f64,
+        stop: EntityId,
+        stop_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)> {
-        elevators
-            .iter()
-            .map(|(eid, pos)| (*eid, self.decide(*eid, *pos, group, manifest, world)))
-            .collect()
+    ) -> Option<f64>;
+
+    /// Decide what an idle car should do when no stop was assigned to it.
+    ///
+    /// Called for each car the assignment phase could not pair with a
+    /// stop (because there were no stops, or all candidate stops had
+    /// rank `None` for this car). Default: [`DispatchDecision::Idle`].
+    fn fallback(
+        &mut self,
+        _car: EntityId,
+        _car_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) -> DispatchDecision {
+        DispatchDecision::Idle
     }
 
     /// Notify the strategy that an elevator has been removed.
     ///
-    /// Implementations with per-elevator state (e.g., direction tracking)
-    /// should clean up here to prevent unbounded memory growth. Default: no-op.
+    /// Implementations with per-elevator state (e.g. direction tracking)
+    /// should clean up here to prevent unbounded memory growth.
     fn notify_removed(&mut self, _elevator: EntityId) {}
+}
+
+/// Resolution of a single dispatch assignment pass for one group.
+///
+/// Produced by [`assign`] and consumed by
+/// [`crate::systems::dispatch::run`] to apply decisions to the world.
+#[derive(Debug, Clone)]
+pub struct AssignmentResult {
+    /// `(car, decision)` pairs for every idle car in the group.
+    pub decisions: Vec<(EntityId, DispatchDecision)>,
+}
+
+/// Sentinel weight used to pad unavailable `(car, stop)` pairs when
+/// building the cost matrix for the Hungarian solver. Chosen so that
+/// `n · SENTINEL` can't overflow `i64`: the Kuhn–Munkres implementation
+/// sums weights and potentials across each row/column internally, so
+/// headroom of ~2¹⁵ above the sentinel lets groups scale past 30 000
+/// cars or stops before any arithmetic risk appears.
+const ASSIGNMENT_SENTINEL: i64 = 1 << 48;
+/// Fixed-point scale for converting `f64` costs to the `i64` values the
+/// Hungarian solver requires. One unit ≈ one micro-tick / millimeter.
+const ASSIGNMENT_SCALE: f64 = 1_000_000.0;
+
+/// Convert a `f64` rank cost into the fixed-point `i64` the Hungarian
+/// solver consumes. Non-finite, negative, or overflow-prone inputs map
+/// to the unavailable sentinel.
+fn scale_cost(cost: f64) -> i64 {
+    if !cost.is_finite() || cost < 0.0 {
+        return ASSIGNMENT_SENTINEL;
+    }
+    // Cap at just below sentinel so any real rank always beats unavailable.
+    (cost * ASSIGNMENT_SCALE)
+        .round()
+        .clamp(0.0, (ASSIGNMENT_SENTINEL - 1) as f64) as i64
+}
+
+/// Run one group's assignment pass: build the cost matrix, solve the
+/// optimal bipartite matching, then resolve unassigned cars via
+/// [`DispatchStrategy::fallback`].
+///
+/// Visible to the `systems` module; not part of the public API.
+pub(crate) fn assign(
+    strategy: &mut dyn DispatchStrategy,
+    idle_cars: &[(EntityId, f64)],
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+) -> AssignmentResult {
+    // Collect stops with active demand and known positions.
+    let pending_stops: Vec<(EntityId, f64)> = group
+        .stop_entities()
+        .iter()
+        .filter(|s| manifest.has_demand(**s))
+        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
+        .collect();
+
+    let n = idle_cars.len();
+    let m = pending_stops.len();
+
+    if n == 0 {
+        return AssignmentResult {
+            decisions: Vec::new(),
+        };
+    }
+
+    let mut decisions: Vec<(EntityId, DispatchDecision)> = Vec::with_capacity(n);
+
+    if m == 0 {
+        for &(eid, pos) in idle_cars {
+            let d = strategy.fallback(eid, pos, group, manifest, world);
+            decisions.push((eid, d));
+        }
+        return AssignmentResult { decisions };
+    }
+
+    // Build cost matrix. Hungarian requires rows <= cols.
+    let cols = n.max(m);
+    let mut data: Vec<i64> = vec![ASSIGNMENT_SENTINEL; n * cols];
+    for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
+        strategy.prepare_car(car_eid, car_pos, group, manifest, world);
+        for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
+            let scaled = strategy
+                .rank(car_eid, car_pos, stop_eid, stop_pos, group, manifest, world)
+                .map_or(ASSIGNMENT_SENTINEL, scale_cost);
+            data[i * cols + j] = scaled;
+        }
+    }
+    // `from_vec` only fails if `n * cols != data.len()` — both derived
+    // from `n` and `cols` above, so the construction is infallible. Fall
+    // back to an empty-result shape in the unlikely event the invariant
+    // is violated in future refactors.
+    let Ok(matrix) = pathfinding::matrix::Matrix::from_vec(n, cols, data) else {
+        for &(car_eid, car_pos) in idle_cars {
+            let d = strategy.fallback(car_eid, car_pos, group, manifest, world);
+            decisions.push((car_eid, d));
+        }
+        return AssignmentResult { decisions };
+    };
+    let (_, assignments) = pathfinding::kuhn_munkres::kuhn_munkres_min(&matrix);
+
+    for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
+        let col = assignments[i];
+        // A real assignment is: col points to a real stop (col < m) AND
+        // the cost isn't sentinel-padded (meaning rank() returned Some).
+        if col < m && matrix[(i, col)] < ASSIGNMENT_SENTINEL {
+            let (stop_eid, _) = pending_stops[col];
+            decisions.push((car_eid, DispatchDecision::GoToStop(stop_eid)));
+        } else {
+            let d = strategy.fallback(car_eid, car_pos, group, manifest, world);
+            decisions.push((car_eid, d));
+        }
+    }
+
+    AssignmentResult { decisions }
 }
 
 /// Pluggable strategy for repositioning idle elevators.

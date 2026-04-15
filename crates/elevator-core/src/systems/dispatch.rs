@@ -2,7 +2,7 @@
 
 use crate::components::{ElevatorPhase, RiderPhase, Route, TransportMode};
 use crate::dispatch::{
-    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
+    self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
@@ -66,9 +66,9 @@ pub fn run(
             continue;
         };
 
-        let decisions = dispatch.decide_all(&idle_elevators, group, &manifest, world);
+        let result = dispatch::assign(dispatch.as_mut(), &idle_elevators, group, &manifest, world);
 
-        for (eid, decision) in decisions {
+        for (eid, decision) in result.decisions {
             match decision {
                 DispatchDecision::GoToStop(stop_eid) => {
                     let pos = world.position(eid).map_or(0.0, |p| p.value);
