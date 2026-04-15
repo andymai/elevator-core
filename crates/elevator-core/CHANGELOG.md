@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.8.1...elevator-core-v5.9.0) (2026-04-15)
+
+
+### Features
+
+* bincode snapshot_bytes with version-checked restore ([#80](https://github.com/andymai/elevator-core/issues/80)) ([1991643](https://github.com/andymai/elevator-core/commit/19916434b23162d2ae087f948d7bd975cdca4f20))
+
+
+### Bug Fixes
+
+* greptile P2 findings on snapshot_bytes ([#82](https://github.com/andymai/elevator-core/issues/82)) ([38429a0](https://github.com/andymai/elevator-core/commit/38429a01a3eeb0352a03a9665466e3891447309a))
+
 ## [5.8.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.8.0...elevator-core-v5.8.1) (2026-04-15)
 
 
