@@ -1,5 +1,16 @@
 # Changelog
 
+## [6.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.10.0...elevator-core-v6.0.0) (2026-04-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* score-based dispatch with Hungarian assignment ([#89](https://github.com/andymai/elevator-core/issues/89))
+
+### Features
+
+* score-based dispatch with Hungarian assignment ([#89](https://github.com/andymai/elevator-core/issues/89)) ([a15c83d](https://github.com/andymai/elevator-core/commit/a15c83d47f5797ab9968804c120cf459530da539))
+
 ## [5.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.9.1...elevator-core-v5.10.0) (2026-04-15)
 
 
