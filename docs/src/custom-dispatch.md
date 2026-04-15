@@ -6,134 +6,109 @@ This chapter is a narrative tutorial that walks from a minimal strategy to a pro
 
 ## The trait surface
 
+Strategies express preference as a cost on each `(car, stop)` pair. The dispatch system collects those costs into a matrix and runs an optimal bipartite matching (Hungarian / Kuhn–Munkres) across the whole group, guaranteeing that two cars can never be sent to the same hall call. Cars left unassigned fall through to `fallback` for per-car policy (idle, park, etc.).
+
 ```rust,ignore
 pub trait DispatchStrategy: Send + Sync {
-    /// Decide where one idle elevator should go.
-    fn decide(
+    /// Pre-pass hook with mutable world access. Used by sticky strategies
+    /// (e.g. destination dispatch) to commit rider → car assignments.
+    fn pre_dispatch(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &mut World,
+    ) { /* default: no-op */ }
+
+    /// Per-car setup called once before any `rank` calls for this car.
+    /// Strategies with per-car state (sweep direction, queue pointers)
+    /// refresh it here so `rank` is order-independent over stops.
+    fn prepare_car(
+        &mut self,
+        _car: EntityId,
+        _car_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) { /* default: no-op */ }
+
+    /// Score sending `car` to `stop`. Lower is better. `None` marks
+    /// the pair unavailable (capacity limits, wrong-direction, sticky).
+    /// Must return a finite, non-negative value when `Some`.
+    fn rank(
+        &mut self,
+        car: EntityId,
+        car_position: f64,
+        stop: EntityId,
+        stop_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision;
+    ) -> Option<f64>;
 
-    /// Decide for all idle elevators in one pass (optional).
-    ///
-    /// Default implementation calls `decide` once per elevator.
-    /// Override when the strategy must coordinate across elevators —
-    /// for example, to prevent two cars from being sent to the same
-    /// hall call.
-    fn decide_all(
+    /// Decide what a car should do when the assignment phase couldn't
+    /// give it a stop (no demand or all candidate ranks were `None`).
+    fn fallback(
         &mut self,
-        elevators: &[(EntityId, f64)],
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)> { /* default: per-elevator */ }
+        _car: EntityId,
+        _car_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) -> DispatchDecision { DispatchDecision::Idle }
 
-    /// Clean up per-elevator state when an elevator is removed.
-    ///
+    /// Clean up per-elevator state when a car leaves the group.
     /// Strategies with internal `HashMap<EntityId, _>` state must
-    /// remove the entry here — otherwise the map grows unbounded
-    /// and cross-group reassignments leave stale entries.
+    /// remove the entry here — otherwise the map grows unbounded.
     fn notify_removed(&mut self, _elevator: EntityId) { /* default: no-op */ }
 }
 ```
 
-Three methods, three clear responsibilities. Everything else you need comes from `DispatchManifest` and `ElevatorGroup`.
+Only `rank` is required. The default `fallback` returns `Idle`; the other hooks exist for strategies that need them.
 
 ## Step 1 — The simplest possible strategy
 
-"Always send idle elevators to the stop with the most waiting riders."
+"Nearest-car by distance, favoring stops with more waiting riders."
 
 ```rust,ignore
-use elevator_core::dispatch::{
-    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup,
-};
+use elevator_core::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
 use elevator_core::entity::EntityId;
 use elevator_core::world::World;
 
-struct BusiestStopFirst;
+struct BusyStopNearest;
 
-impl DispatchStrategy for BusiestStopFirst {
-    fn decide(
+impl DispatchStrategy for BusyStopNearest {
+    fn rank(
         &mut self,
-        _elevator: EntityId,
-        _position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        _world: &World,
-    ) -> DispatchDecision {
-        group
-            .stop_entities()
-            .iter()
-            .filter(|&&s| manifest.has_demand(s))
-            .max_by_key(|&&s| manifest.waiting_count_at(s))
-            .copied()
-            .map_or(DispatchDecision::Idle, DispatchDecision::GoToStop)
-    }
-}
-```
-
-What this gets you:
-- The simulation drives direction indicators automatically based on `GoToStop` vs. `Idle`.
-- `DestinationQueue` management happens in the `AdvanceQueue` phase — you don't touch it.
-- The dispatch phase events (`ElevatorAssigned`, `ElevatorIdle`, `DirectionIndicatorChanged`) emit automatically.
-
-What this strategy *doesn't* handle: two idle elevators will both be sent to the same stop. For that, you need `decide_all`.
-
-## Step 2 — Coordinating across elevators with `decide_all`
-
-The problem: `decide` runs independently per elevator. If stops A and B both have demand and elevators E1 and E2 are both idle, calling `decide` twice may return `GoToStop(A)` both times — one elevator goes unused.
-
-Override `decide_all` to pair elevators with stops exactly once:
-
-```rust,ignore
-impl DispatchStrategy for BusiestStopFirst {
-    fn decide(
-        &mut self,
-        _elevator: EntityId,
-        _position: f64,
+        _car: EntityId,
+        car_position: f64,
+        stop: EntityId,
+        stop_position: f64,
         _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> DispatchDecision {
-        // Required by the trait. When `decide_all` is overridden, this
-        // is unreachable on the dispatch path.
-        DispatchDecision::Idle
-    }
-
-    fn decide_all(
-        &mut self,
-        elevators: &[(EntityId, f64)],
-        group: &ElevatorGroup,
         manifest: &DispatchManifest,
         _world: &World,
-    ) -> Vec<(EntityId, DispatchDecision)> {
-        let mut stops: Vec<EntityId> = group
-            .stop_entities()
-            .iter()
-            .copied()
-            .filter(|&s| manifest.has_demand(s))
-            .collect();
-        stops.sort_by_key(|&s| std::cmp::Reverse(manifest.waiting_count_at(s)));
-
-        let mut results = Vec::with_capacity(elevators.len());
-        let mut stops_iter = stops.into_iter();
-
-        for &(eid, _) in elevators {
-            match stops_iter.next() {
-                Some(stop) => results.push((eid, DispatchDecision::GoToStop(stop))),
-                None => results.push((eid, DispatchDecision::Idle)),
-            }
-        }
-        results
+    ) -> Option<f64> {
+        let distance = (car_position - stop_position).abs();
+        let waiting = manifest.waiting_count_at(stop) as f64;
+        // Subtract a crowding bonus so busier stops look cheaper. Clamp
+        // so Hungarian never sees a negative cost.
+        Some((distance - waiting).max(0.0))
     }
 }
 ```
 
-`NearestCarDispatch` and `EtdDispatch` both use this pattern internally.
+What this gets you automatically:
+- Coordination across cars — the Hungarian solver never sends two cars to the same hall call.
+- Direction indicators driven by the `GoToStop` decision vs. car position.
+- `DestinationQueue` management handled by later phases — you don't touch it.
+- Dispatch events (`ElevatorAssigned`, `ElevatorIdle`, `DirectionIndicatorChanged`) emit automatically.
+
+Returning `None` from `rank` excludes a `(car, stop)` pair entirely — use it for capacity limits, wrong-direction stops, or restricted stops. When every candidate stop returns `None` (or there are no demanded stops at all), the dispatcher calls `fallback`, which defaults to `Idle`.
+
+## Step 2 — Per-car state with `prepare_car`
+
+Strategies whose ranking depends on per-car state (a sweep direction, a queue pointer, a cached priority) should refresh that state in `prepare_car`. The framework calls it once per car per pass, before any `rank` calls for that car, so the subsequent `rank` results are independent of the order the dispatcher iterates stops.
+
+The built-in `ScanDispatch` uses this hook to decide whether the car's sweep direction should flip for the current pass. That decision depends on whole-group demand, so doing it inside `rank` would give different answers depending on which stop was scored first.
 
 ## Step 3 — Carrying state, and the `notify_removed` contract
 
@@ -158,7 +133,7 @@ struct PriorityDispatch {
 }
 
 impl DispatchStrategy for PriorityDispatch {
-    fn decide(/* ... */) -> DispatchDecision { /* ... */ }
+    fn rank(/* ... */) -> Option<f64> { /* ... */ }
 
     fn notify_removed(&mut self, elevator: EntityId) {
         // CRITICAL: keeps the map from growing unbounded under churn.
@@ -216,34 +191,16 @@ The name is opaque to the library. Keep it stable across releases — changing t
 
 Two levels of test coverage:
 
-**Unit-test `decide` in isolation.** Construct a minimal `World`, an `ElevatorGroup`, and a `DispatchManifest`, then call your strategy's `decide` directly. This is how the built-in strategies are tested; see `crates/elevator-core/src/tests/dispatch_tests.rs` for the helper pattern (`test_world()`, `test_group()`, `spawn_elevator()`, `add_demand()`).
+**Unit-test through `dispatch::assign` in isolation.** Construct a minimal `World`, an `ElevatorGroup`, and a `DispatchManifest`, then run one assignment pass. This exercises the Hungarian matching and `fallback` path end-to-end, so the test reflects real runtime behavior. See `crates/elevator-core/src/tests/dispatch_tests.rs` for the helper pattern (`test_world()`, `test_group()`, `spawn_elevator()`, `add_demand()`).
 
-```rust,ignore
-#[test]
-fn busiest_stop_wins() {
-    let (mut world, stops) = test_world();              // 4 stops at 0/4/8/12
-    let elev = spawn_elevator(&mut world, 0.0);
-    let group = test_group(&stops, vec![elev]);
-
-    let mut manifest = DispatchManifest::default();
-    add_demand(&mut manifest, &mut world, stops[1], 70.0);
-    add_demand(&mut manifest, &mut world, stops[2], 70.0);
-    add_demand(&mut manifest, &mut world, stops[2], 70.0);  // 2 riders at stops[2]
-
-    let mut strategy = BusiestStopFirst;
-    let decision = strategy.decide(elev, 0.0, &group, &manifest, &world);
-    assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
-}
-```
-
-**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction — e.g., a strategy that pushes duplicate targets, or one that produces decisions that the `AdvanceQueue` phase later undoes.
+**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction — e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
 
 ## Performance considerations
 
-- `decide` / `decide_all` run once per tick per group. At 60 ticks/second and a realistic group size (20 elevators, 50 stops), that's tens of thousands of calls per simulated minute. Keep the hot path allocation-free where possible.
-- `SmallVec<[T; N]>` is already the storage choice in the built-in strategies for the "ahead" / "behind" partitions. If you partition elevators or stops, consider the same.
-- The `DispatchManifest` is immutable — never try to mutate demand from inside `decide`. If you need to track per-rider state across ticks, store it in your strategy.
-- Avoid `HashMap<EntityId, _>` iteration in the hot path — it's nondeterministic. Use `BTreeMap` or sort the keys.
+- `rank` runs O(cars × stops) per tick per group, and the Hungarian solver itself is O(n³) in the group size. At 60 ticks/second and a realistic group (20 cars, 50 stops), that's millions of `rank` calls per simulated minute — keep the hot path allocation-free and `manifest` lookups cheap.
+- `SmallVec<[T; N]>` is already the storage choice in the built-in strategies for intermediate partitions. If your strategy partitions cars or stops, consider the same.
+- The `DispatchManifest` is immutable — never try to mutate demand from inside `rank`. If you need per-rider state across ticks, store it in your strategy.
+- Avoid iterating `HashMap<EntityId, _>` in the hot path — order is nondeterministic. Use `BTreeMap` or sort keys before iteration.
 
 ## Putting it together: a runnable example
 

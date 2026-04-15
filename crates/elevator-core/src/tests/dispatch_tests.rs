@@ -6,11 +6,35 @@ use crate::dispatch::look::LookDispatch;
 use crate::dispatch::nearest_car::NearestCarDispatch;
 use crate::dispatch::scan::ScanDispatch;
 use crate::dispatch::{
-    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
+    self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
 use crate::door::DoorState;
 use crate::ids::GroupId;
 use crate::world::World;
+
+/// Run the assignment for a single car and return its decision.
+fn decide_one(
+    strategy: &mut dyn DispatchStrategy,
+    car: crate::entity::EntityId,
+    pos: f64,
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+) -> DispatchDecision {
+    let result = dispatch::assign(strategy, &[(car, pos)], group, manifest, world);
+    result.decisions[0].1.clone()
+}
+
+/// Run the assignment for several cars in one pass.
+fn decide_all(
+    strategy: &mut dyn DispatchStrategy,
+    cars: &[(crate::entity::EntityId, f64)],
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+) -> Vec<(crate::entity::EntityId, DispatchDecision)> {
+    dispatch::assign(strategy, cars, group, manifest, world).decisions
+}
 
 /// Build a `World` with 4 stops and return (world, `stop_entities`).
 fn test_world() -> (World, Vec<crate::entity::EntityId>) {
@@ -133,7 +157,7 @@ fn scan_no_requests_returns_idle() {
     let group = test_group(&stops, vec![elev]);
     let manifest = DispatchManifest::default();
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::Idle);
 }
 
@@ -146,7 +170,7 @@ fn scan_goes_to_nearest_in_direction() {
     add_demand(&mut manifest, &mut world, stops[1], 70.0);
     add_demand(&mut manifest, &mut world, stops[3], 80.0);
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
 }
 
@@ -159,7 +183,7 @@ fn scan_reverses_when_nothing_ahead() {
     add_demand(&mut manifest, &mut world, stops[0], 70.0);
     add_demand(&mut manifest, &mut world, stops[1], 80.0);
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 8.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 8.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
 }
 
@@ -171,7 +195,7 @@ fn scan_serves_rider_destination() {
     let mut manifest = DispatchManifest::default();
     add_rider_dest(&mut manifest, &mut world, stops[2]);
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
 
@@ -184,7 +208,7 @@ fn scan_prefers_current_direction() {
     add_demand(&mut manifest, &mut world, stops[0], 70.0);
     add_demand(&mut manifest, &mut world, stops[2], 80.0);
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 4.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 4.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
 
@@ -197,7 +221,7 @@ fn look_no_requests_returns_idle() {
     let group = test_group(&stops, vec![elev]);
     let manifest = DispatchManifest::default();
     let mut look = LookDispatch::new();
-    let decision = look.decide(elev, 0.0, &group, &manifest, &world);
+    let decision = decide_one(&mut look, elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::Idle);
 }
 
@@ -210,7 +234,7 @@ fn look_reverses_at_last_request() {
     // Only demand at stop 1 (pos 4.0) — LOOK should go there then reverse.
     add_demand(&mut manifest, &mut world, stops[1], 70.0);
     let mut look = LookDispatch::new();
-    let decision = look.decide(elev, 0.0, &group, &manifest, &world);
+    let decision = decide_one(&mut look, elev, 0.0, &group, &manifest, &world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[1]));
 }
 
@@ -228,7 +252,7 @@ fn nearest_car_assigns_closest_elevator() {
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 12.0)];
-    let decisions = nc.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut nc, &elevators, &group, &manifest, &world);
 
     // Elevator A (at 0.0) is closer to stop 1 (at 4.0) than Elevator B (at 12.0).
     let a_decision = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();
@@ -252,7 +276,7 @@ fn nearest_car_multiple_stops() {
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 12.0)];
-    let decisions = nc.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut nc, &elevators, &group, &manifest, &world);
 
     // Stop 0 has higher demand — assigned first. elev_a (at 0.0) is nearest to stop 0.
     // Stop 3: elev_b (at 12.0) is nearest to stop 3.
@@ -278,7 +302,7 @@ fn etd_prefers_idle_elevator() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 4.0), (elev_b, 4.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut etd, &elevators, &group, &manifest, &world);
 
     // elev_a (0 riders) should be preferred over elev_b (2 riders).
     let a_dec = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();
@@ -297,7 +321,7 @@ fn etd_closer_elevator_wins() {
 
     let mut etd = EtdDispatch::new();
     let elevators = vec![(elev_a, 0.0), (elev_b, 8.0)];
-    let decisions = etd.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut etd, &elevators, &group, &manifest, &world);
 
     // Stop 2 at position 8.0. elev_b is at 8.0 (distance 0), elev_a at 0.0 (distance 8).
     let b_dec = decisions.iter().find(|(e, _)| *e == elev_b).unwrap();
@@ -320,7 +344,7 @@ fn scan_at_exact_stop_skips_current_position() {
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 4.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 4.0, &group, &manifest, &world);
     // Elevator is UP. Stop at 4.0 is NOT ahead (it's at current pos).
     // Should go to stop[2] at 8.0, not stop[1] at 4.0.
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
@@ -339,7 +363,7 @@ fn scan_reversal_picks_nearest_behind() {
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
 
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 12.0, &group, &manifest, &world);
+    let decision = decide_one(&mut scan, elev, 12.0, &group, &manifest, &world);
     // Nothing ahead (up), reverses to Down. Nearest behind in Down direction = stop[2] at 8.0.
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
@@ -358,7 +382,7 @@ fn scan_notify_removed_cleans_state() {
 
     let mut scan = ScanDispatch::new();
     // First call: nothing Up from 12.0 → reverses to Down, picks stops[1] (nearest below).
-    let d1 = scan.decide(elev, 12.0, &group, &manifest, &world);
+    let d1 = decide_one(&mut scan, elev, 12.0, &group, &manifest, &world);
     assert_eq!(d1, DispatchDecision::GoToStop(stops[1]));
 
     // Now direction is stored as Down for this elevator.
@@ -367,7 +391,7 @@ fn scan_notify_removed_cleans_state() {
 
     // Re-query same elevator from position 4.0 with demand above AND below.
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
-    let d2 = scan.decide(elev, 4.0, &group, &manifest, &world);
+    let d2 = decide_one(&mut scan, elev, 4.0, &group, &manifest, &world);
     // If notify_removed worked: default direction is Up → goes to stops[2] (pos 8.0).
     // If notify_removed was no-op: direction is still Down → goes to stops[1] (pos 4.0) or stops[0] (pos 0.0).
     assert_eq!(d2, DispatchDecision::GoToStop(stops[2]));
@@ -384,12 +408,12 @@ fn look_notify_removed_cleans_state() {
 
     let mut look = LookDispatch::new();
     // Establish direction state (will reverse to Down since nothing is Up from 12.0).
-    look.decide(elev, 12.0, &group, &manifest, &world);
+    decide_one(&mut look, elev, 12.0, &group, &manifest, &world);
     // Remove elevator.
     look.notify_removed(elev);
     // Reuse the same ID — direction should be gone.
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
-    let decision = look.decide(elev, 4.0, &group, &manifest, &world);
+    let decision = decide_one(&mut look, elev, 4.0, &group, &manifest, &world);
     // Default direction is Up, should go up to stop[2] (pos 8.0).
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
 }
@@ -407,12 +431,12 @@ fn look_down_direction_partitions_correctly() {
 
     let mut look = LookDispatch::new();
     // First call: nothing ahead (Up from 8.0 with only stops at 0 and 4), reverses.
-    let d1 = look.decide(elev, 8.0, &group, &manifest, &world);
+    let d1 = decide_one(&mut look, elev, 8.0, &group, &manifest, &world);
     // After reversal to Down: nearest below = stops[1] at pos 4.0 (not stops[0] at 0.0).
     assert_eq!(d1, DispatchDecision::GoToStop(stops[1]));
 
     // Second call: still going Down, both stops ahead. Nearest = stops[1].
-    let d2 = look.decide(elev, 8.0, &group, &manifest, &world);
+    let d2 = decide_one(&mut look, elev, 8.0, &group, &manifest, &world);
     assert_eq!(d2, DispatchDecision::GoToStop(stops[1]));
 }
 
@@ -431,19 +455,19 @@ fn scan_down_direction_serves_below() {
 
     let mut scan = ScanDispatch::new();
     // First call: default Up → goes to stops[3] (above).
-    let d1 = scan.decide(elev, 8.0, &group, &manifest, &world);
+    let d1 = decide_one(&mut scan, elev, 8.0, &group, &manifest, &world);
     assert_eq!(d1, DispatchDecision::GoToStop(stops[3]));
 
     // Remove demand above, only below remains. Call again.
     manifest.waiting_at_stop.remove(&stops[3]);
-    let d2 = scan.decide(elev, 12.0, &group, &manifest, &world);
+    let d2 = decide_one(&mut scan, elev, 12.0, &group, &manifest, &world);
     // Nothing ahead (Up from 12.0), reverses to Down. Nearest below = stops[1].
     assert_eq!(d2, DispatchDecision::GoToStop(stops[1]));
 
     // Now call again at position 8.0 with direction Down.
     // Demand at stops[0] (pos 0.0) and stops[1] (pos 4.0).
     add_demand(&mut manifest, &mut world, stops[0], 70.0);
-    let d3 = scan.decide(elev, 8.0, &group, &manifest, &world);
+    let d3 = decide_one(&mut scan, elev, 8.0, &group, &manifest, &world);
     // Direction is Down. Both stops below. Nearest in Down = stops[1] (pos 4.0, highest below).
     assert_eq!(d3, DispatchDecision::GoToStop(stops[1]));
 }
@@ -462,7 +486,7 @@ fn nearest_car_distance_calculation() {
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev_a, 3.0), (elev_b, 5.0)];
-    let decisions = nc.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut nc, &elevators, &group, &manifest, &world);
 
     // Both are 1.0 away from stop[1] at 4.0. First in iteration order wins.
     let a_dec = decisions.iter().find(|(e, _)| *e == elev_a).unwrap();
@@ -474,15 +498,17 @@ fn nearest_car_distance_calculation() {
 struct AlwaysIdleDispatch;
 
 impl DispatchStrategy for AlwaysIdleDispatch {
-    fn decide(
+    fn rank(
         &mut self,
-        _elevator: crate::entity::EntityId,
-        _elevator_position: f64,
+        _car: crate::entity::EntityId,
+        _car_position: f64,
+        _stop: crate::entity::EntityId,
+        _stop_position: f64,
         _group: &ElevatorGroup,
         _manifest: &DispatchManifest,
         _world: &World,
-    ) -> DispatchDecision {
-        DispatchDecision::Idle
+    ) -> Option<f64> {
+        None
     }
 }
 
@@ -527,7 +553,7 @@ fn nearest_car_ignores_zero_demand() {
 
     let mut nc = NearestCarDispatch::new();
     let elevators = vec![(elev, 0.0)];
-    let decisions = nc.decide_all(&elevators, &group, &manifest, &world);
+    let decisions = decide_all(&mut nc, &elevators, &group, &manifest, &world);
 
     let dec = decisions.iter().find(|(e, _)| *e == elev).unwrap();
     // Should skip stop[1] (0 demand) and go to stop[3].

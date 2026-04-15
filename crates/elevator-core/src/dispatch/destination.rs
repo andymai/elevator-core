@@ -30,7 +30,7 @@ use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMod
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
 
 /// Sticky rider → car assignment produced by [`DestinationDispatch`].
 ///
@@ -204,19 +204,24 @@ impl DispatchStrategy for DestinationDispatch {
         }
     }
 
-    fn decide(
+    fn rank(
         &mut self,
-        elevator: EntityId,
-        _elevator_position: f64,
+        car: EntityId,
+        _car_position: f64,
+        stop: EntityId,
+        _stop_position: f64,
         _group: &ElevatorGroup,
         _manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision {
-        // The queue is the source of truth — send the car to the front stop.
-        world
-            .destination_queue(elevator)
-            .and_then(DestinationQueue::front)
-            .map_or(DispatchDecision::Idle, DispatchDecision::GoToStop)
+    ) -> Option<f64> {
+        // The queue is the source of truth — route each car strictly to
+        // its own queue front. Every other stop is unavailable for this
+        // car, so the Hungarian assignment reduces to the identity match
+        // between each car and the stop it has already committed to.
+        let front = world
+            .destination_queue(car)
+            .and_then(DestinationQueue::front)?;
+        if front == stop { Some(0.0) } else { None }
     }
 }
 

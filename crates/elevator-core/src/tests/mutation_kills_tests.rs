@@ -9,7 +9,7 @@ use crate::components::{Elevator, ElevatorPhase, Preferences, Rider, RiderPhase,
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::scan::ScanDispatch;
 use crate::dispatch::{
-    DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, LineInfo, RiderInfo,
+    self, DispatchDecision, DispatchManifest, ElevatorGroup, LineInfo, RiderInfo,
 };
 use crate::door::DoorState;
 use crate::entity::EntityId;
@@ -414,7 +414,8 @@ fn scan_at_stop_position_does_not_target_self() {
     }
 
     let mut scan = ScanDispatch::new();
-    let decision = scan.decide(elev, 0.0, &group, &manifest, &world);
+    let result = dispatch::assign(&mut scan, &[(elev, 0.0)], &group, &manifest, &world);
+    let decision = result.decisions[0].1.clone();
     // Elevator at stop 0 with demand both there and ahead should go to
     // stop 2 (the only "ahead" stop in the Up direction) — not stay
     // at its own position.

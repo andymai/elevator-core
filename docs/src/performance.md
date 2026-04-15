@@ -9,9 +9,8 @@ Let `E` = elevators, `R` = riders, `S` = stops. Per `sim.step()`:
 | Phase | Cost | Notes |
 |---|---|---|
 | Advance transient | O(R) worst-case, O(transitioning riders) typical | Only touches riders in `Boarding`/`Exiting`. |
-| Dispatch (SCAN/LOOK) | O(E · S) | Constant work per elevator per stop in the group. |
-| Dispatch (NearestCar) | O(E · S) | Uses `decide_all` to coordinate. |
-| Dispatch (ETD) | O(E · S · R_waiting) | Estimates per-rider delays; heaviest built-in. |
+| Dispatch (scoring) | O(E · S) per strategy | Cost-matrix build: one `rank` call per `(car, stop)` pair. ETD scales further with aboard riders. |
+| Dispatch (assignment) | O(max(E, S)³) | Hungarian / Kuhn–Munkres matching over the cost matrix. |
 | Reposition | O(E · S) | Only runs if configured. |
 | Movement | O(E) | Pure arithmetic per elevator. |
 | Doors | O(E) | Door FSM per elevator. |
