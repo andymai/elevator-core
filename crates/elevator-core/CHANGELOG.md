@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.8.1](https://github.com/andymai/elevator-core/compare/elevator-core-v5.8.0...elevator-core-v5.8.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* greptile findings on manual mode ([#78](https://github.com/andymai/elevator-core/issues/78)) ([bc76878](https://github.com/andymai/elevator-core/commit/bc768781f592de6afdd04c6c485f5d8f8df198b6))
+
 ## [5.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v5.7.0...elevator-core-v5.8.0) (2026-04-14)
 
 
