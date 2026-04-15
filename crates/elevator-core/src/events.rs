@@ -1,5 +1,6 @@
 //! Simulation event bus and typed event channels.
 
+use crate::components::CallDirection;
 use crate::entity::EntityId;
 use crate::error::{RejectionContext, RejectionReason};
 use crate::ids::GroupId;
@@ -479,6 +480,69 @@ pub enum Event {
         /// The tick when the command was submitted.
         tick: u64,
     },
+
+    // -- Hall & car call events --
+    /// A hall button was pressed. Fires immediately, before any ack
+    /// latency delay. Games use this for button-light animations or SFX.
+    HallButtonPressed {
+        /// Stop where the press occurred.
+        stop: EntityId,
+        /// Direction the button requests service in.
+        direction: CallDirection,
+        /// Tick of the press.
+        tick: u64,
+    },
+    /// A hall call has elapsed its ack latency and is now visible to
+    /// dispatch. Useful for UI confirmations ("your call has been
+    /// received"). In groups with `ack_latency_ticks = 0` this fires on
+    /// the same tick as `HallButtonPressed`.
+    HallCallAcknowledged {
+        /// Stop the call was placed at.
+        stop: EntityId,
+        /// Direction of the call.
+        direction: CallDirection,
+        /// Tick acknowledgement completed.
+        tick: u64,
+    },
+    /// A hall call was cleared when an assigned car arrived at the stop
+    /// with matching direction indicators. Corresponds to the real-world
+    /// button-light turning off.
+    HallCallCleared {
+        /// Stop whose call was cleared.
+        stop: EntityId,
+        /// Direction of the cleared call.
+        direction: CallDirection,
+        /// Car that cleared the call by arriving.
+        car: EntityId,
+        /// Tick the call was cleared.
+        tick: u64,
+    },
+    /// A rider inside a car pressed a floor button (Classic mode only).
+    /// In Destination mode riders reveal destinations at the hall
+    /// kiosk, so no car buttons are pressed.
+    CarButtonPressed {
+        /// Elevator the button was pressed inside.
+        car: EntityId,
+        /// Floor the rider requested.
+        floor: EntityId,
+        /// Rider who pressed the button.
+        rider: EntityId,
+        /// Tick of the press.
+        tick: u64,
+    },
+    /// A rider balked at boarding a car they considered too crowded
+    /// (their preferences filtered the car out). The rider remains
+    /// Waiting and may board a later car.
+    RiderBalked {
+        /// Rider who balked.
+        rider: EntityId,
+        /// Elevator they declined to board.
+        elevator: EntityId,
+        /// Stop where the balking happened.
+        at_stop: EntityId,
+        /// Tick of the balk.
+        tick: u64,
+    },
 }
 
 /// Identifies which elevator parameter was changed in an
@@ -634,6 +698,11 @@ impl Event {
             | Self::ManualVelocityCommanded { .. } => EventCategory::Observability,
             #[cfg(feature = "energy")]
             Self::EnergyConsumed { .. } => EventCategory::Observability,
+            Self::HallButtonPressed { .. }
+            | Self::HallCallAcknowledged { .. }
+            | Self::HallCallCleared { .. }
+            | Self::CarButtonPressed { .. } => EventCategory::Dispatch,
+            Self::RiderBalked { .. } => EventCategory::Rider,
         }
     }
 }

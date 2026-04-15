@@ -171,6 +171,8 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5, // will skip if load > 50 %
+            balk_threshold_ticks: None,
+            rebalk_on_full: false,
         },
     );
 
@@ -230,6 +232,8 @@ fn preferences_boards_when_elevator_not_too_crowded() {
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
+            balk_threshold_ticks: None,
+            rebalk_on_full: false,
         },
     );
 
