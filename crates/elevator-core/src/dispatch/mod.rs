@@ -422,6 +422,14 @@ pub trait DispatchStrategy: Send + Sync {
     ///
     /// Must return a finite, non-negative value if `Some` — infinities
     /// and NaN can destabilize the underlying Hungarian solver.
+    ///
+    /// Implementations must not mutate per-car state inside `rank`: the
+    /// dispatch system calls `rank(car, stop_0..stop_m)` in a loop, so
+    /// mutating `self` on one call affects subsequent calls for the same
+    /// car within the same pass and produces an asymmetric cost matrix
+    /// whose results depend on iteration order. Use
+    /// [`prepare_car`](Self::prepare_car) to compute and store any
+    /// per-car state before `rank` is called.
     #[allow(clippy::too_many_arguments)]
     fn rank(
         &mut self,

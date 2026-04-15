@@ -40,13 +40,15 @@ struct IdlePenaltyDispatch {
     /// Tick of the last call each car was assigned to. Used to penalize
     /// cars that have sat unused for a while so the fleet rotates fairly.
     last_served_tick: HashMap<EntityId, u64>,
+    /// Idle ticks resolved once per car in `prepare_car` and read by `rank`.
+    /// Keeping mutation out of `rank` keeps the cost matrix order-independent.
+    idle_for: HashMap<EntityId, f64>,
     /// Current tick, refreshed once per group pass via `pre_dispatch`.
     tick: u64,
 }
 
 impl DispatchStrategy for IdlePenaltyDispatch {
-    /// Refresh the tick counter once per group pass. A no-op here would
-    /// be fine too — we only use tick for the idle-penalty scoring.
+    /// Refresh the tick counter once per group pass.
     fn pre_dispatch(
         &mut self,
         _group: &ElevatorGroup,
@@ -54,6 +56,23 @@ impl DispatchStrategy for IdlePenaltyDispatch {
         _world: &mut World,
     ) {
         self.tick = self.tick.saturating_add(1);
+    }
+
+    /// Record how long this car has been idle, once, before the `rank`
+    /// loop. The `last_served` bookkeeping updates here too, so `rank`
+    /// is a pure read.
+    fn prepare_car(
+        &mut self,
+        car: EntityId,
+        _car_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) {
+        let last = self.last_served_tick.get(&car).copied().unwrap_or(0);
+        let idle = self.tick.saturating_sub(last) as f64;
+        self.idle_for.insert(car, idle);
+        self.last_served_tick.insert(car, self.tick);
     }
 
     /// Cost is distance minus a small bonus for cars that haven't been
@@ -70,13 +89,9 @@ impl DispatchStrategy for IdlePenaltyDispatch {
         _world: &World,
     ) -> Option<f64> {
         let distance = (car_position - stop_position).abs();
-        let last_served = self.last_served_tick.get(&car).copied().unwrap_or(0);
-        let idle_for = self.tick.saturating_sub(last_served) as f64;
+        let idle_for = self.idle_for.get(&car).copied().unwrap_or(0.0);
         // Bias toward long-idle cars; clamp so cost stays non-negative.
-        let cost = 0.01f64.mul_add(-idle_for, distance).max(0.0);
-        // Record the intended service tick so the penalty decays after use.
-        self.last_served_tick.insert(car, self.tick);
-        Some(cost)
+        Some(0.01f64.mul_add(-idle_for, distance).max(0.0))
     }
 
     /// The framework calls this when an elevator leaves the group — via
@@ -84,6 +99,7 @@ impl DispatchStrategy for IdlePenaltyDispatch {
     /// per-elevator state here to prevent unbounded growth.
     fn notify_removed(&mut self, elevator: EntityId) {
         self.last_served_tick.remove(&elevator);
+        self.idle_for.remove(&elevator);
     }
 }
 

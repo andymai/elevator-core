@@ -28,6 +28,10 @@ pub struct EtdDispatch {
     pub delay_weight: f64,
     /// Weight for door open/close overhead at intermediate stops.
     pub door_weight: f64,
+    /// Positions of every demanded stop in the group, cached by
+    /// [`DispatchStrategy::pre_dispatch`] so `rank` avoids rebuilding the
+    /// list for every `(car, stop)` pair.
+    pending_positions: SmallVec<[f64; 16]>,
 }
 
 impl EtdDispatch {
@@ -35,31 +39,34 @@ impl EtdDispatch {
     ///
     /// Defaults: `wait_weight = 1.0`, `delay_weight = 1.0`, `door_weight = 0.5`.
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             wait_weight: 1.0,
             delay_weight: 1.0,
             door_weight: 0.5,
+            pending_positions: SmallVec::new(),
         }
     }
 
     /// Create with a single delay weight (backwards-compatible shorthand).
     #[must_use]
-    pub const fn with_delay_weight(delay_weight: f64) -> Self {
+    pub fn with_delay_weight(delay_weight: f64) -> Self {
         Self {
             wait_weight: 1.0,
             delay_weight,
             door_weight: 0.5,
+            pending_positions: SmallVec::new(),
         }
     }
 
     /// Create with fully custom weights.
     #[must_use]
-    pub const fn with_weights(wait_weight: f64, delay_weight: f64, door_weight: f64) -> Self {
+    pub fn with_weights(wait_weight: f64, delay_weight: f64, door_weight: f64) -> Self {
         Self {
             wait_weight,
             delay_weight,
             door_weight,
+            pending_positions: SmallVec::new(),
         }
     }
 }
@@ -71,17 +78,33 @@ impl Default for EtdDispatch {
 }
 
 impl DispatchStrategy for EtdDispatch {
+    fn pre_dispatch(
+        &mut self,
+        group: &ElevatorGroup,
+        manifest: &DispatchManifest,
+        world: &mut World,
+    ) {
+        self.pending_positions.clear();
+        for &s in group.stop_entities() {
+            if manifest.has_demand(s)
+                && let Some(p) = world.stop_position(s)
+            {
+                self.pending_positions.push(p);
+            }
+        }
+    }
+
     fn rank(
         &mut self,
         car: EntityId,
         car_position: f64,
         _stop: EntityId,
         stop_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
         world: &World,
     ) -> Option<f64> {
-        let cost = self.compute_cost(car, car_position, stop_position, group, manifest, world);
+        let cost = self.compute_cost(car, car_position, stop_position, world);
         if cost.is_finite() { Some(cost) } else { None }
     }
 }
@@ -96,8 +119,6 @@ impl EtdDispatch {
         elev_eid: EntityId,
         elev_pos: f64,
         target_pos: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
         world: &World,
     ) -> f64 {
         let Some(car) = world.elevator(elev_eid) else {
@@ -119,15 +140,8 @@ impl EtdDispatch {
         } else {
             (target_pos, elev_pos)
         };
-        let mut pending_positions: SmallVec<[f64; 16]> = SmallVec::new();
-        for &s in group.stop_entities() {
-            if manifest.has_demand(s)
-                && let Some(p) = world.stop_position(s)
-            {
-                pending_positions.push(p);
-            }
-        }
-        let intervening_stops = pending_positions
+        let intervening_stops = self
+            .pending_positions
             .iter()
             .filter(|p| **p > lo + 1e-9 && **p < hi - 1e-9)
             .count() as f64;
