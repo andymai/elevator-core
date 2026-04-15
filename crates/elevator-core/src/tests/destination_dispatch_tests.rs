@@ -139,6 +139,8 @@ fn two_cars_same_group_config() -> SimConfig {
                 lines: vec![1],
                 dispatch: crate::dispatch::BuiltinStrategy::Destination,
                 reposition: None,
+                hall_call_mode: None,
+                ack_latency_ticks: None,
             }]),
         },
         elevators: vec![],

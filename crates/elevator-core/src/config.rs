@@ -1,7 +1,7 @@
 //! Building and elevator configuration (RON-deserializable).
 
 use crate::components::{FloorPosition, Orientation};
-use crate::dispatch::{BuiltinReposition, BuiltinStrategy};
+use crate::dispatch::{BuiltinReposition, BuiltinStrategy, HallCallMode};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
 
@@ -252,6 +252,22 @@ pub struct LineConfig {
 ///
 /// A group is the logical dispatch unit containing one or more lines.
 /// All elevators within the group share a single [`BuiltinStrategy`].
+///
+/// ## RON example — destination dispatch with controller latency
+///
+/// ```ron
+/// GroupConfig(
+///     id: 0,
+///     name: "Main",
+///     lines: [1],
+///     dispatch: Destination,
+///     hall_call_mode: Some(Destination),
+///     ack_latency_ticks: Some(15),
+/// )
+/// ```
+///
+/// `hall_call_mode` and `ack_latency_ticks` are optional; omitting them
+/// keeps the legacy behavior (Classic collective control, zero latency).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupConfig {
     /// Unique group identifier.
@@ -267,4 +283,18 @@ pub struct GroupConfig {
     /// When `None`, idle elevators in this group stay where they stopped.
     #[serde(default)]
     pub reposition: Option<BuiltinReposition>,
+    /// How hall calls reveal rider destinations to dispatch.
+    ///
+    /// `None` defers to [`HallCallMode::default()`] (Classic collective
+    /// control). Set to `Some(HallCallMode::Destination)` to model a
+    /// DCS lobby-kiosk group, which is required to make
+    /// [`crate::dispatch::DestinationDispatch`] consult hall-call
+    /// destinations.
+    #[serde(default)]
+    pub hall_call_mode: Option<HallCallMode>,
+    /// Controller ack latency in ticks (button press → dispatch sees
+    /// the call). `None` means zero — dispatch sees presses immediately.
+    /// Realistic values at 60 Hz land around 5–30 ticks.
+    #[serde(default)]
+    pub ack_latency_ticks: Option<u32>,
 }

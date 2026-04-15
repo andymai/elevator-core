@@ -401,6 +401,8 @@ fn pin_across_lines_is_rejected() {
         lines: vec![1, 2],
         dispatch: BuiltinStrategy::Scan,
         reposition: None,
+        hall_call_mode: None,
+        ack_latency_ticks: None,
     }]);
     config.elevators = Vec::new();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
@@ -574,4 +576,74 @@ fn door_opening_clears_hall_call() {
         sim.world().hall_call(origin, CallDirection::Up).is_none(),
         "hall call should be removed once cleared"
     );
+}
+
+/// `GroupConfig::hall_call_mode` and `ack_latency_ticks` flow through
+/// `Simulation::new` to the built `ElevatorGroup`, so RON configs can
+/// activate Destination dispatch and controller latency without needing
+/// runtime mutation via `groups_mut`.
+#[test]
+fn group_config_wires_hall_call_mode_and_ack_latency() {
+    use crate::components::Orientation;
+    use crate::config::{GroupConfig, LineConfig};
+    use crate::dispatch::scan::ScanDispatch;
+    use crate::dispatch::{BuiltinStrategy, HallCallMode};
+
+    let mut config = default_config();
+    config.building.lines = Some(vec![LineConfig {
+        id: 1,
+        name: "Main".into(),
+        serves: vec![StopId(0), StopId(1), StopId(2)],
+        elevators: config.elevators.clone(),
+        orientation: Orientation::Vertical,
+        position: None,
+        min_position: None,
+        max_position: None,
+        max_cars: None,
+    }]);
+    config.building.groups = Some(vec![GroupConfig {
+        id: 0,
+        name: "DCS".into(),
+        lines: vec![1],
+        dispatch: BuiltinStrategy::Scan,
+        reposition: None,
+        hall_call_mode: Some(HallCallMode::Destination),
+        ack_latency_ticks: Some(15),
+    }]);
+    config.elevators = Vec::new();
+
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    assert_eq!(sim.groups()[0].hall_call_mode(), HallCallMode::Destination);
+    assert_eq!(sim.groups()[0].ack_latency_ticks(), 15);
+}
+
+/// RON deserializes pre-#94 group configs without the new fields
+/// because both use `#[serde(default)]`.
+#[test]
+fn group_config_ron_defaults_to_classic_zero_latency() {
+    use crate::config::GroupConfig;
+    use crate::dispatch::HallCallMode;
+
+    let ron = r#"GroupConfig(
+        id: 0,
+        name: "Legacy",
+        lines: [1],
+        dispatch: Scan,
+    )"#;
+    let gc: GroupConfig = ron::from_str(ron).expect("RON without new fields should deserialize");
+    assert_eq!(gc.hall_call_mode, None);
+    assert_eq!(gc.ack_latency_ticks, None);
+
+    // And explicit RON values round-trip.
+    let ron_explicit = r#"GroupConfig(
+        id: 1,
+        name: "DCS",
+        lines: [2],
+        dispatch: Scan,
+        hall_call_mode: Some(Destination),
+        ack_latency_ticks: Some(10),
+    )"#;
+    let gc2: GroupConfig = ron::from_str(ron_explicit).expect("explicit RON should deserialize");
+    assert_eq!(gc2.hall_call_mode, Some(HallCallMode::Destination));
+    assert_eq!(gc2.ack_latency_ticks, Some(10));
 }
