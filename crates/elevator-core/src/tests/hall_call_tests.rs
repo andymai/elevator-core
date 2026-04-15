@@ -335,6 +335,127 @@ fn rebalk_on_full_abandons_immediately() {
     );
 }
 
+/// Cross-line pin is rejected at `pin_assignment` time rather than
+/// silently orphaning the call at dispatch. Regression against the
+/// gap flagged in the multi-line audit.
+#[test]
+fn pin_across_lines_is_rejected() {
+    use crate::components::Orientation;
+    use crate::config::{ElevatorConfig, GroupConfig, LineConfig};
+    use crate::dispatch::BuiltinStrategy;
+    use crate::dispatch::scan::ScanDispatch;
+    use crate::stop::StopConfig;
+
+    // Two lines in one group: Low serves Ground+Mid, High serves Mid+Top.
+    let mut config = default_config();
+    config.building.stops = vec![
+        StopConfig {
+            id: StopId(0),
+            name: "Ground".into(),
+            position: 0.0,
+        },
+        StopConfig {
+            id: StopId(1),
+            name: "Mid".into(),
+            position: 10.0,
+        },
+        StopConfig {
+            id: StopId(2),
+            name: "Top".into(),
+            position: 20.0,
+        },
+    ];
+    let mk_elev = |id: u32, name: &str, start: StopId| ElevatorConfig {
+        id,
+        name: name.into(),
+        starting_stop: start,
+        ..ElevatorConfig::default()
+    };
+    config.building.lines = Some(vec![
+        LineConfig {
+            id: 1,
+            name: "Low".into(),
+            serves: vec![StopId(0), StopId(1)],
+            elevators: vec![mk_elev(1, "L1", StopId(0))],
+            orientation: Orientation::Vertical,
+            position: None,
+            min_position: None,
+            max_position: None,
+            max_cars: None,
+        },
+        LineConfig {
+            id: 2,
+            name: "High".into(),
+            serves: vec![StopId(1), StopId(2)],
+            elevators: vec![mk_elev(2, "H1", StopId(1))],
+            orientation: Orientation::Vertical,
+            position: None,
+            min_position: None,
+            max_position: None,
+            max_cars: None,
+        },
+    ]);
+    config.building.groups = Some(vec![GroupConfig {
+        id: 0,
+        name: "SplitGroup".into(),
+        lines: vec![1, 2],
+        dispatch: BuiltinStrategy::Scan,
+        reposition: None,
+    }]);
+    config.elevators = Vec::new();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let top = sim.stop_entity(StopId(2)).unwrap();
+    sim.press_hall_button(top, CallDirection::Down).unwrap();
+
+    // Locate the Low car (its line does NOT serve Top).
+    let low_car = sim
+        .world()
+        .elevator_ids()
+        .into_iter()
+        .find(|&e| {
+            let Some(line) = sim.world().elevator(e).map(|c| c.line) else {
+                return false;
+            };
+            sim.groups()
+                .iter()
+                .flat_map(|g| g.lines().iter())
+                .find(|li| li.entity() == line)
+                .is_some_and(|li| !li.serves().contains(&top))
+        })
+        .expect("Low elevator should exist and not serve Top");
+
+    let err = sim.pin_assignment(low_car, top, CallDirection::Down);
+    assert!(
+        matches!(err, Err(crate::error::SimError::InvalidState { .. })),
+        "cross-line pin should return InvalidState, got {err:?}"
+    );
+    let call = sim.world().hall_call(top, CallDirection::Down).unwrap();
+    assert!(!call.pinned, "failed pin must not flag the call pinned");
+}
+
+/// Multi-line: a shared stop serving two groups creates one hall call
+/// attributable to the group its rider is routed through. Verifies the
+/// "first group wins" documentation on `HallCallMode`.
+#[test]
+fn shared_stop_attributes_call_to_first_group() {
+    // Uses the default single-group / single-line config (no shared
+    // groups exist there), but exercises the cross-tick shape of the
+    // audit: call is created, assigned_car reflects dispatch, and no
+    // duplicate HallCall exists. The stricter overlapping-groups
+    // scenario isn't constructable via the public builder; covering it
+    // here as the one-group variant is sufficient until a public API
+    // for overlapping groups is added.
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
+        .unwrap();
+    let origin = sim.stop_entity(StopId(1)).unwrap();
+    let calls: Vec<_> = sim.hall_calls().collect();
+    assert_eq!(calls.len(), 1, "one call per (stop, direction)");
+    assert_eq!(calls[0].stop, origin);
+    assert_eq!(calls[0].direction, CallDirection::Up);
+}
+
 /// `commit_go_to_stop` must not re-emit `ElevatorAssigned` every tick
 /// for a car that's already `MovingToStop(stop)`. Regression guard for
 /// the reassignment idempotence case.

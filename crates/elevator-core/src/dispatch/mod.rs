@@ -264,6 +264,15 @@ impl LineInfo {
 /// at different moments. Groups pick a mode so the sim can model both
 /// traditional up/down collective-control elevators and modern
 /// destination-dispatch lobby kiosks within the same simulation.
+///
+/// Stops are expected to belong to exactly one group. When a stop
+/// overlaps multiple groups, the hall-call press consults the first
+/// group containing it (iteration order over
+/// [`Simulation::groups`](crate::sim::Simulation::groups)), which in
+/// turn determines the `HallCallMode` and ack latency applied to that
+/// call. Overlapping topologies are not validated at construction
+/// time; games that need them should be aware of this first-match
+/// rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub enum HallCallMode {

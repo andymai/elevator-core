@@ -2035,16 +2035,41 @@ impl Simulation {
     /// call is cleared.
     ///
     /// # Errors
-    /// Returns [`SimError::EntityNotFound`] if either entity is invalid
-    /// or [`SimError::InvalidState`] if no call exists at that stop.
+    /// - [`SimError::EntityNotFound`] — `car` is not a valid elevator.
+    /// - [`SimError::InvalidState`] with `entity = stop` — no hall call
+    ///   exists at that `(stop, direction)` pair yet.
+    /// - [`SimError::InvalidState`] with `entity = car` — the car's
+    ///   line does not serve `stop`. Without this check a cross-line
+    ///   pin would be silently dropped at dispatch time yet leave the
+    ///   call `pinned`, blocking every other car.
     pub fn pin_assignment(
         &mut self,
         car: EntityId,
         stop: EntityId,
         direction: crate::components::CallDirection,
     ) -> Result<(), SimError> {
-        if self.world.elevator(car).is_none() {
+        let Some(elev) = self.world.elevator(car) else {
             return Err(SimError::EntityNotFound(car));
+        };
+        let car_line = elev.line;
+        // Validate the car's line can reach the stop. If the line has
+        // an entry in any group, we consult its `serves` list. A car
+        // whose line entity doesn't match any line in any group falls
+        // through — older test fixtures create elevators without a
+        // line entity, and we don't want to regress them.
+        let line_serves_stop = self
+            .groups
+            .iter()
+            .flat_map(|g| g.lines().iter())
+            .find(|li| li.entity() == car_line)
+            .map(|li| li.serves().contains(&stop));
+        if line_serves_stop == Some(false) {
+            return Err(SimError::InvalidState {
+                entity: car,
+                reason: format!(
+                    "car's line does not serve stop {stop:?}; pinning would orphan the call"
+                ),
+            });
         }
         let Some(call) = self.world.hall_call_mut(stop, direction) else {
             return Err(SimError::InvalidState {
