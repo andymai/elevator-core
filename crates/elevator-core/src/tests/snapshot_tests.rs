@@ -305,7 +305,7 @@ fn snapshot_bytes_rejects_wrong_version() {
         version: "0.0.0-definitely-not-real".to_owned(),
         payload: real,
     };
-    let bytes = bincode::serde::encode_to_vec(&fake, bincode::config::standard()).unwrap();
+    let bytes = postcard::to_allocvec(&fake).unwrap();
 
     let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
     match err {
