@@ -347,6 +347,17 @@ impl ElevatorGroup {
         self
     }
 
+    /// Set the hall call mode in-place (for mutation via
+    /// [`Simulation::groups_mut`](crate::sim::Simulation::groups_mut)).
+    pub const fn set_hall_call_mode(&mut self, mode: HallCallMode) {
+        self.hall_call_mode = mode;
+    }
+
+    /// Set the ack latency in-place.
+    pub const fn set_ack_latency_ticks(&mut self, ticks: u32) {
+        self.ack_latency_ticks = ticks;
+    }
+
     /// Hall call mode for this group.
     #[must_use]
     pub const fn hall_call_mode(&self) -> HallCallMode {

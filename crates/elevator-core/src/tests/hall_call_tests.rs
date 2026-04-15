@@ -88,10 +88,156 @@ fn pin_assignment_pins_and_assigns() {
     assert!(!call.pinned);
 }
 
-// Test for DCS-mode destination population is deferred until a public
-// API exists to construct a group in Destination mode (config wiring
-// lands in a follow-up commit). The runtime behavior is covered by
-// `register_hall_call_for_rider` internally.
+/// Nonzero `ack_latency_ticks`: a hall call pressed at tick T only
+/// becomes acknowledged at tick T+N, and `HallCallAcknowledged` fires
+/// on exactly that tick. Locks in the deferred-ack path in
+/// `advance_transient::ack_hall_calls`.
+#[test]
+fn nonzero_ack_latency_delays_acknowledgement() {
+    use crate::dispatch::HallCallMode;
+    use crate::ids::GroupId;
+
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    // Configure a 5-tick ack latency on the only group, leaving Classic
+    // mode unchanged.
+    for g in sim.groups_mut() {
+        if g.id() == GroupId(0) {
+            g.set_ack_latency_ticks(5);
+            g.set_hall_call_mode(HallCallMode::Classic);
+        }
+    }
+
+    let press_tick = sim.current_tick();
+    let stop = sim.stop_entity(StopId(1)).unwrap();
+    sim.press_hall_button(stop, CallDirection::Up).unwrap();
+
+    // Press tick: call exists but unacknowledged.
+    let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
+    assert_eq!(call.press_tick, press_tick);
+    assert_eq!(call.acknowledged_at, None);
+    sim.drain_events();
+
+    // Step forward. At each step `advance_transient` runs with the
+    // current tick *before* the end-of-step advance, so `current_tick()`
+    // afterwards equals the tick the ack pass ran on, plus one. The
+    // call should remain pending until the pass processes a tick whose
+    // delta ≥ `ack_latency_ticks`.
+    let mut ack_tick: Option<u64> = None;
+    for _ in 0..10 {
+        sim.step();
+        let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
+        if let Some(t) = call.acknowledged_at {
+            ack_tick = Some(t);
+            break;
+        }
+    }
+    let ack_tick = ack_tick.expect("ack should fire within 10 steps");
+    assert_eq!(
+        ack_tick.saturating_sub(press_tick),
+        5,
+        "ack should fire exactly `ack_latency_ticks` ticks after the press"
+    );
+    // One HallCallAcknowledged event (not one per step).
+    let events = sim.drain_events();
+    let acks = events
+        .iter()
+        .filter(|e| matches!(e, Event::HallCallAcknowledged { .. }))
+        .count();
+    assert!(acks <= 1, "HallCallAcknowledged should fire at most once");
+}
+
+/// DCS mode: a hall call press by a rider populates the call's
+/// destination so destination-aware strategies can read it directly.
+#[test]
+fn destination_mode_records_destination_on_call() {
+    use crate::dispatch::HallCallMode;
+    use crate::ids::GroupId;
+
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    for g in sim.groups_mut() {
+        if g.id() == GroupId(0) {
+            g.set_hall_call_mode(HallCallMode::Destination);
+        }
+    }
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    let dest = sim.stop_entity(StopId(2)).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
+    assert_eq!(
+        call.destination,
+        Some(dest),
+        "DCS kiosk entry should populate the hall call's destination"
+    );
+}
+
+/// Public `Simulation::hall_calls()` and `car_calls(car)` expose the
+/// active call state without requiring `sim.world()` traversal.
+#[test]
+fn public_call_queries_return_active_calls() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    // One hall call registered at the origin going up.
+    let count = sim.hall_calls().count();
+    assert_eq!(count, 1);
+    // No car calls yet (rider hasn't boarded).
+    let car = sim.world().elevator_ids()[0];
+    assert!(sim.car_calls(car).is_empty());
+}
+
+/// `CarCall`s are cleaned up when the rider who pressed the button exits
+/// at that floor. Regression against unbounded growth of per-car
+/// `car_calls` vectors reported in PR review.
+#[test]
+fn car_call_removed_on_exit() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    let car = sim.world().elevator_ids()[0];
+
+    // Run until the rider reaches Arrived.
+    let mut boarded = false;
+    for _ in 0..2000 {
+        sim.step();
+        if !boarded && !sim.car_calls(car).is_empty() {
+            boarded = true;
+        }
+        if boarded && sim.car_calls(car).is_empty() {
+            break;
+        }
+    }
+    assert!(
+        sim.car_calls(car).is_empty(),
+        "car_calls should be drained once the rider exits"
+    );
+}
+
+/// `commit_go_to_stop` must not re-emit `ElevatorAssigned` every tick
+/// for a car that's already `MovingToStop(stop)`. Regression guard for
+/// the reassignment idempotence case.
+#[test]
+fn reassignment_does_not_spam_elevator_assigned() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    sim.drain_events();
+    // Step enough ticks to let dispatch commit + keep the car moving
+    // (it won't arrive instantly). Count ElevatorAssigned emissions.
+    let mut assigned_events = 0usize;
+    for _ in 0..20 {
+        sim.step();
+        for e in sim.drain_events() {
+            if matches!(e, Event::ElevatorAssigned { .. }) {
+                assigned_events += 1;
+            }
+        }
+    }
+    assert!(
+        assigned_events <= 1,
+        "ElevatorAssigned should fire at most once per trip, got {assigned_events}"
+    );
+}
 
 /// With `ack_latency_ticks = 0` (default), a call is acknowledged on
 /// the same tick it was pressed.

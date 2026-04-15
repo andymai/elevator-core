@@ -331,6 +331,14 @@ fn apply_actions(
                     stop,
                     tick: ctx.tick,
                 });
+                // Clear the rider from any CarCall's pending list; drop
+                // CarCalls for this floor whose riders have all exited.
+                if let Some(calls) = world.car_calls_mut(elevator) {
+                    for c in calls.iter_mut() {
+                        c.pending_riders.retain(|r| *r != rider);
+                    }
+                    calls.retain(|c| c.floor != stop || !c.pending_riders.is_empty());
+                }
                 if let Some(car) = world.elevator(elevator) {
                     events.emit(Event::CapacityChanged {
                         elevator,

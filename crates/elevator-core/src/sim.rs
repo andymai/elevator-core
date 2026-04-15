@@ -444,6 +444,15 @@ impl Simulation {
         &self.groups
     }
 
+    /// Mutable access to the group collection. Use this to flip a group
+    /// into [`HallCallMode::Destination`](crate::dispatch::HallCallMode)
+    /// or tune its `ack_latency_ticks` after construction. Changing the
+    /// line/elevator structure here is not supported — use the dedicated
+    /// topology mutators for that.
+    pub fn groups_mut(&mut self) -> &mut [ElevatorGroup] {
+        &mut self.groups
+    }
+
     /// Resolve a config `StopId` to its runtime `EntityId`.
     #[must_use]
     pub fn stop_entity(&self, id: StopId) -> Option<EntityId> {
@@ -2060,6 +2069,21 @@ impl Simulation {
         }
     }
 
+    /// Iterate every active hall call across the simulation. Yields a
+    /// reference per live `(stop, direction)` press; games use this to
+    /// render lobby lamp states, pending-rider counts, or per-floor
+    /// button animations.
+    pub fn hall_calls(&self) -> impl Iterator<Item = &crate::components::HallCall> {
+        self.world.iter_hall_calls()
+    }
+
+    /// Floor buttons currently pressed inside `car`. Returns an empty
+    /// slice when the car has no aboard riders or hasn't been used.
+    #[must_use]
+    pub fn car_calls(&self, car: EntityId) -> &[crate::components::CarCall] {
+        self.world.car_calls(car)
+    }
+
     /// Car currently assigned to serve the call at `(stop, direction)`,
     /// if dispatch has made an assignment yet.
     #[must_use]
@@ -2174,21 +2198,27 @@ impl Simulation {
         }
     }
 
-    /// Ack latency for the group that serves `stop`. Defaults to 0 if
-    /// the stop belongs to no group (unreachable in normal builds).
-    fn ack_latency_for_stop(&self, stop: EntityId) -> u32 {
+    /// Ack latency for the group whose `members` slice contains `entity`.
+    /// Defaults to 0 if no group matches (unreachable in normal builds).
+    fn ack_latency_for(
+        &self,
+        entity: EntityId,
+        members: impl Fn(&crate::dispatch::ElevatorGroup) -> &[EntityId],
+    ) -> u32 {
         self.groups
             .iter()
-            .find(|g| g.stop_entities().contains(&stop))
+            .find(|g| members(g).contains(&entity))
             .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
     }
 
-    /// Ack latency for the group that owns `car`.
+    /// Ack latency for the group that owns `stop` (0 if no group).
+    fn ack_latency_for_stop(&self, stop: EntityId) -> u32 {
+        self.ack_latency_for(stop, crate::dispatch::ElevatorGroup::stop_entities)
+    }
+
+    /// Ack latency for the group that owns `car` (0 if no group).
     fn ack_latency_for_car(&self, car: EntityId) -> u32 {
-        self.groups
-            .iter()
-            .find(|g| g.elevator_entities().contains(&car))
-            .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
+        self.ack_latency_for(car, crate::dispatch::ElevatorGroup::elevator_entities)
     }
 
     /// Create or aggregate into a car call for `(car, floor)`.

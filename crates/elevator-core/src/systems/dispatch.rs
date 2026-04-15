@@ -107,7 +107,10 @@ pub fn run(
                 DispatchDecision::GoToStop(stop_eid) => {
                     commit_go_to_stop(world, events, ctx, eid, stop_eid);
                     // Update the call's `assigned_car` so games querying
-                    // `sim.assigned_car(...)` see dispatch's choice.
+                    // `sim.assigned_car(...)` see dispatch's choice. The
+                    // direction written matches the car's travel
+                    // direction toward the stop — opposite-direction
+                    // calls at the same floor keep their own bookkeeping.
                     record_hall_assignment(world, stop_eid, eid);
                 }
                 DispatchDecision::Idle => {
@@ -136,11 +139,6 @@ pub fn run(
     }
 }
 
-/// Update the direction indicator lamps on an elevator and emit a
-/// [`Event::DirectionIndicatorChanged`] iff the pair actually changed.
-///
-/// Shared with `systems::advance_queue` so both dispatch- and
-/// imperative-driven movement keep the indicators in sync.
 /// Commit a `GoToStop(stop_eid)` decision for `eid`. Encapsulates the
 /// indicator update, arrive-in-place short-circuit, destination-queue
 /// bookkeeping, phase transition, and departure event emission so
@@ -153,6 +151,16 @@ fn commit_go_to_stop(
     eid: EntityId,
     stop_eid: EntityId,
 ) {
+    // Short-circuit the common reassignment case: the same car
+    // already committed to the same stop on a prior tick. Re-emitting
+    // `ElevatorAssigned` each tick would drown observability consumers
+    // (metrics, UI) in redundant events.
+    if let Some(car) = world.elevator(eid)
+        && car.phase == ElevatorPhase::MovingToStop(stop_eid)
+    {
+        return;
+    }
+
     let pos = world.position(eid).map_or(0.0, |p| p.value);
     let current_stop = world.find_stop_at_position(pos);
 
@@ -221,15 +229,37 @@ fn commit_go_to_stop(
 
 /// Mirror dispatch's choice back onto the hall call so games querying
 /// `Simulation::assigned_car` see which elevator is coming.
+///
+/// The direction is inferred from the car's travel vector toward the
+/// stop: traveling up → serves the Up call; down → Down. An
+/// already-at-stop commit (equal positions) writes to whichever
+/// direction has a pending call, preferring Up if both exist. Only the
+/// matching direction is updated — the other direction's call keeps
+/// its own assignment bookkeeping.
 fn record_hall_assignment(world: &mut World, stop: EntityId, car: EntityId) {
     use crate::components::CallDirection;
-    for dir in [CallDirection::Up, CallDirection::Down] {
-        if let Some(call) = world.hall_call_mut(stop, dir) {
-            // Don't overwrite a pin — that's what `pinned` guards.
-            if !call.pinned {
-                call.assigned_car = Some(car);
-            }
+    let Some(car_pos) = world.position(car).map(|p| p.value) else {
+        return;
+    };
+    let Some(stop_pos) = world.stop_position(stop) else {
+        return;
+    };
+    let direction = if stop_pos > car_pos {
+        CallDirection::Up
+    } else if stop_pos < car_pos {
+        CallDirection::Down
+    } else {
+        // Same position — prefer whichever call exists (Up first).
+        if world.hall_call(stop, CallDirection::Up).is_some() {
+            CallDirection::Up
+        } else {
+            CallDirection::Down
         }
+    };
+    if let Some(call) = world.hall_call_mut(stop, direction)
+        && !call.pinned
+    {
+        call.assigned_car = Some(car);
     }
 }
 
