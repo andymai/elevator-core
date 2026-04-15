@@ -173,7 +173,7 @@
 //! For the common case (save-to-disk, load-from-disk), skip the format choice
 //! and use [`Simulation::snapshot_bytes`](sim::Simulation::snapshot_bytes) /
 //! [`Simulation::restore_bytes`](sim::Simulation::restore_bytes). The byte
-//! blob is bincode-encoded and carries a magic prefix plus the crate version:
+//! blob is postcard-encoded and carries a magic prefix plus the crate version:
 //! restoring bytes from a different `elevator-core` version returns
 //! [`SimError::SnapshotVersion`](error::SimError::SnapshotVersion) instead of
 //! silently producing a garbled sim. Determinism is bit-exact across builds

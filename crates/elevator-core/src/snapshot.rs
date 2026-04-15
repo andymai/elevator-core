@@ -609,7 +609,7 @@ impl crate::sim::Simulation {
 
     /// Serialize the current state to a self-describing byte blob.
     ///
-    /// The blob is bincode-encoded and carries a magic prefix plus the
+    /// The blob is postcard-encoded and carries a magic prefix plus the
     /// `elevator-core` crate version. Use [`Simulation::restore_bytes`]
     /// on the receiving end. Determinism is bit-exact across builds of
     /// the same crate version; cross-version restores return
@@ -624,7 +624,7 @@ impl crate::sim::Simulation {
     ///
     /// # Errors
     /// Returns [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
-    /// if bincode encoding fails. This is unreachable for well-formed
+    /// if postcard encoding fails. This is unreachable for well-formed
     /// `WorldSnapshot` values (all fields derive `Serialize`), so callers
     /// that don't care can `unwrap`.
     pub fn snapshot_bytes(&self) -> Result<Vec<u8>, crate::error::SimError> {
@@ -633,7 +633,7 @@ impl crate::sim::Simulation {
             version: env!("CARGO_PKG_VERSION").to_owned(),
             payload: self.snapshot(),
         };
-        bincode::serde::encode_to_vec(&envelope, bincode::config::standard())
+        postcard::to_allocvec(&envelope)
             .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))
     }
 
@@ -653,12 +653,12 @@ impl crate::sim::Simulation {
         bytes: &[u8],
         custom_strategy_factory: CustomStrategyFactory<'_>,
     ) -> Result<Self, crate::error::SimError> {
-        let (envelope, consumed): (SnapshotEnvelope, usize) =
-            bincode::serde::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
-        if consumed != bytes.len() {
+        let (envelope, tail): (SnapshotEnvelope, &[u8]) = postcard::take_from_bytes(bytes)
+            .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
+        if !tail.is_empty() {
             return Err(crate::error::SimError::SnapshotFormat(format!(
-                "trailing bytes: consumed {consumed} of {}",
+                "trailing bytes: {} unread of {}",
+                tail.len(),
                 bytes.len()
             )));
         }
