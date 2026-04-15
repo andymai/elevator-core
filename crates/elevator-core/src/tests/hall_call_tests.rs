@@ -117,6 +117,40 @@ fn zero_latency_acknowledges_immediately() {
     );
 }
 
+/// A pinned call forces dispatch to commit the pinned car even when
+/// another car would be the optimal choice under the strategy's cost.
+#[test]
+fn pinned_call_forces_specific_car() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    // Spawn a rider at StopId(1) going up to StopId(2) — auto-presses
+    // the hall call at the origin.
+    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
+        .unwrap();
+    let origin = sim.stop_entity(StopId(1)).unwrap();
+    // Pin the call to elevator 0 even though SCAN would pick whichever
+    // car is closest.
+    let cars = sim.world().elevator_ids();
+    assert!(!cars.is_empty());
+    let pinned_car = cars[0];
+    sim.pin_assignment(pinned_car, origin, CallDirection::Up)
+        .unwrap();
+    // Step a few ticks; dispatch should commit the pinned car.
+    for _ in 0..10 {
+        sim.step();
+    }
+    let car = sim.world().elevator(pinned_car).unwrap();
+    assert!(
+        matches!(
+            car.phase,
+            crate::components::ElevatorPhase::MovingToStop(_)
+                | crate::components::ElevatorPhase::DoorOpening
+                | crate::components::ElevatorPhase::Loading
+                | crate::components::ElevatorPhase::DoorClosing
+        ) || car.target_stop == Some(origin),
+        "pinned car should be committed to the pinned stop"
+    );
+}
+
 /// When the car opens doors at a stop, any hall call in the car's
 /// indicated direction is cleared and a `HallCallCleared` event fires.
 #[test]
