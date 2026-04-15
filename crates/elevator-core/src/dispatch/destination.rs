@@ -30,7 +30,7 @@ use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMod
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
 
 /// Sticky rider → car assignment produced by [`DestinationDispatch`].
 ///
@@ -47,14 +47,14 @@ pub const ASSIGNED_CAR_EXT_NAME: &str = "assigned_car";
 
 /// Hall-call destination dispatch (DCS).
 ///
-/// ## API choice
+/// ## API shape
 ///
-/// This strategy uses the [`DispatchStrategy::pre_dispatch`] hook
-/// (Option B) so it can write sticky [`AssignedCar`] extensions and
-/// committed-stop queue entries during a `&mut World` phase, then
-/// return ordinary [`DispatchDecision::GoToStop`] values via the
-/// standard `decide` call. The other built-in strategies continue to
-/// work unchanged because `pre_dispatch` has an empty default impl.
+/// Uses [`DispatchStrategy::pre_dispatch`] to write sticky
+/// [`AssignedCar`] extensions and rebuild each car's committed stop
+/// queue during a `&mut World` phase. [`DispatchStrategy::rank`] then
+/// routes each car to its own queue front and returns `None` for every
+/// other stop, so the group-wide Hungarian assignment trivially pairs
+/// each car with the stop it has already committed to.
 pub struct DestinationDispatch {
     /// Weight for per-stop door overhead in the cost function. A positive
     /// value biases assignments toward cars whose route change adds no
@@ -204,19 +204,24 @@ impl DispatchStrategy for DestinationDispatch {
         }
     }
 
-    fn decide(
+    fn rank(
         &mut self,
-        elevator: EntityId,
-        _elevator_position: f64,
+        car: EntityId,
+        _car_position: f64,
+        stop: EntityId,
+        _stop_position: f64,
         _group: &ElevatorGroup,
         _manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision {
-        // The queue is the source of truth — send the car to the front stop.
-        world
-            .destination_queue(elevator)
-            .and_then(DestinationQueue::front)
-            .map_or(DispatchDecision::Idle, DispatchDecision::GoToStop)
+    ) -> Option<f64> {
+        // The queue is the source of truth — route each car strictly to
+        // its own queue front. Every other stop is unavailable for this
+        // car, so the Hungarian assignment reduces to the identity match
+        // between each car and the stop it has already committed to.
+        let front = world
+            .destination_queue(car)
+            .and_then(DestinationQueue::front)?;
+        if front == stop { Some(0.0) } else { None }
     }
 }
 

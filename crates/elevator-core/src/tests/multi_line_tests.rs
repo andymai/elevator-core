@@ -1593,7 +1593,7 @@ fn remove_line_marks_topology_graph_dirty() {
 /// dispatching the next call.
 #[test]
 fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
-    use crate::dispatch::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
     use crate::entity::EntityId;
     use crate::world::World;
     use std::sync::{Arc, Mutex};
@@ -1604,16 +1604,25 @@ fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
         inner: ScanDispatch,
     }
     impl DispatchStrategy for TrackingDispatch {
-        fn decide(
+        fn rank(
             &mut self,
-            elevator: EntityId,
-            position: f64,
+            car: EntityId,
+            car_position: f64,
+            stop: EntityId,
+            stop_position: f64,
             group: &ElevatorGroup,
             manifest: &DispatchManifest,
             world: &World,
-        ) -> DispatchDecision {
-            self.inner
-                .decide(elevator, position, group, manifest, world)
+        ) -> Option<f64> {
+            self.inner.rank(
+                car,
+                car_position,
+                stop,
+                stop_position,
+                group,
+                manifest,
+                world,
+            )
         }
         fn notify_removed(&mut self, elevator: EntityId) {
             self.removed.lock().unwrap().push(elevator);

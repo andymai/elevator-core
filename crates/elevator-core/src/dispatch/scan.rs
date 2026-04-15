@@ -7,32 +7,25 @@
 
 use std::collections::HashMap;
 
-use smallvec::SmallVec;
-
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup};
-
-/// Tolerance for floating-point position comparisons.
-const EPSILON: f64 = 1e-9;
-
-/// Direction of travel for the SCAN algorithm.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub(crate) enum ScanDirection {
-    /// Traveling upward (increasing position).
-    Up,
-    /// Traveling downward (decreasing position).
-    Down,
-}
+use super::sweep::{self, SweepDirection, SweepMode};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
 
 /// Elevator dispatch using the SCAN (elevator) algorithm.
 ///
-/// Serves all requests in the current direction of travel before reversing.
+/// Each car tracks a sweep direction; stops demanded in that direction
+/// receive a positional cost while stops behind are excluded. When
+/// nothing remains ahead, the sweep reverses and the car considers the
+/// reverse side. Direction and mode are resolved once per pass in
+/// [`DispatchStrategy::prepare_car`] so ranking is independent of the
+/// iteration order over stops.
 pub struct ScanDispatch {
     /// Per-elevator sweep direction.
-    direction: HashMap<EntityId, ScanDirection>,
+    direction: HashMap<EntityId, SweepDirection>,
+    /// Per-elevator accept mode for the current dispatch pass.
+    mode: HashMap<EntityId, SweepMode>,
 }
 
 impl ScanDispatch {
@@ -41,7 +34,21 @@ impl ScanDispatch {
     pub fn new() -> Self {
         Self {
             direction: HashMap::new(),
+            mode: HashMap::new(),
         }
+    }
+
+    /// Sweep direction for `car`, defaulting to `Up` for first-time callers.
+    fn direction_for(&self, car: EntityId) -> SweepDirection {
+        self.direction
+            .get(&car)
+            .copied()
+            .unwrap_or(SweepDirection::Up)
+    }
+
+    /// Accept mode for `car` in the current pass, defaulting to `Strict`.
+    fn mode_for(&self, car: EntityId) -> SweepMode {
+        self.mode.get(&car).copied().unwrap_or(SweepMode::Strict)
     }
 }
 
@@ -52,90 +59,43 @@ impl Default for ScanDispatch {
 }
 
 impl DispatchStrategy for ScanDispatch {
-    fn decide(
+    fn prepare_car(
         &mut self,
-        elevator: EntityId,
-        elevator_position: f64,
+        car: EntityId,
+        car_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
         world: &World,
-    ) -> DispatchDecision {
-        let direction = self
-            .direction
-            .get(&elevator)
-            .copied()
-            .unwrap_or(ScanDirection::Up);
-
-        // Collect "interesting" stops: stops with demand or rider destinations.
-        let mut interesting: SmallVec<[(EntityId, f64); 32]> = SmallVec::new();
-
-        for &stop_eid in group.stop_entities() {
-            if manifest.has_demand(stop_eid)
-                && let Some(pos) = world.stop_position(stop_eid)
-            {
-                interesting.push((stop_eid, pos));
-            }
+    ) {
+        let current = self.direction_for(car);
+        if sweep::strict_demand_ahead(current, car_position, group, manifest, world) {
+            self.mode.insert(car, SweepMode::Strict);
+        } else {
+            self.direction.insert(car, current.reversed());
+            self.mode.insert(car, SweepMode::Lenient);
         }
+    }
 
-        if interesting.is_empty() {
-            return DispatchDecision::Idle;
-        }
-
-        let pos = elevator_position;
-
-        // Partition into ahead and behind based on current direction.
-        let (ahead, behind): (SmallVec<[_; 32]>, SmallVec<[_; 32]>) = match direction {
-            ScanDirection::Up => interesting.iter().partition(|(_, p)| *p > pos + EPSILON),
-            ScanDirection::Down => interesting.iter().partition(|(_, p)| *p < pos - EPSILON),
-        };
-
-        if !ahead.is_empty() {
-            let nearest = match direction {
-                ScanDirection::Up => ahead
-                    .iter()
-                    .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
-                ScanDirection::Down => ahead
-                    .iter()
-                    .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
-            };
-            // ahead is non-empty, so nearest is always Some.
-            if let Some(stop) = nearest {
-                return DispatchDecision::GoToStop(stop.0);
-            }
-        }
-
-        // Nothing ahead — reverse direction.
-        let new_dir = match direction {
-            ScanDirection::Up => ScanDirection::Down,
-            ScanDirection::Down => ScanDirection::Up,
-        };
-        self.direction.insert(elevator, new_dir);
-
-        if behind.is_empty() {
-            // All interesting stops at current position (handled above).
-            return interesting
-                .first()
-                .map_or(DispatchDecision::Idle, |(sid, _)| {
-                    DispatchDecision::GoToStop(*sid)
-                });
-        }
-
-        let nearest = match new_dir {
-            ScanDirection::Up => behind
-                .iter()
-                .min_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
-            ScanDirection::Down => behind
-                .iter()
-                .max_by(|a: &&&(EntityId, f64), b: &&&(EntityId, f64)| a.1.total_cmp(&b.1)),
-        };
-
-        // behind is non-empty, so nearest is always Some.
-        nearest.map_or(DispatchDecision::Idle, |stop| {
-            DispatchDecision::GoToStop(stop.0)
-        })
+    fn rank(
+        &mut self,
+        car: EntityId,
+        car_position: f64,
+        _stop: EntityId,
+        stop_position: f64,
+        _group: &ElevatorGroup,
+        _manifest: &DispatchManifest,
+        _world: &World,
+    ) -> Option<f64> {
+        sweep::rank(
+            self.mode_for(car),
+            self.direction_for(car),
+            car_position,
+            stop_position,
+        )
     }
 
     fn notify_removed(&mut self, elevator: EntityId) {
         self.direction.remove(&elevator);
+        self.mode.remove(&elevator);
     }
 }
