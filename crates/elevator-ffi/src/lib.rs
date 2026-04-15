@@ -547,6 +547,18 @@ fn populate_frame(ev: &mut EvSim) {
         } else {
             target_from_phase
         };
+        // ElevatorPhase variants for at-stop service (DoorOpening=3, Loading=4,
+        // DoorClosing=5, Stopped=6) don't carry the stop ID in their payload —
+        // the car is parked at its `target_stop()`. Populate `current_stop_id`
+        // from there so consumers can query the stop being served without
+        // inferring it from the phase tag and target field.
+        let current_stop_id = if current_stop != 0 {
+            current_stop
+        } else if matches!(phase_tag, 3..=6) {
+            elev.target_stop().map_or(0, entity_to_u64)
+        } else {
+            0
+        };
         ev.frame.elevators.push(EvElevatorView {
             entity_id: entity_to_u64(eid),
             group_id: resolve_group(eid),
@@ -554,7 +566,7 @@ fn populate_frame(ev: &mut EvSim) {
             phase: phase_tag,
             position: pos.value(),
             velocity,
-            current_stop_id: current_stop,
+            current_stop_id,
             target_stop_id,
             occupancy: u32::try_from(elev.riders().len()).unwrap_or(u32::MAX),
             capacity_kg: elev.weight_capacity(),
