@@ -64,6 +64,48 @@ jobs:
           command: check
           arg: --workspace
 
+  ffi-harness:
+    name: FFI smoke test (C# harness)
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'release-kun[bot]' ||
+      !startsWith(github.event.pull_request.title, 'chore(main): release')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev
+
+      - name: Build elevator-ffi cdylib
+        run: cargo build -p elevator-ffi --release
+
+      - name: Verify generated header is up to date
+        run: |
+          cargo build -p elevator-ffi
+          if ! git diff --exit-code crates/elevator-ffi/include/elevator_ffi.h; then
+            echo "::error::elevator_ffi.h is out of date — run 'cargo build -p elevator-ffi' and commit the result."
+            exit 1
+          fi
+
+      - name: Stage cdylib for harness
+        run: |
+          mkdir -p examples/csharp-harness/runtimes/linux-x64/native
+          cp target/release/libelevator_ffi.so examples/csharp-harness/runtimes/linux-x64/native/
+
+      - name: Build C# harness
+        working-directory: examples/csharp-harness
+        run: dotnet build -c Release
+
+      - name: Run C# harness smoke test
+        working-directory: examples/csharp-harness
+        run: dotnet run -c Release --no-build -- ../../assets/config/default.ron
+
   msrv:
     name: MSRV (elevator-core)
     if: |
