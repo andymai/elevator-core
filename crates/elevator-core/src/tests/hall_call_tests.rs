@@ -823,3 +823,107 @@ fn custom_strategy_reads_car_calls_from_manifest() {
         "strategy should see car calls via DispatchManifest::car_calls_for once the rider boards",
     );
 }
+
+/// Unacknowledged hall calls are filtered out of `DispatchManifest`.
+/// When `ack_latency_ticks > 0`, a freshly pressed call sits in the
+/// ack-pending window and must not yet be visible to strategies —
+/// otherwise the latency knob is inert for custom dispatch. Matches
+/// `HallCall::is_acknowledged`'s documented contract.
+#[test]
+fn unacknowledged_hall_calls_hidden_from_manifest() {
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup, HallCallMode};
+    use crate::ids::GroupId;
+    use crate::world::World;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Observer {
+        visible_call_count: Arc<AtomicUsize>,
+    }
+    impl DispatchStrategy for Observer {
+        fn rank(
+            &mut self,
+            _car: EntityId,
+            car_pos: f64,
+            _stop: EntityId,
+            stop_pos: f64,
+            _group: &ElevatorGroup,
+            manifest: &DispatchManifest,
+            _world: &World,
+        ) -> Option<f64> {
+            // Track running max so a later `rank` call observing zero
+            // calls (e.g. after the car arrived and cleared the call)
+            // doesn't overwrite a previous nonzero observation.
+            let count = manifest.iter_hall_calls().count();
+            self.visible_call_count.fetch_max(count, Ordering::Relaxed);
+            Some((car_pos - stop_pos).abs())
+        }
+    }
+
+    let visible = Arc::new(AtomicUsize::new(0));
+    let observer = Observer {
+        visible_call_count: Arc::clone(&visible),
+    };
+    let mut sim = Simulation::new(&default_config(), observer).unwrap();
+    // 10-tick ack latency; Classic mode so the call is direction-only.
+    for g in sim.groups_mut() {
+        if g.id() == GroupId(0) {
+            g.set_ack_latency_ticks(10);
+            g.set_hall_call_mode(HallCallMode::Classic);
+        }
+    }
+    // Spawn the rider at a stop the car isn't already parked at, so
+    // the car must travel — giving ack-latency time to elapse before
+    // the call is cleared on arrival.
+    sim.spawn_rider_by_stop_id(StopId(1), StopId(0), 70.0)
+        .unwrap();
+    // One tick: call exists under ack-latency, not yet acknowledged.
+    sim.step();
+    assert!(
+        !sim.world()
+            .iter_hall_calls()
+            .any(crate::components::HallCall::is_acknowledged),
+        "no hall call should be acknowledged yet",
+    );
+    assert_eq!(
+        visible.load(Ordering::Relaxed),
+        0,
+        "unacknowledged calls must be hidden from the manifest",
+    );
+
+    // Step past the latency window: once the advance_transient pass
+    // sets `acknowledged_at`, the call becomes visible to dispatch and
+    // therefore to the strategy's `rank`. Allow generous headroom —
+    // the phase order (advance_transient runs before dispatch each
+    // step) plus tick boundaries mean the exact step count is
+    // configuration-sensitive, not a contract.
+    let mut any_acknowledged = false;
+    for _ in 0..50 {
+        sim.step();
+        if sim
+            .world()
+            .iter_hall_calls()
+            .any(crate::components::HallCall::is_acknowledged)
+        {
+            any_acknowledged = true;
+        }
+        if visible.load(Ordering::Relaxed) > 0 {
+            break;
+        }
+    }
+    // If the call was briefly acknowledged and then cleared by the car
+    // arriving, we may have missed the rank-with-visible-call moment
+    // — but as long as acknowledgement did fire, the filter let the
+    // manifest reflect it. The assertion below catches both the "never
+    // acknowledged" case (filter never saw a visible call) and the
+    // "acknowledged but rank never ran while visible" case (fine,
+    // since visible > 0 is still the contract).
+    assert!(
+        any_acknowledged,
+        "ack-latency should have elapsed within 50 ticks"
+    );
+    assert!(
+        visible.load(Ordering::Relaxed) > 0,
+        "after ack-latency elapses, the call should appear in the manifest",
+    );
+}

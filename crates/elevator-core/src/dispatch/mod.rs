@@ -154,6 +154,10 @@ impl DispatchManifest {
     }
 
     /// All hall calls across every stop in the group (flattened iterator).
+    ///
+    /// No `#[must_use]` needed: `impl Iterator` already carries that
+    /// annotation, and adding our own triggers clippy's
+    /// `double_must_use` lint.
     pub fn iter_hall_calls(&self) -> impl Iterator<Item = &HallCall> {
         self.hall_calls_at_stop.values().flatten()
     }

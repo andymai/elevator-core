@@ -390,20 +390,36 @@ fn build_manifest(
 
     // Populate hall calls at group's stops. Strategies read these for
     // call age, pending-rider count, pin flags, and DCS destinations.
+    //
+    // Filter on `is_acknowledged()` so nonzero `ack_latency_ticks`
+    // actually hides calls from dispatch until the controller has
+    // surfaced them — matches `HallCall::is_acknowledged`'s contract
+    // ("when dispatch is allowed to see this call").
     for &stop in group.stop_entities() {
         if let Some(stop_calls) = world.stop_calls(stop) {
-            let calls: Vec<_> = stop_calls.iter().cloned().collect();
+            let calls: Vec<_> = stop_calls
+                .iter()
+                .filter(|c| c.is_acknowledged())
+                .cloned()
+                .collect();
             if !calls.is_empty() {
                 manifest.hall_calls_at_stop.insert(stop, calls);
             }
         }
     }
 
-    // Populate car calls for each car in the group.
+    // Populate car calls for each car in the group. Same ack filter —
+    // a car call pressed under latency shouldn't be planned against
+    // until the controller has registered it.
     for &car in group.elevator_entities() {
-        let calls = world.car_calls(car);
+        let calls: Vec<_> = world
+            .car_calls(car)
+            .iter()
+            .filter(|c| c.is_acknowledged())
+            .cloned()
+            .collect();
         if !calls.is_empty() {
-            manifest.car_calls_by_car.insert(car, calls.to_vec());
+            manifest.car_calls_by_car.insert(car, calls);
         }
     }
 
