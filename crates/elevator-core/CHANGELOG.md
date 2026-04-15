@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v7.0.1...elevator-core-v8.0.0) (2026-04-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename rebalk_on_full to abandon_on_full, clarify semantics ([#106](https://github.com/andymai/elevator-core/issues/106))
+
+### Features
+
+* rename rebalk_on_full to abandon_on_full, clarify semantics ([#106](https://github.com/andymai/elevator-core/issues/106)) ([204757a](https://github.com/andymai/elevator-core/commit/204757a947837b394befc706ed1cb33314f6af8f)), closes [#97](https://github.com/andymai/elevator-core/issues/97)
+
 ## [7.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v7.0.0...elevator-core-v7.0.1) (2026-04-15)
 
 
