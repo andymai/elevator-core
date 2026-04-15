@@ -474,6 +474,24 @@ impl WorldSnapshot {
     }
 }
 
+/// Magic bytes identifying a bincode snapshot blob.
+const SNAPSHOT_MAGIC: [u8; 8] = *b"ELEVSNAP";
+
+/// Byte-level snapshot envelope: magic + crate version + payload.
+///
+/// Serialized via bincode. The magic and version fields are checked on
+/// restore to reject blobs from other tools or from a different
+/// `elevator-core` version.
+#[derive(Debug, Serialize, Deserialize)]
+struct SnapshotEnvelope {
+    /// Magic bytes; must equal [`SNAPSHOT_MAGIC`] or the blob is rejected.
+    magic: [u8; 8],
+    /// `elevator-core` crate version that produced the blob.
+    version: String,
+    /// The captured simulation state.
+    payload: WorldSnapshot,
+}
+
 impl crate::sim::Simulation {
     /// Create a serializable snapshot of the current simulation state.
     ///
@@ -587,5 +605,66 @@ impl crate::sim::Simulation {
             extensions: self.world().serialize_extensions(),
             ticks_per_second: 1.0 / self.dt(),
         }
+    }
+
+    /// Serialize the current state to a self-describing byte blob.
+    ///
+    /// The blob is bincode-encoded and carries a magic prefix plus the
+    /// `elevator-core` crate version. Use [`Simulation::restore_bytes`]
+    /// on the receiving end. Determinism is bit-exact across builds of
+    /// the same crate version; cross-version restores return
+    /// [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion).
+    ///
+    /// Extension components are included as in [`Simulation::snapshot`];
+    /// custom dispatch strategies and arbitrary `World` resources are
+    /// not.
+    ///
+    /// # Errors
+    /// Returns [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
+    /// if bincode encoding fails. This is unreachable for well-formed
+    /// `WorldSnapshot` values (all fields derive `Serialize`), so callers
+    /// that don't care can `unwrap`.
+    pub fn snapshot_bytes(&self) -> Result<Vec<u8>, crate::error::SimError> {
+        let envelope = SnapshotEnvelope {
+            magic: SNAPSHOT_MAGIC,
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            payload: self.snapshot(),
+        };
+        bincode::serde::encode_to_vec(&envelope, bincode::config::standard())
+            .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))
+    }
+
+    /// Restore a simulation from bytes produced by [`Simulation::snapshot_bytes`].
+    ///
+    /// Built-in dispatch strategies are auto-restored. For groups using
+    /// [`BuiltinStrategy::Custom`](crate::dispatch::BuiltinStrategy::Custom),
+    /// provide a factory; pass `None` otherwise.
+    ///
+    /// # Errors
+    /// - [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
+    ///   if the bytes are not a valid envelope or the magic prefix does
+    ///   not match.
+    /// - [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion)
+    ///   if the blob was produced by a different crate version.
+    pub fn restore_bytes(
+        bytes: &[u8],
+        custom_strategy_factory: CustomStrategyFactory<'_>,
+    ) -> Result<Self, crate::error::SimError> {
+        let (envelope, _consumed): (SnapshotEnvelope, usize) =
+            bincode::serde::decode_from_slice(bytes, bincode::config::standard())
+                .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
+        if envelope.magic != SNAPSHOT_MAGIC {
+            return Err(crate::error::SimError::SnapshotFormat(
+                "magic bytes do not match".to_string(),
+            ));
+        }
+        let current = env!("CARGO_PKG_VERSION");
+        if envelope.version != current {
+            return Err(crate::error::SimError::SnapshotVersion {
+                saved: envelope.version,
+                current: current.to_owned(),
+            });
+        }
+        Ok(envelope.payload.restore(custom_strategy_factory))
     }
 }

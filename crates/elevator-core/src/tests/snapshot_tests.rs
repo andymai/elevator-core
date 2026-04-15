@@ -252,3 +252,120 @@ fn snapshot_preserves_extension_components() {
     }
     assert!(found, "VipTag extension should survive snapshot roundtrip");
 }
+
+#[test]
+fn snapshot_bytes_roundtrip() {
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    for _ in 0..50 {
+        sim.step();
+    }
+
+    let bytes = sim.snapshot_bytes().unwrap();
+    assert!(!bytes.is_empty());
+    let restored = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap();
+    assert_eq!(restored.current_tick(), sim.current_tick());
+    assert_eq!(
+        restored.metrics().total_delivered(),
+        sim.metrics().total_delivered(),
+    );
+}
+
+#[test]
+fn snapshot_bytes_rejects_wrong_magic() {
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let mut bytes = sim.snapshot_bytes().unwrap();
+    // The magic is serialized first — flip a byte inside the first 8.
+    bytes[0] ^= 0xFF;
+    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    assert!(
+        matches!(err, crate::error::SimError::SnapshotFormat(_)),
+        "expected SnapshotFormat, got {err:?}",
+    );
+}
+
+#[derive(Serialize)]
+struct FakeEnvelope {
+    magic: [u8; 8],
+    version: String,
+    payload: crate::snapshot::WorldSnapshot,
+}
+
+#[test]
+fn snapshot_bytes_rejects_wrong_version() {
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let real = sim.snapshot();
+
+    let fake = FakeEnvelope {
+        magic: *b"ELEVSNAP",
+        version: "0.0.0-definitely-not-real".to_owned(),
+        payload: real,
+    };
+    let bytes = bincode::serde::encode_to_vec(&fake, bincode::config::standard()).unwrap();
+
+    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    match err {
+        crate::error::SimError::SnapshotVersion { saved, current } => {
+            assert_eq!(saved, "0.0.0-definitely-not-real");
+            assert_eq!(current, env!("CARGO_PKG_VERSION"));
+        }
+        other => panic!("expected SnapshotVersion, got {other:?}"),
+    }
+}
+
+#[test]
+fn snapshot_bytes_rejects_garbage() {
+    let err = crate::sim::Simulation::restore_bytes(&[1, 2, 3, 4], None).unwrap_err();
+    assert!(matches!(err, crate::error::SimError::SnapshotFormat(_)));
+}
+
+#[test]
+fn snapshot_bytes_midrun_determinism() {
+    // Snapshot at tick N, restore, step to 2N. A fresh sim stepped
+    // straight to 2N should produce identical metrics. This proves
+    // that (a) the snapshot captures all state the movement/loading
+    // systems read, and (b) restoration doesn't introduce divergence.
+    let config = helpers::default_config();
+
+    let mut fresh = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    fresh
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    fresh
+        .spawn_rider_by_stop_id(StopId(1), StopId(0), 80.0)
+        .unwrap();
+
+    let mut via_snapshot = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    via_snapshot
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .unwrap();
+    via_snapshot
+        .spawn_rider_by_stop_id(StopId(1), StopId(0), 80.0)
+        .unwrap();
+
+    for _ in 0..250 {
+        fresh.step();
+        via_snapshot.step();
+    }
+    let bytes = via_snapshot.snapshot_bytes().unwrap();
+    let mut via_snapshot = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap();
+
+    for _ in 0..250 {
+        fresh.step();
+        via_snapshot.step();
+    }
+
+    assert_eq!(fresh.current_tick(), via_snapshot.current_tick());
+    assert_eq!(
+        fresh.metrics().total_delivered(),
+        via_snapshot.metrics().total_delivered(),
+    );
+    assert_eq!(
+        fresh.metrics().total_moves(),
+        via_snapshot.metrics().total_moves(),
+    );
+}
