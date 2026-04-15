@@ -303,6 +303,27 @@
 //!
 //! [mde]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/manual_driver.rs
 //!
+//! ## ETA queries
+//!
+//! Hall-call dispatch UIs, scheduling overlays, and "press to call" panels
+//! all need the same answer: *how long until this car shows up?* Two methods
+//! on [`Simulation`](sim::Simulation) compute it from the elevator's queued
+//! destinations, current kinematic state, and configured door dwell:
+//!
+//! - [`Simulation::eta`](sim::Simulation::eta) — seconds until a specific
+//!   elevator reaches a specific stop, or `None` if the stop isn't on its
+//!   route or the car is in a dispatch-excluded service mode.
+//! - [`Simulation::best_eta`](sim::Simulation::best_eta) — winner across all
+//!   eligible elevators, optionally filtered by indicator-lamp direction
+//!   ("which up-going car arrives first?").
+//!
+//! Both walk the queue in service order, summing closed-form trapezoidal
+//! travel time per leg plus the configured door cycle at every intermediate
+//! stop. The closed-form solver lives in [`eta::travel_time`] and tracks the
+//! per-tick integrator in [`movement::tick_movement`] to within a tick or
+//! two — close enough for UI countdowns; not a substitute for actually
+//! simulating to compare two dispatch policies.
+//!
 //! For narrative guides, tutorials, and architecture walkthroughs, see the
 //! [mdBook documentation](https://andymai.github.io/elevator-core/).
 
@@ -335,6 +356,8 @@ pub mod door;
 /// Simplified energy modeling for elevators.
 #[cfg(feature = "energy")]
 pub mod energy;
+/// ETA estimation for queued elevators (closed-form trapezoidal travel time).
+pub mod eta;
 /// Simulation event bus and event types.
 pub mod events;
 /// Lifecycle hooks for injecting logic before/after simulation phases.
