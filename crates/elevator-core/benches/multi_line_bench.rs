@@ -113,6 +113,8 @@ fn multi_group_config(
             lines: group_line_ids,
             dispatch: BuiltinStrategy::Scan,
             reposition: None,
+            hall_call_mode: None,
+            ack_latency_ticks: None,
         });
     }
 
