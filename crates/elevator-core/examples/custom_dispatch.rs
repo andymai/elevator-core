@@ -151,20 +151,24 @@ fn main() {
     sim.spawn_rider_by_stop_id(StopId(2), StopId(1), 80.0)
         .unwrap();
 
-    // Hall-call layer demo: press a scripted hall button without
-    // spawning a rider (e.g. a building-sim "NPC on their way to the
-    // lobby") and pin a specific car to service it. The pin bypasses
-    // the Hungarian solver — the custom strategy's ranks do not
-    // decide this one, the scripted policy does. This is how games
-    // compose custom dispatch with building scripts or DCS overrides.
+    // Hall-call layer demo: script a phantom hall-call press with no
+    // spawned rider behind it — the kind of event a building-sim
+    // might emit when an off-screen NPC presses a button. Choose a
+    // (stop, direction) pair none of the three riders above touches
+    // (Mezzanine UP; riders 1–3 press Lobby-UP, Mezzanine-DOWN,
+    // Roof-DOWN respectively). Then pin the lobby car to it.
+    //
+    // The pin bypasses the Hungarian solver entirely — the custom
+    // strategy's ranks do not decide this one, the scripted policy
+    // does. That's the escape hatch games use to compose custom
+    // dispatch with building scripts, cutscenes, or DCS overrides.
     let mezzanine = sim.stop_entity(StopId(1)).unwrap();
     let lobby_car = sim.world().elevator_ids()[0];
-    sim.press_hall_button(mezzanine, CallDirection::Down)
-        .unwrap();
-    sim.pin_assignment(lobby_car, mezzanine, CallDirection::Down)
+    sim.press_hall_button(mezzanine, CallDirection::Up).unwrap();
+    sim.pin_assignment(lobby_car, mezzanine, CallDirection::Up)
         .unwrap();
     println!(
-        "Pinned car {:?} to mezzanine down-call. Active hall calls now: {}",
+        "Pinned car {:?} to mezzanine up-call. Active hall calls now: {}",
         lobby_car,
         sim.hall_calls().count(),
     );
