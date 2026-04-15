@@ -41,3 +41,4 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 rand = "0.10"
 slotmap = { version = "1", features = ["serde"] }
+bincode = { version = "2", features = ["serde"] }

@@ -52,6 +52,15 @@ pub enum SimError {
         /// The groups that serve both stops.
         groups: Vec<GroupId>,
     },
+    /// Snapshot bytes were produced by a different crate version.
+    SnapshotVersion {
+        /// Crate version recorded in the snapshot header.
+        saved: String,
+        /// Current crate version attempting the restore.
+        current: String,
+    },
+    /// Snapshot bytes are malformed or not a snapshot at all.
+    SnapshotFormat(String),
 }
 
 impl fmt::Display for SimError {
@@ -91,6 +100,13 @@ impl fmt::Display for SimError {
                     format_group_list(groups),
                 )
             }
+            Self::SnapshotVersion { saved, current } => {
+                write!(
+                    f,
+                    "snapshot was saved on elevator-core {saved}, but current version is {current}",
+                )
+            }
+            Self::SnapshotFormat(reason) => write!(f, "malformed snapshot: {reason}"),
         }
     }
 }

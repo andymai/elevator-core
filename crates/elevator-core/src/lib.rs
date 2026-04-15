@@ -170,6 +170,16 @@
 //! 4. Re-register extensions: `world.register_ext::<T>(name)` per type
 //! 5. Load extension data: `sim.load_extensions()`
 //!
+//! For the common case (save-to-disk, load-from-disk), skip the format choice
+//! and use [`Simulation::snapshot_bytes`](sim::Simulation::snapshot_bytes) /
+//! [`Simulation::restore_bytes`](sim::Simulation::restore_bytes). The byte
+//! blob is bincode-encoded and carries a magic prefix plus the crate version:
+//! restoring bytes from a different `elevator-core` version returns
+//! [`SimError::SnapshotVersion`](error::SimError::SnapshotVersion) instead of
+//! silently producing a garbled sim. Determinism is bit-exact across builds
+//! of the same crate version, which makes snapshots viable as rollback-netcode
+//! checkpoints or deterministic replay fixtures.
+//!
 //! ### Performance
 //!
 //! | Operation | Complexity |
