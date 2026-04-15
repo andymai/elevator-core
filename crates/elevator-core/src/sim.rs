@@ -1520,6 +1520,17 @@ impl Simulation {
             tick: self.tick,
         });
 
+        // Auto-press the hall button for this rider. Direction is the
+        // sign of `dest_pos - origin_pos`; if the two coincide (walk
+        // leg, identity trip) no call is registered.
+        if let (Some(op), Some(dp)) = (
+            self.world.stop_position(origin),
+            self.world.stop_position(destination),
+        ) && let Some(direction) = crate::components::CallDirection::between(op, dp)
+        {
+            self.register_hall_call_for_rider(origin, direction, eid, destination);
+        }
+
         // Auto-tag the rider with "stop:{name}" for per-stop wait time tracking.
         let stop_tag = self
             .world
@@ -1967,6 +1978,217 @@ impl Simulation {
         self.run_energy();
         self.run_metrics();
         self.advance_tick();
+    }
+
+    // ── Hall / car call API ─────────────────────────────────────────
+
+    /// Press an up/down hall button at `stop` without associating it
+    /// with any particular rider. Useful for scripted NPCs, player
+    /// input, or cutscene cues.
+    ///
+    /// If a call in this direction already exists at `stop`, the press
+    /// tick is left untouched (first press wins for latency purposes).
+    ///
+    /// # Errors
+    /// Returns [`SimError::EntityNotFound`] if `stop` is not a valid
+    /// stop entity.
+    pub fn press_hall_button(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+    ) -> Result<(), SimError> {
+        if self.world.stop(stop).is_none() {
+            return Err(SimError::EntityNotFound(stop));
+        }
+        self.ensure_hall_call(stop, direction, None, None);
+        Ok(())
+    }
+
+    /// Press a floor button from inside `car`. No-op if the car already
+    /// has a pending call for `floor`.
+    ///
+    /// # Errors
+    /// Returns [`SimError::EntityNotFound`] if `car` or `floor` is invalid.
+    pub fn press_car_button(&mut self, car: EntityId, floor: EntityId) -> Result<(), SimError> {
+        if self.world.elevator(car).is_none() {
+            return Err(SimError::EntityNotFound(car));
+        }
+        if self.world.stop(floor).is_none() {
+            return Err(SimError::EntityNotFound(floor));
+        }
+        self.ensure_car_call(car, floor, None);
+        Ok(())
+    }
+
+    /// Pin the hall call at `(stop, direction)` to `car`. Dispatch is
+    /// forbidden from reassigning the call to a different car until
+    /// [`unpin_assignment`](Self::unpin_assignment) is called or the
+    /// call is cleared.
+    ///
+    /// # Errors
+    /// Returns [`SimError::EntityNotFound`] if either entity is invalid
+    /// or [`SimError::InvalidState`] if no call exists at that stop.
+    pub fn pin_assignment(
+        &mut self,
+        car: EntityId,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+    ) -> Result<(), SimError> {
+        if self.world.elevator(car).is_none() {
+            return Err(SimError::EntityNotFound(car));
+        }
+        let Some(call) = self.world.hall_call_mut(stop, direction) else {
+            return Err(SimError::InvalidState {
+                entity: stop,
+                reason: "no hall call exists at that stop and direction".to_string(),
+            });
+        };
+        call.assigned_car = Some(car);
+        call.pinned = true;
+        Ok(())
+    }
+
+    /// Release a previous pin at `(stop, direction)`. No-op if the call
+    /// doesn't exist or wasn't pinned.
+    pub fn unpin_assignment(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+    ) {
+        if let Some(call) = self.world.hall_call_mut(stop, direction) {
+            call.pinned = false;
+        }
+    }
+
+    /// Car currently assigned to serve the call at `(stop, direction)`,
+    /// if dispatch has made an assignment yet.
+    #[must_use]
+    pub fn assigned_car(
+        &self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+    ) -> Option<EntityId> {
+        self.world
+            .hall_call(stop, direction)
+            .and_then(|c| c.assigned_car)
+    }
+
+    /// Estimated ticks remaining before the assigned car reaches the
+    /// call at `(stop, direction)`. Returns `None` when no car is
+    /// assigned or the car has no positional data.
+    #[must_use]
+    pub fn eta_for_call(
+        &self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+    ) -> Option<u64> {
+        let call = self.world.hall_call(stop, direction)?;
+        let car = call.assigned_car?;
+        let car_pos = self.world.position(car)?.value;
+        let stop_pos = self.world.stop_position(stop)?;
+        let max_speed = self.world.elevator(car)?.max_speed();
+        if max_speed <= 0.0 {
+            return None;
+        }
+        let distance = (car_pos - stop_pos).abs();
+        // Simple kinematic estimate. The `eta` module has a richer
+        // trapezoidal model; the one-liner suits most hall-display use.
+        Some((distance / max_speed).ceil() as u64)
+    }
+
+    // ── Internal helpers ────────────────────────────────────────────
+
+    /// Register (or aggregate) a hall call on behalf of a specific
+    /// rider, including their destination in DCS mode.
+    fn register_hall_call_for_rider(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+        rider: EntityId,
+        destination: EntityId,
+    ) {
+        let mode = self
+            .groups
+            .iter()
+            .find(|g| g.stop_entities().contains(&stop))
+            .map(crate::dispatch::ElevatorGroup::hall_call_mode);
+        let dest = match mode {
+            Some(crate::dispatch::HallCallMode::Destination) => Some(destination),
+            _ => None,
+        };
+        self.ensure_hall_call(stop, direction, Some(rider), dest);
+    }
+
+    /// Create or aggregate into the hall call at `(stop, direction)`.
+    /// Emits [`Event::HallButtonPressed`] only on the *first* press.
+    fn ensure_hall_call(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+        rider: Option<EntityId>,
+        destination: Option<EntityId>,
+    ) {
+        let mut fresh_press = false;
+        if self.world.hall_call(stop, direction).is_none() {
+            let mut call = crate::components::HallCall::new(stop, direction, self.tick);
+            call.destination = destination;
+            if let Some(rid) = rider {
+                call.pending_riders.push(rid);
+            }
+            self.world.set_hall_call(call);
+            fresh_press = true;
+        } else if let Some(existing) = self.world.hall_call_mut(stop, direction) {
+            if let Some(rid) = rider
+                && !existing.pending_riders.contains(&rid)
+            {
+                existing.pending_riders.push(rid);
+            }
+            // Prefer a populated destination over None; don't overwrite
+            // an existing destination even if a later press omits it.
+            if existing.destination.is_none() {
+                existing.destination = destination;
+            }
+        }
+        if fresh_press {
+            self.events.emit(Event::HallButtonPressed {
+                stop,
+                direction,
+                tick: self.tick,
+            });
+        }
+    }
+
+    /// Create or aggregate into a car call for `(car, floor)`.
+    /// Emits [`Event::CarButtonPressed`] on first press; repeat presses
+    /// by other riders append to `pending_riders` without re-emitting.
+    fn ensure_car_call(&mut self, car: EntityId, floor: EntityId, rider: Option<EntityId>) {
+        let press_tick = self.tick;
+        let Some(queue) = self.world.car_calls_mut(car) else {
+            return;
+        };
+        let existing_idx = queue.iter().position(|c| c.floor == floor);
+        let fresh = existing_idx.is_none();
+        if let Some(idx) = existing_idx {
+            if let Some(rid) = rider
+                && !queue[idx].pending_riders.contains(&rid)
+            {
+                queue[idx].pending_riders.push(rid);
+            }
+        } else {
+            let mut call = crate::components::CarCall::new(car, floor, press_tick);
+            if let Some(rid) = rider {
+                call.pending_riders.push(rid);
+            }
+            queue.push(call);
+        }
+        if fresh {
+            self.events.emit(Event::CarButtonPressed {
+                car,
+                floor,
+                rider: rider.unwrap_or_default(),
+                tick: press_tick,
+            });
+        }
     }
 }
 
