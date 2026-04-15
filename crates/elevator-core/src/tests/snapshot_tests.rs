@@ -318,6 +318,27 @@ fn snapshot_bytes_rejects_wrong_version() {
 }
 
 #[test]
+fn snapshot_bytes_rejects_trailing_bytes() {
+    // A valid blob with extra bytes appended must not decode silently —
+    // a framed-protocol or fixed-buffer caller would otherwise think the
+    // snapshot was fine and ignore the trailer.
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let mut bytes = sim.snapshot_bytes().unwrap();
+    bytes.extend_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
+    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    match err {
+        crate::error::SimError::SnapshotFormat(msg) => {
+            assert!(
+                msg.contains("trailing"),
+                "message should mention trailing: {msg}"
+            );
+        }
+        other => panic!("expected SnapshotFormat, got {other:?}"),
+    }
+}
+
+#[test]
 fn snapshot_bytes_rejects_garbage() {
     let err = crate::sim::Simulation::restore_bytes(&[1, 2, 3, 4], None).unwrap_err();
     assert!(matches!(err, crate::error::SimError::SnapshotFormat(_)));
