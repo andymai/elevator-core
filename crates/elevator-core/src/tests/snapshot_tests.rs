@@ -413,9 +413,14 @@ fn snapshot_preserves_hall_calls_and_pinning() {
         .expect("hall call should survive snapshot/restore");
     assert_eq!(call.direction, CallDirection::Up);
     assert!(call.pinned, "pinning flag must round-trip");
+    let assigned = call
+        .assigned_car
+        .expect("assigned_car must round-trip through restore");
     assert!(
-        call.assigned_car.is_some(),
-        "assigned_car must round-trip (remapped to new EntityId)"
+        restored.world().elevator(assigned).is_some(),
+        "assigned_car must point to a live elevator in the restored \
+         world — a dangling (un-remapped) EntityId would slip past an \
+         is_some() check",
     );
 }
 
