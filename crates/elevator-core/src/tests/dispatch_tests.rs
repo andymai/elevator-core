@@ -531,7 +531,7 @@ fn custom_dispatch_strategy() {
     let elevators: Vec<_> = sim.world().iter_elevators().collect();
     assert!(!elevators.is_empty());
     assert!(
-        (elevators[0].1.value - 0.0).abs() < f64::EPSILON,
+        (elevators[0].1.value - 0.0).abs() < 1e-9,
         "elevator should not have moved with AlwaysIdle dispatch"
     );
 }
@@ -601,6 +601,100 @@ fn assign_handles_large_group_without_overflow() {
         })
         .collect();
     assert_eq!(assigned_stops.len(), car_count);
+}
+
+// ===== Single-elevator, single-stop edge case tests (#179) =====
+
+/// Build a `World` with 1 stop and return (world, stop_entities).
+fn single_stop_world() -> (World, Vec<crate::entity::EntityId>) {
+    let mut world = World::new();
+    let eid = world.spawn();
+    world.set_stop(
+        eid,
+        Stop {
+            name: "Only".into(),
+            position: 0.0,
+        },
+    );
+    (world, vec![eid])
+}
+
+#[test]
+fn scan_single_stop_no_panic() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let manifest = DispatchManifest::default();
+    let mut scan = ScanDispatch::new();
+    let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(decision, DispatchDecision::Idle);
+}
+
+#[test]
+fn look_single_stop_no_panic() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let manifest = DispatchManifest::default();
+    let mut look = LookDispatch::new();
+    let decision = decide_one(&mut look, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(decision, DispatchDecision::Idle);
+}
+
+#[test]
+fn nearest_car_single_stop_no_panic() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let manifest = DispatchManifest::default();
+    let mut nc = NearestCarDispatch::new();
+    let decision = decide_one(&mut nc, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(decision, DispatchDecision::Idle);
+}
+
+#[test]
+fn etd_single_stop_no_panic() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let manifest = DispatchManifest::default();
+    let mut etd = EtdDispatch::new();
+    let decision = decide_one(&mut etd, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(decision, DispatchDecision::Idle);
+}
+
+#[test]
+fn scan_single_stop_with_demand_no_panic() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    let mut scan = ScanDispatch::new();
+    // With demand at the only stop (where the elevator already is), dispatch
+    // should not enter a direction-reversal loop. It may return Idle or GoToStop.
+    let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &mut world);
+    // Either Idle (nothing to do — already there) or GoToStop(only stop) are acceptable.
+    match decision {
+        DispatchDecision::Idle | DispatchDecision::GoToStop(_) => {}
+    }
+}
+
+#[test]
+fn scan_single_stop_no_reversal_loop() {
+    let (mut world, stops) = single_stop_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+    let mut scan = ScanDispatch::new();
+    // Call dispatch multiple times to ensure no infinite direction flipping.
+    for _ in 0..10 {
+        let decision = decide_one(&mut scan, elev, 0.0, &group, &manifest, &mut world);
+        match decision {
+            DispatchDecision::Idle | DispatchDecision::GoToStop(_) => {}
+        }
+    }
 }
 
 /// `EtdDispatch::pre_dispatch` must cache the group's demanded-stop

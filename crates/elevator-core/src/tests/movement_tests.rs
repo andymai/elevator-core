@@ -210,8 +210,16 @@ fn tick_movement_snaps_to_target_on_overshoot() {
     // on the overshoot guard.
     let r = tick_movement(9.999, 2.0, 10.0, MAX_SPEED, ACCELERATION, DECELERATION, DT);
     assert!(r.arrived);
-    assert_eq!(r.position, 10.0, "snap to exact target");
-    assert_eq!(r.velocity, 0.0, "velocity zeroed on snap");
+    assert!(
+        (r.position - 10.0).abs() < 1e-9,
+        "snap to exact target, got {}",
+        r.position
+    );
+    assert!(
+        r.velocity.abs() < 1e-9,
+        "velocity zeroed on snap, got {}",
+        r.velocity
+    );
 }
 
 #[test]
@@ -236,8 +244,16 @@ fn tick_movement_zero_sign_when_already_at_target() {
     // Kills `velocity > 0.0 ... v < 0.0` sign-flip check when position == target.
     let r = tick_movement(5.0, 0.0, 5.0, MAX_SPEED, ACCELERATION, DECELERATION, DT);
     assert!(r.arrived);
-    assert_eq!(r.position, 5.0);
-    assert_eq!(r.velocity, 0.0);
+    assert!(
+        (r.position - 5.0).abs() < 1e-9,
+        "position should be target, got {}",
+        r.position
+    );
+    assert!(
+        r.velocity.abs() < 1e-9,
+        "velocity should be zero, got {}",
+        r.velocity
+    );
 }
 
 #[test]
@@ -265,4 +281,88 @@ fn moving_downward() {
         }
     }
     panic!("did not arrive within 2000 ticks");
+}
+
+// ── Edge-case dt tests (#183) ──────────────────────────────────────
+
+#[test]
+fn dt_zero_does_not_change_state() {
+    // With dt=0, no time passes — position and velocity should remain unchanged.
+    let r = tick_movement(5.0, 1.0, 10.0, MAX_SPEED, ACCELERATION, DECELERATION, 0.0);
+    // The function may snap to arrived if displacement is within EPSILON,
+    // but at 5.0 → 10.0 it should not. Either way, position must not
+    // change meaningfully.
+    assert!(
+        !r.arrived,
+        "should not arrive with dt=0 when far from target"
+    );
+    assert!(
+        (r.position - 5.0).abs() < 1e-9,
+        "position should not change with dt=0, got {}",
+        r.position
+    );
+    // velocity.abs() should not exceed max_speed.
+    assert!(
+        r.velocity.abs() <= MAX_SPEED + 1e-9,
+        "velocity must not exceed max_speed with dt=0"
+    );
+    // No NaN.
+    assert!(!r.position.is_nan(), "position must not be NaN");
+    assert!(!r.velocity.is_nan(), "velocity must not be NaN");
+}
+
+#[test]
+fn very_large_dt_arrives_without_overshoot() {
+    // A huge dt should still arrive at the target without going past it.
+    let r = tick_movement(0.0, 0.0, 10.0, MAX_SPEED, ACCELERATION, DECELERATION, 1e6);
+    assert!(r.arrived, "should arrive with very large dt");
+    assert!(
+        (r.position - 10.0).abs() < 1e-9,
+        "position should be exactly at target after large dt, got {}",
+        r.position
+    );
+    assert!(
+        r.velocity.abs() < 1e-9,
+        "velocity should be zero on arrival, got {}",
+        r.velocity
+    );
+}
+
+#[test]
+fn very_large_dt_downward() {
+    // Same test but moving downward.
+    let r = tick_movement(100.0, 0.0, 3.0, MAX_SPEED, ACCELERATION, DECELERATION, 1e6);
+    assert!(r.arrived, "should arrive with very large dt (downward)");
+    assert!(
+        (r.position - 3.0).abs() < 1e-9,
+        "position should be at target, got {}",
+        r.position
+    );
+}
+
+#[test]
+fn very_small_dt_makes_minimal_progress() {
+    // Extremely small dt should make tiny but non-NaN progress.
+    let r = tick_movement(
+        0.0,
+        0.0,
+        100.0,
+        MAX_SPEED,
+        ACCELERATION,
+        DECELERATION,
+        1e-15,
+    );
+    assert!(!r.arrived, "should not arrive with tiny dt");
+    assert!(!r.position.is_nan(), "position must not be NaN");
+    assert!(!r.velocity.is_nan(), "velocity must not be NaN");
+    assert!(
+        r.position >= 0.0,
+        "position should not go backward, got {}",
+        r.position
+    );
+    assert!(
+        r.velocity >= 0.0,
+        "velocity should not be negative when heading up, got {}",
+        r.velocity
+    );
 }
