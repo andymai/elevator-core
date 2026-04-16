@@ -56,15 +56,24 @@ The full hierarchy looks like this:
 
 ```mermaid
 graph TD
-    G[Group<br><i>GroupId</i>] -->|owns| L1[Line A<br><i>EntityId</i>]
-    G -->|owns| L2[Line B<br><i>EntityId</i>]
-    L1 -->|contains| E1[Elevator 1<br><i>EntityId</i>]
-    L1 -->|contains| E2[Elevator 2<br><i>EntityId</i>]
-    L2 -->|contains| E3[Elevator 3<br><i>EntityId</i>]
-    L1 -->|serves| S0[Stop: Lobby<br><i>EntityId</i>]
-    L1 -->|serves| S1[Stop: Floor 10<br><i>EntityId</i>]
+    G["Group
+*GroupId*"] -->|owns| L1["Line A
+*EntityId*"]
+    G -->|owns| L2["Line B
+*EntityId*"]
+    L1 -->|contains| E1["Elevator 1
+*EntityId*"]
+    L1 -->|contains| E2["Elevator 2
+*EntityId*"]
+    L2 -->|contains| E3["Elevator 3
+*EntityId*"]
+    L1 -->|serves| S0["Stop: Lobby
+*EntityId*"]
+    L1 -->|serves| S1["Stop: Floor 10
+*EntityId*"]
     L2 -->|serves| S0
-    L2 -->|serves| S2[Stop: Floor 20<br><i>EntityId</i>]
+    L2 -->|serves| S2["Stop: Floor 20
+*EntityId*"]
 ```
 
 Key invariants:

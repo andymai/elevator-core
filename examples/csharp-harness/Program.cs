@@ -108,7 +108,7 @@ internal static class Native
     public const byte EV_HALL_CALL_ACKNOWLEDGED = 2;
     public const byte EV_HALL_CALL_CLEARED = 3;
     public const byte EV_CAR_BUTTON_PRESSED = 4;
-    public const byte EV_RIDER_BALKED = 5;
+    public const byte EV_RIDER_SKIPPED = 5;
 
     // Explicit layout so the 6 bytes of padding before `tick`
     // (natural u64 alignment on the Rust #[repr(C)] side) are
