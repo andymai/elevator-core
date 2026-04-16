@@ -7,14 +7,6 @@
 Drop-in elevator simulation for Rust games. Five stops or five thousand --
 the same engine handles a hotel lobby and a space elevator.
 
-```
-Ground  ╠══╗         Orbital    ╠══════════════════════════════════╗
-Floor 2 ╠  ║ ← 4m   Platform   ╠                                  ║ ← 1,000 km
-Floor 3 ╠  ╚══╗                 ╠══════════════════════════════════╝
-Floor 4 ╠     ║      Ground     ╠══╗
-Roof    ╠═════╝      Station    ╠══╝
-```
-
 [Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
 
 ## 30-second demo
