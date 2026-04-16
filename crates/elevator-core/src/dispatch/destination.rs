@@ -28,22 +28,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMode};
 use crate::entity::EntityId;
-use crate::world::World;
+use crate::world::{ExtKey, World};
 
 use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
 
 /// Sticky rider → car assignment produced by [`DestinationDispatch`].
 ///
-/// Stored as an extension component on the rider entity under the key
-/// `"assigned_car"`. Once set, the assignment is never mutated; the
-/// loading phase uses it to enforce that only the assigned car may board
-/// the rider.
+/// Stored as an extension component on the rider entity. Once set, the
+/// assignment is never mutated; the loading phase uses it to enforce
+/// that only the assigned car may board the rider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssignedCar(pub EntityId);
 
-/// Extension component name used when inserting [`AssignedCar`] into the
-/// world's extension storage.
-pub const ASSIGNED_CAR_EXT_NAME: &str = "assigned_car";
+/// Typed extension key for [`AssignedCar`] storage.
+pub const ASSIGNED_CAR_KEY: ExtKey<AssignedCar> = ExtKey::new("assigned_car");
 
 /// Hall-call destination dispatch (DCS).
 ///
@@ -202,7 +200,7 @@ impl DispatchStrategy for DestinationDispatch {
             let Some(car_eid) = best else {
                 continue;
             };
-            world.insert_ext(rid, AssignedCar(car_eid), ASSIGNED_CAR_EXT_NAME);
+            world.insert_ext(rid, AssignedCar(car_eid), ASSIGNED_CAR_KEY);
             *committed_load.entry(car_eid).or_insert(0.0) += weight;
         }
 

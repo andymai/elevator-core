@@ -13,7 +13,7 @@ struct VipTag {
 
 fn main() {
     let mut sim = SimulationBuilder::demo()
-        .with_ext::<VipTag>("vip_tag")
+        .with_ext::<VipTag>()
         .build()
         .unwrap();
 
@@ -22,7 +22,7 @@ fn main() {
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
     sim.world_mut()
-        .insert_ext(rider, VipTag { level: 5 }, "vip_tag");
+        .insert_ext(rider, VipTag { level: 5 }, ExtKey::from_type_name());
 
     // Query extension components.
     for (id, vip) in sim.world().query::<(EntityId, &Ext<VipTag>)>().iter() {

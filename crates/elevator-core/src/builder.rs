@@ -394,14 +394,10 @@ impl SimulationBuilder {
     /// Extensions registered here will be available immediately after [`build()`](Self::build)
     /// without needing to call `register_ext` manually.
     #[must_use]
-    pub fn with_ext<T: 'static + Send + Sync + Serialize + DeserializeOwned>(
-        mut self,
-        name: &str,
-    ) -> Self {
-        let name = name.to_owned();
+    pub fn with_ext<T: 'static + Send + Sync + Serialize + DeserializeOwned>(mut self) -> Self {
         self.ext_registrations
             .push(Box::new(move |world: &mut World| {
-                world.register_ext::<T>(&name);
+                world.register_ext::<T>(crate::world::ExtKey::from_type_name());
             }));
         self
     }
