@@ -817,6 +817,19 @@ impl World {
         }
     }
 
+    /// Return names from `snapshot_names` that have no registered extension type.
+    pub(crate) fn unregistered_ext_names<'a>(
+        &self,
+        snapshot_names: impl Iterator<Item = &'a String>,
+    ) -> Vec<String> {
+        let registered: std::collections::HashSet<&str> =
+            self.ext_names.values().map(String::as_str).collect();
+        snapshot_names
+            .filter(|name| !registered.contains(name.as_str()))
+            .cloned()
+            .collect()
+    }
+
     /// Register an extension type for deserialization (creates empty storage).
     ///
     /// Must be called before `restore()` for each extension type that was

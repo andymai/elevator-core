@@ -26,7 +26,7 @@ fn snapshot_roundtrip_preserves_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None);
+    let restored = snap2.restore(None).unwrap();
 
     assert_eq!(restored.current_tick(), original_tick);
     assert_eq!(restored.metrics().total_delivered(), original_delivered);
@@ -70,7 +70,7 @@ fn snapshot_roundtrip_remaps_repositioning_phase() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None);
+    let restored = snap2.restore(None).unwrap();
 
     // The elevator must still be in Repositioning, and its target stop
     // entity must resolve to a real stop in the restored world.

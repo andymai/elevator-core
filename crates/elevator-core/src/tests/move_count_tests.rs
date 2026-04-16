@@ -256,7 +256,7 @@ fn move_count_persists_across_snapshot() {
     let per_elev_before = sim.elevator_move_count(elev).unwrap();
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None);
+    let restored = snap.restore(None).unwrap();
 
     assert_eq!(restored.metrics().total_moves(), moves_before);
     let restored_elev = restored

@@ -2519,7 +2519,7 @@ fn snapshot_roundtrip_preserves_multi_group_topology() {
     let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None);
+    let restored = snap.restore(None).unwrap();
 
     // Both groups must survive.
     assert_eq!(
@@ -2560,7 +2560,7 @@ fn snapshot_roundtrip_elevator_line_reference_is_valid() {
     let orig_g1_line = sim.world().elevator(orig_g1_elev).unwrap().line();
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None);
+    let restored = snap.restore(None).unwrap();
 
     // In the restored sim, each elevator's line reference must still point to a
     // valid line entity (even though EntityIds are remapped).

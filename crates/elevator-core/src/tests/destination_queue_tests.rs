@@ -253,7 +253,7 @@ fn snapshot_roundtrip_preserves_queue() {
     sim.push_destination(elev, s0).unwrap();
 
     let snapshot = sim.snapshot();
-    let restored = snapshot.restore(None);
+    let restored = snapshot.restore(None).unwrap();
     let new_elev = restored.world().elevator_ids()[0];
 
     let restored_queue = restored.destination_queue(new_elev).unwrap();

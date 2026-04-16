@@ -4,8 +4,9 @@
 //! (all entities, components, groups, metrics, tick counter) in a
 //! serializable form. Games choose the serialization format via serde.
 //!
-//! Extension components are NOT included — games must serialize their
-//! own extensions separately and re-attach them after restoring.
+//! Extension component *data* is included in the snapshot. After restoring,
+//! call [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
+//! to register types and materialize the data.
 
 use crate::components::{
     AccessControl, CarCall, DestinationQueue, Elevator, HallCall, Line, Patience, Position,
@@ -157,15 +158,17 @@ impl WorldSnapshot {
     /// For `Custom` strategies, provide a factory function that maps strategy
     /// names to instances. Pass `None` if only using built-in strategies.
     ///
-    /// To restore extension components, call `world.register_ext::<T>(key)`
-    /// on the returned simulation's world for each extension type, then call
-    /// [`Simulation::load_extensions()`](crate::sim::Simulation::load_extensions)
-    /// with this snapshot's `extensions` data.
-    #[must_use]
+    /// # Errors
+    /// Returns [`SimError::UnresolvedCustomStrategy`](crate::error::SimError::UnresolvedCustomStrategy)
+    /// if a snapshot group uses a `Custom` strategy and the factory returns `None`.
+    ///
+    /// To restore extension components, call
+    /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
+    /// on the returned simulation.
     pub fn restore(
         self,
         custom_strategy_factory: CustomStrategyFactory<'_>,
-    ) -> crate::sim::Simulation {
+    ) -> Result<crate::sim::Simulation, crate::error::SimError> {
         use crate::world::{SortedStops, World};
 
         let mut world = World::new();
@@ -189,7 +192,7 @@ impl WorldSnapshot {
 
         // Rebuild groups, stop lookup, dispatchers, and extensions (borrows self).
         let (mut groups, stop_lookup, dispatchers, strategy_ids) =
-            self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory);
+            self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory)?;
 
         // Fix legacy snapshots: synthetic LineInfo entries with EntityId::default()
         // need real line entities spawned in the world.
@@ -261,7 +264,7 @@ impl WorldSnapshot {
             }
         }
 
-        sim
+        Ok(sim)
     }
 
     /// Spawn entities in the world and build the old→new `EntityId` mapping.
@@ -431,12 +434,15 @@ impl WorldSnapshot {
         &self,
         index_to_id: &[EntityId],
         custom_strategy_factory: CustomStrategyFactory<'_>,
-    ) -> (
-        Vec<crate::dispatch::ElevatorGroup>,
-        HashMap<StopId, EntityId>,
-        std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
-        std::collections::BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
-    ) {
+    ) -> Result<
+        (
+            Vec<crate::dispatch::ElevatorGroup>,
+            HashMap<StopId, EntityId>,
+            std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
+            std::collections::BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
+        ),
+        crate::error::SimError,
+    > {
         use crate::dispatch::ElevatorGroup;
 
         let groups: Vec<ElevatorGroup> = self
@@ -497,22 +503,24 @@ impl WorldSnapshot {
         let mut dispatchers = std::collections::BTreeMap::new();
         let mut strategy_ids = std::collections::BTreeMap::new();
         for (gs, group) in self.groups.iter().zip(groups.iter()) {
-            let strategy: Box<dyn crate::dispatch::DispatchStrategy> = gs
-                .strategy
-                .instantiate()
-                .or_else(|| {
-                    if let crate::dispatch::BuiltinStrategy::Custom(ref name) = gs.strategy {
-                        custom_strategy_factory.and_then(|f| f(name))
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| Box::new(crate::dispatch::scan::ScanDispatch::new()));
+            let strategy: Box<dyn crate::dispatch::DispatchStrategy> =
+                if let Some(builtin) = gs.strategy.instantiate() {
+                    builtin
+                } else if let crate::dispatch::BuiltinStrategy::Custom(ref name) = gs.strategy {
+                    custom_strategy_factory
+                        .and_then(|f| f(name))
+                        .ok_or_else(|| crate::error::SimError::UnresolvedCustomStrategy {
+                            name: name.clone(),
+                            group: group.id(),
+                        })?
+                } else {
+                    Box::new(crate::dispatch::scan::ScanDispatch::new())
+                };
             dispatchers.insert(group.id(), strategy);
             strategy_ids.insert(group.id(), gs.strategy.clone());
         }
 
-        (groups, stop_lookup, dispatchers, strategy_ids)
+        Ok((groups, stop_lookup, dispatchers, strategy_ids))
     }
 
     /// Remap `EntityId`s in extension data using the old→new mapping.
@@ -682,11 +690,10 @@ impl crate::sim::Simulation {
     /// [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion).
     ///
     /// Extension component *data* is serialized (identical to
-    /// [`Simulation::snapshot`]); after restore you must still call
-    /// `world.register_ext::<T>(key)` for each extension type and then
-    /// [`Simulation::load_extensions`] to materialize them. Custom
-    /// dispatch strategies and arbitrary `World` resources are not
-    /// included.
+    /// [`Simulation::snapshot`]); after restore, use
+    /// [`Simulation::load_extensions_with`] to register and load them.
+    /// Custom dispatch strategies and arbitrary `World` resources are
+    /// not included.
     ///
     /// # Errors
     /// Returns [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
@@ -715,6 +722,8 @@ impl crate::sim::Simulation {
     ///   not match.
     /// - [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion)
     ///   if the blob was produced by a different crate version.
+    /// - [`SimError::UnresolvedCustomStrategy`](crate::error::SimError::UnresolvedCustomStrategy)
+    ///   if a group uses a custom strategy that the factory cannot resolve.
     pub fn restore_bytes(
         bytes: &[u8],
         custom_strategy_factory: CustomStrategyFactory<'_>,
@@ -740,6 +749,6 @@ impl crate::sim::Simulation {
                 current: current.to_owned(),
             });
         }
-        Ok(envelope.payload.restore(custom_strategy_factory))
+        envelope.payload.restore(custom_strategy_factory)
     }
 }

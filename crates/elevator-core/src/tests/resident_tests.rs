@@ -338,7 +338,7 @@ fn snapshot_roundtrip_preserves_residents() {
 
     // Snapshot and restore.
     let snapshot = sim.snapshot();
-    let restored = snapshot.restore(None);
+    let restored = snapshot.restore(None).unwrap();
 
     // Verify residents are in the index after restore.
     // Entity IDs may be remapped, so find the resident rider.
