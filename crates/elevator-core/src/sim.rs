@@ -1415,7 +1415,11 @@ impl Simulation {
         })
     }
 
-    /// Spawn a rider at the given origin stop entity, headed to destination stop entity.
+    /// Spawn a rider with default preferences (convenience shorthand).
+    ///
+    /// Equivalent to `build_rider(origin, destination)?.weight(weight).spawn()`.
+    /// Use [`build_rider`](Self::build_rider) instead when you need to set
+    /// patience, preferences, access control, or an explicit route.
     ///
     /// Auto-detects the elevator group by finding groups that serve both origin
     /// and destination stops.

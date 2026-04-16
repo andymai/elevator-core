@@ -11,26 +11,15 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
-//! use elevator_core::dispatch::{
-//!     DispatchDecision, DispatchManifest, ElevatorGroup,
-//! };
+//! use elevator_core::dispatch::RankContext;
 //!
 //! struct AlwaysFirstStop;
 //!
 //! impl DispatchStrategy for AlwaysFirstStop {
-//!     fn rank(
-//!         &mut self,
-//!         _car: EntityId,
-//!         car_position: f64,
-//!         stop: EntityId,
-//!         stop_position: f64,
-//!         group: &ElevatorGroup,
-//!         _manifest: &DispatchManifest,
-//!         _world: &elevator_core::world::World,
-//!     ) -> Option<f64> {
+//!     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
 //!         // Prefer the group's first stop; everything else is unavailable.
-//!         if Some(&stop) == group.stop_entities().first() {
-//!             Some((car_position - stop_position).abs())
+//!         if Some(&ctx.stop) == ctx.group.stop_entities().first() {
+//!             Some((ctx.car_position - ctx.stop_position).abs())
 //!         } else {
 //!             None
 //!         }
@@ -95,20 +84,20 @@ pub struct RiderInfo {
 #[derive(Debug, Clone, Default)]
 pub struct DispatchManifest {
     /// Riders waiting at each stop, with full per-rider metadata.
-    pub waiting_at_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
+    pub(crate) waiting_at_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
     /// Riders currently aboard elevators, grouped by their destination stop.
-    pub riding_to_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
+    pub(crate) riding_to_stop: BTreeMap<EntityId, Vec<RiderInfo>>,
     /// Number of residents at each stop (read-only hint for dispatch strategies).
-    pub resident_count_at_stop: BTreeMap<EntityId, usize>,
+    pub(crate) resident_count_at_stop: BTreeMap<EntityId, usize>,
     /// Pending hall calls at each stop — at most two entries per stop
     /// (one per [`CallDirection`]). Populated only for stops served by
     /// the group being dispatched. Strategies read this to rank based on
     /// call age, pending-rider count, pin flags, or DCS destinations.
-    pub hall_calls_at_stop: BTreeMap<EntityId, Vec<HallCall>>,
+    pub(crate) hall_calls_at_stop: BTreeMap<EntityId, Vec<HallCall>>,
     /// Floor buttons pressed inside each car in the group. Keyed by car
     /// entity. Strategies read this to plan intermediate stops without
     /// poking into `World` directly.
-    pub car_calls_by_car: BTreeMap<EntityId, Vec<CarCall>>,
+    pub(crate) car_calls_by_car: BTreeMap<EntityId, Vec<CarCall>>,
 }
 
 impl DispatchManifest {
@@ -167,6 +156,32 @@ impl DispatchManifest {
     #[must_use]
     pub fn car_calls_for(&self, car: EntityId) -> &[CarCall] {
         self.car_calls_by_car.get(&car).map_or(&[], Vec::as_slice)
+    }
+
+    /// Riders waiting at a specific stop.
+    #[must_use]
+    pub fn waiting_riders_at(&self, stop: EntityId) -> &[RiderInfo] {
+        self.waiting_at_stop.get(&stop).map_or(&[], Vec::as_slice)
+    }
+
+    /// Iterate over all `(stop, riders)` pairs with waiting demand.
+    pub fn iter_waiting_stops(&self) -> impl Iterator<Item = (&EntityId, &[RiderInfo])> {
+        self.waiting_at_stop
+            .iter()
+            .map(|(stop, riders)| (stop, riders.as_slice()))
+    }
+
+    /// Riders currently riding toward a specific stop.
+    #[must_use]
+    pub fn riding_riders_to(&self, stop: EntityId) -> &[RiderInfo] {
+        self.riding_to_stop.get(&stop).map_or(&[], Vec::as_slice)
+    }
+
+    /// Iterate over all `(stop, riders)` pairs with in-transit demand.
+    pub fn iter_riding_stops(&self) -> impl Iterator<Item = (&EntityId, &[RiderInfo])> {
+        self.riding_to_stop
+            .iter()
+            .map(|(stop, riders)| (stop, riders.as_slice()))
     }
 }
 
@@ -486,6 +501,43 @@ impl ElevatorGroup {
     }
 }
 
+/// Context passed to [`DispatchStrategy::rank`] and
+/// [`DispatchStrategy::prepare_car`].
+///
+/// Bundles the per-call arguments into a single struct so future context
+/// fields can be added without breaking existing trait implementations.
+#[non_exhaustive]
+pub struct RankContext<'a> {
+    /// The elevator being evaluated.
+    pub car: EntityId,
+    /// Current position of the car along the shaft axis.
+    pub car_position: f64,
+    /// The stop being evaluated as a candidate destination.
+    pub stop: EntityId,
+    /// Position of the candidate stop along the shaft axis.
+    pub stop_position: f64,
+    /// The dispatch group this assignment belongs to.
+    pub group: &'a ElevatorGroup,
+    /// Demand snapshot for the current dispatch pass.
+    pub manifest: &'a DispatchManifest,
+    /// Read-only world state.
+    pub world: &'a World,
+}
+
+impl std::fmt::Debug for RankContext<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RankContext")
+            .field("car", &self.car)
+            .field("car_position", &self.car_position)
+            .field("stop", &self.stop)
+            .field("stop_position", &self.stop_position)
+            .field("group", &self.group)
+            .field("manifest", &self.manifest)
+            .field("world", &"World { .. }")
+            .finish()
+    }
+}
+
 /// Pluggable dispatch algorithm.
 ///
 /// Strategies implement [`rank`](Self::rank) to score each `(car, stop)`
@@ -548,17 +600,7 @@ pub trait DispatchStrategy: Send + Sync {
     /// whose results depend on iteration order. Use
     /// [`prepare_car`](Self::prepare_car) to compute and store any
     /// per-car state before `rank` is called.
-    #[allow(clippy::too_many_arguments)]
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        stop: EntityId,
-        stop_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Option<f64>;
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64>;
 
     /// Decide what an idle car should do when no stop was assigned to it.
     ///
@@ -662,9 +704,16 @@ pub(crate) fn assign(
     for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
         strategy.prepare_car(car_eid, car_pos, group, manifest, world);
         for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
-            let scaled = strategy
-                .rank(car_eid, car_pos, stop_eid, stop_pos, group, manifest, world)
-                .map_or(ASSIGNMENT_SENTINEL, scale_cost);
+            let ctx = RankContext {
+                car: car_eid,
+                car_position: car_pos,
+                stop: stop_eid,
+                stop_position: stop_pos,
+                group,
+                manifest,
+                world,
+            };
+            let scaled = strategy.rank(&ctx).map_or(ASSIGNMENT_SENTINEL, scale_cost);
             data[i * cols + j] = scaled;
         }
     }

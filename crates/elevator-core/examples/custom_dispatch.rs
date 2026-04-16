@@ -32,7 +32,9 @@
 use std::collections::HashMap;
 
 use elevator_core::components::CallDirection;
-use elevator_core::dispatch::{BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup};
+use elevator_core::dispatch::{
+    BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
+};
 use elevator_core::entity::EntityId;
 use elevator_core::ids::GroupId;
 use elevator_core::prelude::*;
@@ -88,18 +90,9 @@ impl DispatchStrategy for IdlePenaltyDispatch {
     /// Cost is distance minus a small bonus for cars that haven't been
     /// used recently. Returning `None` would exclude a `(car, stop)`
     /// pair entirely — useful for capacity limits or restricted stops.
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        _stop: EntityId,
-        stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> Option<f64> {
-        let distance = (car_position - stop_position).abs();
-        let idle_for = self.idle_for.get(&car).copied().unwrap_or(0.0);
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        let distance = (ctx.car_position - ctx.stop_position).abs();
+        let idle_for = self.idle_for.get(&ctx.car).copied().unwrap_or(0.0);
         // Bias toward long-idle cars; clamp so cost stays non-negative.
         Some(0.01f64.mul_add(-idle_for, distance).max(0.0))
     }
