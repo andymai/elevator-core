@@ -1,3 +1,4 @@
+use crate::components::{Accel, Speed, Weight};
 use std::collections::HashSet;
 
 use crate::entity::EntityId;
@@ -39,10 +40,10 @@ fn add_elevator_at_runtime() {
     let line = sim.lines_in_group(GroupId(0))[0];
 
     let params = ElevatorParams {
-        max_speed: 3.0,
-        acceleration: 2.0,
-        deceleration: 2.5,
-        weight_capacity: 1000.0,
+        max_speed: Speed::from(3.0),
+        acceleration: Accel::from(2.0),
+        deceleration: Accel::from(2.5),
+        weight_capacity: Weight::from(1000.0),
         door_transition_ticks: 3,
         door_open_ticks: 8,
         restricted_stops: HashSet::new(),
@@ -54,7 +55,7 @@ fn add_elevator_at_runtime() {
     // Elevator entity is alive and positioned correctly.
     assert!(sim.world().is_alive(elev));
     assert!((sim.world().position(elev).unwrap().value - 4.0).abs() < 1e-9);
-    assert!((sim.world().elevator(elev).unwrap().max_speed - 3.0).abs() < 1e-9);
+    assert!((sim.world().elevator(elev).unwrap().max_speed.value() - 3.0).abs() < 1e-9);
 
     // Elevator was added to the group.
     let group = &sim.groups()[0];
@@ -101,10 +102,10 @@ fn add_to_nonexistent_line_returns_error() {
     assert!(result.is_err());
 
     let params = ElevatorParams {
-        max_speed: 1.0,
-        acceleration: 1.0,
-        deceleration: 1.0,
-        weight_capacity: 100.0,
+        max_speed: Speed::from(1.0),
+        acceleration: Accel::from(1.0),
+        deceleration: Accel::from(1.0),
+        weight_capacity: Weight::from(100.0),
         door_transition_ticks: 1,
         door_open_ticks: 1,
         restricted_stops: HashSet::new(),

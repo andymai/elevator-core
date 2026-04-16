@@ -576,7 +576,7 @@ fn populate_frame(ev: &mut EvSim) {
             current_stop_id,
             target_stop_id,
             occupancy: u32::try_from(elev.riders().len()).unwrap_or(u32::MAX),
-            capacity_kg: elev.weight_capacity(),
+            capacity_kg: elev.weight_capacity().value(),
             door_state: door_state_tag(elev.door()),
         });
     }

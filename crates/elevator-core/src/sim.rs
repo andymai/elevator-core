@@ -68,8 +68,8 @@ mod lifecycle;
 mod topology;
 
 use crate::components::{
-    AccessControl, Orientation, Patience, Preferences, Rider, RiderPhase, Route, SpatialPosition,
-    Velocity,
+    Accel, AccessControl, Orientation, Patience, Preferences, Rider, RiderPhase, Route,
+    SpatialPosition, Speed, Velocity, Weight,
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
 use crate::entity::EntityId;
@@ -93,13 +93,13 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct ElevatorParams {
     /// Maximum travel speed (distance/tick).
-    pub max_speed: f64,
+    pub max_speed: Speed,
     /// Acceleration rate (distance/tick^2).
-    pub acceleration: f64,
+    pub acceleration: Accel,
     /// Deceleration rate (distance/tick^2).
-    pub deceleration: f64,
+    pub deceleration: Accel,
     /// Maximum weight the car can carry.
-    pub weight_capacity: f64,
+    pub weight_capacity: Weight,
     /// Ticks for a door open/close transition.
     pub door_transition_ticks: u32,
     /// Ticks the door stays fully open.
@@ -113,10 +113,10 @@ pub struct ElevatorParams {
 impl Default for ElevatorParams {
     fn default() -> Self {
         Self {
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             door_transition_ticks: 5,
             door_open_ticks: 10,
             restricted_stops: HashSet::new(),
@@ -182,7 +182,7 @@ pub struct RiderBuilder<'a> {
     /// Destination stop entity.
     destination: EntityId,
     /// Rider weight (default: 75.0).
-    weight: f64,
+    weight: Weight,
     /// Explicit dispatch group (skips auto-detection).
     group: Option<GroupId>,
     /// Explicit multi-leg route.
@@ -198,8 +198,8 @@ pub struct RiderBuilder<'a> {
 impl RiderBuilder<'_> {
     /// Set the rider's weight (default: 75.0).
     #[must_use]
-    pub const fn weight(mut self, weight: f64) -> Self {
-        self.weight = weight;
+    pub fn weight(mut self, weight: impl Into<Weight>) -> Self {
+        self.weight = weight.into();
         self
     }
 
@@ -671,9 +671,9 @@ impl Simulation {
             });
         }
 
-        let max_speed = elevator.max_speed();
-        let accel = elevator.acceleration();
-        let decel = elevator.deceleration();
+        let max_speed = elevator.max_speed().value();
+        let accel = elevator.acceleration().value();
+        let decel = elevator.deceleration().value();
         let door_cycle_ticks =
             u64::from(elevator.door_transition_ticks()) * 2 + u64::from(elevator.door_open_ticks());
         let door_cycle_secs = (door_cycle_ticks as f64) * self.dt;
@@ -818,11 +818,12 @@ impl Simulation {
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
     /// sim.set_max_speed(elev, 4.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().max_speed(), 4.0);
+    /// assert_eq!(sim.world().elevator(elev).unwrap().max_speed().value(), 4.0);
     /// ```
     pub fn set_max_speed(&mut self, elevator: EntityId, speed: f64) -> Result<(), SimError> {
         Self::validate_positive_finite_f64(speed, "elevators.max_speed")?;
-        let old = self.require_elevator(elevator)?.max_speed;
+        let old = self.require_elevator(elevator)?.max_speed.value();
+        let speed = Speed::from(speed);
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.max_speed = speed;
         }
@@ -830,7 +831,7 @@ impl Simulation {
             elevator,
             crate::events::UpgradeField::MaxSpeed,
             crate::events::UpgradeValue::float(old),
-            crate::events::UpgradeValue::float(speed),
+            crate::events::UpgradeValue::float(speed.value()),
         );
         Ok(())
     }
@@ -853,11 +854,12 @@ impl Simulation {
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
     /// sim.set_acceleration(elev, 3.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().acceleration(), 3.0);
+    /// assert_eq!(sim.world().elevator(elev).unwrap().acceleration().value(), 3.0);
     /// ```
     pub fn set_acceleration(&mut self, elevator: EntityId, accel: f64) -> Result<(), SimError> {
         Self::validate_positive_finite_f64(accel, "elevators.acceleration")?;
-        let old = self.require_elevator(elevator)?.acceleration;
+        let old = self.require_elevator(elevator)?.acceleration.value();
+        let accel = Accel::from(accel);
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.acceleration = accel;
         }
@@ -865,7 +867,7 @@ impl Simulation {
             elevator,
             crate::events::UpgradeField::Acceleration,
             crate::events::UpgradeValue::float(old),
-            crate::events::UpgradeValue::float(accel),
+            crate::events::UpgradeValue::float(accel.value()),
         );
         Ok(())
     }
@@ -888,11 +890,12 @@ impl Simulation {
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
     /// sim.set_deceleration(elev, 3.5).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().deceleration(), 3.5);
+    /// assert_eq!(sim.world().elevator(elev).unwrap().deceleration().value(), 3.5);
     /// ```
     pub fn set_deceleration(&mut self, elevator: EntityId, decel: f64) -> Result<(), SimError> {
         Self::validate_positive_finite_f64(decel, "elevators.deceleration")?;
-        let old = self.require_elevator(elevator)?.deceleration;
+        let old = self.require_elevator(elevator)?.deceleration.value();
+        let decel = Accel::from(decel);
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.deceleration = decel;
         }
@@ -900,7 +903,7 @@ impl Simulation {
             elevator,
             crate::events::UpgradeField::Deceleration,
             crate::events::UpgradeValue::float(old),
-            crate::events::UpgradeValue::float(decel),
+            crate::events::UpgradeValue::float(decel.value()),
         );
         Ok(())
     }
@@ -926,7 +929,7 @@ impl Simulation {
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
     /// sim.set_weight_capacity(elev, 1200.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().weight_capacity(), 1200.0);
+    /// assert_eq!(sim.world().elevator(elev).unwrap().weight_capacity().value(), 1200.0);
     /// ```
     pub fn set_weight_capacity(
         &mut self,
@@ -934,7 +937,8 @@ impl Simulation {
         capacity: f64,
     ) -> Result<(), SimError> {
         Self::validate_positive_finite_f64(capacity, "elevators.weight_capacity")?;
-        let old = self.require_elevator(elevator)?.weight_capacity;
+        let old = self.require_elevator(elevator)?.weight_capacity.value();
+        let capacity = Weight::from(capacity);
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.weight_capacity = capacity;
         }
@@ -942,7 +946,7 @@ impl Simulation {
             elevator,
             crate::events::UpgradeField::WeightCapacity,
             crate::events::UpgradeValue::float(old),
-            crate::events::UpgradeValue::float(capacity),
+            crate::events::UpgradeValue::float(capacity.value()),
         );
         Ok(())
     }
@@ -1172,7 +1176,7 @@ impl Simulation {
         let max = self
             .world
             .elevator(elevator)
-            .map_or(f64::INFINITY, |c| c.max_speed);
+            .map_or(f64::INFINITY, |c| c.max_speed.value());
         let clamped = velocity.clamp(-max, max);
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.manual_target_velocity = Some(clamped);
@@ -1406,7 +1410,7 @@ impl Simulation {
             sim: self,
             origin,
             destination,
-            weight: 75.0,
+            weight: Weight::from(75.0),
             group: None,
             route: None,
             patience: None,
@@ -1432,10 +1436,11 @@ impl Simulation {
         &mut self,
         origin: impl Into<StopRef>,
         destination: impl Into<StopRef>,
-        weight: f64,
+        weight: impl Into<Weight>,
     ) -> Result<EntityId, SimError> {
         let origin = self.resolve_stop(origin.into())?;
         let destination = self.resolve_stop(destination.into())?;
+        let weight: Weight = weight.into();
         let matching: Vec<GroupId> = self
             .groups
             .iter()
@@ -1485,7 +1490,7 @@ impl Simulation {
         &mut self,
         origin: EntityId,
         destination: EntityId,
-        weight: f64,
+        weight: Weight,
         route: Route,
     ) -> EntityId {
         let eid = self.world.spawn();
@@ -2047,7 +2052,8 @@ impl Simulation {
             .world
             .elevator(car)
             .ok_or(EtaError::NotAnElevator(car))?
-            .max_speed();
+            .max_speed()
+            .value();
         if max_speed <= 0.0 {
             return Err(EtaError::NotAnElevator(car));
         }

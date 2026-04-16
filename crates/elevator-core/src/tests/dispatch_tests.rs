@@ -1,3 +1,4 @@
+use crate::components::{Accel, Speed, Weight};
 use std::collections::HashSet;
 
 use crate::components::*;
@@ -91,11 +92,11 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
         Elevator {
             phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
-            current_load: 0.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 15,
@@ -129,7 +130,7 @@ fn add_demand(
         .push(RiderInfo {
             id: dummy,
             destination: None,
-            weight,
+            weight: Weight::from(weight),
             wait_ticks: 0,
         });
 }
@@ -148,7 +149,7 @@ fn add_rider_dest(
         .push(RiderInfo {
             id: dummy,
             destination: Some(stop),
-            weight: 70.0,
+            weight: Weight::from(70.0),
             wait_ticks: 0,
         });
 }

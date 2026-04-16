@@ -1,4 +1,5 @@
 use crate::components::RiderPhase;
+use crate::components::Weight;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -58,7 +59,7 @@ fn two_riders_opposite_directions() {
 #[test]
 fn two_riders_exceeding_capacity_delivered_in_two_trips() {
     let mut config = default_config();
-    config.elevators[0].weight_capacity = 100.0;
+    config.elevators[0].weight_capacity = Weight::from(100.0);
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
     sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
@@ -82,7 +83,7 @@ fn two_riders_exceeding_capacity_delivered_in_two_trips() {
 #[test]
 fn overweight_rider_rejected() {
     let mut config = default_config();
-    config.elevators[0].weight_capacity = 50.0;
+    config.elevators[0].weight_capacity = Weight::from(50.0);
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
     let light = sim.spawn_rider(StopId(0), StopId(1), 40.0).unwrap();

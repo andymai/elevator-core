@@ -207,7 +207,7 @@ impl Simulation {
                 acceleration: ec.acceleration,
                 deceleration: ec.deceleration,
                 weight_capacity: ec.weight_capacity,
-                current_load: 0.0,
+                current_load: crate::components::Weight::ZERO,
                 riders: Vec::new(),
                 target_stop: None,
                 door_transition_ticks: ec.door_transition_ticks,
@@ -541,28 +541,28 @@ impl Simulation {
         elev: &crate::config::ElevatorConfig,
         building: &crate::config::BuildingConfig,
     ) -> Result<(), SimError> {
-        if elev.max_speed <= 0.0 {
+        if elev.max_speed.value() <= 0.0 {
             return Err(SimError::InvalidConfig {
                 field: "elevators.max_speed",
-                reason: format!("must be positive, got {}", elev.max_speed),
+                reason: format!("must be positive, got {}", elev.max_speed.value()),
             });
         }
-        if elev.acceleration <= 0.0 {
+        if elev.acceleration.value() <= 0.0 {
             return Err(SimError::InvalidConfig {
                 field: "elevators.acceleration",
-                reason: format!("must be positive, got {}", elev.acceleration),
+                reason: format!("must be positive, got {}", elev.acceleration.value()),
             });
         }
-        if elev.deceleration <= 0.0 {
+        if elev.deceleration.value() <= 0.0 {
             return Err(SimError::InvalidConfig {
                 field: "elevators.deceleration",
-                reason: format!("must be positive, got {}", elev.deceleration),
+                reason: format!("must be positive, got {}", elev.deceleration.value()),
             });
         }
-        if elev.weight_capacity <= 0.0 {
+        if elev.weight_capacity.value() <= 0.0 {
             return Err(SimError::InvalidConfig {
                 field: "elevators.weight_capacity",
-                reason: format!("must be positive, got {}", elev.weight_capacity),
+                reason: format!("must be positive, got {}", elev.weight_capacity.value()),
             });
         }
         if elev.inspection_speed_factor <= 0.0 {

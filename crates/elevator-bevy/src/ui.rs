@@ -129,8 +129,8 @@ pub fn update_hud(
         }
     }
 
-    let load_kg = car.current_load();
-    let capacity_kg = car.weight_capacity();
+    let load_kg = car.current_load().value();
+    let capacity_kg = car.weight_capacity().value();
     let load_pct = if capacity_kg > 0.0 {
         (load_kg / capacity_kg) * 100.0
     } else {

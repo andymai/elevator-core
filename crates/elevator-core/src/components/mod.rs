@@ -24,6 +24,8 @@ pub mod route;
 pub mod service_mode;
 /// Stop (floor/station) data.
 pub mod stop;
+/// Physical quantity newtypes (Weight, Speed, Accel).
+pub mod units;
 
 pub use access::AccessControl;
 pub use car_call::CarCall;
@@ -37,3 +39,4 @@ pub use rider::{Rider, RiderPhase, RiderPhaseKind};
 pub use route::{Route, RouteLeg, TransportMode};
 pub use service_mode::ServiceMode;
 pub use stop::Stop;
+pub use units::{Accel, Speed, Weight};

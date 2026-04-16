@@ -1,4 +1,5 @@
 use crate::builder::SimulationBuilder;
+use crate::components::{Accel, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -51,10 +52,10 @@ fn from_config_produces_valid_sim() {
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "E1".into(),
-            max_speed: 3.0,
-            acceleration: 2.0,
-            deceleration: 2.0,
-            weight_capacity: 1000.0,
+            max_speed: Speed::from(3.0),
+            acceleration: Accel::from(2.0),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(1000.0),
             starting_stop: StopId(0),
             door_open_ticks: 8,
             door_transition_ticks: 4,
@@ -108,10 +109,10 @@ fn builder_with_stops_and_elevators() {
         .elevator(ElevatorConfig {
             id: 1,
             name: "E2".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 1.5,
-            weight_capacity: 600.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(1.5),
+            weight_capacity: Weight::from(600.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
