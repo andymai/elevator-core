@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.5.0...elevator-ffi-v0.6.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* removes 5 redundant methods, consolidating to `spawn_rider` + `build_rider`/`RiderBuilder`:
+
+### Features
+
+* consolidate spawn_rider API and delete _by_stop_id twins ([#130](https://github.com/andymai/elevator-core/issues/130)) ([daba0ea](https://github.com/andymai/elevator-core/commit/daba0ea54b08c4d7e41eae591859f2d2dc03db15))
+
+
+### Bug Fixes
+
+* eliminate flaky FFI tests ([#131](https://github.com/andymai/elevator-core/issues/131)) ([501fdd3](https://github.com/andymai/elevator-core/commit/501fdd31a52c7b766db5e432e6f0b67f8d8b9caf))
+
 ## [0.5.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.4.0...elevator-ffi-v0.5.0) (2026-04-16)
 
 
