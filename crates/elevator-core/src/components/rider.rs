@@ -27,6 +27,20 @@ pub enum RiderPhase {
     Resident,
 }
 
+impl RiderPhase {
+    /// True when the rider is currently inside or transitioning through an
+    /// elevator cab — i.e., [`Boarding`](Self::Boarding),
+    /// [`Riding`](Self::Riding), or [`Exiting`](Self::Exiting).
+    ///
+    /// Useful for code that needs to treat all three mid-elevator phases
+    /// uniformly (rendering, per-elevator population counts, skipping
+    /// stop-queue updates) without writing a three-arm `match`.
+    #[must_use]
+    pub const fn is_aboard(&self) -> bool {
+        matches!(self, Self::Boarding(_) | Self::Riding(_) | Self::Exiting(_))
+    }
+}
+
 impl std::fmt::Display for RiderPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -367,8 +367,14 @@ impl Simulation {
     // ── Accessors ────────────────────────────────────────────────────
 
     /// Get a shared reference to the world.
+    //
+    // Intentionally non-`const`: a `const` qualifier on a runtime accessor
+    // signals "usable in const context", which these methods are not in
+    // practice (the `World` is heap-allocated and mutated). Marking them
+    // `const` misleads readers without unlocking any call sites.
     #[must_use]
-    pub const fn world(&self) -> &World {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn world(&self) -> &World {
         &self.world
     }
 
@@ -377,7 +383,8 @@ impl Simulation {
     /// Exposed for advanced use cases (manual rider management, custom
     /// component attachment). Prefer `spawn_rider` / `spawn_rider_by_stop_id`
     /// for standard operations.
-    pub const fn world_mut(&mut self) -> &mut World {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn world_mut(&mut self) -> &mut World {
         &mut self.world
     }
 
