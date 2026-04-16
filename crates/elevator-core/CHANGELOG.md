@@ -1,5 +1,37 @@
 # Changelog
 
+## [9.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.3.0...elevator-core-v9.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* removes 5 redundant methods, consolidating to `spawn_rider` + `build_rider`/`RiderBuilder`:
+* extension component registration and insertion now use `ExtKey<T>` instead of bare `&str` names.
+* `SimError::InvalidState` removed entirely. All 22 former call sites now use concrete, matchable variants.
+* Return types changed for three public methods:
+* `FloorPosition` struct renamed to `SpatialPosition`.
+* door control methods renamed:
+    - `request_door_open` → `open_door`
+    - `request_door_close` → `close_door`
+    - `hold_door_open` → `hold_door`
+    - `cancel_door_hold` unchanged
+
+### Features
+
+* add concrete SimError variants for elevator operations ([#126](https://github.com/andymai/elevator-core/issues/126)) ([6c9b7db](https://github.com/andymai/elevator-core/commit/6c9b7db73a0f6c2cd4ebd88b20dbf079d3248746))
+* additive API ergonomics wins ([#121](https://github.com/andymai/elevator-core/issues/121)) ([96449d0](https://github.com/andymai/elevator-core/commit/96449d01a6bca65db0f9afd989daf62bd3908516))
+* complete SimError::InvalidState split and delete variant ([#128](https://github.com/andymai/elevator-core/issues/128)) ([999f508](https://github.com/andymai/elevator-core/commit/999f508a248e6898d3b1bbd9f2c48c40fb337497))
+* consolidate spawn_rider API and delete _by_stop_id twins ([#130](https://github.com/andymai/elevator-core/issues/130)) ([daba0ea](https://github.com/andymai/elevator-core/commit/daba0ea54b08c4d7e41eae591859f2d2dc03db15))
+* introduce StopRef for unified stop parameter handling ([#125](https://github.com/andymai/elevator-core/issues/125)) ([316f92a](https://github.com/andymai/elevator-core/commit/316f92ae892d53fd6e855cfc67fd2487acffa2c8))
+* return Result from eta() and tag_entity() ([#127](https://github.com/andymai/elevator-core/issues/127)) ([0970b43](https://github.com/andymai/elevator-core/commit/0970b43a7947ccce879884690d11b5bc0db79850))
+* typed ExtKey&lt;T&gt; for compile-time extension safety ([#129](https://github.com/andymai/elevator-core/issues/129)) ([c86590f](https://github.com/andymai/elevator-core/commit/c86590f7f227831751dc669599028f2aa09e648d))
+
+
+### Code Refactoring
+
+* rename door control methods for clarity ([#122](https://github.com/andymai/elevator-core/issues/122)) ([b28adcb](https://github.com/andymai/elevator-core/commit/b28adcbc12e16b26b3408674c0bdddf21a320a08))
+* rename FloorPosition to SpatialPosition ([#123](https://github.com/andymai/elevator-core/issues/123)) ([44e7277](https://github.com/andymai/elevator-core/commit/44e7277c049cabc469f69e9ac31199c6363b7591))
+
 ## [8.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.2.0...elevator-core-v8.3.0) (2026-04-16)
 
 
