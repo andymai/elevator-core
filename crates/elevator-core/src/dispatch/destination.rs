@@ -30,7 +30,7 @@ use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMod
 use crate::entity::EntityId;
 use crate::world::{ExtKey, World};
 
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext};
 
 /// Sticky rider → car assignment produced by [`DestinationDispatch`].
 ///
@@ -123,7 +123,7 @@ impl DispatchStrategy for DestinationDispatch {
 
         // Collect unassigned waiting riders in this group.
         let mut pending: Vec<(EntityId, EntityId, EntityId, f64)> = Vec::new();
-        for riders in manifest.waiting_at_stop.values() {
+        for (_, riders) in manifest.iter_waiting_stops() {
             for info in riders {
                 if world.ext::<AssignedCar>(info.id).is_some() {
                     continue; // sticky
@@ -213,24 +213,16 @@ impl DispatchStrategy for DestinationDispatch {
         }
     }
 
-    fn rank(
-        &mut self,
-        car: EntityId,
-        _car_position: f64,
-        stop: EntityId,
-        _stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        world: &World,
-    ) -> Option<f64> {
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
         // The queue is the source of truth — route each car strictly to
         // its own queue front. Every other stop is unavailable for this
         // car, so the Hungarian assignment reduces to the identity match
         // between each car and the stop it has already committed to.
-        let front = world
-            .destination_queue(car)
+        let front = ctx
+            .world
+            .destination_queue(ctx.car)
             .and_then(DestinationQueue::front)?;
-        if front == stop { Some(0.0) } else { None }
+        if front == ctx.stop { Some(0.0) } else { None }
     }
 }
 

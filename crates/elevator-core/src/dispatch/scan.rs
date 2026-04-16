@@ -11,7 +11,7 @@ use crate::entity::EntityId;
 use crate::world::World;
 
 use super::sweep::{self, SweepDirection, SweepMode};
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext};
 
 /// Elevator dispatch using the SCAN (elevator) algorithm.
 ///
@@ -76,21 +76,12 @@ impl DispatchStrategy for ScanDispatch {
         }
     }
 
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        _stop: EntityId,
-        stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> Option<f64> {
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
         sweep::rank(
-            self.mode_for(car),
-            self.direction_for(car),
-            car_position,
-            stop_position,
+            self.mode_for(ctx.car),
+            self.direction_for(ctx.car),
+            ctx.car_position,
+            ctx.stop_position,
         )
     }
 

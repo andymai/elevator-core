@@ -698,8 +698,7 @@ fn group_config_ron_defaults_to_classic_zero_latency() {
 /// directly. This exercises the #102 contract end-to-end.
 #[test]
 fn custom_strategy_reads_hall_calls_from_manifest() {
-    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
-    use crate::world::World;
+    use crate::dispatch::DispatchStrategy;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -711,21 +710,17 @@ fn custom_strategy_reads_hall_calls_from_manifest() {
     }
 
     impl DispatchStrategy for Observer {
-        fn rank(
-            &mut self,
-            _car: EntityId,
-            car_pos: f64,
-            stop: EntityId,
-            stop_pos: f64,
-            _group: &ElevatorGroup,
-            manifest: &DispatchManifest,
-            _world: &World,
-        ) -> Option<f64> {
+        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             let target = *self.target_stop.lock().unwrap();
-            if Some(stop) == target && manifest.hall_call_at(stop, CallDirection::Up).is_some() {
+            if Some(ctx.stop) == target
+                && ctx
+                    .manifest
+                    .hall_call_at(ctx.stop, CallDirection::Up)
+                    .is_some()
+            {
                 self.saw_call.fetch_add(1, Ordering::Relaxed);
             }
-            Some((car_pos - stop_pos).abs())
+            Some((ctx.car_position - ctx.stop_position).abs())
         }
     }
 
@@ -760,8 +755,7 @@ fn custom_strategy_reads_hall_calls_from_manifest() {
 /// `World`.
 #[test]
 fn custom_strategy_reads_car_calls_from_manifest() {
-    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
-    use crate::world::World;
+    use crate::dispatch::DispatchStrategy;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -769,20 +763,11 @@ fn custom_strategy_reads_car_calls_from_manifest() {
         saw_car_call: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Observer {
-        fn rank(
-            &mut self,
-            car: EntityId,
-            car_pos: f64,
-            _stop: EntityId,
-            stop_pos: f64,
-            _group: &ElevatorGroup,
-            manifest: &DispatchManifest,
-            _world: &World,
-        ) -> Option<f64> {
-            if !manifest.car_calls_for(car).is_empty() {
+        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+            if !ctx.manifest.car_calls_for(ctx.car).is_empty() {
                 self.saw_car_call.fetch_add(1, Ordering::Relaxed);
             }
-            Some((car_pos - stop_pos).abs())
+            Some((ctx.car_position - ctx.stop_position).abs())
         }
     }
 
@@ -817,9 +802,8 @@ fn custom_strategy_reads_car_calls_from_manifest() {
 /// `HallCall::is_acknowledged`'s documented contract.
 #[test]
 fn unacknowledged_hall_calls_hidden_from_manifest() {
-    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup, HallCallMode};
+    use crate::dispatch::{DispatchStrategy, HallCallMode};
     use crate::ids::GroupId;
-    use crate::world::World;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -827,22 +811,13 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
         visible_call_count: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Observer {
-        fn rank(
-            &mut self,
-            _car: EntityId,
-            car_pos: f64,
-            _stop: EntityId,
-            stop_pos: f64,
-            _group: &ElevatorGroup,
-            manifest: &DispatchManifest,
-            _world: &World,
-        ) -> Option<f64> {
+        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             // Track running max so a later `rank` call observing zero
             // calls (e.g. after the car arrived and cleared the call)
             // doesn't overwrite a previous nonzero observation.
-            let count = manifest.iter_hall_calls().count();
+            let count = ctx.manifest.iter_hall_calls().count();
             self.visible_call_count.fetch_max(count, Ordering::Relaxed);
-            Some((car_pos - stop_pos).abs())
+            Some((ctx.car_position - ctx.stop_position).abs())
         }
     }
 
