@@ -311,8 +311,8 @@
 //! destinations, current kinematic state, and configured door dwell:
 //!
 //! - [`Simulation::eta`](sim::Simulation::eta) — seconds until a specific
-//!   elevator reaches a specific stop, or `None` if the stop isn't on its
-//!   route or the car is in a dispatch-excluded service mode.
+//!   elevator reaches a specific stop, or an [`EtaError`](error::EtaError) if the
+//!   stop isn't queued, the car is disabled, or the service mode excludes it.
 //! - [`Simulation::best_eta`](sim::Simulation::best_eta) — winner across all
 //!   eligible elevators, optionally filtered by indicator-lamp direction
 //!   ("which up-going car arrives first?").
@@ -449,6 +449,7 @@ macro_rules! register_extensions {
 ///   [`RiderBuilder`](crate::sim::RiderBuilder)
 /// - **Components:** [`Rider`](crate::components::Rider),
 ///   [`RiderPhase`](crate::components::RiderPhase),
+///   [`RiderPhaseKind`](crate::components::RiderPhaseKind),
 ///   [`Elevator`](crate::components::Elevator),
 ///   [`ElevatorPhase`](crate::components::ElevatorPhase),
 ///   [`Stop`](crate::components::Stop), [`Line`](crate::components::Line),
@@ -459,34 +460,42 @@ macro_rules! register_extensions {
 ///   [`Patience`](crate::components::Patience),
 ///   [`Preferences`](crate::components::Preferences),
 ///   [`AccessControl`](crate::components::AccessControl),
+///   [`DestinationQueue`](crate::components::DestinationQueue),
+///   [`Direction`](crate::components::Direction),
 ///   [`Orientation`](crate::components::Orientation),
 ///   [`ServiceMode`](crate::components::ServiceMode)
 /// - **Config:** [`SimConfig`](crate::config::SimConfig),
 ///   [`GroupConfig`](crate::config::GroupConfig),
 ///   [`LineConfig`](crate::config::LineConfig)
 /// - **Dispatch:** [`DispatchStrategy`](crate::dispatch::DispatchStrategy),
-///   [`RepositionStrategy`](crate::dispatch::RepositionStrategy), plus the
-///   built-in reposition strategies
+///   [`RepositionStrategy`](crate::dispatch::RepositionStrategy),
+///   [`AssignedCar`](crate::dispatch::AssignedCar),
+///   [`DestinationDispatch`](crate::dispatch::DestinationDispatch),
+///   plus the built-in reposition strategies
 ///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
 ///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
 ///   [`SpreadEvenly`](crate::dispatch::reposition::SpreadEvenly),
 ///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted)
 /// - **Identity:** [`EntityId`](crate::entity::EntityId),
-///   [`StopId`](crate::stop::StopId), [`GroupId`](crate::ids::GroupId)
+///   [`StopId`](crate::stop::StopId), [`StopRef`](crate::stop::StopRef),
+///   [`GroupId`](crate::ids::GroupId)
 /// - **Errors & events:** [`SimError`](crate::error::SimError),
+///   [`EtaError`](crate::error::EtaError),
 ///   [`RejectionReason`](crate::error::RejectionReason),
 ///   [`RejectionContext`](crate::error::RejectionContext),
 ///   [`Event`](crate::events::Event),
-///   [`EventBus`](crate::events::EventBus)
+///   [`EventBus`](crate::events::EventBus),
+///   [`EventCategory`](crate::events::EventCategory)
 /// - **Misc:** [`Metrics`](crate::metrics::Metrics),
-///   [`TimeAdapter`](crate::time::TimeAdapter)
+///   [`TimeAdapter`](crate::time::TimeAdapter),
+///   [`ExtKey`](crate::world::ExtKey)
 ///
 /// # Not included (import explicitly)
 ///
 /// - Concrete dispatch implementations: `dispatch::scan::ScanDispatch`,
 ///   `dispatch::look::LookDispatch`, `dispatch::nearest_car::NearestCarDispatch`,
 ///   `dispatch::etd::EtdDispatch`
-/// - `ElevatorConfig` and `StopConfig` from [`crate::config`]
+/// - `ElevatorConfig` from [`crate::config`] and `StopConfig` from [`crate::stop`]
 /// - Traffic generation types from [`crate::traffic`] (feature-gated)
 /// - Snapshot types from [`crate::snapshot`]
 /// - The [`World`](crate::world::World) type (accessed via `sim.world()`,

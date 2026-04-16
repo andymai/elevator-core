@@ -94,7 +94,7 @@ Extensions are serialized by their registered name. To restore them, re-register
 # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
 # fn run(snapshot: WorldSnapshot) {
 let mut sim = snapshot.restore(None);
-sim.world_mut().register_ext::<VipTag>("vip_tag");
+sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
 sim.load_extensions();
 # }
 ```

@@ -22,7 +22,7 @@ struct VipTag {
 
 ### Step 2: Register with the builder
 
-Call `.with_ext::<T>("name")` on the builder to register the extension type. The name string is used for snapshot serialization:
+Call `.with_ext::<T>()` on the builder to register the extension type (the type name is used automatically for snapshot serialization):
 
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
@@ -37,7 +37,7 @@ fn main() -> Result<(), SimError> {
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
-        .with_ext::<VipTag>("vip_tag")
+        .with_ext::<VipTag>()
         .build()?;
     Ok(())
 }
@@ -59,14 +59,14 @@ Use `world.insert_ext()` to attach your component to an entity:
 #     .stop(StopId(0), "Ground", 0.0)
 #     .stop(StopId(1), "Top", 10.0)
 #     .elevator(ElevatorConfig::default())
-#     .with_ext::<VipTag>("vip_tag")
+#     .with_ext::<VipTag>()
 #     .build()?;
 let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
     rider_id,
     VipTag { level: 3, lounge_access: true },
-    "vip_tag",
+    ExtKey::from_type_name(),
 );
 # Ok(())
 # }
@@ -74,7 +74,7 @@ sim.world_mut().insert_ext(
 
 ### Step 4: Read it back
 
-Use `world.get_ext()` for a cloned value, or `world.get_ext_mut()` for a mutable reference:
+Use `world.get_ext()` for a cloned value, `world.get_ext_ref()` for a zero-copy borrow, or `world.get_ext_mut()` for a mutable reference:
 
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
@@ -257,7 +257,7 @@ fn main() -> Result<(), SimError> {
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
         .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
-        .with_ext::<WaitWarning>("wait_warning")
+        .with_ext::<WaitWarning>()
         .after(Phase::Metrics, |world| {
             // Check all waiting riders for long waits.
             let rider_ids: Vec<EntityId> = world.rider_ids();
@@ -286,7 +286,7 @@ fn main() -> Result<(), SimError> {
 
     // Spawn some riders and attach extensions.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
-    sim.world_mut().insert_ext(r1, WaitWarning { warned: false }, "wait_warning");
+    sim.world_mut().insert_ext(r1, WaitWarning { warned: false }, ExtKey::from_type_name());
 
     for _ in 0..600 {
         // Update the current tick resource before stepping.
