@@ -31,7 +31,10 @@ pub enum Condition {
     MaxWaitBelow(u64),
     /// Throughput must be above this value (riders per window).
     ThroughputAbove(u64),
-    /// All riders must be delivered by this tick.
+    /// All spawned riders must reach a terminal state (delivered or abandoned)
+    /// by this tick. Riders that failed to spawn (see
+    /// [`ScenarioRunner::skipped_spawns`]) are not counted — check that
+    /// value separately when replay fidelity matters.
     AllDeliveredByTick(u64),
     /// Abandonment rate must be below this value (0.0 - 1.0).
     AbandonmentRateBelow(f64),
@@ -92,6 +95,8 @@ pub struct ScenarioRunner {
     max_ticks: u64,
     /// Scenario name.
     name: String,
+    /// Number of spawn attempts that failed (e.g. disabled/removed stops).
+    skipped_spawns: u64,
 }
 
 impl ScenarioRunner {
@@ -114,6 +119,7 @@ impl ScenarioRunner {
             conditions: scenario.conditions,
             max_ticks: scenario.max_ticks,
             name: scenario.name,
+            skipped_spawns: 0,
         })
     }
 
@@ -123,6 +129,13 @@ impl ScenarioRunner {
         &self.sim
     }
 
+    /// Number of rider spawn attempts that were skipped due to errors
+    /// (e.g. referencing disabled or removed stops).
+    #[must_use]
+    pub const fn skipped_spawns(&self) -> u64 {
+        self.skipped_spawns
+    }
+
     /// Run one tick: spawn scheduled riders, then tick simulation.
     pub fn tick(&mut self) {
         // Spawn any riders scheduled for this tick.
@@ -130,12 +143,16 @@ impl ScenarioRunner {
             && self.spawns[self.spawn_cursor].tick <= self.sim.current_tick()
         {
             let spawn = &self.spawns[self.spawn_cursor];
-            // Deliberately ignore spawn errors: scenario files may reference stops
-            // that were removed or disabled during the scenario run. Silently
-            // skipping invalid spawns is the correct replay behavior.
-            let _ = self
+            // Spawn errors are expected: scenario files may reference stops
+            // that were removed or disabled during the run. We skip the
+            // spawn but track the count so callers can detect divergence.
+            if self
                 .sim
-                .spawn_rider(spawn.origin, spawn.destination, spawn.weight);
+                .spawn_rider(spawn.origin, spawn.destination, spawn.weight)
+                .is_err()
+            {
+                self.skipped_spawns += 1;
+            }
             self.spawn_cursor += 1;
         }
 
@@ -211,7 +228,7 @@ fn evaluate_condition(
         Condition::AllDeliveredByTick(deadline) => ConditionResult {
             condition: condition.clone(),
             passed: current_tick <= *deadline
-                && metrics.total_delivered() == metrics.total_spawned(),
+                && metrics.total_delivered() + metrics.total_abandoned() == metrics.total_spawned(),
             actual_value: current_tick as f64,
         },
         Condition::AbandonmentRateBelow(threshold) => ConditionResult {

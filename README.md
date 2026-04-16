@@ -189,7 +189,7 @@ Each call to `sim.step()` executes eight phases:
 
 | Phase | Description |
 |-------|-------------|
-| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Exiting to Resident/Arrived). |
+| **Advance Transient** | Promotes one-tick states forward (Boarding to Riding, Exiting to Arrived or back to Waiting for multi-leg routes). |
 | **Dispatch** | Assigns idle elevators to stops via the pluggable `DispatchStrategy`. |
 | **Reposition** | Moves idle elevators toward strategic positions to reduce future wait times. |
 | **Advance Queue** | Reconciles each elevator's phase/target with its `DestinationQueue` front (honors imperative `push_destination` / `push_destination_front` / `clear_destinations` calls). |
