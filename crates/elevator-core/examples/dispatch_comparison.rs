@@ -128,7 +128,8 @@ fn run_one<S: DispatchStrategy + 'static>(
 ) -> ScenarioResult {
     let config = make_config();
     let mut sim = Simulation::new(&config, strategy).unwrap();
-    sim.world_mut().register_ext::<AssignedCar>("assigned_car");
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ExtKey::new("assigned_car"));
 
     let mut source = make_source(pattern, seed, mean_interval);
     let mut spawned = 0u64;

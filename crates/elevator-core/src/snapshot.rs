@@ -157,7 +157,7 @@ impl WorldSnapshot {
     /// For `Custom` strategies, provide a factory function that maps strategy
     /// names to instances. Pass `None` if only using built-in strategies.
     ///
-    /// To restore extension components, call `world.register_ext::<T>(name)`
+    /// To restore extension components, call `world.register_ext::<T>(key)`
     /// on the returned simulation's world for each extension type, then call
     /// [`Simulation::load_extensions()`](crate::sim::Simulation::load_extensions)
     /// with this snapshot's `extensions` data.
@@ -683,7 +683,7 @@ impl crate::sim::Simulation {
     ///
     /// Extension component *data* is serialized (identical to
     /// [`Simulation::snapshot`]); after restore you must still call
-    /// `world.register_ext::<T>(name)` for each extension type and then
+    /// `world.register_ext::<T>(key)` for each extension type and then
     /// [`Simulation::load_extensions`] to materialize them. Custom
     /// dispatch strategies and arbitrary `World` resources are not
     /// included.

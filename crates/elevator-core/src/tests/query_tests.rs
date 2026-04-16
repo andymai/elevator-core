@@ -4,7 +4,7 @@ use crate::components::{Elevator, ElevatorPhase, Position, Rider, RiderPhase, St
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::query::Ext;
-use crate::world::World;
+use crate::world::{ExtKey, World};
 
 fn test_world() -> (World, EntityId, EntityId, EntityId) {
     let mut w = World::new();
@@ -157,7 +157,7 @@ fn query_extension_component() {
     }
 
     let (mut w, a, b, _c) = test_world();
-    w.insert_ext(a, VipTag { level: 3 }, "vip_tag");
+    w.insert_ext(a, VipTag { level: 3 }, ExtKey::from_type_name());
 
     // Query for entities with Rider and VipTag extension.
     let results: Vec<_> = w
@@ -179,8 +179,8 @@ fn query_ext_with_filter() {
     struct Priority(#[allow(dead_code)] u32);
 
     let (mut w, a, b, c) = test_world();
-    w.insert_ext(a, Priority(1), "priority");
-    w.insert_ext(c, Priority(2), "priority");
+    w.insert_ext(a, Priority(1), ExtKey::from_type_name());
+    w.insert_ext(c, Priority(2), ExtKey::from_type_name());
 
     // Entities with Position that have Priority extension.
     let results: Vec<_> = w
@@ -201,7 +201,7 @@ fn query_ext_without_filter() {
     struct Marked;
 
     let (mut w, a, _b, _c) = test_world();
-    w.insert_ext(a, Marked, "marked");
+    w.insert_ext(a, Marked, ExtKey::from_type_name());
 
     // Riders without Marked extension.
     let count = w

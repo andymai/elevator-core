@@ -5,7 +5,7 @@ use crate::config::{
     BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
     SimulationParams,
 };
-use crate::dispatch::destination::{ASSIGNED_CAR_EXT_NAME, AssignedCar, DestinationDispatch};
+use crate::dispatch::destination::{ASSIGNED_CAR_KEY, AssignedCar, DestinationDispatch};
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 
@@ -165,7 +165,7 @@ fn sticky_assignment_persists_across_ticks() {
         g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
     }
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     let rid = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
@@ -203,7 +203,7 @@ fn loading_respects_assignment_other_car_skips() {
     .unwrap();
 
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     // Identify the two elevators.
     let elevs: Vec<_> = sim
@@ -233,7 +233,7 @@ fn loading_respects_assignment_other_car_skips() {
     // and seed B's queue with the rider's pickup + drop-off so DCS's normal
     // queue-driven movement applies to the forced assignment too.
     sim.world_mut()
-        .insert_ext(rid, AssignedCar(car_b), ASSIGNED_CAR_EXT_NAME);
+        .insert_ext(rid, AssignedCar(car_b), ASSIGNED_CAR_KEY);
     let f2 = sim.stop_entity(StopId(1)).unwrap();
     let f3 = sim.stop_entity(StopId(2)).unwrap();
     sim.push_destination(car_b, f2).unwrap();
@@ -278,7 +278,7 @@ fn unassigned_manual_board_riders_still_work() {
         g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
     }
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     // Standard spawn: has a Route → DCS should assign.
     let routed = sim
@@ -320,7 +320,7 @@ fn closer_car_is_preferred_when_matching_direction() {
     let mut sim =
         Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     let elevs: Vec<_> = sim
         .world()
@@ -351,7 +351,7 @@ fn up_peak_scenario_delivers_all_riders() {
     let mut sim =
         Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     // 20 riders from the lobby (StopId(0)) to upper floors, alternating.
     let mut riders = Vec::new();
@@ -402,7 +402,7 @@ fn dcs_gated_to_destination_mode() {
         "default group mode should still be Classic for this test",
     );
     sim.world_mut()
-        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
 
     let rid = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)

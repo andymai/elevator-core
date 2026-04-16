@@ -151,7 +151,7 @@
 //!
 //! ```rust,ignore
 //! // Attach a VIP flag to a rider.
-//! world.insert_ext(rider_id, VipTag { priority: 1 }, "vip_tag");
+//! world.insert_ext(rider_id, VipTag { priority: 1 }, ExtKey::from_type_name());
 //!
 //! // Query it alongside built-in components.
 //! for (id, rider, vip) in world.query::<(EntityId, &Rider, &Ext<VipTag>)>().iter() {
@@ -160,14 +160,14 @@
 //! ```
 //!
 //! Extensions participate in snapshots via `serialize_extensions()` /
-//! `register_ext::<T>(name)` + `load_extensions()`.
+//! `register_ext::<T>(key)` + `load_extensions()`.
 //!
 //! ### Snapshot lifecycle
 //!
 //! 1. Capture: `sim.snapshot()` → [`WorldSnapshot`](snapshot::WorldSnapshot)
 //! 2. Serialize: serde (RON, JSON, bincode, etc.)
 //! 3. Deserialize + restore: `snapshot.restore(factory)` → new `Simulation`
-//! 4. Re-register extensions: `world.register_ext::<T>(name)` per type
+//! 4. Re-register extensions: `world.register_ext::<T>(key)` per type
 //! 5. Load extension data: `sim.load_extensions()`
 //!
 //! For the common case (save-to-disk, load-from-disk), skip the format choice
@@ -394,7 +394,9 @@ pub mod traffic;
 ///
 /// Eliminates the manual `register_ext` ceremony after snapshot restore.
 ///
-/// # Example
+/// # Examples
+///
+/// Name-less form (uses `type_name` automatically):
 ///
 /// ```
 /// use elevator_core::prelude::*;
@@ -408,12 +410,29 @@ pub mod traffic;
 /// struct Priority { rank: u8 }
 ///
 /// let mut sim = SimulationBuilder::demo().build().unwrap();
-/// register_extensions!(sim.world_mut(), VipTag => "vip_tag", Priority => "priority");
+/// register_extensions!(sim.world_mut(), VipTag, Priority);
+/// ```
+///
+/// Named form (explicit storage name per type):
+///
+/// ```
+/// use elevator_core::prelude::*;
+/// use elevator_core::register_extensions;
+/// use serde::{Deserialize, Serialize};
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// struct VipTag { level: u32 }
+///
+/// let mut sim = SimulationBuilder::demo().build().unwrap();
+/// register_extensions!(sim.world_mut(), VipTag => "vip_tag");
 /// ```
 #[macro_export]
 macro_rules! register_extensions {
+    ($world:expr, $($ty:ty),+ $(,)?) => {
+        $( $world.register_ext::<$ty>($crate::world::ExtKey::<$ty>::from_type_name()); )+
+    };
     ($world:expr, $($ty:ty => $name:expr),+ $(,)?) => {
-        $( $world.register_ext::<$ty>($name); )+
+        $( $world.register_ext::<$ty>($crate::world::ExtKey::<$ty>::new($name)); )+
     };
 }
 
@@ -494,6 +513,7 @@ pub mod prelude {
     pub use crate::sim::{RiderBuilder, Simulation};
     pub use crate::stop::{StopId, StopRef};
     pub use crate::time::TimeAdapter;
+    pub use crate::world::ExtKey;
 }
 
 #[cfg(test)]
