@@ -368,6 +368,8 @@ pub struct Simulation {
     hooks: PhaseHooks,
     /// Reusable buffer for elevator IDs (avoids per-tick allocation).
     elevator_ids_buf: Vec<EntityId>,
+    /// Reusable buffer for reposition decisions (avoids per-tick allocation).
+    reposition_buf: Vec<(EntityId, EntityId)>,
     /// Lazy-rebuilt connectivity graph for cross-line topology queries.
     topo_graph: Mutex<TopologyGraph>,
     /// Phase-partitioned reverse index for O(1) population queries.
@@ -1802,6 +1804,7 @@ impl Simulation {
             &ctx,
             &self.groups,
             &mut self.repositioners,
+            &mut self.reposition_buf,
         );
         for group in &self.groups {
             if self.repositioners.contains_key(&group.id()) {

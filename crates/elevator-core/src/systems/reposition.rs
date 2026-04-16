@@ -21,9 +21,8 @@ pub fn run(
     ctx: &PhaseContext,
     groups: &[ElevatorGroup],
     repositioners: &mut BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
+    decisions: &mut Vec<(EntityId, EntityId)>,
 ) {
-    let mut decisions: Vec<(EntityId, EntityId)> = Vec::new();
-
     for group in groups {
         let Some(strategy) = repositioners.get_mut(&group.id()) else {
             continue;
@@ -67,17 +66,9 @@ pub fn run(
         }
 
         decisions.clear();
-        strategy.reposition(
-            &idle_elevators,
-            &stop_positions,
-            group,
-            world,
-            &mut decisions,
-        );
+        strategy.reposition(&idle_elevators, &stop_positions, group, world, decisions);
 
-        for (elev_eid, target_stop) in &decisions {
-            let elev_eid = *elev_eid;
-            let target_stop = *target_stop;
+        for &(elev_eid, target_stop) in decisions.iter() {
             if let Some(car) = world.elevator_mut(elev_eid) {
                 car.phase = ElevatorPhase::Repositioning(target_stop);
                 car.target_stop = Some(target_stop);

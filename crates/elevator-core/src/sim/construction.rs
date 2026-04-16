@@ -169,6 +169,7 @@ impl Simulation {
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
             elevator_ids_buf: Vec::new(),
+            reposition_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index: RiderIndex::default(),
         })
@@ -469,6 +470,7 @@ impl Simulation {
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
             elevator_ids_buf: Vec::new(),
+            reposition_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index,
         }
