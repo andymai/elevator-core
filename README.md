@@ -4,8 +4,9 @@
 [![docs.rs](https://img.shields.io/docsrs/elevator-core)](https://docs.rs/elevator-core)
 [![License](https://img.shields.io/crates/l/elevator-core.svg)](LICENSE-MIT)
 
-Drop-in elevator simulation for Rust games. Five stops or five thousand --
-the same engine handles a hotel lobby and a space elevator.
+Tick-based elevator simulation engine for Rust. Model anything from a
+5-story office building to a space elevator -- stops sit at arbitrary
+positions along a 1D axis, so the physics just scale.
 
 [Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
 
@@ -42,18 +43,12 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-Build a simulation. Spawn a rider. Step the loop. That's it -- dispatch,
-physics, doors, and boarding happen automatically.
+Dispatch, physics, doors, and boarding happen inside `step()`. Your code
+just spawns riders and reacts to events.
 
-## Why this exists
+## Use cases
 
-Most elevator simulators hard-code uniform floors, couple to a specific
-renderer, and leave you fighting the engine when your game needs something
-different. elevator-core gives you **stops at arbitrary positions** along a
-1D axis, **no rendering dependency**, and a trait-based dispatch system you
-can swap or replace in one line.
-
-| You want | elevator-core gives you |
+| You want | How |
 |---|---|
 | Office building with 5 floors | Stops at 0, 4, 8, 12, 16 |
 | Skyscraper with sky lobbies | Multi-group dispatch, express zones |
@@ -66,7 +61,7 @@ can swap or replace in one line.
 
 **Simulation** -- 8-phase tick loop (dispatch, movement, doors, loading, metrics, ...) with deterministic replay. Trapezoidal velocity profiles. Per-elevator physics.
 
-**Dispatch** -- 5 built-in strategies (SCAN, LOOK, Nearest Car, ETD, Destination) plus a `DispatchStrategy` trait for your own. Automatic coordination via optimal matching -- no two cars sent to the same hall call.
+**Dispatch** -- 5 built-in strategies (SCAN, LOOK, Nearest Car, ETD, Destination) plus a `DispatchStrategy` trait for your own. The system coordinates across cars automatically -- no two cars are sent to the same hall call.
 
 **Game integration** -- typed event bus (~25 variants), lifecycle hooks, O(1) population queries, snapshot save/load, manual/inspection modes. Engine-agnostic: works with Bevy, macroquad, egui, WASM, or headless.
 
