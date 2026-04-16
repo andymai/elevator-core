@@ -4,17 +4,48 @@
 
 ---
 
-- [Getting Started](getting-started.md)
-- [Core Concepts](core-concepts.md)
-- [Dispatch Strategies](dispatch.md)
-  - [Writing a Custom Strategy](custom-dispatch.md)
-- [Hall Calls and Car Calls](hall-calls.md)
-- [Extensions and Hooks](extensions-and-hooks.md)
+# Getting Started
+
+- [Quick Start](quick-start.md)
 - [Configuration](configuration.md)
+
+---
+
+# Core Concepts
+
+- [Stops, Lines, and Groups](stops-lines-groups.md)
+- [Elevators](elevators.md)
+- [Riders](riders.md)
+- [Hall Calls and Car Calls](hall-calls.md)
+- [The Simulation Loop](simulation-loop.md)
+
+---
+
+# Common Tasks
+
+- [Dispatch Strategies](dispatch-strategies.md)
+- [Rider Lifecycle](rider-lifecycle.md)
+- [Door Control](door-control.md)
+- [Movement and Physics](movement-physics.md)
+- [Events and Metrics](events-metrics.md)
+- [Error Handling](error-handling.md)
+
+---
+
+# Advanced Topics
+
+- [Writing a Custom Dispatch](custom-dispatch.md)
+- [Extensions](extensions.md)
+- [Lifecycle Hooks](lifecycle-hooks.md)
+- [Manual and Inspection Modes](manual-inspection-modes.md)
 - [Traffic Generation](traffic-generation.md)
-- [Metrics and Events](metrics-and-events.md)
-- [Snapshots and Determinism](snapshots-and-determinism.md)
-- [Performance](performance.md)
-- [API Reference](api-reference.md)
+- [Snapshots and Determinism](snapshots-determinism.md)
+- [Testing Your Simulation](testing.md)
+
+---
+
+# Integration
+
 - [Bevy Integration](bevy-integration.md)
-- [Non-Bevy Integration](non-bevy-integration.md)
+- [Headless and Non-Bevy Usage](headless-non-bevy.md)
+- [Performance](performance.md)

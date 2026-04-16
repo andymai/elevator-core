@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-commit: fmt check, clippy (all features), core tests, doc tests
+# Pre-commit: fmt check, clippy (all features), core tests, doc tests, doc lint
 set -e
 
 echo "pre-commit: checking formatting..."
@@ -13,3 +13,9 @@ cargo test -p elevator-core --all-features --quiet
 
 echo "pre-commit: running doc tests..."
 cargo test -p elevator-core --all-features --doc --quiet
+
+# Lint docs if any docs/ files are staged.
+if git diff --cached --name-only | grep -q '^docs/'; then
+    echo "pre-commit: linting docs..."
+    scripts/lint-docs.sh --quick
+fi
