@@ -265,14 +265,14 @@ For per-zone or per-label breakdowns, you can tag entities with string labels an
 #     .build()?;
 // Tag a stop.
 let lobby = sim.stop_entity(StopId(0)).unwrap();
-sim.tag_entity(lobby, "zone:lobby");
+sim.tag_entity(lobby, "zone:lobby")?;
 
 // Tag a rider (riders auto-inherit tags from their origin stop when spawned).
 let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)?;
 // rider automatically has "zone:lobby" because it was spawned at StopId(0).
 
 // You can also tag manually.
-sim.tag_entity(rider, "priority:vip");
+sim.tag_entity(rider, "priority:vip")?;
 # Ok(())
 # }
 ```
@@ -312,7 +312,7 @@ fn main() -> Result<(), SimError> {
     // Tag stops by zone.
     for (id, tag) in [(0, "zone:low"), (1, "zone:low"), (2, "zone:high"), (3, "zone:high")] {
         if let Some(eid) = sim.stop_entity(StopId(id)) {
-            sim.tag_entity(eid, tag);
+            sim.tag_entity(eid, tag)?;
         }
     }
 
