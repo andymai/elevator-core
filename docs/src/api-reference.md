@@ -11,12 +11,13 @@ This chapter is a quick-reference for the public API of the `elevator-core` crat
 | Category | Items |
 |---|---|
 | Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
-| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Components | `Rider`, `RiderPhase`, `RiderPhaseKind`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode`, `DestinationQueue`, `Direction` |
 | Config | `SimConfig`, `GroupConfig`, `LineConfig` |
-| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Dispatch | `DispatchStrategy`, `RepositionStrategy`, `AssignedCar`, `DestinationDispatch` |
 | Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
-| Identity | `EntityId`, `StopId`, `GroupId` |
-| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Identity | `EntityId`, `StopId`, `StopRef`, `GroupId` |
+| Errors & events | `SimError`, `EtaError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus`, `EventCategory` |
+| Extension | `ExtKey` |
 | Misc | `Metrics`, `TimeAdapter` |
 
 Not in the prelude (import explicitly):

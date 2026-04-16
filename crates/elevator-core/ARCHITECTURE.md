@@ -432,7 +432,7 @@ Extension types must be registered before restoring a snapshot:
 
 ```rust
 world.register_ext::<VipTag>(ExtKey::from_type_name());
-sim.load_extensions(&snapshot.extensions);
+sim.load_extensions();
 ```
 
 Unregistered types are stored in a `PendingExtensions` resource until
@@ -512,7 +512,7 @@ cross-references (elevator riders, rider phases, route legs, group caches).
 Extension components are serialized as `HashMap<String, HashMap<EntityId, String>>`
 (name to entity-RON-string mapping). On restore, this data is stored in a
 `PendingExtensions` resource. After the game registers its extension types
-via `world.register_ext::<T>(name)`, calling `sim.load_extensions()` deserializes
+via `world.register_ext::<T>(ExtKey::from_type_name())`, calling `sim.load_extensions()` deserializes
 and attaches the data.
 
 ### Custom dispatch strategies
