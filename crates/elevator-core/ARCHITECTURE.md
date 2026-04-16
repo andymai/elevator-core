@@ -30,7 +30,7 @@ pub struct World {
     alive:       SlotMap<EntityId, ()>,
 
     // Built-in component storages (one SecondaryMap per component type)
-    positions, velocities, floor_positions,
+    positions, velocities, spatial_positions,
     elevators, riders, stops, routes, lines,
     patience, preferences, access_control,
     destination_queues, service_modes,
