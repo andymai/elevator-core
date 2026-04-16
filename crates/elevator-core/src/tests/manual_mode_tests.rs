@@ -17,8 +17,7 @@ fn make_manual() -> (Simulation, crate::entity::EntityId) {
 #[test]
 fn manual_skips_dispatch() {
     let (mut sim, _elev) = make_manual();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     for _ in 0..500 {
         sim.step();
     }

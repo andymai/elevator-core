@@ -28,7 +28,7 @@ fn main() {
 
     // Spawn 3 riders going up.
     for i in 0..3 {
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(2), f64::from(i).mul_add(5.0, 70.0))
+        sim.spawn_rider(StopId(0), StopId(2), f64::from(i).mul_add(5.0, 70.0))
             .unwrap();
     }
 

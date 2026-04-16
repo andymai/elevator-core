@@ -12,9 +12,7 @@ fn patience_zero_abandons_immediately() {
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
         rider,
         Patience {
@@ -39,9 +37,7 @@ fn patience_one_abandons_after_one_tick() {
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
         rider,
         Patience {
@@ -65,9 +61,7 @@ fn patience_max_never_overflows() {
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
         rider,
         Patience {
@@ -91,14 +85,10 @@ fn preferences_zero_crowding_rejects_any_load() {
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn first rider to create some load.
-    let r1 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Spawn second rider with max_crowding_factor=0.0.
-    let r2 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_preferences(
         r2,
         Preferences {
@@ -152,9 +142,7 @@ fn weight_exactly_at_capacity_boards() {
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // The default config has weight_capacity=800. Spawn a rider weighing exactly 800.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 800.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 800.0).unwrap();
 
     // Run until rider boards or times out.
     let mut boarded = false;

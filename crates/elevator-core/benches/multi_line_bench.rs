@@ -220,7 +220,11 @@ fn bench_multi_group_step(c: &mut Criterion) {
                     let base = g * unique_per_group;
                     let origin = StopId(base + (i / num_groups) % stops_per_line);
                     let dest = StopId(base + ((i / num_groups) + 1) % stops_per_line);
-                    sim.spawn_rider_in_group_by_stop_id(origin, dest, 75.0, GroupId(g))
+                    sim.build_rider(origin, dest)
+                        .unwrap()
+                        .weight(75.0)
+                        .group(GroupId(g))
+                        .spawn()
                         .unwrap();
                 }
                 sim
@@ -241,7 +245,7 @@ fn bench_multi_group_step(c: &mut Criterion) {
                 for i in 0..100u32 {
                     let origin = StopId(i % 50);
                     let dest = StopId((i + 25) % 50);
-                    sim.spawn_rider_by_stop_id(origin, dest, 75.0).unwrap();
+                    sim.spawn_rider(origin, dest, 75.0).unwrap();
                 }
                 sim
             },
@@ -276,7 +280,7 @@ fn bench_cross_group_routing(c: &mut Criterion) {
                     for i in 0..1000u32 {
                         let origin = StopId(i % total_stops);
                         let dest = StopId((i + 1) % total_stops);
-                        let _ = sim.spawn_rider_by_stop_id(origin, dest, 75.0);
+                        let _ = sim.spawn_rider(origin, dest, 75.0);
                     }
                 },
                 criterion::BatchSize::LargeInput,

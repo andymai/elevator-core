@@ -441,7 +441,7 @@ impl SimulationBuilder {
     ///     .build()
     ///     .unwrap();
     ///
-    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
     ///
     /// for _ in 0..1000 {
     ///     sim.step();

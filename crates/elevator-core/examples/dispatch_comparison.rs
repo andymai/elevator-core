@@ -146,7 +146,7 @@ fn run_one<S: DispatchStrategy + 'static>(
         let reqs: Vec<SpawnRequest> = source.generate(tick);
         for req in reqs {
             if sim
-                .spawn_rider_by_stop_id(req.origin, req.destination, req.weight)
+                .spawn_rider(req.origin, req.destination, req.weight)
                 .is_ok()
             {
                 spawned += 1;

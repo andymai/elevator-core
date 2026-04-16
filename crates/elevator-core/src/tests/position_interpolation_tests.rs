@@ -25,8 +25,7 @@ fn position_at_interpolates_between_prev_and_current() {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
     let elev = sim.world().iter_elevators().next().unwrap().0;
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     // Run until the elevator is actually moving (non-zero velocity).
     for _ in 0..200 {
@@ -56,8 +55,7 @@ fn position_at_clamps_alpha_out_of_range() {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
     let elev = sim.world().iter_elevators().next().unwrap().0;
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     for _ in 0..200 {
         sim.step();
         if sim.velocity(elev).is_some_and(|v| v.abs() > 0.01) {
@@ -87,8 +85,7 @@ fn velocity_convenience_matches_world_velocity() {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
     let elev = sim.world().iter_elevators().next().unwrap().0;
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     for _ in 0..50 {
         sim.step();
     }

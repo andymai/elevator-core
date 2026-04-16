@@ -1346,7 +1346,7 @@ mod tests {
             .map(|(s, _)| *s)
             .unwrap();
         for _ in 0..20 {
-            ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
+            ev.sim.spawn_rider(first, last, 75.0).unwrap();
         }
 
         for _ in 0..3000 {
@@ -1422,7 +1422,7 @@ mod tests {
             .map(|(s, _)| *s)
             .unwrap();
         // Spawning a rider in DCS mode populates `HallCall::destination`.
-        ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
+        ev.sim.spawn_rider(first, last, 75.0).unwrap();
 
         let dest_entity = ev.sim.stop_entity(last).expect("dest stop exists");
         let expected_dest_id = entity_to_u64(dest_entity);
@@ -1485,7 +1485,7 @@ mod tests {
             .max_by_key(|(s, _)| s.0)
             .map(|(s, _)| *s)
             .unwrap();
-        ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
+        ev.sim.spawn_rider(first, last, 75.0).unwrap();
 
         // Step a few ticks so all phases complete and events settle.
         for _ in 0..3 {
@@ -1554,15 +1554,9 @@ mod tests {
         // HallButtonPressed + HallCallAcknowledged events.
         let stops: Vec<_> = ev.sim.stop_lookup_iter().map(|(s, _)| *s).collect();
         assert!(stops.len() >= 3);
-        ev.sim
-            .spawn_rider_by_stop_id(stops[0], stops[2], 75.0)
-            .unwrap();
-        ev.sim
-            .spawn_rider_by_stop_id(stops[1], stops[0], 75.0)
-            .unwrap();
-        ev.sim
-            .spawn_rider_by_stop_id(stops[2], stops[0], 75.0)
-            .unwrap();
+        ev.sim.spawn_rider(stops[0], stops[2], 75.0).unwrap();
+        ev.sim.spawn_rider(stops[1], stops[0], 75.0).unwrap();
+        ev.sim.spawn_rider(stops[2], stops[0], 75.0).unwrap();
         assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
 
         // Deliberately small buffer so we force overflow.

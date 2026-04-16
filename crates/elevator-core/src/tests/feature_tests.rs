@@ -19,9 +19,7 @@ fn patience_abandonment_sets_abandoned_phase() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Attach a short patience: abandon after 5 ticks.
     sim.world_mut().set_patience(
@@ -63,9 +61,7 @@ fn patience_abandonment_does_not_fire_before_limit() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     sim.world_mut().set_patience(
         rider,
@@ -98,9 +94,7 @@ fn waited_ticks_increments_each_step() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     sim.world_mut().set_patience(
         rider,
@@ -139,9 +133,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
 
     // Spawn a "ballast" rider that will fill the elevator to > 50 % capacity.
     // 60 kg / 100 kg = 0.60 load ratio — above our crowding threshold.
-    let ballast = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 60.0)
-        .unwrap();
+    let ballast = sim.spawn_rider(StopId(0), StopId(2), 60.0).unwrap();
 
     // Run until the ballast has boarded (is Riding).
     let max_ticks = 5_000;
@@ -163,9 +155,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
     );
 
     // Now spawn the picky rider with skip_full_elevator = true and a strict factor.
-    let picky = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 30.0)
-        .unwrap();
+    let picky = sim.spawn_rider(StopId(0), StopId(2), 30.0).unwrap();
     sim.world_mut().set_preferences(
         picky,
         Preferences {
@@ -222,9 +212,7 @@ fn preferences_boards_when_elevator_not_too_crowded() {
 
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 30.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 30.0).unwrap();
 
     // max_crowding_factor 0.5: current_load 0.0 / 100.0 = 0.0 — well below.
     sim.world_mut().set_preferences(
@@ -428,9 +416,7 @@ fn disable_elevator_ejects_riding_passenger_to_waiting() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Run until the rider is Riding.
     let max_ticks = 5_000;
@@ -495,8 +481,7 @@ fn disable_elevator_clears_its_rider_list() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let elev = sim.world().elevator_ids()[0];
 
@@ -784,9 +769,9 @@ fn weight_rejection_boundary() {
 
     // Spawn rider1 (weight 60) and rider2 (weight 60) at stop 0 → stop 1.
     // Combined = 120, exceeds capacity 100. Only one should board.
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
+    sim.spawn_rider(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
         .unwrap();
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
+    sim.spawn_rider(crate::stop::StopId(0), crate::stop::StopId(1), 60.0)
         .unwrap();
 
     // Run enough ticks for loading to happen.
@@ -875,7 +860,7 @@ fn passing_floor_events_emitted() {
         crate::sim::Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new()).unwrap();
 
     // Spawn a rider from stop 0 to stop 4 to trigger dispatch.
-    sim.spawn_rider_by_stop_id(crate::stop::StopId(0), crate::stop::StopId(4), 70.0)
+    sim.spawn_rider(crate::stop::StopId(0), crate::stop::StopId(4), 70.0)
         .unwrap();
 
     // Run enough ticks for the elevator to reach the destination.

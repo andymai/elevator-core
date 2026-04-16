@@ -77,7 +77,7 @@ fn make_sim(num_stops: u32, num_elevators: u32, num_riders: u32) -> Simulation {
     for i in 0..num_riders {
         let origin = StopId(i % num_stops);
         let dest = StopId((i + 1) % num_stops);
-        sim.spawn_rider_by_stop_id(origin, dest, 75.0).unwrap();
+        sim.spawn_rider(origin, dest, 75.0).unwrap();
     }
 
     sim

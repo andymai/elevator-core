@@ -167,9 +167,7 @@ fn sticky_assignment_persists_across_ticks() {
     sim.world_mut()
         .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
 
-    let rid = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     sim.step();
     let first = sim.world().get_ext::<AssignedCar>(rid);
@@ -225,9 +223,7 @@ fn loading_respects_assignment_other_car_skips() {
     let car_b = elevs.iter().copied().find(|e| *e != car_a).unwrap();
 
     // Rider wants to go from F2 (pos 4) to F3 (pos 8).
-    let rid = sim
-        .spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
-        .unwrap();
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
 
     // Force sticky assignment to car B (the one at pos 12, farther away)
     // and seed B's queue with the rider's pickup + drop-off so DCS's normal
@@ -271,7 +267,7 @@ fn loading_respects_assignment_other_car_skips() {
 fn unassigned_manual_board_riders_still_work() {
     // A rider without a Route has no destination known at hall-call time,
     // so DCS must not assign them. The existing manual-board behaviour
-    // (attach rider via `build_rider_by_stop_id` with no destination) must
+    // (attach rider via `build_rider` with no destination) must
     // be preserved.
     let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
     for g in sim.groups_mut() {
@@ -281,9 +277,7 @@ fn unassigned_manual_board_riders_still_work() {
         .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
 
     // Standard spawn: has a Route → DCS should assign.
-    let routed = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let routed = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     // Manual rider: set up a rider at stop 0 without a Route. We do this by
     // spawning and then removing the Route component via world mutation
@@ -334,9 +328,7 @@ fn closer_car_is_preferred_when_matching_direction() {
         .unwrap();
 
     // Rider at F2 → F3: pickup distance to car A = 4, to car B = 8.
-    let rid = sim
-        .spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
-        .unwrap();
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
 
     sim.step();
     let assigned = sim
@@ -357,9 +349,7 @@ fn up_peak_scenario_delivers_all_riders() {
     let mut riders = Vec::new();
     for i in 0..20 {
         let dest = StopId(1 + (i % 3));
-        let rid = sim
-            .spawn_rider_by_stop_id(StopId(0), dest, 75.0)
-            .expect("spawn");
+        let rid = sim.spawn_rider(StopId(0), dest, 75.0).expect("spawn");
         riders.push(rid);
     }
 
@@ -404,9 +394,7 @@ fn dcs_gated_to_destination_mode() {
     sim.world_mut()
         .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
 
-    let rid = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     // Step enough ticks that DCS would have assigned by now in Destination
     // mode. In Classic it stays None because pre_dispatch early-returns.

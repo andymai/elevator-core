@@ -12,7 +12,7 @@
 //! struct VipTag { level: u32 }
 //!
 //! let mut sim = SimulationBuilder::demo().build().unwrap();
-//! let rider_eid = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
+//! let rider_eid = sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 //!
 //! // Attach an extension component.
 //! sim.world_mut().insert_ext(rider_eid, VipTag { level: 5 }, "vip_tag");

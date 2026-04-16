@@ -54,7 +54,7 @@ fn spawn_wave(sim: &mut Simulation, tick: u64) {
     } else {
         (StopId(2), StopId(0))
     };
-    let _ = sim.spawn_rider_by_stop_id(o, d, 75.0);
+    let _ = sim.spawn_rider(o, d, 75.0);
 }
 
 fn run_baseline() -> (u64, f64) {
