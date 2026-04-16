@@ -53,6 +53,9 @@ Override any `ElevatorConfig` field with struct-update syntax -- `ElevatorConfig
 | `starting_stop` | `StopId` | Where this elevator starts | -- |
 | `door_open_ticks` | `u32` | Ticks doors stay fully open | `10` |
 | `door_transition_ticks` | `u32` | Ticks for a door open/close transition | `5` |
+| `restricted_stops` | `Vec<StopId>` | Stops this elevator cannot serve | `[]` |
+| `service_mode` | `Option<ServiceMode>` | Initial service mode | `None` (Normal) |
+| `inspection_speed_factor` | `f64` | Speed multiplier in Inspection mode | `0.25` |
 
 ## RON config files
 

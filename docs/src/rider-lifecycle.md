@@ -151,7 +151,7 @@ The simulation maintains a reverse index (`RiderIndex`) for O(1) per-stop popula
 | `sim.residents_at(stop)` | Riders settled as residents at a stop |
 | `sim.abandoned_at(stop)` | Riders who gave up waiting at a stop |
 
-Each returns a slice of `EntityId`s. Use `.len()` for counts.
+Each returns an iterator of `EntityId` values. Use `.count()` for totals or `.collect::<Vec<_>>()` to materialize.
 
 These queries are useful for game logic (spawn limits, crowd visualization), dispatch strategies (demand weighting), and analytics (per-floor breakdowns).
 

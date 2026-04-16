@@ -150,7 +150,9 @@ for event in sim.drain_events() {
         match reason {
             RejectionReason::OverCapacity => {
                 // Show "elevator full" indicator in game UI.
-                println!("[{tick}] {rider:?} rejected from {elevator:?}: {context}");
+                if let Some(ctx) = &context {
+                    println!("[{tick}] {rider:?} rejected from {elevator:?}: {ctx}");
+                }
             }
             RejectionReason::AccessDenied => {
                 // Flash "access denied" on the panel.

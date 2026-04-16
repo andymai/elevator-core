@@ -60,13 +60,13 @@ The simulation maintains a reverse index (`RiderIndex`) that tracks riders at ea
 
 ```rust,ignore
 // Who is waiting at the lobby?
-let waiting: &[EntityId] = sim.waiting_at(lobby_entity);
+let waiting: Vec<EntityId> = sim.waiting_at(lobby_entity).collect();
 
 // How many residents live on floor 10?
-let count = sim.residents_at(floor_10).len();
+let count = sim.residents_at(floor_10).count();
 
 // Did anyone abandon at this stop?
-let abandoned: &[EntityId] = sim.abandoned_at(stop_entity);
+let abandoned: Vec<EntityId> = sim.abandoned_at(stop_entity).collect();
 ```
 
 These three methods cover the main population categories:

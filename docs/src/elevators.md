@@ -98,6 +98,9 @@ When constructing elevators, use `ElevatorConfig` to set initial parameters:
 | `starting_stop` | `StopId` | Where this elevator starts | -- |
 | `door_open_ticks` | `u32` | Ticks doors stay fully open | `10` |
 | `door_transition_ticks` | `u32` | Ticks for a door open/close transition | `5` |
+| `restricted_stops` | `Vec<StopId>` | Stops this elevator cannot serve | `[]` |
+| `service_mode` | `Option<ServiceMode>` | Initial service mode | `None` (Normal) |
+| `inspection_speed_factor` | `f64` | Speed multiplier in Inspection mode | `0.25` |
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -125,6 +128,21 @@ When constructing elevators, use `ElevatorConfig` to set initial parameters:
 ```
 
 All physics parameters must be positive. Invalid values are rejected at build time with `SimError::InvalidConfig`.
+
+## Runtime upgrades
+
+Physics parameters, capacity, and door timing can be changed on a running elevator. This is useful for tycoon-style games where players upgrade elevators:
+
+```rust,ignore
+sim.set_max_speed(elev, 4.0.into())?;
+sim.set_acceleration(elev, 2.5.into())?;
+sim.set_deceleration(elev, 3.0.into())?;
+sim.set_weight_capacity(elev, 1500.0.into())?;
+sim.set_door_open_ticks(elev, 30)?;
+sim.set_door_transition_ticks(elev, 8)?;
+```
+
+Each setter emits an `ElevatorUpgraded` event with the field name, old value, and new value. Changes take effect on the next tick.
 
 ## Door state machine
 

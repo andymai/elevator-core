@@ -108,7 +108,7 @@ The example above steps the sim once per rendered frame. If you want the sim to 
 
 ```rust,ignore
 let mut tick_accumulator = 0.0_f64;
-let tick_interval = 1.0 / sim.time_adapter().ticks_per_second();
+let tick_interval = 1.0 / sim.time().ticks_per_second();
 
 loop {
     tick_accumulator += get_frame_time() as f64;

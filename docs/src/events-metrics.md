@@ -11,7 +11,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `ElevatorDeparted { elevator, from_stop, tick }` | An elevator leaves a stop |
 | `ElevatorArrived { elevator, at_stop, tick }` | An elevator arrives at a stop |
 | `ElevatorAssigned { elevator, stop, tick }` | Dispatch assigns an elevator to a stop |
-| `ElevatorIdle { elevator, at_stop, tick }` | An elevator became idle |
+| `ElevatorIdle { elevator, at_stop: Option, tick }` | An elevator became idle (`at_stop` is `None` if not at a stop) |
 | `ElevatorRepositioning { elevator, to_stop, tick }` | An idle elevator begins repositioning |
 | `ElevatorRepositioned { elevator, at_stop, tick }` | An elevator completed repositioning |
 | `DoorOpened { elevator, tick }` | Doors finish opening |
@@ -22,6 +22,9 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `CapacityChanged { elevator, current_load, capacity, tick }` | An elevator's load changed |
 | `DirectionIndicatorChanged { elevator, going_up, going_down, tick }` | Direction lamps changed |
 | `DestinationQueued { elevator, stop, tick }` | A stop was pushed onto the destination queue |
+| `ServiceModeChanged { elevator, from, to, tick }` | Elevator service mode changed |
+| `ElevatorUpgraded { elevator, field, old, new, tick }` | A runtime upgrade was applied (e.g., `set_max_speed`) |
+| `ManualVelocityCommanded { elevator, target_velocity, tick }` | A manual velocity command was issued |
 
 ### Rider events
 
@@ -32,7 +35,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `RiderExited { rider, elevator, stop, tick }` | A rider exits at their destination |
 | `RiderRejected { rider, elevator, reason, context, tick }` | A rider was refused boarding |
 | `RiderAbandoned { rider, stop, tick }` | A rider gave up waiting |
-| `RiderBalked { rider, elevator, stop, tick }` | A rider skipped a crowded car (may still board the next) |
+| `RiderBalked { rider, elevator, at_stop, tick }` | A rider skipped a crowded car (may still board the next) |
 | `RiderEjected { rider, elevator, stop, tick }` | A rider was ejected (elevator disabled) |
 | `RiderSettled { rider, stop, tick }` | A rider settled as a resident |
 | `RiderDespawned { rider, tick }` | A rider was removed from the simulation |
@@ -42,8 +45,8 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 
 | Event | When it fires |
 |---|---|
-| `StopAdded { stop, group, tick }` | A stop was added at runtime |
-| `ElevatorAdded { elevator, group, tick }` | An elevator was added at runtime |
+| `StopAdded { stop, line, group, tick }` | A stop was added at runtime |
+| `ElevatorAdded { elevator, line, group, tick }` | An elevator was added at runtime |
 | `EntityDisabled { entity, tick }` | An entity was disabled |
 | `EntityEnabled { entity, tick }` | An entity was re-enabled |
 | `RouteInvalidated { rider, affected_stop, reason, tick }` | A rider's route was broken by a topology change |
@@ -51,6 +54,8 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `LineRemoved { line, group, tick }` | A line was removed |
 | `LineReassigned { line, old_group, new_group, tick }` | A line moved between groups |
 | `ElevatorReassigned { elevator, old_line, new_line, tick }` | An elevator moved between lines |
+| `StopRemoved { stop, tick }` | A stop was removed |
+| `ElevatorRemoved { elevator, line, group, tick }` | An elevator was removed |
 
 ### Dispatch events
 
@@ -58,8 +63,8 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 |---|---|
 | `HallButtonPressed { stop, direction, tick }` | First press per (stop, direction) |
 | `HallCallAcknowledged { stop, direction, tick }` | Ack-latency window elapsed |
-| `HallCallCleared { stop, direction, tick }` | Assigned car opened doors at stop |
-| `CarButtonPressed { car, stop, rider, tick }` | Floor button pressed inside a car |
+| `HallCallCleared { stop, direction, car, tick }` | Assigned car opened doors at stop |
+| `CarButtonPressed { car, floor, rider: Option, tick }` | Floor button pressed inside a car |
 
 ## Draining events
 
