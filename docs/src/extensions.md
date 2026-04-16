@@ -104,13 +104,13 @@ for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() {
     println!("{:?} is VIP level {}", id, vip.level);
 }
 
-// Mutable access (keys-snapshot pattern via query_ext_mut)
+// Mutable access
 world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| {
     tag.level += 1;
 });
 ```
 
-The mutable query uses a keys-snapshot pattern internally -- it collects entity IDs first, then iterates with mutable borrows -- so it is safe to use without aliasing issues.
+The mutable query collects entity IDs first, then iterates with mutable borrows, so it is safe to use without aliasing issues.
 
 ## World resources
 

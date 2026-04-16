@@ -119,7 +119,7 @@ The speed factor is configured per elevator via `ElevatorConfig::inspection_spee
 
 ## Independent mode
 
-Independent mode removes the elevator from automatic dispatch and repositioning. The consumer controls movement via direct API calls (e.g., `push_destination`). The elevator responds only to car calls -- explicit stop requests -- not to hall calls from waiting riders.
+Independent mode removes the elevator from automatic dispatch and repositioning. You control movement via direct API calls (e.g., `push_destination`). The elevator responds only to car calls -- explicit stop requests -- not to hall calls from waiting riders.
 
 This is useful for freight elevators, service lifts, or any elevator that should only move when explicitly commanded:
 

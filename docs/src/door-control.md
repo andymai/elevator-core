@@ -95,7 +95,7 @@ Riders can only board or exit when the doors are **fully open** (`DoorState::Ope
 2. Loading phase checks all elevators in `Loading` phase. One rider action per elevator per tick: exit takes priority over boarding.
 3. When the hold timer expires, doors begin closing. No more boarding until the next door-open cycle.
 
-This means that the total number of riders that can board per stop visit is bounded by `door_open_ticks` -- one rider per tick while doors are open. If you need faster throughput, increase `door_open_ticks` or reduce rider counts.
+Since only one rider boards per tick and doors close after `door_open_ticks` ticks, the maximum riders boarding per stop visit equals `door_open_ticks`. If riders are queueing up, increase `door_open_ticks` to let more board per visit.
 
 ## Next steps
 

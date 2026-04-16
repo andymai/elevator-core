@@ -73,7 +73,7 @@ Group-specific hooks run alongside global hooks for the same phase; all `before`
 
 ## What hooks can and can't do
 
-Hooks receive `&mut World` -- not `&mut Simulation`. This is an intentional constraint:
+Hooks receive `&mut World` -- not `&mut Simulation`. This means:
 
 **You can:**
 - Read and mutate any component (`world.rider(id)`, `world.elevator_mut(id)`)

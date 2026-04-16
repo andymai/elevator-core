@@ -37,8 +37,8 @@ Each rider is in one phase at a time. The phases and their transitions are cover
 | `Boarding` | Being loaded into an elevator (transient, one tick) |
 | `Riding` | Inside an elevator |
 | `Exiting` | Leaving an elevator (transient, one tick) |
-| `Arrived` | Reached destination -- consumer decides next step |
-| `Abandoned` | Gave up waiting -- consumer can settle or despawn |
+| `Arrived` | Reached destination -- your game decides next step |
+| `Abandoned` | Gave up waiting -- your game can settle or despawn |
 | `Resident` | Parked at a stop, not seeking an elevator |
 
 Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`, `RiderSettled`, `RiderRerouted`, `RiderDespawned`.

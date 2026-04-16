@@ -38,7 +38,7 @@ The dispatch strategy examines demand and idle elevators, then decides where eac
 
 1. Builds a `DispatchManifest` from current rider state -- who is waiting where, who is riding to where.
 2. Calls each group's `DispatchStrategy::rank()` for every idle/stopped elevator paired with every demanded stop.
-3. Runs the Hungarian (Kuhn-Munkres) solver to produce globally optimal assignments.
+3. Solves the optimal assignment so no two cars are sent to the same hall call.
 4. Applies assignments: elevators transition to `MovingToStop(stop)`.
 5. Updates direction indicators based on target position vs. current position.
 

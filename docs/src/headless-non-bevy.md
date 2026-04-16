@@ -10,7 +10,7 @@ Integrating `elevator-core` into any host comes down to three things:
 
 1. **Build the `Simulation` once**, up front. `SimulationBuilder::new()` or `SimulationBuilder::from_config(config)` then `.build()`. Keep the `Simulation` as state in your engine's scene / app struct / actor.
 
-2. **Drive the tick loop.** Call `sim.step()` each frame (or on a fixed-timestep accumulator, if you want to decouple sim rate from render rate). `Simulation::step()` is pure over world state -- no I/O, no wall-clock dependency, no engine-specific globals.
+2. **Drive the tick loop.** Call `sim.step()` each frame (or on a fixed-timestep accumulator, if you want to decouple sim rate from render rate). `Simulation::step()` only reads and writes the internal world state -- no I/O, no wall-clock dependency, no engine-specific globals.
 
 3. **Read state out, inject input in.**
    - **Read state:** `sim.world()` returns a `World` you can query via `query::<(EntityId, &Rider, &Position)>()` for rendering, or via typed accessors (`world.elevator(id)`, `world.stop_position(id)`).

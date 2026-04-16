@@ -6,7 +6,7 @@ This chapter is a narrative tutorial that walks from a minimal strategy to a pro
 
 ## How dispatch works
 
-Strategies express preference as a cost on each `(car, stop)` pair. The dispatch system collects those costs into a matrix and runs an optimal bipartite matching (Hungarian / Kuhn-Munkres) across the whole group, guaranteeing that two cars can never be sent to the same hall call. Cars left unassigned fall through to `fallback` for per-car policy (idle, park, etc.).
+Strategies express preference as a cost on each `(car, stop)` pair. The dispatch system collects those costs into a matrix and solves the optimal assignment across the whole group, guaranteeing that two cars are never sent to the same hall call. Cars left unassigned fall through to `fallback` for per-car policy (idle, park, etc.). (The solver is the Hungarian / Kuhn-Munkres algorithm -- you don't need to know how it works, just that it finds the globally optimal matching.)
 
 ```mermaid
 flowchart LR
@@ -97,7 +97,7 @@ impl DispatchStrategy for BusyStopNearest {
         let distance = (ctx.car_position - ctx.stop_position).abs();
         let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
         // Subtract a crowding bonus so busier stops look cheaper. Clamp
-        // so Hungarian never sees a negative cost.
+        // so the solver never sees a negative cost.
         Some((distance - waiting).max(0.0))
     }
 }

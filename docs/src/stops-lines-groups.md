@@ -92,7 +92,7 @@ let lobby_entity: Option<EntityId> = sim.stop_entity(StopId(0));
 ## Coordinate system
 
 - **Axis.** All positions are scalars along a single 1D axis. Higher values mean higher up (or further along for horizontal configurations). There is no 2D/3D geometry in the core.
-- **Units.** Unspecified -- positions, velocities, accelerations, and weights are `f64` values. Keep them internally consistent. Convention: meters, kilograms, ticks.
+- **Units.** Unspecified -- positions, velocities, accelerations, and weights are `f64` values. Keep them internally consistent. The suggested convention is meters, kilograms, and ticks, but the library does not enforce this.
 - **Origin.** No privileged zero. Stop 0 does not have to be at position 0.0. Negative positions are allowed.
 
 ## Time
