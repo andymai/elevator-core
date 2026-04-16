@@ -20,6 +20,31 @@
 #define EV_ABI_VERSION 1
 
 /**
+ * `Event::HallButtonPressed`.
+ */
+#define HALL_BUTTON_PRESSED 1
+
+/**
+ * `Event::HallCallAcknowledged`.
+ */
+#define HALL_CALL_ACKNOWLEDGED 2
+
+/**
+ * `Event::HallCallCleared`.
+ */
+#define HALL_CALL_CLEARED 3
+
+/**
+ * `Event::CarButtonPressed`.
+ */
+#define CAR_BUTTON_PRESSED 4
+
+/**
+ * `Event::RiderBalked`.
+ */
+#define RIDER_BALKED 5
+
+/**
  * Status code returned by every FFI entrypoint.
  */
 typedef enum EvStatus {
@@ -308,6 +333,52 @@ typedef struct EvHallCall {
 } EvHallCall;
 
 /**
+ * C-ABI-flat projection of the five hall-call / car-call / balk
+ * events emitted by the simulation.
+ *
+ * All entity-id fields use `0` to mean "not applicable for this
+ * event kind" (real entity ids are never zero under the FFI
+ * encoding). The `kind` discriminator picks which fields are
+ * meaningful — see [`ev_event_kind`] for the kind constants and the
+ * [`ev_sim_drain_events`] docs for the per-kind field map.
+ */
+typedef struct EvEvent {
+    /**
+     * Event kind discriminator. Values outside [`ev_event_kind`] are
+     * reserved — ignore unknown kinds for forward compatibility.
+     */
+    uint8_t kind;
+    /**
+     * Direction for hall-call events: `1` = Up, `-1` = Down, `0` = N/A.
+     */
+    int8_t direction;
+    /**
+     * Tick the event was emitted on.
+     */
+    uint64_t tick;
+    /**
+     * Stop entity id. Meaningful for all three hall-call kinds and
+     * for `RiderBalked` (as the balk site). `0` for `CarButtonPressed`.
+     */
+    uint64_t stop;
+    /**
+     * Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
+     * `RiderBalked.elevator`. `0` for kinds that don't carry a car.
+     */
+    uint64_t car;
+    /**
+     * Rider entity id. `CarButtonPressed.rider` (may be `0` for
+     * synthetic presses), `RiderBalked.rider`. `0` otherwise.
+     */
+    uint64_t rider;
+    /**
+     * Floor entity id for `CarButtonPressed` (the requested stop).
+     * `0` for every other kind.
+     */
+    uint64_t floor;
+} EvEvent;
+
+/**
  * Return the ABI version compiled into this shared library.
  */
 uint32_t ev_abi_version(void);
@@ -510,5 +581,46 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
                                          struct EvHallCall *out,
                                          uint32_t capacity,
                                          uint32_t *out_written);
+
+/**
+ * Drain pending hall-call / car-call / balk events into `out`.
+ *
+ * This is the FFI mirror of `Simulation::drain_events` filtered to
+ * the five events added by the hall-call work: every call produced
+ * by the simulation before the drain is written exactly once, then
+ * removed from the internal queue. Call after `ev_sim_step` each
+ * tick to catch new events; the buffer is caller-owned, so the
+ * ownership contract differs from the `ev_sim_frame` borrowed-view
+ * path.
+ *
+ * Field meanings by [`EvEvent::kind`]:
+ * - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
+ *   `direction`, `tick`.
+ * - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
+ * - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
+ *   synthetic presses), `tick`.
+ * - `RIDER_BALKED`: `rider`, `car` (the elevator declined), `stop`
+ *   (the balk site), `tick`.
+ *
+ * Unused fields for each kind are zeroed so the caller can inspect
+ * a uniform struct layout. Other event kinds in the sim (door
+ * transitions, rider spawns, etc.) are not drained here — they'd
+ * inflate the matrix and every FFI consumer would have to pay the
+ * cost regardless of whether they care. Future kinds can be added
+ * with a new discriminator value.
+ *
+ * The buffer is filled up to `capacity`; any remaining events are
+ * dropped from the sim's queue (caller-chosen buffer size is the
+ * contract). Returns the number written in `out_written`.
+ *
+ * # Safety
+ *
+ * `handle`, `out`, and `out_written` must be valid pointers. `out`
+ * must point to a buffer of at least `capacity` [`EvEvent`]s.
+ */
+enum EvStatus ev_sim_drain_events(struct EvSim *handle,
+                                  struct EvEvent *out,
+                                  uint32_t capacity,
+                                  uint32_t *out_written);
 
 #endif  /* ELEVATOR_FFI_H */

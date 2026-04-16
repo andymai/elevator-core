@@ -58,6 +58,28 @@ internal static class Native
         public EvMetricsView metrics;
     }
 
+    // Kind discriminator values for EvEvent. See crates/elevator-ffi/src/lib.rs::ev_event_kind.
+    public const byte EV_HALL_BUTTON_PRESSED = 1;
+    public const byte EV_HALL_CALL_ACKNOWLEDGED = 2;
+    public const byte EV_HALL_CALL_CLEARED = 3;
+    public const byte EV_CAR_BUTTON_PRESSED = 4;
+    public const byte EV_RIDER_BALKED = 5;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct EvEvent
+    {
+        public byte kind;
+        public sbyte direction;
+        // 6 bytes of natural padding before `tick` on every target the
+        // harness runs on (linux-x64, win-x64, osx-arm64); the repr(C)
+        // layout on the Rust side lines up with default-pack LayoutKind.Sequential.
+        public ulong tick;
+        public ulong stop;
+        public ulong car;
+        public ulong rider;
+        public ulong floor;
+    }
+
     [DllImport(Lib)] public static extern uint ev_abi_version();
     [DllImport(Lib)] public static extern IntPtr ev_last_error();
     [DllImport(Lib)] public static extern IntPtr ev_sim_create([MarshalAs(UnmanagedType.LPUTF8Str)] string path);
@@ -65,6 +87,9 @@ internal static class Native
     [DllImport(Lib)] public static extern EvStatus ev_sim_step(IntPtr handle);
     [DllImport(Lib)] public static extern EvStatus ev_sim_frame(IntPtr handle, out EvFrame outFrame);
     [DllImport(Lib)] public static extern EvStatus ev_sim_set_strategy(IntPtr handle, uint groupId, EvStrategy strategy);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_drain_events(
+        IntPtr handle, [Out] EvEvent[] outBuf, uint capacity, out uint outWritten);
 
     public static string LastError()
     {
@@ -135,6 +160,19 @@ internal static class Program
             Console.WriteLine($"  abandoned: {frame.metrics.total_abandoned}");
             Console.WriteLine($"  avg wait:  {frame.metrics.avg_wait_seconds:F2}s");
             Console.WriteLine($"  avg ride:  {frame.metrics.avg_ride_seconds:F2}s");
+
+            // Exercise the event-drain ABI. The default config doesn't
+            // auto-spawn riders so the drained count may legitimately be
+            // zero — the point is to prove the struct layout and status
+            // code wire up across the boundary.
+            var eventBuf = new Native.EvEvent[64];
+            var evStatus = Native.ev_sim_drain_events(handle, eventBuf, (uint)eventBuf.Length, out var drained);
+            if (evStatus != Native.EvStatus.Ok)
+            {
+                Console.Error.WriteLine($"ev_sim_drain_events: {evStatus} ({Native.LastError()})");
+                return 1;
+            }
+            Console.WriteLine($"  drained events: {drained}");
 
             if (frame.metrics.current_tick == 0)
             {
