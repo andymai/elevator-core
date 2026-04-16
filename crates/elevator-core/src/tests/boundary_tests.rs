@@ -245,44 +245,39 @@ fn weight_exactly_at_capacity_after_partial_load_boards() {
 
 #[test]
 fn weight_exceeds_capacity_by_epsilon_rejects() {
-    // A rider that exceeds remaining capacity by the smallest practical amount
-    // should be rejected (not boarded).
     let config = default_config(); // capacity = 800
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    // First rider: 799.5 kg. Leaves 0.5 remaining.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 799.5).unwrap();
-    // Second rider: 0.5 + a small overshoot.
     let r2 = sim.spawn_rider(StopId(0), StopId(2), 0.500001).unwrap();
 
-    // Run until r1 boards.
-    for _ in 0..500 {
+    // Run until r1 is aboard.
+    for _ in 0..100 {
         sim.step();
         if sim
             .world()
             .rider(r1.entity())
-            .is_some_and(|r| matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived))
+            .is_some_and(|r| matches!(r.phase, RiderPhase::Riding(_)))
         {
             break;
         }
     }
 
-    // Continue stepping — r2 should never board because 0.500001 > 0.5 remaining.
-    for _ in 0..500 {
-        sim.step();
-    }
+    assert!(
+        sim.world()
+            .rider(r1.entity())
+            .is_some_and(|r| matches!(r.phase, RiderPhase::Riding(_))),
+        "r1 should be riding by now"
+    );
 
-    // Verify the elevator never exceeded capacity during the run.
-    // (The proptest already covers this, but we check the specific rider.)
-    let r2_phase = sim.world().rider(r2.entity()).map(|r| r.phase);
-    // r2 should still be Waiting (never boarded) or potentially Rejected.
-    // It should NOT be Riding or Arrived.
-    if let Some(phase) = r2_phase {
-        assert!(
-            !matches!(phase, RiderPhase::Riding(_) | RiderPhase::Arrived),
-            "rider exceeding capacity by epsilon should not board, but phase is {phase:?}"
-        );
-    }
+    let rejected = sim
+        .drain_events()
+        .into_iter()
+        .any(|e| matches!(e, Event::RiderRejected { rider, .. } if rider == r2.entity()));
+    assert!(
+        rejected,
+        "r2 (0.500001 kg) should be rejected while remaining capacity is 0.5 kg"
+    );
 }
 
 #[test]
