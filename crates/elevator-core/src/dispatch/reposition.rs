@@ -32,9 +32,10 @@ impl RepositionStrategy for SpreadEvenly {
         stop_positions: &[(EntityId, f64)],
         group: &ElevatorGroup,
         world: &World,
-    ) -> Vec<(EntityId, EntityId)> {
+        out: &mut Vec<(EntityId, EntityId)>,
+    ) {
         if idle_elevators.is_empty() || stop_positions.is_empty() {
-            return Vec::new();
+            return;
         }
 
         // Collect positions of all non-idle elevators in this group.
@@ -42,7 +43,6 @@ impl RepositionStrategy for SpreadEvenly {
             .elevator_entities()
             .iter()
             .filter_map(|&eid| {
-                // Skip idle elevators — they're the ones we're repositioning.
                 if idle_elevators.iter().any(|(ie, _)| *ie == eid) {
                     return None;
                 }
@@ -50,10 +50,7 @@ impl RepositionStrategy for SpreadEvenly {
             })
             .collect();
 
-        let mut results = Vec::new();
-
         for &(elev_eid, elev_pos) in idle_elevators {
-            // Find the stop that maximizes min distance from all occupied positions.
             let best = stop_positions.iter().max_by(|a, b| {
                 let min_a = min_distance_to(a.1, &occupied);
                 let min_b = min_distance_to(b.1, &occupied);
@@ -62,13 +59,11 @@ impl RepositionStrategy for SpreadEvenly {
 
             if let Some(&(stop_eid, stop_pos)) = best {
                 if (stop_pos - elev_pos).abs() > 1e-6 {
-                    results.push((elev_eid, stop_eid));
+                    out.push((elev_eid, stop_eid));
                 }
                 occupied.push(stop_pos);
             }
         }
-
-        results
     }
 }
 
@@ -111,16 +106,18 @@ impl RepositionStrategy for ReturnToLobby {
         stop_positions: &[(EntityId, f64)],
         _group: &ElevatorGroup,
         _world: &World,
-    ) -> Vec<(EntityId, EntityId)> {
+        out: &mut Vec<(EntityId, EntityId)>,
+    ) {
         let Some(&(home_eid, home_pos)) = stop_positions.get(self.home_stop_index) else {
-            return Vec::new();
+            return;
         };
 
-        idle_elevators
-            .iter()
-            .filter(|(_, pos)| (*pos - home_pos).abs() > 1e-6)
-            .map(|&(eid, _)| (eid, home_eid))
-            .collect()
+        out.extend(
+            idle_elevators
+                .iter()
+                .filter(|(_, pos)| (*pos - home_pos).abs() > 1e-6)
+                .map(|&(eid, _)| (eid, home_eid)),
+        );
     }
 }
 
@@ -138,12 +135,12 @@ impl RepositionStrategy for DemandWeighted {
         stop_positions: &[(EntityId, f64)],
         group: &ElevatorGroup,
         world: &World,
-    ) -> Vec<(EntityId, EntityId)> {
+        out: &mut Vec<(EntityId, EntityId)>,
+    ) {
         if idle_elevators.is_empty() || stop_positions.is_empty() {
-            return Vec::new();
+            return;
         }
 
-        // Build demand weights from tagged metrics.
         let tags = world.resource::<MetricTags>();
         let mut scored_stops: Vec<(EntityId, f64, f64)> = stop_positions
             .iter()
@@ -156,14 +153,12 @@ impl RepositionStrategy for DemandWeighted {
                             .max()
                     })
                     .unwrap_or(0) as f64;
-                (stop_eid, stop_pos, demand + 1.0) // +1 to avoid zero weights
+                (stop_eid, stop_pos, demand + 1.0)
             })
             .collect();
 
-        // Sort by demand descending — highest demand stops get elevators first.
         scored_stops.sort_by(|a, b| b.2.total_cmp(&a.2));
 
-        // Collect non-idle elevator positions.
         let mut occupied: Vec<f64> = group
             .elevator_entities()
             .iter()
@@ -175,16 +170,13 @@ impl RepositionStrategy for DemandWeighted {
             })
             .collect();
 
-        let mut results = Vec::new();
         let mut assigned_elevators: Vec<EntityId> = Vec::new();
 
         for (stop_eid, stop_pos, _demand) in &scored_stops {
-            // Skip if there's already an elevator near this stop.
             if min_distance_to(*stop_pos, &occupied) < 1e-6 {
                 continue;
             }
 
-            // Find the closest unassigned idle elevator.
             let closest = idle_elevators
                 .iter()
                 .filter(|(eid, _)| !assigned_elevators.contains(eid))
@@ -197,7 +189,7 @@ impl RepositionStrategy for DemandWeighted {
             if let Some(&(elev_eid, elev_pos)) = closest
                 && (elev_pos - stop_pos).abs() > 1e-6
             {
-                results.push((elev_eid, *stop_eid));
+                out.push((elev_eid, *stop_eid));
                 assigned_elevators.push(elev_eid);
                 occupied.push(*stop_pos);
             }
@@ -206,8 +198,6 @@ impl RepositionStrategy for DemandWeighted {
                 break;
             }
         }
-
-        results
     }
 }
 
@@ -224,8 +214,8 @@ impl RepositionStrategy for NearestIdle {
         _stop_positions: &[(EntityId, f64)],
         _group: &ElevatorGroup,
         _world: &World,
-    ) -> Vec<(EntityId, EntityId)> {
-        Vec::new()
+        _out: &mut Vec<(EntityId, EntityId)>,
+    ) {
     }
 }
 

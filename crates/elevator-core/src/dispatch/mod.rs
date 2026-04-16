@@ -11,7 +11,6 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
-//! use elevator_core::dispatch::RankContext;
 //!
 //! struct AlwaysFirstStop;
 //!
@@ -769,15 +768,17 @@ pub(crate) fn assign(
 pub trait RepositionStrategy: Send + Sync {
     /// Decide where to reposition idle elevators.
     ///
-    /// Returns a vec of `(elevator_entity, target_stop_entity)` pairs.
-    /// Elevators not in the returned vec remain idle.
+    /// Push `(elevator_entity, target_stop_entity)` pairs into `out`.
+    /// The buffer is cleared before each call — implementations should
+    /// only push, never read prior contents. Elevators not pushed remain idle.
     fn reposition(
         &mut self,
         idle_elevators: &[(EntityId, f64)],
         stop_positions: &[(EntityId, f64)],
         group: &ElevatorGroup,
         world: &World,
-    ) -> Vec<(EntityId, EntityId)>;
+        out: &mut Vec<(EntityId, EntityId)>,
+    );
 }
 
 /// Serializable identifier for built-in repositioning strategies.

@@ -465,12 +465,22 @@ macro_rules! register_extensions {
 ///   [`Orientation`](crate::components::Orientation),
 ///   [`ServiceMode`](crate::components::ServiceMode)
 /// - **Config:** [`SimConfig`](crate::config::SimConfig),
+///   [`ElevatorConfig`](crate::config::ElevatorConfig),
 ///   [`GroupConfig`](crate::config::GroupConfig),
-///   [`LineConfig`](crate::config::LineConfig)
+///   [`LineConfig`](crate::config::LineConfig),
+///   [`StopConfig`](crate::stop::StopConfig)
 /// - **Dispatch:** [`DispatchStrategy`](crate::dispatch::DispatchStrategy),
 ///   [`RepositionStrategy`](crate::dispatch::RepositionStrategy),
+///   [`DispatchDecision`](crate::dispatch::DispatchDecision),
+///   [`DispatchManifest`](crate::dispatch::DispatchManifest),
+///   [`ElevatorGroup`](crate::dispatch::ElevatorGroup),
 ///   [`AssignedCar`](crate::dispatch::AssignedCar),
+///   [`RankContext`](crate::dispatch::RankContext),
 ///   [`DestinationDispatch`](crate::dispatch::DestinationDispatch),
+///   [`ScanDispatch`](crate::dispatch::ScanDispatch),
+///   [`LookDispatch`](crate::dispatch::LookDispatch),
+///   [`NearestCarDispatch`](crate::dispatch::NearestCarDispatch),
+///   [`EtdDispatch`](crate::dispatch::EtdDispatch),
 ///   plus the built-in reposition strategies
 ///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
 ///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
@@ -486,20 +496,15 @@ macro_rules! register_extensions {
 ///   [`Event`](crate::events::Event),
 ///   [`EventBus`](crate::events::EventBus),
 ///   [`EventCategory`](crate::events::EventCategory)
-/// - **Misc:** [`Metrics`](crate::metrics::Metrics),
+/// - **World & misc:** [`World`](crate::world::World),
+///   [`Metrics`](crate::metrics::Metrics),
 ///   [`TimeAdapter`](crate::time::TimeAdapter),
 ///   [`ExtKey`](crate::world::ExtKey)
 ///
 /// # Not included (import explicitly)
 ///
-/// - Concrete dispatch implementations: `dispatch::scan::ScanDispatch`,
-///   `dispatch::look::LookDispatch`, `dispatch::nearest_car::NearestCarDispatch`,
-///   `dispatch::etd::EtdDispatch`
-/// - `ElevatorConfig` from [`crate::config`] and `StopConfig` from [`crate::stop`]
 /// - Traffic generation types from [`crate::traffic`] (feature-gated)
 /// - Snapshot types from [`crate::snapshot`]
-/// - The [`World`](crate::world::World) type (accessed via `sim.world()`,
-///   but required as a parameter when implementing custom dispatch)
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
@@ -507,12 +512,14 @@ pub mod prelude {
         Orientation, Patience, Position, Preferences, Rider, RiderPhase, RiderPhaseKind, Route,
         ServiceMode, SpatialPosition, Speed, Stop, Velocity, Weight,
     };
-    pub use crate::config::{GroupConfig, LineConfig, SimConfig};
+    pub use crate::config::{ElevatorConfig, GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
         DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
     };
     pub use crate::dispatch::{
-        AssignedCar, DestinationDispatch, DispatchStrategy, RankContext, RepositionStrategy,
+        AssignedCar, DestinationDispatch, DispatchDecision, DispatchManifest, DispatchStrategy,
+        ElevatorGroup, EtdDispatch, LookDispatch, NearestCarDispatch, RankContext,
+        RepositionStrategy, ScanDispatch,
     };
     pub use crate::entity::EntityId;
     pub use crate::error::{EtaError, RejectionContext, RejectionReason, SimError};
@@ -520,9 +527,9 @@ pub mod prelude {
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{RiderBuilder, Simulation};
-    pub use crate::stop::{StopId, StopRef};
+    pub use crate::stop::{StopConfig, StopId, StopRef};
     pub use crate::time::TimeAdapter;
-    pub use crate::world::ExtKey;
+    pub use crate::world::{ExtKey, World};
 }
 
 #[cfg(test)]

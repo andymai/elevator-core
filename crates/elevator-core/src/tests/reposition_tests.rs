@@ -118,7 +118,8 @@ fn spread_evenly_distributes_elevators() {
         .collect();
 
     let mut strategy = SpreadEvenly;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     // Both should move to new positions (they shouldn't stay where they are).
     assert!(
@@ -150,7 +151,8 @@ fn spread_evenly_single_stop_no_movement() {
     let stop_pos = vec![(stops[0], 0.0)];
 
     let mut strategy = SpreadEvenly;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
     assert!(
         result.is_empty(),
         "no movement when already at the only stop"
@@ -172,7 +174,8 @@ fn spread_evenly_all_at_same_position() {
         .collect();
 
     let mut strategy = SpreadEvenly;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     // At least one should move away from the shared position.
     assert!(!result.is_empty());
@@ -196,7 +199,8 @@ fn return_to_lobby_sends_to_home() {
         .collect();
 
     let mut strategy = ReturnToLobby::new();
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], (elev, stops[0]));
@@ -216,7 +220,8 @@ fn return_to_lobby_custom_home() {
         .collect();
 
     let mut strategy = ReturnToLobby::with_home(2);
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], (elev, stops[2]));
@@ -236,7 +241,8 @@ fn return_to_lobby_already_at_home() {
         .collect();
 
     let mut strategy = ReturnToLobby::new();
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert!(result.is_empty(), "no movement when already at home");
 }
@@ -272,7 +278,8 @@ fn demand_weighted_prefers_high_demand() {
         .collect();
 
     let mut strategy = DemandWeighted;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert_eq!(result.len(), 1);
     // Should move toward the highest-demand stop (stop 2).
@@ -293,7 +300,8 @@ fn nearest_idle_returns_empty() {
         .collect();
 
     let mut strategy = NearestIdle;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert!(result.is_empty(), "NearestIdle should never generate moves");
 }
@@ -322,7 +330,8 @@ fn spread_evenly_sends_idle_car_to_specific_stop() {
         .collect();
 
     let mut strategy = SpreadEvenly;
-    let result = strategy.reposition(&idle, &stop_pos, &group, &world);
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
 
     assert_eq!(result.len(), 1, "one assignment expected");
     let (elev, target) = result[0];
@@ -346,18 +355,12 @@ fn spread_evenly_empty_inputs_return_empty() {
         .collect();
 
     let mut strategy = SpreadEvenly;
-    assert!(
-        strategy
-            .reposition(&[], &stop_pos, &group, &world)
-            .is_empty(),
-        "no idle elevators → empty result"
-    );
-    assert!(
-        strategy
-            .reposition(&[(EntityId::default(), 0.0)], &[], &group, &world)
-            .is_empty(),
-        "no stop positions → empty result"
-    );
+    let mut out = Vec::new();
+    strategy.reposition(&[], &stop_pos, &group, &world, &mut out);
+    assert!(out.is_empty(), "no idle elevators → empty result");
+    out.clear();
+    strategy.reposition(&[(EntityId::default(), 0.0)], &[], &group, &world, &mut out);
+    assert!(out.is_empty(), "no stop positions → empty result");
 }
 
 #[test]
@@ -375,15 +378,15 @@ fn return_to_lobby_targets_the_home_stop_specifically() {
         .map(|&sid| (sid, world.stop_position(sid).unwrap()))
         .collect();
 
-    // Default home is index 0, which is stops[0] at position 0.
+    let mut r = Vec::new();
     let mut rtl = ReturnToLobby::new();
-    let r = rtl.reposition(&idle, &stop_pos, &group, &world);
+    rtl.reposition(&idle, &stop_pos, &group, &world, &mut r);
     assert_eq!(r, vec![(elev, stops[0])]);
 
-    // with_home(2) picks stops[2] at position 20.0.
+    r.clear();
     let mut rtl2 = ReturnToLobby::with_home(2);
-    let r2 = rtl2.reposition(&idle, &stop_pos, &group, &world);
-    assert_eq!(r2, vec![(elev, stops[2])]);
+    rtl2.reposition(&idle, &stop_pos, &group, &world, &mut r);
+    assert_eq!(r, vec![(elev, stops[2])]);
 }
 
 #[test]
@@ -402,7 +405,8 @@ fn return_to_lobby_skips_cars_already_at_home() {
         .collect();
 
     let mut rtl = ReturnToLobby::new();
-    let r = rtl.reposition(&idle, &stop_pos, &group, &world);
+    let mut r = Vec::new();
+    rtl.reposition(&idle, &stop_pos, &group, &world, &mut r);
     assert_eq!(
         r,
         vec![(away, stops[0])],
@@ -421,16 +425,12 @@ fn demand_weighted_empty_inputs_return_empty() {
         .collect();
 
     let mut strategy = DemandWeighted;
-    assert!(
-        strategy
-            .reposition(&[], &stop_pos, &group, &world)
-            .is_empty()
-    );
-    assert!(
-        strategy
-            .reposition(&[(EntityId::default(), 0.0)], &[], &group, &world)
-            .is_empty()
-    );
+    let mut out = Vec::new();
+    strategy.reposition(&[], &stop_pos, &group, &world, &mut out);
+    assert!(out.is_empty());
+    out.clear();
+    strategy.reposition(&[(EntityId::default(), 0.0)], &[], &group, &world, &mut out);
+    assert!(out.is_empty());
 }
 
 // ===== Repositioning Integration Tests =====
