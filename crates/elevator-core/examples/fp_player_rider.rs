@@ -24,8 +24,7 @@ fn main() {
     let elev = sim.world().iter_elevators().next().unwrap().0;
 
     // Give the car something to do.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 
     println!("tick  alpha=0.00  alpha=0.50  alpha=1.00   vel");
     println!("----  ----------  ----------  ----------  -----");

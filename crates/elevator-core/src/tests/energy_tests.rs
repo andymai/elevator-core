@@ -51,8 +51,7 @@ fn moving_energy_includes_weight_factor() {
     let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
 
     // Spawn a rider going up so the elevator moves.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     // Run enough ticks for the elevator to start moving.
     let mut found_moving_energy = false;
@@ -85,8 +84,7 @@ fn regen_on_descent() {
     let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
 
     // Spawn rider going down.
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 75.0).unwrap();
 
     let mut total_regen = 0.0;
     for _ in 0..500 {
@@ -114,8 +112,7 @@ fn regen_factor_zero_no_regen() {
 
     let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 75.0).unwrap();
 
     for _ in 0..500 {
         sim.step();
@@ -156,8 +153,7 @@ fn aggregate_metrics_match() {
     let cfg = config_with_energy(default_profile());
     let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     for _ in 0..300 {
         sim.step();

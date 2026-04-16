@@ -901,7 +901,7 @@ impl World {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0).unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
     ///
     /// let world = sim.world();
     /// for (id, rider, pos) in world.query::<(EntityId, &Rider, &Position)>().iter() {

@@ -133,9 +133,7 @@ fn open_reverses_closing_door() {
 fn close_waits_for_boarding_rider() {
     let (mut sim, elev) = make_sim();
     // Spawn a rider at the car's current stop.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     // Open doors and wait until the rider is mid-Boarding.
     sim.open_door(elev).unwrap();
     let mut saw_boarding = false;
@@ -344,9 +342,7 @@ fn command_queued_during_motion_fires_on_arrival() {
 #[test]
 fn unknown_elevator_errors() {
     let (mut sim, _elev) = make_sim();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     assert!(matches!(
         sim.open_door(rider),
         Err(SimError::NotAnElevator(_))

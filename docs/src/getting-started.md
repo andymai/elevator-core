@@ -79,7 +79,7 @@ A rider is anything that rides an elevator. To spawn one, you provide an origin 
 #     .stop(StopId(2), "Floor 3", 8.0)
 #     .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
 #     .build()?;
-let rider_id = sim.spawn_rider_by_stop_id(
+let rider_id = sim.spawn_rider(
     StopId(0),  // origin: Lobby
     StopId(2),  // destination: Floor 3
     75.0,       // weight in kg
@@ -89,7 +89,7 @@ println!("Spawned rider: {:?}", rider_id);
 # }
 ```
 
-`spawn_rider_by_stop_id` maps config-level `StopId` values to runtime `EntityId` values internally. It returns `Result<EntityId, SimError>` -- it will fail if you pass a `StopId` that does not exist in your building.
+`spawn_rider` maps config-level `StopId` values to runtime `EntityId` values internally. It returns `Result<EntityId, SimError>` -- it will fail if you pass a `StopId` that does not exist in your building.
 
 ## Run the simulation loop
 
@@ -106,7 +106,7 @@ Each call to `sim.step()` advances the simulation by one tick, running all eight
 #     .stop(StopId(2), "Floor 3", 8.0)
 #     .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
 #     .build()?;
-# let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
+# let rider_id = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
 let mut arrived = false;
 
 while !arrived {
@@ -158,7 +158,7 @@ fn main() -> Result<(), SimError> {
         .build()?;
 
     // 2. Spawn a rider going from the Lobby to Floor 3.
-    let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
 
     // 3. Run until the rider arrives.
     let mut arrived = false;
@@ -205,7 +205,7 @@ Total ticks: 482
 ## What just happened?
 
 1. The **builder** created a `Simulation` containing a `World` with three stop entities and one elevator entity, plus a SCAN dispatch strategy.
-2. `spawn_rider_by_stop_id` created a rider entity at the Lobby with a route to Floor 3.
+2. `spawn_rider` created a rider entity at the Lobby with a route to Floor 3.
 3. Each `step()` ran the seven-phase tick loop. The **dispatch** phase noticed a waiting rider and sent the elevator to the Lobby. The **reposition** phase was a no-op (no reposition strategy configured). The **movement** phase moved the elevator using a trapezoidal velocity profile. The **doors** phase opened and closed doors. The **loading** phase boarded and exited the rider. The **metrics** phase updated aggregate stats.
 4. Events fired at each significant moment, and we pattern-matched on them to detect arrival.
 

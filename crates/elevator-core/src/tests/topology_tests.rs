@@ -155,8 +155,7 @@ fn disabled_elevator_not_dispatched() {
     sim.drain_events();
 
     // Spawn a rider — should trigger dispatch, but elevator is disabled.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.step();
 
     let events = sim.drain_events();

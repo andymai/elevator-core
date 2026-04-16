@@ -14,7 +14,7 @@ Integrating `elevator-core` into any host comes down to three things:
 
 3. **Read state out, inject input in.**
    - **Read state:** `sim.world()` returns a `World` you can query via `query::<(EntityId, &Rider, &Position)>()` for rendering, or via typed accessors (`world.elevator(id)`, `world.stop_position(id)`).
-   - **Inject input:** `sim.spawn_rider_by_stop_id(origin, dest, weight)`, `sim.push_destination(elev, stop)`, `sim.reroute(rider, new_dest)`, `sim.set_service_mode(elev, mode)`.
+   - **Inject input:** `sim.spawn_rider(origin, dest, weight)`, `sim.push_destination(elev, stop)`, `sim.reroute(rider, new_dest)`, `sim.set_service_mode(elev, mode)`.
    - **Change-event hook:** `sim.drain_events()` returns every event emitted during the last tick. Route them into toasts, particles, SFX, analytics.
 
 That's it. The entire public surface of the library is [`prelude`](api-reference.md) + a handful of typed submodules; no engine extension points, no traits your app must implement.
@@ -160,7 +160,7 @@ impl eframe::App for ElevatorApp {
 
             // 3b. Input via egui buttons.
             if ui.button("spawn rider 0→3").clicked() {
-                let _ = self.sim.spawn_rider_by_stop_id(StopId(0), StopId(3), 72.0);
+                let _ = self.sim.spawn_rider(StopId(0), StopId(3), 72.0);
             }
         });
     }

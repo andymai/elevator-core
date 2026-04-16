@@ -161,18 +161,14 @@ fn valid_config_succeeds() {
 #[test]
 fn spawn_rider_unknown_stop_returns_error() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let err = sim
-        .spawn_rider_by_stop_id(StopId(99), StopId(0), 70.0)
-        .unwrap_err();
+    let err = sim.spawn_rider(StopId(99), StopId(0), 70.0).unwrap_err();
     assert!(matches!(err, SimError::StopNotFound(StopId(99))));
 }
 
 #[test]
 fn spawn_rider_unknown_destination_returns_error() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let err = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(99), 70.0)
-        .unwrap_err();
+    let err = sim.spawn_rider(StopId(0), StopId(99), 70.0).unwrap_err();
     assert!(matches!(err, SimError::StopNotFound(StopId(99))));
 }
 

@@ -23,11 +23,11 @@
 //!
 //! ### Spawning and rerouting riders
 //!
-//! - [`Simulation::spawn_rider_by_stop_id()`](crate::sim::Simulation::spawn_rider_by_stop_id)
-//!   — simple origin/destination/weight spawn.
-//! - [`Simulation::build_rider_by_stop_id()`](crate::sim::Simulation::build_rider_by_stop_id)
+//! - [`Simulation::spawn_rider()`](crate::sim::Simulation::spawn_rider)
+//!   — simple origin/destination/weight spawn (accepts `EntityId` or `StopId`).
+//! - [`Simulation::build_rider()`](crate::sim::Simulation::build_rider)
 //!   — fluent [`RiderBuilder`](crate::sim::RiderBuilder) for patience, preferences, access
-//!   control, explicit groups, multi-leg routes.
+//!   control, explicit groups, multi-leg routes (accepts `EntityId` or `StopId`).
 //! - [`Simulation::reroute()`](crate::sim::Simulation::reroute) — change a waiting
 //!   rider's destination mid-trip.
 //! - [`Simulation::settle_rider()`](crate::sim::Simulation::settle_rider) /
@@ -162,13 +162,13 @@ impl LineParams {
 
 /// Fluent builder for spawning riders with optional configuration.
 ///
-/// Created via [`Simulation::build_rider`] or [`Simulation::build_rider_by_stop_id`].
+/// Created via [`Simulation::build_rider`].
 ///
 /// ```
 /// use elevator_core::prelude::*;
 ///
 /// let mut sim = SimulationBuilder::demo().build().unwrap();
-/// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
+/// let rider = sim.build_rider(StopId(0), StopId(1))
 ///     .unwrap()
 ///     .weight(80.0)
 ///     .spawn()
@@ -245,8 +245,19 @@ impl RiderBuilder<'_> {
     /// Returns [`SimError::NoRoute`] if no group serves both stops (when auto-detecting).
     /// Returns [`SimError::AmbiguousRoute`] if multiple groups serve both stops (when auto-detecting).
     /// Returns [`SimError::GroupNotFound`] if an explicit group does not exist.
+    /// Returns [`SimError::RouteOriginMismatch`] if an explicit route's first leg
+    /// does not start at `origin`.
     pub fn spawn(self) -> Result<EntityId, SimError> {
         let route = if let Some(route) = self.route {
+            // Validate route origin matches the spawn origin.
+            if let Some(leg) = route.current()
+                && leg.from != self.origin
+            {
+                return Err(SimError::RouteOriginMismatch {
+                    expected_origin: self.origin,
+                    route_origin: leg.from,
+                });
+            }
             route
         } else if let Some(group) = self.group {
             if !self.sim.groups.iter().any(|g| g.id() == group) {
@@ -381,7 +392,7 @@ impl Simulation {
     /// Get a mutable reference to the world.
     ///
     /// Exposed for advanced use cases (manual rider management, custom
-    /// component attachment). Prefer `spawn_rider` / `spawn_rider_by_stop_id`
+    /// component attachment). Prefer `spawn_rider` / `build_rider`
     /// for standard operations.
     #[allow(clippy::missing_const_for_fn)]
     pub fn world_mut(&mut self) -> &mut World {
@@ -1366,67 +1377,35 @@ impl Simulation {
 
     /// Create a rider builder for fluent rider spawning.
     ///
-    /// ```
-    /// use elevator_core::prelude::*;
-    ///
-    /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let s0 = sim.stop_entity(StopId(0)).unwrap();
-    /// let s1 = sim.stop_entity(StopId(1)).unwrap();
-    /// let rider = sim.build_rider(s0, s1)
-    ///     .weight(80.0)
-    ///     .spawn()
-    ///     .unwrap();
-    /// ```
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn build_rider(&mut self, origin: EntityId, destination: EntityId) -> RiderBuilder<'_> {
-        RiderBuilder {
-            sim: self,
-            origin,
-            destination,
-            weight: 75.0,
-            group: None,
-            route: None,
-            patience: None,
-            preferences: None,
-            access_control: None,
-        }
-    }
-
-    /// Create a rider builder using config `StopId`s.
+    /// Accepts [`EntityId`] or [`StopId`] for origin and destination
+    /// (anything that implements `Into<StopRef>`).
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::StopNotFound`] if either stop ID is unknown.
+    /// Returns [`SimError::StopNotFound`] if a [`StopId`] does not exist
+    /// in the building configuration.
     ///
     /// ```
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let rider = sim.build_rider_by_stop_id(StopId(0), StopId(1))
+    /// let rider = sim.build_rider(StopId(0), StopId(1))
     ///     .unwrap()
     ///     .weight(80.0)
     ///     .spawn()
     ///     .unwrap();
     /// ```
-    pub fn build_rider_by_stop_id(
+    pub fn build_rider(
         &mut self,
-        origin: StopId,
-        destination: StopId,
+        origin: impl Into<StopRef>,
+        destination: impl Into<StopRef>,
     ) -> Result<RiderBuilder<'_>, SimError> {
-        let origin_eid = self
-            .stop_lookup
-            .get(&origin)
-            .copied()
-            .ok_or(SimError::StopNotFound(origin))?;
-        let dest_eid = self
-            .stop_lookup
-            .get(&destination)
-            .copied()
-            .ok_or(SimError::StopNotFound(destination))?;
+        let origin = self.resolve_stop(origin.into())?;
+        let destination = self.resolve_stop(destination.into())?;
         Ok(RiderBuilder {
             sim: self,
-            origin: origin_eid,
-            destination: dest_eid,
+            origin,
+            destination,
             weight: 75.0,
             group: None,
             route: None,
@@ -1497,39 +1476,6 @@ impl Simulation {
         Ok(self.spawn_rider_inner(origin, destination, weight, route))
     }
 
-    /// Spawn a rider with an explicit route.
-    ///
-    /// Same as [`spawn_rider`](Self::spawn_rider) but uses the provided route
-    /// instead of auto-detecting the group.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::EntityNotFound`] if origin does not exist.
-    /// Returns [`SimError::RouteOriginMismatch`] if origin doesn't match the
-    /// route's first leg `from`.
-    pub fn spawn_rider_with_route(
-        &mut self,
-        origin: impl Into<StopRef>,
-        destination: impl Into<StopRef>,
-        weight: f64,
-        route: Route,
-    ) -> Result<EntityId, SimError> {
-        let origin = self.resolve_stop(origin.into())?;
-        let destination = self.resolve_stop(destination.into())?;
-        if self.world.stop(origin).is_none() {
-            return Err(SimError::EntityNotFound(origin));
-        }
-        if let Some(leg) = route.current()
-            && leg.from != origin
-        {
-            return Err(SimError::RouteOriginMismatch {
-                expected_origin: origin,
-                route_origin: leg.from,
-            });
-        }
-        Ok(self.spawn_rider_inner(origin, destination, weight, route))
-    }
-
     /// Internal helper: spawn a rider entity with the given route.
     fn spawn_rider_inner(
         &mut self,
@@ -1593,95 +1539,6 @@ impl Simulation {
         eid
     }
 
-    /// Convenience: spawn a rider by config `StopId`.
-    ///
-    /// Returns `Err` if either stop ID is not found.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::StopNotFound`] if the origin or destination stop ID
-    /// is not in the building configuration.
-    ///
-    /// ```
-    /// use elevator_core::prelude::*;
-    ///
-    /// // Default builder has StopId(0) and StopId(1).
-    /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    ///
-    /// let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 80.0).unwrap();
-    /// sim.step(); // metrics are updated during the tick
-    /// assert_eq!(sim.metrics().total_spawned(), 1);
-    /// ```
-    pub fn spawn_rider_by_stop_id(
-        &mut self,
-        origin: StopId,
-        destination: StopId,
-        weight: f64,
-    ) -> Result<EntityId, SimError> {
-        let origin_eid = self
-            .stop_lookup
-            .get(&origin)
-            .copied()
-            .ok_or(SimError::StopNotFound(origin))?;
-        let dest_eid = self
-            .stop_lookup
-            .get(&destination)
-            .copied()
-            .ok_or(SimError::StopNotFound(destination))?;
-        self.spawn_rider(origin_eid, dest_eid, weight)
-    }
-
-    /// Spawn a rider using a specific group for routing.
-    ///
-    /// Like [`spawn_rider`](Self::spawn_rider) but skips auto-detection —
-    /// uses the given group directly. Useful when the caller already knows
-    /// the group, or to resolve an [`AmbiguousRoute`](crate::error::SimError::AmbiguousRoute).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::GroupNotFound`] if the group does not exist.
-    pub fn spawn_rider_in_group(
-        &mut self,
-        origin: impl Into<StopRef>,
-        destination: impl Into<StopRef>,
-        weight: f64,
-        group: GroupId,
-    ) -> Result<EntityId, SimError> {
-        let origin = self.resolve_stop(origin.into())?;
-        let destination = self.resolve_stop(destination.into())?;
-        if !self.groups.iter().any(|g| g.id() == group) {
-            return Err(SimError::GroupNotFound(group));
-        }
-        let route = Route::direct(origin, destination, group);
-        Ok(self.spawn_rider_inner(origin, destination, weight, route))
-    }
-
-    /// Convenience: spawn a rider by config `StopId` in a specific group.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::StopNotFound`] if a stop ID is unknown, or
-    /// [`SimError::GroupNotFound`] if the group does not exist.
-    pub fn spawn_rider_in_group_by_stop_id(
-        &mut self,
-        origin: StopId,
-        destination: StopId,
-        weight: f64,
-        group: GroupId,
-    ) -> Result<EntityId, SimError> {
-        let origin_eid = self
-            .stop_lookup
-            .get(&origin)
-            .copied()
-            .ok_or(SimError::StopNotFound(origin))?;
-        let dest_eid = self
-            .stop_lookup
-            .get(&destination)
-            .copied()
-            .ok_or(SimError::StopNotFound(destination))?;
-        self.spawn_rider_in_group(origin_eid, dest_eid, weight, group)
-    }
-
     /// Drain all pending events from completed ticks.
     ///
     /// Events emitted during `step()` (or per-phase methods) are buffered
@@ -1694,7 +1551,7 @@ impl Simulation {
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     ///
-    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     /// sim.step();
     ///
     /// let events = sim.drain_events();
@@ -1716,7 +1573,7 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     /// sim.step();
     ///
     /// let spawns: Vec<Event> = sim.drain_events_where(|e| {

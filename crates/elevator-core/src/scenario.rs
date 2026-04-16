@@ -135,7 +135,7 @@ impl ScenarioRunner {
             // skipping invalid spawns is the correct replay behavior.
             let _ = self
                 .sim
-                .spawn_rider_by_stop_id(spawn.origin, spawn.destination, spawn.weight);
+                .spawn_rider(spawn.origin, spawn.destination, spawn.weight);
             self.spawn_cursor += 1;
         }
 

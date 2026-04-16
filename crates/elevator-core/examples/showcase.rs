@@ -63,9 +63,7 @@ fn part1_basic_simulation() {
         .unwrap();
 
     // Spawn a rider at Ground heading to Floor 3, weighing 75 kg.
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     println!("Spawned rider: {rider_id:?}");
 
     // Step the simulation until the rider is delivered (or a safety cap).
@@ -146,15 +144,9 @@ fn part2_custom_dispatch() {
         .unwrap();
 
     // Spawn several riders to see ETD in action.
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 80.0)
-        .unwrap();
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(2), StopId(0), 65.0)
-        .unwrap();
+    let _ = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let _ = sim.spawn_rider(StopId(0), StopId(1), 80.0).unwrap();
+    let _ = sim.spawn_rider(StopId(2), StopId(0), 65.0).unwrap();
 
     // Run for enough ticks for the elevator to make full round trips.
     for _ in 0..900 {
@@ -221,9 +213,7 @@ fn part3_extensions() {
         .unwrap();
 
     // Spawn a rider and attach the VIP extension.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     sim.world_mut()
         .insert_ext(rider, VipTag { level: 3 }, ExtKey::from_type_name());
 
@@ -278,9 +268,7 @@ fn part4_lifecycle_hooks() {
         .build()
         .unwrap();
 
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0)
-        .unwrap();
+    let _ = sim.spawn_rider(StopId(0), StopId(1), 60.0).unwrap();
 
     for _ in 0..300 {
         sim.step();
@@ -328,15 +316,11 @@ fn part5_metrics_deep_dive() {
 
     // Spawn riders from the tagged lobby.
     for _ in 0..5 {
-        let _ = sim
-            .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-            .unwrap();
+        let _ = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     }
 
     // Tag a rider individually for a different dimension.
-    let special = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0)
-        .unwrap();
+    let special = sim.spawn_rider(StopId(0), StopId(1), 60.0).unwrap();
     sim.tag_entity(special, "priority:express").unwrap();
 
     // Run enough ticks for deliveries.
@@ -451,12 +435,8 @@ fn part6_configuration() {
         .unwrap();
 
     // Spawn riders and simulate.
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 80.0)
-        .unwrap();
-    let _ = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 65.0)
-        .unwrap();
+    let _ = sim.spawn_rider(StopId(0), StopId(1), 80.0).unwrap();
+    let _ = sim.spawn_rider(StopId(0), StopId(2), 65.0).unwrap();
 
     for _ in 0..1800 {
         sim.step();

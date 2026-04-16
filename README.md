@@ -68,7 +68,7 @@ let mut sim = SimulationBuilder::new()
     .unwrap();
 
 // Spawn a 75 kg rider going from Ground to Floor 3.
-sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0).unwrap();
+sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
 // Run for 1000 ticks.
 for _ in 0..1000 {
@@ -109,7 +109,7 @@ let mut sim = SimulationBuilder::new()
     .build()
     .unwrap();
 
-sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 80.0).unwrap();
+sim.spawn_rider(StopId(0), StopId(2), 80.0).unwrap();
 
 for _ in 0..2000 {
     sim.step();
@@ -162,7 +162,7 @@ let mut sim = SimulationBuilder::new()
     .unwrap();
 
 // Spawn a rider and tag them as VIP.
-let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0).unwrap();
+let rider_id = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 sim.world_mut().insert_ext(rider_id, VipTag { level: 3 }, "vip_tag");
 
 // Later, read back the extension data.

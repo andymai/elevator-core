@@ -104,8 +104,7 @@ fn move_count_increments_on_arrival() {
         .unwrap();
 
     // Rider 0 -> 1: elevator moves past zero stops, arrives at stop 1. 1 move.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 
     for _ in 0..2000 {
         sim.step();
@@ -139,8 +138,7 @@ fn move_count_counts_passing_floors() {
         .unwrap();
 
     // Rider 0 -> 2: elevator passes stop 1, arrives at stop 2. 2 moves.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     for _ in 0..2000 {
         sim.step();
@@ -169,10 +167,8 @@ fn total_moves_aggregates_across_elevators() {
     // Elevator 0 starts at stop 0 (pos 0), elevator 1 starts at stop 2 (pos 10).
     // Spawn one rider 0 -> 2 (goes up, picked up by E1 — 2 moves)
     // and one rider 2 -> 0 (goes down, picked up by E2 — 2 moves).
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
 
     for _ in 0..3000 {
         sim.step();
@@ -234,8 +230,7 @@ fn move_count_persists_across_snapshot() {
     let config = helpers::default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     for _ in 0..2000 {
         sim.step();
