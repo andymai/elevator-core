@@ -203,3 +203,68 @@ fn rider_index_phases_are_independent() {
     assert!(!idx.residents_at(stop).contains(&a));
     assert!(!idx.abandoned_at(stop).contains(&w));
 }
+
+/// Integration test: run a full simulation with riders going through various
+/// lifecycle phases (boarding, exiting, abandonment, settlement) and verify
+/// the live rider index matches a from-scratch rebuild after every tick.
+#[test]
+fn rider_index_consistent_through_tick_cycles() {
+    use crate::components::Patience;
+    use crate::dispatch::scan::ScanDispatch;
+    use crate::sim::Simulation;
+    use crate::stop::StopId;
+    use crate::tests::helpers::default_config;
+
+    let config = default_config(); // 3 stops, 1 elevator
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Spawn several riders: some will board, ride, exit (arrive), and one
+    // will abandon due to low patience.
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 60.0).unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 80.0).unwrap();
+
+    // A rider with very low patience that will abandon.
+    let impatient = sim.spawn_rider(StopId(2), StopId(0), 50.0).unwrap();
+    sim.world_mut().set_patience(
+        impatient.entity(),
+        Patience {
+            max_wait_ticks: 5,
+            waited_ticks: 0,
+        },
+    );
+
+    // Collect all stop entity IDs for querying.
+    let stop_entities: Vec<EntityId> = sim.world().iter_stops().map(|(eid, _)| eid).collect();
+
+    for tick in 0..500 {
+        sim.step();
+
+        // Build a fresh index from world state and compare against the live index.
+        let mut fresh = RiderIndex::default();
+        fresh.rebuild(sim.world());
+
+        for &stop in &stop_entities {
+            let live_waiting = sim.waiting_count_at(stop);
+            let fresh_waiting = fresh.waiting_count_at(stop);
+            assert_eq!(
+                live_waiting, fresh_waiting,
+                "tick {tick}: waiting count mismatch at {stop:?}: live={live_waiting}, rebuilt={fresh_waiting}"
+            );
+
+            let live_residents = sim.resident_count_at(stop);
+            let fresh_residents = fresh.resident_count_at(stop);
+            assert_eq!(
+                live_residents, fresh_residents,
+                "tick {tick}: resident count mismatch at {stop:?}: live={live_residents}, rebuilt={fresh_residents}"
+            );
+
+            let live_abandoned = sim.abandoned_count_at(stop);
+            let fresh_abandoned = fresh.abandoned_count_at(stop);
+            assert_eq!(
+                live_abandoned, fresh_abandoned,
+                "tick {tick}: abandoned count mismatch at {stop:?}: live={live_abandoned}, rebuilt={fresh_abandoned}"
+            );
+        }
+    }
+}
