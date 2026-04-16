@@ -322,7 +322,7 @@ impl Elevator {
     /// Pending manual door-control commands for this elevator.
     ///
     /// Populated by
-    /// [`Simulation::request_door_open`](crate::sim::Simulation::request_door_open)
+    /// [`Simulation::open_door`](crate::sim::Simulation::open_door)
     /// and its siblings. Commands are drained at the start of each doors-phase
     /// tick; any that aren't yet valid remain queued.
     #[must_use]

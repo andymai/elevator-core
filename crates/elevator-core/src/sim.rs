@@ -1020,9 +1020,9 @@ impl Simulation {
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
-    /// sim.request_door_open(elev).unwrap();
+    /// sim.open_door(elev).unwrap();
     /// ```
-    pub fn request_door_open(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn open_door(&mut self, elevator: EntityId) -> Result<(), SimError> {
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::Open);
         Ok(())
@@ -1047,9 +1047,9 @@ impl Simulation {
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
-    /// sim.request_door_close(elev).unwrap();
+    /// sim.close_door(elev).unwrap();
     /// ```
-    pub fn request_door_close(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn close_door(&mut self, elevator: EntityId) -> Result<(), SimError> {
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::Close);
         Ok(())
@@ -1074,10 +1074,10 @@ impl Simulation {
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
-    /// sim.hold_door_open(elev, 30).unwrap();
+    /// sim.hold_door(elev, 30).unwrap();
     /// ```
-    pub fn hold_door_open(&mut self, elevator: EntityId, ticks: u32) -> Result<(), SimError> {
-        Self::validate_nonzero_u32(ticks, "hold_door_open.ticks")?;
+    pub fn hold_door(&mut self, elevator: EntityId, ticks: u32) -> Result<(), SimError> {
+        Self::validate_nonzero_u32(ticks, "hold_door.ticks")?;
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::HoldOpen { ticks });
         Ok(())
@@ -1100,7 +1100,7 @@ impl Simulation {
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
     /// let elev = sim.world().iter_elevators().next().unwrap().0;
-    /// sim.hold_door_open(elev, 100).unwrap();
+    /// sim.hold_door(elev, 100).unwrap();
     /// sim.cancel_door_hold(elev).unwrap();
     /// ```
     pub fn cancel_door_hold(&mut self, elevator: EntityId) -> Result<(), SimError> {
