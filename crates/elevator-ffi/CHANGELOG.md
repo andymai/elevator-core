@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.3.0...elevator-ffi-v0.4.0) (2026-04-16)
+
+
+### Features
+
+* **ffi:** add destination_entity_id to EvHallCall ([#112](https://github.com/andymai/elevator-core/issues/112)) ([5913f8b](https://github.com/andymai/elevator-core/commit/5913f8b4e368704d968e5596240cd566fddd86cd)), closes [#101](https://github.com/andymai/elevator-core/issues/101)
+
 ## [0.3.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.2.0...elevator-ffi-v0.3.0) (2026-04-15)
 
 
