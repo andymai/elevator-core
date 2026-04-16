@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.8.0...elevator-ffi-v0.9.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* typed ElevatorId and RiderId for compile-time entity safety ([#159](https://github.com/andymai/elevator-core/issues/159))
+
+### Features
+
+* typed ElevatorId and RiderId for compile-time entity safety ([#159](https://github.com/andymai/elevator-core/issues/159)) ([6a6e613](https://github.com/andymai/elevator-core/commit/6a6e6132be9f47c441a2a480187b030dc1edab75))
+
 ## [0.8.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.7.0...elevator-ffi-v0.8.0) (2026-04-16)
 
 
