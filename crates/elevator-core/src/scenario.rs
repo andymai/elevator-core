@@ -31,7 +31,10 @@ pub enum Condition {
     MaxWaitBelow(u64),
     /// Throughput must be above this value (riders per window).
     ThroughputAbove(u64),
-    /// All riders must be delivered by this tick.
+    /// All spawned riders must reach a terminal state (delivered or abandoned)
+    /// by this tick. Riders that failed to spawn (see
+    /// [`ScenarioRunner::skipped_spawns`]) are not counted — check that
+    /// value separately when replay fidelity matters.
     AllDeliveredByTick(u64),
     /// Abandonment rate must be below this value (0.0 - 1.0).
     AbandonmentRateBelow(f64),
