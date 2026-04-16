@@ -1505,8 +1505,8 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::EntityNotFound`] if origin does not exist.
-    /// Returns [`SimError::InvalidState`] if origin doesn't match the route's
-    /// first leg `from`.
+    /// Returns [`SimError::RouteOriginMismatch`] if origin doesn't match the
+    /// route's first leg `from`.
     pub fn spawn_rider_with_route(
         &mut self,
         origin: impl Into<StopRef>,
@@ -1522,12 +1522,9 @@ impl Simulation {
         if let Some(leg) = route.current()
             && leg.from != origin
         {
-            return Err(SimError::InvalidState {
-                entity: origin,
-                reason: format!(
-                    "origin {origin:?} does not match route first leg from {:?}",
-                    leg.from
-                ),
+            return Err(SimError::RouteOriginMismatch {
+                expected_origin: origin,
+                route_origin: leg.from,
             });
         }
         Ok(self.spawn_rider_inner(origin, destination, weight, route))
@@ -2076,12 +2073,12 @@ impl Simulation {
     ///
     /// # Errors
     /// - [`SimError::EntityNotFound`] — `car` is not a valid elevator.
-    /// - [`SimError::InvalidState`] with `entity = stop` — no hall call
-    ///   exists at that `(stop, direction)` pair yet.
-    /// - [`SimError::InvalidState`] with `entity = car` — the car's
-    ///   line does not serve `stop`. Without this check a cross-line
-    ///   pin would be silently dropped at dispatch time yet leave the
-    ///   call `pinned`, blocking every other car.
+    /// - [`SimError::HallCallNotFound`] — no hall call exists at that
+    ///   `(stop, direction)` pair yet.
+    /// - [`SimError::LineDoesNotServeStop`] — the car's line does not
+    ///   serve `stop`. Without this check a cross-line pin would be
+    ///   silently dropped at dispatch time yet leave the call `pinned`,
+    ///   blocking every other car.
     pub fn pin_assignment(
         &mut self,
         car: EntityId,
@@ -2104,18 +2101,13 @@ impl Simulation {
             .find(|li| li.entity() == car_line)
             .map(|li| li.serves().contains(&stop));
         if line_serves_stop == Some(false) {
-            return Err(SimError::InvalidState {
-                entity: car,
-                reason: format!(
-                    "car's line does not serve stop {stop:?}; pinning would orphan the call"
-                ),
+            return Err(SimError::LineDoesNotServeStop {
+                line_or_car: car,
+                stop,
             });
         }
         let Some(call) = self.world.hall_call_mut(stop, direction) else {
-            return Err(SimError::InvalidState {
-                entity: stop,
-                reason: "no hall call exists at that stop and direction".to_string(),
-            });
+            return Err(SimError::HallCallNotFound { stop, direction });
         };
         call.assigned_car = Some(car);
         call.pinned = true;

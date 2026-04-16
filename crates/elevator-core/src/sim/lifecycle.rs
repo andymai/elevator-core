@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use crate::components::{Elevator, ElevatorPhase, RiderPhase, Route};
+use crate::components::{Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route};
 use crate::entity::EntityId;
 use crate::error::SimError;
 use crate::events::Event;
@@ -73,8 +73,9 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::EntityNotFound`] if `rider` does not exist.
-    /// Returns [`SimError::InvalidState`] if the rider is not in
-    /// [`RiderPhase::Waiting`] or has no current stop.
+    /// Returns [`SimError::WrongRiderPhase`] if the rider is not in
+    /// [`RiderPhase::Waiting`], or [`SimError::RiderHasNoStop`] if the
+    /// rider has no current stop.
     pub fn reroute(&mut self, rider: EntityId, new_destination: EntityId) -> Result<(), SimError> {
         let r = self
             .world
@@ -82,16 +83,14 @@ impl Simulation {
             .ok_or(SimError::EntityNotFound(rider))?;
 
         if r.phase != RiderPhase::Waiting {
-            return Err(SimError::InvalidState {
-                entity: rider,
-                reason: "can only reroute riders in Waiting phase".into(),
+            return Err(SimError::WrongRiderPhase {
+                rider,
+                expected: RiderPhaseKind::Waiting,
+                actual: r.phase.kind(),
             });
         }
 
-        let origin = r.current_stop.ok_or_else(|| SimError::InvalidState {
-            entity: rider,
-            reason: "rider has no current stop for reroute".into(),
-        })?;
+        let origin = r.current_stop.ok_or(SimError::RiderHasNoStop(rider))?;
 
         let group = self.group_from_route(self.world.route(rider));
         self.world
@@ -131,8 +130,9 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
-    /// Returns [`SimError::InvalidState`] if the rider is not in
-    /// `Arrived` or `Abandoned` phase, or has no current stop.
+    /// Returns [`SimError::WrongRiderPhase`] if the rider is not in
+    /// `Arrived` or `Abandoned` phase, or [`SimError::RiderHasNoStop`]
+    /// if the rider has no current stop.
     pub fn settle_rider(&mut self, id: EntityId) -> Result<(), SimError> {
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
 
@@ -140,19 +140,15 @@ impl Simulation {
         match old_phase {
             RiderPhase::Arrived | RiderPhase::Abandoned => {}
             _ => {
-                return Err(SimError::InvalidState {
-                    entity: id,
-                    reason: format!(
-                        "cannot settle rider in {old_phase} phase, expected Arrived or Abandoned"
-                    ),
+                return Err(SimError::WrongRiderPhase {
+                    rider: id,
+                    expected: RiderPhaseKind::Arrived,
+                    actual: old_phase.kind(),
                 });
             }
         }
 
-        let stop = rider.current_stop.ok_or_else(|| SimError::InvalidState {
-            entity: id,
-            reason: "rider has no current_stop".into(),
-        })?;
+        let stop = rider.current_stop.ok_or(SimError::RiderHasNoStop(id))?;
 
         // Update index: remove from old partition (only Abandoned is indexed).
         if old_phase == RiderPhase::Abandoned {
@@ -183,44 +179,32 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
-    /// Returns [`SimError::InvalidState`] if the rider is not in `Resident` phase,
-    /// the route has no legs, or the route's first leg origin does not match the
-    /// rider's current stop.
+    /// Returns [`SimError::WrongRiderPhase`] if the rider is not in `Resident`
+    /// phase, [`SimError::EmptyRoute`] if the route has no legs, or
+    /// [`SimError::RouteOriginMismatch`] if the route's first leg origin does
+    /// not match the rider's current stop.
     pub fn reroute_rider(&mut self, id: EntityId, route: Route) -> Result<(), SimError> {
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
 
         if rider.phase != RiderPhase::Resident {
-            return Err(SimError::InvalidState {
-                entity: id,
-                reason: format!(
-                    "cannot reroute rider in {} phase, expected Resident",
-                    rider.phase
-                ),
+            return Err(SimError::WrongRiderPhase {
+                rider: id,
+                expected: RiderPhaseKind::Resident,
+                actual: rider.phase.kind(),
             });
         }
 
-        let stop = rider.current_stop.ok_or_else(|| SimError::InvalidState {
-            entity: id,
-            reason: "resident rider has no current_stop".into(),
-        })?;
+        let stop = rider.current_stop.ok_or(SimError::RiderHasNoStop(id))?;
 
-        let new_destination = route
-            .final_destination()
-            .ok_or_else(|| SimError::InvalidState {
-                entity: id,
-                reason: "route has no legs".into(),
-            })?;
+        let new_destination = route.final_destination().ok_or(SimError::EmptyRoute)?;
 
         // Validate that the route departs from the rider's current stop.
         if let Some(leg) = route.current()
             && leg.from != stop
         {
-            return Err(SimError::InvalidState {
-                entity: id,
-                reason: format!(
-                    "route origin {:?} does not match rider current_stop {:?}",
-                    leg.from, stop
-                ),
+            return Err(SimError::RouteOriginMismatch {
+                expected_origin: stop,
+                route_origin: leg.from,
             });
         }
 

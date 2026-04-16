@@ -75,7 +75,7 @@ Pin enforcement mirrors the idle-pool eligibility gate: a car in
 `Loading` / `DoorOpening` / `DoorClosing` finishes its current door
 cycle first; the pin is honored on the next dispatch tick. Pins that
 cross lines (the car's line can't reach the stop) return
-`SimError::InvalidState` rather than silently orphaning the call.
+`SimError::LineDoesNotServeStop` rather than silently orphaning the call.
 
 ## Rider balking
 

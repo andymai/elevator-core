@@ -261,7 +261,10 @@ fn reroute_rejects_non_waiting_rider() {
     let phase = sim.world().rider(rider).unwrap().phase;
     if phase != RiderPhase::Waiting {
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SimError::InvalidState { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            SimError::WrongRiderPhase { .. }
+        ));
     }
 }
 
