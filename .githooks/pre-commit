@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Pre-commit: fmt check, clippy (all features), core tests, doc tests
+set -e
+
+echo "pre-commit: checking formatting..."
+cargo fmt --check
+
+echo "pre-commit: running clippy..."
+cargo clippy -p elevator-core --all-features -- -D warnings
+
+echo "pre-commit: running core tests..."
+cargo test -p elevator-core --all-features --quiet
+
+echo "pre-commit: running doc tests..."
+cargo test -p elevator-core --all-features --doc --quiet

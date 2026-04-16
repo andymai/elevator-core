@@ -9,14 +9,22 @@ Cargo workspace with two crates:
 ## Build
 
 ```bash
-cargo test -p elevator-core
-cargo clippy -p elevator-core
+cargo test -p elevator-core --all-features
+cargo clippy -p elevator-core --all-features
 cargo build            # full workspace (PKG_CONFIG_PATH set by .cargo/config.toml)
 cargo run              # default config
 cargo run -- assets/config/space_elevator.ron
 ```
 
 System deps (Ubuntu): `libudev-dev libasound2-dev`
+
+## Pre-commit Hook
+
+Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features), tests, and doc tests. After cloning:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ## Architecture
 
