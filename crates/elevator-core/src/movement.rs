@@ -61,7 +61,7 @@ pub fn tick_movement(
     let sign = displacement.signum();
     let distance_remaining = displacement.abs();
     let speed = velocity.abs();
-    let safe_decel = deceleration.max(1e-9);
+    let safe_decel = deceleration.max(EPSILON);
     let stopping_distance = speed * speed / (2.0 * safe_decel);
 
     let new_velocity = if stopping_distance >= distance_remaining - EPSILON {
