@@ -36,36 +36,30 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ steps.app-token.outputs.token }}
 
-      # Auto-approve and auto-merge are TEMPORARILY DISABLED during the
-      # API ergonomics overhaul stack. During the overhaul, every merge
-      # to main would otherwise produce a separate release (and a
-      # `SnapshotVersion` break for downstream consumers). With these
-      # steps disabled, release-please still opens/updates the release
-      # PR on every push — but the PR accumulates all stack commits
-      # into a single release. Manually approve and merge the release
-      # PR once the overhaul lands.
-      #
-      # TO RESTORE (final step of the overhaul): uncomment both steps
-      # below.
-      #
-      # - name: Auto-approve release PR
-      #   if: steps.release.outputs.pr
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |
-      #     gh pr review ${{ fromJSON(steps.release.outputs.pr).number }} \
-      #       --approve \
-      #       --body "Auto-approved by release pipeline." \
-      #       --repo ${{ github.repository }}
-      #
-      # - name: Auto-merge release PR
-      #   if: steps.release.outputs.pr
-      #   env:
-      #     GH_TOKEN: ${{ steps.app-token.outputs.token }}
-      #   run: |
-      #     gh pr merge ${{ fromJSON(steps.release.outputs.pr).number }} \
-      #       --auto --squash \
-      #       --repo ${{ github.repository }}
+      # Inline approve + auto-merge in the same workflow run that
+      # opened the PR. Approval uses the default GITHUB_TOKEN
+      # (`github-actions[bot]` actor), which is distinct from the App
+      # that authored the PR — GitHub forbids self-review, so the two
+      # actors must differ. The merge call uses the App token so
+      # branch-protection rules requiring a PR approval are satisfied.
+      - name: Auto-approve release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review ${{ fromJSON(steps.release.outputs.pr).number }} \
+            --approve \
+            --body "Auto-approved by release pipeline." \
+            --repo ${{ github.repository }}
+
+      - name: Auto-merge release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr merge ${{ fromJSON(steps.release.outputs.pr).number }} \
+            --auto --squash \
+            --repo ${{ github.repository }}
 
   publish:
     needs: release-please
