@@ -170,7 +170,7 @@ fn sticky_assignment_persists_across_ticks() {
     let rid = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     sim.step();
-    let first = sim.world().get_ext::<AssignedCar>(rid);
+    let first = sim.world().ext::<AssignedCar>(rid);
     assert!(first.is_some(), "rider should be assigned after first tick");
 
     // Step the sim many times; assignment must never change.
@@ -183,7 +183,7 @@ fn sticky_assignment_persists_across_ticks() {
         {
             break;
         }
-        let cur = sim.world().get_ext::<AssignedCar>(rid);
+        let cur = sim.world().ext::<AssignedCar>(rid);
         assert_eq!(cur, first, "assignment must be sticky");
     }
 }
@@ -285,7 +285,7 @@ fn unassigned_manual_board_riders_still_work() {
     // assignment while we reuse the sim.
     sim.step();
     assert!(
-        sim.world().get_ext::<AssignedCar>(routed).is_some(),
+        sim.world().ext::<AssignedCar>(routed).is_some(),
         "routed rider should be assigned"
     );
 
@@ -333,7 +333,7 @@ fn closer_car_is_preferred_when_matching_direction() {
     sim.step();
     let assigned = sim
         .world()
-        .get_ext::<AssignedCar>(rid)
+        .ext::<AssignedCar>(rid)
         .expect("rider should be assigned");
     assert_eq!(assigned.0, car_a, "closer car should be preferred");
 }
@@ -402,7 +402,7 @@ fn dcs_gated_to_destination_mode() {
         sim.step();
     }
     assert!(
-        sim.world().get_ext::<AssignedCar>(rid).is_none(),
+        sim.world().ext::<AssignedCar>(rid).is_none(),
         "DCS must not assign when group is in Classic mode",
     );
 }

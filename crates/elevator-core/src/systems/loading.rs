@@ -141,7 +141,7 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             // assigned to another car, the current car must skip them so the
             // assigned car can pick them up.
             if let Some(crate::dispatch::AssignedCar(assigned)) =
-                world.get_ext::<crate::dispatch::AssignedCar>(rid)
+                world.ext::<crate::dispatch::AssignedCar>(rid)
                 && assigned != eid
             {
                 return None;

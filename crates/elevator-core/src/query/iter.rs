@@ -55,7 +55,7 @@ impl<'w, T: 'static + Send + Sync, F: QueryFilter> ExtQueryMut<'w, T, F> {
     /// Apply a closure to each matching entity's extension data mutably.
     pub fn for_each_mut(&mut self, mut f: impl FnMut(EntityId, &mut T)) {
         for &id in &self.ids {
-            if let Some(val) = self.world.get_ext_mut::<T>(id) {
+            if let Some(val) = self.world.ext_mut::<T>(id) {
                 f(id, val);
             }
         }

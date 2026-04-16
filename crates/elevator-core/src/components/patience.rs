@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Tracks how long a rider will wait before abandoning.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Patience {
     /// Maximum ticks the rider will wait before abandoning.
     pub(crate) max_wait_ticks: u64,
@@ -35,7 +35,7 @@ impl Default for Patience {
 }
 
 /// Boarding preferences for a rider.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Preferences {
     /// If true, the rider will skip a crowded elevator and wait for the next.
     pub(crate) skip_full_elevator: bool,
@@ -97,6 +97,20 @@ impl Preferences {
     #[must_use]
     pub const fn abandon_on_full(&self) -> bool {
         self.abandon_on_full
+    }
+
+    /// Builder: set `skip_full_elevator`.
+    #[must_use]
+    pub const fn with_skip_full_elevator(mut self, skip: bool) -> Self {
+        self.skip_full_elevator = skip;
+        self
+    }
+
+    /// Builder: set `max_crowding_factor`.
+    #[must_use]
+    pub const fn with_max_crowding_factor(mut self, factor: f64) -> Self {
+        self.max_crowding_factor = factor;
+        self
     }
 
     /// Builder: set `balk_threshold_ticks`.

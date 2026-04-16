@@ -405,9 +405,9 @@ without modifying the core library.
 struct VipTag { level: u32 }
 
 world.insert_ext(entity, VipTag { level: 3 }, ExtKey::from_type_name());
-world.get_ext::<VipTag>(entity);        // Option<VipTag> (cloned)
-world.get_ext_ref::<VipTag>(entity);    // Option<&VipTag> (zero-copy)
-world.get_ext_mut::<VipTag>(entity);    // Option<&mut VipTag>
+world.ext::<VipTag>(entity);        // Option<VipTag> (cloned)
+world.ext_ref::<VipTag>(entity);    // Option<&VipTag> (zero-copy)
+world.ext_mut::<VipTag>(entity);    // Option<&mut VipTag>
 ```
 
 The `ExtKey<T>` handle is required for serialization roundtrips in snapshots.

@@ -110,8 +110,30 @@ impl DestinationQueue {
         self.queue.contains(stop)
     }
 
+    /// Iterate over stop entities in FIFO order.
+    pub fn iter(&self) -> std::slice::Iter<'_, EntityId> {
+        self.queue.iter()
+    }
+
     /// Remove and return the front entry.
     pub(crate) fn pop_front(&mut self) -> Option<EntityId> {
         (!self.queue.is_empty()).then(|| self.queue.remove(0))
+    }
+}
+
+impl<'a> IntoIterator for &'a DestinationQueue {
+    type Item = &'a EntityId;
+    type IntoIter = std::slice::Iter<'a, EntityId>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.queue.iter()
+    }
+}
+
+impl std::ops::Deref for DestinationQueue {
+    type Target = [EntityId];
+
+    fn deref(&self) -> &[EntityId] {
+        &self.queue
     }
 }

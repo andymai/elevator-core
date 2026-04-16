@@ -236,7 +236,7 @@ fn snapshot_preserves_extension_components() {
     // Find the rider in the restored world and check the extension.
     let mut found = false;
     for (rid, _) in restored.world().iter_riders() {
-        if let Some(tag) = restored.world().get_ext::<VipTag>(rid) {
+        if let Some(tag) = restored.world().ext::<VipTag>(rid) {
             assert_eq!(tag.level, 5);
             found = true;
         }
