@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v13.0.0...elevator-core-v13.0.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* medium bug fixes ([#166](https://github.com/andymai/elevator-core/issues/166), [#167](https://github.com/andymai/elevator-core/issues/167), [#168](https://github.com/andymai/elevator-core/issues/168), [#169](https://github.com/andymai/elevator-core/issues/169), [#172](https://github.com/andymai/elevator-core/issues/172), [#173](https://github.com/andymai/elevator-core/issues/173)) ([#205](https://github.com/andymai/elevator-core/issues/205)) ([06bb0a3](https://github.com/andymai/elevator-core/commit/06bb0a3046ebbf606d77912f124a50e1e9b37dd8))
+
 ## [13.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v12.0.2...elevator-core-v13.0.0) (2026-04-16)
 
 
