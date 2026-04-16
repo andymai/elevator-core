@@ -224,7 +224,7 @@
 //! door-FSM state) or queued on the elevator's
 //! [`door_command_queue`](components::Elevator::door_command_queue) and
 //! re-tried every tick until it can be applied. The only hard errors are
-//! "not an elevator" / "elevator disabled" and (for `hold_door`) a
+//! [`NotAnElevator`](error::SimError::NotAnElevator) / [`ElevatorDisabled`](error::SimError::ElevatorDisabled) and (for `hold_door`) a
 //! zero-tick argument — the rest return `Ok(())` and let the engine pick
 //! the right moment. A [`DoorCommand`](door::DoorCommand) can be:
 //!

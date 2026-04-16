@@ -340,7 +340,7 @@ fn command_queued_during_motion_fires_on_arrival() {
     );
 }
 
-/// 9. Unknown elevator: pass non-elevator eid → SimError::InvalidState.
+/// 9. Unknown elevator: pass non-elevator eid → SimError::NotAnElevator.
 #[test]
 fn unknown_elevator_errors() {
     let (mut sim, _elev) = make_sim();
@@ -349,19 +349,19 @@ fn unknown_elevator_errors() {
         .unwrap();
     assert!(matches!(
         sim.open_door(rider),
-        Err(SimError::InvalidState { .. })
+        Err(SimError::NotAnElevator(_))
     ));
     assert!(matches!(
         sim.close_door(rider),
-        Err(SimError::InvalidState { .. })
+        Err(SimError::NotAnElevator(_))
     ));
     assert!(matches!(
         sim.hold_door(rider, 10),
-        Err(SimError::InvalidState { .. })
+        Err(SimError::NotAnElevator(_))
     ));
     assert!(matches!(
         sim.cancel_door_hold(rider),
-        Err(SimError::InvalidState { .. })
+        Err(SimError::NotAnElevator(_))
     ));
 }
 

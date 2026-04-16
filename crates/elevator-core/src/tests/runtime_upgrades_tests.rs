@@ -203,7 +203,7 @@ fn set_on_non_elevator_returns_invalid_state() {
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
     let err = sim.set_max_speed(rider, 4.0).unwrap_err();
-    assert!(matches!(err, SimError::InvalidState { .. }));
+    assert!(matches!(err, SimError::NotAnElevator(_)));
 }
 
 // ── Velocity preservation ────────────────────────────────────────────
