@@ -2,6 +2,7 @@
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use slotmap::{SecondaryMap, SlotMap};
 
@@ -13,6 +14,57 @@ use crate::components::{
 use crate::energy::{EnergyMetrics, EnergyProfile};
 use crate::entity::EntityId;
 use crate::query::storage::AnyExtMap;
+
+/// Typed handle for extension component storage.
+///
+/// Constructed via [`ExtKey::new`] with an explicit name, or
+/// [`ExtKey::from_type_name`] which uses `std::any::type_name::<T>()`.
+#[derive(Debug)]
+pub struct ExtKey<T> {
+    /// Human-readable storage name, used for serialization roundtrips.
+    name: &'static str,
+    /// Binds this key to the extension component type `T`.
+    _marker: PhantomData<T>,
+}
+
+impl<T> Clone for ExtKey<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T> Copy for ExtKey<T> {}
+
+impl<T> ExtKey<T> {
+    /// Create a key with an explicit storage name.
+    #[must_use]
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Create a key using `std::any::type_name::<T>()` as the storage name.
+    #[must_use]
+    pub fn from_type_name() -> Self {
+        Self {
+            name: std::any::type_name::<T>(),
+            _marker: PhantomData,
+        }
+    }
+
+    /// The storage name for this key.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        self.name
+    }
+}
+
+impl<T> Default for ExtKey<T> {
+    fn default() -> Self {
+        Self::from_type_name()
+    }
+}
 
 /// Central storage for all simulation entities and their components.
 ///
@@ -664,11 +716,11 @@ impl World {
     ///
     /// Games use this to attach their own typed data to simulation entities.
     /// Extension components must be `Serialize + DeserializeOwned` to support
-    /// snapshot save/load. A `name` string is required for serialization roundtrips.
+    /// snapshot save/load. An [`ExtKey`] is required for serialization roundtrips.
     /// Extension components are automatically cleaned up on `despawn()`.
     ///
     /// ```
-    /// use elevator_core::world::World;
+    /// use elevator_core::world::{ExtKey, World};
     /// use serde::{Serialize, Deserialize};
     ///
     /// #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -676,13 +728,13 @@ impl World {
     ///
     /// let mut world = World::new();
     /// let entity = world.spawn();
-    /// world.insert_ext(entity, VipTag { level: 3 }, "vip_tag");
+    /// world.insert_ext(entity, VipTag { level: 3 }, ExtKey::from_type_name());
     /// ```
     pub fn insert_ext<T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned>(
         &mut self,
         id: EntityId,
         value: T,
-        name: &str,
+        key: ExtKey<T>,
     ) {
         let type_id = TypeId::of::<T>();
         let map = self
@@ -692,7 +744,7 @@ impl World {
         if let Some(m) = map.as_any_mut().downcast_mut::<SecondaryMap<EntityId, T>>() {
             m.insert(id, value);
         }
-        self.ext_names.insert(type_id, name.to_owned());
+        self.ext_names.insert(type_id, key.name().to_owned());
     }
 
     /// Get a clone of a custom component for an entity.
@@ -768,18 +820,19 @@ impl World {
     /// Register an extension type for deserialization (creates empty storage).
     ///
     /// Must be called before `restore()` for each extension type that was
-    /// present in the original simulation.
+    /// present in the original simulation. Returns the key for convenience.
     pub fn register_ext<
         T: 'static + Send + Sync + serde::Serialize + serde::de::DeserializeOwned,
     >(
         &mut self,
-        name: &str,
-    ) {
+        key: ExtKey<T>,
+    ) -> ExtKey<T> {
         let type_id = TypeId::of::<T>();
         self.extensions
             .entry(type_id)
             .or_insert_with(|| Box::new(SecondaryMap::<EntityId, T>::new()));
-        self.ext_names.insert(type_id, name.to_owned());
+        self.ext_names.insert(type_id, key.name().to_owned());
+        key
     }
 
     // ── Disabled entity management ──────────────────────────────────

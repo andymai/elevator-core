@@ -216,7 +216,7 @@ fn part3_extensions() {
                 position: 12.0,
             },
         ])
-        .with_ext::<VipTag>("vip_tag")
+        .with_ext::<VipTag>()
         .build()
         .unwrap();
 
@@ -225,7 +225,7 @@ fn part3_extensions() {
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
     sim.world_mut()
-        .insert_ext::<VipTag>(rider, VipTag { level: 3 }, "vip_tag");
+        .insert_ext(rider, VipTag { level: 3 }, ExtKey::from_type_name());
 
     // Read the extension back.
     let vip: Option<VipTag> = sim.world().get_ext::<VipTag>(rider);

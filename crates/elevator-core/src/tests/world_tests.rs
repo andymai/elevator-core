@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::components::*;
 use crate::door::DoorState;
-use crate::world::World;
+use crate::world::{ExtKey, World};
 
 #[test]
 fn spawn_and_check_alive() {
@@ -176,7 +176,7 @@ fn extension_components() {
     let e = world.spawn();
 
     // Insert, get, mutate.
-    world.insert_ext(e, VipTag { level: 3 }, "vip_tag");
+    world.insert_ext(e, VipTag { level: 3 }, ExtKey::from_type_name());
     assert_eq!(world.get_ext::<VipTag>(e), Some(VipTag { level: 3 }));
 
     world.get_ext_mut::<VipTag>(e).unwrap().level = 5;

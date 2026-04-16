@@ -20,11 +20,11 @@ impl Simulation {
     /// Deserialize extension components from a snapshot.
     ///
     /// Call this after restoring from a snapshot and registering all
-    /// extension types via `world.register_ext::<T>(name)`.
+    /// extension types via `world.register_ext::<T>(key)`.
     ///
     /// ```ignore
     /// let mut sim = snapshot.restore(None);
-    /// sim.world_mut().register_ext::<VipTag>("vip_tag");
+    /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
     /// sim.load_extensions();
     /// ```
     pub fn load_extensions(&mut self) {

@@ -1,6 +1,7 @@
 use crate::components::RiderPhase;
 use crate::stop::StopId;
 use crate::tests::helpers;
+use crate::world::ExtKey;
 use serde::{Deserialize, Serialize};
 
 #[test]
@@ -233,13 +234,15 @@ fn snapshot_preserves_extension_components() {
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
     sim.world_mut()
-        .insert_ext(rider, VipTag { level: 5 }, "vip_tag");
+        .insert_ext(rider, VipTag { level: 5 }, ExtKey::from_type_name());
 
     let snap = sim.snapshot();
     let mut restored = snap.restore(None);
 
     // Register the extension type on the restored world, then load.
-    restored.world_mut().register_ext::<VipTag>("vip_tag");
+    restored
+        .world_mut()
+        .register_ext::<VipTag>(ExtKey::from_type_name());
     restored.load_extensions();
 
     // Find the rider in the restored world and check the extension.
