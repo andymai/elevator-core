@@ -95,11 +95,7 @@ impl fmt::Display for Weight {
 #[allow(clippy::panic)]
 impl From<f64> for Weight {
     fn from(value: f64) -> Self {
-        assert!(
-            value.is_finite() && value >= 0.0,
-            "Weight must be finite and non-negative, got {value}"
-        );
-        Self { value }
+        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
     }
 }
 
@@ -186,11 +182,7 @@ impl fmt::Display for Speed {
 #[allow(clippy::panic)]
 impl From<f64> for Speed {
     fn from(value: f64) -> Self {
-        assert!(
-            value.is_finite() && value >= 0.0,
-            "Speed must be finite and non-negative, got {value}"
-        );
-        Self { value }
+        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
     }
 }
 
@@ -247,10 +239,6 @@ impl fmt::Display for Accel {
 #[allow(clippy::panic)]
 impl From<f64> for Accel {
     fn from(value: f64) -> Self {
-        assert!(
-            value.is_finite() && value >= 0.0,
-            "Accel must be finite and non-negative, got {value}"
-        );
-        Self { value }
+        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
     }
 }
