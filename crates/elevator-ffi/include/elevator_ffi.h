@@ -292,6 +292,12 @@ typedef struct EvHallCall {
      */
     uint64_t assigned_car;
     /**
+     * Destination stop entity id in DCS (`HallCallMode::Destination`)
+     * mode, or `0` when the call has no destination (Classic mode,
+     * or no kiosk entry yet). Matches `HallCall::destination`.
+     */
+    uint64_t destination_entity_id;
+    /**
      * `1` when pinned, `0` otherwise.
      */
     uint8_t pinned;
