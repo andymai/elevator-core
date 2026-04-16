@@ -74,7 +74,7 @@ sim.world_mut().insert_ext(
 
 ### Read it back
 
-Use `world.get_ext()` for a cloned value, `world.get_ext_ref()` for a zero-copy borrow, or `world.get_ext_mut()` for a mutable reference:
+Use `world.ext()` for a cloned value, `world.ext_ref()` for a zero-copy borrow, or `world.ext_mut()` for a mutable reference:
 
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
@@ -83,12 +83,12 @@ Use `world.get_ext()` for a cloned value, `world.get_ext_ref()` for a zero-copy 
 # use elevator_core::prelude::*;
 # fn run(sim: &mut Simulation, rider_id: EntityId) {
 // Read (cloned)
-if let Some(vip) = sim.world().get_ext::<VipTag>(rider_id) {
+if let Some(vip) = sim.world().ext::<VipTag>(rider_id) {
     println!("VIP level: {}", vip.level);
 }
 
 // Mutate
-if let Some(vip) = sim.world_mut().get_ext_mut::<VipTag>(rider_id) {
+if let Some(vip) = sim.world_mut().ext_mut::<VipTag>(rider_id) {
     vip.level += 1;
 }
 # }
@@ -180,5 +180,5 @@ This means you can freely attach extensions to riders that will be delivered and
 ## Next steps
 
 - [Lifecycle Hooks](lifecycle-hooks.md) -- inject custom logic that reads and writes extension data each tick.
-- [Writing a Custom Dispatch](custom-dispatch.md) -- strategies can consult extension data via `world.get_ext::<T>(id)` in their `rank` function.
+- [Writing a Custom Dispatch](custom-dispatch.md) -- strategies can consult extension data via `world.ext::<T>(id)` in their `rank` function.
 - [Snapshots and Determinism](snapshots-determinism.md) -- full snapshot/restore cycle including extension registration.

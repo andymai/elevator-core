@@ -222,7 +222,7 @@ Criterion generates HTML reports in `target/criterion/` with statistical analysi
 
 ## Best practices
 
-**Seed your RNG for reproducible traffic.** The built-in `PoissonSource` uses `rand::rng()` (thread-local, unseeded). For tests, write a custom `TrafficSource` that owns a `StdRng::seed_from_u64(seed)`. See [Traffic Generation -- Determinism and seeding](traffic-generation.md#determinism-and-seeding).
+**Seed your RNG for reproducible traffic.** The built-in `PoissonSource` uses an OS-seeded RNG, so it produces different output each run. For tests, write a custom `TrafficSource` that owns a `StdRng::seed_from_u64(seed)`. See [Traffic Generation -- Determinism and seeding](traffic-generation.md#determinism-and-seeding).
 
 **Assert that your fixture actually exercises the sim.** A deterministic replay test is vacuously correct if no riders ever board. Add sanity checks:
 

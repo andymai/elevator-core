@@ -139,7 +139,7 @@ let source = PoissonSource::new(stops, TrafficSchedule::constant(TrafficPattern:
 
 ## Determinism and seeding
 
-`PoissonSource` uses a thread-local RNG (`rand::rng()`) internally, so two runs of the same config will produce different traffic. This is convenient for exploration but unsuitable for replay, regression testing, or research comparisons.
+`PoissonSource` uses an OS-seeded RNG internally, so two runs of the same config will produce different traffic. This is convenient for exploration but unsuitable for replay, regression testing, or research comparisons.
 
 For reproducible traffic, write a custom [`TrafficSource`](#custom-traffic-sources) that owns a seeded RNG:
 

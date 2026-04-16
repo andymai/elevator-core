@@ -137,12 +137,15 @@ After dispatch, idle elevators with no pending demand can be repositioned for be
 
 ```rust,ignore
 use elevator_core::prelude::*;
+use elevator_core::dispatch::BuiltinReposition;
 
 let sim = SimulationBuilder::new()
     // ... stops and elevators ...
-    .reposition(SpreadEvenly)
+    .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
     .build()?;
 ```
+
+The second argument is a `BuiltinReposition` identifier used for snapshot serialization. Pass the variant that matches your strategy so snapshots can restore it correctly.
 
 Four built-in strategies are available:
 
@@ -166,7 +169,7 @@ Your strategy (or game code observing dispatch) receives a `DispatchManifest` wi
 | `has_demand(stop)` | `bool` | Whether a stop has any demand (waiting or riding-to) |
 | `riding_count_to(stop)` | `usize` | Number of riders aboard elevators heading to a stop |
 
-For advanced dispatch (priority-aware, weight-aware, VIP-first), iterate `manifest.waiting_at_stop` directly. Each entry contains a `Vec<RiderInfo>` with the rider's `id`, `destination`, `weight`, and `wait_ticks`.
+For advanced dispatch (priority-aware, weight-aware, VIP-first), use `manifest.waiting_riders_at(stop)` to access per-stop rider lists, or `manifest.iter_waiting_stops()` to iterate all stops with waiting demand. Each entry provides a `&[RiderInfo]` with the rider's `id`, `destination`, `weight`, and `wait_ticks`.
 
 ## Next steps
 

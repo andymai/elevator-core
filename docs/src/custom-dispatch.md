@@ -136,18 +136,18 @@ impl DispatchStrategy for DirectionalDispatch {
         car_position: f64,
         group: &ElevatorGroup,
         manifest: &DispatchManifest,
-        _world: &World,
+        world: &World,
     ) {
         // Decide sweep direction based on where demand is heaviest
         // relative to this car. This runs once per car, before any
         // rank() calls for that car.
         let demand_above = group.stop_entities().iter().filter(|&&s| {
             manifest.waiting_count_at(s) > 0
-                && group.stop_position(s).map_or(false, |p| p > car_position)
+                && world.stop_position(s).map_or(false, |p| p > car_position)
         }).count();
         let demand_below = group.stop_entities().iter().filter(|&&s| {
             manifest.waiting_count_at(s) > 0
-                && group.stop_position(s).map_or(false, |p| p < car_position)
+                && world.stop_position(s).map_or(false, |p| p < car_position)
         }).count();
         self.sweep_up.insert(car, demand_above >= demand_below);
     }

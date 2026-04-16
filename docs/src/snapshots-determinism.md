@@ -56,7 +56,7 @@ let snapshot: WorldSnapshot = ron::from_str(&bytes).unwrap();
 
 // `None` means "only built-in dispatch strategies"; pass a closure to
 // resurrect custom strategies registered by name.
-let sim = snapshot.restore(None);
+let sim = snapshot.restore(None)?;
 # Ok(())
 # }
 ```

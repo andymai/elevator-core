@@ -90,7 +90,7 @@ fn draw_elevators(sim: &Simulation) {
         .iter()
     {
         let y = position_to_screen_y(pos.value());
-        let color = if car.current_load() > 0.0 {
+        let color = if car.current_load().value() > 0.0 {
             Color::from_rgba(100, 200, 255, 255)
         } else {
             Color::from_rgba(180, 180, 180, 255)

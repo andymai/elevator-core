@@ -74,7 +74,7 @@ for i in 0..4 {
 }
 ```
 
-The current velocity is available via `sim.velocity(elev)`, which returns the raw `f64` value (signed, positive = upward).
+The current velocity is available via `sim.velocity(elev)`, which returns `Option<f64>` -- the signed value (positive = upward), or `None` if the entity isn't an elevator.
 
 ## ETA queries
 

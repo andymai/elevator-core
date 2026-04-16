@@ -29,11 +29,11 @@ From `Stopped`, dispatch can assign a new target (back to `MovingToStop`) or lea
 Access elevator data through the simulation or the world directly:
 
 ```rust,ignore
-// Via convenience methods
-let pos = sim.world().position(elevator_id);
-let vel = sim.world().velocity(elevator_id);
+// World accessors return Option -- unwrap when you know the entity exists.
+let pos: f64 = sim.world().position(elevator_id).unwrap().value();
+let vel: f64 = sim.world().velocity(elevator_id).unwrap().value();
 
-// Via the Elevator component
+// The Elevator component has typed getters.
 let elev = sim.world().elevator(elevator_id).unwrap();
 let phase = elev.phase();
 let load = elev.current_load();
@@ -134,10 +134,10 @@ All physics parameters must be positive. Invalid values are rejected at build ti
 Physics parameters, capacity, and door timing can be changed on a running elevator. This is useful for tycoon-style games where players upgrade elevators:
 
 ```rust,ignore
-sim.set_max_speed(elev, 4.0.into())?;
-sim.set_acceleration(elev, 2.5.into())?;
-sim.set_deceleration(elev, 3.0.into())?;
-sim.set_weight_capacity(elev, 1500.0.into())?;
+sim.set_max_speed(elev, 4.0)?;
+sim.set_acceleration(elev, 2.5)?;
+sim.set_deceleration(elev, 3.0)?;
+sim.set_weight_capacity(elev, 1500.0)?;
 sim.set_door_open_ticks(elev, 30)?;
 sim.set_door_transition_ticks(elev, 8)?;
 ```

@@ -157,7 +157,7 @@ fn main() -> Result<(), SimError> {
                 let wait = current_tick.saturating_sub(rider.spawn_tick());
 
                 if wait > 300 {
-                    if let Some(warning) = world.get_ext_mut::<WaitWarning>(rid) {
+                    if let Some(warning) = world.ext_mut::<WaitWarning>(rid) {
                         if !warning.warned {
                             warning.warned = true;
                             println!("WARNING: rider {:?} has been waiting {} ticks!", rid, wait);
@@ -173,7 +173,7 @@ fn main() -> Result<(), SimError> {
 
     // Spawn some riders and attach extensions.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
-    sim.world_mut().insert_ext(r1, WaitWarning { warned: false }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(r1.entity(), WaitWarning { warned: false }, ExtKey::from_type_name());
 
     for _ in 0..600 {
         // Update the current tick resource before stepping.

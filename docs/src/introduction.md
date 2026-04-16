@@ -21,13 +21,13 @@ The core crate provides primitives, not opinions. Riders are generic entities th
 - **Not real-time.** The tick loop runs as fast as you drive it. There is no wall-clock coupling -- a tick is whatever `ticks_per_second` says it is. Games layer real-time scheduling on top.
 - **Not an ECS framework.** It uses an ECS-inspired internal layout but exposes a focused simulation API, not a general-purpose ECS.
 - **Not networked or multi-building.** One simulation per process. Federation, multiplayer, and cross-building routing are out of scope.
-- **Not an optimizer.** Built-in dispatch strategies (SCAN, LOOK, NearestCar, ETD) are reference implementations -- not tuned for any specific building. Bring your own algorithm if you need optimal performance.
+- **Not an optimizer.** Built-in dispatch strategies (SCAN, LOOK, NearestCar, ETD, Destination) are reference implementations -- not tuned for any specific building. Bring your own algorithm if you need optimal performance.
 
 ## Determinism
 
 Given the same initial config and the same sequence of inputs (`spawn_rider`, hook mutations, etc.), the simulation is fully deterministic. The core loop contains no internal randomness -- every tick phase is pure over the world state.
 
-The built-in `PoissonSource` traffic generator uses a thread-local RNG and is **not** deterministic across runs. For reproducible traffic, implement a custom [`TrafficSource`](traffic-generation.md) over a seeded RNG. See [Snapshots and Determinism](snapshots-determinism.md) for save/load, replay, and seeded traffic patterns.
+The built-in `PoissonSource` traffic generator uses an OS-seeded RNG and is **not** deterministic across runs. For reproducible traffic, implement a custom [`TrafficSource`](traffic-generation.md) over a seeded RNG. See [Snapshots and Determinism](snapshots-determinism.md) for save/load, replay, and seeded traffic patterns.
 
 ## Stability and MSRV
 
