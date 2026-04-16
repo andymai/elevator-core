@@ -537,6 +537,7 @@ pub enum Event {
     /// A rider skipped boarding a car they considered too crowded
     /// (their preferences filtered the car out). The rider remains
     /// Waiting and may board a later car.
+    #[serde(alias = "RiderBalked")]
     RiderSkipped {
         /// Rider who skipped.
         rider: EntityId,

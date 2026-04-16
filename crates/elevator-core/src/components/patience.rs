@@ -51,6 +51,7 @@ pub struct Preferences {
     /// increments during `Waiting` and correctly excludes ride time for
     /// multi-leg routes. Without `Patience`, the budget degrades to
     /// lifetime ticks since spawn, which matches single-leg behavior.
+    #[serde(alias = "balk_threshold_ticks")]
     pub(crate) abandon_after_ticks: Option<u32>,
     /// Abandon on the first full-car skip, rather than silently
     /// passing and continuing to wait. Default `false`.
