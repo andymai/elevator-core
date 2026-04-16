@@ -59,11 +59,11 @@ just spawns riders and reacts to events.
 
 ## Highlights
 
-**Simulation** -- 8-phase tick loop (dispatch, movement, doors, loading, metrics, ...) with deterministic replay. Trapezoidal velocity profiles. Per-elevator physics.
+**Simulation** -- multi-phase tick loop (dispatch, movement, doors, loading, metrics, ...) with deterministic replay. Trapezoidal velocity profiles. Per-elevator physics.
 
-**Dispatch** -- 5 built-in strategies (SCAN, LOOK, Nearest Car, ETD, Destination) plus a `DispatchStrategy` trait for your own. The system coordinates across cars automatically -- no two cars are sent to the same hall call.
+**Dispatch** -- several built-in strategies (SCAN, LOOK, Nearest Car, ETD, Destination) plus a `DispatchStrategy` trait for your own. The system coordinates across cars automatically -- no two cars are sent to the same hall call.
 
-**Game integration** -- typed event bus (~25 variants), lifecycle hooks, O(1) population queries, snapshot save/load, manual/inspection modes. Engine-agnostic: works with Bevy, macroquad, egui, WASM, or headless.
+**Game integration** -- typed event bus, lifecycle hooks, O(1) population queries, snapshot save/load, manual/inspection modes. Engine-agnostic -- no rendering dependency.
 
 ## Running the visual demo
 
