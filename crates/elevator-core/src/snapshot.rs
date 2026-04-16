@@ -257,10 +257,14 @@ impl WorldSnapshot {
 
         // Restore reposition strategies from group snapshots.
         for gs in &self.groups {
-            if let Some(ref repo_id) = gs.reposition
-                && let Some(strategy) = repo_id.instantiate()
-            {
-                sim.set_reposition(gs.id, strategy, repo_id.clone());
+            if let Some(ref repo_id) = gs.reposition {
+                if let Some(strategy) = repo_id.instantiate() {
+                    sim.set_reposition(gs.id, strategy, repo_id.clone());
+                } else {
+                    sim.push_event(crate::events::Event::RepositionStrategyNotRestored {
+                        group: gs.id,
+                    });
+                }
             }
         }
 

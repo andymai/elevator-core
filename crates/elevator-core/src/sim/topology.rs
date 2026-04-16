@@ -346,6 +346,19 @@ impl Simulation {
             return Err(SimError::EntityNotFound(stop));
         }
 
+        // Warn if resident riders exist at the stop before we disable it
+        // (disabling will abandon them, clearing the residents index).
+        let residents: Vec<EntityId> = self
+            .rider_index
+            .residents_at(stop)
+            .iter()
+            .copied()
+            .collect();
+        if !residents.is_empty() {
+            self.events
+                .emit(Event::ResidentsAtRemovedStop { stop, residents });
+        }
+
         // Disable first to invalidate routes referencing this stop.
         let _ = self.disable(stop);
 

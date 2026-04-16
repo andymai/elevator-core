@@ -1001,3 +1001,54 @@ fn remove_stop_emits_stop_removed_event() {
         .any(|e| matches!(e, Event::StopRemoved { stop, .. } if *stop == stop_eid));
     assert!(removed, "should emit StopRemoved event");
 }
+
+/// Removing a stop that has resident riders emits `ResidentsAtRemovedStop`.
+#[test]
+fn remove_stop_emits_warning_for_residents() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    // Spawn a rider and run until they arrive.
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    for _ in 0..2000 {
+        sim.step();
+    }
+    sim.drain_events();
+
+    // Find an arrived rider and settle them at their stop.
+    let arrived: Vec<_> = sim
+        .world()
+        .iter_riders()
+        .filter(|(_, r)| r.phase == RiderPhase::Arrived)
+        .map(|(eid, _)| eid)
+        .collect();
+    assert!(!arrived.is_empty(), "should have an arrived rider");
+
+    let rider_eid = arrived[0];
+    let rider = sim.world().rider(rider_eid).unwrap();
+    let stop = rider.current_stop.unwrap();
+    sim.settle_rider(crate::entity::RiderId::from(rider_eid))
+        .unwrap();
+
+    // Verify the rider is now Resident.
+    let phase = sim.world().rider(rider_eid).unwrap().phase;
+    assert_eq!(phase, RiderPhase::Resident, "rider should be Resident");
+
+    // Now remove the stop where the resident is.
+    sim.remove_stop(stop).unwrap();
+    let events = sim.drain_events();
+    let warning = events.iter().find(|e| {
+        matches!(
+            e,
+            Event::ResidentsAtRemovedStop {
+                stop: s,
+                residents,
+                ..
+            } if *s == stop && residents.contains(&rider_eid)
+        )
+    });
+    assert!(
+        warning.is_some(),
+        "should emit ResidentsAtRemovedStop for resident riders"
+    );
+}
