@@ -283,6 +283,29 @@ fn moving_downward() {
     panic!("did not arrive within 2000 ticks");
 }
 
+// ── Zero deceleration guard (#165) ─────────────────────────────────
+
+#[test]
+fn tick_movement_zero_deceleration_produces_finite_result() {
+    let r = tick_movement(0.0, 1.0, 10.0, MAX_SPEED, ACCELERATION, 0.0, DT);
+    assert!(
+        !r.position.is_nan(),
+        "position must not be NaN with zero deceleration"
+    );
+    assert!(
+        !r.velocity.is_nan(),
+        "velocity must not be NaN with zero deceleration"
+    );
+    assert!(
+        r.position.is_finite(),
+        "position must be finite with zero deceleration"
+    );
+    assert!(
+        r.velocity.is_finite(),
+        "velocity must be finite with zero deceleration"
+    );
+}
+
 // ── Edge-case dt tests (#183) ──────────────────────────────────────
 
 #[test]
