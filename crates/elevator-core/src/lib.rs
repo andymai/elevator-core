@@ -215,16 +215,16 @@
 //! RPG where the player *is* the elevator — use the manual door-control
 //! API on [`Simulation`](sim::Simulation):
 //!
-//! - [`request_door_open`](sim::Simulation::request_door_open)
-//! - [`request_door_close`](sim::Simulation::request_door_close)
-//! - [`hold_door_open`](sim::Simulation::hold_door_open) (cumulative)
+//! - [`open_door`](sim::Simulation::open_door)
+//! - [`close_door`](sim::Simulation::close_door)
+//! - [`hold_door`](sim::Simulation::hold_door) (cumulative)
 //! - [`cancel_door_hold`](sim::Simulation::cancel_door_hold)
 //!
 //! Each call is either applied immediately (if the car is in a matching
 //! door-FSM state) or queued on the elevator's
 //! [`door_command_queue`](components::Elevator::door_command_queue) and
 //! re-tried every tick until it can be applied. The only hard errors are
-//! "not an elevator" / "elevator disabled" and (for `hold_door_open`) a
+//! "not an elevator" / "elevator disabled" and (for `hold_door`) a
 //! zero-tick argument — the rest return `Ok(())` and let the engine pick
 //! the right moment. A [`DoorCommand`](door::DoorCommand) can be:
 //!

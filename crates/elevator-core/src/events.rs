@@ -421,9 +421,9 @@ pub enum Event {
     /// immediately or stored for later.
     ///
     /// Emitted by
-    /// [`Simulation::request_door_open`](crate::sim::Simulation::request_door_open),
-    /// [`Simulation::request_door_close`](crate::sim::Simulation::request_door_close),
-    /// [`Simulation::hold_door_open`](crate::sim::Simulation::hold_door_open),
+    /// [`Simulation::open_door`](crate::sim::Simulation::open_door),
+    /// [`Simulation::close_door`](crate::sim::Simulation::close_door),
+    /// [`Simulation::hold_door`](crate::sim::Simulation::hold_door),
     /// and [`Simulation::cancel_door_hold`](crate::sim::Simulation::cancel_door_hold)
     /// when the command is accepted. Paired with
     /// [`Event::DoorCommandApplied`] when the command eventually takes effect.

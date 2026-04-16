@@ -2,9 +2,9 @@
 //! force them closed when ready.
 //!
 //! Demonstrates the
-//! [`Simulation::request_door_open`](elevator_core::sim::Simulation::request_door_open),
-//! [`Simulation::hold_door_open`](elevator_core::sim::Simulation::hold_door_open),
-//! and [`Simulation::request_door_close`](elevator_core::sim::Simulation::request_door_close)
+//! [`Simulation::open_door`](elevator_core::sim::Simulation::open_door),
+//! [`Simulation::hold_door`](elevator_core::sim::Simulation::hold_door),
+//! and [`Simulation::close_door`](elevator_core::sim::Simulation::close_door)
 //! setters. A first rider boards at the lobby; the "player" holds the
 //! doors for a friend who spawns a moment later; once both are aboard
 //! the player forces the doors closed early.
@@ -64,7 +64,7 @@ fn main() {
             )
         {
             println!("[t={tick:>3}] First rider aboard — holding doors for a friend (+60 ticks)");
-            sim.hold_door_open(elev, 60).unwrap();
+            sim.hold_door(elev, 60).unwrap();
             held = true;
             // Spawn the friend at the lobby.
             let f = sim
@@ -80,7 +80,7 @@ fn main() {
             && matches!(sim.world().rider(f).unwrap().phase(), RiderPhase::Riding(_))
         {
             println!("[t={tick:>3}] Both aboard — forcing doors closed");
-            sim.request_door_close(elev).unwrap();
+            sim.close_door(elev).unwrap();
             forced_close = true;
         }
 
