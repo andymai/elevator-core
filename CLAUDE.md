@@ -2,9 +2,10 @@
 
 ## Project Structure
 
-Cargo workspace with two crates:
+Cargo workspace with three crates:
 - `crates/elevator-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
 - `crates/elevator-bevy` — Bevy 0.18 game binary wrapping the core sim
+- `crates/elevator-ffi` — C ABI wrapper for Unity/.NET interop (not published to crates.io)
 
 ## Build
 
@@ -20,7 +21,7 @@ System deps (Ubuntu): `libudev-dev libasound2-dev`
 
 ## Pre-commit Hook
 
-Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features), tests, and doc tests. After cloning:
+Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features), tests, doc tests, and doc lint (when `docs/` files are staged). After cloning:
 
 ```bash
 git config core.hooksPath .githooks
@@ -57,6 +58,10 @@ Type naming — domain-first, no redundant suffixes:
 - Window resolution takes `(u32, u32)` not `(f32, f32)`
 - 2D rendering: `Mesh2d` + `MeshMaterial2d` + `Transform`
 - HUD: `Text` + `Node` + `TextFont` + `TextColor`
+
+## Docs
+
+mdBook guide in `docs/` — deployed to GitHub Pages. Lint with `scripts/lint-docs.sh`.
 
 ## Config
 
