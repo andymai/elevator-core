@@ -160,4 +160,10 @@ The `elevator-bevy` crate is organized into focused modules:
 
 **Build your own** if you are making a game. The Bevy crate is intentionally simple -- it is a reference, not a framework. Copy the patterns you need (the `SimulationRes` resource, the tick system, the event bridge) into your own Bevy app and build your game systems around them.
 
-The core library does not depend on Bevy at all. You can use it with any Rust game engine, a TUI, a web frontend via WASM, or pure headless batch simulation.
+The core library does not depend on Bevy at all. You can use it with any Rust game engine, a TUI, a web frontend via WASM, or pure headless batch simulation. See [Headless and Non-Bevy Usage](headless-non-bevy.md) for engine-agnostic integration patterns.
+
+## Next steps
+
+- [Headless and Non-Bevy Usage](headless-non-bevy.md) -- integrating elevator-core without Bevy, including macroquad and eframe patterns.
+- [Events and Metrics](events-metrics.md) -- the `Event` enum and metric accumulators that power the HUD and your custom systems.
+- [Performance](performance.md) -- throughput baselines and scaling guidance for choosing a tick rate.

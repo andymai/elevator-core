@@ -1,17 +1,28 @@
 # Writing a Custom Dispatch Strategy
 
-The built-in strategies ([SCAN, LOOK, NearestCar, ETD](dispatch.md)) cover most general-purpose needs. Write a custom strategy when you need domain-specific behavior the built-ins don't capture — priority lanes, VIP handling, freight vs. passenger separation, fairness guarantees, energy-aware dispatch.
+The built-in strategies ([SCAN, LOOK, NearestCar, ETD, Destination](dispatch-strategies.md)) cover most general-purpose needs. Write a custom strategy when you need domain-specific behavior the built-ins don't capture -- priority lanes, VIP handling, freight vs. passenger separation, fairness guarantees, energy-aware dispatch.
 
-This chapter is a narrative tutorial that walks from a minimal strategy to a production-grade one with snapshot support. If you just need the API surface, the [Dispatch Strategies](dispatch.md#writing-a-custom-strategy) chapter has the reference sketch.
+This chapter is a narrative tutorial that walks from a minimal strategy to a production-grade one with snapshot support. If you just need a quick overview, the [Dispatch Strategies](dispatch-strategies.md) chapter has one.
+
+## How dispatch works
+
+Strategies express preference as a cost on each `(car, stop)` pair. The dispatch system collects those costs into a matrix and solves the optimal assignment across the whole group, guaranteeing that two cars are never sent to the same hall call. Cars left unassigned fall through to `fallback` for per-car policy (idle, park, etc.). (The solver is the Hungarian / Kuhn-Munkres algorithm -- you don't need to know how it works, just that it finds the globally optimal matching.)
+
+```mermaid
+flowchart LR
+    A["DispatchStrategy::rank()"] -->|"scores (car, stop) pairs"| B["Cost Matrix"]
+    B -->|"O(n^3) solver"| C["Hungarian Assignment"]
+    C -->|"unassigned cars"| D["fallback()"]
+    C -->|"assigned cars"| E["GoToStop decisions"]
+    D --> F["Idle / Park / custom"]
+```
 
 ## The trait surface
-
-Strategies express preference as a cost on each `(car, stop)` pair. The dispatch system collects those costs into a matrix and runs an optimal bipartite matching (Hungarian / Kuhn–Munkres) across the whole group, guaranteeing that two cars can never be sent to the same hall call. Cars left unassigned fall through to `fallback` for per-car policy (idle, park, etc.).
 
 ```rust,ignore
 pub trait DispatchStrategy: Send + Sync {
     /// Pre-pass hook with mutable world access. Used by sticky strategies
-    /// (e.g. destination dispatch) to commit rider → car assignments.
+    /// (e.g. destination dispatch) to commit rider -> car assignments.
     fn pre_dispatch(
         &mut self,
         _group: &ElevatorGroup,
@@ -34,16 +45,7 @@ pub trait DispatchStrategy: Send + Sync {
     /// Score sending `car` to `stop`. Lower is better. `None` marks
     /// the pair unavailable (capacity limits, wrong-direction, sticky).
     /// Must return a finite, non-negative value when `Some`.
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        stop: EntityId,
-        stop_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Option<f64>;
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64>;
 
     /// Decide what a car should do when the assignment phase couldn't
     /// give it a stop (no demand or all candidate ranks were `None`).
@@ -58,59 +60,120 @@ pub trait DispatchStrategy: Send + Sync {
 
     /// Clean up per-elevator state when a car leaves the group.
     /// Strategies with internal `HashMap<EntityId, _>` state must
-    /// remove the entry here — otherwise the map grows unbounded.
+    /// remove the entry here -- otherwise the map grows unbounded.
     fn notify_removed(&mut self, _elevator: EntityId) { /* default: no-op */ }
+}
+```
+
+`RankContext` bundles the per-call arguments into a single struct:
+
+```rust,ignore
+pub struct RankContext<'a> {
+    pub car: EntityId,
+    pub car_position: f64,
+    pub stop: EntityId,
+    pub stop_position: f64,
+    pub group: &'a ElevatorGroup,
+    pub manifest: &'a DispatchManifest,
+    pub world: &'a World,
 }
 ```
 
 Only `rank` is required. The default `fallback` returns `Idle`; the other hooks exist for strategies that need them.
 
-## Step 1 — The simplest possible strategy
+## Step 1 -- The simplest possible strategy
 
 "Nearest-car by distance, favoring stops with more waiting riders."
 
 ```rust,ignore
-use elevator_core::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
-use elevator_core::entity::EntityId;
-use elevator_core::world::World;
+use elevator_core::dispatch::{DispatchStrategy, RankContext};
 
 struct BusyStopNearest;
 
 impl DispatchStrategy for BusyStopNearest {
-    fn rank(
-        &mut self,
-        _car: EntityId,
-        car_position: f64,
-        stop: EntityId,
-        stop_position: f64,
-        _group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        _world: &World,
-    ) -> Option<f64> {
-        let distance = (car_position - stop_position).abs();
-        let waiting = manifest.waiting_count_at(stop) as f64;
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        let distance = (ctx.car_position - ctx.stop_position).abs();
+        let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
         // Subtract a crowding bonus so busier stops look cheaper. Clamp
-        // so Hungarian never sees a negative cost.
+        // so the solver never sees a negative cost.
         Some((distance - waiting).max(0.0))
     }
 }
 ```
 
 What this gets you automatically:
-- Coordination across cars — the Hungarian solver never sends two cars to the same hall call.
-- Direction indicators driven by the `GoToStop` decision vs. car position.
-- `DestinationQueue` management handled by later phases — you don't touch it.
-- Dispatch events (`ElevatorAssigned`, `ElevatorIdle`, `DirectionIndicatorChanged`) emit automatically.
 
-Returning `None` from `rank` excludes a `(car, stop)` pair entirely — use it for capacity limits, wrong-direction stops, or restricted stops. When every candidate stop returns `None` (or there are no demanded stops at all), the dispatcher calls `fallback`, which defaults to `Idle`.
+- **Coordination across cars** -- the Hungarian solver never sends two cars to the same hall call.
+- **Direction indicators** driven by the `GoToStop` decision vs. car position.
+- **`DestinationQueue` management** handled by later phases -- you don't touch it.
+- **Dispatch events** (`ElevatorAssigned`, `ElevatorIdle`, `DirectionIndicatorChanged`) emit automatically.
 
-## Step 2 — Per-car state with `prepare_car`
+Returning `None` from `rank` excludes a `(car, stop)` pair entirely -- use it for capacity limits, wrong-direction stops, or restricted stops. When every candidate stop returns `None` (or there are no demanded stops at all), the dispatcher calls `fallback`, which defaults to `Idle`.
+
+## Step 2 -- Per-car state with `prepare_car`
 
 Strategies whose ranking depends on per-car state (a sweep direction, a queue pointer, a cached priority) should refresh that state in `prepare_car`. The framework calls it once per car per pass, before any `rank` calls for that car, so the subsequent `rank` results are independent of the order the dispatcher iterates stops.
 
 The built-in `ScanDispatch` uses this hook to decide whether the car's sweep direction should flip for the current pass. That decision depends on whole-group demand, so doing it inside `rank` would give different answers depending on which stop was scored first.
 
-## Step 3 — Carrying state, and the `notify_removed` contract
+```rust,ignore
+use std::collections::HashMap;
+use elevator_core::dispatch::{
+    DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
+};
+use elevator_core::entity::EntityId;
+use elevator_core::world::World;
+
+struct DirectionalDispatch {
+    /// Tracks the preferred sweep direction per car.
+    sweep_up: HashMap<EntityId, bool>,
+}
+
+impl DispatchStrategy for DirectionalDispatch {
+    fn prepare_car(
+        &mut self,
+        car: EntityId,
+        car_position: f64,
+        group: &ElevatorGroup,
+        manifest: &DispatchManifest,
+        world: &World,
+    ) {
+        // Decide sweep direction based on where demand is heaviest
+        // relative to this car. This runs once per car, before any
+        // rank() calls for that car.
+        let demand_above = group.stop_entities().iter().filter(|&&s| {
+            manifest.waiting_count_at(s) > 0
+                && world.stop_position(s).map_or(false, |p| p > car_position)
+        }).count();
+        let demand_below = group.stop_entities().iter().filter(|&&s| {
+            manifest.waiting_count_at(s) > 0
+                && world.stop_position(s).map_or(false, |p| p < car_position)
+        }).count();
+        self.sweep_up.insert(car, demand_above >= demand_below);
+    }
+
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        let going_up = self.sweep_up.get(&ctx.car).copied().unwrap_or(true);
+        let is_ahead = if going_up {
+            ctx.stop_position >= ctx.car_position
+        } else {
+            ctx.stop_position <= ctx.car_position
+        };
+        if is_ahead {
+            Some((ctx.car_position - ctx.stop_position).abs())
+        } else {
+            // Penalize stops behind the sweep direction.
+            Some((ctx.car_position - ctx.stop_position).abs() + 1000.0)
+        }
+    }
+
+    fn notify_removed(&mut self, elevator: EntityId) {
+        self.sweep_up.remove(&elevator);
+    }
+}
+```
+
+## Step 3 -- Carrying state, and the `notify_removed` contract
 
 If your strategy tracks something per elevator (direction history, last-served stop, priority bookkeeping), it owns a `HashMap<EntityId, _>`. That map must be cleaned up when an elevator is removed or reassigned across groups, or it grows forever.
 
@@ -126,7 +189,7 @@ use std::collections::HashMap;
 
 #[derive(Default)]
 struct PriorityDispatch {
-    /// Per-elevator cooldown — once this elevator served a priority stop,
+    /// Per-elevator cooldown -- once this elevator served a priority stop,
     /// suppress priority preference for N ticks so non-priority riders
     /// aren't starved.
     cooldown_ticks: HashMap<EntityId, u64>,
@@ -142,11 +205,11 @@ impl DispatchStrategy for PriorityDispatch {
 }
 ```
 
-## Step 4 — Snapshot support
+## Step 4 -- Snapshot support
 
 Simulations can be serialized via `Simulation::snapshot()` for save/load, replay, and deterministic testing. The snapshot records each group's dispatch strategy by name. Built-in strategies serialize to specific variants (`BuiltinStrategy::Scan`, `::Look`, `::NearestCar`, `::Etd`); custom strategies serialize to `BuiltinStrategy::Custom(String)`.
 
-On restore, `WorldSnapshot::restore()` takes an optional factory function that maps the custom name back to a strategy instance. If you don't provide one, custom strategies silently become `ScanDispatch` on restore — your save/load round trip will be wrong.
+On restore, `WorldSnapshot::restore()` takes an optional factory function that maps the custom name back to a strategy instance. If you don't provide one, custom strategies silently become `ScanDispatch` on restore -- your save/load round trip will be wrong.
 
 The canonical pattern:
 
@@ -159,9 +222,7 @@ const PRIORITY_NAME: &str = "priority";
 
 // When building the sim, install the strategy via `Simulation::set_dispatch`,
 // which takes both the strategy and the `BuiltinStrategy` id used for
-// snapshot serialization. The builder's `.dispatch(...)` helper installs
-// the strategy but defaults the id to `BuiltinStrategy::Scan` — fine for
-// the built-in strategies, wrong for custom ones.
+// snapshot serialization.
 let mut sim = SimulationBuilder::new()
     .stop(StopId(0), "Ground", 0.0)
     .stop(StopId(1), "Top", 10.0)
@@ -178,36 +239,57 @@ let snapshot: WorldSnapshot = /* deserialized from RON/JSON/bincode */;
 let sim = snapshot.restore(Some(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
     match name {
         PRIORITY_NAME => Some(Box::new(PriorityDispatch::default())),
-        // Return `None` for unknown names — the restore falls back to
+        // Return `None` for unknown names -- the restore falls back to
         // `ScanDispatch` rather than panicking.
         _ => None,
     }
 }));
 ```
 
-The name is opaque to the library. Keep it stable across releases — changing the name breaks old saved snapshots.
+The name is opaque to the library. Keep it stable across releases -- changing the name breaks old saved snapshots.
 
-## Step 5 — Testing a custom strategy
+## Step 5 -- Testing a custom strategy
 
-Two levels of test coverage:
+Two levels of test coverage work well:
 
 **Unit-test through `dispatch::assign` in isolation.** Construct a minimal `World`, an `ElevatorGroup`, and a `DispatchManifest`, then run one assignment pass. This exercises the Hungarian matching and `fallback` path end-to-end, so the test reflects real runtime behavior. See `crates/elevator-core/src/tests/dispatch_tests.rs` for the helper pattern (`test_world()`, `test_group()`, `spawn_elevator()`, `add_demand()`).
 
-**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction — e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
+**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction -- e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
+
+```rust,ignore
+#[test]
+fn custom_strategy_assigns_nearest_car() {
+    let mut sim = SimulationBuilder::new()
+        .stop(StopId(0), "Ground", 0.0)
+        .stop(StopId(1), "Top", 10.0)
+        .elevator(ElevatorConfig::default())
+        .dispatch(BusyStopNearest)
+        .build()
+        .unwrap();
+
+    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
+    sim.step();
+
+    let events = sim.drain_events();
+    assert!(events.iter().any(|e| matches!(e, Event::ElevatorAssigned { .. })));
+}
+```
+
+See [Testing Your Simulation](testing.md) for broader testing patterns including snapshot round-trips and deterministic replay.
 
 ## Performance considerations
 
-- `rank` runs O(cars × stops) per tick per group, and the Hungarian solver itself is O(n³) in the group size. At 60 ticks/second and a realistic group (20 cars, 50 stops), that's millions of `rank` calls per simulated minute — keep the hot path allocation-free and `manifest` lookups cheap.
+- `rank` runs O(cars x stops) per tick per group, and the Hungarian solver itself is O(n^3) in the group size. At 60 ticks/second and a realistic group (20 cars, 50 stops), that's millions of `rank` calls per simulated minute -- keep the hot path allocation-free and `manifest` lookups cheap.
 - `SmallVec<[T; N]>` is already the storage choice in the built-in strategies for intermediate partitions. If your strategy partitions cars or stops, consider the same.
-- The `DispatchManifest` is immutable — never try to mutate demand from inside `rank`. If you need per-rider state across ticks, store it in your strategy.
-- Avoid iterating `HashMap<EntityId, _>` in the hot path — order is nondeterministic. Use `BTreeMap` or sort keys before iteration.
+- The `DispatchManifest` is immutable -- never try to mutate demand from inside `rank`. If you need per-rider state across ticks, store it in your strategy.
+- Avoid iterating `HashMap<EntityId, _>` in the hot path -- order is nondeterministic. Use `BTreeMap` or sort keys before iteration.
 
 ## Putting it together: a runnable example
 
-See [`examples/custom_dispatch.rs`](https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/custom_dispatch.rs) in the repository — a complete file implementing a round-robin strategy with all three trait methods, ready to `cargo run --example custom_dispatch`.
+See [`examples/custom_dispatch.rs`](https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/custom_dispatch.rs) in the repository -- a complete file implementing a round-robin strategy with all three trait methods, ready to `cargo run --example custom_dispatch`.
 
 ## Next steps
 
-- [Extensions and Hooks](extensions-and-hooks.md) — attach per-rider / per-elevator data (VIP tags, priority, preferences) that your strategy can consult via `world.get_ext::<T>(id)`.
-- [Snapshots and Determinism](snapshots-and-determinism.md) — full snapshot/restore cycle, with emphasis on the custom-strategy factory.
-- [Metrics and Events](metrics-and-events.md) — what dispatch emits and how to consume it for debugging.
+- [Extensions](extensions.md) -- attach per-rider / per-elevator data (VIP tags, priority, preferences) that your strategy can consult via `world.get_ext::<T>(id)`.
+- [Snapshots and Determinism](snapshots-determinism.md) -- full snapshot/restore cycle, with emphasis on the custom-strategy factory.
+- [Events and Metrics](events-metrics.md) -- what dispatch emits and how to consume it for debugging.

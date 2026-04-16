@@ -1,6 +1,6 @@
-# Non-Bevy Integration
+# Headless and Non-Bevy Usage
 
-`elevator-core` is engine-agnostic. The `elevator-bevy` crate is one reference integration; it's the visual debugger ships in this repository. But nothing in `elevator-core` itself depends on Bevy — you can drop the library into [macroquad](https://macroquad.rs/), [eframe/egui](https://github.com/emilk/egui), a web backend, a CLI analysis tool, or a pure headless driver.
+`elevator-core` is engine-agnostic. The `elevator-bevy` crate is one reference integration; it's the visual debugger that ships in this repository. But nothing in `elevator-core` itself depends on Bevy -- you can drop the library into [macroquad](https://macroquad.rs/), [eframe/egui](https://github.com/emilk/egui), a web backend, a CLI analysis tool, or a pure headless driver.
 
 This chapter walks through the integration surface and shows three concrete patterns.
 
@@ -8,20 +8,20 @@ This chapter walks through the integration surface and shows three concrete patt
 
 Integrating `elevator-core` into any host comes down to three things:
 
-1. **Build the `Simulation` once**, up front. `SimulationBuilder::new()` or `SimulationBuilder::from_config(config)` → `.build()`. Keep the `Simulation` as state in your engine's scene / app struct / actor.
+1. **Build the `Simulation` once**, up front. `SimulationBuilder::new()` or `SimulationBuilder::from_config(config)` then `.build()`. Keep the `Simulation` as state in your engine's scene / app struct / actor.
 
-2. **Drive the tick loop.** Call `sim.step()` each frame (or on a fixed-timestep accumulator, if you want to decouple sim rate from render rate). `Simulation::step()` is pure over world state — no I/O, no time-wall clock dependency, no engine-specific globals.
+2. **Drive the tick loop.** Call `sim.step()` each frame (or on a fixed-timestep accumulator, if you want to decouple sim rate from render rate). `Simulation::step()` only reads and writes the internal world state -- no I/O, no wall-clock dependency, no engine-specific globals.
 
 3. **Read state out, inject input in.**
    - **Read state:** `sim.world()` returns a `World` you can query via `query::<(EntityId, &Rider, &Position)>()` for rendering, or via typed accessors (`world.elevator(id)`, `world.stop_position(id)`).
    - **Inject input:** `sim.spawn_rider(origin, dest, weight)`, `sim.push_destination(elev, stop)`, `sim.reroute(rider, new_dest)`, `sim.set_service_mode(elev, mode)`.
    - **Change-event hook:** `sim.drain_events()` returns every event emitted during the last tick. Route them into toasts, particles, SFX, analytics.
 
-That's it. The entire public surface of the library is [`prelude`](api-reference.md) + a handful of typed submodules; no engine extension points, no traits your app must implement.
+That's it. The entire public surface of the library is the `prelude` module (see [docs.rs](https://docs.rs/elevator-core)) plus a handful of typed submodules; no engine extension points, no traits your app must implement.
 
-## Pattern 1 — Headless / CLI / web backend
+## Pattern 1 -- Headless / CLI / web backend
 
-The simplest integration. No rendering — you step the sim and consume events. Suitable for analysis tools, web backends streaming simulation state over Server-Sent Events, CI scenarios, or offline replay.
+The simplest integration. No rendering -- you step the sim and consume events. Suitable for analysis tools, web backends streaming simulation state over Server-Sent Events, CI scenarios, or offline replay.
 
 The repository ships [`examples/headless_trace.rs`](https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/headless_trace.rs) which is exactly this pattern:
 
@@ -46,9 +46,9 @@ for _ in 0..args.ticks {
 
 `Event` implements `Serialize` / `Deserialize`, so consumers in any language can read the NDJSON stream. This is the integration shape a web backend would use: stream events over SSE / WebSocket, have a JS frontend render them.
 
-## Pattern 2 — macroquad (game loop)
+## Pattern 2 -- macroquad (game loop)
 
-[macroquad](https://macroquad.rs/) is a lightweight cross-platform game framework with a simple `async fn main` game loop. The integration pattern is about 200 lines — most of the code is rendering, not elevator-core glue.
+[macroquad](https://macroquad.rs/) is a lightweight cross-platform game framework with a simple `async fn main` game loop. The integration pattern is about 200 lines -- most of the code is rendering, not elevator-core glue.
 
 > **Advisory note.** At the time of writing, macroquad 0.4.x carries
 > [RUSTSEC-2025-0035](https://rustsec.org/advisories/RUSTSEC-2025-0035)
@@ -90,7 +90,7 @@ fn draw_elevators(sim: &Simulation) {
         .iter()
     {
         let y = position_to_screen_y(pos.value());
-        let color = if car.current_load() > 0.0 {
+        let color = if car.current_load().value() > 0.0 {
             Color::from_rgba(100, 200, 255, 255)
         } else {
             Color::from_rgba(180, 180, 180, 255)
@@ -100,7 +100,7 @@ fn draw_elevators(sim: &Simulation) {
 }
 ```
 
-The rendering functions pull component state via `sim.world().query::<...>()` — exactly the same API a Bevy system uses, just without Bevy's dispatcher.
+The rendering functions pull component state via `sim.world().query::<...>()` -- exactly the same API a Bevy system uses, just without Bevy's dispatcher.
 
 ### Decoupling sim rate from render rate
 
@@ -108,7 +108,7 @@ The example above steps the sim once per rendered frame. If you want the sim to 
 
 ```rust,ignore
 let mut tick_accumulator = 0.0_f64;
-let tick_interval = 1.0 / sim.time_adapter().ticks_per_second();
+let tick_interval = 1.0 / sim.time().ticks_per_second();
 
 loop {
     tick_accumulator += get_frame_time() as f64;
@@ -122,9 +122,9 @@ loop {
 }
 ```
 
-## Pattern 3 — eframe / egui (immediate-mode UI)
+## Pattern 3 -- eframe / egui (immediate-mode UI)
 
-[eframe](https://github.com/emilk/egui) is the immediate-mode UI framework behind egui. It's suited for inspector-style tools — a dashboard on the sim rather than a game. We don't ship a runnable eframe example (eframe transitively pulls in wgpu, which is a heavy dep for an example), but the pattern is:
+[eframe](https://github.com/emilk/egui) is the immediate-mode UI framework behind egui. It's suited for inspector-style tools -- a dashboard on the sim rather than a game. We don't ship a runnable eframe example (eframe transitively pulls in wgpu, which is a heavy dep for an example), but the pattern is:
 
 ```rust,ignore
 // Your app holds the sim as state.
@@ -146,7 +146,7 @@ impl eframe::App for ElevatorApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("elevator-core inspector");
 
-            // 3a. Read state — same queries as macroquad, just rendering
+            // 3a. Read state -- same queries as macroquad, just rendering
             // with egui widgets instead of rectangles.
             for (_, pos, car) in self.sim.world()
                 .query::<(EntityId, &Position, &Elevator)>()
@@ -192,10 +192,10 @@ Everything above except the `eframe::App` trait impl is standard `elevator-core`
 
 ## Determinism across hosts
 
-`elevator-core` is deterministic: same config + same sequence of inputs produce identical event streams across hosts. If your renderer needs to replay a saved scenario, combine `WorldSnapshot::restore()` (from [Snapshots and Determinism](snapshots-and-determinism.md)) with a seeded `StdRng` on any `PoissonSource` — the tick loop itself has no internal randomness.
+`elevator-core` is deterministic: same config + same sequence of inputs produce identical event streams across hosts. If your renderer needs to replay a saved scenario, combine `WorldSnapshot::restore()` (from [Snapshots and Determinism](snapshots-determinism.md)) with a seeded `StdRng` on any `PoissonSource` -- the tick loop itself has no internal randomness.
 
 ## Next steps
 
-- [Snapshots and Determinism](snapshots-and-determinism.md) — round-trip save/load so integrations can persist simulation state.
-- [Metrics and Events](metrics-and-events.md) — the `Event` enum and metric accumulators that drive UI updates.
-- [Performance](performance.md) — throughput baselines and scaling guidance for choosing a tick rate.
+- [Snapshots and Determinism](snapshots-determinism.md) -- round-trip save/load so integrations can persist simulation state.
+- [Events and Metrics](events-metrics.md) -- the `Event` enum and metric accumulators that drive UI updates.
+- [Performance](performance.md) -- throughput baselines and scaling guidance for choosing a tick rate.
