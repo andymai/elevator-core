@@ -534,17 +534,18 @@ pub enum Event {
         /// Tick of the press.
         tick: u64,
     },
-    /// A rider balked at boarding a car they considered too crowded
+    /// A rider skipped boarding a car they considered too crowded
     /// (their preferences filtered the car out). The rider remains
     /// Waiting and may board a later car.
-    RiderBalked {
-        /// Rider who balked.
+    #[serde(alias = "RiderBalked")]
+    RiderSkipped {
+        /// Rider who skipped.
         rider: EntityId,
         /// Elevator they declined to board.
         elevator: EntityId,
-        /// Stop where the balking happened.
+        /// Stop where the skip happened.
         at_stop: EntityId,
-        /// Tick of the balk.
+        /// Tick of the skip.
         tick: u64,
     },
     /// A snapshot restore encountered an entity reference that could not
@@ -731,7 +732,7 @@ impl Event {
             | Self::HallCallAcknowledged { .. }
             | Self::HallCallCleared { .. }
             | Self::CarButtonPressed { .. } => EventCategory::Dispatch,
-            Self::RiderBalked { .. } => EventCategory::Rider,
+            Self::RiderSkipped { .. } => EventCategory::Rider,
             Self::SnapshotDanglingReference { .. } | Self::RepositionStrategyNotRestored { .. } => {
                 EventCategory::Observability
             }

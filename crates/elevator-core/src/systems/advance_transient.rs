@@ -184,7 +184,7 @@ pub fn run(
         });
     }
 
-    // Balk-threshold abandonment: riders with `Preferences::balk_threshold_ticks`
+    // Time-triggered abandonment: riders with `Preferences::abandon_after_ticks`
     // give up once their *waiting* time exceeds their budget. Uses
     // `Patience::waited_ticks` when available — that counter only
     // increments while the rider is in `Waiting`, so it correctly
@@ -192,14 +192,14 @@ pub fn run(
     // `Patience` fall back to `tick - spawn_tick` (a lifetime budget)
     // which is accurate for single-leg trips, the common case. Runs
     // after the patience path so both limits can coexist.
-    let balk_abandon: Vec<(EntityId, EntityId)> = world
+    let time_abandon: Vec<(EntityId, EntityId)> = world
         .iter_riders()
         .filter_map(|(id, r)| {
             if world.is_disabled(id) || r.phase != RiderPhase::Waiting {
                 return None;
             }
             let prefs = world.preferences(id)?;
-            let threshold = prefs.balk_threshold_ticks()?;
+            let threshold = prefs.abandon_after_ticks()?;
             let stop = r.current_stop?;
             let waited = world.patience(id).map_or_else(
                 || ctx.tick.saturating_sub(r.spawn_tick),
@@ -212,7 +212,7 @@ pub fn run(
             }
         })
         .collect();
-    for (id, stop) in balk_abandon {
+    for (id, stop) in time_abandon {
         if let Some(r) = world.rider_mut(id) {
             r.phase = RiderPhase::Abandoned;
         }

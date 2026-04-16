@@ -171,13 +171,13 @@ Waiting: {waiting}
 Delivered: {delivered}
 ---
 Hall press: {hp}  Ack: {ack}  Cleared: {cl}
-Car press: {cp}  Balked: {balk}",
+Car press: {cp}  Skipped: {skip}",
         sim.sim.current_tick(),
         hp = events.button_pressed,
         ack = events.acknowledged,
         cl = events.cleared,
         cp = events.car_button_pressed,
-        balk = events.balked,
+        skip = events.skipped,
     );
 
     for mut t in &mut query {

@@ -69,15 +69,15 @@ The `Preferences` component controls boarding behavior:
 |---|---|---|---|
 | `skip_full_elevator` | `bool` | `false` | Skip a crowded elevator and wait for the next one |
 | `max_crowding_factor` | `f64` | `0.8` | Maximum load factor (0.0-1.0) the rider will tolerate |
-| `balk_threshold_ticks` | `Option<u32>` | `None` | Abandon after N ticks of waiting (time-triggered) |
+| `abandon_after_ticks` | `Option<u32>` | `None` | Abandon after N ticks of waiting (time-triggered) |
 | `abandon_on_full` | `bool` | `false` | Abandon immediately on first full-car skip (event-triggered) |
 
 The two abandonment paths are independent axes:
 
-- `balk_threshold_ticks` is **time-triggered** -- the rider abandons after their wait budget elapses, checked during AdvanceTransient.
+- `abandon_after_ticks` is **time-triggered** -- the rider abandons after their wait budget elapses, checked during AdvanceTransient.
 - `abandon_on_full` is **event-triggered** -- the rider abandons the moment a full-car skip happens, checked during Loading.
 
-Whichever condition fires first wins. Setting `abandon_on_full = true` with `balk_threshold_ticks = None` is valid and abandons on the first full-car skip regardless of wait time.
+Whichever condition fires first wins. Setting `abandon_on_full = true` with `abandon_after_ticks = None` is valid and abandons on the first full-car skip regardless of wait time.
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -95,7 +95,7 @@ let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap();
 ```
 
-When `skip_full_elevator` is true and the load exceeds `max_crowding_factor`, the rider silently skips the car. A `RiderBalked` event fires so game UI can animate the reaction. The rider remains `Waiting` for the next car -- unless `abandon_on_full` escalates it to `Abandoned`.
+When `skip_full_elevator` is true and the load exceeds `max_crowding_factor`, the rider silently skips the car. A `RiderSkipped` event fires so game UI can animate the reaction. The rider remains `Waiting` for the next car -- unless `abandon_on_full` escalates it to `Abandoned`.
 
 ## Access control
 

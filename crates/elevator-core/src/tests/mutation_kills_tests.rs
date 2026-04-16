@@ -355,7 +355,7 @@ fn loading_preference_boundary_allows_exact_match() {
         .preferences(Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.0,
-            balk_threshold_ticks: None,
+            abandon_after_ticks: None,
             abandon_on_full: false,
         })
         .spawn()

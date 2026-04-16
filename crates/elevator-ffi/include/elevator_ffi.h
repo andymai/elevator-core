@@ -40,9 +40,9 @@
 #define CAR_BUTTON_PRESSED 4
 
 /**
- * `Event::RiderBalked`.
+ * `Event::RiderSkipped`.
  */
-#define RIDER_BALKED 5
+#define RIDER_SKIPPED 5
 
 /**
  * Status code returned by every FFI entrypoint.
@@ -333,7 +333,7 @@ typedef struct EvHallCall {
 } EvHallCall;
 
 /**
- * C-ABI-flat projection of the five hall-call / car-call / balk
+ * C-ABI-flat projection of the five hall-call / car-call / skip
  * events emitted by the simulation.
  *
  * All entity-id fields use `0` to mean "not applicable for this
@@ -358,17 +358,17 @@ typedef struct EvEvent {
     uint64_t tick;
     /**
      * Stop entity id. Meaningful for all three hall-call kinds and
-     * for `RiderBalked` (as the balk site). `0` for `CarButtonPressed`.
+     * for `RiderSkipped` (as the skip site). `0` for `CarButtonPressed`.
      */
     uint64_t stop;
     /**
      * Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
-     * `RiderBalked.elevator`. `0` for kinds that don't carry a car.
+     * `RiderSkipped.elevator`. `0` for kinds that don't carry a car.
      */
     uint64_t car;
     /**
      * Rider entity id. `CarButtonPressed.rider` (may be `0` for
-     * synthetic presses), `RiderBalked.rider`. `0` otherwise.
+     * synthetic presses), `RiderSkipped.rider`. `0` otherwise.
      */
     uint64_t rider;
     /**
@@ -583,7 +583,7 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
                                          uint32_t *out_written);
 
 /**
- * Drain pending hall-call / car-call / balk events into `out`.
+ * Drain pending hall-call / car-call / skip events into `out`.
  *
  * This is the FFI mirror of `Simulation::drain_events`, filtered to
  * the five events added by the hall-call work: every call produced
@@ -599,8 +599,8 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
  * - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
  * - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
  *   synthetic presses), `tick`.
- * - `RIDER_BALKED`: `rider`, `car` (the elevator declined), `stop`
- *   (the balk site), `tick`.
+ * - `RIDER_SKIPPED`: `rider`, `car` (the elevator declined), `stop`
+ *   (the skip site), `tick`.
  *
  * Unused fields for each kind are zeroed so the caller can inspect
  * a uniform struct layout. Other event kinds in the sim (door

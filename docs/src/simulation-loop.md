@@ -14,7 +14,8 @@ flowchart TD
     P5 --> P6["6. Doors"]
     P6 --> P7["7. Loading"]
     P7 --> P8["8. Metrics"]
-    P8 --> ADV["advance_tick()<br>flush events, tick += 1"]
+    P8 --> ADV["advance_tick()
+flush events, tick += 1"]
 ```
 
 Events emitted during a tick are buffered internally. After all eight phases complete, `advance_tick()` drains the buffer into the output queue, making events available to your code via `sim.drain_events()`.

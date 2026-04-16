@@ -267,7 +267,7 @@ fn pinned_pin_does_not_clobber_loading_car() {
     }
 }
 
-/// `abandon_on_full = true` escalates a balk into immediate abandonment.
+/// `abandon_on_full = true` escalates a skip into immediate abandonment.
 /// Regression guard — the flag was documented but previously inert.
 #[test]
 fn abandon_on_full_abandons_immediately() {
@@ -292,7 +292,7 @@ fn abandon_on_full_abandons_immediately() {
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
-            balk_threshold_ticks: None,
+            abandon_after_ticks: None,
             abandon_on_full: true,
         },
     );
@@ -322,16 +322,16 @@ fn abandon_on_full_abandons_immediately() {
     assert_eq!(
         phase,
         Some(crate::components::RiderPhase::Abandoned),
-        "abandon_on_full should escalate the balk into Abandoned"
+        "abandon_on_full should escalate the skip into Abandoned"
     );
 }
 
-/// `abandon_on_full` and `balk_threshold_ticks` are independent axes.
+/// `abandon_on_full` and `abandon_after_ticks` are independent axes.
 /// Setting both with `abandon_on_full = true` and a large threshold
 /// proves the event-triggered path fires before the time-triggered
 /// one — the two do not gate each other.
 #[test]
-fn abandon_on_full_fires_before_balk_threshold_elapses() {
+fn abandon_on_full_fires_before_abandon_after_ticks_elapses() {
     use crate::components::Preferences;
     let mut config = default_config();
     config.elevators[0].weight_capacity = Weight::from(100.0);
@@ -352,7 +352,7 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
-            balk_threshold_ticks: Some(1_000_000),
+            abandon_after_ticks: Some(1_000_000),
             abandon_on_full: true,
         },
     );

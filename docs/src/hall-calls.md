@@ -62,10 +62,10 @@ A pinned car that is mid-door-cycle (`Loading` / `DoorOpening` / `DoorClosing`) 
 
 The `Preferences` component has two knobs for game-designer-tuned rider behavior:
 
-- **`balk_threshold_ticks: Option<u32>`** -- the rider abandons after this many ticks of waiting. Uses `Patience::waited_ticks` when present, so multi-leg routes don't over-count ride time.
+- **`abandon_after_ticks: Option<u32>`** -- the rider abandons after this many ticks of waiting. Uses `Patience::waited_ticks` when present, so multi-leg routes don't over-count ride time.
 - **`abandon_on_full: bool`** -- when set, a rider filtered out of a car via `skip_full_elevator` abandons immediately rather than waiting for the next one. Emits `RiderAbandoned` on the spot.
 
-Both knobs generate events (`RiderBalked`, `RiderAbandoned`) so game UI can react to individual behavioral beats. See [Rider Lifecycle -- Preferences](rider-lifecycle.md#preferences) for the full details on how these interact.
+Both knobs generate events (`RiderSkipped`, `RiderAbandoned`) so game UI can react to individual behavioral beats. See [Rider Lifecycle -- Preferences](rider-lifecycle.md#preferences) for the full details on how these interact.
 
 ## Public query API
 
@@ -84,7 +84,7 @@ Both knobs generate events (`RiderBalked`, `RiderAbandoned`) so game UI can reac
 | `HallCallAcknowledged` | Ack-latency window elapsed | UI confirmation signal |
 | `HallCallCleared` | Assigned car opens doors at stop | Clears the button light |
 | `CarButtonPressed` | First press per `(car, floor)` | `rider` field is `None` for synthetic presses |
-| `RiderBalked` | Preference filter rejects a candidate car | Rider may still board a later car unless `abandon_on_full` is set |
+| `RiderSkipped` | Preference filter rejects a candidate car | Rider may still board a later car unless `abandon_on_full` is set |
 
 ## FFI
 

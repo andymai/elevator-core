@@ -1074,11 +1074,11 @@ pub mod ev_event_kind {
     pub const HALL_CALL_CLEARED: u8 = 3;
     /// `Event::CarButtonPressed`.
     pub const CAR_BUTTON_PRESSED: u8 = 4;
-    /// `Event::RiderBalked`.
-    pub const RIDER_BALKED: u8 = 5;
+    /// `Event::RiderSkipped`.
+    pub const RIDER_SKIPPED: u8 = 5;
 }
 
-/// C-ABI-flat projection of the five hall-call / car-call / balk
+/// C-ABI-flat projection of the five hall-call / car-call / skip
 /// events emitted by the simulation.
 ///
 /// All entity-id fields use `0` to mean "not applicable for this
@@ -1097,20 +1097,20 @@ pub struct EvEvent {
     /// Tick the event was emitted on.
     pub tick: u64,
     /// Stop entity id. Meaningful for all three hall-call kinds and
-    /// for `RiderBalked` (as the balk site). `0` for `CarButtonPressed`.
+    /// for `RiderSkipped` (as the skip site). `0` for `CarButtonPressed`.
     pub stop: u64,
     /// Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
-    /// `RiderBalked.elevator`. `0` for kinds that don't carry a car.
+    /// `RiderSkipped.elevator`. `0` for kinds that don't carry a car.
     pub car: u64,
     /// Rider entity id. `CarButtonPressed.rider` (may be `0` for
-    /// synthetic presses), `RiderBalked.rider`. `0` otherwise.
+    /// synthetic presses), `RiderSkipped.rider`. `0` otherwise.
     pub rider: u64,
     /// Floor entity id for `CarButtonPressed` (the requested stop).
     /// `0` for every other kind.
     pub floor: u64,
 }
 
-/// Drain pending hall-call / car-call / balk events into `out`.
+/// Drain pending hall-call / car-call / skip events into `out`.
 ///
 /// This is the FFI mirror of `Simulation::drain_events`, filtered to
 /// the five events added by the hall-call work: every call produced
@@ -1126,8 +1126,8 @@ pub struct EvEvent {
 /// - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
 /// - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
 ///   synthetic presses), `tick`.
-/// - `RIDER_BALKED`: `rider`, `car` (the elevator declined), `stop`
-///   (the balk site), `tick`.
+/// - `RIDER_SKIPPED`: `rider`, `car` (the elevator declined), `stop`
+///   (the skip site), `tick`.
 ///
 /// Unused fields for each kind are zeroed so the caller can inspect
 /// a uniform struct layout. Other event kinds in the sim (door
@@ -1213,7 +1213,7 @@ pub unsafe extern "C" fn ev_sim_pending_event_count(handle: *mut EvSim) -> u32 {
 }
 
 /// Drain the sim's event queue into `ev.pending_events`, keeping
-/// only the five hall-call / balk events. The buffer is FIFO so
+/// only the five hall-call / skip events. The buffer is FIFO so
 /// order matches sim emission order across calls.
 fn refill_pending_events(ev: &mut EvSim) {
     use elevator_core::events::Event;
@@ -1273,13 +1273,13 @@ fn refill_pending_events(ev: &mut EvSim) {
                 rider: rider.map_or(0, entity_to_u64),
                 floor: entity_to_u64(floor),
             },
-            Event::RiderBalked {
+            Event::RiderSkipped {
                 rider,
                 elevator,
                 at_stop,
                 tick,
             } => EvEvent {
-                kind: ev_event_kind::RIDER_BALKED,
+                kind: ev_event_kind::RIDER_SKIPPED,
                 direction: 0,
                 tick,
                 stop: entity_to_u64(at_stop),
