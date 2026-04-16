@@ -1,5 +1,18 @@
 # Changelog
 
+## [11.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v10.0.0...elevator-core-v11.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* snapshot restore errors and extension convenience ([#158](https://github.com/andymai/elevator-core/issues/158))
+* prelude expansion and RepositionStrategy buffer pattern ([#156](https://github.com/andymai/elevator-core/issues/156))
+
+### Features
+
+* prelude expansion and RepositionStrategy buffer pattern ([#156](https://github.com/andymai/elevator-core/issues/156)) ([4f88934](https://github.com/andymai/elevator-core/commit/4f88934c779dba2350a918acaa1c335f8dd8ac7c))
+* snapshot restore errors and extension convenience ([#158](https://github.com/andymai/elevator-core/issues/158)) ([7f42239](https://github.com/andymai/elevator-core/commit/7f42239f3db0103e80e546f244ccfde72558a032))
+
 ## [10.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v9.0.0...elevator-core-v10.0.0) (2026-04-16)
 
 
