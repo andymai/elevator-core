@@ -83,3 +83,18 @@ cargo build -p elevator-ffi --release
 ```
 
 The header is regenerated on every build via `build.rs` and checked in.
+
+## CI coverage
+
+The `ffi-harness` job in `.github/workflows/ci.yml` runs the C# smoke
+harness against the compiled cdylib on three host platforms:
+
+| Host                  | Runner           | Runtime ID  | Artefact                |
+|-----------------------|------------------|-------------|-------------------------|
+| Linux (x86-64)        | `ubuntu-latest`  | `linux-x64` | `libelevator_ffi.so`    |
+| Windows (x86-64)      | `windows-latest` | `win-x64`   | `elevator_ffi.dll`      |
+| macOS (Apple Silicon) | `macos-latest`   | `osx-arm64` | `libelevator_ffi.dylib` |
+
+The header-diff check runs only on Linux (all three produce identical
+output). `fail-fast: false` is set so a regression on one platform
+doesn't hide issues on the others.
