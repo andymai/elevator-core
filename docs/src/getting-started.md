@@ -21,7 +21,7 @@ This brings in, at a glance:
 | Group | Items |
 |---|---|
 | Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
-| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
 | Config | `SimConfig`, `GroupConfig`, `LineConfig` |
 | Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
 | Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |

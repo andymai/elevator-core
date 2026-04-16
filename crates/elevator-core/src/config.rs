@@ -1,6 +1,6 @@
 //! Building and elevator configuration (RON-deserializable).
 
-use crate::components::{FloorPosition, Orientation};
+use crate::components::{Orientation, SpatialPosition};
 use crate::dispatch::{BuiltinReposition, BuiltinStrategy, HallCallMode};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
@@ -236,7 +236,7 @@ pub struct LineConfig {
     pub orientation: Orientation,
     /// Optional floor-plan position.
     #[serde(default)]
-    pub position: Option<FloorPosition>,
+    pub position: Option<SpatialPosition>,
     /// Lowest reachable position (auto-computed from stops if `None`).
     #[serde(default)]
     pub min_position: Option<f64>,

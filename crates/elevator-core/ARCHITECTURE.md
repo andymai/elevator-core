@@ -30,7 +30,7 @@ pub struct World {
     alive:       SlotMap<EntityId, ()>,
 
     // Built-in component storages (one SecondaryMap per component type)
-    positions, velocities, floor_positions,
+    positions, velocities, spatial_positions,
     elevators, riders, stops, routes, lines,
     patience, preferences, access_control,
     destination_queues, service_modes,
@@ -55,7 +55,7 @@ concrete struct definition.
 |--------------------|-------------------|------------------------------------------------------------------|
 | `Position`         | Elevator, Stop    | Shaft-axis position (`f64`). Stops use it for lookup.            |
 | `Velocity`         | Elevator          | Shaft-axis velocity (`f64`, signed).                             |
-| `FloorPosition`    | Line              | Optional floor-plan position for rendering.                      |
+| `SpatialPosition`    | Line              | Optional floor-plan position for rendering.                      |
 | `Elevator`         | Elevator          | Phase, door FSM, riders, capacity, physics, direction lamps.     |
 | `Rider`            | Rider             | Phase, weight, spawn/board tick.                                 |
 | `Stop`             | Stop              | Name + position pair.                                            |

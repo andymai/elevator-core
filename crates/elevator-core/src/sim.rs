@@ -68,7 +68,7 @@ mod lifecycle;
 mod topology;
 
 use crate::components::{
-    AccessControl, FloorPosition, Orientation, Patience, Preferences, Rider, RiderPhase, Route,
+    AccessControl, Orientation, Patience, Preferences, Rider, RiderPhase, Route, SpatialPosition,
     Velocity,
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
@@ -139,7 +139,7 @@ pub struct LineParams {
     /// Highest reachable position on the line axis.
     pub max_position: f64,
     /// Optional floor-plan position.
-    pub position: Option<FloorPosition>,
+    pub position: Option<SpatialPosition>,
     /// Maximum cars on this line (None = unlimited).
     pub max_cars: Option<usize>,
 }
