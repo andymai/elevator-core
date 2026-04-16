@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use crate::components::{Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route};
-use crate::entity::EntityId;
+use crate::entity::{ElevatorId, EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::Event;
 use crate::ids::GroupId;
@@ -113,7 +113,8 @@ impl Simulation {
     /// Returns [`SimError::WrongRiderPhase`] if the rider is not in
     /// [`RiderPhase::Waiting`], or [`SimError::RiderHasNoStop`] if the
     /// rider has no current stop.
-    pub fn reroute(&mut self, rider: EntityId, new_destination: EntityId) -> Result<(), SimError> {
+    pub fn reroute(&mut self, rider: RiderId, new_destination: EntityId) -> Result<(), SimError> {
+        let rider = rider.entity();
         let r = self
             .world
             .rider(rider)
@@ -170,7 +171,8 @@ impl Simulation {
     /// Returns [`SimError::WrongRiderPhase`] if the rider is not in
     /// `Arrived` or `Abandoned` phase, or [`SimError::RiderHasNoStop`]
     /// if the rider has no current stop.
-    pub fn settle_rider(&mut self, id: EntityId) -> Result<(), SimError> {
+    pub fn settle_rider(&mut self, id: RiderId) -> Result<(), SimError> {
+        let id = id.entity();
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
 
         let old_phase = rider.phase;
@@ -279,7 +281,8 @@ impl Simulation {
     ///
     /// Returns [`SimError::EntityNotFound`] if `id` does not exist or is
     /// not a rider.
-    pub fn despawn_rider(&mut self, id: EntityId) -> Result<(), SimError> {
+    pub fn despawn_rider(&mut self, id: RiderId) -> Result<(), SimError> {
+        let id = id.entity();
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
 
         // Targeted index removal based on current phase (O(1) vs O(n) scan).
@@ -665,10 +668,11 @@ impl Simulation {
     ///
     /// let sim = SimulationBuilder::demo().build().unwrap();
     /// let stop = sim.stop_entity(StopId(0)).unwrap();
-    /// assert_eq!(sim.elevator_load(stop), None); // not an elevator
+    /// assert_eq!(sim.elevator_load(ElevatorId::from(stop)), None); // not an elevator
     /// ```
     #[must_use]
-    pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
+    pub fn elevator_load(&self, id: ElevatorId) -> Option<f64> {
+        let id = id.entity();
         self.world.elevator(id).map(|e| e.current_load.value())
     }
 

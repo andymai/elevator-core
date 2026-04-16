@@ -1,4 +1,5 @@
 use crate::components::RiderPhase;
+use crate::entity::{ElevatorId, RiderId};
 use crate::stop::StopId;
 use crate::tests::helpers;
 use crate::world::ExtKey;
@@ -221,8 +222,11 @@ fn snapshot_preserves_extension_components() {
 
     // Attach extension component to a rider.
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-    sim.world_mut()
-        .insert_ext(rider, VipTag { level: 5 }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(
+        rider.entity(),
+        VipTag { level: 5 },
+        ExtKey::from_type_name(),
+    );
 
     let snap = sim.snapshot();
     let mut restored = snap.restore(None).unwrap();
@@ -445,7 +449,7 @@ fn snapshot_preserves_hall_calls_and_pinning() {
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
     let stop = sim.stop_entity(StopId(1)).unwrap();
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     sim.press_hall_button(stop, CallDirection::Up).unwrap();
     sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
 
@@ -475,7 +479,7 @@ fn snapshot_preserves_car_calls() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     let floor = sim.stop_entity(StopId(2)).unwrap();
     sim.press_car_button(car, floor).unwrap();
     assert_eq!(sim.car_calls(car).len(), 1);
@@ -483,7 +487,7 @@ fn snapshot_preserves_car_calls() {
     let snap = sim.snapshot();
     let restored = snap.restore(None).unwrap();
 
-    let restored_car = restored.world().elevator_ids()[0];
+    let restored_car = ElevatorId::from(restored.world().elevator_ids()[0]);
     let calls = restored.car_calls(restored_car);
     assert_eq!(calls.len(), 1, "car call must round-trip");
     // Floor reference must have been remapped to a valid stop entity.

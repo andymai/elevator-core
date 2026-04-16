@@ -1,4 +1,5 @@
 use crate::components::{Accel, Direction, ServiceMode, Speed, Weight};
+use crate::entity::ElevatorId;
 use crate::error::EtaError;
 use crate::eta::travel_time;
 use crate::stop::StopId;
@@ -51,7 +52,7 @@ fn travel_time_brake_only_when_overspeed_close() {
 fn eta_returns_none_for_unqueued_stop() {
     let config = helpers::default_config();
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Empty queue, no movement target → Err.
     assert!(sim.eta(elev, stop1).is_err());
@@ -63,7 +64,7 @@ fn eta_returns_some_for_queued_stop() {
     // Pump down ticks_per_second so wall-clock arithmetic is easy to read.
     config.simulation.ticks_per_second = 60.0;
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
 
     sim.push_destination(elev, stop1).unwrap();
@@ -86,7 +87,7 @@ fn eta_actual_arrival_within_estimate_tolerance() {
     // out of sync between movement.rs and eta.rs.
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
     sim.push_destination(elev, stop2).unwrap();
 
@@ -100,7 +101,7 @@ fn eta_actual_arrival_within_estimate_tolerance() {
     for _ in 0..2000 {
         sim.step();
         actual_ticks += 1;
-        let phase = sim.world().elevator(elev).unwrap().phase();
+        let phase = sim.world().elevator(elev.entity()).unwrap().phase();
         if !phase.is_moving() && !matches!(phase, crate::components::ElevatorPhase::Idle) {
             arrived = true;
             break;
@@ -118,7 +119,7 @@ fn eta_actual_arrival_within_estimate_tolerance() {
 fn eta_sums_door_cycles_for_intermediate_stops() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
 
@@ -144,8 +145,8 @@ fn eta_queue_order_matters() {
     let config = helpers::default_config();
     let mut sim_a = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let mut sim_b = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev_a = sim_a.world().iter_elevators().next().unwrap().0;
-    let elev_b = sim_b.world().iter_elevators().next().unwrap().0;
+    let elev_a = ElevatorId::from(sim_a.world().iter_elevators().next().unwrap().0);
+    let elev_b = ElevatorId::from(sim_b.world().iter_elevators().next().unwrap().0);
     let s1_a = sim_a.stop_entity(StopId(1)).unwrap();
     let s2_a = sim_a.stop_entity(StopId(2)).unwrap();
     let s1_b = sim_b.stop_entity(StopId(1)).unwrap();
@@ -164,11 +165,12 @@ fn eta_queue_order_matters() {
 fn eta_returns_none_for_manual_mode() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     sim.push_destination(elev, stop1).unwrap();
 
-    sim.set_service_mode(elev, ServiceMode::Manual).unwrap();
+    sim.set_service_mode(elev.entity(), ServiceMode::Manual)
+        .unwrap();
     assert!(matches!(
         sim.eta(elev, stop1),
         Err(EtaError::ServiceModeExcluded(_))
@@ -179,11 +181,11 @@ fn eta_returns_none_for_manual_mode() {
 fn eta_returns_none_for_independent_mode() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     sim.push_destination(elev, stop1).unwrap();
 
-    sim.set_service_mode(elev, ServiceMode::Independent)
+    sim.set_service_mode(elev.entity(), ServiceMode::Independent)
         .unwrap();
     assert!(matches!(
         sim.eta(elev, stop1),
@@ -195,14 +197,17 @@ fn eta_returns_none_for_independent_mode() {
 fn eta_rejects_non_elevator_and_non_stop() {
     let config = helpers::default_config();
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Swap arguments: stop is not an elevator, elevator is not a stop.
     assert!(matches!(
-        sim.eta(stop1, stop1),
+        sim.eta(ElevatorId::from(stop1), stop1),
         Err(EtaError::NotAnElevator(_))
     ));
-    assert!(matches!(sim.eta(elev, elev), Err(EtaError::NotAStop(_))));
+    assert!(matches!(
+        sim.eta(elev, elev.entity()),
+        Err(EtaError::NotAStop(_))
+    ));
 }
 
 #[test]
@@ -231,7 +236,7 @@ fn best_eta_picks_min_across_elevators() {
     let elevs: Vec<_> = sim.world().iter_elevators().map(|(e, _, _)| e).collect();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     for &e in &elevs {
-        sim.push_destination(e, stop1).unwrap();
+        sim.push_destination(ElevatorId::from(e), stop1).unwrap();
     }
     let (winner, _) = sim.best_eta(stop1, Direction::Either).unwrap();
     let winner_pos = sim.world().position(winner).unwrap().value;
@@ -253,7 +258,7 @@ fn best_eta_returns_none_when_nobody_queued() {
 fn best_eta_filters_by_direction() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
     sim.push_destination(elev, stop2).unwrap();
 

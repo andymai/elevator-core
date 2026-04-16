@@ -8,7 +8,7 @@ use crate::components::{Accel, AccessControl, Preferences, RiderPhase, Speed, We
 use crate::dispatch::BuiltinReposition;
 use crate::dispatch::reposition::ReturnToLobby;
 use crate::dispatch::{EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch};
-use crate::entity::EntityId;
+use crate::entity::{ElevatorId, EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::Event;
 use crate::ids::GroupId;
@@ -58,7 +58,7 @@ fn remove_elevator_ejects_riders_aboard() {
     // Run enough ticks for the rider to board.
     for _ in 0..300 {
         sim.step();
-        let phase = sim.world().rider(rider_id).unwrap().phase;
+        let phase = sim.world().rider(rider_id.entity()).unwrap().phase;
         if matches!(phase, RiderPhase::Riding(_)) {
             break;
         }
@@ -67,7 +67,7 @@ fn remove_elevator_ejects_riders_aboard() {
     let elevator_id = sim.groups()[0].elevator_entities()[0];
     assert!(
         matches!(
-            sim.world().rider(rider_id).unwrap().phase,
+            sim.world().rider(rider_id.entity()).unwrap().phase,
             RiderPhase::Riding(_)
         ),
         "rider should have boarded within 300 ticks"
@@ -77,7 +77,7 @@ fn remove_elevator_ejects_riders_aboard() {
     sim.remove_elevator(elevator_id).unwrap();
     sim.drain_events(); // consume events
 
-    let phase = sim.world().rider(rider_id).unwrap().phase;
+    let phase = sim.world().rider(rider_id.entity()).unwrap().phase;
     // After ejection, rider is put back to Waiting.
     assert!(
         matches!(phase, RiderPhase::Waiting),
@@ -97,7 +97,7 @@ fn remove_elevator_ejects_rider_emits_event() {
     for _ in 0..300 {
         sim.step();
         if matches!(
-            sim.world().rider(rider_id).unwrap().phase,
+            sim.world().rider(rider_id.entity()).unwrap().phase,
             RiderPhase::Riding(_)
         ) {
             break;
@@ -108,7 +108,7 @@ fn remove_elevator_ejects_rider_emits_event() {
 
     assert!(
         matches!(
-            sim.world().rider(rider_id).unwrap().phase,
+            sim.world().rider(rider_id.entity()).unwrap().phase,
             RiderPhase::Riding(_)
         ),
         "rider should have boarded within 300 ticks"
@@ -119,7 +119,7 @@ fn remove_elevator_ejects_rider_emits_event() {
 
     let ejected = events
         .iter()
-        .any(|e| matches!(e, Event::RiderEjected { rider, .. } if *rider == rider_id));
+        .any(|e| matches!(e, Event::RiderEjected { rider, .. } if *rider == rider_id.entity()));
     assert!(
         ejected,
         "should emit RiderEjected when removing elevator with rider aboard"
@@ -195,7 +195,7 @@ fn remove_stop_with_waiting_rider_invalidates_route() {
     let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Ensure the rider is in Waiting phase (before boarding).
-    let phase = sim.world().rider(rider_id).unwrap().phase;
+    let phase = sim.world().rider(rider_id.entity()).unwrap().phase;
     assert_eq!(phase, RiderPhase::Waiting);
 
     // Remove the destination stop.
@@ -206,7 +206,7 @@ fn remove_stop_with_waiting_rider_invalidates_route() {
     // Removing a stop should emit RouteInvalidated for any rider whose route references it.
     let invalidated = events
         .iter()
-        .any(|e| matches!(e, Event::RouteInvalidated { rider, .. } if *rider == rider_id));
+        .any(|e| matches!(e, Event::RouteInvalidated { rider, .. } if *rider == rider_id.entity()));
     assert!(
         invalidated,
         "should emit RouteInvalidated for rider targeting the removed stop"
@@ -228,7 +228,7 @@ fn remove_stop_clears_dangling_references_on_elevator() {
 
     // Queue stop 2 as a destination, then dispatch so the elevator picks
     // it as its target.
-    sim.push_destination(elev, stop2).unwrap();
+    sim.push_destination(ElevatorId::from(elev), stop2).unwrap();
     sim.step();
 
     // Seed the restricted_stops set directly (normally populated via
@@ -242,7 +242,7 @@ fn remove_stop_clears_dangling_references_on_elevator() {
     assert!(
         car.target_stop == Some(stop2)
             || sim
-                .destination_queue(elev)
+                .destination_queue(ElevatorId::from(elev))
                 .is_some_and(|q| q.contains(&stop2)),
         "test precondition: elevator should reference stop2 somehow"
     );
@@ -256,7 +256,7 @@ fn remove_stop_clears_dangling_references_on_elevator() {
         Some(stop2),
         "target_stop must be cleared when the referenced stop is removed"
     );
-    if let Some(q) = sim.destination_queue(elev) {
+    if let Some(q) = sim.destination_queue(ElevatorId::from(elev)) {
         assert!(
             !q.contains(&stop2),
             "DestinationQueue must not contain the removed stop"
@@ -410,7 +410,7 @@ fn riders_on_returns_rider_ids_after_boarding() {
     for _ in 0..300 {
         sim.step();
         if matches!(
-            sim.world().rider(rider_id).unwrap().phase,
+            sim.world().rider(rider_id.entity()).unwrap().phase,
             RiderPhase::Riding(_)
         ) {
             break;
@@ -418,11 +418,11 @@ fn riders_on_returns_rider_ids_after_boarding() {
     }
 
     if matches!(
-        sim.world().rider(rider_id).unwrap().phase,
+        sim.world().rider(rider_id.entity()).unwrap().phase,
         RiderPhase::Riding(_)
     ) {
         assert!(
-            sim.riders_on(elevator_id).contains(&rider_id),
+            sim.riders_on(elevator_id).contains(&rider_id.entity()),
             "rider should appear in riders_on after boarding"
         );
     }
@@ -458,7 +458,7 @@ fn occupancy_returns_correct_count_after_boarding() {
     for _ in 0..300 {
         sim.step();
         if matches!(
-            sim.world().rider(rider_id).unwrap().phase,
+            sim.world().rider(rider_id.entity()).unwrap().phase,
             RiderPhase::Riding(_)
         ) {
             break;
@@ -466,7 +466,7 @@ fn occupancy_returns_correct_count_after_boarding() {
     }
 
     if matches!(
-        sim.world().rider(rider_id).unwrap().phase,
+        sim.world().rider(rider_id.entity()).unwrap().phase,
         RiderPhase::Riding(_)
     ) {
         assert_eq!(
@@ -625,7 +625,7 @@ fn rider_builder_basic_spawn() {
         .spawn()
         .unwrap();
 
-    let rider = sim.world().rider(rider_id).unwrap();
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
     assert_eq!(rider.phase, RiderPhase::Waiting);
 }
 
@@ -641,7 +641,7 @@ fn rider_builder_custom_weight() {
         .spawn()
         .unwrap();
 
-    let rider = sim.world().rider(rider_id).unwrap();
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
     assert!(
         (rider.weight.value() - 90.0).abs() < f64::EPSILON,
         "rider weight should be 90.0, got {}",
@@ -662,7 +662,7 @@ fn rider_builder_with_explicit_group() {
         .spawn()
         .unwrap();
 
-    let rider = sim.world().rider(rider_id).unwrap();
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
     assert_eq!(rider.phase, RiderPhase::Waiting);
 }
 
@@ -678,7 +678,7 @@ fn rider_builder_with_patience() {
         .spawn()
         .unwrap();
 
-    let patience = sim.world().patience(rider_id).unwrap();
+    let patience = sim.world().patience(rider_id.entity()).unwrap();
     assert_eq!(
         patience.max_wait_ticks(),
         100,
@@ -706,7 +706,7 @@ fn rider_builder_with_preferences() {
         .spawn()
         .unwrap();
 
-    let stored = sim.world().preferences(rider_id).unwrap();
+    let stored = sim.world().preferences(rider_id.entity()).unwrap();
     assert!(
         stored.skip_full_elevator(),
         "skip_full_elevator should be true"
@@ -736,7 +736,7 @@ fn rider_builder_with_access_control() {
         .spawn()
         .unwrap();
 
-    let stored = sim.world().access_control(rider_id).unwrap();
+    let stored = sim.world().access_control(rider_id.entity()).unwrap();
     assert!(
         stored.can_access(stop0),
         "rider should have access to stop 0"
@@ -908,7 +908,7 @@ fn rider_builder_default_weight_is_75() {
         .spawn()
         .unwrap();
 
-    let rider = sim.world().rider(rider_id).unwrap();
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
     assert!(
         (rider.weight.value() - 75.0).abs() < f64::EPSILON,
         "default weight should be 75.0, got {}",
@@ -929,7 +929,7 @@ fn rider_builder_no_patience_by_default() {
 
     // Without calling .patience(), no Patience component is set.
     assert!(
-        sim.world().patience(rider_id).is_none(),
+        sim.world().patience(rider_id.entity()).is_none(),
         "rider should have no Patience component by default"
     );
 }
@@ -946,7 +946,7 @@ fn rider_builder_no_preferences_by_default() {
         .unwrap();
 
     assert!(
-        sim.world().preferences(rider_id).is_none(),
+        sim.world().preferences(rider_id.entity()).is_none(),
         "rider should have no Preferences component by default"
     );
 }
@@ -963,7 +963,7 @@ fn rider_builder_no_access_control_by_default() {
         .unwrap();
 
     assert!(
-        sim.world().access_control(rider_id).is_none(),
+        sim.world().access_control(rider_id.entity()).is_none(),
         "rider should have no AccessControl component by default"
     );
 }

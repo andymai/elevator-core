@@ -1,5 +1,6 @@
 use crate::builder::SimulationBuilder;
 use crate::components::ElevatorPhase;
+use crate::entity::{ElevatorId, RiderId};
 use crate::events::Event;
 use crate::stop::StopId;
 
@@ -32,9 +33,9 @@ fn is_stop_returns_true_for_stops() {
 fn is_rider_returns_true_for_riders() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
-    assert!(sim.is_rider(rider));
-    assert!(!sim.is_elevator(rider));
-    assert!(!sim.is_stop(rider));
+    assert!(sim.is_rider(rider.entity()));
+    assert!(!sim.is_elevator(rider.entity()));
+    assert!(!sim.is_stop(rider.entity()));
 }
 
 // ── Aggregate queries ────────────────────────────────────────────────
@@ -72,14 +73,14 @@ fn elevator_load_starts_at_zero() {
         .next()
         .map(|(id, _, _)| id)
         .unwrap();
-    assert_eq!(sim.elevator_load(elevator_id), Some(0.0));
+    assert_eq!(sim.elevator_load(ElevatorId::from(elevator_id)), Some(0.0));
 }
 
 #[test]
 fn elevator_load_returns_none_for_non_elevator() {
     let sim = SimulationBuilder::demo().build().unwrap();
     let stop_id = sim.stop_entity(StopId(0)).unwrap();
-    assert_eq!(sim.elevator_load(stop_id), None);
+    assert_eq!(sim.elevator_load(ElevatorId::from(stop_id)), None);
 }
 
 #[test]
@@ -119,7 +120,7 @@ fn capacity_changed_emitted_on_disable_with_load() {
     // Run until the rider is aboard.
     for _ in 0..500 {
         sim.step();
-        if sim.world().rider(rider).is_some_and(|r| {
+        if sim.world().rider(rider.entity()).is_some_and(|r| {
             matches!(
                 r.phase,
                 crate::components::RiderPhase::Riding(_)
@@ -138,7 +139,11 @@ fn capacity_changed_emitted_on_disable_with_load() {
         .unwrap();
 
     // Only proceed if we actually have load — otherwise test is inconclusive.
-    if sim.elevator_load(elevator_id).unwrap_or(0.0) > 0.0 {
+    if sim
+        .elevator_load(ElevatorId::from(elevator_id))
+        .unwrap_or(0.0)
+        > 0.0
+    {
         sim.drain_events(); // clear prior events
         sim.disable(elevator_id).unwrap();
 

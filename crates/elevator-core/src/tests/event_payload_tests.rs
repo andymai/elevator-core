@@ -2,6 +2,7 @@
 
 use crate::components::RiderPhase;
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::RiderId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -22,7 +23,7 @@ fn rider_boarded_event_has_correct_elevator() {
             if let Event::RiderBoarded {
                 rider: r, elevator, ..
             } = e
-                && *r == rider
+                && *r == rider.entity()
             {
                 boarded_event = Some(*elevator);
             }
@@ -36,7 +37,10 @@ fn rider_boarded_event_has_correct_elevator() {
 
     // Verify the rider is riding (or has already ridden) this elevator.
     // By the time we drain the event the rider may have progressed past Riding.
-    let rider_data = sim.world().rider(rider).expect("rider should exist");
+    let rider_data = sim
+        .world()
+        .rider(rider.entity())
+        .expect("rider should exist");
     let phase_ok = matches!(
         rider_data.phase,
         RiderPhase::Boarding(e) | RiderPhase::Riding(e) | RiderPhase::Exiting(e) if e == elevator_id

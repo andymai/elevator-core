@@ -2,6 +2,7 @@
 
 use crate::components::{Patience, Preferences, RiderPhase};
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::RiderId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -14,7 +15,7 @@ fn patience_zero_abandons_immediately() {
 
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: 0,
             waited_ticks: 0,
@@ -24,7 +25,7 @@ fn patience_zero_abandons_immediately() {
     // After 1 step, rider should abandon (max_wait_ticks=0 means abandon on first patience check).
     sim.step();
 
-    let phase = sim.world().rider(rider).map(|r| r.phase);
+    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
     assert_eq!(
         phase,
         Some(RiderPhase::Abandoned),
@@ -39,7 +40,7 @@ fn patience_one_abandons_after_one_tick() {
 
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: 1,
             waited_ticks: 0,
@@ -48,7 +49,7 @@ fn patience_one_abandons_after_one_tick() {
 
     sim.step();
 
-    let phase = sim.world().rider(rider).map(|r| r.phase);
+    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
     assert_eq!(
         phase,
         Some(RiderPhase::Abandoned),
@@ -63,7 +64,7 @@ fn patience_max_never_overflows() {
 
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: u64::MAX,
             waited_ticks: u64::MAX - 1,
@@ -73,7 +74,7 @@ fn patience_max_never_overflows() {
     // Should not panic or overflow.
     sim.step();
 
-    let phase = sim.world().rider(rider).map(|r| r.phase);
+    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
     // With waited=MAX-1 and max=MAX, after increment waited becomes MAX,
     // which triggers abandon (waited >= max.saturating_sub(1) = MAX-1).
     assert_eq!(phase, Some(RiderPhase::Abandoned));
@@ -90,7 +91,7 @@ fn preferences_zero_crowding_rejects_any_load() {
     // Spawn second rider with max_crowding_factor=0.0.
     let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_preferences(
-        r2,
+        r2.entity(),
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.0,
@@ -102,7 +103,7 @@ fn preferences_zero_crowding_rejects_any_load() {
     // Run until first rider boards.
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(r1)
+        if let Some(r) = sim.world().rider(r1.entity())
             && matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived)
         {
             break;
@@ -118,7 +119,7 @@ fn preferences_zero_crowding_rejects_any_load() {
                 rider,
                 reason,
                 ..
-            } if *rider == r2 && *reason == crate::error::RejectionReason::PreferenceBased
+            } if *rider == r2.entity() && *reason == crate::error::RejectionReason::PreferenceBased
         )
     });
 
@@ -126,7 +127,7 @@ fn preferences_zero_crowding_rejects_any_load() {
     // (Any non-zero load triggers rejection.)
     if sim
         .world()
-        .rider(r1)
+        .rider(r1.entity())
         .is_some_and(|r| matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived))
     {
         assert!(
@@ -148,7 +149,7 @@ fn weight_exactly_at_capacity_boards() {
     let mut boarded = false;
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && matches!(
                 r.phase,
                 RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived

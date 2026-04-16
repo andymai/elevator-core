@@ -8,6 +8,7 @@ use crate::config::{
     SimulationParams,
 };
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::ElevatorId;
 use crate::error::SimError;
 use crate::events::Event as SimEvent;
 use crate::ids::GroupId;
@@ -448,14 +449,14 @@ fn cross_group_rider_arrives_via_explicit_two_leg_route() {
     // Run until rider arrives or we time out.
     for _ in 0..5000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && r.phase == RiderPhase::Arrived
         {
             break;
         }
     }
 
-    let rider_data = sim.world().rider(rider).unwrap();
+    let rider_data = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(
         rider_data.phase,
         RiderPhase::Arrived,
@@ -495,7 +496,7 @@ fn rider_only_boards_elevator_from_matching_group() {
     let mut boarding_elevator = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase
         {
             boarding_elevator = Some(eid);
@@ -653,7 +654,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
     let mut boarding_elevator = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase
         {
             boarding_elevator = Some(eid);
@@ -1397,7 +1398,10 @@ fn walk_only_route_rider_arrives_directly() {
         .unwrap();
 
     // The rider starts Waiting.
-    assert_eq!(sim.world().rider(rider).unwrap().phase, RiderPhase::Waiting);
+    assert_eq!(
+        sim.world().rider(rider.entity()).unwrap().phase,
+        RiderPhase::Waiting
+    );
 
     // Walk is processed during advance_transient when in Exiting phase, but a
     // Walk leg rider begins Waiting — a single elevator step is not needed.
@@ -1410,12 +1414,12 @@ fn walk_only_route_rider_arrives_directly() {
     // executed in handle_exit, which fires when a rider transitions from Exiting.
     // For a walk-only route with no elevator, we exercise the path by placing the
     // rider in Exiting phase manually and stepping once.
-    sim.world_mut().rider_mut(rider).unwrap().phase =
+    sim.world_mut().rider_mut(rider.entity()).unwrap().phase =
         RiderPhase::Exiting(crate::entity::EntityId::default());
 
     sim.step();
 
-    let rider_data = sim.world().rider(rider).unwrap();
+    let rider_data = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(
         rider_data.phase,
         RiderPhase::Arrived,
@@ -1476,7 +1480,7 @@ fn walk_leg_teleports_rider_to_destination() {
 
     for _ in 0..5000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && r.phase == RiderPhase::Arrived
         {
             break;
@@ -1484,7 +1488,7 @@ fn walk_leg_teleports_rider_to_destination() {
     }
 
     assert_eq!(
-        sim.world().rider(rider).unwrap().phase,
+        sim.world().rider(rider.entity()).unwrap().phase,
         RiderPhase::Arrived,
         "rider with walk leg in multi-leg route should eventually arrive"
     );
@@ -1523,7 +1527,7 @@ fn walk_leg_rider_does_not_board_elevator() {
 
     // Rider should still be Waiting (or already Waiting to board nothing) —
     // never Boarding or Riding.
-    let phase = sim.world().rider(rider).unwrap().phase;
+    let phase = sim.world().rider(rider.entity()).unwrap().phase;
     assert!(
         matches!(phase, RiderPhase::Waiting | RiderPhase::Arrived),
         "walk-leg rider should never board an elevator, got {phase:?}"
@@ -1547,7 +1551,7 @@ fn remove_line_with_riders_aboard_ejects_riders() {
     let mut is_riding = false;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && matches!(r.phase, RiderPhase::Riding(_))
         {
             is_riding = true;
@@ -1564,7 +1568,7 @@ fn remove_line_with_riders_aboard_ejects_riders() {
     sim.step();
 
     // Rider must NOT be in a Riding phase anymore.
-    let phase = sim.world().rider(rider).unwrap().phase;
+    let phase = sim.world().rider(rider.entity()).unwrap().phase;
     assert!(
         matches!(phase, RiderPhase::Waiting | RiderPhase::Arrived),
         "rider should be ejected when line is removed; got {phase:?}"
@@ -1634,7 +1638,7 @@ fn remove_line_marks_topology_graph_dirty() {
 #[test]
 fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
     use crate::dispatch::DispatchStrategy;
-    use crate::entity::EntityId;
+    use crate::entity::{ElevatorId, EntityId, RiderId};
     use std::sync::{Arc, Mutex};
 
     /// Dispatcher that records every `notify_removed` call it receives.
@@ -2319,7 +2323,7 @@ fn three_group_rider_navigates_all_legs() {
         sim.step();
         if sim
             .world()
-            .rider(rider)
+            .rider(rider.entity())
             .is_some_and(|r| r.phase == RiderPhase::Arrived)
         {
             break;
@@ -2327,7 +2331,7 @@ fn three_group_rider_navigates_all_legs() {
     }
 
     assert_eq!(
-        sim.world().rider(rider).unwrap().phase,
+        sim.world().rider(rider.entity()).unwrap().phase,
         RiderPhase::Arrived,
         "rider should arrive at D via all three groups"
     );
@@ -2389,11 +2393,11 @@ fn despawn_waiting_rider_removes_from_world() {
     sim.despawn_rider(rider).unwrap();
 
     assert!(
-        !sim.world().is_alive(rider),
+        !sim.world().is_alive(rider.entity()),
         "despawned waiting rider should no longer be alive"
     );
     assert!(
-        sim.world().rider(rider).is_none(),
+        sim.world().rider(rider.entity()).is_none(),
         "despawned waiting rider should have no rider component"
     );
 }
@@ -2412,7 +2416,7 @@ fn despawn_riding_rider_removes_from_elevator_riders_list() {
     let mut elevator_id = None;
     for _ in 0..3000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && let RiderPhase::Riding(e) = r.phase
         {
             elevator_id = Some(e);
@@ -2432,14 +2436,14 @@ fn despawn_riding_rider_removes_from_elevator_riders_list() {
     sim.despawn_rider(rider).unwrap();
 
     assert!(
-        !sim.world().is_alive(rider),
+        !sim.world().is_alive(rider.entity()),
         "despawned riding rider should not be alive"
     );
 
     // The elevator's riders list should no longer contain this rider.
     let car = sim.world().elevator(elev).unwrap();
     assert!(
-        !car.riders.contains(&rider),
+        !car.riders.contains(&rider.entity()),
         "elevator riders list should not contain despawned rider"
     );
 
@@ -2487,7 +2491,7 @@ fn build_rider_with_group_succeeds_when_group_serves_stops() {
     );
 
     let rider = result.unwrap();
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase, RiderPhase::Waiting);
 }
 
@@ -2855,7 +2859,10 @@ fn dispatch_ignores_waiting_rider_targeting_another_group() {
         .route(route)
         .spawn()
         .unwrap();
-    assert_eq!(sim.world().rider(rider).unwrap().phase, RiderPhase::Waiting);
+    assert_eq!(
+        sim.world().rider(rider.entity()).unwrap().phase,
+        RiderPhase::Waiting
+    );
 
     // Tick for a while. Group A's elevator should never open its doors
     // because no Group-A rider is waiting.
@@ -2934,7 +2941,7 @@ fn car_with_opposite_indicator_eventually_boards_waiting_rider() {
     for _ in 0..3000 {
         sim.step();
         events.extend(sim.drain_events());
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && matches!(
                 r.phase,
                 RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
@@ -2960,7 +2967,7 @@ fn car_with_opposite_indicator_eventually_boards_waiting_rider() {
             SimEvent::DoorClosed { elevator, .. } if *elevator == g0_elev => {
                 door_closes_before_board += 1;
             }
-            SimEvent::RiderBoarded { rider: r, .. } if *r == rider => break,
+            SimEvent::RiderBoarded { rider: r, .. } if *r == rider.entity() => break,
             _ => {}
         }
     }
@@ -2993,8 +3000,12 @@ fn dispatch_arrive_in_place_sets_target_and_pops_queue() {
         .elevator_entities()[0];
 
     // Seed the queue with the current stop so we can observe the pop.
-    sim.push_destination(elev, ground).unwrap();
-    assert_eq!(sim.destination_queue(elev).unwrap().len(), 1);
+    sim.push_destination(ElevatorId::from(elev), ground)
+        .unwrap();
+    assert_eq!(
+        sim.destination_queue(ElevatorId::from(elev)).unwrap().len(),
+        1
+    );
 
     // Spawn a rider at Ground so dispatch has demand at this stop.
     let transfer = sim.stop_entity(StopId(1)).unwrap();
@@ -3025,7 +3036,9 @@ fn dispatch_arrive_in_place_sets_target_and_pops_queue() {
         "arrive-in-place dispatch must set target_stop to the assigned stop"
     );
     assert!(
-        !sim.destination_queue(elev).unwrap().contains(&ground),
+        !sim.destination_queue(ElevatorId::from(elev))
+            .unwrap()
+            .contains(&ground),
         "arrive-in-place dispatch must pop the matching queue front"
     );
 }
@@ -3065,7 +3078,8 @@ fn advance_queue_arrive_in_place_resets_direction_indicators() {
     }
 
     // Queue the car to its own stop via the imperative front-push API.
-    sim.push_destination_front(elev, ground).unwrap();
+    sim.push_destination_front(ElevatorId::from(elev), ground)
+        .unwrap();
 
     // One step: advance_queue runs, sees at_stop == front, pops and opens
     // doors — and must reset lamps to (true, true) along the way.
