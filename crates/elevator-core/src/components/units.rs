@@ -66,14 +66,14 @@ impl std::ops::Sub for Weight {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
         Self {
-            value: self.value - rhs.value,
+            value: (self.value - rhs.value).max(0.0),
         }
     }
 }
 
 impl std::ops::SubAssign for Weight {
     fn sub_assign(&mut self, rhs: Self) {
-        self.value -= rhs.value;
+        self.value = (self.value - rhs.value).max(0.0);
     }
 }
 
