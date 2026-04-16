@@ -1,5 +1,16 @@
 # Changelog
 
+## [14.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v13.0.1...elevator-core-v14.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* design hardening (#170, #171, #174, #175, #177) ([#206](https://github.com/andymai/elevator-core/issues/206))
+
+### Features
+
+* design hardening ([#170](https://github.com/andymai/elevator-core/issues/170), [#171](https://github.com/andymai/elevator-core/issues/171), [#174](https://github.com/andymai/elevator-core/issues/174), [#175](https://github.com/andymai/elevator-core/issues/175), [#177](https://github.com/andymai/elevator-core/issues/177)) ([#206](https://github.com/andymai/elevator-core/issues/206)) ([ced0bbb](https://github.com/andymai/elevator-core/commit/ced0bbba9090ba196add90abb2cafae57e48d834))
+
 ## [13.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v13.0.0...elevator-core-v13.0.1) (2026-04-16)
 
 
