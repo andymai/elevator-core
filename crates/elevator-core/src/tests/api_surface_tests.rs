@@ -8,7 +8,7 @@ use crate::components::{Accel, AccessControl, Preferences, RiderPhase, Speed, We
 use crate::dispatch::BuiltinReposition;
 use crate::dispatch::reposition::ReturnToLobby;
 use crate::dispatch::{EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch};
-use crate::entity::{ElevatorId, EntityId, RiderId};
+use crate::entity::{ElevatorId, EntityId};
 use crate::error::SimError;
 use crate::events::Event;
 use crate::ids::GroupId;

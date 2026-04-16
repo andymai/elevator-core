@@ -1,7 +1,7 @@
 //! Tests for the elevator direction indicator lamps (`going_up`/`going_down`).
 
 use crate::components::{ElevatorPhase, RiderPhase};
-use crate::entity::{ElevatorId, RiderId};
+use crate::entity::ElevatorId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;

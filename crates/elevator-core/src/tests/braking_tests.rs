@@ -1,7 +1,7 @@
 //! Tests for the public braking-distance helpers.
 
 use crate::components::ElevatorPhase;
-use crate::entity::{ElevatorId, RiderId};
+use crate::entity::ElevatorId;
 use crate::movement::braking_distance;
 use crate::sim::Simulation;
 use crate::stop::StopId;

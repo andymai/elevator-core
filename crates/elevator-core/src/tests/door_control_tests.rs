@@ -5,7 +5,7 @@
 use crate::components::{ElevatorPhase, RiderPhase};
 use crate::dispatch::scan::ScanDispatch;
 use crate::door::{DoorCommand, DoorState};
-use crate::entity::{ElevatorId, EntityId, RiderId};
+use crate::entity::ElevatorId;
 use crate::error::SimError;
 use crate::events::Event;
 use crate::sim::Simulation;

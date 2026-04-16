@@ -7,7 +7,7 @@
 
 use crate::components::ElevatorPhase;
 use crate::dispatch::scan::ScanDispatch;
-use crate::entity::{ElevatorId, EntityId, RiderId};
+use crate::entity::ElevatorId;
 use crate::error::SimError;
 use crate::events::{Event, UpgradeField, UpgradeValue};
 use crate::sim::Simulation;

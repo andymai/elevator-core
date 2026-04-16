@@ -4,7 +4,7 @@
 use crate::builder::SimulationBuilder;
 use crate::components::ElevatorPhase;
 use crate::dispatch::scan::ScanDispatch;
-use crate::entity::{ElevatorId, RiderId};
+use crate::entity::ElevatorId;
 use crate::error::SimError;
 use crate::events::Event;
 use crate::stop::StopId;

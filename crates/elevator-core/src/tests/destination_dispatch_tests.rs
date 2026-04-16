@@ -6,7 +6,7 @@ use crate::config::{
     SimulationParams,
 };
 use crate::dispatch::destination::{ASSIGNED_CAR_KEY, AssignedCar, DestinationDispatch};
-use crate::entity::{ElevatorId, RiderId};
+use crate::entity::ElevatorId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 

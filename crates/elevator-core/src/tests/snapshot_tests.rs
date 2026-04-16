@@ -1,5 +1,5 @@
 use crate::components::RiderPhase;
-use crate::entity::{ElevatorId, RiderId};
+use crate::entity::ElevatorId;
 use crate::stop::StopId;
 use crate::tests::helpers;
 use crate::world::ExtKey;

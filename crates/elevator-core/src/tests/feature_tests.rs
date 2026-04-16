@@ -3,7 +3,7 @@ use crate::components::{
     Speed, Stop, Velocity, Weight,
 };
 use crate::door::DoorState;
-use crate::entity::{ElevatorId, EntityId, RiderId};
+use crate::entity::{ElevatorId, EntityId};
 use crate::events::Event;
 use crate::ids::GroupId;
 use crate::stop::StopId;

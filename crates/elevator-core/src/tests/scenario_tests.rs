@@ -1,6 +1,5 @@
 use crate::components::RiderPhase;
 use crate::components::Weight;
-use crate::entity::RiderId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;

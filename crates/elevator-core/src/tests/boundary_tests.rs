@@ -2,7 +2,6 @@
 
 use crate::components::{Patience, Preferences, RiderPhase};
 use crate::dispatch::scan::ScanDispatch;
-use crate::entity::RiderId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;

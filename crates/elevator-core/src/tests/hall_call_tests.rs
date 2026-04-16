@@ -2,7 +2,7 @@
 
 use crate::components::CallDirection;
 use crate::components::Weight;
-use crate::entity::{ElevatorId, EntityId, RiderId};
+use crate::entity::{ElevatorId, EntityId};
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;

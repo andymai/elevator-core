@@ -4,7 +4,6 @@ use crate::components::RiderPhase;
 use crate::components::{Accel, Speed, Weight};
 use crate::config::*;
 use crate::dispatch::scan::ScanDispatch;
-use crate::entity::RiderId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 

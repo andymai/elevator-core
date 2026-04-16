@@ -1638,7 +1638,7 @@ fn remove_line_marks_topology_graph_dirty() {
 #[test]
 fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
     use crate::dispatch::DispatchStrategy;
-    use crate::entity::{ElevatorId, EntityId, RiderId};
+    use crate::entity::EntityId;
     use std::sync::{Arc, Mutex};
 
     /// Dispatcher that records every `notify_removed` call it receives.
