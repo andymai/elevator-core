@@ -1,5 +1,20 @@
 # Changelog
 
+## [10.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v9.0.0...elevator-core-v10.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* physics newtypes — Weight, Speed, Accel ([#153](https://github.com/andymai/elevator-core/issues/153))
+* dispatch ergonomics — RankContext, manifest encapsulation ([#152](https://github.com/andymai/elevator-core/issues/152))
+* API ergonomics — trait impls, naming, and quick wins ([#151](https://github.com/andymai/elevator-core/issues/151))
+
+### Features
+
+* API ergonomics — trait impls, naming, and quick wins ([#151](https://github.com/andymai/elevator-core/issues/151)) ([533a7f5](https://github.com/andymai/elevator-core/commit/533a7f5361ca2dfd2bef27a19a2e9b2c5251cd7e))
+* dispatch ergonomics — RankContext, manifest encapsulation ([#152](https://github.com/andymai/elevator-core/issues/152)) ([4c4c168](https://github.com/andymai/elevator-core/commit/4c4c168013a16289f499a01c0ebef9eb6221ceb1))
+* physics newtypes — Weight, Speed, Accel ([#153](https://github.com/andymai/elevator-core/issues/153)) ([8833676](https://github.com/andymai/elevator-core/commit/88336764481db7d4ff13cb4b370e7a692511bf72))
+
 ## [9.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.3.0...elevator-core-v9.0.0) (2026-04-16)
 
 
