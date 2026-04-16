@@ -136,6 +136,8 @@ pub enum EtaError {
     ServiceModeExcluded(EntityId),
     /// A stop in the route vanished during calculation.
     StopVanished(EntityId),
+    /// No car has been assigned to serve the hall call at this stop.
+    NoCarAssigned(EntityId),
 }
 
 impl fmt::Display for EtaError {
@@ -150,6 +152,9 @@ impl fmt::Display for EtaError {
                 write!(f, "elevator {id:?} is in a dispatch-excluded service mode")
             }
             Self::StopVanished(id) => write!(f, "stop {id:?} vanished during ETA calculation"),
+            Self::NoCarAssigned(id) => {
+                write!(f, "no car assigned to serve hall call at stop {id:?}")
+            }
         }
     }
 }

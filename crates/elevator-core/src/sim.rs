@@ -2195,10 +2195,7 @@ impl Simulation {
             .world
             .hall_call(stop, direction)
             .ok_or(EtaError::NotAStop(stop))?;
-        let car = call.assigned_car.ok_or_else(|| EtaError::StopNotQueued {
-            elevator: EntityId::default(),
-            stop,
-        })?;
+        let car = call.assigned_car.ok_or(EtaError::NoCarAssigned(stop))?;
         let car_pos = self
             .world
             .position(car)
