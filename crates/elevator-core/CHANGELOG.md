@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.1.0...elevator-core-v8.2.0) (2026-04-15)
+
+
+### Features
+
+* expose hall_calls and car_calls on DispatchManifest ([#108](https://github.com/andymai/elevator-core/issues/108)) ([5251a52](https://github.com/andymai/elevator-core/commit/5251a5283e66b8ffcee2fceb1ba1cc0cdd22afbc)), closes [#102](https://github.com/andymai/elevator-core/issues/102)
+
 ## [8.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.0.0...elevator-core-v8.1.0) (2026-04-15)
 
 
