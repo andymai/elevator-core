@@ -39,4 +39,4 @@ pub use rider::{Rider, RiderPhase, RiderPhaseKind};
 pub use route::{Route, RouteLeg, TransportMode};
 pub use service_mode::ServiceMode;
 pub use stop::Stop;
-pub use units::{Accel, Speed, Weight};
+pub use units::{Accel, Speed, UnitError, Weight};
