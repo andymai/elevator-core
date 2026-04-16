@@ -281,6 +281,36 @@ fn rejection_event_has_access_denied_reason() {
     }
 }
 
+/// Elevator is never dispatched (no `ElevatorAssigned` event) to a restricted stop,
+/// even when it's the only stop with demand. Verifies the global guard in
+/// `systems::dispatch::commit_go_to_stop`.
+#[test]
+fn elevator_not_dispatched_to_restricted_stop() {
+    let mut config = helpers::default_config();
+    config.elevators[0].restricted_stops = vec![StopId(2)];
+
+    let mut sim =
+        crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
+
+    sim.spawn_rider(StopId(0), StopId(2), 70.0)
+        .expect("spawn should succeed");
+
+    let mut all_events = Vec::new();
+    for _ in 0..500 {
+        sim.step();
+        all_events.extend(sim.drain_events());
+    }
+
+    let stop2 = sim.stop_entity(StopId(2)).expect("stop 2 exists");
+    let dispatched_to_restricted = all_events
+        .iter()
+        .any(|e| matches!(e, Event::ElevatorAssigned { stop, .. } if *stop == stop2));
+    assert!(
+        !dispatched_to_restricted,
+        "elevator should never be assigned to a restricted stop"
+    );
+}
+
 /// `AccessControl` component round-trips through serde.
 #[test]
 fn access_control_serde_roundtrip() {
