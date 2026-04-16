@@ -557,3 +557,28 @@ fn snapshot_preserves_hall_call_ack_state_under_latency() {
     );
     assert_eq!(call.ack_latency_ticks, 10);
 }
+
+/// Normal snapshot roundtrip should produce no `SnapshotDanglingReference` events.
+#[test]
+fn snapshot_roundtrip_emits_no_dangling_warnings() {
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    for _ in 0..50 {
+        sim.step();
+    }
+    sim.drain_events();
+
+    let snap = sim.snapshot();
+    let mut restored = snap.restore(None).unwrap();
+    let events = restored.drain_events();
+    let dangling = events
+        .iter()
+        .filter(|e| matches!(e, crate::events::Event::SnapshotDanglingReference { .. }))
+        .count();
+    assert_eq!(
+        dangling, 0,
+        "normal snapshot should have no dangling references"
+    );
+}

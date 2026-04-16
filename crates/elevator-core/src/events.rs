@@ -547,6 +547,15 @@ pub enum Event {
         /// Tick of the balk.
         tick: u64,
     },
+    /// A snapshot restore encountered an entity reference that could not
+    /// be remapped. The original (now-invalid) ID was kept. This signals
+    /// a corrupted or hand-edited snapshot.
+    SnapshotDanglingReference {
+        /// The entity ID from the snapshot that had no mapping.
+        stale_id: EntityId,
+        /// Tick from the snapshot at restore time.
+        tick: u64,
+    },
 }
 
 /// Identifies which elevator parameter was changed in an
@@ -707,6 +716,7 @@ impl Event {
             | Self::HallCallCleared { .. }
             | Self::CarButtonPressed { .. } => EventCategory::Dispatch,
             Self::RiderBalked { .. } => EventCategory::Rider,
+            Self::SnapshotDanglingReference { .. } => EventCategory::Observability,
         }
     }
 }

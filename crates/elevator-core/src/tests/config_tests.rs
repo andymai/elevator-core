@@ -80,3 +80,68 @@ fn rejects_neg_infinite_stop_position() {
         "negative infinity position should be rejected, got {result:?}"
     );
 }
+
+#[test]
+fn rejects_zero_door_transition_ticks() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.elevators[0].door_transition_ticks = 0;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "elevators.door_transition_ticks",
+                ..
+            })
+        ),
+        "zero door_transition_ticks should be rejected, got {result:?}"
+    );
+}
+
+#[test]
+fn rejects_zero_door_open_ticks() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.elevators[0].door_open_ticks = 0;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "elevators.door_open_ticks",
+                ..
+            })
+        ),
+        "zero door_open_ticks should be rejected, got {result:?}"
+    );
+}
+
+#[test]
+fn rejects_empty_line_serves() {
+    use super::helpers;
+    use crate::config::LineConfig;
+    let mut config = helpers::default_config();
+    config.building.lines = Some(vec![LineConfig {
+        id: 0,
+        name: "Empty".into(),
+        serves: vec![],
+        elevators: config.elevators.clone(),
+        orientation: Default::default(),
+        position: None,
+        min_position: None,
+        max_position: None,
+        max_cars: None,
+    }]);
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.lines.serves",
+                ..
+            })
+        ),
+        "empty line.serves should be rejected, got {result:?}"
+    );
+}

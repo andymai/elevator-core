@@ -24,6 +24,8 @@
 //! monotone sequence so the car visits stops in sweep order rather than
 //! in the order assignments arrived.
 
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 
 use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMode};
@@ -489,7 +491,8 @@ fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
     out.extend(run1.into_iter().map(|(e, _)| e));
     out.extend(run2.into_iter().map(|(e, _)| e));
     out.extend(run3.into_iter().map(|(e, _)| e));
-    out.dedup();
+    let mut seen = HashSet::with_capacity(out.len());
+    out.retain(|e| seen.insert(*e));
 
     if let Some(q) = world.destination_queue_mut(car_eid) {
         q.replace(out);

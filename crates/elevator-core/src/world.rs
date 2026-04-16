@@ -226,6 +226,8 @@ impl World {
         self.service_modes.remove(id);
         self.destination_queues.remove(id);
         self.disabled.remove(id);
+        self.hall_calls.remove(id);
+        self.car_calls.remove(id);
 
         for ext in self.extensions.values_mut() {
             ext.remove(id);

@@ -1600,6 +1600,11 @@ impl Simulation {
         std::mem::take(&mut self.pending_output)
     }
 
+    /// Push an event into the pending output buffer (crate-internal).
+    pub(crate) fn push_event(&mut self, event: Event) {
+        self.pending_output.push(event);
+    }
+
     /// Drain only events matching a predicate.
     ///
     /// Events that don't match the predicate remain in the buffer
@@ -2203,6 +2208,10 @@ impl Simulation {
         let press_tick = self.tick;
         let ack_latency = self.ack_latency_for_car(car);
         let Some(queue) = self.world.car_calls_mut(car) else {
+            debug_assert!(
+                false,
+                "ensure_car_call: car {car:?} has no car_calls component"
+            );
             return;
         };
         let existing_idx = queue.iter().position(|c| c.floor == floor);

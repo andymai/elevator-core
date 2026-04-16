@@ -579,6 +579,18 @@ impl Simulation {
                 reason: format!("must be positive, got {}", elev.inspection_speed_factor),
             });
         }
+        if elev.door_transition_ticks == 0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.door_transition_ticks",
+                reason: "must be > 0".into(),
+            });
+        }
+        if elev.door_open_ticks == 0 {
+            return Err(SimError::InvalidConfig {
+                field: "elevators.door_open_ticks",
+                reason: "must be > 0".into(),
+            });
+        }
         if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
             return Err(SimError::InvalidConfig {
                 field: "elevators.starting_stop",
@@ -605,8 +617,14 @@ impl Simulation {
             }
         }
 
-        // Every line's serves must reference existing stops.
+        // Every line's serves must reference existing stops and be non-empty.
         for lc in line_configs {
+            if lc.serves.is_empty() {
+                return Err(SimError::InvalidConfig {
+                    field: "building.lines.serves",
+                    reason: format!("line {} has no stops", lc.id),
+                });
+            }
             for sid in &lc.serves {
                 if !stop_ids.contains(sid) {
                     return Err(SimError::InvalidConfig {
