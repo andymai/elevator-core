@@ -1,0 +1,38 @@
+[package]
+name = "elevator-gdext"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+# gdext uses unsafe internally; override the workspace-level deny.
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+# gdext macros produce code that triggers these
+needless_pass_by_value = "allow"
+# GDScript uses signed integers; casts are intentional at the FFI boundary
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+cast_possible_truncation = "allow"
+# gdext exposed functions need many params for GDScript convenience
+too_many_arguments = "allow"
+# doc backtick lint noise on Godot types
+doc_markdown = "allow"
+# Noise on match/if-let patterns at FFI boundary
+option_if_let_else = "allow"
+manual_let_else = "allow"
+
+[dependencies]
+elevator-core = { path = "../elevator-core" }
+godot = "0.5"
+ron.workspace = true
+rand.workspace = true
+slotmap.workspace = true
