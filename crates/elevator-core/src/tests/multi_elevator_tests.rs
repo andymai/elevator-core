@@ -116,7 +116,7 @@ fn disable_elevator_mid_route_ejects_riders() {
     let mut boarded_elevator = None;
     for _ in 0..500 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && let RiderPhase::Riding(eid) = r.phase
         {
             boarded_elevator = Some(eid);
@@ -137,7 +137,7 @@ fn disable_elevator_mid_route_ejects_riders() {
             crate::events::Event::RiderEjected {
                 rider: r,
                 ..
-            } if *r == rider
+            } if *r == rider.entity()
         )
     });
     assert!(

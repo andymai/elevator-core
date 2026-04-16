@@ -42,13 +42,13 @@ fn main() {
         .build()
         .unwrap();
 
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
 
     // First rider heading up from the lobby.
     let first = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     let mut held = false;
-    let mut friend: Option<EntityId> = None;
+    let mut friend: Option<RiderId> = None;
     let mut forced_close = false;
 
     for tick in 0..400 {
@@ -57,7 +57,7 @@ fn main() {
         // The moment the first rider is aboard, hold the doors for a friend.
         if !held
             && matches!(
-                sim.world().rider(first).unwrap().phase(),
+                sim.world().rider(first.entity()).unwrap().phase(),
                 RiderPhase::Boarding(_) | RiderPhase::Riding(_)
             )
         {
@@ -73,7 +73,10 @@ fn main() {
         // Once friend is aboard too, force the doors shut.
         if !forced_close
             && let Some(f) = friend
-            && matches!(sim.world().rider(f).unwrap().phase(), RiderPhase::Riding(_))
+            && matches!(
+                sim.world().rider(f.entity()).unwrap().phase(),
+                RiderPhase::Riding(_)
+            )
         {
             println!("[t={tick:>3}] Both aboard — forcing doors closed");
             sim.close_door(elev).unwrap();
@@ -82,7 +85,7 @@ fn main() {
 
         if forced_close
             && matches!(
-                sim.world().elevator(elev).unwrap().phase(),
+                sim.world().elevator(elev.entity()).unwrap().phase(),
                 ElevatorPhase::MovingToStop(_)
             )
         {

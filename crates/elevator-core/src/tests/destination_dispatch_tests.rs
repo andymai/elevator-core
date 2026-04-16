@@ -6,6 +6,7 @@ use crate::config::{
     SimulationParams,
 };
 use crate::dispatch::destination::{ASSIGNED_CAR_KEY, AssignedCar, DestinationDispatch};
+use crate::entity::ElevatorId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 
@@ -170,7 +171,7 @@ fn sticky_assignment_persists_across_ticks() {
     let rid = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     sim.step();
-    let first = sim.world().ext::<AssignedCar>(rid);
+    let first = sim.world().ext::<AssignedCar>(rid.entity());
     assert!(first.is_some(), "rider should be assigned after first tick");
 
     // Step the sim many times; assignment must never change.
@@ -178,12 +179,12 @@ fn sticky_assignment_persists_across_ticks() {
         sim.step();
         if sim
             .world()
-            .rider(rid)
+            .rider(rid.entity())
             .is_some_and(|r| r.phase() == RiderPhase::Arrived)
         {
             break;
         }
-        let cur = sim.world().ext::<AssignedCar>(rid);
+        let cur = sim.world().ext::<AssignedCar>(rid.entity());
         assert_eq!(cur, first, "assignment must be sticky");
     }
 }
@@ -229,24 +230,24 @@ fn loading_respects_assignment_other_car_skips() {
     // and seed B's queue with the rider's pickup + drop-off so DCS's normal
     // queue-driven movement applies to the forced assignment too.
     sim.world_mut()
-        .insert_ext(rid, AssignedCar(car_b), ASSIGNED_CAR_KEY);
+        .insert_ext(rid.entity(), AssignedCar(car_b), ASSIGNED_CAR_KEY);
     let f2 = sim.stop_entity(StopId(1)).unwrap();
     let f3 = sim.stop_entity(StopId(2)).unwrap();
-    sim.push_destination(car_b, f2).unwrap();
-    sim.push_destination(car_b, f3).unwrap();
+    sim.push_destination(ElevatorId::from(car_b), f2).unwrap();
+    sim.push_destination(ElevatorId::from(car_b), f3).unwrap();
 
     // Run many ticks. The rider must never board car A.
     for _ in 0..2000 {
         sim.step();
         if sim
             .world()
-            .rider(rid)
+            .rider(rid.entity())
             .is_some_and(|r| r.phase() == RiderPhase::Arrived)
         {
             break;
         }
         // If the rider is aboard an elevator, it must be car B.
-        if let Some(rider) = sim.world().rider(rid) {
+        if let Some(rider) = sim.world().rider(rid.entity()) {
             match rider.phase() {
                 RiderPhase::Boarding(e) | RiderPhase::Riding(e) | RiderPhase::Exiting(e) => {
                     assert_eq!(e, car_b, "rider must only board its assigned car");
@@ -257,7 +258,7 @@ fn loading_respects_assignment_other_car_skips() {
     }
     assert!(
         sim.world()
-            .rider(rid)
+            .rider(rid.entity())
             .is_some_and(|r| r.phase() == RiderPhase::Arrived),
         "rider should eventually arrive via assigned car"
     );
@@ -285,7 +286,7 @@ fn unassigned_manual_board_riders_still_work() {
     // assignment while we reuse the sim.
     sim.step();
     assert!(
-        sim.world().ext::<AssignedCar>(routed).is_some(),
+        sim.world().ext::<AssignedCar>(routed.entity()).is_some(),
         "routed rider should be assigned"
     );
 
@@ -294,7 +295,7 @@ fn unassigned_manual_board_riders_still_work() {
         sim.step();
         if sim
             .world()
-            .rider(routed)
+            .rider(routed.entity())
             .is_some_and(|r| r.phase() == RiderPhase::Arrived)
         {
             break;
@@ -302,7 +303,7 @@ fn unassigned_manual_board_riders_still_work() {
     }
     assert!(
         sim.world()
-            .rider(routed)
+            .rider(routed.entity())
             .is_some_and(|r| r.phase() == RiderPhase::Arrived)
     );
 }
@@ -333,7 +334,7 @@ fn closer_car_is_preferred_when_matching_direction() {
     sim.step();
     let assigned = sim
         .world()
-        .ext::<AssignedCar>(rid)
+        .ext::<AssignedCar>(rid.entity())
         .expect("rider should be assigned");
     assert_eq!(assigned.0, car_a, "closer car should be preferred");
 }
@@ -358,7 +359,7 @@ fn up_peak_scenario_delivers_all_riders() {
         sim.step();
         let done = riders.iter().all(|&rid| {
             sim.world()
-                .rider(rid)
+                .rider(rid.entity())
                 .is_some_and(|r| r.phase() == RiderPhase::Arrived)
         });
         if done {
@@ -367,7 +368,7 @@ fn up_peak_scenario_delivers_all_riders() {
     }
 
     for &rid in &riders {
-        let phase = sim.world().rider(rid).map(Rider::phase);
+        let phase = sim.world().rider(rid.entity()).map(Rider::phase);
         assert_eq!(
             phase,
             Some(RiderPhase::Arrived),
@@ -402,7 +403,7 @@ fn dcs_gated_to_destination_mode() {
         sim.step();
     }
     assert!(
-        sim.world().ext::<AssignedCar>(rid).is_none(),
+        sim.world().ext::<AssignedCar>(rid.entity()).is_none(),
         "DCS must not assign when group is in Classic mode",
     );
 }

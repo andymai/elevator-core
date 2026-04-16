@@ -2,15 +2,17 @@
 
 use crate::components::{RiderPhase, ServiceMode};
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::ElevatorId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
 use crate::tests::helpers::default_config;
 
-fn make_manual() -> (Simulation, crate::entity::EntityId) {
+fn make_manual() -> (Simulation, ElevatorId) {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
-    sim.set_service_mode(elev, ServiceMode::Manual).unwrap();
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
+    sim.set_service_mode(elev.entity(), ServiceMode::Manual)
+        .unwrap();
     (sim, elev)
 }
 
@@ -35,12 +37,12 @@ fn set_target_velocity_moves_elevator_up() {
     let (mut sim, elev) = make_manual();
     sim.set_target_velocity(elev, 1.0).unwrap();
 
-    let p0 = sim.world().position(elev).unwrap().value();
+    let p0 = sim.world().position(elev.entity()).unwrap().value();
     for _ in 0..60 {
         sim.step();
     }
-    let p1 = sim.world().position(elev).unwrap().value();
-    let v = sim.velocity(elev).unwrap();
+    let p1 = sim.world().position(elev.entity()).unwrap().value();
+    let v = sim.velocity(elev.entity()).unwrap();
     assert!(p1 > p0, "elevator should move upward: {p0} -> {p1}");
     assert!(v > 0.0, "velocity should be positive, got {v}");
 }
@@ -52,7 +54,7 @@ fn set_target_velocity_ramps_using_acceleration() {
     // velocity should be acceleration*dt ≈ 0.025.
     sim.set_target_velocity(elev, 2.0).unwrap();
     sim.step();
-    let v = sim.velocity(elev).unwrap();
+    let v = sim.velocity(elev.entity()).unwrap();
     assert!(
         (v - (1.5 / 60.0)).abs() < 1e-6,
         "expected ~{}, got {v}",
@@ -68,7 +70,7 @@ fn set_target_velocity_clamped_to_max_speed() {
     for _ in 0..1000 {
         sim.step();
     }
-    let v = sim.velocity(elev).unwrap();
+    let v = sim.velocity(elev.entity()).unwrap();
     assert!(v <= 2.0 + 1e-9, "velocity should cap at max_speed, got {v}");
     assert!((v - 2.0).abs() < 1e-6, "should reach max_speed, got {v}");
 }
@@ -80,16 +82,19 @@ fn emergency_stop_decelerates_to_zero() {
     for _ in 0..1000 {
         sim.step();
     }
-    assert!(sim.velocity(elev).unwrap() > 1.0, "needs to be moving");
+    assert!(
+        sim.velocity(elev.entity()).unwrap() > 1.0,
+        "needs to be moving"
+    );
 
     sim.emergency_stop(elev).unwrap();
     for _ in 0..1000 {
         sim.step();
-        if sim.velocity(elev).unwrap().abs() < 1e-6 {
+        if sim.velocity(elev.entity()).unwrap().abs() < 1e-6 {
             break;
         }
     }
-    let v = sim.velocity(elev).unwrap();
+    let v = sim.velocity(elev.entity()).unwrap();
     assert!(v.abs() < 1e-6, "velocity should reach zero, got {v}");
 }
 
@@ -103,11 +108,11 @@ fn manual_elevator_can_stop_at_any_position() {
     sim.emergency_stop(elev).unwrap();
     for _ in 0..1000 {
         sim.step();
-        if sim.velocity(elev).unwrap().abs() < 1e-6 {
+        if sim.velocity(elev.entity()).unwrap().abs() < 1e-6 {
             break;
         }
     }
-    let pos = sim.world().position(elev).unwrap().value();
+    let pos = sim.world().position(elev.entity()).unwrap().value();
     // Should be somewhere between stops 0 (0.0) and 1 (4.0) — not snapped.
     assert!(
         pos > 0.1 && pos < 3.9,
@@ -118,7 +123,7 @@ fn manual_elevator_can_stop_at_any_position() {
 #[test]
 fn set_target_velocity_on_non_manual_errors() {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     // Mode is default Normal.
     let err = sim.set_target_velocity(elev, 1.0).unwrap_err();
     assert!(
@@ -166,12 +171,19 @@ fn leaving_manual_clears_target_velocity() {
     let (mut sim, elev) = make_manual();
     sim.set_target_velocity(elev, 1.0).unwrap();
     assert_eq!(
-        sim.world().elevator(elev).unwrap().manual_target_velocity(),
+        sim.world()
+            .elevator(elev.entity())
+            .unwrap()
+            .manual_target_velocity(),
         Some(1.0)
     );
-    sim.set_service_mode(elev, ServiceMode::Normal).unwrap();
+    sim.set_service_mode(elev.entity(), ServiceMode::Normal)
+        .unwrap();
     assert_eq!(
-        sim.world().elevator(elev).unwrap().manual_target_velocity(),
+        sim.world()
+            .elevator(elev.entity())
+            .unwrap()
+            .manual_target_velocity(),
         None
     );
 }
@@ -185,11 +197,11 @@ fn manual_mode_updates_total_moves_metric() {
     sim.set_target_velocity(elev, 2.0).unwrap();
     for _ in 0..300 {
         sim.step();
-        if sim.world().position(elev).unwrap().value() > 8.5 {
+        if sim.world().position(elev.entity()).unwrap().value() > 8.5 {
             break;
         }
     }
-    let car_count = sim.world().elevator(elev).unwrap().move_count();
+    let car_count = sim.world().elevator(elev.entity()).unwrap().move_count();
     assert!(car_count > 0, "expected per-elevator move_count > 0");
     assert_eq!(
         sim.metrics().total_moves(),
@@ -208,13 +220,14 @@ fn leaving_manual_zeroes_velocity() {
         sim.step();
     }
     assert!(
-        sim.velocity(elev).unwrap().abs() > 0.1,
+        sim.velocity(elev.entity()).unwrap().abs() > 0.1,
         "needs to be moving"
     );
 
-    sim.set_service_mode(elev, ServiceMode::Normal).unwrap();
+    sim.set_service_mode(elev.entity(), ServiceMode::Normal)
+        .unwrap();
     assert_eq!(
-        sim.velocity(elev).unwrap(),
+        sim.velocity(elev.entity()).unwrap(),
         0.0,
         "velocity should be zeroed on Manual exit"
     );
@@ -228,7 +241,7 @@ fn manual_mode_emits_passing_floor_events() {
     // Run long enough to cross stop 1 (position 4.0).
     for _ in 0..300 {
         sim.step();
-        if sim.world().position(elev).unwrap().value() > 5.0 {
+        if sim.world().position(elev.entity()).unwrap().value() > 5.0 {
             break;
         }
     }

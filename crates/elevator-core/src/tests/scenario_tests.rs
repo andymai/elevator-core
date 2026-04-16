@@ -94,13 +94,13 @@ fn overweight_rider_rejected() {
     for _ in 0..max_ticks {
         sim.step();
         all_events.extend(sim.drain_events());
-        if sim.world().rider(light).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+        if sim.world().rider(light.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
             break;
         }
     }
 
     assert_eq!(
-        sim.world().rider(light).map(|r| r.phase),
+        sim.world().rider(light.entity()).map(|r| r.phase),
         Some(RiderPhase::Arrived)
     );
 
@@ -197,10 +197,10 @@ fn rider_boarded_precedes_rider_exited_per_rider() {
 
     for rid in [r1, r2, r3] {
         let b = boarded_at
-            .get(&rid)
+            .get(&rid.entity())
             .unwrap_or_else(|| panic!("rider {rid:?} never boarded"));
         let e = exited_at
-            .get(&rid)
+            .get(&rid.entity())
             .unwrap_or_else(|| panic!("rider {rid:?} never exited"));
         assert!(
             b < e,

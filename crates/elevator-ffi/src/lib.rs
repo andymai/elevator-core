@@ -39,7 +39,7 @@ use elevator_core::components::{Direction, ElevatorPhase, RiderPhase, Velocity};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::BuiltinStrategy;
 use elevator_core::door::DoorState;
-use elevator_core::entity::EntityId;
+use elevator_core::entity::{ElevatorId, EntityId};
 use elevator_core::ids::GroupId;
 use elevator_core::sim::Simulation;
 use slotmap::{Key, KeyData};
@@ -810,7 +810,7 @@ pub unsafe extern "C" fn ev_sim_press_car_button(
             return EvStatus::InvalidArg;
         };
         let ev = unsafe { &mut *handle };
-        match ev.sim.press_car_button(car, floor) {
+        match ev.sim.press_car_button(ElevatorId::from(car), floor) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 set_last_error(e.to_string());
@@ -851,7 +851,7 @@ pub unsafe extern "C" fn ev_sim_pin_assignment(
             return EvStatus::InvalidArg;
         };
         let ev = unsafe { &mut *handle };
-        match ev.sim.pin_assignment(car, stop, dir) {
+        match ev.sim.pin_assignment(ElevatorId::from(car), stop, dir) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 set_last_error(e.to_string());
