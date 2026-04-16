@@ -684,14 +684,15 @@ impl crate::sim::Simulation {
     /// Serialize the current state to a self-describing byte blob.
     ///
     /// The blob is postcard-encoded and carries a magic prefix plus the
-    /// `elevator-core` crate version. Use [`Simulation::restore_bytes`]
+    /// `elevator-core` crate version. Use [`Self::restore_bytes`]
     /// on the receiving end. Determinism is bit-exact across builds of
     /// the same crate version; cross-version restores return
     /// [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion).
     ///
     /// Extension component *data* is serialized (identical to
-    /// [`Simulation::snapshot`]); after restore, use
-    /// [`Simulation::load_extensions_with`] to register and load them.
+    /// [`Self::snapshot`]); after restore, use
+    /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
+    /// to register and load them.
     /// Custom dispatch strategies and arbitrary `World` resources are
     /// not included.
     ///
@@ -710,7 +711,7 @@ impl crate::sim::Simulation {
             .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))
     }
 
-    /// Restore a simulation from bytes produced by [`Simulation::snapshot_bytes`].
+    /// Restore a simulation from bytes produced by [`Self::snapshot_bytes`].
     ///
     /// Built-in dispatch strategies are auto-restored. For groups using
     /// [`BuiltinStrategy::Custom`](crate::dispatch::BuiltinStrategy::Custom),

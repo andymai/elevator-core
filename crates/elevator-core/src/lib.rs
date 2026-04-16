@@ -268,7 +268,7 @@
 //! ```
 //!
 //! The previous-position snapshot is refreshed automatically at the start
-//! of every [`step`](sim::Simulation::step). [`Simulation::velocity`] is
+//! of every [`step`](sim::Simulation::step). [`Simulation::velocity`](sim::Simulation::velocity) is
 //! a convenience that returns the raw `f64` along the shaft axis (signed:
 //! +up, -down) for camera tilt, motion blur, or cabin-sway effects.
 //!

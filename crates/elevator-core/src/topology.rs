@@ -113,7 +113,9 @@ impl TopologyGraph {
     /// Stops that appear in two or more groups (transfer points).
     ///
     /// This inspects group membership directly and does not require the
-    /// adjacency graph.
+    /// adjacency graph. Note: this checks group membership only, not whether
+    /// riders can actually transfer between groups at the shared stop. A stop
+    /// served by two disconnected groups would still appear here.
     #[must_use]
     pub fn transfer_points(groups: &[ElevatorGroup]) -> Vec<EntityId> {
         let mut stop_groups: HashMap<EntityId, usize> = HashMap::new();
