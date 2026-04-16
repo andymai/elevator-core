@@ -1447,10 +1447,21 @@ pub unsafe extern "C" fn ev_sim_spawn_rider_ex(
 
         let ev = unsafe { &mut *handle };
 
+        let abandon_ticks = if abandon_after_ticks < 0 {
+            None
+        } else if let Ok(v) = u32::try_from(abandon_after_ticks) {
+            Some(v)
+        } else {
+            set_last_error(format!(
+                "abandon_after_ticks {abandon_after_ticks} exceeds u32::MAX ({})",
+                u32::MAX
+            ));
+            return EvStatus::InvalidArg;
+        };
         let prefs = elevator_core::components::Preferences::default()
             .with_skip_full_elevator(skip_full_elevator)
             .with_max_crowding_factor(max_crowding_factor)
-            .with_abandon_after_ticks(u32::try_from(abandon_after_ticks).ok())
+            .with_abandon_after_ticks(abandon_ticks)
             .with_abandon_on_full(abandon_on_full);
 
         let mut builder = match ev.sim.build_rider(origin, dest) {
@@ -1463,6 +1474,9 @@ pub unsafe extern "C" fn ev_sim_spawn_rider_ex(
         builder = builder.weight(weight).preferences(prefs);
         if let Ok(ticks) = u64::try_from(max_wait_ticks) {
             builder = builder.patience(ticks);
+        } else if max_wait_ticks >= 0 {
+            set_last_error(format!("max_wait_ticks {max_wait_ticks} exceeds u64::MAX"));
+            return EvStatus::InvalidArg;
         }
         match builder.spawn() {
             Ok(rider_id) => {
