@@ -39,7 +39,7 @@ use elevator_core::components::{Direction, ElevatorPhase, RiderPhase, Velocity};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::BuiltinStrategy;
 use elevator_core::door::DoorState;
-use elevator_core::entity::{ElevatorId, EntityId};
+use elevator_core::entity::{ElevatorId, EntityId, RiderId};
 use elevator_core::ids::GroupId;
 use elevator_core::sim::Simulation;
 use slotmap::{Key, KeyData};
@@ -1076,10 +1076,18 @@ pub mod ev_event_kind {
     pub const CAR_BUTTON_PRESSED: u8 = 4;
     /// `Event::RiderSkipped`.
     pub const RIDER_SKIPPED: u8 = 5;
+    /// `Event::RiderSpawned`.
+    pub const RIDER_SPAWNED: u8 = 6;
+    /// `Event::RiderBoarded`.
+    pub const RIDER_BOARDED: u8 = 7;
+    /// `Event::RiderExited`.
+    pub const RIDER_EXITED: u8 = 8;
+    /// `Event::RiderAbandoned`.
+    pub const RIDER_ABANDONED: u8 = 9;
 }
 
-/// C-ABI-flat projection of the five hall-call / car-call / skip
-/// events emitted by the simulation.
+/// C-ABI-flat projection of the hall-call, car-call, skip, and rider
+/// lifecycle events emitted by the simulation.
 ///
 /// All entity-id fields use `0` to mean "not applicable for this
 /// event kind" (real entity ids are never zero under the FFI
@@ -1096,29 +1104,29 @@ pub struct EvEvent {
     pub direction: i8,
     /// Tick the event was emitted on.
     pub tick: u64,
-    /// Stop entity id. Meaningful for all three hall-call kinds and
-    /// for `RiderSkipped` (as the skip site). `0` for `CarButtonPressed`.
+    /// Stop entity id. Used by hall-call events, `RiderSkipped`,
+    /// `RiderSpawned` (origin), `RiderExited`, `RiderAbandoned`.
+    /// `0` when not applicable.
     pub stop: u64,
-    /// Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
-    /// `RiderSkipped.elevator`. `0` for kinds that don't carry a car.
+    /// Car/elevator entity id. Used by `HallCallCleared`,
+    /// `CarButtonPressed`, `RiderSkipped`, `RiderBoarded`,
+    /// `RiderExited`. `0` when not applicable.
     pub car: u64,
-    /// Rider entity id. `CarButtonPressed.rider` (may be `0` for
-    /// synthetic presses), `RiderSkipped.rider`. `0` otherwise.
+    /// Rider entity id. Used by `CarButtonPressed`, `RiderSkipped`,
+    /// and all rider lifecycle events. `0` when not applicable.
     pub rider: u64,
-    /// Floor entity id for `CarButtonPressed` (the requested stop).
-    /// `0` for every other kind.
+    /// Destination stop entity id. Used by `CarButtonPressed` (the
+    /// requested floor) and `RiderSpawned` (the rider's destination).
+    /// `0` for all other kinds.
     pub floor: u64,
 }
 
-/// Drain pending hall-call / car-call / skip events into `out`.
+/// Drain pending events into `out`.
 ///
-/// This is the FFI mirror of `Simulation::drain_events`, filtered to
-/// the five events added by the hall-call work: every call produced
-/// by the simulation is eventually delivered exactly once, then
-/// removed from the internal queue. Call after `ev_sim_step` each
-/// tick to catch new events; the buffer is caller-owned, so the
-/// ownership contract differs from `ev_sim_frame`'s borrowed-view
-/// path.
+/// Delivers hall-call, car-call, skip, and rider lifecycle events.
+/// Every event produced by the simulation is eventually delivered
+/// exactly once, then removed from the internal queue. Call after
+/// `ev_sim_step` each tick to catch new events.
 ///
 /// Field meanings by [`EvEvent::kind`]:
 /// - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
@@ -1126,14 +1134,17 @@ pub struct EvEvent {
 /// - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
 /// - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
 ///   synthetic presses), `tick`.
-/// - `RIDER_SKIPPED`: `rider`, `car` (the elevator declined), `stop`
-///   (the skip site), `tick`.
+/// - `RIDER_SKIPPED`: `rider`, `car` (elevator), `stop`, `tick`.
+/// - `RIDER_SPAWNED`: `rider`, `stop` (origin), `floor`
+///   (destination), `tick`.
+/// - `RIDER_BOARDED`: `rider`, `car` (elevator), `tick`.
+/// - `RIDER_EXITED`: `rider`, `car` (elevator), `stop`, `tick`.
+/// - `RIDER_ABANDONED`: `rider`, `stop`, `tick`.
 ///
 /// Unused fields for each kind are zeroed so the caller can inspect
 /// a uniform struct layout. Other event kinds in the sim (door
-/// transitions, rider spawns, etc.) are not surfaced — they'd
-/// inflate the matrix and every FFI consumer would pay regardless
-/// of whether they care. Future kinds extend the discriminator.
+/// transitions, direction indicators, etc.) are not surfaced.
+/// Future kinds extend the discriminator.
 ///
 /// ## Overflow handling — no silent drops
 ///
@@ -1213,8 +1224,9 @@ pub unsafe extern "C" fn ev_sim_pending_event_count(handle: *mut EvSim) -> u32 {
 }
 
 /// Drain the sim's event queue into `ev.pending_events`, keeping
-/// only the five hall-call / skip events. The buffer is FIFO so
-/// order matches sim emission order across calls.
+/// hall-call, skip, and rider lifecycle events. The buffer is FIFO
+/// so order matches sim emission order across calls.
+#[allow(clippy::too_many_lines)]
 fn refill_pending_events(ev: &mut EvSim) {
     use elevator_core::events::Event;
     for event in ev.sim.drain_events() {
@@ -1287,11 +1299,217 @@ fn refill_pending_events(ev: &mut EvSim) {
                 rider: entity_to_u64(rider),
                 floor: 0,
             },
+            Event::RiderSpawned {
+                rider,
+                origin,
+                destination,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::RIDER_SPAWNED,
+                direction: 0,
+                tick,
+                stop: entity_to_u64(origin),
+                car: 0,
+                rider: entity_to_u64(rider),
+                floor: entity_to_u64(destination),
+            },
+            Event::RiderBoarded {
+                rider,
+                elevator,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::RIDER_BOARDED,
+                direction: 0,
+                tick,
+                stop: 0,
+                car: entity_to_u64(elevator),
+                rider: entity_to_u64(rider),
+                floor: 0,
+            },
+            Event::RiderExited {
+                rider,
+                elevator,
+                stop,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::RIDER_EXITED,
+                direction: 0,
+                tick,
+                stop: entity_to_u64(stop),
+                car: entity_to_u64(elevator),
+                rider: entity_to_u64(rider),
+                floor: 0,
+            },
+            Event::RiderAbandoned { rider, stop, tick } => EvEvent {
+                kind: ev_event_kind::RIDER_ABANDONED,
+                direction: 0,
+                tick,
+                stop: entity_to_u64(stop),
+                car: 0,
+                rider: entity_to_u64(rider),
+                floor: 0,
+            },
             // Drop every other event kind — caller didn't opt in.
             _ => continue,
         };
         ev.pending_events.push_back(record);
     }
+}
+
+// ── Rider spawn / despawn ────────────────────────────────────────────────
+
+/// Spawn a rider with default preferences.
+///
+/// `origin` and `dest` are stop **entity** IDs (from
+/// [`EvStopView::entity_id`]), not config-level `StopId` values.
+/// `weight` is the rider's mass in the same units as
+/// [`EvElevatorView::capacity_kg`].
+///
+/// On success the new rider's entity id is written to `out_rider_id`.
+///
+/// # Safety
+///
+/// `handle` and `out_rider_id` must be valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_spawn_rider(
+    handle: *mut EvSim,
+    origin: u64,
+    dest: u64,
+    weight: f64,
+    out_rider_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_rider_id.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(origin) = entity_from_u64(origin) else {
+            set_last_error("invalid origin entity id");
+            return EvStatus::InvalidArg;
+        };
+        let Some(dest) = entity_from_u64(dest) else {
+            set_last_error("invalid dest entity id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &mut *handle };
+        match ev.sim.spawn_rider(origin, dest, weight) {
+            Ok(rider_id) => {
+                unsafe { std::ptr::write(out_rider_id, entity_to_u64(rider_id.entity())) };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::NotFound
+            }
+        }
+    })
+}
+
+/// Spawn a rider with explicit preferences and patience.
+///
+/// Like [`ev_sim_spawn_rider`] but allows setting boarding preferences
+/// and a patience budget. Use sentinel values to skip optional fields:
+/// - `abandon_after_ticks < 0`: no time-based abandonment
+/// - `max_wait_ticks < 0`: no `Patience` component attached
+///
+/// # Safety
+///
+/// `handle` and `out_rider_id` must be valid pointers.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_lines)]
+pub unsafe extern "C" fn ev_sim_spawn_rider_ex(
+    handle: *mut EvSim,
+    origin: u64,
+    dest: u64,
+    weight: f64,
+    skip_full_elevator: bool,
+    max_crowding_factor: f64,
+    abandon_after_ticks: i64,
+    abandon_on_full: bool,
+    max_wait_ticks: i64,
+    out_rider_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_rider_id.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(origin) = entity_from_u64(origin) else {
+            set_last_error("invalid origin entity id");
+            return EvStatus::InvalidArg;
+        };
+        let Some(dest) = entity_from_u64(dest) else {
+            set_last_error("invalid dest entity id");
+            return EvStatus::InvalidArg;
+        };
+
+        let ev = unsafe { &mut *handle };
+
+        let prefs = elevator_core::components::Preferences::default()
+            .with_skip_full_elevator(skip_full_elevator)
+            .with_max_crowding_factor(max_crowding_factor)
+            .with_abandon_after_ticks(u32::try_from(abandon_after_ticks).ok())
+            .with_abandon_on_full(abandon_on_full);
+
+        let mut builder = match ev.sim.build_rider(origin, dest) {
+            Ok(b) => b,
+            Err(e) => {
+                set_last_error(e.to_string());
+                return EvStatus::NotFound;
+            }
+        };
+        builder = builder.weight(weight).preferences(prefs);
+        if let Ok(ticks) = u64::try_from(max_wait_ticks) {
+            builder = builder.patience(ticks);
+        }
+        match builder.spawn() {
+            Ok(rider_id) => {
+                unsafe { std::ptr::write(out_rider_id, entity_to_u64(rider_id.entity())) };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::NotFound
+            }
+        }
+    })
+}
+
+/// Remove a rider from the simulation.
+///
+/// The rider must be alive (any phase). Emits `RiderDespawned`
+/// internally. Use this to clean up riders in terminal phases
+/// (`Arrived`, `Abandoned`) and prevent unbounded memory growth.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_despawn_rider(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("invalid rider_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &mut *handle };
+        match ev.sim.despawn_rider(RiderId::from(rider)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                set_last_error(e.to_string());
+                EvStatus::NotFound
+            }
+        }
+    })
 }
 
 /// Encode a `CallDirection` for the FFI `EvEvent::direction` field.
@@ -1617,6 +1835,264 @@ mod tests {
             unsafe { ev_sim_pending_event_count(handle) },
             0,
             "buffer should be empty after full drain",
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    /// Helper: create an EvSim handle from default.ron.
+    fn create_test_handle() -> *mut EvSim {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let root = std::path::Path::new(manifest)
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("workspace root");
+        let config = root.join("assets/config/default.ron");
+        let c_path = CString::new(config.to_str().expect("utf8 path")).unwrap();
+        let handle = unsafe { ev_sim_create(c_path.as_ptr()) };
+        assert!(!handle.is_null(), "sim should build");
+        handle
+    }
+
+    /// Helper: get (first_stop_entity_id, last_stop_entity_id) from frame.
+    fn stop_entities(handle: *mut EvSim) -> (u64, u64) {
+        let mut frame = EvFrame {
+            elevators: std::ptr::null(),
+            elevator_count: 0,
+            stops: std::ptr::null(),
+            stop_count: 0,
+            riders: std::ptr::null(),
+            rider_count: 0,
+            metrics: EvMetricsView {
+                total_delivered: 0,
+                total_abandoned: 0,
+                avg_wait_seconds: 0.0,
+                avg_ride_seconds: 0.0,
+                current_tick: 0,
+            },
+        };
+        assert_eq!(
+            unsafe { ev_sim_frame(handle, &raw mut frame) },
+            EvStatus::Ok
+        );
+        assert!(frame.stop_count >= 2);
+        let stops = unsafe { std::slice::from_raw_parts(frame.stops, frame.stop_count) };
+        (stops[0].entity_id, stops[stops.len() - 1].entity_id)
+    }
+
+    /// Helper: drain all events from the handle.
+    fn drain_all_events(handle: *mut EvSim) -> Vec<EvEvent> {
+        let mut all = Vec::new();
+        loop {
+            let mut buf = [EvEvent {
+                kind: 0,
+                direction: 0,
+                tick: 0,
+                stop: 0,
+                car: 0,
+                rider: 0,
+                floor: 0,
+            }; 128];
+            let mut written: u32 = 0;
+            assert_eq!(
+                unsafe {
+                    ev_sim_drain_events(
+                        handle,
+                        buf.as_mut_ptr(),
+                        u32::try_from(buf.len()).unwrap(),
+                        &raw mut written,
+                    )
+                },
+                EvStatus::Ok
+            );
+            if written == 0 {
+                break;
+            }
+            all.extend_from_slice(&buf[..written as usize]);
+        }
+        all
+    }
+
+    #[test]
+    fn spawn_rider_roundtrip() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        let status = unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(rider_id, 0, "rider entity id should be nonzero");
+
+        // Step once so the rider appears in the frame.
+        assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+
+        let mut frame = EvFrame {
+            elevators: std::ptr::null(),
+            elevator_count: 0,
+            stops: std::ptr::null(),
+            stop_count: 0,
+            riders: std::ptr::null(),
+            rider_count: 0,
+            metrics: EvMetricsView {
+                total_delivered: 0,
+                total_abandoned: 0,
+                avg_wait_seconds: 0.0,
+                avg_ride_seconds: 0.0,
+                current_tick: 0,
+            },
+        };
+        assert_eq!(
+            unsafe { ev_sim_frame(handle, &raw mut frame) },
+            EvStatus::Ok
+        );
+        assert!(
+            frame.rider_count >= 1,
+            "spawned rider should appear in frame"
+        );
+        let riders = unsafe { std::slice::from_raw_parts(frame.riders, frame.rider_count) };
+        let spawned = riders.iter().find(|r| r.entity_id == rider_id);
+        assert!(
+            spawned.is_some(),
+            "rider with returned id should be in frame"
+        );
+        assert_eq!(spawned.unwrap().phase, 0, "should be Waiting (phase 0)");
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn spawn_rider_ex_sets_preferences() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        let status = unsafe {
+            ev_sim_spawn_rider_ex(
+                handle,
+                origin,
+                dest,
+                70.0,
+                true, // skip_full_elevator
+                0.5,  // max_crowding_factor
+                500,  // abandon_after_ticks
+                true, // abandon_on_full
+                1000, // max_wait_ticks (patience)
+                &raw mut rider_id,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(rider_id, 0);
+
+        // Verify preferences were applied via the Rust API.
+        let ev = unsafe { &*handle };
+        let eid = entity_from_u64(rider_id).unwrap();
+        let prefs = ev.sim.world().preferences(eid).expect("prefs should exist");
+        assert!(prefs.skip_full_elevator());
+        assert!((prefs.max_crowding_factor() - 0.5).abs() < f64::EPSILON);
+        assert_eq!(prefs.abandon_after_ticks(), Some(500));
+        assert!(prefs.abandon_on_full());
+
+        let patience = ev.sim.world().patience(eid).expect("patience should exist");
+        assert_eq!(patience.max_wait_ticks(), 1000);
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn despawn_rider_removes_from_frame() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+
+        // Despawn immediately.
+        assert_eq!(
+            unsafe { ev_sim_despawn_rider(handle, rider_id) },
+            EvStatus::Ok,
+        );
+
+        // Step and check frame — rider should be gone.
+        assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        let mut frame = EvFrame {
+            elevators: std::ptr::null(),
+            elevator_count: 0,
+            stops: std::ptr::null(),
+            stop_count: 0,
+            riders: std::ptr::null(),
+            rider_count: 0,
+            metrics: EvMetricsView {
+                total_delivered: 0,
+                total_abandoned: 0,
+                avg_wait_seconds: 0.0,
+                avg_ride_seconds: 0.0,
+                current_tick: 0,
+            },
+        };
+        assert_eq!(
+            unsafe { ev_sim_frame(handle, &raw mut frame) },
+            EvStatus::Ok
+        );
+        let riders = unsafe { std::slice::from_raw_parts(frame.riders, frame.rider_count) };
+        assert!(
+            !riders.iter().any(|r| r.entity_id == rider_id),
+            "despawned rider should not appear in frame",
+        );
+
+        // Despawning again should fail.
+        assert_eq!(
+            unsafe { ev_sim_despawn_rider(handle, rider_id) },
+            EvStatus::NotFound,
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn drain_surfaces_rider_lifecycle_events() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        // Spawn via FFI so the event is emitted.
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+
+        // Run enough ticks for the rider to board, ride, and exit.
+        for _ in 0..3000 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+
+        let events = drain_all_events(handle);
+
+        // RiderSpawned: check origin and destination fields.
+        let spawned = events
+            .iter()
+            .find(|e| e.kind == ev_event_kind::RIDER_SPAWNED && e.rider == rider_id);
+        assert!(spawned.is_some(), "should see RIDER_SPAWNED for our rider");
+        let s = spawned.unwrap();
+        assert_eq!(s.stop, origin, "spawned event stop should be origin");
+        assert_eq!(s.floor, dest, "spawned event floor should be destination");
+
+        // RiderBoarded.
+        assert!(
+            events
+                .iter()
+                .any(|e| e.kind == ev_event_kind::RIDER_BOARDED && e.rider == rider_id),
+            "should see RIDER_BOARDED",
+        );
+
+        // RiderExited.
+        assert!(
+            events
+                .iter()
+                .any(|e| e.kind == ev_event_kind::RIDER_EXITED && e.rider == rider_id),
+            "should see RIDER_EXITED",
         );
 
         unsafe { ev_sim_destroy(handle) };

@@ -109,6 +109,10 @@ internal static class Native
     public const byte EV_HALL_CALL_CLEARED = 3;
     public const byte EV_CAR_BUTTON_PRESSED = 4;
     public const byte EV_RIDER_SKIPPED = 5;
+    public const byte EV_RIDER_SPAWNED = 6;
+    public const byte EV_RIDER_BOARDED = 7;
+    public const byte EV_RIDER_EXITED = 8;
+    public const byte EV_RIDER_ABANDONED = 9;
 
     // Explicit layout so the 6 bytes of padding before `tick`
     // (natural u64 alignment on the Rust #[repr(C)] side) are
@@ -144,6 +148,17 @@ internal static class Native
     [DllImport(Lib)]
     public static extern EvStatus ev_sim_hall_calls_snapshot(
         IntPtr handle, [Out] EvHallCall[] outBuf, uint capacity, out uint outWritten);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_spawn_rider(
+        IntPtr handle, ulong origin, ulong dest, double weight, out ulong outRiderId);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_spawn_rider_ex(
+        IntPtr handle, ulong origin, ulong dest, double weight,
+        [MarshalAs(UnmanagedType.U1)] bool skipFull, double maxCrowding,
+        long abandonAfterTicks, [MarshalAs(UnmanagedType.U1)] bool abandonOnFull,
+        long maxWaitTicks, out ulong outRiderId);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_despawn_rider(IntPtr handle, ulong riderEntityId);
 
     public static string LastError()
     {
