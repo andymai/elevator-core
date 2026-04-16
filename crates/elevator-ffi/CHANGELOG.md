@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.6.0...elevator-ffi-v0.7.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* physics newtypes — Weight, Speed, Accel ([#153](https://github.com/andymai/elevator-core/issues/153))
+
+### Features
+
+* physics newtypes — Weight, Speed, Accel ([#153](https://github.com/andymai/elevator-core/issues/153)) ([8833676](https://github.com/andymai/elevator-core/commit/88336764481db7d4ff13cb4b370e7a692511bf72))
+
 ## [0.6.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.5.0...elevator-ffi-v0.6.0) (2026-04-16)
 
 
