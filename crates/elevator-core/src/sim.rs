@@ -1808,34 +1808,33 @@ impl Simulation {
 
     /// Run only the reposition phase (with hooks).
     ///
-    /// Only runs if at least one group has a [`RepositionStrategy`] configured.
+    /// Hooks always fire even when no [`RepositionStrategy`] is configured.
     /// Idle elevators with no pending dispatch assignment are repositioned
     /// according to their group's strategy.
     pub fn run_reposition(&mut self) {
-        if self.repositioners.is_empty() {
-            return;
-        }
         self.hooks.run_before(Phase::Reposition, &mut self.world);
-        // Only run per-group hooks for groups that have a repositioner.
-        for group in &self.groups {
-            if self.repositioners.contains_key(&group.id()) {
-                self.hooks
-                    .run_before_group(Phase::Reposition, group.id(), &mut self.world);
+        if !self.repositioners.is_empty() {
+            // Only run per-group hooks for groups that have a repositioner.
+            for group in &self.groups {
+                if self.repositioners.contains_key(&group.id()) {
+                    self.hooks
+                        .run_before_group(Phase::Reposition, group.id(), &mut self.world);
+                }
             }
-        }
-        let ctx = self.phase_context();
-        crate::systems::reposition::run(
-            &mut self.world,
-            &mut self.events,
-            &ctx,
-            &self.groups,
-            &mut self.repositioners,
-            &mut self.reposition_buf,
-        );
-        for group in &self.groups {
-            if self.repositioners.contains_key(&group.id()) {
-                self.hooks
-                    .run_after_group(Phase::Reposition, group.id(), &mut self.world);
+            let ctx = self.phase_context();
+            crate::systems::reposition::run(
+                &mut self.world,
+                &mut self.events,
+                &ctx,
+                &self.groups,
+                &mut self.repositioners,
+                &mut self.reposition_buf,
+            );
+            for group in &self.groups {
+                if self.repositioners.contains_key(&group.id()) {
+                    self.hooks
+                        .run_after_group(Phase::Reposition, group.id(), &mut self.world);
+                }
             }
         }
         self.hooks.run_after(Phase::Reposition, &mut self.world);

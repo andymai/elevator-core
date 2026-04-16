@@ -1,9 +1,11 @@
 //! Simplified energy modeling for elevators.
 //!
-//! Provides an [`EnergyProfile`] that parameterizes per-tick energy costs
-//! and an [`EnergyMetrics`] accumulator for tracking consumption and
-//! regeneration over time. The pure function [`compute_tick_energy`]
-//! calculates consumed and regenerated energy for a single tick.
+//! Provides an [`EnergyProfile`](crate::energy::EnergyProfile) that
+//! parameterizes per-tick energy costs and an
+//! [`EnergyMetrics`](crate::energy::EnergyMetrics) accumulator for tracking
+//! consumption and regeneration over time. The pure function
+//! `compute_tick_energy` calculates consumed and regenerated energy for a
+//! single tick.
 
 use serde::{Deserialize, Serialize};
 
