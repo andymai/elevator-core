@@ -553,6 +553,8 @@ pub enum Event {
     SnapshotDanglingReference {
         /// The entity ID from the snapshot that had no mapping.
         stale_id: EntityId,
+        /// Tick from the snapshot at restore time.
+        tick: u64,
     },
 }
 
