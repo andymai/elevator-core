@@ -73,7 +73,7 @@ use crate::components::{
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
 use crate::entity::EntityId;
-use crate::error::SimError;
+use crate::error::{EtaError, SimError};
 use crate::events::{Event, EventBus};
 use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
@@ -621,25 +621,32 @@ impl Simulation {
     /// at `stop` itself is **not** added; door time at earlier stops along
     /// the route **is**.
     ///
-    /// Returns `None` if:
-    /// - `elev` is not an elevator or `stop` is not a stop,
-    /// - the elevator's [`ServiceMode`](crate::components::ServiceMode) is
-    ///   dispatch-excluded (`Manual` / `Independent`), or
-    /// - `stop` is neither the elevator's current movement target nor anywhere
-    ///   in its [`destination_queue`](Self::destination_queue).
+    /// # Errors
+    ///
+    /// - [`EtaError::NotAnElevator`] if `elev` is not an elevator entity.
+    /// - [`EtaError::NotAStop`] if `stop` is not a stop entity.
+    /// - [`EtaError::ServiceModeExcluded`] if the elevator's
+    ///   [`ServiceMode`](crate::components::ServiceMode) is dispatch-excluded
+    ///   (`Manual` / `Independent`).
+    /// - [`EtaError::StopNotQueued`] if `stop` is neither the elevator's
+    ///   current movement target nor anywhere in its
+    ///   [`destination_queue`](Self::destination_queue).
+    /// - [`EtaError::StopVanished`] if a stop in the route lost its position
+    ///   during calculation.
     ///
     /// The estimate is best-effort. It assumes the queue is served in order
     /// with no mid-trip insertions; dispatch decisions, manual door commands,
     /// and rider boarding/exiting beyond the configured dwell will perturb
     /// the actual arrival.
-    #[must_use]
-    pub fn eta(&self, elev: EntityId, stop: impl Into<StopRef>) -> Option<Duration> {
-        let stop = self.resolve_stop(stop.into()).ok()?;
-        let elevator = self.world.elevator(elev)?;
-        self.world.stop(stop)?;
+    pub fn eta(&self, elev: EntityId, stop: EntityId) -> Result<Duration, EtaError> {
+        let elevator = self
+            .world
+            .elevator(elev)
+            .ok_or(EtaError::NotAnElevator(elev))?;
+        self.world.stop(stop).ok_or(EtaError::NotAStop(stop))?;
         let svc = self.world.service_mode(elev).copied().unwrap_or_default();
         if svc.is_dispatch_excluded() {
-            return None;
+            return Err(EtaError::ServiceModeExcluded(elev));
         }
 
         // Build the route in service order: current target first (if any),
@@ -656,7 +663,10 @@ impl Simulation {
             }
         }
         if !route.contains(&stop) {
-            return None;
+            return Err(EtaError::StopNotQueued {
+                elevator: elev,
+                stop,
+            });
         }
 
         let max_speed = elevator.max_speed();
@@ -686,17 +696,18 @@ impl Simulation {
         };
 
         let in_door_cycle = !matches!(elevator.door(), crate::door::DoorState::Closed);
-        let mut pos = self.world.position(elev)?.value;
+        let mut pos = self
+            .world
+            .position(elev)
+            .ok_or(EtaError::NotAnElevator(elev))?
+            .value;
         let vel_signed = self.world.velocity(elev).map_or(0.0, Velocity::value);
 
         for (idx, &s) in route.iter().enumerate() {
-            let Some(s_pos) = self.world.stop_position(s) else {
-                // A queued entry without a position can only mean the stop
-                // entity was despawned out from under us. Bail rather than
-                // returning a partial accumulation that would silently
-                // understate the ETA.
-                return None;
-            };
+            let s_pos = self
+                .world
+                .stop_position(s)
+                .ok_or(EtaError::StopVanished(s))?;
             let dist = (s_pos - pos).abs();
             // Only the first leg can carry initial velocity, and only if
             // the car is already moving toward this stop and not stuck in
@@ -713,14 +724,17 @@ impl Simulation {
             };
             total += crate::eta::travel_time(dist, v0, max_speed, accel, decel);
             if s == stop {
-                return Some(Duration::from_secs_f64(total.max(0.0)));
+                return Ok(Duration::from_secs_f64(total.max(0.0)));
             }
             total += door_cycle_secs;
             pos = s_pos;
         }
         // `route.contains(&stop)` was true above, so the loop must hit `stop`.
-        // Fall through to `None` as a defensive backstop.
-        None
+        // Fall through as a defensive backstop.
+        Err(EtaError::StopNotQueued {
+            elevator: elev,
+            stop,
+        })
     }
 
     /// Best ETA to `stop` across all dispatch-eligible elevators, optionally
@@ -752,7 +766,7 @@ impl Simulation {
                 if !direction_ok {
                     return None;
                 }
-                self.eta(eid, stop).map(|d| (eid, d))
+                self.eta(eid, stop).ok().map(|d| (eid, d))
             })
             .min_by_key(|(_, d)| *d)
     }
@@ -1320,13 +1334,22 @@ impl Simulation {
     ///
     /// Tags enable per-tag metric breakdowns. An entity can have multiple tags.
     /// Riders automatically inherit tags from their origin stop when spawned.
-    pub fn tag_entity(&mut self, id: EntityId, tag: impl Into<String>) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if the entity does not exist in
+    /// the world.
+    pub fn tag_entity(&mut self, id: EntityId, tag: impl Into<String>) -> Result<(), SimError> {
+        if !self.world.is_alive(id) {
+            return Err(SimError::EntityNotFound(id));
+        }
         if let Some(tags) = self
             .world
             .resource_mut::<crate::tagged_metrics::MetricTags>()
         {
             tags.tag(id, tag);
         }
+        Ok(())
     }
 
     /// Remove a metric tag from an entity.
@@ -2155,26 +2178,48 @@ impl Simulation {
     }
 
     /// Estimated ticks remaining before the assigned car reaches the
-    /// call at `(stop, direction)`. Returns `None` when no car is
-    /// assigned or the car has no positional data.
-    #[must_use]
+    /// call at `(stop, direction)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`EtaError::NotAStop`] if no hall call exists at `(stop, direction)`.
+    /// - [`EtaError::StopNotQueued`] if no car is assigned to the call.
+    /// - [`EtaError::NotAnElevator`] if the assigned car has no positional
+    ///   data or is not a valid elevator.
     pub fn eta_for_call(
         &self,
         stop: EntityId,
         direction: crate::components::CallDirection,
-    ) -> Option<u64> {
-        let call = self.world.hall_call(stop, direction)?;
-        let car = call.assigned_car?;
-        let car_pos = self.world.position(car)?.value;
-        let stop_pos = self.world.stop_position(stop)?;
-        let max_speed = self.world.elevator(car)?.max_speed();
+    ) -> Result<u64, EtaError> {
+        let call = self
+            .world
+            .hall_call(stop, direction)
+            .ok_or(EtaError::NotAStop(stop))?;
+        let car = call.assigned_car.ok_or_else(|| EtaError::StopNotQueued {
+            elevator: EntityId::default(),
+            stop,
+        })?;
+        let car_pos = self
+            .world
+            .position(car)
+            .ok_or(EtaError::NotAnElevator(car))?
+            .value;
+        let stop_pos = self
+            .world
+            .stop_position(stop)
+            .ok_or(EtaError::StopVanished(stop))?;
+        let max_speed = self
+            .world
+            .elevator(car)
+            .ok_or(EtaError::NotAnElevator(car))?
+            .max_speed();
         if max_speed <= 0.0 {
-            return None;
+            return Err(EtaError::NotAnElevator(car));
         }
         let distance = (car_pos - stop_pos).abs();
         // Simple kinematic estimate. The `eta` module has a richer
         // trapezoidal model; the one-liner suits most hall-display use.
-        Some((distance / max_speed).ceil() as u64)
+        Ok((distance / max_speed).ceil() as u64)
     }
 
     // ── Internal helpers ────────────────────────────────────────────

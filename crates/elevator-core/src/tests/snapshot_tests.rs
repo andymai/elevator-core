@@ -197,7 +197,7 @@ fn snapshot_preserves_metric_tags() {
 
     // Tag stop 0 and spawn a rider.
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(stop0, "zone:lobby");
+    sim.tag_entity(stop0, "zone:lobby").unwrap();
     sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
     for _ in 0..500 {

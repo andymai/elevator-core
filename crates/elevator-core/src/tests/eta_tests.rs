@@ -1,4 +1,5 @@
 use crate::components::{Direction, ServiceMode};
+use crate::error::EtaError;
 use crate::eta::travel_time;
 use crate::stop::StopId;
 use crate::tests::helpers;
@@ -52,8 +53,8 @@ fn eta_returns_none_for_unqueued_stop() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let elev = sim.world().iter_elevators().next().unwrap().0;
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
-    // Empty queue, no movement target → None.
-    assert!(sim.eta(elev, stop1).is_none());
+    // Empty queue, no movement target → Err.
+    assert!(sim.eta(elev, stop1).is_err());
 }
 
 #[test]
@@ -168,7 +169,10 @@ fn eta_returns_none_for_manual_mode() {
     sim.push_destination(elev, stop1).unwrap();
 
     sim.set_service_mode(elev, ServiceMode::Manual).unwrap();
-    assert!(sim.eta(elev, stop1).is_none());
+    assert!(matches!(
+        sim.eta(elev, stop1),
+        Err(EtaError::ServiceModeExcluded(_))
+    ));
 }
 
 #[test]
@@ -181,7 +185,10 @@ fn eta_returns_none_for_independent_mode() {
 
     sim.set_service_mode(elev, ServiceMode::Independent)
         .unwrap();
-    assert!(sim.eta(elev, stop1).is_none());
+    assert!(matches!(
+        sim.eta(elev, stop1),
+        Err(EtaError::ServiceModeExcluded(_))
+    ));
 }
 
 #[test]
@@ -191,8 +198,11 @@ fn eta_rejects_non_elevator_and_non_stop() {
     let elev = sim.world().iter_elevators().next().unwrap().0;
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Swap arguments: stop is not an elevator, elevator is not a stop.
-    assert!(sim.eta(stop1, stop1).is_none());
-    assert!(sim.eta(elev, elev).is_none());
+    assert!(matches!(
+        sim.eta(stop1, stop1),
+        Err(EtaError::NotAnElevator(_))
+    ));
+    assert!(matches!(sim.eta(elev, elev), Err(EtaError::NotAStop(_))));
 }
 
 #[test]
