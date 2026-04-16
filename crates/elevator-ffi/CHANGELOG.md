@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.4.0...elevator-ffi-v0.5.0) (2026-04-16)
+
+
+### Features
+
+* surface hall-call events to Bevy HUD and FFI consumers ([#118](https://github.com/andymai/elevator-core/issues/118)) ([ad82bb3](https://github.com/andymai/elevator-core/commit/ad82bb36610261c33b181bc0acbfef70d521e8ae)), closes [#95](https://github.com/andymai/elevator-core/issues/95) [#100](https://github.com/andymai/elevator-core/issues/100)
+
 ## [0.4.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.3.0...elevator-ffi-v0.4.0) (2026-04-16)
 
 
