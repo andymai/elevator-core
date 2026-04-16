@@ -45,6 +45,26 @@
 #define RIDER_SKIPPED 5
 
 /**
+ * `Event::RiderSpawned`.
+ */
+#define RIDER_SPAWNED 6
+
+/**
+ * `Event::RiderBoarded`.
+ */
+#define RIDER_BOARDED 7
+
+/**
+ * `Event::RiderExited`.
+ */
+#define RIDER_EXITED 8
+
+/**
+ * `Event::RiderAbandoned`.
+ */
+#define RIDER_ABANDONED 9
+
+/**
  * Status code returned by every FFI entrypoint.
  */
 typedef enum EvStatus {
@@ -333,8 +353,8 @@ typedef struct EvHallCall {
 } EvHallCall;
 
 /**
- * C-ABI-flat projection of the five hall-call / car-call / skip
- * events emitted by the simulation.
+ * C-ABI-flat projection of the hall-call, car-call, skip, and rider
+ * lifecycle events emitted by the simulation.
  *
  * All entity-id fields use `0` to mean "not applicable for this
  * event kind" (real entity ids are never zero under the FFI
@@ -357,23 +377,26 @@ typedef struct EvEvent {
      */
     uint64_t tick;
     /**
-     * Stop entity id. Meaningful for all three hall-call kinds and
-     * for `RiderSkipped` (as the skip site). `0` for `CarButtonPressed`.
+     * Stop entity id. Used by hall-call events, `RiderSkipped`,
+     * `RiderSpawned` (origin), `RiderExited`, `RiderAbandoned`.
+     * `0` when not applicable.
      */
     uint64_t stop;
     /**
-     * Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
-     * `RiderSkipped.elevator`. `0` for kinds that don't carry a car.
+     * Car/elevator entity id. Used by `HallCallCleared`,
+     * `CarButtonPressed`, `RiderSkipped`, `RiderBoarded`,
+     * `RiderExited`. `0` when not applicable.
      */
     uint64_t car;
     /**
-     * Rider entity id. `CarButtonPressed.rider` (may be `0` for
-     * synthetic presses), `RiderSkipped.rider`. `0` otherwise.
+     * Rider entity id. Used by `CarButtonPressed`, `RiderSkipped`,
+     * and all rider lifecycle events. `0` when not applicable.
      */
     uint64_t rider;
     /**
-     * Floor entity id for `CarButtonPressed` (the requested stop).
-     * `0` for every other kind.
+     * Destination stop entity id. Used by `CarButtonPressed` (the
+     * requested floor) and `RiderSpawned` (the rider's destination).
+     * `0` for all other kinds.
      */
     uint64_t floor;
 } EvEvent;
@@ -583,15 +606,12 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
                                          uint32_t *out_written);
 
 /**
- * Drain pending hall-call / car-call / skip events into `out`.
+ * Drain pending events into `out`.
  *
- * This is the FFI mirror of `Simulation::drain_events`, filtered to
- * the five events added by the hall-call work: every call produced
- * by the simulation is eventually delivered exactly once, then
- * removed from the internal queue. Call after `ev_sim_step` each
- * tick to catch new events; the buffer is caller-owned, so the
- * ownership contract differs from `ev_sim_frame`'s borrowed-view
- * path.
+ * Delivers hall-call, car-call, skip, and rider lifecycle events.
+ * Every event produced by the simulation is eventually delivered
+ * exactly once, then removed from the internal queue. Call after
+ * `ev_sim_step` each tick to catch new events.
  *
  * Field meanings by [`EvEvent::kind`]:
  * - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
@@ -599,14 +619,17 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
  * - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
  * - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
  *   synthetic presses), `tick`.
- * - `RIDER_SKIPPED`: `rider`, `car` (the elevator declined), `stop`
- *   (the skip site), `tick`.
+ * - `RIDER_SKIPPED`: `rider`, `car` (elevator), `stop`, `tick`.
+ * - `RIDER_SPAWNED`: `rider`, `stop` (origin), `floor`
+ *   (destination), `tick`.
+ * - `RIDER_BOARDED`: `rider`, `car` (elevator), `tick`.
+ * - `RIDER_EXITED`: `rider`, `car` (elevator), `stop`, `tick`.
+ * - `RIDER_ABANDONED`: `rider`, `stop`, `tick`.
  *
  * Unused fields for each kind are zeroed so the caller can inspect
  * a uniform struct layout. Other event kinds in the sim (door
- * transitions, rider spawns, etc.) are not surfaced — they'd
- * inflate the matrix and every FFI consumer would pay regardless
- * of whether they care. Future kinds extend the discriminator.
+ * transitions, direction indicators, etc.) are not surfaced.
+ * Future kinds extend the discriminator.
  *
  * ## Overflow handling — no silent drops
  *
@@ -643,5 +666,61 @@ enum EvStatus ev_sim_drain_events(struct EvSim *handle,
  * `handle` must be a valid pointer returned by [`ev_sim_create`].
  */
 uint32_t ev_sim_pending_event_count(struct EvSim *handle);
+
+/**
+ * Spawn a rider with default preferences.
+ *
+ * `origin` and `dest` are stop **entity** IDs (from
+ * [`EvStopView::entity_id`]), not config-level `StopId` values.
+ * `weight` is the rider's mass in the same units as
+ * [`EvElevatorView::capacity_kg`].
+ *
+ * On success the new rider's entity id is written to `out_rider_id`.
+ *
+ * # Safety
+ *
+ * `handle` and `out_rider_id` must be valid pointers.
+ */
+enum EvStatus ev_sim_spawn_rider(struct EvSim *handle,
+                                 uint64_t origin,
+                                 uint64_t dest,
+                                 double weight,
+                                 uint64_t *out_rider_id);
+
+/**
+ * Spawn a rider with explicit preferences and patience.
+ *
+ * Like [`ev_sim_spawn_rider`] but allows setting boarding preferences
+ * and a patience budget. Use sentinel values to skip optional fields:
+ * - `abandon_after_ticks < 0`: no time-based abandonment
+ * - `max_wait_ticks < 0`: no `Patience` component attached
+ *
+ * # Safety
+ *
+ * `handle` and `out_rider_id` must be valid pointers.
+ */
+enum EvStatus ev_sim_spawn_rider_ex(struct EvSim *handle,
+                                    uint64_t origin,
+                                    uint64_t dest,
+                                    double weight,
+                                    bool skip_full_elevator,
+                                    double max_crowding_factor,
+                                    int64_t abandon_after_ticks,
+                                    bool abandon_on_full,
+                                    int64_t max_wait_ticks,
+                                    uint64_t *out_rider_id);
+
+/**
+ * Remove a rider from the simulation.
+ *
+ * The rider must be alive (any phase). Emits `RiderDespawned`
+ * internally. Use this to clean up riders in terminal phases
+ * (`Arrived`, `Abandoned`) and prevent unbounded memory growth.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_despawn_rider(struct EvSim *handle, uint64_t rider_entity_id);
 
 #endif  /* ELEVATOR_FFI_H */
