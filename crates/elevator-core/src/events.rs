@@ -556,6 +556,22 @@ pub enum Event {
         /// Tick from the snapshot at restore time.
         tick: u64,
     },
+    /// A snapshot restore could not re-instantiate the reposition strategy
+    /// for a group (e.g. custom strategy not registered). Idle elevator
+    /// positioning will not work for this group until the game calls
+    /// [`Simulation::set_reposition`](crate::sim::Simulation::set_reposition).
+    RepositionStrategyNotRestored {
+        /// The group whose strategy was lost.
+        group: GroupId,
+    },
+    /// A stop was removed while resident riders were present.
+    /// The game must relocate or despawn these riders.
+    ResidentsAtRemovedStop {
+        /// The removed stop.
+        stop: EntityId,
+        /// Riders that were resident at the stop.
+        residents: Vec<EntityId>,
+    },
 }
 
 /// Identifies which elevator parameter was changed in an
@@ -716,7 +732,10 @@ impl Event {
             | Self::HallCallCleared { .. }
             | Self::CarButtonPressed { .. } => EventCategory::Dispatch,
             Self::RiderBalked { .. } => EventCategory::Rider,
-            Self::SnapshotDanglingReference { .. } => EventCategory::Observability,
+            Self::SnapshotDanglingReference { .. } | Self::RepositionStrategyNotRestored { .. } => {
+                EventCategory::Observability
+            }
+            Self::ResidentsAtRemovedStop { .. } => EventCategory::Topology,
         }
     }
 }

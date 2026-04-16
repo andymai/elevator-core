@@ -1672,6 +1672,24 @@ impl Simulation {
     }
 
     /// Run only the `advance_transient` phase (with hooks).
+    ///
+    /// # Phase ordering
+    ///
+    /// When calling individual phase methods instead of [`step()`](Self::step),
+    /// phases **must** be called in this order each tick:
+    ///
+    /// 1. `run_advance_transient`
+    /// 2. `run_dispatch`
+    /// 3. `run_reposition`
+    /// 4. `run_advance_queue`
+    /// 5. `run_movement`
+    /// 6. `run_doors`
+    /// 7. `run_loading`
+    /// 8. `run_metrics`
+    ///
+    /// Out-of-order execution may cause riders to board with closed doors,
+    /// elevators to move before dispatch, or transient states to persist
+    /// across tick boundaries.
     pub fn run_advance_transient(&mut self) {
         self.hooks
             .run_before(Phase::AdvanceTransient, &mut self.world);

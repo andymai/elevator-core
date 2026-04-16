@@ -340,7 +340,13 @@ impl World {
     }
 
     /// Set an entity's rider component.
-    pub fn set_rider(&mut self, id: EntityId, rider: Rider) {
+    ///
+    /// # Warning
+    ///
+    /// This does **not** update the [`RiderIndex`](crate::rider_index::RiderIndex).
+    /// Call [`RiderIndex::rebuild`](crate::rider_index::RiderIndex::rebuild) afterward
+    /// if the phase or `current_stop` changed.
+    pub(crate) fn set_rider(&mut self, id: EntityId, rider: Rider) {
         self.riders.insert(id, rider);
     }
 

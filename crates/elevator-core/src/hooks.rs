@@ -70,6 +70,7 @@ impl PhaseHooks {
             for hook in hooks {
                 hook(world);
             }
+            Self::debug_check_invariants(phase, world);
         }
     }
 
@@ -79,8 +80,25 @@ impl PhaseHooks {
             for hook in hooks {
                 hook(world);
             }
+            Self::debug_check_invariants(phase, world);
         }
     }
+
+    /// In debug builds, verify that hooks did not break core invariants.
+    #[cfg(debug_assertions)]
+    fn debug_check_invariants(phase: Phase, world: &World) {
+        for (eid, _, elev) in world.iter_elevators() {
+            for &rider_id in &elev.riders {
+                debug_assert!(
+                    world.is_alive(rider_id),
+                    "hook after {phase:?}: elevator {eid:?} references dead rider {rider_id:?}"
+                );
+            }
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn debug_check_invariants(_phase: Phase, _world: &World) {}
 
     /// Register a hook to run before a phase.
     pub(crate) fn add_before(&mut self, phase: Phase, hook: PhaseHook) {
