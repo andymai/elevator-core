@@ -1,5 +1,16 @@
 # Changelog
 
+## [15.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v14.0.0...elevator-core-v15.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* replace archaic balk vocabulary ([#211](https://github.com/andymai/elevator-core/issues/211))
+
+### Code Refactoring
+
+* replace archaic balk vocabulary ([#211](https://github.com/andymai/elevator-core/issues/211)) ([f26b5b2](https://github.com/andymai/elevator-core/commit/f26b5b29fadf2472e6f7a306672c512569d49ab5))
+
 ## [14.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v13.0.1...elevator-core-v14.0.0) (2026-04-16)
 
 
