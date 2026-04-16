@@ -1808,9 +1808,10 @@ impl Simulation {
 
     /// Run only the reposition phase (with hooks).
     ///
-    /// Hooks always fire even when no [`RepositionStrategy`] is configured.
-    /// Idle elevators with no pending dispatch assignment are repositioned
-    /// according to their group's strategy.
+    /// Global before/after hooks always fire even when no [`RepositionStrategy`]
+    /// is configured. Per-group hooks only fire for groups that have a
+    /// repositioner — this differs from other phases where per-group hooks
+    /// fire unconditionally.
     pub fn run_reposition(&mut self) {
         self.hooks.run_before(Phase::Reposition, &mut self.world);
         if !self.repositioners.is_empty() {
