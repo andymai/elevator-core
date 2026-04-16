@@ -492,7 +492,7 @@ pub mod prelude {
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{RiderBuilder, Simulation};
-    pub use crate::stop::StopId;
+    pub use crate::stop::{StopId, StopRef};
     pub use crate::time::TimeAdapter;
 }
 
