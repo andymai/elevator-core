@@ -69,12 +69,33 @@ jobs:
           arg: --workspace
 
   ffi-harness:
-    name: FFI smoke test (C# harness)
+    name: FFI smoke test (${{ matrix.os }})
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.user.login != 'release-kun[bot]' ||
       !startsWith(github.event.pull_request.title, 'chore(main): release')
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            lib_name: libelevator_ffi.so
+          - os: windows-latest
+            rid: win-x64
+            lib_name: elevator_ffi.dll
+          # Pin to macos-15 rather than macos-latest: the alias currently
+          # resolves to Apple Silicon (matching osx-arm64), but if GitHub
+          # ever remaps macos-latest to an x86-64 runner the dylib would
+          # land in the wrong runtime-id directory and fail with a
+          # confusing DllNotFoundException. Explicit = self-documenting.
+          - os: macos-15
+            rid: osx-arm64
+            lib_name: libelevator_ffi.dylib
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -83,13 +104,15 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install system dependencies
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev
 
       - name: Build elevator-ffi cdylib
         run: cargo build -p elevator-ffi --release
 
       - name: Verify generated header is up to date
+        if: runner.os == 'Linux'
         run: |
           cargo build -p elevator-ffi
           if ! git diff --exit-code crates/elevator-ffi/include/elevator_ffi.h; then
@@ -98,9 +121,12 @@ jobs:
           fi
 
       - name: Stage cdylib for harness
+        env:
+          RID: ${{ matrix.rid }}
+          LIB_NAME: ${{ matrix.lib_name }}
         run: |
-          mkdir -p examples/csharp-harness/runtimes/linux-x64/native
-          cp target/release/libelevator_ffi.so examples/csharp-harness/runtimes/linux-x64/native/
+          mkdir -p "examples/csharp-harness/runtimes/$RID/native"
+          cp "target/release/$LIB_NAME" "examples/csharp-harness/runtimes/$RID/native/"
 
       - name: Build C# harness
         working-directory: examples/csharp-harness
