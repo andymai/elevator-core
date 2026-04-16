@@ -183,6 +183,13 @@ impl DispatchManifest {
             .iter()
             .map(|(stop, riders)| (stop, riders.as_slice()))
     }
+
+    /// Iterate over all `(stop, hall_calls)` pairs with active calls.
+    pub fn iter_hall_call_stops(&self) -> impl Iterator<Item = (&EntityId, &[HallCall])> {
+        self.hall_calls_at_stop
+            .iter()
+            .map(|(stop, calls)| (stop, calls.as_slice()))
+    }
 }
 
 /// Serializable identifier for built-in dispatch strategies.
@@ -501,8 +508,7 @@ impl ElevatorGroup {
     }
 }
 
-/// Context passed to [`DispatchStrategy::rank`] and
-/// [`DispatchStrategy::prepare_car`].
+/// Context passed to [`DispatchStrategy::rank`].
 ///
 /// Bundles the per-call arguments into a single struct so future context
 /// fields can be added without breaking existing trait implementations.
