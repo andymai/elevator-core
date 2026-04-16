@@ -20,6 +20,31 @@
 #define EV_ABI_VERSION 1
 
 /**
+ * `Event::HallButtonPressed`.
+ */
+#define HALL_BUTTON_PRESSED 1
+
+/**
+ * `Event::HallCallAcknowledged`.
+ */
+#define HALL_CALL_ACKNOWLEDGED 2
+
+/**
+ * `Event::HallCallCleared`.
+ */
+#define HALL_CALL_CLEARED 3
+
+/**
+ * `Event::CarButtonPressed`.
+ */
+#define CAR_BUTTON_PRESSED 4
+
+/**
+ * `Event::RiderBalked`.
+ */
+#define RIDER_BALKED 5
+
+/**
  * Status code returned by every FFI entrypoint.
  */
 typedef enum EvStatus {
@@ -308,6 +333,52 @@ typedef struct EvHallCall {
 } EvHallCall;
 
 /**
+ * C-ABI-flat projection of the five hall-call / car-call / balk
+ * events emitted by the simulation.
+ *
+ * All entity-id fields use `0` to mean "not applicable for this
+ * event kind" (real entity ids are never zero under the FFI
+ * encoding). The `kind` discriminator picks which fields are
+ * meaningful — see [`ev_event_kind`] for the kind constants and the
+ * [`ev_sim_drain_events`] docs for the per-kind field map.
+ */
+typedef struct EvEvent {
+    /**
+     * Event kind discriminator. Values outside [`ev_event_kind`] are
+     * reserved — ignore unknown kinds for forward compatibility.
+     */
+    uint8_t kind;
+    /**
+     * Direction for hall-call events: `1` = Up, `-1` = Down, `0` = N/A.
+     */
+    int8_t direction;
+    /**
+     * Tick the event was emitted on.
+     */
+    uint64_t tick;
+    /**
+     * Stop entity id. Meaningful for all three hall-call kinds and
+     * for `RiderBalked` (as the balk site). `0` for `CarButtonPressed`.
+     */
+    uint64_t stop;
+    /**
+     * Car entity id. `HallCallCleared.car`, `CarButtonPressed.car`,
+     * `RiderBalked.elevator`. `0` for kinds that don't carry a car.
+     */
+    uint64_t car;
+    /**
+     * Rider entity id. `CarButtonPressed.rider` (may be `0` for
+     * synthetic presses), `RiderBalked.rider`. `0` otherwise.
+     */
+    uint64_t rider;
+    /**
+     * Floor entity id for `CarButtonPressed` (the requested stop).
+     * `0` for every other kind.
+     */
+    uint64_t floor;
+} EvEvent;
+
+/**
  * Return the ABI version compiled into this shared library.
  */
 uint32_t ev_abi_version(void);
@@ -510,5 +581,67 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
                                          struct EvHallCall *out,
                                          uint32_t capacity,
                                          uint32_t *out_written);
+
+/**
+ * Drain pending hall-call / car-call / balk events into `out`.
+ *
+ * This is the FFI mirror of `Simulation::drain_events`, filtered to
+ * the five events added by the hall-call work: every call produced
+ * by the simulation is eventually delivered exactly once, then
+ * removed from the internal queue. Call after `ev_sim_step` each
+ * tick to catch new events; the buffer is caller-owned, so the
+ * ownership contract differs from `ev_sim_frame`'s borrowed-view
+ * path.
+ *
+ * Field meanings by [`EvEvent::kind`]:
+ * - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
+ *   `direction`, `tick`.
+ * - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
+ * - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
+ *   synthetic presses), `tick`.
+ * - `RIDER_BALKED`: `rider`, `car` (the elevator declined), `stop`
+ *   (the balk site), `tick`.
+ *
+ * Unused fields for each kind are zeroed so the caller can inspect
+ * a uniform struct layout. Other event kinds in the sim (door
+ * transitions, rider spawns, etc.) are not surfaced — they'd
+ * inflate the matrix and every FFI consumer would pay regardless
+ * of whether they care. Future kinds extend the discriminator.
+ *
+ * ## Overflow handling — no silent drops
+ *
+ * If more than `capacity` events are pending, the first `capacity`
+ * are written and the rest stay in an internal queue for the next
+ * call. Callers can detect a truncated read two ways:
+ * - `out_written == capacity` is *possibly* truncated. Call
+ *   [`ev_sim_pending_event_count`] afterward; non-zero means more
+ *   are queued.
+ * - Drain in a loop until `ev_sim_pending_event_count` returns `0`.
+ *
+ * # Safety
+ *
+ * `handle`, `out`, and `out_written` must be valid pointers. `out`
+ * must point to a buffer of at least `capacity` [`EvEvent`]s.
+ */
+enum EvStatus ev_sim_drain_events(struct EvSim *handle,
+                                  struct EvEvent *out,
+                                  uint32_t capacity,
+                                  uint32_t *out_written);
+
+/**
+ * Number of events parked in the FFI event buffer plus any pending
+ * in the underlying simulation queue. Use this to detect truncation
+ * after [`ev_sim_drain_events`] or to size a buffer defensively.
+ *
+ * Calling this does not mutate the sim — it drains the sim's queue
+ * into the FFI buffer so the count is accurate, but no events are
+ * dropped and a subsequent `ev_sim_drain_events` call returns the
+ * same set.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_pending_event_count(struct EvSim *handle);
 
 #endif  /* ELEVATOR_FFI_H */

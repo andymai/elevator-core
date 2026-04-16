@@ -37,3 +37,40 @@ pub fn tick_simulation(
         events.write(EventWrapper(event));
     }
 }
+
+/// Running counters for the five hall-call / car-call / balk events.
+/// Rendered in the HUD so observers can confirm the events are firing
+/// and games can base UI cues on the same counts.
+#[derive(Resource, Default, Debug, Clone, Copy)]
+pub struct HallCallEventCounters {
+    /// `HallButtonPressed` count since sim start.
+    pub button_pressed: u64,
+    /// `HallCallAcknowledged` count.
+    pub acknowledged: u64,
+    /// `HallCallCleared` count.
+    pub cleared: u64,
+    /// `CarButtonPressed` count.
+    pub car_button_pressed: u64,
+    /// `RiderBalked` count.
+    pub balked: u64,
+}
+
+/// Tally the five hall-call / balk events into [`HallCallEventCounters`].
+/// Runs every frame; reads every `EventWrapper` message this frame.
+#[allow(clippy::needless_pass_by_value)]
+pub fn tally_hall_call_events(
+    mut reader: MessageReader<EventWrapper>,
+    mut counters: ResMut<HallCallEventCounters>,
+) {
+    use elevator_core::events::Event;
+    for wrapper in reader.read() {
+        match wrapper.0 {
+            Event::HallButtonPressed { .. } => counters.button_pressed += 1,
+            Event::HallCallAcknowledged { .. } => counters.acknowledged += 1,
+            Event::HallCallCleared { .. } => counters.cleared += 1,
+            Event::CarButtonPressed { .. } => counters.car_button_pressed += 1,
+            Event::RiderBalked { .. } => counters.balked += 1,
+            _ => {}
+        }
+    }
+}

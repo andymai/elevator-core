@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use elevator_core::components::{ElevatorPhase, RiderPhase};
 
-use crate::sim_bridge::{SimSpeed, SimulationRes};
+use crate::sim_bridge::{HallCallEventCounters, SimSpeed, SimulationRes};
 
 /// Marker for the stats HUD text.
 #[derive(Component)]
@@ -48,6 +48,7 @@ pub fn spawn_hud(mut commands: Commands) {
 pub fn update_hud(
     sim: Res<SimulationRes>,
     speed: Res<SimSpeed>,
+    events: Res<HallCallEventCounters>,
     mut query: Query<&mut Text, With<HudText>>,
 ) {
     let w = sim.sim.world();
@@ -167,8 +168,16 @@ ETA: {eta_str}
 ---
 On board: {on_board}{transfer_str}
 Waiting: {waiting}
-Delivered: {delivered}",
-        sim.sim.current_tick()
+Delivered: {delivered}
+---
+Hall press: {hp}  Ack: {ack}  Cleared: {cl}
+Car press: {cp}  Balked: {balk}",
+        sim.sim.current_tick(),
+        hp = events.button_pressed,
+        ack = events.acknowledged,
+        cl = events.cleared,
+        cp = events.car_button_pressed,
+        balk = events.balked,
     );
 
     for mut t in &mut query {

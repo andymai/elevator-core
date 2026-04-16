@@ -8,7 +8,10 @@ use crate::passenger_ai::{PassengerSpawnTimer, spawn_ai_passengers};
 use crate::rendering::{
     spawn_building_visuals, sync_elevator_visuals, sync_rider_visuals, update_rider_positions,
 };
-use crate::sim_bridge::{EventWrapper, SimSpeed, SimulationRes, tick_simulation};
+use crate::sim_bridge::{
+    EventWrapper, HallCallEventCounters, SimSpeed, SimulationRes, tally_hall_call_events,
+    tick_simulation,
+};
 use crate::ui::{spawn_hud, update_hud};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::scan::ScanDispatch;
@@ -43,6 +46,7 @@ impl Plugin for ElevatorSimPlugin {
                 weight_max: spawn_config.weight_range.1,
             })
             .add_message::<EventWrapper>()
+            .insert_resource(HallCallEventCounters::default())
             .add_systems(Startup, (setup_camera, spawn_building_visuals, spawn_hud))
             .add_systems(
                 Update,
@@ -50,6 +54,7 @@ impl Plugin for ElevatorSimPlugin {
                     handle_speed_input,
                     spawn_ai_passengers,
                     tick_simulation,
+                    tally_hall_call_events,
                     sync_elevator_visuals,
                     sync_rider_visuals,
                     update_rider_positions,
