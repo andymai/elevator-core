@@ -86,9 +86,7 @@ Only `rank` is required. The default `fallback` returns `Idle`; the other hooks 
 "Nearest-car by distance, favoring stops with more waiting riders."
 
 ```rust,ignore
-use elevator_core::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup};
-use elevator_core::entity::EntityId;
-use elevator_core::world::World;
+use elevator_core::dispatch::{DispatchStrategy, RankContext};
 
 struct BusyStopNearest;
 
@@ -120,6 +118,11 @@ The built-in `ScanDispatch` uses this hook to decide whether the car's sweep dir
 
 ```rust,ignore
 use std::collections::HashMap;
+use elevator_core::dispatch::{
+    DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
+};
+use elevator_core::entity::EntityId;
+use elevator_core::world::World;
 
 struct DirectionalDispatch {
     /// Tracks the preferred sweep direction per car.

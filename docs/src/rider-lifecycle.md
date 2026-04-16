@@ -122,7 +122,9 @@ Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing the
 
 **`sim.settle_rider(id)`** -- transitions an `Arrived` or `Abandoned` rider to `Resident`. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for NPCs that "live" on a floor.
 
-**`sim.reroute(id, new_destination)`** -- sends a `Waiting` rider to a new destination. The rider stays at their current stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.
+**`sim.reroute_rider(id, route)`** -- sends a `Resident` rider back to `Waiting` with a new multi-leg route. Use this when a settled NPC needs to go somewhere.
+
+**`sim.reroute(id, new_destination)`** -- changes a `Waiting` rider's destination. The rider stays at their stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.
 
 **`sim.despawn_rider(id)`** -- removes the rider from the simulation entirely. Always use this instead of `world.despawn()` directly -- it keeps the stop index consistent.
 

@@ -64,7 +64,7 @@ Use `world.insert_ext()` to attach your component to an entity:
 let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
-    rider_id,
+    rider_id.entity(),
     VipTag { level: 3, lounge_access: true },
     ExtKey::from_type_name(),
 );

@@ -162,6 +162,7 @@ For advanced use cases, you can run individual phases instead of calling `step()
 sim.run_advance_transient();
 sim.run_dispatch();
 sim.run_reposition();
+sim.run_advance_queue();
 sim.run_movement();
 sim.run_doors();
 sim.run_loading();

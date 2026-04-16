@@ -92,6 +92,7 @@ Hooks receive `&mut World` -- not `&mut Simulation`. This means:
 | `Phase::AdvanceTransient` | Before/after transitional states advance (Boarding to Riding, Exiting to Arrived, patience ticking) |
 | `Phase::Dispatch` | Before/after elevator assignment |
 | `Phase::Reposition` | Before/after idle-elevator repositioning (no-op if no reposition strategy configured) |
+| `Phase::AdvanceQueue` | Before/after destination queue reconciliation with elevator phase/target |
 | `Phase::Movement` | Before/after position updates |
 | `Phase::Doors` | Before/after door state machine ticks |
 | `Phase::Loading` | Before/after boarding and exiting |
@@ -105,6 +106,7 @@ Hooks run in strict phase order. Within each phase, all `before` hooks fire firs
 before(AdvanceTransient) -> [AdvanceTransient] -> after(AdvanceTransient)
 before(Dispatch)         -> [Dispatch]         -> after(Dispatch)
 before(Reposition)       -> [Reposition]       -> after(Reposition)
+before(AdvanceQueue)     -> [AdvanceQueue]     -> after(AdvanceQueue)
 before(Movement)         -> [Movement]         -> after(Movement)
 before(Doors)            -> [Doors]            -> after(Doors)
 before(Loading)          -> [Loading]          -> after(Loading)

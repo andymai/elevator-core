@@ -72,10 +72,10 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`) are auto-restored by n
 ```rust,no_run
 # use elevator_core::prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
-# use elevator_core::world::World;
+# use elevator_core::dispatch::RankContext;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
-#   fn rank(&mut self, _: EntityId, _: f64, _: EntityId, _: f64, _: &elevator_core::dispatch::ElevatorGroup, _: &DispatchManifest, _: &World) -> Option<f64> { Some(0.0) }
+#   fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
 # }
 # fn run(snapshot: WorldSnapshot) {
 let sim = snapshot.restore(Some(&|name: &str| match name {

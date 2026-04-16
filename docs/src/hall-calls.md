@@ -65,7 +65,7 @@ The `Preferences` component has two knobs for game-designer-tuned rider behavior
 - **`balk_threshold_ticks: Option<u32>`** -- the rider abandons after this many ticks of waiting. Uses `Patience::waited_ticks` when present, so multi-leg routes don't over-count ride time.
 - **`abandon_on_full: bool`** -- when set, a rider filtered out of a car via `skip_full_elevator` abandons immediately rather than waiting for the next one. Emits `RiderAbandoned` on the spot.
 
-Both knobs generate events (`RiderBalked`, `RiderAbandoned`) so game UI can react to individual behavioral beats.
+Both knobs generate events (`RiderBalked`, `RiderAbandoned`) so game UI can react to individual behavioral beats. See [Rider Lifecycle -- Preferences](rider-lifecycle.md#preferences) for the full details on how these interact.
 
 ## Public query API
 
