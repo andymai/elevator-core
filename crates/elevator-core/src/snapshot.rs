@@ -18,7 +18,7 @@ use crate::metrics::Metrics;
 use crate::stop::StopId;
 use crate::tagged_metrics::MetricTags;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Serializable snapshot of a single entity's components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -262,6 +262,19 @@ impl WorldSnapshot {
             {
                 sim.set_reposition(gs.id, strategy, repo_id.clone());
             }
+        }
+
+        // Emit warnings for any entity IDs referenced in the snapshot
+        // that were not present in the id_remap (dangling references).
+        let mut dangling_seen = HashSet::new();
+        for snap in &self.entities {
+            Self::collect_referenced_ids(snap, |old| {
+                if !id_remap.contains_key(&old) && dangling_seen.insert(old) {
+                    sim.push_event(crate::events::Event::SnapshotDanglingReference {
+                        stale_id: old,
+                    });
+                }
+            });
         }
 
         Ok(sim)
@@ -541,6 +554,63 @@ impl WorldSnapshot {
                 (name.clone(), remapped)
             })
             .collect()
+    }
+
+    /// Visit all cross-referenced `EntityId`s inside an entity snapshot.
+    fn collect_referenced_ids(snap: &EntitySnapshot, mut visit: impl FnMut(EntityId)) {
+        if let Some(ref elev) = snap.elevator {
+            for &r in &elev.riders {
+                visit(r);
+            }
+            if let Some(t) = elev.target_stop {
+                visit(t);
+            }
+            visit(elev.line);
+            match elev.phase {
+                crate::components::ElevatorPhase::MovingToStop(s)
+                | crate::components::ElevatorPhase::Repositioning(s) => visit(s),
+                _ => {}
+            }
+            for &s in &elev.restricted_stops {
+                visit(s);
+            }
+        }
+        if let Some(ref rider) = snap.rider {
+            if let Some(s) = rider.current_stop {
+                visit(s);
+            }
+            match rider.phase {
+                crate::components::RiderPhase::Boarding(e)
+                | crate::components::RiderPhase::Riding(e)
+                | crate::components::RiderPhase::Exiting(e) => visit(e),
+                _ => {}
+            }
+        }
+        if let Some(ref route) = snap.route {
+            for leg in &route.legs {
+                visit(leg.from);
+                visit(leg.to);
+                if let crate::components::TransportMode::Line(l) = leg.via {
+                    visit(l);
+                }
+            }
+        }
+        if let Some(ref ac) = snap.access_control {
+            for &s in ac.allowed_stops() {
+                visit(s);
+            }
+        }
+        if let Some(ref dq) = snap.destination_queue {
+            for &e in dq.queue() {
+                visit(e);
+            }
+        }
+        for cc in &snap.car_calls {
+            visit(cc.floor);
+            for &r in &cc.pending_riders {
+                visit(r);
+            }
+        }
     }
 }
 
