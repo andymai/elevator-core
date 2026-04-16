@@ -28,6 +28,7 @@ impl Simulation {
     ///
     /// Prefer [`load_extensions_with`](Self::load_extensions_with) which
     /// combines registration and loading in one call.
+    #[must_use]
     pub fn load_extensions(&mut self) -> Vec<String> {
         let Some(pending) = self
             .world
@@ -47,7 +48,7 @@ impl Simulation {
     /// manual 3-step ceremony of `register_ext` → `load_extensions`:
     ///
     /// ```ignore
-    /// // Before:
+    /// // Before (3-step ceremony):
     /// let mut sim = snapshot.restore(None)?;
     /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
     /// sim.world_mut().register_ext::<TeamId>(ExtKey::from_type_name());
@@ -55,12 +56,15 @@ impl Simulation {
     ///
     /// // After:
     /// let mut sim = snapshot.restore(None)?;
-    /// register_extensions!(sim.world_mut(), VipTag, TeamId);
-    /// sim.load_extensions();
+    /// let unregistered = sim.load_extensions_with(|world| {
+    ///     register_extensions!(world, VipTag, TeamId);
+    /// });
+    /// assert!(unregistered.is_empty(), "missing: {unregistered:?}");
     /// ```
     ///
     /// Returns the names of any extension types in the snapshot that were
     /// not registered. This catches "forgot to register" bugs at load time.
+    #[must_use]
     pub fn load_extensions_with<F>(&mut self, register: F) -> Vec<String>
     where
         F: FnOnce(&mut crate::world::World),
