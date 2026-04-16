@@ -41,7 +41,7 @@ fn has_queued(events: &[Event], cmd: DoorCommand) -> bool {
     })
 }
 
-/// 1. Open while stopped: car at a stop with doors closed; request_door_open;
+/// 1. Open while stopped: car at a stop with doors closed; open_door;
 ///    phase becomes DoorOpening and DoorCommandApplied event fires.
 #[test]
 fn open_while_stopped_opens_doors() {
@@ -52,7 +52,7 @@ fn open_while_stopped_opens_doors() {
         DoorState::Closed
     ));
 
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     sim.step();
 
     let phase = sim.world().elevator(elev).unwrap().phase();
@@ -64,12 +64,12 @@ fn open_while_stopped_opens_doors() {
     assert!(has_applied(&events, DoorCommand::Open));
 }
 
-/// 2. Close during open: car in DoorOpen (Loading); request_door_close;
+/// 2. Close during open: car in DoorOpen (Loading); close_door;
 ///    phase becomes DoorClosing.
 #[test]
 fn close_during_open_forces_close() {
     let (mut sim, elev) = make_sim();
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     // Step until Loading (doors fully open).
     for _ in 0..20 {
         sim.step();
@@ -83,7 +83,7 @@ fn close_during_open_forces_close() {
     );
     let _ = drain_events(&mut sim);
 
-    sim.request_door_close(elev).unwrap();
+    sim.close_door(elev).unwrap();
     sim.step();
     let phase = sim.world().elevator(elev).unwrap().phase();
     assert!(
@@ -94,12 +94,12 @@ fn close_during_open_forces_close() {
     assert!(has_applied(&events, DoorCommand::Close));
 }
 
-/// 3. Reverse close → open: car in DoorClosing; request_door_open; phase
+/// 3. Reverse close → open: car in DoorClosing; open_door; phase
 ///    reverts to DoorOpening.
 #[test]
 fn open_reverses_closing_door() {
     let (mut sim, elev) = make_sim();
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     // Drive the doors open then force them into DoorClosing.
     for _ in 0..20 {
         sim.step();
@@ -107,7 +107,7 @@ fn open_reverses_closing_door() {
             break;
         }
     }
-    sim.request_door_close(elev).unwrap();
+    sim.close_door(elev).unwrap();
     sim.step();
     // Now at DoorClosing (or already Closed if transition was instant).
     let phase = sim.world().elevator(elev).unwrap().phase();
@@ -118,7 +118,7 @@ fn open_reverses_closing_door() {
     }
     let _ = drain_events(&mut sim);
 
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     sim.step();
     let phase = sim.world().elevator(elev).unwrap().phase();
     assert!(
@@ -127,7 +127,7 @@ fn open_reverses_closing_door() {
     );
 }
 
-/// 4. Close blocked by boarding rider: rider mid-Boarding(eid); request_door_close;
+/// 4. Close blocked by boarding rider: rider mid-Boarding(eid); close_door;
 ///    doors do NOT close this tick; rider finishes; next tick doors close.
 #[test]
 fn close_waits_for_boarding_rider() {
@@ -137,7 +137,7 @@ fn close_waits_for_boarding_rider() {
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
     // Open doors and wait until the rider is mid-Boarding.
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     let mut saw_boarding = false;
     for _ in 0..30 {
         sim.step();
@@ -153,7 +153,7 @@ fn close_waits_for_boarding_rider() {
     let _ = drain_events(&mut sim);
 
     // Ask to close while rider is mid-threshold — must defer.
-    sim.request_door_close(elev).unwrap();
+    sim.close_door(elev).unwrap();
     // On the next step the command should remain queued because the
     // rider is mid-boarding — doors phase runs before advance_transient
     // on the *following* tick, so we expect no Applied event this step.
@@ -191,12 +191,12 @@ fn close_waits_for_boarding_rider() {
     assert!(has_applied(&events, DoorCommand::Close));
 }
 
-/// 5. Hold extends timer: car in DoorOpen; tick a few times; hold_door_open(20);
+/// 5. Hold extends timer: car in DoorOpen; tick a few times; hold_door(20);
 ///    tick 15; door still open (would have closed otherwise).
 #[test]
 fn hold_extends_open_timer() {
     let (mut sim, elev) = make_sim();
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     // Reach Loading.
     for _ in 0..20 {
         sim.step();
@@ -213,7 +213,7 @@ fn hold_extends_open_timer() {
     for _ in 0..5 {
         sim.step();
     }
-    sim.hold_door_open(elev, 20).unwrap();
+    sim.hold_door(elev, 20).unwrap();
     sim.step(); // apply command
     // Tick 15 more — base would have closed by now (5 remaining - 15 = negative)
     // but with +20 hold we should still be in Loading.
@@ -227,11 +227,11 @@ fn hold_extends_open_timer() {
     );
 }
 
-/// 6. Cumulative hold: two hold_door_open(10) calls → 20 total extension.
+/// 6. Cumulative hold: two hold_door(10) calls → 20 total extension.
 #[test]
 fn hold_is_cumulative() {
     let (mut sim, elev) = make_sim();
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     for _ in 0..20 {
         sim.step();
         if sim.world().elevator(elev).unwrap().phase() == ElevatorPhase::Loading {
@@ -245,8 +245,8 @@ fn hold_is_cumulative() {
         } => *ticks_remaining,
         other => panic!("expected Open, got {other}"),
     };
-    sim.hold_door_open(elev, 10).unwrap();
-    sim.hold_door_open(elev, 10).unwrap();
+    sim.hold_door(elev, 10).unwrap();
+    sim.hold_door(elev, 10).unwrap();
     sim.step(); // apply both
     let remaining_after = match sim.world().elevator(elev).unwrap().door() {
         DoorState::Open {
@@ -259,12 +259,12 @@ fn hold_is_cumulative() {
     assert_eq!(remaining_after, remaining_before + 20 - 1);
 }
 
-/// 7. Cancel hold: hold_door_open(100), then cancel_door_hold before base
+/// 7. Cancel hold: hold_door(100), then cancel_door_hold before base
 ///    timer expired; door closes at base timer.
 #[test]
 fn cancel_hold_clamps_to_base() {
     let (mut sim, elev) = make_sim();
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     for _ in 0..20 {
         sim.step();
         if sim.world().elevator(elev).unwrap().phase() == ElevatorPhase::Loading {
@@ -272,7 +272,7 @@ fn cancel_hold_clamps_to_base() {
         }
     }
     let base = sim.world().elevator(elev).unwrap().door_open_ticks();
-    sim.hold_door_open(elev, 100).unwrap();
+    sim.hold_door(elev, 100).unwrap();
     sim.step();
     // Remaining should be well over `base`.
     let held = match sim.world().elevator(elev).unwrap().door() {
@@ -297,7 +297,7 @@ fn cancel_hold_clamps_to_base() {
     );
 }
 
-/// 8. Queued command during motion: car moving; request_door_open — command
+/// 8. Queued command during motion: car moving; open_door — command
 ///    queued (no event applied yet); car arrives; queued command fires.
 #[test]
 fn command_queued_during_motion_fires_on_arrival() {
@@ -315,7 +315,7 @@ fn command_queued_during_motion_fires_on_arrival() {
     assert!(sim.world().elevator(elev).unwrap().phase().is_moving());
     let _ = drain_events(&mut sim);
 
-    sim.request_door_open(elev).unwrap();
+    sim.open_door(elev).unwrap();
     // Queued event fired immediately.
     let q_events = drain_events(&mut sim);
     assert!(has_queued(&q_events, DoorCommand::Open));
@@ -348,15 +348,15 @@ fn unknown_elevator_errors() {
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
         .unwrap();
     assert!(matches!(
-        sim.request_door_open(rider),
+        sim.open_door(rider),
         Err(SimError::InvalidState { .. })
     ));
     assert!(matches!(
-        sim.request_door_close(rider),
+        sim.close_door(rider),
         Err(SimError::InvalidState { .. })
     ));
     assert!(matches!(
-        sim.hold_door_open(rider, 10),
+        sim.hold_door(rider, 10),
         Err(SimError::InvalidState { .. })
     ));
     assert!(matches!(
@@ -365,12 +365,12 @@ fn unknown_elevator_errors() {
     ));
 }
 
-/// 10. Invalid hold ticks: hold_door_open(0) → SimError::InvalidConfig.
+/// 10. Invalid hold ticks: hold_door(0) → SimError::InvalidConfig.
 #[test]
 fn hold_zero_ticks_rejected() {
     let (mut sim, elev) = make_sim();
     assert!(matches!(
-        sim.hold_door_open(elev, 0),
+        sim.hold_door(elev, 0),
         Err(SimError::InvalidConfig { .. })
     ));
 }
@@ -391,9 +391,9 @@ fn queue_is_capped() {
     // Alternate commands so adjacent-dedup doesn't collapse them.
     for i in 0..100 {
         if i % 2 == 0 {
-            sim.request_door_open(elev).unwrap();
+            sim.open_door(elev).unwrap();
         } else {
-            sim.hold_door_open(elev, 5).unwrap();
+            sim.hold_door(elev, 5).unwrap();
         }
     }
     let q_len = sim
