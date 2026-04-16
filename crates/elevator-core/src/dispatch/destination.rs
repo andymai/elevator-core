@@ -125,7 +125,7 @@ impl DispatchStrategy for DestinationDispatch {
         let mut pending: Vec<(EntityId, EntityId, EntityId, f64)> = Vec::new();
         for riders in manifest.waiting_at_stop.values() {
             for info in riders {
-                if world.get_ext::<AssignedCar>(info.id).is_some() {
+                if world.ext::<AssignedCar>(info.id).is_some() {
                     continue; // sticky
                 }
                 let Some(dest) = info.destination else {
@@ -165,7 +165,7 @@ impl DispatchStrategy for DestinationDispatch {
             // inflate the former car's committed load over long runs.
             let car = match rider.phase() {
                 RiderPhase::Riding(c) | RiderPhase::Boarding(c) => Some(c),
-                RiderPhase::Waiting => world.get_ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
+                RiderPhase::Waiting => world.ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
                 _ => None,
             };
             if let Some(c) = car {
@@ -368,7 +368,7 @@ fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
     // Gather (origin?, dest) pairs from all sticky-assigned riders for this car.
     let mut trips: Vec<Trip> = Vec::new();
     for (rid, rider) in world.iter_riders() {
-        let Some(AssignedCar(assigned)) = world.get_ext::<AssignedCar>(rid) else {
+        let Some(AssignedCar(assigned)) = world.ext::<AssignedCar>(rid) else {
             continue;
         };
         if assigned != car_eid {

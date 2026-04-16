@@ -73,7 +73,7 @@ impl<T> Default for ExtKey<T> {
 /// within the same system function.
 ///
 /// Built-in components are accessed via typed methods. Games can attach
-/// custom data via the extension storage (`insert_ext` / `get_ext`).
+/// custom data via the extension storage (`insert_ext` / `ext`).
 /// The query builder (`world.query::<...>()`) provides ECS-style iteration.
 pub struct World {
     /// Primary key storage. An entity exists iff its key is here.
@@ -749,22 +749,22 @@ impl World {
 
     /// Get a clone of a custom component for an entity.
     #[must_use]
-    pub fn get_ext<T: 'static + Send + Sync + Clone>(&self, id: EntityId) -> Option<T> {
+    pub fn ext<T: 'static + Send + Sync + Clone>(&self, id: EntityId) -> Option<T> {
         self.ext_map::<T>()?.get(id).cloned()
     }
 
-    /// Get a shared reference to a custom component for an entity.
+    /// Shared reference to a custom component for an entity.
     ///
-    /// Zero-copy alternative to [`get_ext`](Self::get_ext): prefer this when
+    /// Zero-copy alternative to [`ext`](Self::ext): prefer this when
     /// `T` is large or expensive to clone, or when the caller only needs a
-    /// borrow. Unlike `get_ext`, `T` does not need to implement `Clone`.
+    /// borrow. Unlike `ext`, `T` does not need to implement `Clone`.
     #[must_use]
-    pub fn get_ext_ref<T: 'static + Send + Sync>(&self, id: EntityId) -> Option<&T> {
+    pub fn ext_ref<T: 'static + Send + Sync>(&self, id: EntityId) -> Option<&T> {
         self.ext_map::<T>()?.get(id)
     }
 
-    /// Get a mutable reference to a custom component for an entity.
-    pub fn get_ext_mut<T: 'static + Send + Sync>(&mut self, id: EntityId) -> Option<&mut T> {
+    /// Mutable reference to a custom component for an entity.
+    pub fn ext_mut<T: 'static + Send + Sync>(&mut self, id: EntityId) -> Option<&mut T> {
         self.ext_map_mut::<T>()?.get_mut(id)
     }
 

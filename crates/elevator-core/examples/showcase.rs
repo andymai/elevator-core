@@ -218,7 +218,7 @@ fn part3_extensions() {
         .insert_ext(rider, VipTag { level: 3 }, ExtKey::from_type_name());
 
     // Read the extension back.
-    let vip: Option<VipTag> = sim.world().get_ext::<VipTag>(rider);
+    let vip: Option<VipTag> = sim.world().ext::<VipTag>(rider);
     println!("Rider {rider:?} VIP tag: {vip:?}");
 
     // Extensions are arbitrary typed data — useful for game-specific components
