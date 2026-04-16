@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.2.0...elevator-core-v8.3.0) (2026-04-16)
+
+
+### Features
+
+* gate DestinationDispatch on HallCallMode::Destination ([#114](https://github.com/andymai/elevator-core/issues/114)) ([42df935](https://github.com/andymai/elevator-core/commit/42df9358078adf7cace8f6ea0e7fe4be19e083c2)), closes [#99](https://github.com/andymai/elevator-core/issues/99)
+
 ## [8.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v8.1.0...elevator-core-v8.2.0) (2026-04-15)
 
 
