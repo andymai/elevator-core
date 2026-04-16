@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v12.0.0...elevator-core-v12.0.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* medium-severity bug fixes ([#198](https://github.com/andymai/elevator-core/issues/198)) ([e134583](https://github.com/andymai/elevator-core/commit/e134583ab5919e554e72de1917a0a725708f5f41))
+
 ## [12.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v11.0.0...elevator-core-v12.0.0) (2026-04-16)
 
 
