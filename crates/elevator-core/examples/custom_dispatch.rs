@@ -153,7 +153,7 @@ fn main() {
     // does. That's the escape hatch games use to compose custom
     // dispatch with building scripts, cutscenes, or DCS overrides.
     let mezzanine = sim.stop_entity(StopId(1)).unwrap();
-    let lobby_car = sim.world().elevator_ids()[0];
+    let lobby_car = ElevatorId::from(sim.world().elevator_ids()[0]);
     sim.press_hall_button(mezzanine, CallDirection::Up).unwrap();
     sim.pin_assignment(lobby_car, mezzanine, CallDirection::Up)
         .unwrap();

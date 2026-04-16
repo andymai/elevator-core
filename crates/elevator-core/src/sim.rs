@@ -72,7 +72,7 @@ use crate::components::{
     SpatialPosition, Speed, Velocity, Weight,
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
-use crate::entity::EntityId;
+use crate::entity::{ElevatorId, EntityId, RiderId};
 use crate::error::{EtaError, SimError};
 use crate::events::{Event, EventBus};
 use crate::hooks::{Phase, PhaseHooks};
@@ -247,7 +247,7 @@ impl RiderBuilder<'_> {
     /// Returns [`SimError::GroupNotFound`] if an explicit group does not exist.
     /// Returns [`SimError::RouteOriginMismatch`] if an explicit route's first leg
     /// does not start at `origin`.
-    pub fn spawn(self) -> Result<EntityId, SimError> {
+    pub fn spawn(self) -> Result<RiderId, SimError> {
         let route = if let Some(route) = self.route {
             // Validate route origin matches the spawn origin.
             if let Some(leg) = route.current()
@@ -332,7 +332,7 @@ impl RiderBuilder<'_> {
             self.sim.world.set_access_control(eid, ac);
         }
 
-        Ok(eid)
+        Ok(RiderId::from(eid))
     }
 }
 
@@ -512,7 +512,8 @@ impl Simulation {
     /// Returns `None` if `elev` is not an elevator entity. Returns
     /// `Some(&[])` for elevators with an empty queue.
     #[must_use]
-    pub fn destination_queue(&self, elev: EntityId) -> Option<&[EntityId]> {
+    pub fn destination_queue(&self, elev: ElevatorId) -> Option<&[EntityId]> {
+        let elev = elev.entity();
         self.world
             .destination_queue(elev)
             .map(crate::components::DestinationQueue::queue)
@@ -530,9 +531,10 @@ impl Simulation {
     /// - [`SimError::NotAStop`] if `stop` is not a stop.
     pub fn push_destination(
         &mut self,
-        elev: EntityId,
+        elev: ElevatorId,
         stop: impl Into<StopRef>,
     ) -> Result<(), SimError> {
+        let elev = elev.entity();
         let stop = self.resolve_stop(stop.into())?;
         self.validate_push_targets(elev, stop)?;
         let appended = self
@@ -565,9 +567,10 @@ impl Simulation {
     /// - [`SimError::NotAStop`] if `stop` is not a stop.
     pub fn push_destination_front(
         &mut self,
-        elev: EntityId,
+        elev: ElevatorId,
         stop: impl Into<StopRef>,
     ) -> Result<(), SimError> {
+        let elev = elev.entity();
         let stop = self.resolve_stop(stop.into())?;
         self.validate_push_targets(elev, stop)?;
         let inserted = self
@@ -594,7 +597,8 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::NotAnElevator`] if `elev` is not an elevator.
-    pub fn clear_destinations(&mut self, elev: EntityId) -> Result<(), SimError> {
+    pub fn clear_destinations(&mut self, elev: ElevatorId) -> Result<(), SimError> {
+        let elev = elev.entity();
         if self.world.elevator(elev).is_none() {
             return Err(SimError::NotAnElevator(elev));
         }
@@ -642,7 +646,8 @@ impl Simulation {
     /// with no mid-trip insertions; dispatch decisions, manual door commands,
     /// and rider boarding/exiting beyond the configured dwell will perturb
     /// the actual arrival.
-    pub fn eta(&self, elev: EntityId, stop: EntityId) -> Result<Duration, EtaError> {
+    pub fn eta(&self, elev: ElevatorId, stop: EntityId) -> Result<Duration, EtaError> {
+        let elev = elev.entity();
         let elevator = self
             .world
             .elevator(elev)
@@ -770,7 +775,7 @@ impl Simulation {
                 if !direction_ok {
                     return None;
                 }
-                self.eta(eid, stop).ok().map(|d| (eid, d))
+                self.eta(ElevatorId::from(eid), stop).ok().map(|d| (eid, d))
             })
             .min_by_key(|(_, d)| *d)
     }
@@ -818,11 +823,12 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_max_speed(elev, 4.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().max_speed().value(), 4.0);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().max_speed().value(), 4.0);
     /// ```
-    pub fn set_max_speed(&mut self, elevator: EntityId, speed: f64) -> Result<(), SimError> {
+    pub fn set_max_speed(&mut self, elevator: ElevatorId, speed: f64) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_positive_finite_f64(speed, "elevators.max_speed")?;
         let old = self.require_elevator(elevator)?.max_speed.value();
         let speed = Speed::from(speed);
@@ -854,11 +860,12 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_acceleration(elev, 3.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().acceleration().value(), 3.0);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().acceleration().value(), 3.0);
     /// ```
-    pub fn set_acceleration(&mut self, elevator: EntityId, accel: f64) -> Result<(), SimError> {
+    pub fn set_acceleration(&mut self, elevator: ElevatorId, accel: f64) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_positive_finite_f64(accel, "elevators.acceleration")?;
         let old = self.require_elevator(elevator)?.acceleration.value();
         let accel = Accel::from(accel);
@@ -890,11 +897,12 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_deceleration(elev, 3.5).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().deceleration().value(), 3.5);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().deceleration().value(), 3.5);
     /// ```
-    pub fn set_deceleration(&mut self, elevator: EntityId, decel: f64) -> Result<(), SimError> {
+    pub fn set_deceleration(&mut self, elevator: ElevatorId, decel: f64) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_positive_finite_f64(decel, "elevators.deceleration")?;
         let old = self.require_elevator(elevator)?.deceleration.value();
         let decel = Accel::from(decel);
@@ -929,15 +937,16 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_weight_capacity(elev, 1200.0).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().weight_capacity().value(), 1200.0);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().weight_capacity().value(), 1200.0);
     /// ```
     pub fn set_weight_capacity(
         &mut self,
-        elevator: EntityId,
+        elevator: ElevatorId,
         capacity: f64,
     ) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_positive_finite_f64(capacity, "elevators.weight_capacity")?;
         let old = self.require_elevator(elevator)?.weight_capacity.value();
         let capacity = Weight::from(capacity);
@@ -969,15 +978,16 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_door_transition_ticks(elev, 3).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().door_transition_ticks(), 3);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().door_transition_ticks(), 3);
     /// ```
     pub fn set_door_transition_ticks(
         &mut self,
-        elevator: EntityId,
+        elevator: ElevatorId,
         ticks: u32,
     ) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_nonzero_u32(ticks, "elevators.door_transition_ticks")?;
         let old = self.require_elevator(elevator)?.door_transition_ticks;
         if let Some(car) = self.world.elevator_mut(elevator) {
@@ -1009,11 +1019,16 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.set_door_open_ticks(elev, 20).unwrap();
-    /// assert_eq!(sim.world().elevator(elev).unwrap().door_open_ticks(), 20);
+    /// assert_eq!(sim.world().elevator(elev.entity()).unwrap().door_open_ticks(), 20);
     /// ```
-    pub fn set_door_open_ticks(&mut self, elevator: EntityId, ticks: u32) -> Result<(), SimError> {
+    pub fn set_door_open_ticks(
+        &mut self,
+        elevator: ElevatorId,
+        ticks: u32,
+    ) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_nonzero_u32(ticks, "elevators.door_open_ticks")?;
         let old = self.require_elevator(elevator)?.door_open_ticks;
         if let Some(car) = self.world.elevator_mut(elevator) {
@@ -1057,10 +1072,11 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.open_door(elev).unwrap();
     /// ```
-    pub fn open_door(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn open_door(&mut self, elevator: ElevatorId) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::Open);
         Ok(())
@@ -1084,10 +1100,11 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.close_door(elev).unwrap();
     /// ```
-    pub fn close_door(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn close_door(&mut self, elevator: ElevatorId) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::Close);
         Ok(())
@@ -1111,10 +1128,11 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.hold_door(elev, 30).unwrap();
     /// ```
-    pub fn hold_door(&mut self, elevator: EntityId, ticks: u32) -> Result<(), SimError> {
+    pub fn hold_door(&mut self, elevator: ElevatorId, ticks: u32) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         Self::validate_nonzero_u32(ticks, "hold_door.ticks")?;
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::HoldOpen { ticks });
@@ -1137,11 +1155,12 @@ impl Simulation {
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();
-    /// let elev = sim.world().iter_elevators().next().unwrap().0;
+    /// let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
     /// sim.hold_door(elev, 100).unwrap();
     /// sim.cancel_door_hold(elev).unwrap();
     /// ```
-    pub fn cancel_door_hold(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn cancel_door_hold(&mut self, elevator: ElevatorId) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         self.require_enabled_elevator(elevator)?;
         self.enqueue_door_command(elevator, crate::door::DoorCommand::CancelHold);
         Ok(())
@@ -1164,9 +1183,10 @@ impl Simulation {
     /// [`ServiceMode::Manual`]: crate::components::ServiceMode::Manual
     pub fn set_target_velocity(
         &mut self,
-        elevator: EntityId,
+        elevator: ElevatorId,
         velocity: f64,
     ) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         self.require_enabled_elevator(elevator)?;
         self.require_manual_mode(elevator)?;
         if !velocity.is_finite() {
@@ -1202,7 +1222,8 @@ impl Simulation {
     /// # Errors
     /// Same as [`set_target_velocity`](Self::set_target_velocity), minus
     /// the finite-velocity check.
-    pub fn emergency_stop(&mut self, elevator: EntityId) -> Result<(), SimError> {
+    pub fn emergency_stop(&mut self, elevator: ElevatorId) -> Result<(), SimError> {
+        let elevator = elevator.entity();
         self.require_enabled_elevator(elevator)?;
         self.require_manual_mode(elevator)?;
         if let Some(car) = self.world.elevator_mut(elevator) {
@@ -1439,7 +1460,7 @@ impl Simulation {
         origin: impl Into<StopRef>,
         destination: impl Into<StopRef>,
         weight: impl Into<Weight>,
-    ) -> Result<EntityId, SimError> {
+    ) -> Result<RiderId, SimError> {
         let origin = self.resolve_stop(origin.into())?;
         let destination = self.resolve_stop(destination.into())?;
         let weight: Weight = weight.into();
@@ -1484,7 +1505,12 @@ impl Simulation {
         };
 
         let route = Route::direct(origin, destination, group);
-        Ok(self.spawn_rider_inner(origin, destination, weight, route))
+        Ok(RiderId::from(self.spawn_rider_inner(
+            origin,
+            destination,
+            weight,
+            route,
+        )))
     }
 
     /// Internal helper: spawn a rider entity with the given route.
@@ -1921,9 +1947,10 @@ impl Simulation {
     /// Returns [`SimError::EntityNotFound`] if `car` or `floor` is invalid.
     pub fn press_car_button(
         &mut self,
-        car: EntityId,
+        car: ElevatorId,
         floor: impl Into<StopRef>,
     ) -> Result<(), SimError> {
+        let car = car.entity();
         let floor = self.resolve_stop(floor.into())?;
         if self.world.elevator(car).is_none() {
             return Err(SimError::EntityNotFound(car));
@@ -1950,10 +1977,11 @@ impl Simulation {
     ///   blocking every other car.
     pub fn pin_assignment(
         &mut self,
-        car: EntityId,
+        car: ElevatorId,
         stop: EntityId,
         direction: crate::components::CallDirection,
     ) -> Result<(), SimError> {
+        let car = car.entity();
         let Some(elev) = self.world.elevator(car) else {
             return Err(SimError::EntityNotFound(car));
         };
@@ -2006,7 +2034,8 @@ impl Simulation {
     /// Floor buttons currently pressed inside `car`. Returns an empty
     /// slice when the car has no aboard riders or hasn't been used.
     #[must_use]
-    pub fn car_calls(&self, car: EntityId) -> &[crate::components::CarCall] {
+    pub fn car_calls(&self, car: ElevatorId) -> &[crate::components::CarCall] {
+        let car = car.entity();
         self.world.car_calls(car)
     }
 

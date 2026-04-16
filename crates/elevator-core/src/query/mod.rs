@@ -15,7 +15,7 @@
 //! let rider_eid = sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 //!
 //! // Attach an extension component.
-//! sim.world_mut().insert_ext(rider_eid, VipTag { level: 5 }, ExtKey::from_type_name());
+//! sim.world_mut().insert_ext(rider_eid.entity(), VipTag { level: 5 }, ExtKey::from_type_name());
 //!
 //! let world = sim.world();
 //!

@@ -3,7 +3,7 @@ use crate::components::{
     Speed, Stop, Velocity, Weight,
 };
 use crate::door::DoorState;
-use crate::entity::EntityId;
+use crate::entity::{ElevatorId, EntityId};
 use crate::events::Event;
 use crate::ids::GroupId;
 use crate::stop::StopId;
@@ -23,7 +23,7 @@ fn patience_abandonment_sets_abandoned_phase() {
 
     // Attach a short patience: abandon after 5 ticks.
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: 5,
             waited_ticks: 0,
@@ -31,8 +31,8 @@ fn patience_abandonment_sets_abandoned_phase() {
     );
 
     // Disable the elevator so the rider is never served.
-    let elev = sim.world().elevator_ids()[0];
-    sim.disable(elev).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    sim.disable(elev.entity()).unwrap();
     sim.drain_events();
 
     // Step enough ticks that the patience limit is exceeded.
@@ -43,7 +43,7 @@ fn patience_abandonment_sets_abandoned_phase() {
     }
 
     assert_eq!(
-        sim.world().rider(rider).map(|r| r.phase),
+        sim.world().rider(rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Abandoned),
         "rider should reach Abandoned phase after patience expires"
     );
@@ -51,7 +51,7 @@ fn patience_abandonment_sets_abandoned_phase() {
     assert!(
         all_events
             .iter()
-            .any(|e| matches!(e, Event::RiderAbandoned { rider: r, .. } if *r == rider)),
+            .any(|e| matches!(e, Event::RiderAbandoned { rider: r, .. } if *r == rider.entity())),
         "RiderAbandoned event should be emitted for the patience-expired rider"
     );
 }
@@ -64,7 +64,7 @@ fn patience_abandonment_does_not_fire_before_limit() {
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: 100,
             waited_ticks: 0,
@@ -72,8 +72,8 @@ fn patience_abandonment_does_not_fire_before_limit() {
     );
 
     // Disable elevator so dispatch never picks the rider up.
-    let elev = sim.world().elevator_ids()[0];
-    sim.disable(elev).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    sim.disable(elev.entity()).unwrap();
     sim.drain_events();
 
     // Step only a handful of ticks — well under the patience limit.
@@ -83,7 +83,7 @@ fn patience_abandonment_does_not_fire_before_limit() {
     }
 
     assert_eq!(
-        sim.world().rider(rider).map(|r| r.phase),
+        sim.world().rider(rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Waiting),
         "rider should still be Waiting when patience has not expired"
     );
@@ -97,15 +97,15 @@ fn waited_ticks_increments_each_step() {
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         Patience {
             max_wait_ticks: 1000,
             waited_ticks: 0,
         },
     );
 
-    let elev = sim.world().elevator_ids()[0];
-    sim.disable(elev).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    sim.disable(elev.entity()).unwrap();
     sim.drain_events();
 
     for _ in 0..3 {
@@ -113,7 +113,7 @@ fn waited_ticks_increments_each_step() {
         sim.drain_events();
     }
 
-    let waited = sim.world().patience(rider).map(|p| p.waited_ticks);
+    let waited = sim.world().patience(rider.entity()).map(|p| p.waited_ticks);
     assert_eq!(
         waited,
         Some(3),
@@ -140,7 +140,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
     for _ in 0..max_ticks {
         sim.step();
         sim.drain_events();
-        if sim.world().rider(ballast).map(|r| r.phase)
+        if sim.world().rider(ballast.entity()).map(|r| r.phase)
             == Some(RiderPhase::Riding(sim.world().elevator_ids()[0]))
         {
             break;
@@ -148,7 +148,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
     }
     assert!(
         matches!(
-            sim.world().rider(ballast).map(|r| r.phase),
+            sim.world().rider(ballast.entity()).map(|r| r.phase),
             Some(RiderPhase::Riding(_))
         ),
         "ballast rider should be riding before the test begins"
@@ -157,7 +157,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
     // Now spawn the picky rider with skip_full_elevator = true and a strict factor.
     let picky = sim.spawn_rider(StopId(0), StopId(2), 30.0).unwrap();
     sim.world_mut().set_preferences(
-        picky,
+        picky.entity(),
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5, // will skip if load > 50 %
@@ -172,20 +172,20 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
     // then run only the loading phase once to observe the skip.
     //
     // Find the elevator entity and the stop-0 entity.
-    let elev = sim.world().elevator_ids()[0];
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop0_pos = sim.world().stop(stop0).unwrap().position;
 
     // Force elevator to stop 0, Loading phase, with ballast load.
     {
         let w = sim.world_mut();
-        if let Some(pos) = w.position_mut(elev) {
+        if let Some(pos) = w.position_mut(elev.entity()) {
             pos.value = stop0_pos;
         }
-        if let Some(vel) = w.velocity_mut(elev) {
+        if let Some(vel) = w.velocity_mut(elev.entity()) {
             vel.value = 0.0;
         }
-        if let Some(car) = w.elevator_mut(elev) {
+        if let Some(car) = w.elevator_mut(elev.entity()) {
             car.phase = ElevatorPhase::Loading;
             car.current_load = Weight::from(60.0); // ballast weight
             car.target_stop = None;
@@ -199,7 +199,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
 
     // The picky rider should still be Waiting — not Boarding or Riding.
     assert_eq!(
-        sim.world().rider(picky).map(|r| r.phase),
+        sim.world().rider(picky.entity()).map(|r| r.phase),
         Some(RiderPhase::Waiting),
         "picky rider should remain Waiting when elevator exceeds max_crowding_factor"
     );
@@ -216,7 +216,7 @@ fn preferences_boards_when_elevator_not_too_crowded() {
 
     // max_crowding_factor 0.5: current_load 0.0 / 100.0 = 0.0 — well below.
     sim.world_mut().set_preferences(
-        rider,
+        rider.entity(),
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
@@ -225,19 +225,19 @@ fn preferences_boards_when_elevator_not_too_crowded() {
         },
     );
 
-    let elev = sim.world().elevator_ids()[0];
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop0_pos = sim.world().stop(stop0).unwrap().position;
 
     {
         let w = sim.world_mut();
-        if let Some(pos) = w.position_mut(elev) {
+        if let Some(pos) = w.position_mut(elev.entity()) {
             pos.value = stop0_pos;
         }
-        if let Some(vel) = w.velocity_mut(elev) {
+        if let Some(vel) = w.velocity_mut(elev.entity()) {
             vel.value = 0.0;
         }
-        if let Some(car) = w.elevator_mut(elev) {
+        if let Some(car) = w.elevator_mut(elev.entity()) {
             car.phase = ElevatorPhase::Loading;
             car.current_load = Weight::from(0.0);
             car.target_stop = None;
@@ -250,7 +250,7 @@ fn preferences_boards_when_elevator_not_too_crowded() {
 
     assert!(
         matches!(
-            sim.world().rider(rider).map(|r| r.phase),
+            sim.world().rider(rider.entity()).map(|r| r.phase),
             Some(RiderPhase::Boarding(_))
         ),
         "rider should board when elevator is below max_crowding_factor"
@@ -356,10 +356,10 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         inspection_speed_factor: 0.25,
     };
     let line = sim.lines_in_group(GroupId(0))[0];
-    let elev2 = sim.add_elevator(&params, line, 0.0).unwrap();
+    let elev2 = ElevatorId::from(sim.add_elevator(&params, line, 0.0).unwrap());
     sim.drain_events();
 
-    let elev1 = sim.world().elevator_ids()[0];
+    let elev1 = ElevatorId::from(sim.world().elevator_ids()[0]);
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop0_pos = sim.world().stop(stop0).unwrap().position;
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
@@ -372,13 +372,13 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
     {
         let w = sim.world_mut();
         for &eid in &[elev1, elev2] {
-            if let Some(pos) = w.position_mut(eid) {
+            if let Some(pos) = w.position_mut(eid.entity()) {
                 pos.value = stop0_pos;
             }
-            if let Some(vel) = w.velocity_mut(eid) {
+            if let Some(vel) = w.velocity_mut(eid.entity()) {
                 vel.value = 0.0;
             }
-            if let Some(car) = w.elevator_mut(eid) {
+            if let Some(car) = w.elevator_mut(eid.entity()) {
                 car.phase = ElevatorPhase::Loading;
                 car.riders.clear();
                 car.current_load = Weight::from(0.0);
@@ -399,7 +399,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
         .filter(|&&eid| {
             sim.world()
                 .elevator(eid)
-                .is_some_and(|car| car.riders.contains(&rider))
+                .is_some_and(|car| car.riders.contains(&rider.entity()))
         })
         .count();
 
@@ -424,7 +424,7 @@ fn disable_elevator_ejects_riding_passenger_to_waiting() {
         sim.step();
         sim.drain_events();
         if matches!(
-            sim.world().rider(rider).map(|r| r.phase),
+            sim.world().rider(rider.entity()).map(|r| r.phase),
             Some(RiderPhase::Riding(_))
         ) {
             break;
@@ -433,26 +433,29 @@ fn disable_elevator_ejects_riding_passenger_to_waiting() {
 
     assert!(
         matches!(
-            sim.world().rider(rider).map(|r| r.phase),
+            sim.world().rider(rider.entity()).map(|r| r.phase),
             Some(RiderPhase::Riding(_))
         ),
         "rider should be Riding before we disable the elevator"
     );
 
     // Disable the elevator.
-    let elev = sim.world().elevator_ids()[0];
-    sim.disable(elev).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    sim.disable(elev.entity()).unwrap();
     let events = sim.drain_events();
 
     // Rider should now be Waiting.
     assert_eq!(
-        sim.world().rider(rider).map(|r| r.phase),
+        sim.world().rider(rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Waiting),
         "ejected rider should be in Waiting phase"
     );
 
     // Rider should be at a valid stop.
-    let current_stop = sim.world().rider(rider).and_then(|r| r.current_stop);
+    let current_stop = sim
+        .world()
+        .rider(rider.entity())
+        .and_then(|r| r.current_stop);
     assert!(
         current_stop.is_some(),
         "ejected rider should have a current_stop"
@@ -470,7 +473,7 @@ fn disable_elevator_ejects_riding_passenger_to_waiting() {
     assert!(
         events.iter().any(
             |e| matches!(e, Event::RiderEjected { rider: r, elevator: e, .. }
-                if *r == rider && *e == elev)
+                if *r == rider.entity() && *e == elev.entity())
         ),
         "RiderEjected event should be emitted when elevator is disabled"
     );
@@ -483,7 +486,7 @@ fn disable_elevator_clears_its_rider_list() {
 
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
-    let elev = sim.world().elevator_ids()[0];
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
 
     // Wait until the elevator has boarded the rider.
     for _ in 0..5_000 {
@@ -491,17 +494,17 @@ fn disable_elevator_clears_its_rider_list() {
         sim.drain_events();
         if sim
             .world()
-            .elevator(elev)
+            .elevator(elev.entity())
             .is_some_and(|c| !c.riders.is_empty())
         {
             break;
         }
     }
 
-    sim.disable(elev).unwrap();
+    sim.disable(elev.entity()).unwrap();
     sim.drain_events();
 
-    let car = sim.world().elevator(elev).unwrap();
+    let car = sim.world().elevator(elev.entity()).unwrap();
     assert!(
         car.riders.is_empty(),
         "elevator riders list should be empty after disable"

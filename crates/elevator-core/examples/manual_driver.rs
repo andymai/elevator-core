@@ -17,9 +17,10 @@ use elevator_core::prelude::*;
 
 fn main() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    let elev = sim.world().iter_elevators().next().unwrap().0;
+    let elev = ElevatorId::from(sim.world().iter_elevators().next().unwrap().0);
 
-    sim.set_service_mode(elev, ServiceMode::Manual).unwrap();
+    sim.set_service_mode(elev.entity(), ServiceMode::Manual)
+        .unwrap();
 
     // Phase 1: command full ascent.
     sim.set_target_velocity(elev, 2.0).unwrap();
@@ -34,8 +35,8 @@ fn main() {
         }
         sim.step();
 
-        let pos = sim.world().position(elev).unwrap().value();
-        let vel = sim.velocity(elev).unwrap();
+        let pos = sim.world().position(elev.entity()).unwrap().value();
+        let vel = sim.velocity(elev.entity()).unwrap();
         let phase = if t < 90 { "ascending " } else { "e-stopping" };
         println!("{t:>4}  {phase}  {pos:>5.2}m  {vel:>5.2}");
 

@@ -1,6 +1,7 @@
 //! Tests for the elevator direction indicator lamps (`going_up`/`going_down`).
 
 use crate::components::{ElevatorPhase, RiderPhase};
+use crate::entity::ElevatorId;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -8,8 +9,8 @@ use crate::stop::StopId;
 use super::helpers::{all_riders_arrived, default_config, scan};
 
 /// Grab the first (and usually only) elevator in a sim.
-fn first_elevator(sim: &Simulation) -> crate::entity::EntityId {
-    sim.world().elevator_ids()[0]
+fn first_elevator(sim: &Simulation) -> crate::entity::ElevatorId {
+    crate::entity::ElevatorId::from(sim.world().elevator_ids()[0])
 }
 
 #[test]
@@ -18,8 +19,8 @@ fn default_indicators_both_true() {
     let sim = Simulation::new(&config, scan()).unwrap();
     let elev = first_elevator(&sim);
 
-    assert_eq!(sim.elevator_going_up(elev), Some(true));
-    assert_eq!(sim.elevator_going_down(elev), Some(true));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
 
 #[test]
@@ -33,7 +34,7 @@ fn dispatch_upward_sets_going_up_only() {
     let mut saw_moving = false;
     for _ in 0..1_000 {
         sim.step();
-        if let Some(car) = sim.world().elevator(elev)
+        if let Some(car) = sim.world().elevator(elev.entity())
             && matches!(car.phase(), ElevatorPhase::MovingToStop(_))
         {
             saw_moving = true;
@@ -41,8 +42,8 @@ fn dispatch_upward_sets_going_up_only() {
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");
-    assert_eq!(sim.elevator_going_up(elev), Some(true));
-    assert_eq!(sim.elevator_going_down(elev), Some(false));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
 }
 
 #[test]
@@ -58,7 +59,7 @@ fn dispatch_downward_sets_going_down_only() {
     let mut saw_moving = false;
     for _ in 0..1_000 {
         sim.step();
-        if let Some(car) = sim.world().elevator(elev)
+        if let Some(car) = sim.world().elevator(elev.entity())
             && matches!(car.phase(), ElevatorPhase::MovingToStop(_))
         {
             saw_moving = true;
@@ -66,8 +67,8 @@ fn dispatch_downward_sets_going_down_only() {
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");
-    assert_eq!(sim.elevator_going_up(elev), Some(false));
-    assert_eq!(sim.elevator_going_down(elev), Some(true));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(false));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
 
 #[test]
@@ -90,8 +91,8 @@ fn becoming_idle_resets_both_true() {
     }
 
     let elev = first_elevator(&sim);
-    assert_eq!(sim.elevator_going_up(elev), Some(true));
-    assert_eq!(sim.elevator_going_down(elev), Some(true));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
 
 #[test]
@@ -178,12 +179,12 @@ fn rider_going_up_skips_down_only_car() {
     for _ in 0..20_000 {
         sim.step();
         all_events.extend(sim.drain_events());
-        if sim.world().rider(down_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+        if sim.world().rider(down_rider.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
             break;
         }
     }
     assert_eq!(
-        sim.world().rider(down_rider).map(|r| r.phase),
+        sim.world().rider(down_rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Arrived)
     );
 
@@ -191,7 +192,7 @@ fn rider_going_up_skips_down_only_car() {
     let up_rider_boarded_during_down = all_events.iter().any(|e| {
         matches!(
             e,
-            Event::RiderBoarded { rider, .. } if *rider == up_rider
+            Event::RiderBoarded { rider, .. } if *rider == up_rider.entity()
         )
     });
     assert!(
@@ -202,7 +203,7 @@ fn rider_going_up_skips_down_only_car() {
     let up_rider_rejected = all_events.iter().any(|e| {
         matches!(
             e,
-            Event::RiderRejected { rider, .. } if *rider == up_rider
+            Event::RiderRejected { rider, .. } if *rider == up_rider.entity()
         )
     });
     assert!(
@@ -213,12 +214,12 @@ fn rider_going_up_skips_down_only_car() {
     // Now run until the up-rider arrives — the car should turn around and pick them up.
     for _ in 0..20_000 {
         sim.step();
-        if sim.world().rider(up_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+        if sim.world().rider(up_rider.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
             break;
         }
     }
     assert_eq!(
-        sim.world().rider(up_rider).map(|r| r.phase),
+        sim.world().rider(up_rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Arrived),
         "up-rider should eventually be picked up on the return trip"
     );
@@ -237,12 +238,12 @@ fn idle_car_boards_riders_either_direction() {
     let up_rider = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     for _ in 0..20_000 {
         sim.step();
-        if sim.world().rider(up_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+        if sim.world().rider(up_rider.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
             break;
         }
     }
     assert_eq!(
-        sim.world().rider(up_rider).map(|r| r.phase),
+        sim.world().rider(up_rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Arrived)
     );
 
@@ -254,12 +255,12 @@ fn idle_car_boards_riders_either_direction() {
     let down_rider = sim.spawn_rider(StopId(1), StopId(0), 70.0).unwrap();
     for _ in 0..20_000 {
         sim.step();
-        if sim.world().rider(down_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+        if sim.world().rider(down_rider.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
             break;
         }
     }
     assert_eq!(
-        sim.world().rider(down_rider).map(|r| r.phase),
+        sim.world().rider(down_rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Arrived)
     );
 }
@@ -275,18 +276,25 @@ fn snapshot_roundtrip_preserves_indicators() {
     // Step until indicators are (true, false) — upward-only.
     for _ in 0..1_000 {
         sim.step();
-        if sim.elevator_going_up(elev) == Some(true) && sim.elevator_going_down(elev) == Some(false)
+        if sim.elevator_going_up(elev.entity()) == Some(true)
+            && sim.elevator_going_down(elev.entity()) == Some(false)
         {
             break;
         }
     }
-    assert_eq!(sim.elevator_going_up(elev), Some(true));
-    assert_eq!(sim.elevator_going_down(elev), Some(false));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
 
     let snap = sim.snapshot();
     let restored = snap.restore(None).unwrap();
-    let restored_elev = restored.world().elevator_ids()[0];
+    let restored_elev = ElevatorId::from(restored.world().elevator_ids()[0]);
 
-    assert_eq!(restored.elevator_going_up(restored_elev), Some(true));
-    assert_eq!(restored.elevator_going_down(restored_elev), Some(false));
+    assert_eq!(
+        restored.elevator_going_up(restored_elev.entity()),
+        Some(true)
+    );
+    assert_eq!(
+        restored.elevator_going_down(restored_elev.entity()),
+        Some(false)
+    );
 }

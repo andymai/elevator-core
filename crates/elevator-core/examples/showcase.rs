@@ -214,11 +214,14 @@ fn part3_extensions() {
 
     // Spawn a rider and attach the VIP extension.
     let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
-    sim.world_mut()
-        .insert_ext(rider, VipTag { level: 3 }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(
+        rider.entity(),
+        VipTag { level: 3 },
+        ExtKey::from_type_name(),
+    );
 
     // Read the extension back.
-    let vip: Option<VipTag> = sim.world().ext::<VipTag>(rider);
+    let vip: Option<VipTag> = sim.world().ext::<VipTag>(rider.entity());
     println!("Rider {rider:?} VIP tag: {vip:?}");
 
     // Extensions are arbitrary typed data — useful for game-specific components
@@ -321,7 +324,8 @@ fn part5_metrics_deep_dive() {
 
     // Tag a rider individually for a different dimension.
     let special = sim.spawn_rider(StopId(0), StopId(1), 60.0).unwrap();
-    sim.tag_entity(special, "priority:express").unwrap();
+    sim.tag_entity(special.entity(), "priority:express")
+        .unwrap();
 
     // Run enough ticks for deliveries.
     for _ in 0..600 {

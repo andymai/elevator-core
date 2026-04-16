@@ -4,6 +4,7 @@ use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::RiderId;
 use crate::error::SimError;
 use crate::events::{Event, RouteInvalidReason};
 use crate::sim::Simulation;
@@ -71,7 +72,7 @@ fn reroute_changes_rider_destination() {
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     sim.reroute(rider, stop1).unwrap();
 
-    let route = sim.world().route(rider).unwrap();
+    let route = sim.world().route(rider.entity()).unwrap();
     assert_eq!(route.current_destination(), Some(stop1));
 }
 
@@ -88,7 +89,7 @@ fn disable_stop_reroutes_affected_riders() {
     sim.disable(stop1).unwrap();
     sim.drain_events(); // flush
 
-    let route = sim.world().route(rider).unwrap();
+    let route = sim.world().route(rider.entity()).unwrap();
     let dest = route.current_destination().unwrap();
     // Should have been rerouted to stop 2 (nearest enabled alternative).
     let stop2 = sim.stop_entity(StopId(2)).unwrap();
@@ -171,7 +172,7 @@ fn disable_only_stop_causes_abandonment() {
     sim.disable(stop1).unwrap();
 
     // Rider should have been abandoned.
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase, RiderPhase::Abandoned);
 
     // Should emit NoAlternative event.
@@ -221,9 +222,9 @@ fn set_rider_route_replaces_route() {
         ],
         current_leg: 0,
     };
-    sim.set_rider_route(rider, route).unwrap();
+    sim.set_rider_route(rider.entity(), route).unwrap();
 
-    let r = sim.world().route(rider).unwrap();
+    let r = sim.world().route(rider.entity()).unwrap();
     assert_eq!(r.legs.len(), 2);
     assert_eq!(r.current_destination(), Some(stop1));
 }
@@ -238,7 +239,7 @@ fn reroute_rejects_non_waiting_rider() {
     // Advance until rider is boarding or riding.
     for _ in 0..500 {
         sim.step();
-        let phase = sim.world().rider(rider).unwrap().phase;
+        let phase = sim.world().rider(rider.entity()).unwrap().phase;
         if matches!(phase, RiderPhase::Riding(_) | RiderPhase::Arrived) {
             break;
         }
@@ -248,7 +249,7 @@ fn reroute_rejects_non_waiting_rider() {
     let result = sim.reroute(rider, stop1);
 
     // Should fail if rider is not Waiting.
-    let phase = sim.world().rider(rider).unwrap().phase;
+    let phase = sim.world().rider(rider.entity()).unwrap().phase;
     if phase != RiderPhase::Waiting {
         assert!(result.is_err());
         assert!(matches!(
@@ -265,6 +266,6 @@ fn reroute_nonexistent_rider_returns_error() {
 
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Use a stop entity as a fake rider — it's a valid EntityId but not a rider.
-    let result = sim.reroute(stop1, stop1);
+    let result = sim.reroute(RiderId::from(stop1), stop1);
     assert!(result.is_err());
 }

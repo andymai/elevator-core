@@ -1,4 +1,5 @@
 use crate::components::{RiderPhase, Route};
+use crate::entity::RiderId;
 use crate::error::SimError;
 use crate::events::Event;
 use crate::ids::GroupId;
@@ -8,10 +9,10 @@ use crate::stop::StopId;
 use super::helpers::{default_config, scan};
 
 /// Run until the given rider reaches Arrived, or panic after max ticks.
-fn run_until_arrived(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
+fn run_until_arrived(sim: &mut Simulation, rider_id: RiderId) {
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider_id)
+        if let Some(r) = sim.world().rider(rider_id.entity())
             && r.phase() == RiderPhase::Arrived
         {
             return;
@@ -21,10 +22,10 @@ fn run_until_arrived(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
 }
 
 /// Run until the given rider reaches Abandoned, or panic after max ticks.
-fn run_until_abandoned(sim: &mut Simulation, rider_id: crate::entity::EntityId) {
+fn run_until_abandoned(sim: &mut Simulation, rider_id: RiderId) {
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider_id)
+        if let Some(r) = sim.world().rider(rider_id.entity())
             && r.phase() == RiderPhase::Abandoned
         {
             return;
@@ -44,12 +45,12 @@ fn settle_from_arrived() {
     // Settle the rider.
     sim.settle_rider(rider).unwrap();
 
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase(), RiderPhase::Resident);
     assert!(r.current_stop().is_some());
 
     let stop = r.current_stop().unwrap();
-    assert!(sim.residents_at(stop).any(|id| id == rider));
+    assert!(sim.residents_at(stop).any(|id| id == rider.entity()));
     assert_eq!(sim.resident_count_at(stop), 1);
 
     // Check event was emitted.
@@ -57,7 +58,7 @@ fn settle_from_arrived() {
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, Event::RiderSettled { rider: r, .. } if *r == rider))
+            .any(|e| matches!(e, Event::RiderSettled { rider: r, .. } if *r == rider.entity()))
     );
 }
 
@@ -69,7 +70,7 @@ fn settle_from_abandoned() {
 
     // Give very short patience so rider abandons.
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         crate::components::Patience {
             max_wait_ticks: 1,
             waited_ticks: 0,
@@ -80,13 +81,13 @@ fn settle_from_abandoned() {
 
     sim.settle_rider(rider).unwrap();
 
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase(), RiderPhase::Resident);
 
     let stop = r.current_stop().unwrap();
-    assert!(sim.residents_at(stop).any(|id| id == rider));
+    assert!(sim.residents_at(stop).any(|id| id == rider.entity()));
     // Should no longer be in abandoned index.
-    assert!(!sim.abandoned_at(stop).any(|id| id == rider));
+    assert!(!sim.abandoned_at(stop).any(|id| id == rider.entity()));
 }
 
 #[test]
@@ -110,26 +111,31 @@ fn reroute_resident_to_waiting() {
     sim.settle_rider(rider).unwrap();
     sim.drain_events(); // Clear events from settlement.
 
-    let stop = sim.world().rider(rider).unwrap().current_stop().unwrap();
+    let stop = sim
+        .world()
+        .rider(rider.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
 
     // Resolve StopId(0) to EntityId for the route.
     let dest = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(stop, dest, GroupId(0));
-    sim.reroute_rider(rider, route).unwrap();
+    sim.reroute_rider(rider.entity(), route).unwrap();
 
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase(), RiderPhase::Waiting);
 
     // Rider should be in waiting index, not resident index.
-    assert!(sim.waiting_at(stop).any(|id| id == rider));
-    assert!(!sim.residents_at(stop).any(|id| id == rider));
+    assert!(sim.waiting_at(stop).any(|id| id == rider.entity()));
+    assert!(!sim.residents_at(stop).any(|id| id == rider.entity()));
 
     // Check event was emitted.
     let events = sim.drain_events();
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, Event::RiderRerouted { rider: r, .. } if *r == rider))
+            .any(|e| matches!(e, Event::RiderRerouted { rider: r, .. } if *r == rider.entity()))
     );
 }
 
@@ -144,7 +150,7 @@ fn reroute_wrong_phase_returns_error() {
     let route = Route::direct(origin, dest, GroupId(0));
 
     // Rider is Waiting — should fail.
-    let result = sim.reroute_rider(rider, route);
+    let result = sim.reroute_rider(rider.entity(), route);
     assert!(matches!(result, Err(SimError::WrongRiderPhase { .. })));
 }
 
@@ -157,14 +163,19 @@ fn despawn_rider_removes_from_world_and_index() {
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
 
-    let stop = sim.world().rider(rider).unwrap().current_stop().unwrap();
+    let stop = sim
+        .world()
+        .rider(rider.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
     assert_eq!(sim.resident_count_at(stop), 1);
 
     sim.drain_events();
     sim.despawn_rider(rider).unwrap();
 
     // Entity gone.
-    assert!(!sim.world().is_alive(rider));
+    assert!(!sim.world().is_alive(rider.entity()));
     // Index clean.
     assert_eq!(sim.resident_count_at(stop), 0);
 
@@ -173,7 +184,7 @@ fn despawn_rider_removes_from_world_and_index() {
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, Event::RiderDespawned { rider: r, .. } if *r == rider))
+            .any(|e| matches!(e, Event::RiderDespawned { rider: r, .. } if *r == rider.entity()))
     );
 }
 
@@ -186,14 +197,14 @@ fn despawn_riding_rider_cleans_elevator() {
     // Run until rider is Riding.
     for _ in 0..10_000 {
         sim.step();
-        if let Some(r) = sim.world().rider(rider)
+        if let Some(r) = sim.world().rider(rider.entity())
             && matches!(r.phase(), RiderPhase::Riding(_))
         {
             break;
         }
     }
 
-    let riding_eid = match sim.world().rider(rider).unwrap().phase() {
+    let riding_eid = match sim.world().rider(rider.entity()).unwrap().phase() {
         RiderPhase::Riding(eid) => eid,
         other => panic!("expected Riding, got {other}"),
     };
@@ -204,7 +215,7 @@ fn despawn_riding_rider_cleans_elevator() {
             .elevator(riding_eid)
             .unwrap()
             .riders()
-            .contains(&rider)
+            .contains(&rider.entity())
     );
 
     sim.despawn_rider(rider).unwrap();
@@ -215,7 +226,7 @@ fn despawn_riding_rider_cleans_elevator() {
             .elevator(riding_eid)
             .unwrap()
             .riders()
-            .contains(&rider)
+            .contains(&rider.entity())
     );
 }
 
@@ -228,31 +239,36 @@ fn full_lifecycle_spawn_ride_settle_reroute_ride_despawn() {
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let origin = sim.stop_entity(StopId(0)).unwrap();
-    assert!(sim.waiting_at(origin).any(|id| id == rider));
+    assert!(sim.waiting_at(origin).any(|id| id == rider.entity()));
 
     run_until_arrived(&mut sim, rider);
 
     // Settle at Floor 3.
     sim.settle_rider(rider).unwrap();
-    let floor3 = sim.world().rider(rider).unwrap().current_stop().unwrap();
-    assert!(sim.residents_at(floor3).any(|id| id == rider));
+    let floor3 = sim
+        .world()
+        .rider(rider.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
+    assert!(sim.residents_at(floor3).any(|id| id == rider.entity()));
     assert_eq!(sim.metrics().total_settled(), 1);
 
     // Reroute back to Ground.
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(floor3, ground, GroupId(0));
-    sim.reroute_rider(rider, route).unwrap();
+    sim.reroute_rider(rider.entity(), route).unwrap();
     assert_eq!(sim.metrics().total_rerouted(), 1);
 
-    assert!(sim.waiting_at(floor3).any(|id| id == rider));
-    assert!(!sim.residents_at(floor3).any(|id| id == rider));
+    assert!(sim.waiting_at(floor3).any(|id| id == rider.entity()));
+    assert!(!sim.residents_at(floor3).any(|id| id == rider.entity()));
 
     // Trip 2: ride back to Ground.
     run_until_arrived(&mut sim, rider);
 
     // Despawn.
     sim.despawn_rider(rider).unwrap();
-    assert!(!sim.world().is_alive(rider));
+    assert!(!sim.world().is_alive(rider.entity()));
 }
 
 #[test]
@@ -271,7 +287,7 @@ fn resident_invisible_to_loading_system() {
         sim.step();
     }
 
-    let r = sim.world().rider(rider).unwrap();
+    let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(
         r.phase(),
         RiderPhase::Resident,
@@ -293,7 +309,12 @@ fn dispatch_manifest_includes_resident_counts() {
     run_until_arrived(&mut sim, r2);
     sim.settle_rider(r2).unwrap();
 
-    let floor3 = sim.world().rider(r1).unwrap().current_stop().unwrap();
+    let floor3 = sim
+        .world()
+        .rider(r1.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
     assert_eq!(sim.resident_count_at(floor3), 2);
 }
 
@@ -304,7 +325,7 @@ fn patience_reset_on_reroute() {
 
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
-        rider,
+        rider.entity(),
         crate::components::Patience {
             max_wait_ticks: 1000,
             waited_ticks: 500,
@@ -314,13 +335,18 @@ fn patience_reset_on_reroute() {
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
 
-    let stop = sim.world().rider(rider).unwrap().current_stop().unwrap();
+    let stop = sim
+        .world()
+        .rider(rider.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
     let dest = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(stop, dest, GroupId(0));
-    sim.reroute_rider(rider, route).unwrap();
+    sim.reroute_rider(rider.entity(), route).unwrap();
 
     // Patience should be reset.
-    let patience = sim.world().patience(rider).unwrap();
+    let patience = sim.world().patience(rider.entity()).unwrap();
     assert_eq!(patience.waited_ticks, 0);
 }
 
@@ -333,7 +359,12 @@ fn snapshot_roundtrip_preserves_residents() {
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
 
-    let stop = sim.world().rider(rider).unwrap().current_stop().unwrap();
+    let stop = sim
+        .world()
+        .rider(rider.entity())
+        .unwrap()
+        .current_stop()
+        .unwrap();
     assert_eq!(sim.resident_count_at(stop), 1);
 
     // Snapshot and restore.

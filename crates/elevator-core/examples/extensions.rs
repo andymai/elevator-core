@@ -19,8 +19,11 @@ fn main() {
 
     // Spawn a rider and tag them as VIP.
     let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
-    sim.world_mut()
-        .insert_ext(rider, VipTag { level: 5 }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(
+        rider.entity(),
+        VipTag { level: 5 },
+        ExtKey::from_type_name(),
+    );
 
     // Query extension components.
     for (id, vip) in sim.world().query::<(EntityId, &Ext<VipTag>)>().iter() {

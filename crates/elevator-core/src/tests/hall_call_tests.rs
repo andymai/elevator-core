@@ -2,7 +2,7 @@
 
 use crate::components::CallDirection;
 use crate::components::Weight;
-use crate::entity::EntityId;
+use crate::entity::{ElevatorId, EntityId};
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -18,7 +18,7 @@ fn spawn_rider_auto_presses_hall_button() {
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
     assert_eq!(call.direction, CallDirection::Up);
     assert!(
-        call.pending_riders.contains(&rid),
+        call.pending_riders.contains(&rid.entity()),
         "rider should be aggregated into the hall call's pending list"
     );
     let events = sim.drain_events();
@@ -44,8 +44,8 @@ fn multiple_riders_aggregate_into_one_hall_call() {
     let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
-    assert!(call.pending_riders.contains(&r1));
-    assert!(call.pending_riders.contains(&r2));
+    assert!(call.pending_riders.contains(&r1.entity()));
+    assert!(call.pending_riders.contains(&r2.entity()));
     let extra_events = sim.drain_events();
     let press_count = extra_events
         .iter()
@@ -73,11 +73,11 @@ fn explicit_press_hall_button_without_rider() {
 fn pin_assignment_pins_and_assigns() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     let stop = sim.stop_entity(StopId(1)).unwrap();
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     sim.press_hall_button(stop, CallDirection::Up).unwrap();
     sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
     let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
-    assert_eq!(call.assigned_car, Some(car));
+    assert_eq!(call.assigned_car, Some(car.entity()));
     assert!(call.pinned);
     sim.unpin_assignment(stop, CallDirection::Up);
     let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
@@ -176,7 +176,7 @@ fn public_call_queries_return_active_calls() {
     let count = sim.hall_calls().count();
     assert_eq!(count, 1);
     // No car calls yet (rider hasn't boarded).
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     assert!(sim.car_calls(car).is_empty());
 }
 
@@ -187,7 +187,7 @@ fn public_call_queries_return_active_calls() {
 fn car_call_removed_on_exit() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
 
     // Run until the rider reaches Arrived.
     let mut boarded = false;
@@ -212,7 +212,7 @@ fn car_call_removed_on_exit() {
 #[test]
 fn press_car_button_without_rider_emits_none_rider() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     let floor = sim.stop_entity(StopId(2)).unwrap();
     sim.press_car_button(car, floor).unwrap();
     let events = sim.drain_events();
@@ -239,11 +239,11 @@ fn pinned_pin_does_not_clobber_loading_car() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // Run until the car reaches Loading phase at some stop.
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     let mut loading_stop: Option<EntityId> = None;
     for _ in 0..2000 {
         sim.step();
-        if let Some(c) = sim.world().elevator(car)
+        if let Some(c) = sim.world().elevator(car.entity())
             && c.phase == ElevatorPhase::Loading
         {
             loading_stop = c.target_stop;
@@ -259,7 +259,7 @@ fn pinned_pin_does_not_clobber_loading_car() {
         sim.drain_events();
         // One tick of dispatch must not yank the car out of Loading.
         sim.step();
-        let phase_after = sim.world().elevator(car).map(|c| c.phase);
+        let phase_after = sim.world().elevator(car.entity()).map(|c| c.phase);
         assert!(
             !matches!(phase_after, Some(ElevatorPhase::MovingToStop(s)) if s == other),
             "pin should not override a Loading car mid-door-cycle"
@@ -288,7 +288,7 @@ fn abandon_on_full_abandons_immediately() {
     // Note: Preferences::default has skip_full_elevator = false, but
     // max_crowding_factor 0.8 means a 60-weight preload still exceeds.
     sim.world_mut().set_preferences(
-        picky,
+        picky.entity(),
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
@@ -299,18 +299,18 @@ fn abandon_on_full_abandons_immediately() {
 
     // Force the elevator to Loading phase at the picky rider's stop
     // with a ballast preload that trips the preference filter.
-    let elev = sim.world().elevator_ids()[0];
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop0_pos = sim.world().stop(stop0).unwrap().position;
     {
         let w = sim.world_mut();
-        if let Some(pos) = w.position_mut(elev) {
+        if let Some(pos) = w.position_mut(elev.entity()) {
             pos.value = stop0_pos;
         }
-        if let Some(vel) = w.velocity_mut(elev) {
+        if let Some(vel) = w.velocity_mut(elev.entity()) {
             vel.value = 0.0;
         }
-        if let Some(car) = w.elevator_mut(elev) {
+        if let Some(car) = w.elevator_mut(elev.entity()) {
             car.phase = crate::components::ElevatorPhase::Loading;
             car.current_load = Weight::from(60.0);
             car.target_stop = None;
@@ -318,7 +318,7 @@ fn abandon_on_full_abandons_immediately() {
     }
     sim.run_loading();
     sim.advance_tick();
-    let phase = sim.world().rider(picky).map(|r| r.phase);
+    let phase = sim.world().rider(picky.entity()).map(|r| r.phase);
     assert_eq!(
         phase,
         Some(crate::components::RiderPhase::Abandoned),
@@ -348,7 +348,7 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
     // this test, plus abandon_on_full = true. The rider should abandon
     // on the first full-car skip — not wait the threshold out.
     sim.world_mut().set_preferences(
-        picky,
+        picky.entity(),
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.5,
@@ -357,18 +357,18 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
         },
     );
 
-    let elev = sim.world().elevator_ids()[0];
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop0_pos = sim.world().stop(stop0).unwrap().position;
     {
         let w = sim.world_mut();
-        if let Some(pos) = w.position_mut(elev) {
+        if let Some(pos) = w.position_mut(elev.entity()) {
             pos.value = stop0_pos;
         }
-        if let Some(vel) = w.velocity_mut(elev) {
+        if let Some(vel) = w.velocity_mut(elev.entity()) {
             vel.value = 0.0;
         }
-        if let Some(car) = w.elevator_mut(elev) {
+        if let Some(car) = w.elevator_mut(elev.entity()) {
             car.phase = crate::components::ElevatorPhase::Loading;
             car.current_load = Weight::from(60.0);
             car.target_stop = None;
@@ -377,7 +377,7 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
     sim.run_loading();
     sim.advance_tick();
     assert_eq!(
-        sim.world().rider(picky).map(|r| r.phase),
+        sim.world().rider(picky.entity()).map(|r| r.phase),
         Some(crate::components::RiderPhase::Abandoned),
         "abandon_on_full should fire on first full-car contact regardless of threshold",
     );
@@ -475,7 +475,7 @@ fn pin_across_lines_is_rejected() {
         })
         .expect("Low elevator should exist and not serve Top");
 
-    let err = sim.pin_assignment(low_car, top, CallDirection::Down);
+    let err = sim.pin_assignment(ElevatorId::from(low_car), top, CallDirection::Down);
     assert!(
         matches!(
             err,
@@ -570,7 +570,7 @@ fn pinned_call_forces_specific_car() {
     let cars = sim.world().elevator_ids();
     assert!(!cars.is_empty());
     let pinned_car = cars[0];
-    sim.pin_assignment(pinned_car, origin, CallDirection::Up)
+    sim.pin_assignment(ElevatorId::from(pinned_car), origin, CallDirection::Up)
         .unwrap();
     // Step a few ticks; dispatch should commit the pinned car.
     for _ in 0..10 {
@@ -783,7 +783,7 @@ fn custom_strategy_reads_car_calls_from_manifest() {
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // Step until the rider boards and a car call exists; then one
     // further step triggers a dispatch pass with the car call visible.
-    let car = sim.world().elevator_ids()[0];
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
     for _ in 0..200 {
         sim.step();
         if !sim.car_calls(car).is_empty() && saw.load(Ordering::Relaxed) > 0 {

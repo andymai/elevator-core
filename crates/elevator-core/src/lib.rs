@@ -521,7 +521,7 @@ pub mod prelude {
         ElevatorGroup, EtdDispatch, LookDispatch, NearestCarDispatch, RankContext,
         RepositionStrategy, ScanDispatch,
     };
-    pub use crate::entity::EntityId;
+    pub use crate::entity::{ElevatorId, EntityId, RiderId};
     pub use crate::error::{EtaError, RejectionContext, RejectionReason, SimError};
     pub use crate::events::{Event, EventBus, EventCategory};
     pub use crate::ids::GroupId;

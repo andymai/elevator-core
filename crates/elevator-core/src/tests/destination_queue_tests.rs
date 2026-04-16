@@ -4,6 +4,7 @@
 use crate::builder::SimulationBuilder;
 use crate::components::ElevatorPhase;
 use crate::dispatch::scan::ScanDispatch;
+use crate::entity::ElevatorId;
 use crate::error::SimError;
 use crate::events::Event;
 use crate::stop::StopId;
@@ -17,8 +18,8 @@ fn build_sim() -> crate::sim::Simulation {
         .unwrap()
 }
 
-fn first_elevator(sim: &crate::sim::Simulation) -> crate::entity::EntityId {
-    sim.world().elevator_ids()[0]
+fn first_elevator(sim: &crate::sim::Simulation) -> crate::entity::ElevatorId {
+    crate::entity::ElevatorId::from(sim.world().elevator_ids()[0])
 }
 
 // 1
@@ -54,7 +55,7 @@ fn queue_pops_on_arrival() {
     for _ in 0..2000 {
         sim.step();
         let elev = first_elevator(&sim);
-        let car = sim.world().elevator(elev).unwrap();
+        let car = sim.world().elevator(elev.entity()).unwrap();
         if !matches!(car.phase(), ElevatorPhase::MovingToStop(_))
             && sim.destination_queue(elev).is_some_and(<[_]>::is_empty)
         {
@@ -140,7 +141,7 @@ fn imperative_push_drives_elevator() {
             if let Event::ElevatorArrived {
                 elevator, at_stop, ..
             } = ev
-                && elevator == elev
+                && elevator == elev.entity()
                 && at_stop == s2
             {
                 arrived = true;
@@ -179,7 +180,7 @@ fn push_front_overrides_current_target() {
             if let Event::ElevatorArrived {
                 elevator, at_stop, ..
             } = ev
-                && elevator == elev
+                && elevator == elev.entity()
             {
                 arrived_at = Some(at_stop);
                 break;
@@ -254,7 +255,7 @@ fn snapshot_roundtrip_preserves_queue() {
 
     let snapshot = sim.snapshot();
     let restored = snapshot.restore(None).unwrap();
-    let new_elev = restored.world().elevator_ids()[0];
+    let new_elev = ElevatorId::from(restored.world().elevator_ids()[0]);
 
     let restored_queue = restored.destination_queue(new_elev).unwrap();
     assert_eq!(restored_queue.len(), 3);
@@ -267,7 +268,7 @@ fn push_destination_errors_on_non_elevator() {
     let s1 = sim.stop_entity(StopId(1)).unwrap();
     // Spawn a rider entity — not an elevator.
     let rider = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
-    let result = sim.push_destination(rider, s1);
+    let result = sim.push_destination(ElevatorId::from(rider.entity()), s1);
     assert!(matches!(result, Err(SimError::NotAnElevator(_))));
 }
 
@@ -277,7 +278,7 @@ fn push_destination_errors_on_non_stop() {
     let mut sim = build_sim();
     let elev = first_elevator(&sim);
     // Use the elevator entity as the target — not a stop.
-    let result = sim.push_destination(elev, elev);
+    let result = sim.push_destination(elev, elev.entity());
     assert!(matches!(result, Err(SimError::NotAStop(_))));
 }
 
@@ -298,15 +299,15 @@ fn redirect_via_push_front_updates_direction_indicators() {
         sim.step();
         if matches!(
             sim.world()
-                .elevator(elev)
+                .elevator(elev.entity())
                 .map(crate::components::Elevator::phase),
             Some(ElevatorPhase::MovingToStop(_))
         ) {
             break;
         }
     }
-    assert_eq!(sim.elevator_going_up(elev), Some(true));
-    assert_eq!(sim.elevator_going_down(elev), Some(false));
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
 
     // Game imperatively redirects to a stop below the current position.
     let stop_0 = sim.stop_entity(StopId(0)).unwrap();
@@ -315,9 +316,9 @@ fn redirect_via_push_front_updates_direction_indicators() {
     sim.step();
 
     assert_eq!(
-        sim.elevator_going_up(elev),
+        sim.elevator_going_up(elev.entity()),
         Some(false),
         "push_destination_front to a lower stop must clear going_up",
     );
-    assert_eq!(sim.elevator_going_down(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }

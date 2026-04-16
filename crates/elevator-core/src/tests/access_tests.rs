@@ -60,7 +60,7 @@ fn rider_rejected_by_rider_access_control() {
     // Set rider access to only allow Ground and Floor 2 — NOT Floor 3.
     let stop0 = sim.stop_entity(StopId(0)).expect("stop 0 exists");
     let stop1 = sim.stop_entity(StopId(1)).expect("stop 1 exists");
-    sim.set_rider_access(rider, HashSet::from([stop0, stop1]))
+    sim.set_rider_access(rider.entity(), HashSet::from([stop0, stop1]))
         .expect("set_rider_access should succeed");
 
     let mut all_events = Vec::new();
@@ -122,7 +122,7 @@ fn rider_boards_when_destination_in_allowed_stops() {
     let stop0 = sim.stop_entity(StopId(0)).expect("stop 0 exists");
     let stop1 = sim.stop_entity(StopId(1)).expect("stop 1 exists");
     let stop2 = sim.stop_entity(StopId(2)).expect("stop 2 exists");
-    sim.set_rider_access(rider, HashSet::from([stop0, stop1, stop2]))
+    sim.set_rider_access(rider.entity(), HashSet::from([stop0, stop1, stop2]))
         .expect("set_rider_access should succeed");
 
     for _ in 0..2000 {
@@ -196,7 +196,7 @@ fn both_restriction_types_work_in_same_sim() {
                 rider,
                 reason: RejectionReason::AccessDenied,
                 ..
-            } if *rider == rider1
+            } if *rider == rider1.entity()
         )
     });
     assert!(
@@ -213,7 +213,7 @@ fn both_restriction_types_work_in_same_sim() {
         .expect("spawn should succeed");
     let stop0 = sim.stop_entity(StopId(0)).expect("stop 0 exists");
     let stop1 = sim.stop_entity(StopId(1)).expect("stop 1 exists");
-    sim.set_rider_access(rider2, HashSet::from([stop0, stop1]))
+    sim.set_rider_access(rider2.entity(), HashSet::from([stop0, stop1]))
         .expect("set_rider_access should succeed");
 
     let mut events_phase2 = Vec::new();
@@ -229,7 +229,7 @@ fn both_restriction_types_work_in_same_sim() {
                 rider,
                 reason: RejectionReason::AccessDenied,
                 ..
-            } if *rider == rider2
+            } if *rider == rider2.entity()
         )
     });
     assert!(
@@ -275,7 +275,7 @@ fn rejection_event_has_access_denied_reason() {
         ..
     }) = rejection
     {
-        assert_eq!(*rid, rider);
+        assert_eq!(*rid, rider.entity());
         assert_eq!(*reason, RejectionReason::AccessDenied);
         assert!(context.is_none(), "AccessDenied should have no context");
     }

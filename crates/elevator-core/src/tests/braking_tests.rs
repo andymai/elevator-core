@@ -8,8 +8,8 @@ use crate::stop::StopId;
 use super::helpers::{default_config, scan};
 
 /// Grab the first elevator in a sim.
-fn first_elevator(sim: &Simulation) -> crate::entity::EntityId {
-    sim.world().elevator_ids()[0]
+fn first_elevator(sim: &Simulation) -> crate::entity::ElevatorId {
+    crate::entity::ElevatorId::from(sim.world().elevator_ids()[0])
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn braking_distance_rejects_nonpositive_deceleration() {
 fn sim_braking_distance_stationary_elevator_is_zero() {
     let sim = Simulation::new(&default_config(), scan()).unwrap();
     let elev = first_elevator(&sim);
-    assert_eq!(sim.braking_distance(elev), Some(0.0));
+    assert_eq!(sim.braking_distance(elev.entity()), Some(0.0));
 }
 
 #[test]
@@ -51,15 +51,15 @@ fn sim_braking_distance_nonzero_while_moving() {
         sim.step();
         let is_moving = sim
             .world()
-            .elevator(elev)
+            .elevator(elev.entity())
             .is_some_and(|c| matches!(c.phase(), ElevatorPhase::MovingToStop(_)));
-        let vel = sim.world().velocity(elev).map_or(0.0, |v| v.value);
+        let vel = sim.world().velocity(elev.entity()).map_or(0.0, |v| v.value);
         if is_moving && vel.abs() > 0.5 {
             break;
         }
     }
 
-    let d = sim.braking_distance(elev).expect("is an elevator");
+    let d = sim.braking_distance(elev.entity()).expect("is an elevator");
     assert!(d > 0.0, "expected nonzero braking distance while moving");
 }
 
@@ -67,8 +67,8 @@ fn sim_braking_distance_nonzero_while_moving() {
 fn sim_future_stop_position_stationary_equals_current() {
     let sim = Simulation::new(&default_config(), scan()).unwrap();
     let elev = first_elevator(&sim);
-    let pos = sim.world().position(elev).unwrap().value;
-    assert_eq!(sim.future_stop_position(elev), Some(pos));
+    let pos = sim.world().position(elev.entity()).unwrap().value;
+    assert_eq!(sim.future_stop_position(elev.entity()), Some(pos));
 }
 
 #[test]
@@ -79,14 +79,14 @@ fn sim_future_stop_position_ahead_while_moving_up() {
     let elev = first_elevator(&sim);
     for _ in 0..500 {
         sim.step();
-        let vel = sim.world().velocity(elev).map_or(0.0, |v| v.value);
+        let vel = sim.world().velocity(elev.entity()).map_or(0.0, |v| v.value);
         if vel > 0.5 {
             break;
         }
     }
 
-    let pos = sim.world().position(elev).unwrap().value;
-    let future = sim.future_stop_position(elev).unwrap();
+    let pos = sim.world().position(elev.entity()).unwrap().value;
+    let future = sim.future_stop_position(elev.entity()).unwrap();
     assert!(
         future > pos,
         "future stop position {future} should be above current {pos} while moving up",
@@ -97,6 +97,6 @@ fn sim_future_stop_position_ahead_while_moving_up() {
 fn sim_braking_distance_none_for_non_elevator() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
-    assert_eq!(sim.braking_distance(rider), None);
-    assert_eq!(sim.future_stop_position(rider), None);
+    assert_eq!(sim.braking_distance(rider.entity()), None);
+    assert_eq!(sim.future_stop_position(rider.entity()), None);
 }
