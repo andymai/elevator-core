@@ -1,5 +1,16 @@
 # Changelog
 
+## [12.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v11.0.0...elevator-core-v12.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* typed ElevatorId and RiderId for compile-time entity safety ([#159](https://github.com/andymai/elevator-core/issues/159))
+
+### Features
+
+* typed ElevatorId and RiderId for compile-time entity safety ([#159](https://github.com/andymai/elevator-core/issues/159)) ([6a6e613](https://github.com/andymai/elevator-core/commit/6a6e6132be9f47c441a2a480187b030dc1edab75))
+
 ## [11.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v10.0.0...elevator-core-v11.0.0) (2026-04-16)
 
 
