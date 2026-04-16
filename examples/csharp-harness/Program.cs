@@ -58,6 +58,76 @@ internal static class Native
         public EvMetricsView metrics;
     }
 
+    // Matches crates/elevator-ffi/src/lib.rs::EvElevatorView.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct EvElevatorView
+    {
+        public ulong entity_id;
+        public uint group_id;
+        public ulong line_id;
+        public byte phase;
+        public double position;
+        public double velocity;
+        public ulong current_stop_id;
+        public ulong target_stop_id;
+        public uint occupancy;
+        public double capacity_kg;
+        public byte door_state;
+    }
+
+    // Matches crates/elevator-ffi/src/lib.rs::EvStopView.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct EvStopView
+    {
+        public ulong entity_id;
+        public uint stop_id;
+        public double position;
+        public uint waiting;
+        public uint residents;
+        public uint abandoned;
+        public IntPtr name_ptr;
+        public UIntPtr name_len;
+    }
+
+    // Matches crates/elevator-ffi/src/lib.rs::EvHallCall.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct EvHallCall
+    {
+        public ulong stop_entity_id;
+        public sbyte direction;
+        public ulong press_tick;
+        public ulong acknowledged_at;
+        public ulong assigned_car;
+        public ulong destination_entity_id;
+        public byte pinned;
+        public uint pending_rider_count;
+    }
+
+    // Kind discriminator values for EvEvent. See crates/elevator-ffi/src/lib.rs::ev_event_kind.
+    public const byte EV_HALL_BUTTON_PRESSED = 1;
+    public const byte EV_HALL_CALL_ACKNOWLEDGED = 2;
+    public const byte EV_HALL_CALL_CLEARED = 3;
+    public const byte EV_CAR_BUTTON_PRESSED = 4;
+    public const byte EV_RIDER_BALKED = 5;
+
+    // Explicit layout so the 6 bytes of padding before `tick`
+    // (natural u64 alignment on the Rust #[repr(C)] side) are
+    // reserved here too, rather than relying on the CLR's default
+    // Sequential packing rules matching by coincidence across all
+    // three target ABIs.
+    [StructLayout(LayoutKind.Explicit, Size = 48)]
+    public struct EvEvent
+    {
+        [FieldOffset(0)] public byte kind;
+        [FieldOffset(1)] public sbyte direction;
+        // bytes 2..8 are padding (reserved for alignment)
+        [FieldOffset(8)] public ulong tick;
+        [FieldOffset(16)] public ulong stop;
+        [FieldOffset(24)] public ulong car;
+        [FieldOffset(32)] public ulong rider;
+        [FieldOffset(40)] public ulong floor;
+    }
+
     [DllImport(Lib)] public static extern uint ev_abi_version();
     [DllImport(Lib)] public static extern IntPtr ev_last_error();
     [DllImport(Lib)] public static extern IntPtr ev_sim_create([MarshalAs(UnmanagedType.LPUTF8Str)] string path);
@@ -65,6 +135,15 @@ internal static class Native
     [DllImport(Lib)] public static extern EvStatus ev_sim_step(IntPtr handle);
     [DllImport(Lib)] public static extern EvStatus ev_sim_frame(IntPtr handle, out EvFrame outFrame);
     [DllImport(Lib)] public static extern EvStatus ev_sim_set_strategy(IntPtr handle, uint groupId, EvStrategy strategy);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_drain_events(
+        IntPtr handle, [Out] EvEvent[] outBuf, uint capacity, out uint outWritten);
+    [DllImport(Lib)] public static extern EvStatus ev_sim_press_hall_button(IntPtr handle, ulong stopEntityId, sbyte direction);
+    [DllImport(Lib)] public static extern EvStatus ev_sim_pin_assignment(IntPtr handle, ulong carEntityId, ulong stopEntityId, sbyte direction);
+    [DllImport(Lib)] public static extern uint ev_sim_hall_call_count(IntPtr handle);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_sim_hall_calls_snapshot(
+        IntPtr handle, [Out] EvHallCall[] outBuf, uint capacity, out uint outWritten);
 
     public static string LastError()
     {
@@ -110,6 +189,73 @@ internal static class Program
 
         try
         {
+            // Exercise the hall-call ABI before the main tick loop.
+            // Take one step first so the frame's elevator/stop arrays
+            // are populated, then press and pin a call at stops[1].
+            var bootFrame = new Native.EvFrame();
+            var bootStatus = Native.ev_sim_frame(handle, out bootFrame);
+            if (bootStatus != Native.EvStatus.Ok)
+            {
+                Console.Error.WriteLine($"ev_sim_frame (boot): {bootStatus} ({Native.LastError()})");
+                return 1;
+            }
+            if ((ulong)bootFrame.stop_count >= 2 && (ulong)bootFrame.elevator_count >= 1)
+            {
+                // Grab the second stop + first car by reading the
+                // borrowed arrays. Frame-view lifetime is "valid until
+                // next ev_sim_frame call on the same handle"; we're
+                // within that window here.
+                var stopSize = Marshal.SizeOf<Native.EvStopView>();
+                var stop1Ptr = bootFrame.stops + stopSize;
+                var stop1 = Marshal.PtrToStructure<Native.EvStopView>(stop1Ptr);
+                var car0 = Marshal.PtrToStructure<Native.EvElevatorView>(bootFrame.elevators);
+
+                const sbyte Up = 1;
+                var pressSt = Native.ev_sim_press_hall_button(handle, stop1.entity_id, Up);
+                if (pressSt != Native.EvStatus.Ok)
+                {
+                    Console.Error.WriteLine($"ev_sim_press_hall_button: {pressSt} ({Native.LastError()})");
+                    return 1;
+                }
+                var pinSt = Native.ev_sim_pin_assignment(handle, car0.entity_id, stop1.entity_id, Up);
+                if (pinSt != Native.EvStatus.Ok)
+                {
+                    Console.Error.WriteLine($"ev_sim_pin_assignment: {pinSt} ({Native.LastError()})");
+                    return 1;
+                }
+
+                // Verify the call is visible via the hall-call snapshot API.
+                var hcBuf = new Native.EvHallCall[8];
+                var snapSt = Native.ev_sim_hall_calls_snapshot(
+                    handle, hcBuf, (uint)hcBuf.Length, out var hcWritten);
+                if (snapSt != Native.EvStatus.Ok)
+                {
+                    Console.Error.WriteLine($"ev_sim_hall_calls_snapshot: {snapSt} ({Native.LastError()})");
+                    return 1;
+                }
+                var pinnedSeen = false;
+                for (var i = 0; i < (int)hcWritten; i++)
+                {
+                    if (hcBuf[i].stop_entity_id == stop1.entity_id
+                        && hcBuf[i].direction == Up
+                        && hcBuf[i].pinned == 1)
+                    {
+                        pinnedSeen = true;
+                        break;
+                    }
+                }
+                if (!pinnedSeen)
+                {
+                    Console.Error.WriteLine("snapshot did not surface the pinned hall call");
+                    return 1;
+                }
+                Console.WriteLine($"  hall-call API OK: pressed Up at stop {stop1.entity_id}, pinned car {car0.entity_id}, snapshot count {hcWritten}");
+            }
+            else
+            {
+                Console.WriteLine("  hall-call API skipped: config has <2 stops or 0 elevators");
+            }
+
             for (var i = 0; i < TICKS; i++)
             {
                 var st = Native.ev_sim_step(handle);
@@ -135,6 +281,19 @@ internal static class Program
             Console.WriteLine($"  abandoned: {frame.metrics.total_abandoned}");
             Console.WriteLine($"  avg wait:  {frame.metrics.avg_wait_seconds:F2}s");
             Console.WriteLine($"  avg ride:  {frame.metrics.avg_ride_seconds:F2}s");
+
+            // Exercise the event-drain ABI. The default config doesn't
+            // auto-spawn riders so the drained count may legitimately be
+            // zero — the point is to prove the struct layout and status
+            // code wire up across the boundary.
+            var eventBuf = new Native.EvEvent[64];
+            var evStatus = Native.ev_sim_drain_events(handle, eventBuf, (uint)eventBuf.Length, out var drained);
+            if (evStatus != Native.EvStatus.Ok)
+            {
+                Console.Error.WriteLine($"ev_sim_drain_events: {evStatus} ({Native.LastError()})");
+                return 1;
+            }
+            Console.WriteLine($"  drained events: {drained}");
 
             if (frame.metrics.current_tick == 0)
             {
