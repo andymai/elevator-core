@@ -70,10 +70,8 @@ jobs:
 
   ffi-harness:
     name: FFI smoke test (${{ matrix.os }})
-    if: |
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.user.login != 'release-kun[bot]' ||
-      !startsWith(github.event.pull_request.title, 'chore(main): release')
+    # Cross-platform FFI builds are slow — only run after merge to main.
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
