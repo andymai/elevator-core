@@ -139,7 +139,7 @@ fn two_cars_same_group_config() -> SimConfig {
                 lines: vec![1],
                 dispatch: crate::dispatch::BuiltinStrategy::Destination,
                 reposition: None,
-                hall_call_mode: None,
+                hall_call_mode: Some(crate::dispatch::HallCallMode::Destination),
                 ack_latency_ticks: None,
             }]),
         },
@@ -159,6 +159,11 @@ fn two_cars_same_group_config() -> SimConfig {
 #[test]
 fn sticky_assignment_persists_across_ticks() {
     let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
+    // single_car_config has no explicit groups, so Simulation::new creates
+    // a default group in Classic mode. DCS requires Destination.
+    for g in sim.groups_mut() {
+        g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+    }
     sim.world_mut()
         .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
 
@@ -269,6 +274,9 @@ fn unassigned_manual_board_riders_still_work() {
     // (attach rider via `build_rider_by_stop_id` with no destination) must
     // be preserved.
     let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
+    for g in sim.groups_mut() {
+        g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+    }
     sim.world_mut()
         .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
 
@@ -377,4 +385,36 @@ fn up_peak_scenario_delivers_all_riders() {
         );
     }
     assert_eq!(sim.metrics().total_delivered(), 20);
+}
+
+/// `DestinationDispatch` must be a no-op when the group is in
+/// `HallCallMode::Classic` — running DCS there would commit
+/// assignments based on post-board destinations a real collective-
+/// control controller wouldn't yet know. Regression guard against
+/// accidentally re-enabling DCS in Classic groups.
+#[test]
+fn dcs_gated_to_destination_mode() {
+    let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
+    // Leave the group in its default Classic mode — DCS should skip.
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Classic,
+        "default group mode should still be Classic for this test",
+    );
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_EXT_NAME);
+
+    let rid = sim
+        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
+        .unwrap();
+
+    // Step enough ticks that DCS would have assigned by now in Destination
+    // mode. In Classic it stays None because pre_dispatch early-returns.
+    for _ in 0..10 {
+        sim.step();
+    }
+    assert!(
+        sim.world().get_ext::<AssignedCar>(rid).is_none(),
+        "DCS must not assign when group is in Classic mode",
+    );
 }
