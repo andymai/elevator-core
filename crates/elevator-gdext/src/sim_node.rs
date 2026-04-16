@@ -151,6 +151,8 @@ impl ElevatorSim {
 
     /// Spawn a rider with full preferences and patience.
     /// Returns the rider entity ID (i64), or -1 on failure.
+    /// Pass `max_wait_ticks < 0` to skip attaching a Patience component
+    /// (the rider uses default patience behavior).
     #[func]
     fn spawn_rider_ex(
         &mut self,
@@ -195,8 +197,12 @@ impl ElevatorSim {
     }
 
     /// Remove a rider from the simulation.
+    /// Pass the entity ID returned by spawn_rider; negative IDs are rejected.
     #[func]
     fn despawn_rider(&mut self, rider_entity_id: i64) -> bool {
+        if rider_entity_id < 0 {
+            return false;
+        }
         let Some(sim) = self.sim.as_mut() else {
             return false;
         };
@@ -488,24 +494,31 @@ impl ElevatorSim {
     ) {
         use rand::RngExt;
 
-        if *ticks_until_spawn <= steps {
-            let stop_ids: Vec<_> = sim.world().stop_ids();
-            if stop_ids.len() < 2 {
-                return;
-            }
-            let mut rng = rand::rng();
-            let origin_idx = rng.random_range(0..stop_ids.len());
-            let mut dest_idx = rng.random_range(0..stop_ids.len());
-            while dest_idx == origin_idx {
-                dest_idx = rng.random_range(0..stop_ids.len());
-            }
-            let weight = rng.random_range(weight_min..weight_max);
-            let _ = sim.spawn_rider(stop_ids[origin_idx], stop_ids[dest_idx], weight);
+        let stop_ids: Vec<_> = sim.world().stop_ids();
+        if stop_ids.len() < 2 {
+            return;
+        }
+        let mut rng = rand::rng();
+        let mut remaining = steps;
 
-            let jitter = rng.random_range(0.5f64..1.5);
-            *ticks_until_spawn = (f64::from(mean_interval) * jitter) as u32;
-        } else {
-            *ticks_until_spawn -= steps;
+        loop {
+            if *ticks_until_spawn <= remaining {
+                remaining -= *ticks_until_spawn;
+
+                let origin_idx = rng.random_range(0..stop_ids.len());
+                let mut dest_idx = rng.random_range(0..stop_ids.len());
+                while dest_idx == origin_idx {
+                    dest_idx = rng.random_range(0..stop_ids.len());
+                }
+                let weight = rng.random_range(weight_min..weight_max);
+                let _ = sim.spawn_rider(stop_ids[origin_idx], stop_ids[dest_idx], weight);
+
+                let jitter = rng.random_range(0.5f64..1.5);
+                *ticks_until_spawn = (f64::from(mean_interval) * jitter) as u32;
+            } else {
+                *ticks_until_spawn -= remaining;
+                break;
+            }
         }
     }
 }

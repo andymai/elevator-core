@@ -83,22 +83,27 @@ func _draw() -> void:
 
 	# Draw riders.
 	var rider_count := sim.rider_count()
+	var stop_waiting_count: Dictionary = {}  # stop entity_id -> int
 	for i in range(rider_count):
 		var r: Dictionary = sim.get_rider(i)
 		var phase: int = r.get("phase", -1)
 		# Only draw waiting riders (phase 0) at their stop.
 		if phase == 0:  # Waiting
-			# Find the stop position for this rider.
 			var stop_eid: int = r.get("current_stop", 0)
 			if stop_eid == 0:
 				continue
 			for s in stops:
 				if s.get("entity_id", 0) == stop_eid:
 					var pos_y := _sim_to_screen_y(s.get("position", 0.0), min_pos)
-					# Offset riders to the left of the shaft, spread by index.
-					var offset_x := SHAFT_X - SHAFT_WIDTH / 2 - 20 - (i % 5) * (RIDER_SIZE + 2)
+					# Use per-stop counter to avoid overlapping riders.
+					var local_i: int = stop_waiting_count.get(stop_eid, 0)
+					stop_waiting_count[stop_eid] = local_i + 1
+					var row := local_i / 5
+					var col := local_i % 5
+					var offset_x := SHAFT_X - SHAFT_WIDTH / 2 - 20 - col * (RIDER_SIZE + 2)
+					var offset_y := row * (RIDER_SIZE + 2)
 					draw_rect(
-						Rect2(offset_x - RIDER_SIZE / 2, pos_y - RIDER_SIZE / 2, RIDER_SIZE, RIDER_SIZE),
+						Rect2(offset_x - RIDER_SIZE / 2, pos_y - RIDER_SIZE / 2 - offset_y, RIDER_SIZE, RIDER_SIZE),
 						COLOR_WAITING
 					)
 					break
