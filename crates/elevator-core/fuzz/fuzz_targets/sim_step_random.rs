@@ -94,7 +94,7 @@ fuzz_target!(|data: &[u8]| {
                     dest_raw
                 };
                 i += 2;
-                if let Ok(eid) = sim.spawn_rider_by_stop_id(
+                if let Ok(eid) = sim.spawn_rider(
                     StopId(origin),
                     StopId(dest),
                     75.0,

@@ -144,12 +144,9 @@ fn main() {
         BuiltinStrategy::Custom("idle_penalty".into()),
     );
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(0), 72.0)
-        .unwrap();
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(1), 80.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(1), StopId(0), 72.0).unwrap();
+    sim.spawn_rider(StopId(2), StopId(1), 80.0).unwrap();
 
     // Hall-call layer demo: script a phantom hall-call press with no
     // spawned rider behind it — the kind of event a building-sim

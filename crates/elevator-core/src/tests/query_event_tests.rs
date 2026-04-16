@@ -31,9 +31,7 @@ fn is_stop_returns_true_for_stops() {
 #[test]
 fn is_rider_returns_true_for_riders() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
     assert!(sim.is_rider(rider));
     assert!(!sim.is_elevator(rider));
     assert!(!sim.is_stop(rider));
@@ -50,8 +48,7 @@ fn idle_elevator_count_starts_at_one() {
 #[test]
 fn idle_elevator_count_decreases_when_moving() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 
     // Run until the elevator starts moving.
     for _ in 0..500 {
@@ -117,9 +114,7 @@ fn disabled_elevators_excluded_from_counts() {
 #[test]
 fn capacity_changed_emitted_on_disable_with_load() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 
     // Run until the rider is aboard.
     for _ in 0..500 {
@@ -169,8 +164,7 @@ fn capacity_changed_emitted_on_disable_with_load() {
 #[test]
 fn capacity_changed_emitted_on_boarding() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 
     // Run until we see a CapacityChanged event.
     let mut found_capacity_event = false;
@@ -201,8 +195,7 @@ fn capacity_changed_emitted_on_boarding() {
 #[test]
 fn capacity_changed_emitted_on_exit() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
 
     // Run until rider is delivered, collecting CapacityChanged events.
     let mut capacity_events = Vec::new();

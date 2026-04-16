@@ -199,9 +199,7 @@ fn set_door_open_ticks_rejects_zero() {
 fn set_on_non_elevator_returns_invalid_state() {
     let (mut sim, _elev) = make_sim();
     // Spawning a rider produces an EntityId that is not an elevator.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     let err = sim.set_max_speed(rider, 4.0).unwrap_err();
     assert!(matches!(err, SimError::NotAnElevator(_)));
 }
@@ -311,9 +309,7 @@ fn door_open_ticks_change_does_not_affect_in_progress_cycle() {
 fn weight_capacity_below_current_load_still_applies() {
     let (mut sim, elev) = make_sim();
     // Get a rider boarded.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 200.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 200.0).unwrap();
     let mut boarded = false;
     for _ in 0..500 {
         sim.step();

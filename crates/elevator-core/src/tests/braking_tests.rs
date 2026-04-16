@@ -43,8 +43,7 @@ fn sim_braking_distance_stationary_elevator_is_zero() {
 #[test]
 fn sim_braking_distance_nonzero_while_moving() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Step until the elevator has picked up speed.
     let elev = first_elevator(&sim);
@@ -75,8 +74,7 @@ fn sim_future_stop_position_stationary_equals_current() {
 #[test]
 fn sim_future_stop_position_ahead_while_moving_up() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let elev = first_elevator(&sim);
     for _ in 0..500 {
@@ -98,9 +96,7 @@ fn sim_future_stop_position_ahead_while_moving_up() {
 #[test]
 fn sim_braking_distance_none_for_non_elevator() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     assert_eq!(sim.braking_distance(rider), None);
     assert_eq!(sim.future_stop_position(rider), None);
 }

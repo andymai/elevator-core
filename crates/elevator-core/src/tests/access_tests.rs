@@ -18,7 +18,7 @@ fn rider_rejected_by_elevator_restriction() {
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
     // Rider wants to go from Ground to Floor 3 (restricted).
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+    sim.spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
 
     let mut all_events = Vec::new();
@@ -54,7 +54,7 @@ fn rider_rejected_by_rider_access_control() {
 
     // Spawn rider to Floor 3.
     let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
 
     // Set rider access to only allow Ground and Floor 2 — NOT Floor 3.
@@ -91,7 +91,7 @@ fn rider_boards_without_restrictions() {
     let mut sim =
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+    sim.spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
 
     for _ in 0..2000 {
@@ -115,7 +115,7 @@ fn rider_boards_when_destination_in_allowed_stops() {
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
     let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
 
     // Allow all three stops.
@@ -149,7 +149,7 @@ fn restriction_does_not_affect_unrestricted_destinations() {
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
     // Rider going to Floor 2 (not restricted).
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+    sim.spawn_rider(StopId(0), StopId(1), 70.0)
         .expect("spawn should succeed");
 
     for _ in 0..2000 {
@@ -180,7 +180,7 @@ fn both_restriction_types_work_in_same_sim() {
 
     // Rider 1: going to Floor 2 (elevator-restricted). Test alone first.
     let rider1 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
+        .spawn_rider(StopId(0), StopId(1), 70.0)
         .expect("spawn should succeed");
 
     let mut events_phase1 = Vec::new();
@@ -209,7 +209,7 @@ fn both_restriction_types_work_in_same_sim() {
 
     // Rider 2: going to Floor 3 with access control that doesn't include Floor 3.
     let rider2 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
     let stop0 = sim.stop_entity(StopId(0)).expect("stop 0 exists");
     let stop1 = sim.stop_entity(StopId(1)).expect("stop 1 exists");
@@ -248,7 +248,7 @@ fn rejection_event_has_access_denied_reason() {
         crate::sim::Simulation::new(&config, helpers::scan()).expect("config should be valid");
 
     let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
+        .spawn_rider(StopId(0), StopId(2), 70.0)
         .expect("spawn should succeed");
 
     let mut all_events = Vec::new();

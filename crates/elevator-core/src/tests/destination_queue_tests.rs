@@ -35,8 +35,7 @@ fn dispatch_populates_queue() {
     let mut sim = build_sim();
     // Spawn rider traveling from stop 1 (not elevator's start) to stop 2,
     // so dispatch has to send the car somewhere — triggering a queue push.
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
     sim.step();
     let elev = first_elevator(&sim);
     let queue = sim.destination_queue(elev).unwrap();
@@ -50,8 +49,7 @@ fn dispatch_populates_queue() {
 #[test]
 fn queue_pops_on_arrival() {
     let mut sim = build_sim();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     // Run enough ticks for the elevator to reach stop 2.
     for _ in 0..2000 {
         sim.step();
@@ -208,8 +206,7 @@ fn destination_queued_event_fires_on_push() {
     // One push via sim helper (top stop — elevator is at stop 0).
     sim.push_destination(elev, s2).unwrap();
     // Second push via dispatch: rider at stop 1 triggers a GoToStop(s1) push.
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
     sim.step();
 
     let events = sim.drain_events();
@@ -269,9 +266,7 @@ fn push_destination_errors_on_non_elevator() {
     let mut sim = build_sim();
     let s1 = sim.stop_entity(StopId(1)).unwrap();
     // Spawn a rider entity — not an elevator.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     let result = sim.push_destination(rider, s1);
     assert!(matches!(result, Err(SimError::NotAnElevator(_))));
 }
@@ -297,8 +292,7 @@ fn redirect_via_push_front_updates_direction_indicators() {
     let elev = first_elevator(&sim);
 
     // Dispatch sends the elevator upward toward stop 2.
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
     // Let dispatch push to the queue and the elevator begin moving up.
     for _ in 0..20 {
         sim.step();

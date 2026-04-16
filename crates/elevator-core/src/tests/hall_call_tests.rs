@@ -12,9 +12,7 @@ use super::helpers::{default_config, scan};
 #[test]
 fn spawn_rider_auto_presses_hall_button() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let rid = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
     assert_eq!(call.direction, CallDirection::Up);
@@ -40,13 +38,9 @@ fn spawn_rider_auto_presses_hall_button() {
 #[test]
 fn multiple_riders_aggregate_into_one_hall_call() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    let r1 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.drain_events();
-    let r2 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
     assert!(call.pending_riders.contains(&r1));
@@ -162,8 +156,7 @@ fn destination_mode_records_destination_on_call() {
     }
     let origin = sim.stop_entity(StopId(0)).unwrap();
     let dest = sim.stop_entity(StopId(2)).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
     assert_eq!(
         call.destination,
@@ -177,8 +170,7 @@ fn destination_mode_records_destination_on_call() {
 #[test]
 fn public_call_queries_return_active_calls() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // One hall call registered at the origin going up.
     let count = sim.hall_calls().count();
     assert_eq!(count, 1);
@@ -193,8 +185,7 @@ fn public_call_queries_return_active_calls() {
 #[test]
 fn car_call_removed_on_exit() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let car = sim.world().elevator_ids()[0];
 
     // Run until the rider reaches Arrived.
@@ -245,8 +236,7 @@ fn pinned_pin_does_not_clobber_loading_car() {
     use crate::components::ElevatorPhase;
 
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // Run until the car reaches Loading phase at some stop.
     let car = sim.world().elevator_ids()[0];
     let mut loading_stop: Option<EntityId> = None;
@@ -288,7 +278,7 @@ fn abandon_on_full_abandons_immediately() {
 
     // Rider with abandon_on_full who skips anything with load > 0.5.
     let picky = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .weight(30.0)
         .preferences(Preferences::default().with_abandon_on_full(true))
@@ -347,7 +337,7 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let picky = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .weight(30.0)
         .preferences(Preferences::default())
@@ -509,8 +499,7 @@ fn shared_stop_attributes_call_to_first_group() {
     // here as the one-group variant is sufficient until a public API
     // for overlapping groups is added.
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(1)).unwrap();
     let calls: Vec<_> = sim.hall_calls().collect();
     assert_eq!(calls.len(), 1, "one call per (stop, direction)");
@@ -524,8 +513,7 @@ fn shared_stop_attributes_call_to_first_group() {
 #[test]
 fn reassignment_does_not_spam_elevator_assigned() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.drain_events();
     // Step enough ticks to let dispatch commit + keep the car moving
     // (it won't arrive instantly). Count ElevatorAssigned emissions.
@@ -549,8 +537,7 @@ fn reassignment_does_not_spam_elevator_assigned() {
 #[test]
 fn zero_latency_acknowledges_immediately() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
     let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
     assert_eq!(
@@ -575,8 +562,7 @@ fn pinned_call_forces_specific_car() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     // Spawn a rider at StopId(1) going up to StopId(2) — auto-presses
     // the hall call at the origin.
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(1)).unwrap();
     // Pin the call to elevator 0 even though SCAN would pick whichever
     // car is closest.
@@ -607,8 +593,7 @@ fn pinned_call_forces_specific_car() {
 #[test]
 fn door_opening_clears_hall_call() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
     assert!(sim.world().hall_call(origin, CallDirection::Up).is_some());
 
@@ -756,8 +741,7 @@ fn custom_strategy_reads_hall_calls_from_manifest() {
     // Spawning a rider auto-presses the up-button at stop 0 AND
     // registers waiting demand there, so `dispatch::assign` will
     // consider stop 0 a candidate and call `rank` for it.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // One tick runs dispatch, building the manifest with the pressed
     // hall call at stop 0 and calling `rank(car, stop)` for every
@@ -810,8 +794,7 @@ fn custom_strategy_reads_car_calls_from_manifest() {
     // Spawn a rider — they press the hall call (creating dispatch demand)
     // and on boarding will press a car button, which the strategy sees
     // through `car_calls_for` as soon as dispatch runs next.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // Step until the rider boards and a car call exists; then one
     // further step triggers a dispatch pass with the car call visible.
     let car = sim.world().elevator_ids()[0];
@@ -878,8 +861,7 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
     // Spawn the rider at a stop the car isn't already parked at, so
     // the car must travel — giving ack-latency time to elapse before
     // the call is cleared on arrival.
-    sim.spawn_rider_by_stop_id(StopId(1), StopId(0), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(1), StopId(0), 70.0).unwrap();
     // One tick: call exists under ack-latency, not yet acknowledged.
     sim.step();
     assert!(

@@ -81,8 +81,7 @@ fn two_elevators_both_serve_demand() {
 
     // Spawn riders going to different floors.
     for _ in 0..5 {
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-            .unwrap();
+        sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     }
 
     // Run until all arrive.
@@ -110,9 +109,7 @@ fn disable_elevator_mid_route_ejects_riders() {
     let config = two_elevator_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Run until rider boards.
     let mut boarded_elevator = None;

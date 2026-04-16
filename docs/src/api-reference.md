@@ -82,11 +82,8 @@ The core simulation state. Advance it by calling `step()`, or run individual pha
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `spawn_rider` | `(&mut self, EntityId, EntityId, f64) -> Result<EntityId, SimError>` | Spawn a rider at origin heading to destination; auto-detects group (returns `AmbiguousRoute` if multiple groups serve both stops) |
-| `spawn_rider_with_route` | `(&mut self, EntityId, EntityId, f64, Route) -> Result<EntityId, SimError>` | Spawn a rider with an explicit route |
-| `spawn_rider_by_stop_id` | `(&mut self, StopId, StopId, f64) -> Result<EntityId, SimError>` | Spawn a rider using config `StopId`s |
-| `spawn_rider_in_group` | `(&mut self, EntityId, EntityId, f64, GroupId) -> Result<EntityId, SimError>` | Spawn a rider in a specific group |
-| `spawn_rider_in_group_by_stop_id` | `(&mut self, StopId, StopId, f64, GroupId) -> Result<EntityId, SimError>` | Spawn a rider in a specific group using config `StopId`s |
+| `spawn_rider` | `(&mut self, impl Into<StopRef>, impl Into<StopRef>, f64) -> Result<EntityId, SimError>` | Spawn a rider at origin heading to destination; auto-detects group (accepts `EntityId` or `StopId`) |
+| `build_rider` | `(&mut self, impl Into<StopRef>, impl Into<StopRef>) -> Result<RiderBuilder, SimError>` | Fluent builder for riders with route, group, patience, preferences, or access control |
 | `reroute` | `(&mut self, EntityId, EntityId) -> Result<(), SimError>` | Change a waiting rider's destination |
 | `set_rider_route` | `(&mut self, EntityId, Route) -> Result<(), SimError>` | Replace a rider's entire remaining route |
 

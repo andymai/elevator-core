@@ -276,7 +276,7 @@ proptest! {
         };
 
         for _ in 0..rider_count {
-            sim.spawn_rider_by_stop_id(StopId(0), StopId(1), next_weight()).unwrap();
+            sim.spawn_rider(StopId(0), StopId(1), next_weight()).unwrap();
         }
 
         // Run enough ticks for loading to happen.
@@ -325,7 +325,7 @@ proptest! {
             if dest == origin {
                 dest = StopId((origin.0 + 1) % stop_count);
             }
-            sim.spawn_rider_by_stop_id(origin, dest, 70.0).unwrap();
+            sim.spawn_rider(origin, dest, 70.0).unwrap();
         }
 
         for _ in 0..5000 {

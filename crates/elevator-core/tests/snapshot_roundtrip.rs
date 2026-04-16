@@ -13,8 +13,7 @@ fn snapshot_roundtrip_preserves_state() {
 
     // Spawn riders and run for a while.
     for _ in 0..3 {
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-            .unwrap();
+        sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     }
     for _ in 0..100 {
         sim.step();
@@ -49,8 +48,7 @@ fn snapshot_roundtrip_remaps_repositioning_phase() {
         .unwrap();
 
     // Send the elevator to the top, then wait for it to reposition back.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     // Run until the elevator is in Repositioning phase.
     let elev = sim.world().elevator_ids()[0];
     let mut saw_repositioning = false;

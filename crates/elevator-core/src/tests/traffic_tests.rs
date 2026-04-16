@@ -394,7 +394,7 @@ fn poisson_source_integration_with_simulation() {
     for _ in 0..500 {
         let tick = sim.current_tick();
         for req in source.generate(tick) {
-            let _ = sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight);
+            let _ = sim.spawn_rider(req.origin, req.destination, req.weight);
         }
         sim.step();
     }

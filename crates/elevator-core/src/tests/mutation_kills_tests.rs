@@ -49,8 +49,7 @@ fn run_until_all_delivered(sim: &mut Simulation, count: u64, max_ticks: u64) -> 
 #[test]
 fn metrics_records_spawn_board_delivery_in_sequence() {
     let mut sim = three_stop_sim();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 72.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 72.0).unwrap();
 
     run_until_all_delivered(&mut sim, 1, 2000);
 
@@ -67,16 +66,12 @@ fn metrics_records_spawn_board_delivery_in_sequence() {
 #[test]
 fn metrics_accumulates_distance_proportional_to_run_length() {
     let mut sim_short = three_stop_sim();
-    sim_short
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)
-        .unwrap();
+    sim_short.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
     run_until_all_delivered(&mut sim_short, 1, 2000);
     let short_dist = sim_short.metrics().total_distance();
 
     let mut sim_long = three_stop_sim();
-    sim_long
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim_long.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     run_until_all_delivered(&mut sim_long, 1, 2000);
     let long_dist = sim_long.metrics().total_distance();
 
@@ -98,7 +93,7 @@ fn metrics_records_abandonment() {
     // Seed a rider with zero patience. A real sim normally spawns via the
     // builder, but for abandonment testing we set patience directly.
     let rid = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .patience(1)
         .spawn()
@@ -275,8 +270,7 @@ fn etd_prefers_closer_elevator_to_call() {
     let _elev_a = sim.groups()[0].elevator_entities()[0];
 
     // Spawn rider at stop 2 going down to stop 0.
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
 
     // Step once so dispatch assigns.
     sim.step();
@@ -304,8 +298,7 @@ fn etd_infinity_cost_path_exists() {
     let mut sim = Simulation::new(&config, EtdDispatch::new()).unwrap();
     sim.drain_events();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.step();
     // Should not panic or emit NaN cost events — just a successful
     // ElevatorAssigned.
@@ -328,8 +321,7 @@ fn loading_accepts_rider_exactly_at_capacity() {
 
     // Elevator has 800 kg default capacity. Rider at exactly 800.0
     // should be accepted (<=) not rejected (<).
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 800.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 800.0).unwrap();
 
     for _ in 0..2000 {
         sim.step();
@@ -357,7 +349,7 @@ fn loading_preference_boundary_allows_exact_match() {
     // Elevator empty: load_ratio = 0.0. Rider with max_crowding_factor
     // = 0.0 should still board (not skip_full_elevator).
     let rider = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .preferences(Preferences {
             skip_full_elevator: true,

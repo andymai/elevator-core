@@ -37,9 +37,7 @@ fn run_until_abandoned(sim: &mut Simulation, rider_id: crate::entity::EntityId) 
 fn settle_from_arrived() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     run_until_arrived(&mut sim, rider);
 
@@ -67,9 +65,7 @@ fn settle_from_arrived() {
 fn settle_from_abandoned() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Give very short patience so rider abandons.
     sim.world_mut().set_patience(
@@ -97,9 +93,7 @@ fn settle_from_abandoned() {
 fn settle_wrong_phase_returns_error() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Rider is Waiting — should fail.
     let result = sim.settle_rider(rider);
@@ -110,9 +104,7 @@ fn settle_wrong_phase_returns_error() {
 fn reroute_resident_to_waiting() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
@@ -145,9 +137,7 @@ fn reroute_resident_to_waiting() {
 fn reroute_wrong_phase_returns_error() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let dest = sim.stop_entity(StopId(2)).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
@@ -162,9 +152,7 @@ fn reroute_wrong_phase_returns_error() {
 fn despawn_rider_removes_from_world_and_index() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
@@ -193,9 +181,7 @@ fn despawn_rider_removes_from_world_and_index() {
 fn despawn_riding_rider_cleans_elevator() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Run until rider is Riding.
     for _ in 0..10_000 {
@@ -239,9 +225,7 @@ fn full_lifecycle_spawn_ride_settle_reroute_ride_despawn() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Trip 1: Ground → Floor 3.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let origin = sim.stop_entity(StopId(0)).unwrap();
     assert!(sim.waiting_at(origin).any(|id| id == rider));
@@ -277,9 +261,7 @@ fn resident_invisible_to_loading_system() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Spawn rider Ground → Floor 3, run until arrived, settle.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
     sim.drain_events();
@@ -303,15 +285,11 @@ fn dispatch_manifest_includes_resident_counts() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Spawn and deliver 2 riders to Floor 3.
-    let r1 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     run_until_arrived(&mut sim, r1);
     sim.settle_rider(r1).unwrap();
 
-    let r2 = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     run_until_arrived(&mut sim, r2);
     sim.settle_rider(r2).unwrap();
 
@@ -324,9 +302,7 @@ fn patience_reset_on_reroute() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.world_mut().set_patience(
         rider,
         crate::components::Patience {
@@ -353,9 +329,7 @@ fn snapshot_roundtrip_preserves_residents() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     run_until_arrived(&mut sim, rider);
     sim.settle_rider(rider).unwrap();
 

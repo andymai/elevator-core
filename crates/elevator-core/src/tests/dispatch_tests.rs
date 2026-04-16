@@ -527,8 +527,7 @@ fn custom_dispatch_strategy() {
         .unwrap();
 
     // Spawn a rider so there's demand.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 
     // Step several times — the elevator should never move since dispatch always returns Idle.
     for _ in 0..100 {

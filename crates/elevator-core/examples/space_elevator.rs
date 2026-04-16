@@ -60,13 +60,11 @@ fn main() {
     // 80 kg astronauts; the climber's 10 000 kg capacity is more than ample.
     let mut spawned = 0_u64;
     for weight in [70.0, 82.0, 95.0] {
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(1), weight)
-            .unwrap();
+        sim.spawn_rider(StopId(0), StopId(1), weight).unwrap();
         spawned += 1;
     }
     for weight in [68.0, 74.0] {
-        sim.spawn_rider_by_stop_id(StopId(1), StopId(0), weight)
-            .unwrap();
+        sim.spawn_rider(StopId(1), StopId(0), weight).unwrap();
         spawned += 1;
     }
 

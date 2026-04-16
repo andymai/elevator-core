@@ -145,7 +145,7 @@ fn main() -> ExitCode {
     let mut sim = SimulationBuilder::from_config(config).build().unwrap();
     for i in 0..args.spawn {
         let weight = 70.0 + f64::from(u32::try_from(i).unwrap_or(0)) * 2.5;
-        sim.spawn_rider_by_stop_id(first, last, weight).unwrap();
+        sim.spawn_rider(first, last, weight).unwrap();
     }
 
     // Dispatch the output writer once. Both sinks go through BufWriter so

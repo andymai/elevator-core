@@ -10,8 +10,7 @@ fn riders_arrive_at_destination() {
 
     // Spawn 5 riders going from ground to top.
     for _ in 0..5 {
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-            .unwrap();
+        sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     }
 
     // Step until all riders arrive or timeout.

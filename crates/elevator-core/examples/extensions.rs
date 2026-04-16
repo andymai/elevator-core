@@ -18,9 +18,7 @@ fn main() {
         .unwrap();
 
     // Spawn a rider and tag them as VIP.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
     sim.world_mut()
         .insert_ext(rider, VipTag { level: 5 }, ExtKey::from_type_name());
 

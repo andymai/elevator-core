@@ -18,7 +18,7 @@
 //! Traffic generation is **external to the simulation loop**. A
 //! [`TrafficSource`](crate::traffic::TrafficSource) produces
 //! [`SpawnRequest`](crate::traffic::SpawnRequest)s each tick; the consumer feeds them into
-//! [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
+//! [`Simulation::spawn_rider`](crate::sim::Simulation::spawn_rider)
 //! (or the [`RiderBuilder`](crate::sim::RiderBuilder) for richer configuration).
 //!
 //! ```rust,ignore
@@ -32,7 +32,7 @@
 //! for _ in 0..10_000 {
 //!     let tick = sim.current_tick();
 //!     for req in source.generate(tick) {
-//!         let _ = sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight);
+//!         let _ = sim.spawn_rider(req.origin, req.destination, req.weight);
 //!     }
 //!     sim.step();
 //! }
@@ -291,7 +291,7 @@ impl TrafficSchedule {
 
 /// A request to spawn a single rider, produced by a [`TrafficSource`].
 ///
-/// Feed these into [`Simulation::spawn_rider_by_stop_id`](crate::sim::Simulation::spawn_rider_by_stop_id)
+/// Feed these into [`Simulation::spawn_rider`](crate::sim::Simulation::spawn_rider)
 /// or the [`RiderBuilder`](crate::sim::RiderBuilder) each tick.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpawnRequest {
@@ -310,7 +310,7 @@ pub struct SpawnRequest {
 ///
 /// ```rust,ignore
 /// for req in source.generate(tick) {
-///     sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight)?;
+///     sim.spawn_rider(req.origin, req.destination, req.weight)?;
 /// }
 /// ```
 ///

@@ -64,9 +64,7 @@ fn reroute_changes_rider_destination() {
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn rider from 0 → 2.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Reroute to stop 1 instead.
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -82,9 +80,7 @@ fn disable_stop_reroutes_affected_riders() {
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     // Spawn rider from 0 → 1.
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 
     // Disable stop 1 — rider should be rerouted to nearest alternative (stop 2).
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -103,8 +99,7 @@ fn disable_stop_emits_route_invalidated_event() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     sim.disable(stop1).unwrap();
@@ -168,9 +163,7 @@ fn disable_only_stop_causes_abandonment() {
     };
 
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(1), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
 
     // Disable the only other stop — no alternative available.
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -205,9 +198,7 @@ fn set_rider_route_replaces_route() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
@@ -241,9 +232,7 @@ fn reroute_rejects_non_waiting_rider() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    let rider = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Advance until rider is boarding or riding.
     for _ in 0..500 {

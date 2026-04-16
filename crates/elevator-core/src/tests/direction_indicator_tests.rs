@@ -26,8 +26,7 @@ fn default_indicators_both_true() {
 fn dispatch_upward_sets_going_up_only() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Step until the elevator is moving upward.
     let elev = first_elevator(&sim);
@@ -53,8 +52,7 @@ fn dispatch_downward_sets_going_down_only() {
     config.elevators[0].starting_stop = StopId(2);
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
 
     let elev = first_elevator(&sim);
     let mut saw_moving = false;
@@ -76,8 +74,7 @@ fn dispatch_downward_sets_going_down_only() {
 fn becoming_idle_resets_both_true() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     for _ in 0..10_000 {
         sim.step();
@@ -101,8 +98,7 @@ fn becoming_idle_resets_both_true() {
 fn direction_indicator_changed_event_fires_on_change() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let mut all_events = Vec::new();
     for _ in 0..10_000 {
@@ -137,8 +133,7 @@ fn direction_indicator_changed_event_fires_on_change() {
 fn direction_indicator_event_does_not_spam() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let mut all_events = Vec::new();
     for _ in 0..10_000 {
@@ -175,12 +170,8 @@ fn rider_going_up_skips_down_only_car() {
     config.elevators[0].starting_stop = StopId(2);
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let down_rider = sim
-        .spawn_rider_by_stop_id(StopId(2), StopId(0), 70.0)
-        .unwrap();
-    let up_rider = sim
-        .spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
-        .unwrap();
+    let down_rider = sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
+    let up_rider = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
 
     let mut all_events = Vec::new();
     // Run until the downward rider arrives at stop 0.
@@ -243,9 +234,7 @@ fn idle_car_boards_riders_either_direction() {
 
     // First rider: up-bound.
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let up_rider = sim
-        .spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
-        .unwrap();
+    let up_rider = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     for _ in 0..20_000 {
         sim.step();
         if sim.world().rider(up_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
@@ -262,9 +251,7 @@ fn idle_car_boards_riders_either_direction() {
     for _ in 0..60 {
         sim.step();
     }
-    let down_rider = sim
-        .spawn_rider_by_stop_id(StopId(1), StopId(0), 70.0)
-        .unwrap();
+    let down_rider = sim.spawn_rider(StopId(1), StopId(0), 70.0).unwrap();
     for _ in 0..20_000 {
         sim.step();
         if sim.world().rider(down_rider).map(|r| r.phase) == Some(RiderPhase::Arrived) {
@@ -281,8 +268,7 @@ fn idle_car_boards_riders_either_direction() {
 fn snapshot_roundtrip_preserves_indicators() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let elev = first_elevator(&sim);
 

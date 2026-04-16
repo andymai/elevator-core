@@ -53,9 +53,7 @@ fn remove_elevator_ejects_riders_aboard() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Spawn a rider and let it board.
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Run enough ticks for the rider to board.
     for _ in 0..300 {
@@ -93,9 +91,7 @@ fn remove_elevator_ejects_rider_emits_event() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
     sim.drain_events();
 
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Run until rider is riding.
     for _ in 0..300 {
@@ -196,9 +192,7 @@ fn remove_stop_with_waiting_rider_invalidates_route() {
     sim.drain_events();
 
     // Spawn a rider targeting stop 2.
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Ensure the rider is in Waiting phase (before boarding).
     let phase = sim.world().rider(rider_id).unwrap().phase;
@@ -295,8 +289,7 @@ fn drain_events_where_returns_only_matching_events() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Spawn a rider to generate events.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     // Run a few ticks to generate events.
     for _ in 0..5 {
         sim.step();
@@ -319,8 +312,7 @@ fn drain_events_where_retains_non_matching_events() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..5 {
         sim.step();
     }
@@ -336,8 +328,7 @@ fn drain_events_where_retains_non_matching_events() {
     // Re-run for fresh events.
     let config2 = default_config();
     let mut sim2 = Simulation::new(&config2, scan()).unwrap();
-    sim2.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim2.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..5 {
         sim2.step();
     }
@@ -366,8 +357,7 @@ fn drain_events_where_with_no_match_returns_empty_and_retains_all() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..5 {
         sim.step();
     }
@@ -378,8 +368,7 @@ fn drain_events_where_with_no_match_returns_empty_and_retains_all() {
     // Re-run for fresh events.
     let config2 = default_config();
     let mut sim2 = Simulation::new(&config2, scan()).unwrap();
-    sim2.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim2.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..5 {
         sim2.step();
     }
@@ -414,9 +403,7 @@ fn riders_on_returns_rider_ids_after_boarding() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let elevator_id = sim.groups()[0].elevator_entities()[0];
 
     // Run until rider is riding.
@@ -464,9 +451,7 @@ fn occupancy_returns_correct_count_after_boarding() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let rider_id = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     let elevator_id = sim.groups()[0].elevator_entities()[0];
 
     // Run until rider is riding.
@@ -635,7 +620,7 @@ fn rider_builder_basic_spawn() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .spawn()
         .unwrap();
@@ -650,7 +635,7 @@ fn rider_builder_custom_weight() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .weight(90.0)
         .spawn()
@@ -671,7 +656,7 @@ fn rider_builder_with_explicit_group() {
 
     // The default config has one group: GroupId(0).
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .group(GroupId(0))
         .spawn()
@@ -687,7 +672,7 @@ fn rider_builder_with_patience() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .patience(100)
         .spawn()
@@ -715,7 +700,7 @@ fn rider_builder_with_preferences() {
     };
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .preferences(prefs)
         .spawn()
@@ -745,7 +730,7 @@ fn rider_builder_with_access_control() {
     let ac = AccessControl::new(allowed.clone());
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .access_control(ac)
         .spawn()
@@ -767,7 +752,7 @@ fn rider_builder_invalid_stop_id_returns_stop_not_found() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let result = sim.build_rider_by_stop_id(StopId(0), StopId(99));
+    let result = sim.build_rider(StopId(0), StopId(99));
     assert!(
         matches!(result, Err(SimError::StopNotFound(StopId(99)))),
         "expected StopNotFound(99)"
@@ -816,7 +801,7 @@ fn rider_builder_no_route_when_stops_not_in_same_group() {
 
     // Now attempting to build a rider from stop 0 to the removed stop1
     // should fail because stop1 is no longer in the stop_lookup.
-    let result = sim.build_rider_by_stop_id(StopId(0), StopId(1));
+    let result = sim.build_rider(StopId(0), StopId(1));
     assert!(
         matches!(result, Err(SimError::StopNotFound(_))),
         "expected StopNotFound after stop removed"
@@ -832,7 +817,7 @@ fn rider_builder_spawn_returns_no_route_when_group_not_serving_both_stops() {
 
     // GroupId(99) does not exist.
     let result = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .group(GroupId(99))
         .spawn();
@@ -895,8 +880,7 @@ fn drain_events_where_with_all_matching_empties_buffer() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..5 {
         sim.step();
     }
@@ -919,7 +903,7 @@ fn rider_builder_default_weight_is_75() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .spawn()
         .unwrap();
@@ -938,7 +922,7 @@ fn rider_builder_no_patience_by_default() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .spawn()
         .unwrap();
@@ -956,7 +940,7 @@ fn rider_builder_no_preferences_by_default() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .spawn()
         .unwrap();
@@ -973,7 +957,7 @@ fn rider_builder_no_access_control_by_default() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let rider_id = sim
-        .build_rider_by_stop_id(StopId(0), StopId(2))
+        .build_rider(StopId(0), StopId(2))
         .unwrap()
         .spawn()
         .unwrap();

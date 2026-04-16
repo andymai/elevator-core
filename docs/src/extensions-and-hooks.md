@@ -61,7 +61,7 @@ Use `world.insert_ext()` to attach your component to an entity:
 #     .elevator(ElevatorConfig::default())
 #     .with_ext::<VipTag>("vip_tag")
 #     .build()?;
-let rider_id = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)?;
+let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
     rider_id,
@@ -208,7 +208,7 @@ let sim = SimulationBuilder::new()
 Hooks receive `&mut World` — not `&mut Simulation`. This means:
 
 - **You can:** read/mutate any component, insert/remove extensions, add/remove resources, read tick state via a resource mirror (see example below).
-- **You cannot:** call `sim.step()`, `sim.spawn_rider_by_stop_id()`, `sim.snapshot()` or other `Simulation`-level methods while a tick is in flight — the simulation is borrowed.
+- **You cannot:** call `sim.step()`, `sim.spawn_rider()`, `sim.snapshot()` or other `Simulation`-level methods while a tick is in flight — the simulation is borrowed.
 - **Spawning during a hook:** use `world.spawn()` + direct component inserts, or queue `SpawnRequest`s into a resource and drain them after `sim.step()` returns. The `before(Phase::Dispatch, ...)` slot is a convenient place to inject riders because the next phase will see them.
 - **Events:** hooks do not emit events directly. Use an extension/resource to record side effects and translate to events in game code.
 
@@ -285,7 +285,7 @@ fn main() -> Result<(), SimError> {
     sim.world_mut().insert_resource(CurrentTick(0));
 
     // Spawn some riders and attach extensions.
-    let r1 = sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
     sim.world_mut().insert_ext(r1, WaitWarning { warned: false }, "wait_warning");
 
     for _ in 0..600 {

@@ -597,8 +597,7 @@ fn dispatch_assigns_after_repositioning() {
     assert!(!car.repositioning());
 
     // Spawn a rider — dispatch should pick up the now-idle elevator.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.step();
 
     let events = sim.drain_events();

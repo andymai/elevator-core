@@ -13,8 +13,7 @@ fn default_mode_is_normal() {
     let elev = sim.world().elevator_ids()[0];
     assert_eq!(sim.service_mode(elev), ServiceMode::Normal);
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     for _ in 0..1000 {
         sim.step();
@@ -33,8 +32,7 @@ fn independent_skips_dispatch() {
     sim.set_service_mode(elev, ServiceMode::Independent)
         .unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     for _ in 0..500 {
         sim.step();
@@ -66,8 +64,7 @@ fn inspection_reduced_speed() {
         let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
         let elev = sim.world().elevator_ids()[0];
 
-        sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-            .unwrap();
+        sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
         let mut mode_set = false;
         let mut depart_tick: Option<u64> = None;
@@ -117,8 +114,7 @@ fn inspection_doors_hold_open() {
     sim.set_service_mode(elev, ServiceMode::Inspection).unwrap();
 
     // Spawn a rider so the elevator gets dispatched and eventually opens doors.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     // The elevator starts at stop 0, so dispatch should open doors immediately.
     // Run until doors are open.
@@ -232,8 +228,7 @@ fn independent_excluded_from_reposition() {
     let elev = sim.world().elevator_ids()[0];
 
     // First, get the elevator to a non-lobby stop by sending a rider.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
     for _ in 0..1000 {
         sim.step();
     }

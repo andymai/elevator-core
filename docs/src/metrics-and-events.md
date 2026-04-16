@@ -109,8 +109,8 @@ fn main() -> Result<(), SimError> {
         .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
         .build()?;
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)?;
-    sim.spawn_rider_by_stop_id(StopId(2), StopId(0), 80.0)?;
+    sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
+    sim.spawn_rider(StopId(2), StopId(0), 80.0)?;
 
     let mut event_log: Vec<Event> = Vec::new();
 
@@ -268,7 +268,7 @@ let lobby = sim.stop_entity(StopId(0)).unwrap();
 sim.tag_entity(lobby, "zone:lobby")?;
 
 // Tag a rider (riders auto-inherit tags from their origin stop when spawned).
-let rider = sim.spawn_rider_by_stop_id(StopId(0), StopId(1), 75.0)?;
+let rider = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 // rider automatically has "zone:lobby" because it was spawned at StopId(0).
 
 // You can also tag manually.
@@ -317,8 +317,8 @@ fn main() -> Result<(), SimError> {
     }
 
     // Spawn riders from different zones.
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(3), 75.0)?;
-    sim.spawn_rider_by_stop_id(StopId(3), StopId(0), 80.0)?;
+    sim.spawn_rider(StopId(0), StopId(3), 75.0)?;
+    sim.spawn_rider(StopId(3), StopId(0), 80.0)?;
 
     // Run the simulation.
     for _ in 0..2000 {

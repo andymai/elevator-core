@@ -14,7 +14,7 @@ World
   +-- Entity 3 (Rider)    -> Rider { phase: Waiting, weight: 75.0, ... }, Route { ... }
 ```
 
-You access the world through `sim.world()` (shared) and `sim.world_mut()` (mutable). The simulation also provides convenience methods like `sim.spawn_rider_by_stop_id()` that handle world operations for you.
+You access the world through `sim.world()` (shared) and `sim.world_mut()` (mutable). The simulation also provides convenience methods like `sim.spawn_rider()` that handle world operations for you.
 
 ## Identity types
 
@@ -23,7 +23,7 @@ The library uses several identity types, and it is important to understand which
 | Type | What it identifies | When you use it |
 |---|---|---|
 | `EntityId` | Any entity at runtime (stop, elevator, rider) | Event payloads, world lookups, dispatch decisions |
-| `StopId` | A stop in the *config* (e.g., `StopId(0)`) | Builder API, config files, `spawn_rider_by_stop_id` |
+| `StopId` | A stop in the *config* (e.g., `StopId(0)`) | Builder API, config files, `spawn_rider` |
 | `GroupId` | An elevator group (e.g., `GroupId(0)`) | Multi-group dispatch, group-specific hooks |
 
 `StopId` is a config-level concept. When the simulation boots, each `StopId` is mapped to an `EntityId`. At runtime you work with `EntityId` everywhere -- events, world queries, dispatch. Use `sim.stop_entity(StopId(0))` if you need to convert.

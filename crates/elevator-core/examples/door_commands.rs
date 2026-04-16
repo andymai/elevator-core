@@ -45,9 +45,7 @@ fn main() {
     let elev = sim.world().iter_elevators().next().unwrap().0;
 
     // First rider heading up from the lobby.
-    let first = sim
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
-        .unwrap();
+    let first = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 
     let mut held = false;
     let mut friend: Option<EntityId> = None;
@@ -67,9 +65,7 @@ fn main() {
             sim.hold_door(elev, 60).unwrap();
             held = true;
             // Spawn the friend at the lobby.
-            let f = sim
-                .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-                .unwrap();
+            let f = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
             println!("[t={tick:>3}] Friend spawned at lobby");
             friend = Some(f);
         }

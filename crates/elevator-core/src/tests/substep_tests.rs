@@ -9,18 +9,14 @@ fn per_phase_methods_equivalent_to_step() {
 
     // Sim A: use step()
     let mut sim_a = crate::sim::Simulation::new(&config, scan()).unwrap();
-    sim_a
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim_a.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..100 {
         sim_a.step();
     }
 
     // Sim B: use individual phases
     let mut sim_b = crate::sim::Simulation::new(&config, scan()).unwrap();
-    sim_b
-        .spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim_b.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     for _ in 0..100 {
         sim_b.run_advance_transient();
         sim_b.run_dispatch();
@@ -70,8 +66,7 @@ fn elevator_assigned_event_emitted() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
-    sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
-        .unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.drain_events(); // clear spawn event
 
     sim.run_advance_transient();

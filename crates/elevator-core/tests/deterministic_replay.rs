@@ -148,7 +148,7 @@ fn run(total_ticks: u64) -> (Vec<Event>, Metrics) {
     for tick in 0..total_ticks {
         // Spawn all riders whose scheduled tick is this tick.
         for spawn in schedule.iter().filter(|s| s.tick == tick) {
-            sim.spawn_rider_by_stop_id(spawn.origin, spawn.destination, spawn.weight)
+            sim.spawn_rider(spawn.origin, spawn.destination, spawn.weight)
                 .unwrap();
         }
 

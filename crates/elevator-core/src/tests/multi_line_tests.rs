@@ -436,7 +436,11 @@ fn cross_group_rider_arrives_via_explicit_two_leg_route() {
     };
 
     let rider = sim
-        .spawn_rider_with_route(ground, top, 70.0, route)
+        .build_rider(ground, top)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     // Run until rider arrives or we time out.
@@ -635,7 +639,13 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
         }],
         current_leg: 0,
     };
-    let rider = sim.spawn_rider_with_route(lobby, sky, 70.0, route).unwrap();
+    let rider = sim
+        .build_rider(lobby, sky)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
+        .unwrap();
 
     // Step until rider boards.
     let mut boarding_elevator = None;
@@ -1377,7 +1387,11 @@ fn walk_only_route_rider_arrives_directly() {
 
     // Spawn at ground, destination transfer, route is walk-only.
     let rider = sim
-        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .build_rider(ground, transfer)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     // The rider starts Waiting.
@@ -1451,7 +1465,11 @@ fn walk_leg_teleports_rider_to_destination() {
     };
 
     let rider = sim
-        .spawn_rider_with_route(ground, top, 70.0, route)
+        .build_rider(ground, top)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     for _ in 0..5000 {
@@ -1489,7 +1507,11 @@ fn walk_leg_rider_does_not_board_elevator() {
     };
 
     let rider = sim
-        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .build_rider(ground, transfer)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     // Step 50 ticks — enough for an elevator to come and open its doors.
@@ -2301,7 +2323,13 @@ fn three_group_rider_navigates_all_legs() {
         current_leg: 0,
     };
 
-    let rider = sim.spawn_rider_with_route(a, d, 70.0, route).unwrap();
+    let rider = sim
+        .build_rider(a, d)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
+        .unwrap();
 
     for _ in 0..10_000 {
         sim.step();
@@ -2452,10 +2480,10 @@ fn despawn_nonexistent_entity_does_not_panic() {
     sim.world_mut().despawn(fake_id);
 }
 
-// ── 18. spawn_rider_in_group ──────────────────────────────────────────────────
+// ── 18. build_rider with explicit group ──────────────────────────────────────
 
 #[test]
-fn spawn_rider_in_group_succeeds_when_group_serves_stops() {
+fn build_rider_with_group_succeeds_when_group_serves_stops() {
     let config = overlapping_groups_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
@@ -2463,10 +2491,15 @@ fn spawn_rider_in_group_succeeds_when_group_serves_stops() {
     let top = sim.stop_entity(StopId(1)).unwrap();
 
     // Both groups serve bottom and top — explicitly pick Group A (id=0).
-    let result = sim.spawn_rider_in_group(bottom, top, 70.0, GroupId(0));
+    let result = sim
+        .build_rider(bottom, top)
+        .unwrap()
+        .weight(70.0)
+        .group(GroupId(0))
+        .spawn();
     assert!(
         result.is_ok(),
-        "spawn_rider_in_group should succeed for a valid group"
+        "build_rider with explicit group should succeed for a valid group"
     );
 
     let rider = result.unwrap();
@@ -2475,14 +2508,19 @@ fn spawn_rider_in_group_succeeds_when_group_serves_stops() {
 }
 
 #[test]
-fn spawn_rider_in_nonexistent_group_returns_group_not_found() {
+fn build_rider_with_nonexistent_group_returns_group_not_found() {
     let config = two_group_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let transfer = sim.stop_entity(StopId(1)).unwrap();
 
-    let result = sim.spawn_rider_in_group(ground, transfer, 70.0, GroupId(99));
+    let result = sim
+        .build_rider(ground, transfer)
+        .unwrap()
+        .weight(70.0)
+        .group(GroupId(99))
+        .spawn();
     assert!(
         matches!(result, Err(SimError::GroupNotFound(GroupId(99)))),
         "expected GroupNotFound(99), got {result:?}"
@@ -2827,7 +2865,11 @@ fn dispatch_ignores_waiting_rider_targeting_another_group() {
         current_leg: 0,
     };
     let rider = sim
-        .spawn_rider_with_route(bottom, top, 70.0, route)
+        .build_rider(bottom, top)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
     assert_eq!(sim.world().rider(rider).unwrap().phase, RiderPhase::Waiting);
 
@@ -2888,7 +2930,11 @@ fn car_with_opposite_indicator_eventually_boards_waiting_rider() {
         current_leg: 0,
     };
     let rider = sim
-        .spawn_rider_with_route(transfer, ground, 70.0, route)
+        .build_rider(transfer, ground)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     // Run until the rider boards (or times out), collecting events so we can
@@ -2977,7 +3023,11 @@ fn dispatch_arrive_in_place_sets_target_and_pops_queue() {
         current_leg: 0,
     };
     let _rider = sim
-        .spawn_rider_with_route(ground, transfer, 70.0, route)
+        .build_rider(ground, transfer)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
         .unwrap();
 
     // One step runs dispatch; the Idle car will be assigned Ground and, since

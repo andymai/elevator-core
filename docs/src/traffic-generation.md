@@ -30,7 +30,7 @@ let mut source = PoissonSource::new(
 for _ in 0..10_000 {
     let tick = sim.current_tick();
     for req in source.generate(tick) {
-        let _ = sim.spawn_rider_by_stop_id(req.origin, req.destination, req.weight);
+        let _ = sim.spawn_rider(req.origin, req.destination, req.weight);
     }
     sim.step();
 }
@@ -227,13 +227,13 @@ pub struct SpawnRequest {
 }
 ```
 
-For riders that need patience, preferences, or access control, spawn through the simulation's `build_rider_by_stop_id` fluent API instead of using `spawn_rider_by_stop_id` directly:
+For riders that need patience, preferences, or access control, spawn through the simulation's `build_rider` fluent API instead of using `spawn_rider` directly:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
 # use elevator_core::traffic::SpawnRequest;
 # fn run(sim: &mut Simulation, req: SpawnRequest) -> Result<(), SimError> {
-sim.build_rider_by_stop_id(req.origin, req.destination)?
+sim.build_rider(req.origin, req.destination)?
     .weight(req.weight)
     .patience(600)  // abandon after 10 seconds at 60 tps
     .spawn()?;
