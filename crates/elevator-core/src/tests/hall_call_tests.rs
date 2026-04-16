@@ -486,8 +486,11 @@ fn pin_across_lines_is_rejected() {
 
     let err = sim.pin_assignment(low_car, top, CallDirection::Down);
     assert!(
-        matches!(err, Err(crate::error::SimError::InvalidState { .. })),
-        "cross-line pin should return InvalidState, got {err:?}"
+        matches!(
+            err,
+            Err(crate::error::SimError::LineDoesNotServeStop { .. })
+        ),
+        "cross-line pin should return LineDoesNotServeStop, got {err:?}"
     );
     let call = sim.world().hall_call(top, CallDirection::Down).unwrap();
     assert!(!call.pinned, "failed pin must not flag the call pinned");

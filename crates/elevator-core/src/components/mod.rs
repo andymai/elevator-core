@@ -33,7 +33,7 @@ pub use hall_call::{CallDirection, HallCall};
 pub use line::{Line, Orientation, SpatialPosition};
 pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};
-pub use rider::{Rider, RiderPhase};
+pub use rider::{Rider, RiderPhase, RiderPhaseKind};
 pub use route::{Route, RouteLeg, TransportMode};
 pub use service_mode::ServiceMode;
 pub use stop::Stop;

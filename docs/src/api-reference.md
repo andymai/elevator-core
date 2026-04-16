@@ -810,7 +810,12 @@ Method: `reversed()` returns the opposite direction.
 | `EntityNotFound` | `EntityId` | A referenced entity does not exist |
 | `StopNotFound` | `StopId` | A referenced stop ID does not exist |
 | `GroupNotFound` | `GroupId` | A referenced group does not exist |
-| `InvalidState` | `entity: EntityId`, `reason: String` | Operation attempted on entity in wrong state |
+| `RouteOriginMismatch` | `expected_origin: EntityId`, `route_origin: EntityId` | Route origin does not match expected origin |
+| `LineDoesNotServeStop` | `line_or_car: EntityId`, `stop: EntityId` | Elevator's line does not serve the target stop |
+| `HallCallNotFound` | `stop: EntityId`, `direction: CallDirection` | No hall call at that stop and direction |
+| `WrongRiderPhase` | `rider: EntityId`, `expected: RiderPhaseKind`, `actual: RiderPhaseKind` | Rider in wrong lifecycle phase for operation |
+| `RiderHasNoStop` | `EntityId` | Rider has no current stop when one is required |
+| `EmptyRoute` | — | Route has no legs |
 | `LineNotFound` | `EntityId` | A referenced line entity does not exist |
 | `NoRoute` | `origin: EntityId`, `destination: EntityId` | No route exists between origin and destination across any group |
 | `AmbiguousRoute` | `origin: EntityId`, `destination: EntityId` | Multiple groups serve both origin and destination — caller must specify |
