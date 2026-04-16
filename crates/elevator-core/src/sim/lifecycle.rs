@@ -419,10 +419,8 @@ impl Simulation {
     /// If the entity is an elevator in motion, it is reset to `Idle` with
     /// zero velocity to prevent stale target references on re-enable.
     ///
-    /// **Note on residents:** disabling a stop does not automatically handle
-    /// `Resident` riders parked there. Callers should listen for
-    /// [`Event::EntityDisabled`] and manually reroute or despawn any
-    /// residents at the affected stop.
+    /// If the entity is a stop, any `Resident` riders parked there are
+    /// transitioned to `Abandoned` and appropriate events are emitted.
     ///
     /// Emits `EntityDisabled`. Returns `Err` if the entity does not exist.
     ///
@@ -481,8 +479,22 @@ impl Simulation {
             vel.value = 0.0;
         }
 
-        // If this is a stop, invalidate routes that reference it.
+        // If this is a stop, abandon resident riders and invalidate routes.
         if self.world.stop(id).is_some() {
+            let resident_ids: Vec<EntityId> =
+                self.rider_index.residents_at(id).iter().copied().collect();
+            for rid in resident_ids {
+                self.rider_index.remove_resident(id, rid);
+                self.rider_index.insert_abandoned(id, rid);
+                if let Some(r) = self.world.rider_mut(rid) {
+                    r.phase = RiderPhase::Abandoned;
+                }
+                self.events.emit(Event::RiderAbandoned {
+                    rider: rid,
+                    stop: id,
+                    tick: self.tick,
+                });
+            }
             self.invalidate_routes_for_stop(id);
         }
 

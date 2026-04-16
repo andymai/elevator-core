@@ -56,3 +56,7 @@ harness = false
 [[bench]]
 name = "query_bench"
 harness = false
+
+[[example]]
+name = "dispatch_comparison"
+required-features = ["traffic"]
