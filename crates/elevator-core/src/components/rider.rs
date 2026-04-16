@@ -41,6 +41,61 @@ impl RiderPhase {
     }
 }
 
+/// Data-less companion to [`RiderPhase`] for error messages and pattern matching
+/// without requiring the inner `EntityId`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum RiderPhaseKind {
+    /// Waiting at a stop.
+    Waiting,
+    /// Boarding an elevator.
+    Boarding,
+    /// Riding in an elevator.
+    Riding,
+    /// Exiting an elevator.
+    Exiting,
+    /// Walking between transfer stops.
+    Walking,
+    /// Reached final destination.
+    Arrived,
+    /// Gave up waiting.
+    Abandoned,
+    /// Parked at a stop.
+    Resident,
+}
+
+impl RiderPhase {
+    /// Return the data-less kind of this phase.
+    #[must_use]
+    pub const fn kind(&self) -> RiderPhaseKind {
+        match self {
+            Self::Waiting => RiderPhaseKind::Waiting,
+            Self::Boarding(_) => RiderPhaseKind::Boarding,
+            Self::Riding(_) => RiderPhaseKind::Riding,
+            Self::Exiting(_) => RiderPhaseKind::Exiting,
+            Self::Walking => RiderPhaseKind::Walking,
+            Self::Arrived => RiderPhaseKind::Arrived,
+            Self::Abandoned => RiderPhaseKind::Abandoned,
+            Self::Resident => RiderPhaseKind::Resident,
+        }
+    }
+}
+
+impl std::fmt::Display for RiderPhaseKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Waiting => write!(f, "Waiting"),
+            Self::Boarding => write!(f, "Boarding"),
+            Self::Riding => write!(f, "Riding"),
+            Self::Exiting => write!(f, "Exiting"),
+            Self::Walking => write!(f, "Walking"),
+            Self::Arrived => write!(f, "Arrived"),
+            Self::Abandoned => write!(f, "Abandoned"),
+            Self::Resident => write!(f, "Resident"),
+        }
+    }
+}
+
 impl std::fmt::Display for RiderPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

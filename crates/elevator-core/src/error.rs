@@ -1,6 +1,6 @@
 //! Error types for configuration validation and runtime failures.
 
-use crate::components::ServiceMode;
+use crate::components::{CallDirection, RiderPhaseKind, ServiceMode};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::stop::StopId;
@@ -24,13 +24,40 @@ pub enum SimError {
     StopNotFound(StopId),
     /// A referenced group does not exist.
     GroupNotFound(GroupId),
-    /// An operation was attempted on an entity in an invalid state.
-    InvalidState {
-        /// The entity in the wrong state.
-        entity: EntityId,
-        /// Human-readable explanation.
-        reason: String,
+    /// The route's origin does not match the expected origin.
+    RouteOriginMismatch {
+        /// The expected origin entity.
+        expected_origin: EntityId,
+        /// The origin recorded in the route.
+        route_origin: EntityId,
     },
+    /// An elevator's line does not serve the target stop.
+    LineDoesNotServeStop {
+        /// The elevator (or line) entity.
+        line_or_car: EntityId,
+        /// The stop that is not served.
+        stop: EntityId,
+    },
+    /// No hall call exists at the given stop and direction.
+    HallCallNotFound {
+        /// The stop entity.
+        stop: EntityId,
+        /// The call direction.
+        direction: CallDirection,
+    },
+    /// A rider is in the wrong lifecycle phase for the attempted operation.
+    WrongRiderPhase {
+        /// The rider entity.
+        rider: EntityId,
+        /// The phase required by the operation.
+        expected: RiderPhaseKind,
+        /// The rider's current phase.
+        actual: RiderPhaseKind,
+    },
+    /// A rider has no current stop when one is required.
+    RiderHasNoStop(EntityId),
+    /// A route has no legs.
+    EmptyRoute,
     /// The entity is not an elevator.
     NotAnElevator(EntityId),
     /// The elevator is disabled.
@@ -88,9 +115,33 @@ impl fmt::Display for SimError {
             Self::EntityNotFound(id) => write!(f, "entity not found: {id:?}"),
             Self::StopNotFound(id) => write!(f, "stop not found: {id}"),
             Self::GroupNotFound(id) => write!(f, "group not found: {id}"),
-            Self::InvalidState { entity, reason } => {
-                write!(f, "invalid state for {entity:?}: {reason}")
+            Self::RouteOriginMismatch {
+                expected_origin,
+                route_origin,
+            } => {
+                write!(
+                    f,
+                    "route origin {route_origin:?} does not match expected origin {expected_origin:?}"
+                )
             }
+            Self::LineDoesNotServeStop { line_or_car, stop } => {
+                write!(f, "line/car {line_or_car:?} does not serve stop {stop:?}")
+            }
+            Self::HallCallNotFound { stop, direction } => {
+                write!(f, "no hall call at stop {stop:?} direction {direction:?}")
+            }
+            Self::WrongRiderPhase {
+                rider,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "rider {rider:?} is in {actual} phase, expected {expected}"
+                )
+            }
+            Self::RiderHasNoStop(id) => write!(f, "rider {id:?} has no current stop"),
+            Self::EmptyRoute => write!(f, "route has no legs"),
             Self::NotAnElevator(id) => write!(f, "entity {id:?} is not an elevator"),
             Self::ElevatorDisabled(id) => write!(f, "elevator {id:?} is disabled"),
             Self::WrongServiceMode {

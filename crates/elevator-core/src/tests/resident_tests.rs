@@ -103,7 +103,7 @@ fn settle_wrong_phase_returns_error() {
 
     // Rider is Waiting — should fail.
     let result = sim.settle_rider(rider);
-    assert!(matches!(result, Err(SimError::InvalidState { .. })));
+    assert!(matches!(result, Err(SimError::WrongRiderPhase { .. })));
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn reroute_wrong_phase_returns_error() {
 
     // Rider is Waiting — should fail.
     let result = sim.reroute_rider(rider, route);
-    assert!(matches!(result, Err(SimError::InvalidState { .. })));
+    assert!(matches!(result, Err(SimError::WrongRiderPhase { .. })));
 }
 
 #[test]
