@@ -1015,6 +1015,7 @@ pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
                 press_tick: call.press_tick,
                 acknowledged_at: call.acknowledged_at.unwrap_or(u64::MAX),
                 assigned_car: call.assigned_car.map_or(0, entity_to_u64),
+                destination_entity_id: call.destination.map_or(0, entity_to_u64),
                 pinned: u8::from(call.pinned),
                 pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
             };
@@ -1045,6 +1046,10 @@ pub struct EvHallCall {
     pub acknowledged_at: u64,
     /// Car currently assigned to serve the call; `0` if none.
     pub assigned_car: u64,
+    /// Destination stop entity id in DCS (`HallCallMode::Destination`)
+    /// mode, or `0` when the call has no destination (Classic mode,
+    /// or no kiosk entry yet). Matches `HallCall::destination`.
+    pub destination_entity_id: u64,
     /// `1` when pinned, `0` otherwise.
     pub pinned: u8,
     /// Number of riders aggregated onto this call.
@@ -1120,6 +1125,75 @@ mod tests {
             frame.metrics.total_delivered > 0,
             "expected at least one delivery after 3000 ticks"
         );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    /// `EvHallCall::destination_entity_id` round-trips the call's DCS
+    /// destination through the FFI boundary. Non-zero when the group
+    /// is in `HallCallMode::Destination` and a rider has entered a
+    /// destination at the kiosk.
+    #[test]
+    fn hall_call_snapshot_carries_destination_id() {
+        use elevator_core::dispatch::HallCallMode;
+        use elevator_core::ids::GroupId;
+
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let root = std::path::Path::new(manifest)
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("workspace root");
+        let config = root.join("assets/config/default.ron");
+        let c_path = CString::new(config.to_str().expect("utf8 path")).unwrap();
+
+        let handle = unsafe { ev_sim_create(c_path.as_ptr()) };
+        let ev = unsafe { handle.as_mut() }.expect("sim should build");
+
+        // Flip the only group into Destination mode.
+        for g in ev.sim.groups_mut() {
+            if g.id() == GroupId(0) {
+                g.set_hall_call_mode(HallCallMode::Destination);
+            }
+        }
+        let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
+        let last = ev
+            .sim
+            .stop_lookup_iter()
+            .max_by_key(|(s, _)| s.0)
+            .map(|(s, _)| *s)
+            .unwrap();
+        // Spawning a rider in DCS mode populates `HallCall::destination`.
+        ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
+
+        let dest_entity = ev.sim.stop_entity(last).expect("dest stop exists");
+        let expected_dest_id = entity_to_u64(dest_entity);
+
+        let mut buf = [EvHallCall {
+            stop_entity_id: 0,
+            direction: 0,
+            press_tick: 0,
+            acknowledged_at: 0,
+            assigned_car: 0,
+            destination_entity_id: 0,
+            pinned: 0,
+            pending_rider_count: 0,
+        }; 4];
+        let mut written: u32 = 0;
+        let status = unsafe {
+            ev_sim_hall_calls_snapshot(
+                handle,
+                buf.as_mut_ptr(),
+                u32::try_from(buf.len()).unwrap(),
+                &raw mut written,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert!(written >= 1, "at least one hall call should be written");
+        let dcs_call = buf[..written as usize]
+            .iter()
+            .find(|c| c.destination_entity_id != 0)
+            .expect("DCS-mode call should carry a nonzero destination");
+        assert_eq!(dcs_call.destination_entity_id, expected_dest_id);
 
         unsafe { ev_sim_destroy(handle) };
     }
