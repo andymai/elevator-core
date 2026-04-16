@@ -231,7 +231,8 @@ fn snapshot_preserves_extension_components() {
     restored
         .world_mut()
         .register_ext::<VipTag>(ExtKey::from_type_name());
-    restored.load_extensions();
+    let unregistered = restored.load_extensions();
+    assert!(unregistered.is_empty());
 
     // Find the rider in the restored world and check the extension.
     let mut found = false;
