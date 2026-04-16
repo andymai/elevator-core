@@ -104,6 +104,13 @@ pub enum SimError {
     },
     /// Snapshot bytes are malformed or not a snapshot at all.
     SnapshotFormat(String),
+    /// A custom dispatch strategy in a snapshot could not be resolved.
+    UnresolvedCustomStrategy {
+        /// The strategy name stored in the snapshot.
+        name: String,
+        /// The group that references the strategy.
+        group: GroupId,
+    },
 }
 
 impl fmt::Display for SimError {
@@ -187,6 +194,13 @@ impl fmt::Display for SimError {
                 )
             }
             Self::SnapshotFormat(reason) => write!(f, "malformed snapshot: {reason}"),
+            Self::UnresolvedCustomStrategy { name, group } => {
+                write!(
+                    f,
+                    "custom dispatch strategy {name:?} for group {group} could not be resolved — \
+                     provide a factory that handles this name",
+                )
+            }
         }
     }
 }

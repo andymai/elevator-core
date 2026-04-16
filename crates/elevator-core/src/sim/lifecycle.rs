@@ -22,18 +22,51 @@ impl Simulation {
     /// Call this after restoring from a snapshot and registering all
     /// extension types via `world.register_ext::<T>(key)`.
     ///
-    /// ```ignore
-    /// let mut sim = snapshot.restore(None);
-    /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
-    /// sim.load_extensions();
-    /// ```
-    pub fn load_extensions(&mut self) {
-        if let Some(pending) = self
+    /// Returns the names of any extension types present in the snapshot
+    /// that were not registered. An empty vec means all extensions were
+    /// deserialized successfully.
+    ///
+    /// Prefer [`load_extensions_with`](Self::load_extensions_with) which
+    /// combines registration and loading in one call.
+    pub fn load_extensions(&mut self) -> Vec<String> {
+        let Some(pending) = self
             .world
             .remove_resource::<crate::snapshot::PendingExtensions>()
-        {
-            self.world.deserialize_extensions(&pending.0);
-        }
+        else {
+            return Vec::new();
+        };
+        let unregistered = self.world.unregistered_ext_names(pending.0.keys());
+        self.world.deserialize_extensions(&pending.0);
+        unregistered
+    }
+
+    /// Register extension types and load their data from a snapshot
+    /// in one step.
+    ///
+    /// This is the recommended way to restore extensions. It replaces the
+    /// manual 3-step ceremony of `register_ext` → `load_extensions`:
+    ///
+    /// ```ignore
+    /// // Before:
+    /// let mut sim = snapshot.restore(None)?;
+    /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
+    /// sim.world_mut().register_ext::<TeamId>(ExtKey::from_type_name());
+    /// sim.load_extensions();
+    ///
+    /// // After:
+    /// let mut sim = snapshot.restore(None)?;
+    /// register_extensions!(sim.world_mut(), VipTag, TeamId);
+    /// sim.load_extensions();
+    /// ```
+    ///
+    /// Returns the names of any extension types in the snapshot that were
+    /// not registered. This catches "forgot to register" bugs at load time.
+    pub fn load_extensions_with<F>(&mut self, register: F) -> Vec<String>
+    where
+        F: FnOnce(&mut crate::world::World),
+    {
+        register(&mut self.world);
+        self.load_extensions()
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
