@@ -79,7 +79,7 @@ use crate::hooks::{Phase, PhaseHooks};
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
 use crate::rider_index::RiderIndex;
-use crate::stop::StopId;
+use crate::stop::{StopId, StopRef};
 use crate::systems::PhaseContext;
 use crate::time::TimeAdapter;
 use crate::topology::TopologyGraph;
@@ -466,6 +466,14 @@ impl Simulation {
         self.stop_lookup.get(&id).copied()
     }
 
+    /// Resolve a [`StopRef`] to its runtime [`EntityId`].
+    fn resolve_stop(&self, stop: StopRef) -> Result<EntityId, SimError> {
+        match stop {
+            StopRef::ByEntity(id) => Ok(id),
+            StopRef::ById(sid) => self.stop_entity(sid).ok_or(SimError::StopNotFound(sid)),
+        }
+    }
+
     /// Get the strategy identifier for a group.
     #[must_use]
     pub fn strategy_id(&self, group: GroupId) -> Option<&crate::dispatch::BuiltinStrategy> {
@@ -507,7 +515,12 @@ impl Simulation {
     ///
     /// - [`SimError::InvalidState`] if `elev` is not an elevator.
     /// - [`SimError::InvalidState`] if `stop` is not a stop.
-    pub fn push_destination(&mut self, elev: EntityId, stop: EntityId) -> Result<(), SimError> {
+    pub fn push_destination(
+        &mut self,
+        elev: EntityId,
+        stop: impl Into<StopRef>,
+    ) -> Result<(), SimError> {
+        let stop = self.resolve_stop(stop.into())?;
         self.validate_push_targets(elev, stop)?;
         let appended = self
             .world
@@ -540,8 +553,9 @@ impl Simulation {
     pub fn push_destination_front(
         &mut self,
         elev: EntityId,
-        stop: EntityId,
+        stop: impl Into<StopRef>,
     ) -> Result<(), SimError> {
+        let stop = self.resolve_stop(stop.into())?;
         self.validate_push_targets(elev, stop)?;
         let inserted = self
             .world
@@ -619,7 +633,8 @@ impl Simulation {
     /// and rider boarding/exiting beyond the configured dwell will perturb
     /// the actual arrival.
     #[must_use]
-    pub fn eta(&self, elev: EntityId, stop: EntityId) -> Option<Duration> {
+    pub fn eta(&self, elev: EntityId, stop: impl Into<StopRef>) -> Option<Duration> {
+        let stop = self.resolve_stop(stop.into()).ok()?;
         let elevator = self.world.elevator(elev)?;
         self.world.stop(stop)?;
         let svc = self.world.service_mode(elev).copied().unwrap_or_default();
@@ -721,10 +736,11 @@ impl Simulation {
     #[must_use]
     pub fn best_eta(
         &self,
-        stop: EntityId,
+        stop: impl Into<StopRef>,
         direction: crate::components::Direction,
     ) -> Option<(EntityId, Duration)> {
         use crate::components::Direction;
+        let stop = self.resolve_stop(stop.into()).ok()?;
         self.world
             .iter_elevators()
             .filter_map(|(eid, _, elev)| {
@@ -1353,11 +1369,8 @@ impl Simulation {
     ///     .spawn()
     ///     .unwrap();
     /// ```
-    pub const fn build_rider(
-        &mut self,
-        origin: EntityId,
-        destination: EntityId,
-    ) -> RiderBuilder<'_> {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn build_rider(&mut self, origin: EntityId, destination: EntityId) -> RiderBuilder<'_> {
         RiderBuilder {
             sim: self,
             origin,
@@ -1426,10 +1439,12 @@ impl Simulation {
     /// Returns [`SimError::AmbiguousRoute`] if multiple groups serve both stops.
     pub fn spawn_rider(
         &mut self,
-        origin: EntityId,
-        destination: EntityId,
+        origin: impl Into<StopRef>,
+        destination: impl Into<StopRef>,
         weight: f64,
     ) -> Result<EntityId, SimError> {
+        let origin = self.resolve_stop(origin.into())?;
+        let destination = self.resolve_stop(destination.into())?;
         let matching: Vec<GroupId> = self
             .groups
             .iter()
@@ -1486,11 +1501,13 @@ impl Simulation {
     /// first leg `from`.
     pub fn spawn_rider_with_route(
         &mut self,
-        origin: EntityId,
-        destination: EntityId,
+        origin: impl Into<StopRef>,
+        destination: impl Into<StopRef>,
         weight: f64,
         route: Route,
     ) -> Result<EntityId, SimError> {
+        let origin = self.resolve_stop(origin.into())?;
+        let destination = self.resolve_stop(destination.into())?;
         if self.world.stop(origin).is_none() {
             return Err(SimError::EntityNotFound(origin));
         }
@@ -1620,11 +1637,13 @@ impl Simulation {
     /// Returns [`SimError::GroupNotFound`] if the group does not exist.
     pub fn spawn_rider_in_group(
         &mut self,
-        origin: EntityId,
-        destination: EntityId,
+        origin: impl Into<StopRef>,
+        destination: impl Into<StopRef>,
         weight: f64,
         group: GroupId,
     ) -> Result<EntityId, SimError> {
+        let origin = self.resolve_stop(origin.into())?;
+        let destination = self.resolve_stop(destination.into())?;
         if !self.groups.iter().any(|g| g.id() == group) {
             return Err(SimError::GroupNotFound(group));
         }
@@ -2010,9 +2029,10 @@ impl Simulation {
     /// stop entity.
     pub fn press_hall_button(
         &mut self,
-        stop: EntityId,
+        stop: impl Into<StopRef>,
         direction: crate::components::CallDirection,
     ) -> Result<(), SimError> {
+        let stop = self.resolve_stop(stop.into())?;
         if self.world.stop(stop).is_none() {
             return Err(SimError::EntityNotFound(stop));
         }
@@ -2025,7 +2045,12 @@ impl Simulation {
     ///
     /// # Errors
     /// Returns [`SimError::EntityNotFound`] if `car` or `floor` is invalid.
-    pub fn press_car_button(&mut self, car: EntityId, floor: EntityId) -> Result<(), SimError> {
+    pub fn press_car_button(
+        &mut self,
+        car: EntityId,
+        floor: impl Into<StopRef>,
+    ) -> Result<(), SimError> {
+        let floor = self.resolve_stop(floor.into())?;
         if self.world.elevator(car).is_none() {
             return Err(SimError::EntityNotFound(car));
         }
