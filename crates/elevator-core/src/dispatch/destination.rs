@@ -94,6 +94,17 @@ impl DispatchStrategy for DestinationDispatch {
         manifest: &DispatchManifest,
         world: &mut World,
     ) {
+        // DCS requires the group to be in `HallCallMode::Destination` — that
+        // mode is what makes the kiosk-style "rider announces destination
+        // at press time" assumption hold. In Classic collective-control
+        // mode destinations aren't known until riders board, so running
+        // DCS there would commit assignments based on information a real
+        // controller wouldn't have. Early-return makes DCS a no-op for
+        // misconfigured groups; pair it with the right mode to activate.
+        if group.hall_call_mode() != super::HallCallMode::Destination {
+            return;
+        }
+
         // Candidate cars in this group that are operable for dispatch.
         let candidate_cars: Vec<EntityId> = group
             .elevator_entities()
