@@ -9,7 +9,7 @@ the same engine handles a hotel lobby and a space elevator.
 
 [Guide](https://andymai.github.io/elevator-core/) | [API Reference](https://docs.rs/elevator-core)
 
-## 30-second demo
+## Quick start
 
 ```sh
 cargo add elevator-core
