@@ -1,5 +1,17 @@
 # Changelog
 
+## [13.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v12.0.2...elevator-core-v13.0.0) (2026-04-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* runtime validation for Weight, Speed, and Accel constructors ([#197](https://github.com/andymai/elevator-core/issues/197))
+
+### Bug Fixes
+
+* critical bug fixes ([#163](https://github.com/andymai/elevator-core/issues/163), [#164](https://github.com/andymai/elevator-core/issues/164), [#165](https://github.com/andymai/elevator-core/issues/165)) ([#204](https://github.com/andymai/elevator-core/issues/204)) ([dc4d4b9](https://github.com/andymai/elevator-core/commit/dc4d4b9740e57beb38a0d42ce6af37b11d15ee40))
+* runtime validation for Weight, Speed, and Accel constructors ([#197](https://github.com/andymai/elevator-core/issues/197)) ([b5aeff2](https://github.com/andymai/elevator-core/commit/b5aeff29d0b817a4d679ca669dab73795c227b90)), closes [#187](https://github.com/andymai/elevator-core/issues/187)
+
 ## [12.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v12.0.1...elevator-core-v12.0.2) (2026-04-16)
 
 
