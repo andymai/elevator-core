@@ -13,7 +13,7 @@
 //! ```
 //!
 //! Assignments are recorded as an [`AssignedCar`] extension component on the
-//! rider; the loading filter in [`crate::systems::loading`] consults this to
+//! rider; the loading filter in `crate::systems::loading` consults this to
 //! enforce the stickiness invariant.
 //!
 //! This is a sim — not a faithful reproduction of any vendor's controller.

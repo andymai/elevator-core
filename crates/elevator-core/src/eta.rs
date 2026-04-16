@@ -2,7 +2,7 @@
 //!
 //! Given an elevator's kinematic parameters (max speed, acceleration,
 //! deceleration), an initial speed, and a remaining distance to a target,
-//! [`travel_time`] returns the seconds required to coast in, brake, and
+//! [`travel_time`](crate::eta::travel_time) returns the seconds required to coast in, brake, and
 //! arrive at rest. Used by [`Simulation::eta`](crate::sim::Simulation::eta)
 //! and [`Simulation::best_eta`](crate::sim::Simulation::best_eta) to walk a
 //! destination queue and sum per-leg travel plus per-stop door dwell.

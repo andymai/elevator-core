@@ -62,8 +62,8 @@ impl CallDirection {
 /// A pressed hall button at `stop` requesting service in `direction`.
 ///
 /// Stored per `(stop, direction)` pair — at most two per stop. Built-in
-/// dispatch reads calls via [`DispatchManifest::hall_calls`](
-/// crate::dispatch::DispatchManifest::hall_calls).
+/// dispatch reads calls via [`DispatchManifest::iter_hall_calls`](
+/// crate::dispatch::DispatchManifest::iter_hall_calls).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct HallCall {

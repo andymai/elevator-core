@@ -959,7 +959,7 @@ pub(crate) struct SortedStops(pub(crate) Vec<(f64, EntityId)>);
 /// The up/down hall call pair at a single stop.
 ///
 /// At most two calls coexist at a stop (one per [`CallDirection`]);
-/// this struct owns the slots. Stored in [`World::hall_calls`] keyed by
+/// this struct owns the slots. Stored in `World::hall_calls` keyed by
 /// the stop's entity id.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct StopCalls {

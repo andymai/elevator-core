@@ -276,7 +276,7 @@ proptest! {
         let mut rng_state = seed;
         let mut next_weight = || -> f64 {
             rng_state = rng_state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
-            let frac = (rng_state >> 32) as f64 / u32::MAX as f64;
+            let frac = (rng_state >> 32) as f64 / (1u64 << 32) as f64;
             10.0 + frac * (capacity * 0.3) // individual weight always < capacity
         };
 

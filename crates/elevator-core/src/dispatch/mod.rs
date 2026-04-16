@@ -1,11 +1,12 @@
 //! Pluggable dispatch strategies for assigning elevators to stops.
 //!
 //! Strategies express preferences as scores on `(car, stop)` pairs via
-//! [`DispatchStrategy::rank`]. The dispatch system then runs an optimal
-//! bipartite assignment (Kuhn–Munkres / Hungarian algorithm) so coordination
-//! — one car per hall call — is a library invariant, not a per-strategy
-//! responsibility. Cars left unassigned are handed to
-//! [`DispatchStrategy::fallback`] for per-car policy (idle, park, etc.).
+//! [`DispatchStrategy::rank`](crate::dispatch::DispatchStrategy::rank). The
+//! dispatch system then runs an optimal bipartite assignment (Kuhn–Munkres /
+//! Hungarian algorithm) so coordination — one car per hall call — is a library
+//! invariant, not a per-strategy responsibility. Cars left unassigned are
+//! handed to [`DispatchStrategy::fallback`](crate::dispatch::DispatchStrategy::fallback)
+//! for per-car policy (idle, park, etc.).
 //!
 //! # Example: custom dispatch strategy
 //!
@@ -336,7 +337,7 @@ pub enum HallCallMode {
     ///
     /// Riders press an up or down button in the hall; the destination
     /// is revealed only *after* boarding, via a
-    /// [`CarCall`](crate::components::CarCall). Dispatch sees a direction
+    /// [`CarCall`]. Dispatch sees a direction
     /// per call but does not know individual rider destinations until
     /// they're aboard.
     #[default]
@@ -345,7 +346,7 @@ pub enum HallCallMode {
     /// Polaris, Schindler PORT).
     ///
     /// Riders enter their destination at a hall kiosk, so each
-    /// [`HallCall`](crate::components::HallCall) carries a destination
+    /// [`HallCall`] carries a destination
     /// stop from the moment it's pressed. Required by
     /// [`DestinationDispatch`].
     Destination,
@@ -632,8 +633,8 @@ pub trait DispatchStrategy: Send + Sync {
 
 /// Resolution of a single dispatch assignment pass for one group.
 ///
-/// Produced by [`assign`] and consumed by
-/// [`crate::systems::dispatch::run`] to apply decisions to the world.
+/// Produced by `assign` and consumed by
+/// `crate::systems::dispatch::run` to apply decisions to the world.
 #[derive(Debug, Clone)]
 pub struct AssignmentResult {
     /// `(car, decision)` pairs for every idle car in the group.

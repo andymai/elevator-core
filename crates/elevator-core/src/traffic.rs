@@ -101,11 +101,14 @@ fn sample_indices(
 
         TrafficPattern::Lunchtime => {
             // 40% upper→mid, 40% mid→upper, 20% random.
+            if n < 2 {
+                return Some(uniform_pair_indices(n, rng));
+            }
             let r: f64 = rng.random_range(0.0..1.0);
-            let upper_start = n / 2 + 1;
-            if r < 0.4 && upper_start < n {
+            let upper_start = n.div_ceil(2);
+            if r < 0.4 && upper_start < n && upper_start != mid {
                 Some((rng.random_range(upper_start..n), mid))
-            } else if r < 0.8 && upper_start < n {
+            } else if r < 0.8 && upper_start < n && upper_start != mid {
                 Some((mid, rng.random_range(upper_start..n)))
             } else {
                 Some(uniform_pair_indices(n, rng))
