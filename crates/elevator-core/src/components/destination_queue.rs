@@ -129,11 +129,3 @@ impl<'a> IntoIterator for &'a DestinationQueue {
         self.queue.iter()
     }
 }
-
-impl std::ops::Deref for DestinationQueue {
-    type Target = [EntityId];
-
-    fn deref(&self) -> &[EntityId] {
-        &self.queue
-    }
-}
