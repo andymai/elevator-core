@@ -1,6 +1,6 @@
 use crate::components::{
-    Elevator, ElevatorPhase, Patience, Position, Preferences, Rider, RiderPhase, Route, Stop,
-    Velocity,
+    Accel, Elevator, ElevatorPhase, Patience, Position, Preferences, Rider, RiderPhase, Route,
+    Speed, Stop, Velocity, Weight,
 };
 use crate::door::DoorState;
 use crate::entity::EntityId;
@@ -127,7 +127,7 @@ fn waited_ticks_increments_each_step() {
 fn preferences_skip_crowded_elevator_prevents_boarding() {
     let mut config = default_config();
     // 100 kg capacity, so we can load it to just over half.
-    config.elevators[0].weight_capacity = 100.0;
+    config.elevators[0].weight_capacity = Weight::from(100.0);
 
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
@@ -187,7 +187,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
         }
         if let Some(car) = w.elevator_mut(elev) {
             car.phase = ElevatorPhase::Loading;
-            car.current_load = 60.0; // ballast weight
+            car.current_load = Weight::from(60.0); // ballast weight
             car.target_stop = None;
         }
     }
@@ -208,7 +208,7 @@ fn preferences_skip_crowded_elevator_prevents_boarding() {
 #[test]
 fn preferences_boards_when_elevator_not_too_crowded() {
     let mut config = default_config();
-    config.elevators[0].weight_capacity = 100.0;
+    config.elevators[0].weight_capacity = Weight::from(100.0);
 
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
@@ -239,7 +239,7 @@ fn preferences_boards_when_elevator_not_too_crowded() {
         }
         if let Some(car) = w.elevator_mut(elev) {
             car.phase = ElevatorPhase::Loading;
-            car.current_load = 0.0;
+            car.current_load = Weight::from(0.0);
             car.target_stop = None;
         }
     }
@@ -346,10 +346,10 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
 
     // Add a second elevator at stop 0.
     let params = ElevatorParams {
-        max_speed: 2.0,
-        acceleration: 1.5,
-        deceleration: 2.0,
-        weight_capacity: 800.0,
+        max_speed: Speed::from(2.0),
+        acceleration: Accel::from(1.5),
+        deceleration: Accel::from(2.0),
+        weight_capacity: Weight::from(800.0),
         door_transition_ticks: 5,
         door_open_ticks: 10,
         restricted_stops: HashSet::new(),
@@ -381,7 +381,7 @@ fn double_board_guard_rider_appears_in_exactly_one_elevator() {
             if let Some(car) = w.elevator_mut(eid) {
                 car.phase = ElevatorPhase::Loading;
                 car.riders.clear();
-                car.current_load = 0.0;
+                car.current_load = Weight::from(0.0);
                 car.target_stop = None;
             }
         }
@@ -507,7 +507,7 @@ fn disable_elevator_clears_its_rider_list() {
         "elevator riders list should be empty after disable"
     );
     assert!(
-        car.current_load.abs() < f64::EPSILON,
+        car.current_load.value().abs() < f64::EPSILON,
         "current_load should be zeroed after disable"
     );
 }
@@ -538,11 +538,11 @@ fn despawn_elevator_resets_rider_to_waiting() {
         Elevator {
             phase: ElevatorPhase::Loading,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
-            current_load: 70.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(70.0),
             riders: vec![], // filled below after rider is known
             target_stop: None,
             door_transition_ticks: 5,
@@ -564,7 +564,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
     world.set_rider(
         rider,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase: RiderPhase::Riding(elev),
             current_stop: None,
             spawn_tick: 0,
@@ -624,11 +624,11 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
         Elevator {
             phase: ElevatorPhase::Loading,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
-            current_load: 70.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(70.0),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 5,
@@ -649,7 +649,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
     world.set_rider(
         rider,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase: RiderPhase::Riding(elev),
             current_stop: None,
             spawn_tick: 0,
@@ -667,7 +667,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
         "rider should be removed from elevator's riders list on despawn"
     );
     assert!(
-        car.current_load.abs() < f64::EPSILON,
+        car.current_load.value().abs() < f64::EPSILON,
         "elevator current_load should decrease when rider despawns"
     );
 }
@@ -701,7 +701,7 @@ fn route_direct_current_returns_single_leg() {
     world.set_rider(
         rider,
         Rider {
-            weight: 60.0,
+            weight: Weight::from(60.0),
             phase: RiderPhase::Waiting,
             current_stop: Some(from),
             spawn_tick: 0,
@@ -742,10 +742,10 @@ fn weight_rejection_boundary() {
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,
             name: "E0".into(),
-            max_speed: 5.0,
-            acceleration: 3.0,
-            deceleration: 3.0,
-            weight_capacity: 100.0,
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(3.0),
+            deceleration: Accel::from(3.0),
+            weight_capacity: Weight::from(100.0),
             starting_stop: crate::stop::StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 3,
@@ -834,10 +834,10 @@ fn passing_floor_events_emitted() {
         elevators: vec![crate::config::ElevatorConfig {
             id: 0,
             name: "E0".into(),
-            max_speed: 5.0,
-            acceleration: 2.0,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(2.0),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: crate::stop::StopId(0),
             door_open_ticks: 5,
             door_transition_ticks: 3,

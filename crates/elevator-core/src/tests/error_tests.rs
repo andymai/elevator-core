@@ -1,3 +1,4 @@
+use crate::components::{Accel, Speed, Weight};
 use crate::error::SimError;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
@@ -55,7 +56,7 @@ fn rejects_zero_elevators() {
 #[test]
 fn rejects_negative_max_speed() {
     let mut config = default_config();
-    config.elevators[0].max_speed = -1.0;
+    config.elevators[0].max_speed = Speed { value: -1.0 };
     let err = Simulation::new(&config, scan()).unwrap_err();
     assert!(matches!(
         err,
@@ -69,7 +70,7 @@ fn rejects_negative_max_speed() {
 #[test]
 fn rejects_zero_acceleration() {
     let mut config = default_config();
-    config.elevators[0].acceleration = 0.0;
+    config.elevators[0].acceleration = Accel::from(0.0);
     let err = Simulation::new(&config, scan()).unwrap_err();
     assert!(matches!(
         err,
@@ -83,7 +84,7 @@ fn rejects_zero_acceleration() {
 #[test]
 fn rejects_negative_deceleration() {
     let mut config = default_config();
-    config.elevators[0].deceleration = -0.5;
+    config.elevators[0].deceleration = Accel { value: -0.5 };
     let err = Simulation::new(&config, scan()).unwrap_err();
     assert!(matches!(
         err,
@@ -97,7 +98,7 @@ fn rejects_negative_deceleration() {
 #[test]
 fn rejects_zero_weight_capacity() {
     let mut config = default_config();
-    config.elevators[0].weight_capacity = 0.0;
+    config.elevators[0].weight_capacity = Weight::from(0.0);
     let err = Simulation::new(&config, scan()).unwrap_err();
     assert!(matches!(
         err,

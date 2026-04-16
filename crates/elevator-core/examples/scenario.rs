@@ -1,6 +1,7 @@
 //! Running a deterministic scenario with pass/fail conditions.
 #![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items)]
 
+use elevator_core::components::{Accel, Speed, Weight};
 use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -32,10 +33,10 @@ fn main() {
             elevators: vec![ElevatorConfig {
                 id: 0,
                 name: "E1".into(),
-                max_speed: 2.0,
-                acceleration: 1.5,
-                deceleration: 2.0,
-                weight_capacity: 800.0,
+                max_speed: Speed::from(2.0),
+                acceleration: Accel::from(1.5),
+                deceleration: Accel::from(2.0),
+                weight_capacity: Weight::from(800.0),
                 starting_stop: StopId(0),
                 door_open_ticks: 10,
                 door_transition_ticks: 5,

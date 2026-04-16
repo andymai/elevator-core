@@ -3,6 +3,7 @@
 
 use serde::{Serialize, de::DeserializeOwned};
 
+use crate::components::{Accel, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
     SimulationParams,
@@ -68,6 +69,7 @@ impl SimulationBuilder {
     ///
     /// ```
     /// use elevator_core::prelude::*;
+    /// use elevator_core::components::{Speed, Accel, Weight};
     /// use elevator_core::config::ElevatorConfig;
     /// use elevator_core::stop::StopConfig;
     ///
@@ -83,10 +85,10 @@ impl SimulationBuilder {
     ///     .elevator(ElevatorConfig {
     ///         id: 0,
     ///         name: "Main".into(),
-    ///         max_speed: 2.0,
-    ///         acceleration: 1.5,
-    ///         deceleration: 2.0,
-    ///         weight_capacity: 800.0,
+    ///         max_speed: Speed::from(2.0),
+    ///         acceleration: Accel::from(1.5),
+    ///         deceleration: Accel::from(2.0),
+    ///         weight_capacity: Weight::from(800.0),
     ///         starting_stop: StopId(0),
     ///         door_open_ticks: 10,
     ///         door_transition_ticks: 5,
@@ -173,10 +175,10 @@ impl SimulationBuilder {
         b.config.elevators = vec![ElevatorConfig {
             id: 0,
             name: "Elevator 1".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,

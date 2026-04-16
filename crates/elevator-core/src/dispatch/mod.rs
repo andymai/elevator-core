@@ -66,7 +66,7 @@ pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{CallDirection, CarCall, HallCall};
+use crate::components::{CallDirection, CarCall, HallCall, Weight};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -81,7 +81,7 @@ pub struct RiderInfo {
     /// Rider's destination stop entity (from route).
     pub destination: Option<EntityId>,
     /// Rider weight.
-    pub weight: f64,
+    pub weight: Weight,
     /// Ticks this rider has been waiting (0 if riding).
     pub wait_ticks: u64,
 }
@@ -123,7 +123,7 @@ impl DispatchManifest {
     pub fn total_weight_at(&self, stop: EntityId) -> f64 {
         self.waiting_at_stop
             .get(&stop)
-            .map_or(0.0, |riders| riders.iter().map(|r| r.weight).sum())
+            .map_or(0.0, |riders| riders.iter().map(|r| r.weight.value()).sum())
     }
 
     /// Number of riders heading to a stop (aboard elevators).
