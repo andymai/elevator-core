@@ -20,11 +20,15 @@ proptest! {
         acceleration in 0.01..50.0_f64,
         deceleration in 0.01..50.0_f64,
         dt in 0.001..1.0_f64,
+        initial_velocity in 0.0..100.0_f64,
     ) {
         // Filter out cases where position ~= target.
         prop_assume!((target - position).abs() > 1e-6);
 
-        let result = tick_movement(position, 0.0, target, max_speed, acceleration, deceleration, dt);
+        // Use initial velocity in the direction of the target, clamped to max_speed.
+        let sign = (target - position).signum();
+        let vel = (initial_velocity.min(max_speed)) * sign;
+        let result = tick_movement(position, vel, target, max_speed, acceleration, deceleration, dt);
 
         // 1. If arrived, position must equal target (within epsilon).
         if result.arrived {
