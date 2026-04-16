@@ -364,7 +364,7 @@ fn build_manifest(
                 let destination = world.route(rider_eid).and_then(Route::current_destination);
                 if let Some(dest) = destination {
                     let rider = world.rider(rider_eid);
-                    let weight = rider.map_or(0.0, |r| r.weight);
+                    let weight = rider.map_or(crate::components::Weight::ZERO, |r| r.weight);
                     manifest
                         .riding_to_stop
                         .entry(dest)

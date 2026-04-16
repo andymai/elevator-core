@@ -420,11 +420,11 @@ impl Simulation {
             let had_load = self
                 .world
                 .elevator(id)
-                .is_some_and(|c| c.current_load > 0.0);
-            let capacity = self.world.elevator(id).map(|c| c.weight_capacity);
+                .is_some_and(|c| c.current_load.value() > 0.0);
+            let capacity = self.world.elevator(id).map(|c| c.weight_capacity.value());
             if let Some(car) = self.world.elevator_mut(id) {
                 car.riders.clear();
-                car.current_load = 0.0;
+                car.current_load = crate::components::Weight::ZERO;
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
             }
@@ -632,7 +632,7 @@ impl Simulation {
     /// ```
     #[must_use]
     pub fn elevator_load(&self, id: EntityId) -> Option<f64> {
-        self.world.elevator(id).map(|e| e.current_load)
+        self.world.elevator(id).map(|e| e.current_load.value())
     }
 
     /// Whether the elevator's up-direction indicator lamp is lit.
@@ -682,7 +682,10 @@ impl Simulation {
     pub fn braking_distance(&self, id: EntityId) -> Option<f64> {
         let car = self.world.elevator(id)?;
         let vel = self.world.velocity(id)?.value;
-        Some(crate::movement::braking_distance(vel, car.deceleration))
+        Some(crate::movement::braking_distance(
+            vel,
+            car.deceleration.value(),
+        ))
     }
 
     /// The position where the elevator would come to rest if it began braking
@@ -696,7 +699,7 @@ impl Simulation {
         let pos = self.world.position(id)?.value;
         let vel = self.world.velocity(id)?.value;
         let car = self.world.elevator(id)?;
-        let dist = crate::movement::braking_distance(vel, car.deceleration);
+        let dist = crate::movement::braking_distance(vel, car.deceleration.value());
         Some(vel.signum().mul_add(dist, pos))
     }
 

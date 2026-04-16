@@ -117,8 +117,8 @@ impl EtdDispatch {
         };
 
         let distance = (elev_pos - target_pos).abs();
-        let travel_time = if car.max_speed > 0.0 {
-            distance / car.max_speed
+        let travel_time = if car.max_speed.value() > 0.0 {
+            distance / car.max_speed.value()
         } else {
             return f64::INFINITY;
         };
@@ -146,8 +146,8 @@ impl EtdDispatch {
                 let direct_dist = (elev_pos - dest_pos).abs();
                 let detour_dist = (elev_pos - target_pos).abs() + (target_pos - dest_pos).abs();
                 let extra = (detour_dist - direct_dist).max(0.0);
-                if car.max_speed > 0.0 {
-                    existing_rider_delay += extra / car.max_speed;
+                if car.max_speed.value() > 0.0 {
+                    existing_rider_delay += extra / car.max_speed.value();
                 }
             }
         }

@@ -1,7 +1,7 @@
 //! Tests for the repositioning system and ETD dispatch overhaul.
 
 use crate::builder::SimulationBuilder;
-use crate::components::{ElevatorPhase, RiderPhase};
+use crate::components::{Accel, ElevatorPhase, RiderPhase, Speed, Weight};
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::reposition::{DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly};
 use crate::dispatch::{
@@ -63,11 +63,11 @@ fn spawn_elevator(world: &mut World, position: f64) -> EntityId {
         Elevator {
             phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
-            current_load: 0.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 5,
@@ -95,7 +95,7 @@ fn add_demand(manifest: &mut DispatchManifest, world: &mut World, stop: EntityId
         .push(RiderInfo {
             id: dummy,
             destination: None,
-            weight,
+            weight: Weight::from(weight),
             wait_ticks: 0,
         });
 }
@@ -459,10 +459,10 @@ fn build_lobby_sim() -> crate::sim::Simulation {
         .elevators(vec![ElevatorConfig {
             id: 0,
             name: "A".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(2),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -704,7 +704,7 @@ fn etd_rider_delay_penalizes() {
         rider,
         Rider {
             phase: RiderPhase::Riding(elev_a),
-            weight: 70.0,
+            weight: Weight::from(70.0),
             current_stop: None,
             spawn_tick: 0,
             board_tick: Some(0),
@@ -786,7 +786,7 @@ fn etd_custom_weights() {
         rider,
         Rider {
             phase: RiderPhase::Riding(elev_b),
-            weight: 70.0,
+            weight: Weight::from(70.0),
             current_stop: None,
             spawn_tick: 0,
             board_tick: Some(0),
@@ -818,7 +818,7 @@ fn etd_custom_weights() {
 fn etd_zero_max_speed_infinite_cost() {
     let (mut world, stops) = test_world_n(3);
     let elev_a = spawn_elevator(&mut world, 0.0);
-    world.elevator_mut(elev_a).unwrap().max_speed = 0.0;
+    world.elevator_mut(elev_a).unwrap().max_speed = Speed::from(0.0);
 
     // Add a normal elevator to ensure demand is served by it instead.
     let elev_b = spawn_elevator(&mut world, 20.0);

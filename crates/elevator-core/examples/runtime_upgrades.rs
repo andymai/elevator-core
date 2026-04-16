@@ -72,7 +72,7 @@ fn run_baseline() -> (u64, f64) {
 fn run_upgraded() -> (u64, f64) {
     let mut sim = make_sim();
     let elev = sim.world().iter_elevators().next().unwrap().0;
-    let baseline_speed = sim.world().elevator(elev).unwrap().max_speed();
+    let baseline_speed = sim.world().elevator(elev).unwrap().max_speed().value();
 
     for tick in 0..TOTAL_TICKS {
         spawn_wave(&mut sim, tick);

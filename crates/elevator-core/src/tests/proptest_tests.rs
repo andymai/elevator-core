@@ -1,3 +1,4 @@
+use crate::components::{Accel, Speed, Weight};
 use proptest::prelude::*;
 
 use crate::config::{
@@ -105,10 +106,10 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
         .map(|i| ElevatorConfig {
             id: i,
             name: format!("Elevator {i}"),
-            max_speed: 2.0,
-            acceleration: 1.0,
-            deceleration: 1.0,
-            weight_capacity: 10_000.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.0),
+            deceleration: Accel::from(1.0),
+            weight_capacity: Weight::from(10_000.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -245,10 +246,10 @@ proptest! {
             elevators: vec![ElevatorConfig {
                 id: 0,
                 name: "E0".into(),
-                max_speed: 5.0,
-                acceleration: 3.0,
-                deceleration: 3.0,
-                weight_capacity: capacity,
+                max_speed: Speed::from(5.0),
+                acceleration: Accel::from(3.0),
+                deceleration: Accel::from(3.0),
+                weight_capacity: Weight::from(capacity),
                 starting_stop: StopId(0),
                 door_open_ticks: 5,
                 door_transition_ticks: 2,
@@ -286,7 +287,7 @@ proptest! {
             // Check all elevators respect capacity.
             for (_, _, elev) in sim.world().iter_elevators() {
                 prop_assert!(
-                    elev.current_load() <= capacity + 1e-9,
+                    elev.current_load().value() <= capacity + 1e-9,
                     "elevator load {} exceeded capacity {capacity}",
                     elev.current_load(),
                 );

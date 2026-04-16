@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use crate::components::{Elevator, ElevatorPhase, Position, Rider, RiderPhase, Stop, Velocity};
+use crate::components::{
+    Accel, Elevator, ElevatorPhase, Position, Rider, RiderPhase, Speed, Stop, Velocity, Weight,
+};
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::query::Ext;
@@ -14,7 +16,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
     w.set_rider(
         a,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase: RiderPhase::Waiting,
             current_stop: None,
             spawn_tick: 0,
@@ -32,11 +34,11 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
         Elevator {
             phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.0,
-            deceleration: 1.0,
-            weight_capacity: 800.0,
-            current_load: 0.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.0),
+            deceleration: Accel::from(1.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 5,
@@ -142,7 +144,7 @@ fn query_get_single_entity() {
     let (w, a, b, _c) = test_world();
     let result = w.query::<(&Rider,)>().get(a);
     assert!(result.is_some());
-    assert!((result.unwrap().0.weight - 70.0).abs() < 1e-9);
+    assert!((result.unwrap().0.weight.value() - 70.0).abs() < 1e-9);
 
     // Non-matching entity.
     let result = w.query::<(&Rider,)>().get(b);

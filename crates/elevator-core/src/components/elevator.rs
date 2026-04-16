@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+use super::units::{Accel, Speed, Weight};
 use crate::door::{DoorCommand, DoorState};
 use crate::entity::EntityId;
 
@@ -114,15 +115,15 @@ pub struct Elevator {
     /// Door finite-state machine.
     pub(crate) door: DoorState,
     /// Maximum travel speed (distance/tick).
-    pub(crate) max_speed: f64,
+    pub(crate) max_speed: Speed,
     /// Acceleration rate (distance/tick^2).
-    pub(crate) acceleration: f64,
+    pub(crate) acceleration: Accel,
     /// Deceleration rate (distance/tick^2).
-    pub(crate) deceleration: f64,
+    pub(crate) deceleration: Accel,
     /// Maximum weight the car can carry.
-    pub(crate) weight_capacity: f64,
+    pub(crate) weight_capacity: Weight,
     /// Total weight of riders currently aboard.
-    pub(crate) current_load: f64,
+    pub(crate) current_load: Weight,
     /// Entity IDs of riders currently aboard.
     pub(crate) riders: Vec<EntityId>,
     /// Stop entity the car is heading toward, if any.
@@ -201,31 +202,31 @@ impl Elevator {
 
     /// Maximum travel speed (distance/tick).
     #[must_use]
-    pub const fn max_speed(&self) -> f64 {
+    pub const fn max_speed(&self) -> Speed {
         self.max_speed
     }
 
     /// Acceleration rate (distance/tick^2).
     #[must_use]
-    pub const fn acceleration(&self) -> f64 {
+    pub const fn acceleration(&self) -> Accel {
         self.acceleration
     }
 
     /// Deceleration rate (distance/tick^2).
     #[must_use]
-    pub const fn deceleration(&self) -> f64 {
+    pub const fn deceleration(&self) -> Accel {
         self.deceleration
     }
 
     /// Maximum weight the car can carry.
     #[must_use]
-    pub const fn weight_capacity(&self) -> f64 {
+    pub const fn weight_capacity(&self) -> Weight {
         self.weight_capacity
     }
 
     /// Total weight of riders currently aboard.
     #[must_use]
-    pub const fn current_load(&self) -> f64 {
+    pub const fn current_load(&self) -> Weight {
         self.current_load
     }
 

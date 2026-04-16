@@ -27,7 +27,7 @@ pub fn run(
         };
 
         let is_moving = world.elevator(eid).is_some_and(|c| c.phase.is_moving());
-        let current_load = world.elevator(eid).map_or(0.0, |c| c.current_load);
+        let current_load = world.elevator(eid).map_or(0.0, |c| c.current_load.value());
         let velocity = world.velocity(eid).map_or(0.0, |v| v.value);
 
         let (consumed, regenerated) =

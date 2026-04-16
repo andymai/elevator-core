@@ -1,6 +1,6 @@
 //! Tests for the hall-call destination dispatch strategy.
 
-use crate::components::{Orientation, Rider, RiderPhase};
+use crate::components::{Accel, Orientation, Rider, RiderPhase, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimConfig,
     SimulationParams,
@@ -39,10 +39,10 @@ fn single_car_config() -> SimConfig {
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "Solo".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -97,10 +97,10 @@ fn two_cars_same_group_config() -> SimConfig {
                     ElevatorConfig {
                         id: 1,
                         name: "A".into(),
-                        max_speed: 2.0,
-                        acceleration: 1.5,
-                        deceleration: 2.0,
-                        weight_capacity: 800.0,
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
                         starting_stop: StopId(0),
                         door_open_ticks: 10,
                         door_transition_ticks: 5,
@@ -113,10 +113,10 @@ fn two_cars_same_group_config() -> SimConfig {
                     ElevatorConfig {
                         id: 2,
                         name: "B".into(),
-                        max_speed: 2.0,
-                        acceleration: 1.5,
-                        deceleration: 2.0,
-                        weight_capacity: 800.0,
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
                         starting_stop: StopId(3),
                         door_open_ticks: 10,
                         door_transition_ticks: 5,

@@ -6,7 +6,7 @@
 //! immediately. Written to pin down rider-index behavior against the
 //! mutation coverage gaps in `src/rider_index.rs`.
 
-use crate::components::{Rider, RiderPhase, Stop};
+use crate::components::{Rider, RiderPhase, Stop, Weight};
 use crate::entity::EntityId;
 use crate::rider_index::RiderIndex;
 use crate::world::World;
@@ -31,7 +31,7 @@ fn rider_in_phase(world: &mut World, at: EntityId, phase: RiderPhase) -> EntityI
     world.set_rider(
         r,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase,
             current_stop: Some(at),
             spawn_tick: 0,

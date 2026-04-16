@@ -145,7 +145,7 @@ impl DispatchStrategy for DestinationDispatch {
                 if !group_ok {
                     continue;
                 }
-                pending.push((info.id, leg.from, dest, info.weight));
+                pending.push((info.id, leg.from, dest, info.weight.value()));
             }
         }
         pending.sort_by_key(|(rid, ..)| *rid);
@@ -169,7 +169,7 @@ impl DispatchStrategy for DestinationDispatch {
                 _ => None,
             };
             if let Some(c) = car {
-                *committed_load.entry(c).or_insert(0.0) += rider.weight;
+                *committed_load.entry(c).or_insert(0.0) += rider.weight.value();
             }
         }
 
@@ -183,7 +183,8 @@ impl DispatchStrategy for DestinationDispatch {
                     {
                         return None;
                     }
-                    if car.weight_capacity() > 0.0 && weight > car.weight_capacity() {
+                    if car.weight_capacity().value() > 0.0 && weight > car.weight_capacity().value()
+                    {
                         return None;
                     }
                     let com = committed_load.get(&eid).copied().unwrap_or(0.0);
@@ -240,7 +241,7 @@ impl DestinationDispatch {
         let Some(car) = world.elevator(eid) else {
             return f64::INFINITY;
         };
-        if car.max_speed() <= 0.0 {
+        if car.max_speed().value() <= 0.0 {
             return f64::INFINITY;
         }
 
@@ -260,7 +261,7 @@ impl DestinationDispatch {
         // Pickup time: direct distance + per-stop door overhead for each
         // committed stop that lies between the car and the origin.
         let pickup_dist = (car_pos - origin_pos).abs();
-        let pickup_travel = pickup_dist / car.max_speed();
+        let pickup_travel = pickup_dist / car.max_speed().value();
         let intervening_committed = world.destination_queue(eid).map_or(0usize, |q| {
             let (lo, hi) = if car_pos < origin_pos {
                 (car_pos, origin_pos)
@@ -277,7 +278,7 @@ impl DestinationDispatch {
 
         // Ride time: origin → dest travel + door overhead at origin pickup.
         let ride_dist = (origin_pos - dest_pos).abs();
-        let ride_time = ride_dist / car.max_speed() + door_overhead;
+        let ride_time = ride_dist / car.max_speed().value() + door_overhead;
 
         // Fresh stops added: 0, 1, or 2 depending on whether origin/dest
         // are already queued for this car.
@@ -301,9 +302,9 @@ impl DestinationDispatch {
 
         // Load bias: include both aboard and already-assigned-but-waiting
         // riders so dispatch spreads load even before any boarding happens.
-        let load_penalty = if car.weight_capacity() > 0.0 {
-            let effective = car.current_load().max(committed_load);
-            let ratio = (effective / car.weight_capacity()).min(2.0);
+        let load_penalty = if car.weight_capacity().value() > 0.0 {
+            let effective = car.current_load().value().max(committed_load);
+            let ratio = (effective / car.weight_capacity().value()).min(2.0);
             ratio * door_overhead * 4.0
         } else {
             0.0

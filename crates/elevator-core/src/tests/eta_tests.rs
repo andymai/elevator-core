@@ -1,4 +1,4 @@
-use crate::components::{Direction, ServiceMode};
+use crate::components::{Accel, Direction, ServiceMode, Speed, Weight};
 use crate::error::EtaError;
 use crate::eta::travel_time;
 use crate::stop::StopId;
@@ -214,10 +214,10 @@ fn best_eta_picks_min_across_elevators() {
     config.elevators.push(ElevatorConfig {
         id: 1,
         name: "Alt".into(),
-        max_speed: 2.0,
-        acceleration: 1.5,
-        deceleration: 2.0,
-        weight_capacity: 800.0,
+        max_speed: Speed::from(2.0),
+        acceleration: Accel::from(1.5),
+        deceleration: Accel::from(2.0),
+        weight_capacity: Weight::from(800.0),
         starting_stop: StopId(2),
         door_open_ticks: 10,
         door_transition_ticks: 5,

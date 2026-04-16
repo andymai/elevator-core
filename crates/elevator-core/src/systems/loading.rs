@@ -108,9 +108,9 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
         let elev_group: Option<GroupId> = world.line(elev_line).map(Line::group);
 
         // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
-        let remaining_capacity = car.weight_capacity - car.current_load;
-        let load_ratio = if car.weight_capacity > 0.0 {
-            car.current_load / car.weight_capacity
+        let remaining_capacity = car.weight_capacity.value() - car.current_load.value();
+        let load_ratio = if car.weight_capacity.value() > 0.0 {
+            car.current_load.value() / car.weight_capacity.value()
         } else {
             1.0
         };
@@ -213,8 +213,8 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 }
                 return None;
             }
-            if rider.weight <= remaining_capacity {
-                Some((rid, rider.weight))
+            if rider.weight.value() <= remaining_capacity {
+                Some((rid, rider.weight.value()))
             } else {
                 if rejected_candidate.is_none() {
                     rejected_candidate = Some(rid);
@@ -245,9 +245,9 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 elevator: eid,
                 reason: RejectionReason::OverCapacity,
                 context: Some(RejectionContext {
-                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight).into(),
-                    current_load: car.current_load.into(),
-                    capacity: car.weight_capacity.into(),
+                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight.value()).into(),
+                    current_load: car.current_load.value().into(),
+                    capacity: car.weight_capacity.value().into(),
                 }),
             });
         } else if let Some(rid) = preference_rejected {
@@ -256,9 +256,9 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                 elevator: eid,
                 reason: RejectionReason::PreferenceBased,
                 context: Some(RejectionContext {
-                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight).into(),
-                    current_load: car.current_load.into(),
-                    capacity: car.weight_capacity.into(),
+                    attempted_weight: world.rider(rid).map_or(0.0, |r| r.weight.value()).into(),
+                    current_load: car.current_load.value().into(),
+                    capacity: car.weight_capacity.value().into(),
                 }),
             });
             // A preference-filtered rider just balked at a crowded car.
@@ -317,10 +317,12 @@ fn apply_actions(
                 {
                     continue;
                 }
-                let rider_weight = world.rider(rider).map_or(0.0, |rd| rd.weight);
+                let rider_weight = world
+                    .rider(rider)
+                    .map_or(crate::components::Weight::ZERO, |rd| rd.weight);
                 if let Some(car) = world.elevator_mut(elevator) {
                     car.riders.retain(|r| *r != rider);
-                    car.current_load = (car.current_load - rider_weight).max(0.0);
+                    car.current_load -= rider_weight;
                 }
                 if let Some(rd) = world.rider_mut(rider) {
                     rd.phase = RiderPhase::Exiting(elevator);
@@ -343,8 +345,8 @@ fn apply_actions(
                 if let Some(car) = world.elevator(elevator) {
                     events.emit(Event::CapacityChanged {
                         elevator,
-                        current_load: OrderedFloat(car.current_load),
-                        capacity: OrderedFloat(car.weight_capacity),
+                        current_load: OrderedFloat(car.current_load.value()),
+                        capacity: OrderedFloat(car.weight_capacity.value()),
                         tick: ctx.tick,
                     });
                 }
@@ -368,7 +370,7 @@ fn apply_actions(
                 };
                 rider_index.remove_waiting(stop, rider);
                 if let Some(car) = world.elevator_mut(elevator) {
-                    car.current_load += weight;
+                    car.current_load += crate::components::Weight::from(weight);
                     car.riders.push(rider);
                 }
                 if let Some(rd) = world.rider_mut(rider) {
@@ -384,8 +386,8 @@ fn apply_actions(
                 if let Some(car) = world.elevator(elevator) {
                     events.emit(Event::CapacityChanged {
                         elevator,
-                        current_load: OrderedFloat(car.current_load),
-                        capacity: OrderedFloat(car.weight_capacity),
+                        current_load: OrderedFloat(car.current_load.value()),
+                        capacity: OrderedFloat(car.weight_capacity.value()),
                         tick: ctx.tick,
                     });
                 }

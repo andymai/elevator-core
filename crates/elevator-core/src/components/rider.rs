@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::units::Weight;
 use crate::entity::EntityId;
 
 /// Lifecycle phase of a rider entity.
@@ -120,7 +121,7 @@ impl std::fmt::Display for RiderPhase {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.
-    pub(crate) weight: f64,
+    pub(crate) weight: Weight,
     /// Current rider lifecycle phase.
     pub(crate) phase: RiderPhase,
     /// The stop entity this rider is currently at (while Waiting/Arrived/Abandoned/Resident).
@@ -134,7 +135,7 @@ pub struct Rider {
 impl Rider {
     /// Weight contributed to elevator load.
     #[must_use]
-    pub const fn weight(&self) -> f64 {
+    pub const fn weight(&self) -> Weight {
         self.weight
     }
 

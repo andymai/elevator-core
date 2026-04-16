@@ -1,6 +1,6 @@
 //! Building and elevator configuration (RON-deserializable).
 
-use crate::components::{Orientation, SpatialPosition};
+use crate::components::{Accel, Orientation, SpatialPosition, Speed, Weight};
 use crate::dispatch::{BuiltinReposition, BuiltinStrategy, HallCallMode};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
@@ -66,14 +66,14 @@ pub struct ElevatorConfig {
     /// this speed, cruises, then decelerates to stop at the target.
     ///
     /// Default (from `SimulationBuilder`): `2.0`.
-    pub max_speed: f64,
+    pub max_speed: Speed,
     /// Acceleration rate in distance units per second squared.
     ///
     /// Must be positive. Controls how quickly the elevator reaches
     /// `max_speed` from rest.
     ///
     /// Default (from `SimulationBuilder`): `1.5`.
-    pub acceleration: f64,
+    pub acceleration: Accel,
     /// Deceleration rate in distance units per second squared.
     ///
     /// Must be positive. Controls how quickly the elevator slows to a stop
@@ -81,7 +81,7 @@ pub struct ElevatorConfig {
     /// asymmetric motion profiles.
     ///
     /// Default (from `SimulationBuilder`): `2.0`.
-    pub deceleration: f64,
+    pub deceleration: Accel,
     /// Maximum total weight the elevator car can carry.
     ///
     /// Must be positive. Riders whose weight would exceed this limit are
@@ -89,7 +89,7 @@ pub struct ElevatorConfig {
     ///
     /// Units: same as rider weight (typically kilograms).
     /// Default (from `SimulationBuilder`): `800.0`.
-    pub weight_capacity: f64,
+    pub weight_capacity: Weight,
     /// The [`StopId`] where this elevator starts at simulation init.
     ///
     /// Must reference an existing stop in the building config.
@@ -145,11 +145,12 @@ impl Default for ElevatorConfig {
     ///
     /// ```
     /// use elevator_core::config::ElevatorConfig;
+    /// use elevator_core::components::Speed;
     /// use elevator_core::stop::StopId;
     ///
     /// let fast = ElevatorConfig {
     ///     name: "Express".into(),
-    ///     max_speed: 6.0,
+    ///     max_speed: Speed::from(6.0),
     ///     starting_stop: StopId(0),
     ///     ..Default::default()
     /// };
@@ -162,10 +163,10 @@ impl Default for ElevatorConfig {
         Self {
             id: 0,
             name: "Elevator 1".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,

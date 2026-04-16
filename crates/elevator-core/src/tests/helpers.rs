@@ -1,4 +1,4 @@
-use crate::components::RiderPhase;
+use crate::components::{Accel, RiderPhase, Speed, Weight};
 use crate::config::*;
 use crate::dispatch::scan::ScanDispatch;
 use crate::sim::Simulation;
@@ -32,10 +32,10 @@ pub fn default_config() -> SimConfig {
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "Main".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,

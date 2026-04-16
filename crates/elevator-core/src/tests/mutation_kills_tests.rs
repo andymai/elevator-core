@@ -5,6 +5,7 @@
 //! traceable. Each `#[test]` comment names the specific mutant(s) it
 //! intends to catch.
 
+use crate::components::{Accel, Speed, Weight};
 use crate::components::{Elevator, ElevatorPhase, Preferences, Rider, RiderPhase, Stop};
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::scan::ScanDispatch;
@@ -149,7 +150,7 @@ fn dispatch_manifest_wait_ticks_grows_with_time() {
     world.set_rider(
         rid,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase: RiderPhase::Waiting,
             current_stop: Some(stops[1]),
             spawn_tick: 0,
@@ -199,11 +200,11 @@ fn spawn_elev(world: &mut World, pos: f64, n: usize) -> Vec<EntityId> {
                 Elevator {
                     phase: ElevatorPhase::Idle,
                     door: DoorState::Closed,
-                    max_speed: 2.0,
-                    acceleration: 1.5,
-                    deceleration: 2.0,
-                    weight_capacity: 800.0,
-                    current_load: 0.0,
+                    max_speed: Speed::from(2.0),
+                    acceleration: Accel::from(1.5),
+                    deceleration: Accel::from(2.0),
+                    weight_capacity: Weight::from(800.0),
+                    current_load: Weight::from(0.0),
                     riders: vec![],
                     target_stop: None,
                     door_transition_ticks: 5,
@@ -239,7 +240,7 @@ fn build_test_manifest(
         .push(RiderInfo {
             id: rider,
             destination: None,
-            weight: 70.0,
+            weight: Weight::from(70.0),
             wait_ticks: tick,
         });
     m
@@ -402,7 +403,7 @@ fn scan_at_stop_position_does_not_target_self() {
             .push(RiderInfo {
                 id: world.spawn(),
                 destination: None,
-                weight: 70.0,
+                weight: Weight::from(70.0),
                 wait_ticks: 0,
             });
     }

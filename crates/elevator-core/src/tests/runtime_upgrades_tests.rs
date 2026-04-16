@@ -46,11 +46,11 @@ fn set_max_speed_applies_and_emits_event() {
 
     sim.set_max_speed(elev, 4.0).unwrap();
 
-    assert_eq!(sim.world().elevator(elev).unwrap().max_speed(), 4.0);
+    assert_eq!(sim.world().elevator(elev).unwrap().max_speed().value(), 4.0);
     let events = sim.drain_events();
     assert_eq!(count_upgrades(&events, UpgradeField::MaxSpeed), 1);
     let (old_v, new_v) = find_upgrade(&events, UpgradeField::MaxSpeed).unwrap();
-    assert_eq!(old_v, UpgradeValue::float(old));
+    assert_eq!(old_v, UpgradeValue::float(old.value()));
     assert_eq!(new_v, UpgradeValue::float(4.0));
 }
 
@@ -59,11 +59,14 @@ fn set_acceleration_applies_and_emits_event() {
     let (mut sim, elev) = make_sim();
     let old = sim.world().elevator(elev).unwrap().acceleration();
     sim.set_acceleration(elev, 3.0).unwrap();
-    assert_eq!(sim.world().elevator(elev).unwrap().acceleration(), 3.0);
+    assert_eq!(
+        sim.world().elevator(elev).unwrap().acceleration().value(),
+        3.0
+    );
     let events = sim.drain_events();
     assert_eq!(count_upgrades(&events, UpgradeField::Acceleration), 1);
     let (old_v, new_v) = find_upgrade(&events, UpgradeField::Acceleration).unwrap();
-    assert_eq!(old_v, UpgradeValue::float(old));
+    assert_eq!(old_v, UpgradeValue::float(old.value()));
     assert_eq!(new_v, UpgradeValue::float(3.0));
 }
 
@@ -72,11 +75,14 @@ fn set_deceleration_applies_and_emits_event() {
     let (mut sim, elev) = make_sim();
     let old = sim.world().elevator(elev).unwrap().deceleration();
     sim.set_deceleration(elev, 3.5).unwrap();
-    assert_eq!(sim.world().elevator(elev).unwrap().deceleration(), 3.5);
+    assert_eq!(
+        sim.world().elevator(elev).unwrap().deceleration().value(),
+        3.5
+    );
     let events = sim.drain_events();
     assert_eq!(count_upgrades(&events, UpgradeField::Deceleration), 1);
     let (old_v, new_v) = find_upgrade(&events, UpgradeField::Deceleration).unwrap();
-    assert_eq!(old_v, UpgradeValue::float(old));
+    assert_eq!(old_v, UpgradeValue::float(old.value()));
     assert_eq!(new_v, UpgradeValue::float(3.5));
 }
 
@@ -86,13 +92,17 @@ fn set_weight_capacity_applies_and_emits_event() {
     let old = sim.world().elevator(elev).unwrap().weight_capacity();
     sim.set_weight_capacity(elev, 1200.0).unwrap();
     assert_eq!(
-        sim.world().elevator(elev).unwrap().weight_capacity(),
+        sim.world()
+            .elevator(elev)
+            .unwrap()
+            .weight_capacity()
+            .value(),
         1200.0
     );
     let events = sim.drain_events();
     assert_eq!(count_upgrades(&events, UpgradeField::WeightCapacity), 1);
     let (old_v, new_v) = find_upgrade(&events, UpgradeField::WeightCapacity).unwrap();
-    assert_eq!(old_v, UpgradeValue::float(old));
+    assert_eq!(old_v, UpgradeValue::float(old.value()));
     assert_eq!(new_v, UpgradeValue::float(1200.0));
 }
 
@@ -324,19 +334,23 @@ fn weight_capacity_below_current_load_still_applies() {
         }
     }
     assert!(boarded, "rider should board within 500 ticks");
-    let load = sim.world().elevator(elev).unwrap().current_load();
+    let load = sim.world().elevator(elev).unwrap().current_load().value();
     assert!(load > 0.0, "current_load should be non-zero after boarding");
 
     // Force capacity below current load.
     let new_cap = load / 2.0;
     sim.set_weight_capacity(elev, new_cap).unwrap();
     assert_eq!(
-        sim.world().elevator(elev).unwrap().weight_capacity(),
+        sim.world()
+            .elevator(elev)
+            .unwrap()
+            .weight_capacity()
+            .value(),
         new_cap
     );
     // current_load is unchanged — no riders ejected.
     assert!(
-        (sim.world().elevator(elev).unwrap().current_load() - load).abs() < 1e-9,
+        (sim.world().elevator(elev).unwrap().current_load().value() - load).abs() < 1e-9,
         "current_load must not change when capacity is lowered"
     );
 }

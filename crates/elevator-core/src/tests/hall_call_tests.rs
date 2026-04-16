@@ -1,6 +1,7 @@
 //! Tests for the hall-call / car-call public API.
 
 use crate::components::CallDirection;
+use crate::components::Weight;
 use crate::entity::EntityId;
 use crate::events::Event;
 use crate::sim::Simulation;
@@ -273,7 +274,7 @@ fn abandon_on_full_abandons_immediately() {
     use crate::components::Preferences;
     let mut config = default_config();
     // Tight capacity so any preload fills the car.
-    config.elevators[0].weight_capacity = 100.0;
+    config.elevators[0].weight_capacity = Weight::from(100.0);
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     // Rider with abandon_on_full who skips anything with load > 0.5.
@@ -311,7 +312,7 @@ fn abandon_on_full_abandons_immediately() {
         }
         if let Some(car) = w.elevator_mut(elev) {
             car.phase = crate::components::ElevatorPhase::Loading;
-            car.current_load = 60.0;
+            car.current_load = Weight::from(60.0);
             car.target_stop = None;
         }
     }
@@ -333,7 +334,7 @@ fn abandon_on_full_abandons_immediately() {
 fn abandon_on_full_fires_before_balk_threshold_elapses() {
     use crate::components::Preferences;
     let mut config = default_config();
-    config.elevators[0].weight_capacity = 100.0;
+    config.elevators[0].weight_capacity = Weight::from(100.0);
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let picky = sim
@@ -369,7 +370,7 @@ fn abandon_on_full_fires_before_balk_threshold_elapses() {
         }
         if let Some(car) = w.elevator_mut(elev) {
             car.phase = crate::components::ElevatorPhase::Loading;
-            car.current_load = 60.0;
+            car.current_load = Weight::from(60.0);
             car.target_stop = None;
         }
     }

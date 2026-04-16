@@ -187,7 +187,7 @@ impl World {
                 | crate::components::RiderPhase::Exiting(elev) => {
                     if let Some(car) = self.elevators.get_mut(elev) {
                         car.riders.retain(|r| *r != id);
-                        car.current_load = (car.current_load - weight).max(0.0);
+                        car.current_load -= weight;
                     }
                 }
                 _ => {}

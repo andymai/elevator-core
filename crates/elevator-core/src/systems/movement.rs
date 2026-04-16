@@ -60,12 +60,12 @@ pub fn run(
             continue;
         };
         let max_speed = if is_inspection {
-            car.max_speed * car.inspection_speed_factor
+            car.max_speed.value() * car.inspection_speed_factor
         } else {
-            car.max_speed
+            car.max_speed.value()
         };
-        let acceleration = car.acceleration;
-        let deceleration = car.deceleration;
+        let acceleration = car.acceleration.value();
+        let deceleration = car.deceleration.value();
         let door_transition_ticks = car.door_transition_ticks;
         let door_open_ticks = car.door_open_ticks;
         // Authoritative source for "is this a reposition trip?" is the
@@ -202,9 +202,9 @@ fn tick_manual(
         return;
     };
     let target = car.manual_target_velocity.unwrap_or(0.0);
-    let accel = car.acceleration;
-    let decel = car.deceleration;
-    let max_speed = car.max_speed;
+    let accel = car.acceleration.value();
+    let decel = car.deceleration.value();
+    let max_speed = car.max_speed.value();
     let Some(pos_comp) = world.position(eid) else {
         return;
     };

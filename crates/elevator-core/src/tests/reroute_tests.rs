@@ -1,4 +1,5 @@
 use crate::components::RiderPhase;
+use crate::components::{Accel, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -35,10 +36,10 @@ fn three_stop_config() -> SimConfig {
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "E0".into(),
-            max_speed: 5.0,
-            acceleration: 3.0,
-            deceleration: 3.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(3.0),
+            deceleration: Accel::from(3.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 5,
             door_transition_ticks: 3,
@@ -140,10 +141,10 @@ fn disable_only_stop_causes_abandonment() {
         elevators: vec![ElevatorConfig {
             id: 0,
             name: "E0".into(),
-            max_speed: 5.0,
-            acceleration: 3.0,
-            deceleration: 3.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(3.0),
+            deceleration: Accel::from(3.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 5,
             door_transition_ticks: 3,

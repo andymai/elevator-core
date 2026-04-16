@@ -4,7 +4,7 @@
 
 use super::helpers::{default_config, scan};
 use crate::builder::SimulationBuilder;
-use crate::components::{AccessControl, Preferences, RiderPhase};
+use crate::components::{Accel, AccessControl, Preferences, RiderPhase, Speed, Weight};
 use crate::dispatch::BuiltinReposition;
 use crate::dispatch::reposition::ReturnToLobby;
 use crate::dispatch::{EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch};
@@ -522,10 +522,10 @@ fn iter_repositioning_elevators_returns_elevator_during_reposition() {
         .elevator(crate::config::ElevatorConfig {
             id: 0,
             name: "A".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(2),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -583,10 +583,10 @@ fn iter_repositioning_elevators_empty_after_reposition_completes() {
         .elevator(crate::config::ElevatorConfig {
             id: 0,
             name: "A".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(2),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -643,7 +643,7 @@ fn rider_builder_custom_weight() {
 
     let rider = sim.world().rider(rider_id).unwrap();
     assert!(
-        (rider.weight - 90.0).abs() < f64::EPSILON,
+        (rider.weight.value() - 90.0).abs() < f64::EPSILON,
         "rider weight should be 90.0, got {}",
         rider.weight
     );
@@ -778,10 +778,10 @@ fn rider_builder_no_route_when_stops_not_in_same_group() {
         .elevator(crate::config::ElevatorConfig {
             id: 0,
             name: "E1".into(),
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
             starting_stop: StopId(0),
             door_open_ticks: 10,
             door_transition_ticks: 5,
@@ -910,7 +910,7 @@ fn rider_builder_default_weight_is_75() {
 
     let rider = sim.world().rider(rider_id).unwrap();
     assert!(
-        (rider.weight - 75.0).abs() < f64::EPSILON,
+        (rider.weight.value() - 75.0).abs() < f64::EPSILON,
         "default weight should be 75.0, got {}",
         rider.weight
     );

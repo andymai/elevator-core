@@ -148,7 +148,7 @@ impl Simulation {
                 acceleration: params.acceleration,
                 deceleration: params.deceleration,
                 weight_capacity: params.weight_capacity,
-                current_load: 0.0,
+                current_load: crate::components::Weight::ZERO,
                 riders: Vec::new(),
                 target_stop: None,
                 door_transition_ticks: params.door_transition_ticks,

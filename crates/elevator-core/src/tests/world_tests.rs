@@ -1,3 +1,4 @@
+use crate::components::{Accel, Speed, Weight};
 use std::collections::HashSet;
 
 use crate::components::*;
@@ -48,11 +49,11 @@ fn elevator_query_returns_entities_with_both_components() {
         Elevator {
             phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
-            max_speed: 2.0,
-            acceleration: 1.5,
-            deceleration: 2.0,
-            weight_capacity: 800.0,
-            current_load: 0.0,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 15,
@@ -88,7 +89,7 @@ fn rider_query() {
     world.set_rider(
         p1,
         Rider {
-            weight: 70.0,
+            weight: Weight::from(70.0),
             phase: RiderPhase::Waiting,
             current_stop: Some(origin),
             spawn_tick: 0,
@@ -98,7 +99,7 @@ fn rider_query() {
 
     let riders: Vec<_> = world.iter_riders().collect();
     assert_eq!(riders.len(), 1);
-    assert!((riders[0].1.weight - 70.0).abs() < f64::EPSILON);
+    assert!((riders[0].1.weight.value() - 70.0).abs() < f64::EPSILON);
 }
 
 #[test]
