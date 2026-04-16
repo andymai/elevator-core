@@ -1333,7 +1333,12 @@ mod tests {
 
         // The core library doesn't auto-spawn riders from passenger_spawning;
         // seed some via the Rust API directly.
-        let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
+        let first = ev
+            .sim
+            .stop_lookup_iter()
+            .min_by_key(|(s, _)| s.0)
+            .map(|(s, _)| *s)
+            .unwrap();
         let last = ev
             .sim
             .stop_lookup_iter()
@@ -1404,7 +1409,12 @@ mod tests {
                 g.set_hall_call_mode(HallCallMode::Destination);
             }
         }
-        let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
+        let first = ev
+            .sim
+            .stop_lookup_iter()
+            .min_by_key(|(s, _)| s.0)
+            .map(|(s, _)| *s)
+            .unwrap();
         let last = ev
             .sim
             .stop_lookup_iter()
@@ -1463,7 +1473,12 @@ mod tests {
         let handle = unsafe { ev_sim_create(c_path.as_ptr()) };
         let ev = unsafe { handle.as_mut() }.expect("sim should build");
 
-        let first = ev.sim.stop_lookup_iter().next().map(|(s, _)| *s).unwrap();
+        let first = ev
+            .sim
+            .stop_lookup_iter()
+            .min_by_key(|(s, _)| s.0)
+            .map(|(s, _)| *s)
+            .unwrap();
         let last = ev
             .sim
             .stop_lookup_iter()
@@ -1472,34 +1487,47 @@ mod tests {
             .unwrap();
         ev.sim.spawn_rider_by_stop_id(first, last, 75.0).unwrap();
 
-        // Take one step so the events from rider spawning + first tick
-        // land in the drainable queue.
-        assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        // Step a few ticks so all phases complete and events settle.
+        for _ in 0..3 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
 
-        let mut buf = [EvEvent {
-            kind: 0,
-            direction: 0,
-            tick: 0,
-            stop: 0,
-            car: 0,
-            rider: 0,
-            floor: 0,
-        }; 32];
-        let mut written: u32 = 0;
-        let status = unsafe {
-            ev_sim_drain_events(
-                handle,
-                buf.as_mut_ptr(),
-                u32::try_from(buf.len()).unwrap(),
-                &raw mut written,
-            )
-        };
-        assert_eq!(status, EvStatus::Ok);
+        // Drain all events accumulated across all steps.
+        let mut all_events = Vec::new();
+        loop {
+            let mut buf = [EvEvent {
+                kind: 0,
+                direction: 0,
+                tick: 0,
+                stop: 0,
+                car: 0,
+                rider: 0,
+                floor: 0,
+            }; 64];
+            let mut written: u32 = 0;
+            let status = unsafe {
+                ev_sim_drain_events(
+                    handle,
+                    buf.as_mut_ptr(),
+                    u32::try_from(buf.len()).unwrap(),
+                    &raw mut written,
+                )
+            };
+            assert_eq!(status, EvStatus::Ok);
+            if written == 0 {
+                break;
+            }
+            all_events.extend_from_slice(&buf[..written as usize]);
+        }
+
         assert!(
-            buf[..written as usize]
+            all_events
                 .iter()
                 .any(|e| e.kind == ev_event_kind::HALL_BUTTON_PRESSED && e.stop != 0),
-            "drain should surface HallButtonPressed with a nonzero stop id",
+            "drain should surface HallButtonPressed with a nonzero stop id; \
+             got {} events with kinds: {:?}",
+            all_events.len(),
+            all_events.iter().map(|e| e.kind).collect::<Vec<_>>(),
         );
 
         unsafe { ev_sim_destroy(handle) };
