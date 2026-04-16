@@ -609,6 +609,10 @@ const ASSIGNMENT_SCALE: f64 = 1_000_000.0;
 /// to the unavailable sentinel.
 fn scale_cost(cost: f64) -> i64 {
     if !cost.is_finite() || cost < 0.0 {
+        debug_assert!(
+            cost.is_finite() && cost >= 0.0,
+            "DispatchStrategy::rank() returned invalid cost {cost}; must be finite and non-negative"
+        );
         return ASSIGNMENT_SENTINEL;
     }
     // Cap at just below sentinel so any real rank always beats unavailable.

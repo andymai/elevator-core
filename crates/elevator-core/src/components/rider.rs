@@ -117,7 +117,7 @@ impl std::fmt::Display for RiderPhase {
 /// additional components (`VipTag`, `FreightData`, `PersonData`, etc.)
 /// for game-specific behavior. An entity with `Rider` but no
 /// Route component can be boarded/exited manually by game code.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Rider {
     /// Weight contributed to elevator load.
     pub(crate) weight: f64,

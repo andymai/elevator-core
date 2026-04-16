@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Validated at construction time by [`Simulation::new()`](crate::sim::Simulation::new)
 /// or [`SimulationBuilder::build()`](crate::builder::SimulationBuilder::build).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimConfig {
     /// Building layout describing the stops (floors/stations) along the shaft.
     pub building: BuildingConfig,
@@ -178,6 +178,17 @@ impl Default for ElevatorConfig {
     }
 }
 
+impl Default for BuildingConfig {
+    fn default() -> Self {
+        Self {
+            name: "Building".into(),
+            stops: Vec::new(),
+            lines: None,
+            groups: None,
+        }
+    }
+}
+
 /// Global simulation timing parameters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationParams {
@@ -189,6 +200,14 @@ pub struct SimulationParams {
     ///
     /// Default (from `SimulationBuilder`): `60.0`.
     pub ticks_per_second: f64,
+}
+
+impl Default for SimulationParams {
+    fn default() -> Self {
+        Self {
+            ticks_per_second: 60.0,
+        }
+    }
 }
 
 /// Passenger spawning parameters (used by the game layer).
@@ -214,6 +233,15 @@ pub struct PassengerSpawnConfig {
     /// Units: same as elevator `weight_capacity` (typically kilograms).
     /// Default (from `SimulationBuilder`): `(50.0, 100.0)`.
     pub weight_range: (f64, f64),
+}
+
+impl Default for PassengerSpawnConfig {
+    fn default() -> Self {
+        Self {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        }
+    }
 }
 
 /// Configuration for a single line (physical path).

@@ -177,12 +177,12 @@ fn extension_components() {
 
     // Insert, get, mutate.
     world.insert_ext(e, VipTag { level: 3 }, ExtKey::from_type_name());
-    assert_eq!(world.get_ext::<VipTag>(e), Some(VipTag { level: 3 }));
+    assert_eq!(world.ext::<VipTag>(e), Some(VipTag { level: 3 }));
 
-    world.get_ext_mut::<VipTag>(e).unwrap().level = 5;
-    assert_eq!(world.get_ext::<VipTag>(e).unwrap().level, 5);
+    world.ext_mut::<VipTag>(e).unwrap().level = 5;
+    assert_eq!(world.ext::<VipTag>(e).unwrap().level, 5);
 
     // Despawn cleans up extensions.
     world.despawn(e);
-    assert!(world.get_ext::<VipTag>(e).is_none());
+    assert!(world.ext::<VipTag>(e).is_none());
 }

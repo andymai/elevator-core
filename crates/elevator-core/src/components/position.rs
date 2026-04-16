@@ -14,17 +14,26 @@ use std::fmt;
 /// let pos = Position::from(4.5);
 /// assert_eq!(format!("{pos}"), "4.50m");
 /// ```
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Position {
     /// Absolute position value.
     pub(crate) value: f64,
 }
 
 impl Position {
+    /// Zero position (shaft origin).
+    pub const ZERO: Self = Self { value: 0.0 };
+
     /// Absolute position value.
     #[must_use]
     pub const fn value(&self) -> f64 {
         self.value
+    }
+
+    /// Absolute distance between two positions.
+    #[must_use]
+    pub fn distance_to(self, other: Self) -> f64 {
+        (self.value - other.value).abs()
     }
 }
 
@@ -57,17 +66,26 @@ impl From<f64> for Position {
 /// let stopped = Velocity::from(0.0);
 /// assert_eq!(format!("{stopped}"), "0.00m/s");
 /// ```
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Velocity {
     /// Signed velocity value.
     pub(crate) value: f64,
 }
 
 impl Velocity {
+    /// Zero velocity (stationary).
+    pub const ZERO: Self = Self { value: 0.0 };
+
     /// Signed velocity value.
     #[must_use]
     pub const fn value(&self) -> f64 {
         self.value
+    }
+
+    /// Absolute speed (magnitude of velocity).
+    #[must_use]
+    pub const fn speed(self) -> f64 {
+        self.value.abs()
     }
 }
 

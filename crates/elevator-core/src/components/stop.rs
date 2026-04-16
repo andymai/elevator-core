@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Component for a stop (floor/station) entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Stop {
     /// Human-readable stop name.
     pub(crate) name: String,

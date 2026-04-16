@@ -107,7 +107,7 @@ impl std::fmt::Display for ElevatorPhase {
 }
 
 /// Component for an elevator entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Elevator {
     /// Current operational phase.
     pub(crate) phase: ElevatorPhase,
