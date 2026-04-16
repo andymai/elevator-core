@@ -510,7 +510,7 @@ pub mod prelude {
     pub use crate::components::{
         Accel, AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, Line,
         Orientation, Patience, Position, Preferences, Rider, RiderPhase, RiderPhaseKind, Route,
-        ServiceMode, SpatialPosition, Speed, Stop, Velocity, Weight,
+        ServiceMode, SpatialPosition, Speed, Stop, UnitError, Velocity, Weight,
     };
     pub use crate::config::{ElevatorConfig, GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
