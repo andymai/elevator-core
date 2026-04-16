@@ -30,7 +30,7 @@ pub use car_call::CarCall;
 pub use destination_queue::DestinationQueue;
 pub use elevator::{DOOR_COMMAND_QUEUE_CAP, Direction, Elevator, ElevatorPhase};
 pub use hall_call::{CallDirection, HallCall};
-pub use line::{FloorPosition, Line, Orientation};
+pub use line::{Line, Orientation, SpatialPosition};
 pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};
 pub use rider::{Rider, RiderPhase};

@@ -11,7 +11,7 @@ This chapter is a quick-reference for the public API of the `elevator-core` crat
 | Category | Items |
 |---|---|
 | Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
-| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `FloorPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
 | Config | `SimConfig`, `GroupConfig`, `LineConfig` |
 | Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
 | Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
@@ -220,7 +220,7 @@ Parameters for `add_line` at runtime. All fields are public.
 | `orientation` | `Orientation` | Physical orientation (defaults to `Vertical`) |
 | `min_position` | `f64` | Lowest reachable position on the line axis |
 | `max_position` | `f64` | Highest reachable position on the line axis |
-| `position` | `Option<FloorPosition>` | Optional floor-plan position |
+| `position` | `Option<SpatialPosition>` | Optional floor-plan position |
 | `max_cars` | `Option<usize>` | Maximum cars on this line (`None` = unlimited) |
 
 Constructor: `LineParams::new(name, group)` — defaults orientation to `Vertical`, positions to `0.0`, no floor-plan position, unlimited cars.
@@ -650,7 +650,7 @@ All config types derive `Serialize + Deserialize` and are loadable from RON file
 | `serves` | `Vec<StopId>` | Stops served by this line |
 | `elevators` | `Vec<ElevatorConfig>` | Elevators on this line |
 | `orientation` | `Orientation` | Physical orientation (defaults to `Vertical`) |
-| `position` | `Option<FloorPosition>` | Optional floor-plan position |
+| `position` | `Option<SpatialPosition>` | Optional floor-plan position |
 | `min_position` | `Option<f64>` | Lowest reachable position (auto-computed from stops if `None`) |
 | `max_position` | `Option<f64>` | Highest reachable position (auto-computed from stops if `None`) |
 | `max_cars` | `Option<usize>` | Max cars on this line (`None` = unlimited) |
@@ -722,7 +722,7 @@ Entity components are the data attached to simulation entities. Built-in compone
 | `name()` | `&str` | Human-readable name |
 | `group()` | `GroupId` | Dispatch group this line belongs to |
 | `orientation()` | `Orientation` | Physical orientation |
-| `position()` | `Option<&FloorPosition>` | Optional floor-plan position |
+| `position()` | `Option<&SpatialPosition>` | Optional floor-plan position |
 | `min_position()` | `f64` | Lowest reachable position along the line axis |
 | `max_position()` | `f64` | Highest reachable position along the line axis |
 | `max_cars()` | `Option<usize>` | Maximum number of cars allowed on this line |

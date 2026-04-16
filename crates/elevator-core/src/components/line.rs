@@ -25,7 +25,7 @@ pub enum Orientation {
 
 /// 2D position on a floor plan (for spatial queries and rendering).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct FloorPosition {
+pub struct SpatialPosition {
     /// X coordinate on the floor plan.
     pub x: f64,
     /// Y coordinate on the floor plan.
@@ -53,7 +53,7 @@ pub struct Line {
     /// Physical orientation (metadata for rendering).
     pub(crate) orientation: Orientation,
     /// Optional floor-plan position (for spatial queries).
-    pub(crate) position: Option<FloorPosition>,
+    pub(crate) position: Option<SpatialPosition>,
     /// Lowest reachable position along the line axis.
     pub(crate) min_position: f64,
     /// Highest reachable position along the line axis.
@@ -83,7 +83,7 @@ impl Line {
 
     /// Optional floor-plan position.
     #[must_use]
-    pub const fn position(&self) -> Option<&FloorPosition> {
+    pub const fn position(&self) -> Option<&SpatialPosition> {
         self.position.as_ref()
     }
 

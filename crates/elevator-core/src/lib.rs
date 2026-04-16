@@ -59,7 +59,7 @@
 //! | [`sim`] | Top-level [`Simulation`](sim::Simulation) runner and tick loop |
 //! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait |
 //! | [`world`] | ECS-style [`World`](world::World) with typed component storage |
-//! | [`components`] | Entity data types: [`Rider`](components::Rider), [`Elevator`](components::Elevator), [`Stop`](components::Stop), [`Line`](components::Line), [`Route`](components::Route), [`Patience`](components::Patience), [`Preferences`](components::Preferences), [`AccessControl`](components::AccessControl), [`DestinationQueue`](components::DestinationQueue), [`ServiceMode`](components::ServiceMode), [`Orientation`](components::Orientation), [`Position`](components::Position), [`Velocity`](components::Velocity), [`FloorPosition`](components::FloorPosition) |
+//! | [`components`] | Entity data types: [`Rider`](components::Rider), [`Elevator`](components::Elevator), [`Stop`](components::Stop), [`Line`](components::Line), [`Route`](components::Route), [`Patience`](components::Patience), [`Preferences`](components::Preferences), [`AccessControl`](components::AccessControl), [`DestinationQueue`](components::DestinationQueue), [`ServiceMode`](components::ServiceMode), [`Orientation`](components::Orientation), [`Position`](components::Position), [`Velocity`](components::Velocity), [`SpatialPosition`](components::SpatialPosition) |
 //! | [`config`] | RON-deserializable [`SimConfig`](config::SimConfig), [`GroupConfig`](config::GroupConfig), [`LineConfig`](config::LineConfig) |
 //! | [`events`] | [`Event`](events::Event) variants and the [`EventBus`](events::EventBus) |
 //! | [`metrics`] | Aggregate [`Metrics`](metrics::Metrics) (wait time, throughput, etc.) |
@@ -435,7 +435,7 @@ macro_rules! register_extensions {
 ///   [`Stop`](crate::components::Stop), [`Line`](crate::components::Line),
 ///   [`Position`](crate::components::Position),
 ///   [`Velocity`](crate::components::Velocity),
-///   [`FloorPosition`](crate::components::FloorPosition),
+///   [`SpatialPosition`](crate::components::SpatialPosition),
 ///   [`Route`](crate::components::Route),
 ///   [`Patience`](crate::components::Patience),
 ///   [`Preferences`](crate::components::Preferences),
@@ -475,9 +475,9 @@ macro_rules! register_extensions {
 pub mod prelude {
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
-        AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, FloorPosition, Line,
-        Orientation, Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, Stop,
-        Velocity,
+        AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, Line, Orientation,
+        Patience, Position, Preferences, Rider, RiderPhase, Route, ServiceMode, SpatialPosition,
+        Stop, Velocity,
     };
     pub use crate::config::{GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
