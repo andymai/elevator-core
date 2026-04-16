@@ -22,12 +22,13 @@ pub fn run(
     groups: &[ElevatorGroup],
     repositioners: &mut BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
 ) {
+    let mut decisions: Vec<(EntityId, EntityId)> = Vec::new();
+
     for group in groups {
         let Some(strategy) = repositioners.get_mut(&group.id()) else {
             continue;
         };
 
-        // Collect idle elevators in this group.
         let idle_elevators: Vec<(EntityId, f64)> = group
             .elevator_entities()
             .iter()
@@ -35,7 +36,6 @@ pub fn run(
                 if world.is_disabled(eid) {
                     return None;
                 }
-                // Skip elevators that opt out of automatic dispatch.
                 if world
                     .service_mode(eid)
                     .is_some_and(|m| m.is_dispatch_excluded())
@@ -56,7 +56,6 @@ pub fn run(
             continue;
         }
 
-        // Stop positions in this group.
         let stop_positions: Vec<(EntityId, f64)> = group
             .stop_entities()
             .iter()
@@ -67,9 +66,18 @@ pub fn run(
             continue;
         }
 
-        let decisions = strategy.reposition(&idle_elevators, &stop_positions, group, world);
+        decisions.clear();
+        strategy.reposition(
+            &idle_elevators,
+            &stop_positions,
+            group,
+            world,
+            &mut decisions,
+        );
 
-        for (elev_eid, target_stop) in decisions {
+        for (elev_eid, target_stop) in &decisions {
+            let elev_eid = *elev_eid;
+            let target_stop = *target_stop;
             if let Some(car) = world.elevator_mut(elev_eid) {
                 car.phase = ElevatorPhase::Repositioning(target_stop);
                 car.target_stop = Some(target_stop);
