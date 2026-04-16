@@ -1,8 +1,8 @@
 # Writing a Custom Dispatch Strategy
 
-The built-in strategies ([SCAN, LOOK, NearestCar, ETD](dispatch-strategies.md)) cover most general-purpose needs. Write a custom strategy when you need domain-specific behavior the built-ins don't capture -- priority lanes, VIP handling, freight vs. passenger separation, fairness guarantees, energy-aware dispatch.
+The built-in strategies ([SCAN, LOOK, NearestCar, ETD, Destination](dispatch-strategies.md)) cover most general-purpose needs. Write a custom strategy when you need domain-specific behavior the built-ins don't capture -- priority lanes, VIP handling, freight vs. passenger separation, fairness guarantees, energy-aware dispatch.
 
-This chapter is a narrative tutorial that walks from a minimal strategy to a production-grade one with snapshot support. If you just need the API surface, the [Dispatch Strategies](dispatch-strategies.md) chapter has the reference sketch.
+This chapter is a narrative tutorial that walks from a minimal strategy to a production-grade one with snapshot support. If you just need a quick overview, the [Dispatch Strategies](dispatch-strategies.md) chapter has one.
 
 ## How dispatch works
 

@@ -1,6 +1,6 @@
 # Manual and Inspection Modes
 
-Every elevator has a `ServiceMode` that controls how the simulation treats it. The default is `Normal` -- dispatch assigns stops, doors auto-cycle, and the elevator moves autonomously. The other modes hand varying degrees of control to the consumer, enabling player-controlled elevators, maintenance scenarios, and direct API-driven movement.
+Every elevator has a `ServiceMode` that controls how the simulation treats it. The default is `Normal` -- dispatch assigns stops, doors auto-cycle, and the elevator moves autonomously. The other modes hand varying degrees of control to your game code, enabling player-controlled elevators, maintenance scenarios, and direct API-driven movement.
 
 ## ServiceMode overview
 
@@ -36,7 +36,7 @@ Set the target velocity with `sim.set_target_velocity()`. The elevator accelerat
 ```rust,no_run
 # use elevator_core::prelude::*;
 # fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
-// Command the elevator upward at 2.0 m/tick.
+// Command the elevator upward.
 sim.set_target_velocity(elev, 2.0)?;
 
 // Command it downward.

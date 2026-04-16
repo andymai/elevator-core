@@ -45,7 +45,7 @@ Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `
 
 ## Rider data
 
-Key fields on the `Rider` component:
+Key accessors on the `Rider` component (all are getter methods):
 
 - `weight` -- how much this rider contributes to elevator load
 - `spawn_tick` -- when the rider was created

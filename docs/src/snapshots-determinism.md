@@ -8,7 +8,7 @@ The simulation is deterministic given:
 
 1. The same initial `SimConfig` (same stops, elevators, groups, lines, dispatch strategy).
 2. The same sequence of API calls (`spawn_rider`, `despawn_rider`, `tag_entity`, hook mutations, etc.).
-3. A deterministic dispatch strategy (the four built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch` -- are deterministic).
+3. A deterministic dispatch strategy (the built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, `DestinationDispatch` -- are all deterministic).
 
 Under those conditions two runs produce byte-identical snapshots and event streams.
 

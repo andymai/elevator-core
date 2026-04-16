@@ -36,9 +36,9 @@ stateDiagram-v2
 | `Riding` | Inside the elevator | Loading phase exits the rider when the elevator arrives at their destination |
 | `Exiting` | Leaving the elevator | AdvanceTransient: becomes `Arrived` (route complete), or `Walking` (multi-leg) |
 | `Walking` | Transferring between stops | Teleported immediately to the next leg's origin, then becomes `Waiting` |
-| `Arrived` | At final destination | Consumer decides: `settle_rider()`, `despawn_rider()`, or leave in place |
-| `Abandoned` | Left the queue at a stop | Patience ran out or `abandon_on_full` triggered; consumer can settle or despawn |
-| `Resident` | Parked at a stop, not seeking an elevator | Consumer called `settle_rider()` on an Arrived or Abandoned rider |
+| `Arrived` | At final destination | Your game decides: `settle_rider()`, `despawn_rider()`, or leave in place |
+| `Abandoned` | Left the queue at a stop | Patience ran out or `abandon_on_full` triggered; your game can settle or despawn |
+| `Resident` | Parked at a stop, not seeking an elevator | Your game called `settle_rider()` on an Arrived or Abandoned rider |
 
 Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`, `RiderSettled`, `RiderRerouted`, `RiderDespawned`.
 

@@ -1,6 +1,6 @@
 # Dispatch Strategies
 
-Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the four built-in strategies, and how to choose between them.
+Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the five built-in strategies, and how to choose between them.
 
 ## How dispatch works
 
