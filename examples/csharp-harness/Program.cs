@@ -110,19 +110,22 @@ internal static class Native
     public const byte EV_CAR_BUTTON_PRESSED = 4;
     public const byte EV_RIDER_BALKED = 5;
 
-    [StructLayout(LayoutKind.Sequential)]
+    // Explicit layout so the 6 bytes of padding before `tick`
+    // (natural u64 alignment on the Rust #[repr(C)] side) are
+    // reserved here too, rather than relying on the CLR's default
+    // Sequential packing rules matching by coincidence across all
+    // three target ABIs.
+    [StructLayout(LayoutKind.Explicit, Size = 48)]
     public struct EvEvent
     {
-        public byte kind;
-        public sbyte direction;
-        // 6 bytes of natural padding before `tick` on every target the
-        // harness runs on (linux-x64, win-x64, osx-arm64); the repr(C)
-        // layout on the Rust side lines up with default-pack LayoutKind.Sequential.
-        public ulong tick;
-        public ulong stop;
-        public ulong car;
-        public ulong rider;
-        public ulong floor;
+        [FieldOffset(0)] public byte kind;
+        [FieldOffset(1)] public sbyte direction;
+        // bytes 2..8 are padding (reserved for alignment)
+        [FieldOffset(8)] public ulong tick;
+        [FieldOffset(16)] public ulong stop;
+        [FieldOffset(24)] public ulong car;
+        [FieldOffset(32)] public ulong rider;
+        [FieldOffset(40)] public ulong floor;
     }
 
     [DllImport(Lib)] public static extern uint ev_abi_version();

@@ -585,12 +585,12 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
 /**
  * Drain pending hall-call / car-call / balk events into `out`.
  *
- * This is the FFI mirror of `Simulation::drain_events` filtered to
+ * This is the FFI mirror of `Simulation::drain_events`, filtered to
  * the five events added by the hall-call work: every call produced
- * by the simulation before the drain is written exactly once, then
+ * by the simulation is eventually delivered exactly once, then
  * removed from the internal queue. Call after `ev_sim_step` each
  * tick to catch new events; the buffer is caller-owned, so the
- * ownership contract differs from the `ev_sim_frame` borrowed-view
+ * ownership contract differs from `ev_sim_frame`'s borrowed-view
  * path.
  *
  * Field meanings by [`EvEvent::kind`]:
@@ -604,14 +604,19 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
  *
  * Unused fields for each kind are zeroed so the caller can inspect
  * a uniform struct layout. Other event kinds in the sim (door
- * transitions, rider spawns, etc.) are not drained here — they'd
- * inflate the matrix and every FFI consumer would have to pay the
- * cost regardless of whether they care. Future kinds can be added
- * with a new discriminator value.
+ * transitions, rider spawns, etc.) are not surfaced — they'd
+ * inflate the matrix and every FFI consumer would pay regardless
+ * of whether they care. Future kinds extend the discriminator.
  *
- * The buffer is filled up to `capacity`; any remaining events are
- * dropped from the sim's queue (caller-chosen buffer size is the
- * contract). Returns the number written in `out_written`.
+ * ## Overflow handling — no silent drops
+ *
+ * If more than `capacity` events are pending, the first `capacity`
+ * are written and the rest stay in an internal queue for the next
+ * call. Callers can detect a truncated read two ways:
+ * - `out_written == capacity` is *possibly* truncated. Call
+ *   [`ev_sim_pending_event_count`] afterward; non-zero means more
+ *   are queued.
+ * - Drain in a loop until `ev_sim_pending_event_count` returns `0`.
  *
  * # Safety
  *
@@ -622,5 +627,21 @@ enum EvStatus ev_sim_drain_events(struct EvSim *handle,
                                   struct EvEvent *out,
                                   uint32_t capacity,
                                   uint32_t *out_written);
+
+/**
+ * Number of events parked in the FFI event buffer plus any pending
+ * in the underlying simulation queue. Use this to detect truncation
+ * after [`ev_sim_drain_events`] or to size a buffer defensively.
+ *
+ * Calling this does not mutate the sim — it drains the sim's queue
+ * into the FFI buffer so the count is accurate, but no events are
+ * dropped and a subsequent `ev_sim_drain_events` call returns the
+ * same set.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_pending_event_count(struct EvSim *handle);
 
 #endif  /* ELEVATOR_FFI_H */

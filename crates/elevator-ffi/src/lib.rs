@@ -116,6 +116,12 @@ pub extern "C" fn ev_last_error() -> *const c_char {
 pub struct EvSim {
     sim: Simulation,
     frame: FrameBuffer,
+    /// Events drained from [`Simulation::drain_events`] but not yet
+    /// handed out via [`ev_sim_drain_events`]. Buffering here
+    /// guarantees no event is ever dropped just because the caller's
+    /// per-call buffer was too small — overflow parks in this queue
+    /// and is delivered on the next drain call.
+    pending_events: std::collections::VecDeque<EvEvent>,
 }
 
 /// Log callback type. Severity follows syslog-style convention (0 = trace,
@@ -420,6 +426,7 @@ pub unsafe extern "C" fn ev_sim_create(config_path: *const c_char) -> *mut EvSim
         Box::into_raw(Box::new(EvSim {
             sim,
             frame: FrameBuffer::default(),
+            pending_events: std::collections::VecDeque::new(),
         }))
     })
 }
@@ -1105,12 +1112,12 @@ pub struct EvEvent {
 
 /// Drain pending hall-call / car-call / balk events into `out`.
 ///
-/// This is the FFI mirror of `Simulation::drain_events` filtered to
+/// This is the FFI mirror of `Simulation::drain_events`, filtered to
 /// the five events added by the hall-call work: every call produced
-/// by the simulation before the drain is written exactly once, then
+/// by the simulation is eventually delivered exactly once, then
 /// removed from the internal queue. Call after `ev_sim_step` each
 /// tick to catch new events; the buffer is caller-owned, so the
-/// ownership contract differs from the `ev_sim_frame` borrowed-view
+/// ownership contract differs from `ev_sim_frame`'s borrowed-view
 /// path.
 ///
 /// Field meanings by [`EvEvent::kind`]:
@@ -1124,14 +1131,19 @@ pub struct EvEvent {
 ///
 /// Unused fields for each kind are zeroed so the caller can inspect
 /// a uniform struct layout. Other event kinds in the sim (door
-/// transitions, rider spawns, etc.) are not drained here — they'd
-/// inflate the matrix and every FFI consumer would have to pay the
-/// cost regardless of whether they care. Future kinds can be added
-/// with a new discriminator value.
+/// transitions, rider spawns, etc.) are not surfaced — they'd
+/// inflate the matrix and every FFI consumer would pay regardless
+/// of whether they care. Future kinds extend the discriminator.
 ///
-/// The buffer is filled up to `capacity`; any remaining events are
-/// dropped from the sim's queue (caller-chosen buffer size is the
-/// contract). Returns the number written in `out_written`.
+/// ## Overflow handling — no silent drops
+///
+/// If more than `capacity` events are pending, the first `capacity`
+/// are written and the rest stay in an internal queue for the next
+/// call. Callers can detect a truncated read two ways:
+/// - `out_written == capacity` is *possibly* truncated. Call
+///   [`ev_sim_pending_event_count`] afterward; non-zero means more
+///   are queued.
+/// - Drain in a loop until `ev_sim_pending_event_count` returns `0`.
 ///
 /// # Safety
 ///
@@ -1144,7 +1156,6 @@ pub unsafe extern "C" fn ev_sim_drain_events(
     capacity: u32,
     out_written: *mut u32,
 ) -> EvStatus {
-    use elevator_core::events::Event;
     guard(EvStatus::Panic, || {
         clear_last_error();
         if handle.is_null() || out.is_null() || out_written.is_null() {
@@ -1152,91 +1163,23 @@ pub unsafe extern "C" fn ev_sim_drain_events(
             return EvStatus::NullArg;
         }
         let ev = unsafe { &mut *handle };
-        // Drain the sim's event queue and filter to the hall-call set.
-        // Events we don't map are discarded — the caller opted in to
-        // hall-call events by calling this function.
+        // Top up the buffer from the sim's event queue. Always
+        // drains the full sim queue — holding events inside the sim
+        // is expensive, and `pending_events` is the right place to
+        // park overflow.
+        refill_pending_events(ev);
+
+        // Pop up to `capacity` from the buffer. Remainder persists
+        // for the next call, so no event is ever silently dropped.
         let mut written: u32 = 0;
-        let events = ev.sim.drain_events();
-        for event in events {
-            if written >= capacity {
+        while written < capacity {
+            let Some(ev_record) = ev.pending_events.pop_front() else {
                 break;
-            }
-            let record = match event {
-                Event::HallButtonPressed {
-                    stop,
-                    direction,
-                    tick,
-                } => EvEvent {
-                    kind: ev_event_kind::HALL_BUTTON_PRESSED,
-                    direction: encode_direction(direction),
-                    tick,
-                    stop: entity_to_u64(stop),
-                    car: 0,
-                    rider: 0,
-                    floor: 0,
-                },
-                Event::HallCallAcknowledged {
-                    stop,
-                    direction,
-                    tick,
-                } => EvEvent {
-                    kind: ev_event_kind::HALL_CALL_ACKNOWLEDGED,
-                    direction: encode_direction(direction),
-                    tick,
-                    stop: entity_to_u64(stop),
-                    car: 0,
-                    rider: 0,
-                    floor: 0,
-                },
-                Event::HallCallCleared {
-                    stop,
-                    direction,
-                    car,
-                    tick,
-                } => EvEvent {
-                    kind: ev_event_kind::HALL_CALL_CLEARED,
-                    direction: encode_direction(direction),
-                    tick,
-                    stop: entity_to_u64(stop),
-                    car: entity_to_u64(car),
-                    rider: 0,
-                    floor: 0,
-                },
-                Event::CarButtonPressed {
-                    car,
-                    floor,
-                    rider,
-                    tick,
-                } => EvEvent {
-                    kind: ev_event_kind::CAR_BUTTON_PRESSED,
-                    direction: 0,
-                    tick,
-                    stop: 0,
-                    car: entity_to_u64(car),
-                    rider: rider.map_or(0, entity_to_u64),
-                    floor: entity_to_u64(floor),
-                },
-                Event::RiderBalked {
-                    rider,
-                    elevator,
-                    at_stop,
-                    tick,
-                } => EvEvent {
-                    kind: ev_event_kind::RIDER_BALKED,
-                    direction: 0,
-                    tick,
-                    stop: entity_to_u64(at_stop),
-                    car: entity_to_u64(elevator),
-                    rider: entity_to_u64(rider),
-                    floor: 0,
-                },
-                // Drop every other event kind — caller didn't opt in.
-                _ => continue,
             };
-            // Safety: we just verified `written < capacity` and the
-            // caller guaranteed `out` points to `capacity` entries.
+            // Safety: `written < capacity` and the caller guaranteed
+            // `out` points to `capacity` entries.
             unsafe {
-                std::ptr::write(out.add(written as usize), record);
+                std::ptr::write(out.add(written as usize), ev_record);
             }
             written += 1;
         }
@@ -1244,6 +1187,111 @@ pub unsafe extern "C" fn ev_sim_drain_events(
         unsafe { std::ptr::write(out_written, written) };
         EvStatus::Ok
     })
+}
+
+/// Number of events parked in the FFI event buffer plus any pending
+/// in the underlying simulation queue. Use this to detect truncation
+/// after [`ev_sim_drain_events`] or to size a buffer defensively.
+///
+/// Calling this does not mutate the sim — it drains the sim's queue
+/// into the FFI buffer so the count is accurate, but no events are
+/// dropped and a subsequent `ev_sim_drain_events` call returns the
+/// same set.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_pending_event_count(handle: *mut EvSim) -> u32 {
+    if handle.is_null() {
+        return 0;
+    }
+    // Safety: validity guaranteed by caller.
+    let ev = unsafe { &mut *handle };
+    refill_pending_events(ev);
+    u32::try_from(ev.pending_events.len()).unwrap_or(u32::MAX)
+}
+
+/// Drain the sim's event queue into `ev.pending_events`, keeping
+/// only the five hall-call / balk events. The buffer is FIFO so
+/// order matches sim emission order across calls.
+fn refill_pending_events(ev: &mut EvSim) {
+    use elevator_core::events::Event;
+    for event in ev.sim.drain_events() {
+        let record = match event {
+            Event::HallButtonPressed {
+                stop,
+                direction,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::HALL_BUTTON_PRESSED,
+                direction: encode_direction(direction),
+                tick,
+                stop: entity_to_u64(stop),
+                car: 0,
+                rider: 0,
+                floor: 0,
+            },
+            Event::HallCallAcknowledged {
+                stop,
+                direction,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::HALL_CALL_ACKNOWLEDGED,
+                direction: encode_direction(direction),
+                tick,
+                stop: entity_to_u64(stop),
+                car: 0,
+                rider: 0,
+                floor: 0,
+            },
+            Event::HallCallCleared {
+                stop,
+                direction,
+                car,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::HALL_CALL_CLEARED,
+                direction: encode_direction(direction),
+                tick,
+                stop: entity_to_u64(stop),
+                car: entity_to_u64(car),
+                rider: 0,
+                floor: 0,
+            },
+            Event::CarButtonPressed {
+                car,
+                floor,
+                rider,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::CAR_BUTTON_PRESSED,
+                direction: 0,
+                tick,
+                stop: 0,
+                car: entity_to_u64(car),
+                rider: rider.map_or(0, entity_to_u64),
+                floor: entity_to_u64(floor),
+            },
+            Event::RiderBalked {
+                rider,
+                elevator,
+                at_stop,
+                tick,
+            } => EvEvent {
+                kind: ev_event_kind::RIDER_BALKED,
+                direction: 0,
+                tick,
+                stop: entity_to_u64(at_stop),
+                car: entity_to_u64(elevator),
+                rider: entity_to_u64(rider),
+                floor: 0,
+            },
+            // Drop every other event kind — caller didn't opt in.
+            _ => continue,
+        };
+        ev.pending_events.push_back(record);
+    }
 }
 
 /// Encode a `CallDirection` for the FFI `EvEvent::direction` field.
@@ -1452,6 +1500,101 @@ mod tests {
                 .iter()
                 .any(|e| e.kind == ev_event_kind::HALL_BUTTON_PRESSED && e.stop != 0),
             "drain should surface HallButtonPressed with a nonzero stop id",
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    /// When pending events exceed `capacity`, the first `capacity`
+    /// are returned and the rest stay in the FFI buffer for the next
+    /// call — no event is ever silently dropped. Regression guard
+    /// for the truncation-safety contract.
+    #[test]
+    fn drain_events_never_drops_on_overflow() {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let root = std::path::Path::new(manifest)
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("workspace root");
+        let config = root.join("assets/config/default.ron");
+        let c_path = CString::new(config.to_str().expect("utf8 path")).unwrap();
+
+        let handle = unsafe { ev_sim_create(c_path.as_ptr()) };
+        let ev = unsafe { handle.as_mut() }.expect("sim should build");
+
+        // Spawn three riders at different stops to produce multiple
+        // HallButtonPressed + HallCallAcknowledged events.
+        let stops: Vec<_> = ev.sim.stop_lookup_iter().map(|(s, _)| *s).collect();
+        assert!(stops.len() >= 3);
+        ev.sim
+            .spawn_rider_by_stop_id(stops[0], stops[2], 75.0)
+            .unwrap();
+        ev.sim
+            .spawn_rider_by_stop_id(stops[1], stops[0], 75.0)
+            .unwrap();
+        ev.sim
+            .spawn_rider_by_stop_id(stops[2], stops[0], 75.0)
+            .unwrap();
+        assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+
+        // Deliberately small buffer so we force overflow.
+        let mut small = [EvEvent {
+            kind: 0,
+            direction: 0,
+            tick: 0,
+            stop: 0,
+            car: 0,
+            rider: 0,
+            floor: 0,
+        }; 2];
+        let mut first_written: u32 = 0;
+        assert_eq!(
+            unsafe { ev_sim_drain_events(handle, small.as_mut_ptr(), 2, &raw mut first_written) },
+            EvStatus::Ok,
+        );
+        assert_eq!(first_written, 2, "should fill the small buffer");
+
+        // The API must report that more events remain buffered.
+        let still_pending = unsafe { ev_sim_pending_event_count(handle) };
+        assert!(
+            still_pending > 0,
+            "overflow should leave events in the FFI buffer (got {still_pending})",
+        );
+
+        // Drain the rest with an adequately-sized buffer. Total of
+        // all drain calls must equal initial count — zero drops.
+        let mut rest = vec![
+            EvEvent {
+                kind: 0,
+                direction: 0,
+                tick: 0,
+                stop: 0,
+                car: 0,
+                rider: 0,
+                floor: 0,
+            };
+            (still_pending + 8) as usize
+        ];
+        let mut rest_written: u32 = 0;
+        assert_eq!(
+            unsafe {
+                ev_sim_drain_events(
+                    handle,
+                    rest.as_mut_ptr(),
+                    u32::try_from(rest.len()).unwrap(),
+                    &raw mut rest_written,
+                )
+            },
+            EvStatus::Ok,
+        );
+        assert_eq!(
+            rest_written, still_pending,
+            "second drain should deliver exactly the previously-pending count"
+        );
+        assert_eq!(
+            unsafe { ev_sim_pending_event_count(handle) },
+            0,
+            "buffer should be empty after full drain",
         );
 
         unsafe { ev_sim_destroy(handle) };
