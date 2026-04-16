@@ -65,7 +65,7 @@ concrete struct definition.
 | `Preferences`      | Rider             | Boarding preferences (`skip_full_elevator`, `max_crowding_factor`). |
 | `AccessControl`    | Rider             | Per-rider allowlist of reachable stops.                          |
 | `DestinationQueue` | Elevator          | FIFO of pushed target stops; imperative-dispatch escape hatch.   |
-| `ServiceMode`      | Elevator          | `Normal` / `Independent` / `Inspection`.                         |
+| `ServiceMode`      | Elevator          | `Normal` / `Independent` / `Inspection` / `Manual`.              |
 | `Orientation`      | Line              | Vertical vs horizontal axis (for visualization).                 |
 
 All components above are re-exported from `elevator_core::prelude` so
@@ -404,13 +404,15 @@ without modifying the core library.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VipTag { level: u32 }
 
-world.insert_ext(entity, VipTag { level: 3 }, "vip_tag");
+world.insert_ext(entity, VipTag { level: 3 }, ExtKey::from_type_name());
 world.get_ext::<VipTag>(entity);        // Option<VipTag> (cloned)
+world.get_ext_ref::<VipTag>(entity);    // Option<&VipTag> (zero-copy)
 world.get_ext_mut::<VipTag>(entity);    // Option<&mut VipTag>
 ```
 
-The `name` string is required for serialization roundtrips in snapshots.
-Extension components must implement `Serialize + DeserializeOwned`.
+The `ExtKey<T>` handle is required for serialization roundtrips in snapshots.
+Use `ExtKey::from_type_name()` for the common case or `ExtKey::new("name")` for
+explicit naming. Extension components must implement `Serialize + DeserializeOwned`.
 
 ### Querying extensions
 
@@ -429,8 +431,8 @@ world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| { tag.level += 1; });
 Extension types must be registered before restoring a snapshot:
 
 ```rust
-world.register_ext::<VipTag>("vip_tag");
-sim.load_extensions(&snapshot.extensions);
+world.register_ext::<VipTag>(ExtKey::from_type_name());
+sim.load_extensions();
 ```
 
 Unregistered types are stored in a `PendingExtensions` resource until
@@ -510,7 +512,7 @@ cross-references (elevator riders, rider phases, route legs, group caches).
 Extension components are serialized as `HashMap<String, HashMap<EntityId, String>>`
 (name to entity-RON-string mapping). On restore, this data is stored in a
 `PendingExtensions` resource. After the game registers its extension types
-via `world.register_ext::<T>(name)`, calling `sim.load_extensions()` deserializes
+via `world.register_ext::<T>(ExtKey::from_type_name())`, calling `sim.load_extensions()` deserializes
 and attaches the data.
 
 ### Custom dispatch strategies

@@ -11,12 +11,13 @@ This chapter is a quick-reference for the public API of the `elevator-core` crat
 | Category | Items |
 |---|---|
 | Builder & sim | `SimulationBuilder`, `Simulation`, `RiderBuilder` |
-| Components | `Rider`, `RiderPhase`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode` |
+| Components | `Rider`, `RiderPhase`, `RiderPhaseKind`, `Elevator`, `ElevatorPhase`, `Stop`, `Line`, `Position`, `Velocity`, `SpatialPosition`, `Route`, `Patience`, `Preferences`, `AccessControl`, `Orientation`, `ServiceMode`, `DestinationQueue`, `Direction` |
 | Config | `SimConfig`, `GroupConfig`, `LineConfig` |
-| Dispatch traits | `DispatchStrategy`, `RepositionStrategy` |
+| Dispatch | `DispatchStrategy`, `RepositionStrategy`, `AssignedCar`, `DestinationDispatch` |
 | Reposition strategies | `NearestIdle`, `ReturnToLobby`, `SpreadEvenly`, `DemandWeighted` |
-| Identity | `EntityId`, `StopId`, `GroupId` |
-| Errors & events | `SimError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus` |
+| Identity | `EntityId`, `StopId`, `StopRef`, `GroupId` |
+| Errors & events | `SimError`, `EtaError`, `RejectionReason`, `RejectionContext`, `Event`, `EventBus`, `EventCategory` |
+| Extension | `ExtKey` |
 | Misc | `Metrics`, `TimeAdapter` |
 
 Not in the prelude (import explicitly):
@@ -53,7 +54,7 @@ Fluent builder for constructing a `Simulation`. Starts with a minimal valid conf
 | `lines` | `(Vec<LineConfig>) -> Self` | Replace all lines |
 | `group` | `(GroupConfig) -> Self` | Add a single group configuration |
 | `groups` | `(Vec<GroupConfig>) -> Self` | Replace all groups |
-| `with_ext::<T>` | `(&str) -> Self` | Pre-register an extension type for snapshot deserialization |
+| `with_ext::<T>` | `() -> Self` | Pre-register an extension type for snapshot deserialization |
 | `build` | `() -> Result<Simulation, SimError>` | Validate config and build the simulation |
 
 ---
@@ -281,11 +282,12 @@ Extensions let games attach custom typed data to simulation entities. Extension 
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `insert_ext` | `<T>(&mut self, EntityId, T, &str)` | Insert a custom component for an entity |
+| `insert_ext` | `<T>(&mut self, EntityId, T, ExtKey<T>)` | Insert a custom component for an entity |
 | `get_ext` | `<T: Clone>(&self, EntityId) -> Option<T>` | Get a clone of a custom component |
+| `get_ext_ref` | `<T>(&self, EntityId) -> Option<&T>` | Get a shared reference (zero-copy) to a custom component |
 | `get_ext_mut` | `<T>(&mut self, EntityId) -> Option<&mut T>` | Get a mutable reference to a custom component |
 | `remove_ext` | `<T>(&mut self, EntityId) -> Option<T>` | Remove a custom component |
-| `register_ext` | `<T>(&mut self, &str)` | Register an extension type for snapshot deserialization |
+| `register_ext` | `<T>(&mut self, ExtKey<T>) -> ExtKey<T>` | Register an extension type for snapshot deserialization |
 | `query_ext_mut` | `<T>(&mut self) -> ExtQueryMut<T>` | Create a mutable extension query builder |
 
 ### Global Resources

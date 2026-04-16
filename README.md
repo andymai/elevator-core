@@ -153,7 +153,7 @@ let mut sim = SimulationBuilder::new()
         starting_stop: StopId(0),
         ..Default::default()
     })
-    .with_ext::<VipTag>("vip_tag")
+    .with_ext::<VipTag>()
     .after(Phase::Loading, |world| {
         // Custom logic runs after the loading phase every tick.
         // Access world state, extension data, etc.
@@ -163,7 +163,7 @@ let mut sim = SimulationBuilder::new()
 
 // Spawn a rider and tag them as VIP.
 let rider_id = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
-sim.world_mut().insert_ext(rider_id, VipTag { level: 3 }, "vip_tag");
+sim.world_mut().insert_ext(rider_id, VipTag { level: 3 }, ExtKey::from_type_name());
 
 // Later, read back the extension data.
 if let Some(tag) = sim.world().get_ext::<VipTag>(rider_id) {
