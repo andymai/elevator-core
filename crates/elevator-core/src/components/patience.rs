@@ -41,7 +41,7 @@ pub struct Preferences {
     pub(crate) skip_full_elevator: bool,
     /// Maximum load factor (0.0-1.0) the rider will tolerate when boarding.
     pub(crate) max_crowding_factor: f64,
-    /// Wait budget before the rider abandons. `None` disables balking-
+    /// Wait budget before the rider abandons. `None` disables time-
     /// based abandonment; `Some(n)` causes the rider to enter
     /// [`RiderPhase::Abandoned`](crate::components::RiderPhase) after
     /// `n` ticks of being [`Waiting`](crate::components::RiderPhase::Waiting).
@@ -51,23 +51,23 @@ pub struct Preferences {
     /// increments during `Waiting` and correctly excludes ride time for
     /// multi-leg routes. Without `Patience`, the budget degrades to
     /// lifetime ticks since spawn, which matches single-leg behavior.
-    pub(crate) balk_threshold_ticks: Option<u32>,
+    pub(crate) abandon_after_ticks: Option<u32>,
     /// Abandon on the first full-car skip, rather than silently
     /// passing and continuing to wait. Default `false`.
     ///
     /// This is an **independent** abandonment axis from
-    /// [`balk_threshold_ticks`](Self::balk_threshold_ticks) — the two
+    /// [`abandon_after_ticks`](Self::abandon_after_ticks) — the two
     /// do not compose or gate each other:
     ///
     /// - `abandon_on_full` is *event-triggered* from the loading phase
-    ///   (`systems::loading`), firing on a full-car balk.
-    /// - `balk_threshold_ticks` is *time-triggered* from the transient
+    ///   (`systems::loading`), firing on a full-car skip.
+    /// - `abandon_after_ticks` is *time-triggered* from the transient
     ///   phase (`systems::advance_transient`), firing when the rider's
     ///   wait budget elapses.
     ///
     /// Both paths set [`RiderPhase::Abandoned`](crate::components::RiderPhase);
     /// whichever condition is reached first wins. Setting
-    /// `abandon_on_full = true` with `balk_threshold_ticks = None` is
+    /// `abandon_on_full = true` with `abandon_after_ticks = None` is
     /// valid and abandons on the first full-car skip regardless of
     /// wait time.
     pub(crate) abandon_on_full: bool,
@@ -86,14 +86,14 @@ impl Preferences {
         self.max_crowding_factor
     }
 
-    /// Wait budget before the rider abandons. `None` disables balking-
+    /// Wait budget before the rider abandons. `None` disables time-
     /// based abandonment.
     #[must_use]
-    pub const fn balk_threshold_ticks(&self) -> Option<u32> {
-        self.balk_threshold_ticks
+    pub const fn abandon_after_ticks(&self) -> Option<u32> {
+        self.abandon_after_ticks
     }
 
-    /// Should balking a full car convert directly to abandonment?
+    /// Should skipping a full car convert directly to abandonment?
     #[must_use]
     pub const fn abandon_on_full(&self) -> bool {
         self.abandon_on_full
@@ -113,10 +113,10 @@ impl Preferences {
         self
     }
 
-    /// Builder: set `balk_threshold_ticks`.
+    /// Builder: set `abandon_after_ticks`.
     #[must_use]
-    pub const fn with_balk_threshold_ticks(mut self, ticks: Option<u32>) -> Self {
-        self.balk_threshold_ticks = ticks;
+    pub const fn with_abandon_after_ticks(mut self, ticks: Option<u32>) -> Self {
+        self.abandon_after_ticks = ticks;
         self
     }
 
@@ -133,7 +133,7 @@ impl Default for Preferences {
         Self {
             skip_full_elevator: false,
             max_crowding_factor: 0.8,
-            balk_threshold_ticks: None,
+            abandon_after_ticks: None,
             abandon_on_full: false,
         }
     }

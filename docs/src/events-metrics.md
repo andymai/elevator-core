@@ -35,7 +35,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `RiderExited { rider, elevator, stop, tick }` | A rider exits at their destination |
 | `RiderRejected { rider, elevator, reason, context, tick }` | A rider was refused boarding |
 | `RiderAbandoned { rider, stop, tick }` | A rider gave up waiting |
-| `RiderBalked { rider, elevator, at_stop, tick }` | A rider skipped a crowded car (may still board the next) |
+| `RiderSkipped { rider, elevator, at_stop, tick }` | A rider skipped a crowded car (may still board the next) |
 | `RiderEjected { rider, elevator, stop, tick }` | A rider was ejected (elevator disabled) |
 | `RiderSettled { rider, stop, tick }` | A rider settled as a resident |
 | `RiderDespawned { rider, tick }` | A rider was removed from the simulation |

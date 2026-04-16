@@ -163,7 +163,7 @@ fn preferences_zero_crowding_rejects_any_load() {
         Preferences {
             skip_full_elevator: true,
             max_crowding_factor: 0.0,
-            balk_threshold_ticks: None,
+            abandon_after_ticks: None,
             abandon_on_full: false,
         },
     );

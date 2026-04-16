@@ -52,14 +52,14 @@ enum LoadAction {
         /// Elevator whose lamps are being re-lit.
         elevator: EntityId,
     },
-    /// A rider balked at an otherwise-eligible car (skipped it because
-    /// their preferences flagged it too crowded).
-    Balk {
-        /// Rider who balked.
+    /// A rider skipped an otherwise-eligible car because their
+    /// preferences flagged it too crowded.
+    Skip {
+        /// Rider who skipped.
         rider: EntityId,
         /// Elevator they declined to board.
         elevator: EntityId,
-        /// Stop where the balking happened.
+        /// Stop where the skip happened.
         at_stop: EntityId,
     },
 }
@@ -261,14 +261,14 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
                     capacity: car.weight_capacity.value().into(),
                 }),
             });
-            // A preference-filtered rider just balked at a crowded car.
+            // A preference-filtered rider just skipped a crowded car.
             // Emit an observable signal so games can animate it; the
             // rider remains Waiting unless `abandon_on_full` is set, in
-            // which case the Balk arm below escalates to Abandoned
+            // which case the Skip arm below escalates to Abandoned
             // immediately — event-triggered, this phase, independent
-            // of the balk_threshold time budget.
+            // of the abandon_after_ticks time budget.
             if let Some(stop) = world.rider(rid).and_then(|r| r.current_stop) {
-                actions.push(LoadAction::Balk {
+                actions.push(LoadAction::Skip {
                     rider: rid,
                     elevator: eid,
                     at_stop: stop,
@@ -421,12 +421,12 @@ fn apply_actions(
             LoadAction::ResetIndicators { elevator } => {
                 update_indicators(world, events, elevator, true, true, ctx.tick);
             }
-            LoadAction::Balk {
+            LoadAction::Skip {
                 rider,
                 elevator,
                 at_stop,
             } => {
-                events.emit(Event::RiderBalked {
+                events.emit(Event::RiderSkipped {
                     rider,
                     elevator,
                     at_stop,

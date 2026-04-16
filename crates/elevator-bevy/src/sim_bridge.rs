@@ -38,7 +38,7 @@ pub fn tick_simulation(
     }
 }
 
-/// Running counters for the five hall-call / car-call / balk events.
+/// Running counters for the five hall-call / car-call / skip events.
 /// Rendered in the HUD so observers can confirm the events are firing
 /// and games can base UI cues on the same counts.
 #[derive(Resource, Default, Debug, Clone, Copy)]
@@ -51,11 +51,11 @@ pub struct HallCallEventCounters {
     pub cleared: u64,
     /// `CarButtonPressed` count.
     pub car_button_pressed: u64,
-    /// `RiderBalked` count.
-    pub balked: u64,
+    /// `RiderSkipped` count.
+    pub skipped: u64,
 }
 
-/// Tally the five hall-call / balk events into [`HallCallEventCounters`].
+/// Tally the five hall-call / skip events into [`HallCallEventCounters`].
 /// Runs every frame; reads every `EventWrapper` message this frame.
 #[allow(clippy::needless_pass_by_value)]
 pub fn tally_hall_call_events(
@@ -69,7 +69,7 @@ pub fn tally_hall_call_events(
             Event::HallCallAcknowledged { .. } => counters.acknowledged += 1,
             Event::HallCallCleared { .. } => counters.cleared += 1,
             Event::CarButtonPressed { .. } => counters.car_button_pressed += 1,
-            Event::RiderBalked { .. } => counters.balked += 1,
+            Event::RiderSkipped { .. } => counters.skipped += 1,
             _ => {}
         }
     }
