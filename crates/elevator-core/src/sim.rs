@@ -513,8 +513,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elev` is not an elevator.
-    /// - [`SimError::InvalidState`] if `stop` is not a stop.
+    /// - [`SimError::NotAnElevator`] if `elev` is not an elevator.
+    /// - [`SimError::NotAStop`] if `stop` is not a stop.
     pub fn push_destination(
         &mut self,
         elev: EntityId,
@@ -548,8 +548,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elev` is not an elevator.
-    /// - [`SimError::InvalidState`] if `stop` is not a stop.
+    /// - [`SimError::NotAnElevator`] if `elev` is not an elevator.
+    /// - [`SimError::NotAStop`] if `stop` is not a stop.
     pub fn push_destination_front(
         &mut self,
         elev: EntityId,
@@ -580,13 +580,10 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::InvalidState`] if `elev` is not an elevator.
+    /// Returns [`SimError::NotAnElevator`] if `elev` is not an elevator.
     pub fn clear_destinations(&mut self, elev: EntityId) -> Result<(), SimError> {
         if self.world.elevator(elev).is_none() {
-            return Err(SimError::InvalidState {
-                entity: elev,
-                reason: "not an elevator".into(),
-            });
+            return Err(SimError::NotAnElevator(elev));
         }
         if let Some(q) = self.world.destination_queue_mut(elev) {
             q.clear();
@@ -597,16 +594,10 @@ impl Simulation {
     /// Validate that `elev` is an elevator and `stop` is a stop.
     fn validate_push_targets(&self, elev: EntityId, stop: EntityId) -> Result<(), SimError> {
         if self.world.elevator(elev).is_none() {
-            return Err(SimError::InvalidState {
-                entity: elev,
-                reason: "not an elevator".into(),
-            });
+            return Err(SimError::NotAnElevator(elev));
         }
         if self.world.stop(stop).is_none() {
-            return Err(SimError::InvalidState {
-                entity: stop,
-                reason: "not a stop".into(),
-            });
+            return Err(SimError::NotAStop(stop));
         }
         Ok(())
     }
@@ -791,7 +782,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `speed` is not a positive finite number.
     ///
     /// # Example
@@ -826,7 +817,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `accel` is not a positive finite number.
     ///
     /// # Example
@@ -861,7 +852,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `decel` is not a positive finite number.
     ///
     /// # Example
@@ -899,7 +890,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `capacity` is not a positive finite number.
     ///
     /// # Example
@@ -938,7 +929,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `ticks` is zero.
     ///
     /// # Example
@@ -978,7 +969,7 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator entity.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
     /// - [`SimError::InvalidConfig`] if `ticks` is zero.
     ///
     /// # Example
@@ -1026,8 +1017,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator
-    ///   entity or is disabled.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
+    /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
     ///
     /// # Example
     ///
@@ -1053,8 +1044,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator
-    ///   entity or is disabled.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
+    /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
     ///
     /// # Example
     ///
@@ -1079,8 +1070,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator
-    ///   entity or is disabled.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
+    /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
     /// - [`SimError::InvalidConfig`] if `ticks` is zero.
     ///
     /// # Example
@@ -1106,8 +1097,8 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// - [`SimError::InvalidState`] if `elevator` is not an elevator
-    ///   entity or is disabled.
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator entity.
+    /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
     ///
     /// # Example
     ///
@@ -1134,9 +1125,10 @@ impl Simulation {
     /// values command upward travel, negative values command downward travel.
     ///
     /// # Errors
-    /// - Entity is not an elevator, or is disabled.
-    /// - Elevator is not in [`ServiceMode::Manual`].
-    /// - `velocity` is not finite (NaN or infinite).
+    /// - [`SimError::NotAnElevator`] if the entity is not an elevator.
+    /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
+    /// - [`SimError::WrongServiceMode`] if the elevator is not in [`ServiceMode::Manual`].
+    /// - [`SimError::InvalidConfig`] if `velocity` is not finite (NaN or infinite).
     ///
     /// [`ServiceMode::Manual`]: crate::components::ServiceMode::Manual
     pub fn set_target_velocity(
@@ -1195,14 +1187,16 @@ impl Simulation {
 
     /// Internal: require an elevator be in `ServiceMode::Manual`.
     fn require_manual_mode(&self, elevator: EntityId) -> Result<(), SimError> {
-        let is_manual = self
+        let actual = self
             .world
             .service_mode(elevator)
-            .is_some_and(|m| *m == crate::components::ServiceMode::Manual);
-        if !is_manual {
-            return Err(SimError::InvalidState {
+            .copied()
+            .unwrap_or_default();
+        if actual != crate::components::ServiceMode::Manual {
+            return Err(SimError::WrongServiceMode {
                 entity: elevator,
-                reason: "elevator is not in ServiceMode::Manual".into(),
+                expected: crate::components::ServiceMode::Manual,
+                actual,
             });
         }
         Ok(())
@@ -1239,16 +1233,10 @@ impl Simulation {
     /// Internal: resolve an elevator entity that is not disabled.
     fn require_enabled_elevator(&self, elevator: EntityId) -> Result<(), SimError> {
         if self.world.elevator(elevator).is_none() {
-            return Err(SimError::InvalidState {
-                entity: elevator,
-                reason: "not an elevator".into(),
-            });
+            return Err(SimError::NotAnElevator(elevator));
         }
         if self.world.is_disabled(elevator) {
-            return Err(SimError::InvalidState {
-                entity: elevator,
-                reason: "elevator is disabled".into(),
-            });
+            return Err(SimError::ElevatorDisabled(elevator));
         }
         Ok(())
     }
@@ -1260,10 +1248,7 @@ impl Simulation {
     ) -> Result<&crate::components::Elevator, SimError> {
         self.world
             .elevator(elevator)
-            .ok_or_else(|| SimError::InvalidState {
-                entity: elevator,
-                reason: "not an elevator".into(),
-            })
+            .ok_or(SimError::NotAnElevator(elevator))
     }
 
     /// Internal: positive-finite validator matching the construction-time
