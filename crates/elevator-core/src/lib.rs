@@ -104,10 +104,7 @@
 //!    and per-tag accumulators.
 //!
 //! For full per-phase semantics (events emitted, edge cases, design rationale),
-//! see [`ARCHITECTURE.md`][arch] §3. This crate-level summary is the short
-//! form; `ARCHITECTURE.md` is canonical.
-//!
-//! [arch]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/ARCHITECTURE.md
+//! see the [guide](https://andymai.github.io/elevator-core/simulation-loop.html).
 //!
 //! ### Component relationships
 //!

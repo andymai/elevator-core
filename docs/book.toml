@@ -13,3 +13,9 @@ preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/andymai/elevator-core"
 edit-url-template = "https://github.com/andymai/elevator-core/edit/main/docs/src/{path}"
 additional-css = ["theme/custom.css"]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"

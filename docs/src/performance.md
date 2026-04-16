@@ -10,7 +10,7 @@ Let `E` = elevators, `R` = riders, `S` = stops. Per `sim.step()`:
 |---|---|---|
 | Advance transient | O(R) worst-case, O(transitioning riders) typical | Only touches riders in `Boarding`/`Exiting`. |
 | Dispatch (scoring) | O(E · S) per strategy | Cost-matrix build: one `rank` call per `(car, stop)` pair. ETD scales further with aboard riders. |
-| Dispatch (assignment) | O(max(E, S)³) | Hungarian / Kuhn–Munkres matching over the cost matrix. |
+| Dispatch (assignment) | O(max(E, S)³) | Hungarian / Kuhn-Munkres matching over the cost matrix. |
 | Reposition | O(E · S) | Only runs if configured. |
 | Movement | O(E) | Pure arithmetic per elevator. |
 | Doors | O(E) | Door FSM per elevator. |
@@ -31,7 +31,7 @@ Rough per-entity memory (native `x86_64`, with default components):
 
 Add your own extension components on top. A 10k-rider simulation with a dozen stops and a handful of elevators fits comfortably under 5 MB of live state.
 
-The event buffer grows until `drain_events()` is called — see [Metrics and Events → Buffer size and memory](metrics-and-events.md#buffer-size-and-memory).
+The event buffer grows until `drain_events()` is called -- see [Events and Metrics -- Draining events](events-metrics.md#draining-events).
 
 ## Benchmarks
 
@@ -54,7 +54,7 @@ cargo bench -p elevator-core
 Results go to `target/criterion/` with HTML reports. A nightly GitHub
 Actions job (`.github/workflows/bench-nightly.yml`) reruns the full
 suite daily, caches a baseline, and opens an issue when Criterion
-flags a significant regression. There is no PR gate — bench noise on
+flags a significant regression. There is no PR gate -- bench noise on
 shared runners tends to swamp a strict per-PR check.
 
 ### Current baselines
@@ -69,16 +69,16 @@ noisier; treat these as orders of magnitude, not tight SLAs.
 | Item | Time |
 |---|---|
 | `tick_movement` (single call) | ~1.3 ns |
-| `sim_bench / dispatch / 3e_10s` | ~4.0 µs |
-| `sim_bench / dispatch / 10e_50s` | ~12 µs |
+| `sim_bench / dispatch / 3e_10s` | ~4.0 us |
+| `sim_bench / dispatch / 10e_50s` | ~12 us |
 
 #### Full tick throughput (`scaling_bench`)
 
 | Scenario | Time per run | Per tick |
 |---|---|---|
-| 50 elevators, 200 stops, 2 000 riders, 100 ticks | ~14 ms | **~143 µs/tick** |
+| 50 elevators, 200 stops, 2 000 riders, 100 ticks | ~14 ms | **~143 us/tick** |
 | 500 elevators, 5 000 stops, 50 000 riders, 10 ticks | ~520 ms | ~52 ms/tick |
-| 10 000-rider spawn pressure test | ~4.9 ms | — |
+| 10 000-rider spawn pressure test | ~4.9 ms | -- |
 
 The realistic row is the one most consumers should care about: a
 medium office tower with 2 000 concurrent riders runs the full 8-phase
@@ -90,8 +90,8 @@ Per `step()` cost at three scales, holding everything else constant:
 
 | Scale | SCAN | LOOK | NearestCar | ETD |
 |---|---:|---:|---:|---:|
-| 5e, 10s | 61 µs | 67 µs | 63 µs | 66 µs |
-| 20e, 50s | 436 µs | 395 µs | 423 µs | 413 µs |
+| 5e, 10s | 61 us | 67 us | 63 us | 66 us |
+| 20e, 50s | 436 us | 395 us | 423 us | 413 us |
 | 50e, 200s | 2.18 ms | 2.00 ms | 2.04 ms | 1.96 ms |
 
 The four built-in strategies land within ~15 % of each other at every
@@ -105,32 +105,32 @@ O(n) over entity population, as the API docs promise:
 
 | Query | 100 | 1 000 | 10 000 |
 |---|---:|---:|---:|
-| `query<Rider>` | 13 µs | 60 µs | 744 µs |
-| `query_tuple<&Rider, &Patience>` | 12 µs | 52 µs | 859 µs |
-| `query_elevators` (10/50/200) | 4 µs | 5 µs | 13 µs |
+| `query<Rider>` | 13 us | 60 us | 744 us |
+| `query_tuple<&Rider, &Patience>` | 12 us | 52 us | 859 us |
+| `query_elevators` (10/50/200) | 4 us | 5 us | 13 us |
 
 Population queries on `RiderIndex` (`residents_at` / `waiting_at` /
-`abandoned_at`) are O(1) and don't appear here — they run in tens of
+`abandoned_at`) are O(1) and don't appear here -- they run in tens of
 nanoseconds.
 
 #### Multi-group topology (`multi_line_bench`)
 
 | Scenario | Time |
 |---|---|
-| `multi_3g_2l_5e_20s / step()` | ~920 µs |
-| `cross_group_routing / 10 groups` | ~330 µs |
-| `topology_queries / reachable_stops_from` | ~177 µs |
-| `topology_queries / shortest_route` | ~161 µs |
-| `dynamic_topology / add_line` | ~2.5 µs |
-| `dynamic_topology / topology_rebuild` | ~21 µs |
+| `multi_3g_2l_5e_20s / step()` | ~920 us |
+| `cross_group_routing / 10 groups` | ~330 us |
+| `topology_queries / reachable_stops_from` | ~177 us |
+| `topology_queries / shortest_route` | ~161 us |
+| `dynamic_topology / add_line` | ~2.5 us |
+| `dynamic_topology / topology_rebuild` | ~21 us |
 
 Runtime topology mutations (`add_line`, `remove_line`, `add_stop_to_line`)
 are single-digit microseconds because the graph is rebuilt lazily on
 next query, not eagerly on every mutation.
 
-Use these as a baseline when writing custom dispatch strategies — if
-your strategy's `dispatch_bench` time is 10× the ETD baseline, expect
-a 10× slowdown in loaded simulations.
+Use these as a baseline when writing custom dispatch strategies -- if
+your strategy's `dispatch_bench` time is 10x the ETD baseline, expect
+a 10x slowdown in loaded simulations.
 
 ## Scaling checklist
 
@@ -139,15 +139,17 @@ For simulations above ~10k concurrent riders or above ~50 elevators:
 1. **Pick the cheapest dispatch strategy that meets your needs.** `NearestCarDispatch` is usually a better default than ETD at scale.
 2. **Split into groups.** Each group dispatches independently; two groups of 20 elevators each is cheaper than one group of 40.
 3. **Drain events every tick** (or redirect into a bounded ring buffer) to keep memory flat.
-4. **Avoid heavy work in hooks.** A hook that iterates all riders every tick is O(R) on top of the dispatch cost — prefer extension-attached flags you can toggle on-event.
-5. **Profile before optimizing.** The Criterion benches make it straightforward to identify the hot phase — dispatch dominates far more often than movement or doors.
+4. **Avoid heavy work in hooks.** A hook that iterates all riders every tick is O(R) on top of the dispatch cost -- prefer extension-attached flags you can toggle on-event.
+5. **Profile before optimizing.** The Criterion benches make it straightforward to identify the hot phase -- dispatch dominates far more often than movement or doors.
 
 ## What we do not provide
 
 - **Parallelism.** The tick loop is single-threaded by design (determinism > throughput). Run multiple sims in parallel across threads if you need more aggregate work.
-- **GPU acceleration.** Movement and dispatch are scalar — no SIMD or GPU backends.
+- **GPU acceleration.** Movement and dispatch are scalar -- no SIMD or GPU backends.
 - **Persistent indexes beyond per-stop population.** If you need "all riders with extension X", iterate and filter.
 
 ## Next steps
 
-Head to [Bevy Integration](bevy-integration.md) for a visual wrapper, or [API Reference](api-reference.md) for the full API surface.
+- [Bevy Integration](bevy-integration.md) -- a visual wrapper for rapid prototyping and debugging.
+- [Snapshots and Determinism](snapshots-determinism.md) -- save and restore simulation state for replay and testing.
+- [Writing a Custom Dispatch](custom-dispatch.md) -- build your own strategy and benchmark it against the baselines above.

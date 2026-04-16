@@ -1,6 +1,6 @@
 # Traffic Generation
 
-Real simulations need rider arrivals. The `traffic` module (enabled by default via the `traffic` feature flag) provides tools for generating realistic passenger traffic — from uniform random spawns to time-varying daily patterns.
+Real simulations need rider arrivals. The `traffic` module (enabled by default via the `traffic` feature flag) provides tools for generating realistic passenger traffic -- from uniform random spawns to time-varying daily patterns.
 
 Traffic generation is **external to the simulation loop**. A `TrafficSource` produces `SpawnRequest`s each tick; your code feeds them into the simulation. This keeps the core loop untouched and gives you full control over *when* and *how* riders spawn.
 
@@ -47,10 +47,10 @@ for _ in 0..10_000 {
 | `Uniform` | Equal probability for all origin/destination pairs |
 | `UpPeak` | 80% from lobby, 20% inter-floor (morning rush) |
 | `DownPeak` | 80% to lobby, 20% inter-floor (evening rush) |
-| `Lunchtime` | 40% upper→mid, 40% mid→upper, 20% random |
+| `Lunchtime` | 40% upper to mid, 40% mid to upper, 20% random |
 | `Mixed` | 30% up-peak, 30% down-peak, 40% inter-floor |
 
-The first stop in the slice is treated as the "lobby" — make sure stops are sorted by position.
+The first stop in the slice is treated as the "lobby" -- make sure stops are sorted by position.
 
 ```rust,no_run
 use elevator_core::traffic::TrafficPattern;
@@ -58,7 +58,7 @@ use elevator_core::traffic::TrafficPattern;
 # fn run(stops: &[elevator_core::stop::StopId]) {
 let mut rng = rand::rng();
 if let Some((origin, destination)) = TrafficPattern::UpPeak.sample_stop_ids(stops, &mut rng) {
-    println!("{origin} → {destination}");
+    println!("{origin} -> {destination}");
 }
 # }
 ```
@@ -88,12 +88,12 @@ let schedule = TrafficSchedule::new(vec![(0..1000, TrafficPattern::UpPeak)])
 
 ### Built-in schedule presets
 
-- `TrafficSchedule::office_day(ticks_per_hour)` — typical 9-hour office day with morning rush, lunch, and evening rush
-- `TrafficSchedule::constant(pattern)` — a single pattern for all ticks
+- `TrafficSchedule::office_day(ticks_per_hour)` -- typical 9-hour office day with morning rush, lunch, and evening rush
+- `TrafficSchedule::constant(pattern)` -- a single pattern for all ticks
 
 ## Poisson arrivals
 
-`PoissonSource` is the default traffic generator. It uses exponential inter-arrival times — a standard Poisson process — driven by a mean interval parameter:
+`PoissonSource` is the default traffic generator. It uses exponential inter-arrival times -- a standard Poisson process -- driven by a mean interval parameter:
 
 ```rust,no_run
 use elevator_core::traffic::{PoissonSource, TrafficSchedule, TrafficPattern};
@@ -108,7 +108,7 @@ let source = PoissonSource::new(
 );
 ```
 
-Each call to `source.generate(tick)` returns a `Vec<SpawnRequest>` — zero, one, or multiple requests depending on how many arrivals are due since the last call.
+Each call to `source.generate(tick)` returns a `Vec<SpawnRequest>` -- zero, one, or multiple requests depending on how many arrivals are due since the last call.
 
 ### From config
 
@@ -213,7 +213,7 @@ impl TrafficSource for VipSpawn {
 }
 ```
 
-You can layer multiple sources, wrap them in a composite, or mix Poisson arrivals with scripted events. The simulation doesn't care how requests are generated — only that you feed them in.
+You can layer multiple sources, wrap them in a composite, or mix Poisson arrivals with scripted events. The simulation doesn't care how requests are generated -- only that you feed them in.
 
 ## SpawnRequest
 
@@ -259,4 +259,6 @@ TrafficSchedule(
 
 ## Next steps
 
-Head to [Metrics and Events](metrics-and-events.md) to see how generated traffic produces events and summary statistics.
+- [Snapshots and Determinism](snapshots-determinism.md) -- seeded traffic is essential for reproducible simulations and regression testing.
+- [Events and Metrics](events-metrics.md) -- how generated traffic produces events and summary statistics.
+- [Testing Your Simulation](testing.md) -- scripted spawn schedules for automated scenario testing.

@@ -470,7 +470,7 @@ impl PoissonSource {
     /// Pair with a seeded [`rand::rngs::StdRng`] (via
     /// `StdRng::seed_from_u64(...)`) to make `PoissonSource` output
     /// reproducible across runs — closing the gap called out in
-    /// [Snapshots and Determinism](../docs/src/snapshots-and-determinism.md).
+    /// [Snapshots and Determinism](https://andymai.github.io/elevator-core/snapshots-determinism.html).
     ///
     /// The next scheduled arrival is resampled from the new RNG, anchored
     /// to the source's current `next_arrival_tick`. That means:

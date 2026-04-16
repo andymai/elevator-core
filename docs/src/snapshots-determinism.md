@@ -8,19 +8,19 @@ The simulation is deterministic given:
 
 1. The same initial `SimConfig` (same stops, elevators, groups, lines, dispatch strategy).
 2. The same sequence of API calls (`spawn_rider`, `despawn_rider`, `tag_entity`, hook mutations, etc.).
-3. A deterministic dispatch strategy (the four built-ins — `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch` — are deterministic).
+3. A deterministic dispatch strategy (the four built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch` -- are deterministic).
 
 Under those conditions two runs produce byte-identical snapshots and event streams.
 
 Sources of *non*-determinism to watch for:
 
-- **`PoissonSource` and similar traffic generators** use a thread-local RNG. See [Traffic Generation → Determinism and seeding](traffic-generation.md#determinism-and-seeding).
+- **`PoissonSource` and similar traffic generators** use a thread-local RNG. See [Traffic Generation -- Determinism and seeding](traffic-generation.md#determinism-and-seeding).
 - **Custom dispatch strategies or hooks** that read wall-clock time, thread IDs, or unseeded RNGs.
-- **HashMap iteration order** in your own hook code (the sim itself uses stable iteration).
+- **HashMap iteration order** in your own hook code (the sim itself uses stable iteration via `BTreeMap`).
 
 ## Snapshots
 
-A `WorldSnapshot` captures the full simulation state — all entities, components, groups, lines, metrics, tagged metrics, tick counter — in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are **not** captured.
+A `WorldSnapshot` captures the full simulation state -- all entities, components, groups, lines, metrics, tagged metrics, tick counter -- in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are **not** captured.
 
 ### Saving
 
@@ -43,7 +43,7 @@ std::fs::write("save.ron", bytes).unwrap();
 # }
 ```
 
-The snapshot struct is `Serialize + Deserialize` — choose any serde format (RON, JSON, bincode, postcard).
+The snapshot struct is `Serialize + Deserialize` -- choose any serde format (RON, JSON, bincode, postcard).
 
 ### Loading
 
@@ -60,6 +60,10 @@ let sim = snapshot.restore(None);
 # Ok(())
 # }
 ```
+
+### Entity ID remapping
+
+On restore, fresh `EntityId` values are generated (SlotMap keys are not stable across sessions). The snapshot stores entity data by index; `restore()` builds an `old_id -> new_id` mapping and remaps all cross-references (elevator riders, rider phases, route legs, group caches). This is transparent to callers.
 
 ### Custom dispatch across restore
 
@@ -81,7 +85,7 @@ let sim = snapshot.restore(Some(&|name: &str| match name {
 # }
 ```
 
-Custom strategies are registered with `BuiltinStrategy::Custom("name")` via `sim.set_dispatch(group, Box::new(HighestFirstDispatch), BuiltinStrategy::Custom("HighestFirst".into()))`. That registered name is what the snapshot stores and what the factory closure receives on restore — make sure the two match.
+Custom strategies are registered with `BuiltinStrategy::Custom("name")` via `sim.set_dispatch()`. That registered name is what the snapshot stores and what the factory closure receives on restore -- make sure the two match. See [Writing a Custom Dispatch -- Step 4](custom-dispatch.md#step-4----snapshot-support) for the full pattern.
 
 ### Extensions across restore
 
@@ -93,13 +97,13 @@ Extensions are serialized by their registered name. To restore them, re-register
 # use serde::{Serialize, Deserialize};
 # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
 # fn run(snapshot: WorldSnapshot) {
-let mut sim = snapshot.restore(None);
+let mut sim = snapshot.restore(None).unwrap();
 sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
 sim.load_extensions();
 # }
 ```
 
-Use the `register_extensions!` macro to register many types in one line.
+Use the `register_extensions!` macro to register many types in one line. See [Extensions -- Snapshot integration](extensions.md#snapshot-integration) for details.
 
 ## Patterns
 
@@ -109,7 +113,7 @@ Use the `register_extensions!` macro to register many types in one line.
 2. Log every external mutation (`spawn_rider`, `despawn_rider`, tag changes) with its tick.
 3. To replay: rebuild the sim from config, then step while replaying logged mutations at the right ticks.
 
-Snapshots are a stronger alternative — you can start replay from any tick by restoring a snapshot taken at that tick.
+Snapshots are a stronger alternative -- you can start replay from any tick by restoring a snapshot taken at that tick.
 
 ### Regression testing
 
@@ -122,7 +126,7 @@ let expected = include_str!("../golden/scenario_a.ron");
 assert_eq!(actual, expected);
 ```
 
-This catches unintended behavior changes anywhere in the tick pipeline.
+This catches unintended behavior changes anywhere in the tick pipeline. See [Testing Your Simulation](testing.md) for more patterns.
 
 ### Research comparisons
 
@@ -151,6 +155,10 @@ run_with(&mut etd_sim);
 // Compare metrics side-by-side.
 ```
 
+Build both simulations from the same config and feed them the same seeded `TrafficSource`. After running for the same number of ticks, compare `sim.metrics()` to see which strategy performs better on wait time, throughput, or any other metric.
+
 ## Next steps
 
-See [Performance](performance.md) for scaling guidance and benchmark interpretation.
+- [Testing Your Simulation](testing.md) -- snapshot round-trips, deterministic replay tests, and scenario scripting.
+- [Performance](performance.md) -- scaling guidance and benchmark interpretation.
+- [Traffic Generation](traffic-generation.md) -- seeded traffic sources for reproducible experiments.

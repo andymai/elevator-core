@@ -204,8 +204,7 @@ query builder for filtering and iterating entities by component composition.
 Lifecycle hooks let you inject custom logic before or after any phase.
 
 For per-phase semantics (events emitted, edge cases, design rationale), see
-[`ARCHITECTURE.md`](crates/elevator-core/ARCHITECTURE.md) — the single
-canonical reference.
+the [guide](https://andymai.github.io/elevator-core/).
 
 ## Dispatch Strategies
 
