@@ -268,33 +268,13 @@ impl WorldSnapshot {
             }
         }
 
-        // Emit warnings for any entity IDs referenced in the snapshot
-        // that were not present in the id_remap (dangling references).
-        let snap_tick = self.tick;
-        let mut dangling_seen = HashSet::new();
-        let mut check_dangling = |old: EntityId| {
-            if !id_remap.contains_key(&old) && dangling_seen.insert(old) {
-                sim.push_event(crate::events::Event::SnapshotDanglingReference {
-                    stale_id: old,
-                    tick: snap_tick,
-                });
-            }
-        };
-        for snap in &self.entities {
-            Self::collect_referenced_ids(snap, &mut check_dangling);
-        }
-        for hc in &self.hall_calls {
-            check_dangling(hc.stop);
-            if let Some(car) = hc.assigned_car {
-                check_dangling(car);
-            }
-            if let Some(dest) = hc.destination {
-                check_dangling(dest);
-            }
-            for &rider in &hc.pending_riders {
-                check_dangling(rider);
-            }
-        }
+        Self::emit_dangling_warnings(
+            &self.entities,
+            &self.hall_calls,
+            &id_remap,
+            self.tick,
+            &mut sim,
+        );
 
         Ok(sim)
     }
@@ -573,6 +553,40 @@ impl WorldSnapshot {
                 (name.clone(), remapped)
             })
             .collect()
+    }
+
+    /// Emit `SnapshotDanglingReference` events for entity IDs not in `id_remap`.
+    fn emit_dangling_warnings(
+        entities: &[EntitySnapshot],
+        hall_calls: &[HallCall],
+        id_remap: &HashMap<EntityId, EntityId>,
+        tick: u64,
+        sim: &mut crate::sim::Simulation,
+    ) {
+        let mut seen = HashSet::new();
+        let mut check = |old: EntityId| {
+            if !id_remap.contains_key(&old) && seen.insert(old) {
+                sim.push_event(crate::events::Event::SnapshotDanglingReference {
+                    stale_id: old,
+                    tick,
+                });
+            }
+        };
+        for snap in entities {
+            Self::collect_referenced_ids(snap, &mut check);
+        }
+        for hc in hall_calls {
+            check(hc.stop);
+            if let Some(car) = hc.assigned_car {
+                check(car);
+            }
+            if let Some(dest) = hc.destination {
+                check(dest);
+            }
+            for &rider in &hc.pending_riders {
+                check(rider);
+            }
+        }
     }
 
     /// Visit all cross-referenced `EntityId`s inside an entity snapshot.
