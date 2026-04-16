@@ -293,16 +293,7 @@ Key relationship invariants:
 
 ```rust
 pub trait DispatchStrategy: Send + Sync {
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        stop: EntityId,
-        stop_position: f64,
-        group: &ElevatorGroup,
-        manifest: &DispatchManifest,
-        world: &World,
-    ) -> Option<f64>;
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64>;
 
     fn pre_dispatch(&mut self, _group: &ElevatorGroup, _manifest: &DispatchManifest, _world: &mut World) {}
     fn prepare_car(&mut self, _car: EntityId, _pos: f64, _group: &ElevatorGroup, _manifest: &DispatchManifest, _world: &World) {}

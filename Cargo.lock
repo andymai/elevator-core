@@ -2464,7 +2464,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-core"
-version = "11.0.0"
+version = "12.0.0"
 dependencies = [
  "criterion",
  "ordered-float",
@@ -2481,7 +2481,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-ffi"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "cbindgen",
  "elevator-core",
