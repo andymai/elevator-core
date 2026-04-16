@@ -485,13 +485,19 @@ impl Simulation {
             });
         }
 
-        // Check for duplicate stop IDs.
+        // Check for duplicate stop IDs and validate positions.
         let mut seen_ids = HashSet::new();
         for stop in &config.building.stops {
             if !seen_ids.insert(stop.id) {
                 return Err(SimError::InvalidConfig {
                     field: "building.stops",
                     reason: format!("duplicate {}", stop.id),
+                });
+            }
+            if !stop.position.is_finite() {
+                return Err(SimError::InvalidConfig {
+                    field: "building.stops.position",
+                    reason: format!("{} has non-finite position {}", stop.id, stop.position),
                 });
             }
         }

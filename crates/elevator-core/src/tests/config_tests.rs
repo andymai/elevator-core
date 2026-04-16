@@ -1,4 +1,5 @@
 use crate::config::SimConfig;
+use crate::error::SimError;
 
 #[test]
 fn deserialize_default_ron() {
@@ -24,4 +25,58 @@ fn roundtrip_ron() {
     let config2: SimConfig = ron::from_str(&serialized).unwrap();
     assert_eq!(config.building.stops.len(), config2.building.stops.len());
     assert_eq!(config.elevators.len(), config2.elevators.len());
+}
+
+#[test]
+fn rejects_nan_stop_position() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.building.stops[1].position = f64::NAN;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.stops.position",
+                ..
+            })
+        ),
+        "NaN position should be rejected, got {result:?}"
+    );
+}
+
+#[test]
+fn rejects_infinite_stop_position() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.building.stops[0].position = f64::INFINITY;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.stops.position",
+                ..
+            })
+        ),
+        "infinite position should be rejected, got {result:?}"
+    );
+}
+
+#[test]
+fn rejects_neg_infinite_stop_position() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.building.stops[2].position = f64::NEG_INFINITY;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "building.stops.position",
+                ..
+            })
+        ),
+        "negative infinity position should be rejected, got {result:?}"
+    );
 }

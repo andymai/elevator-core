@@ -161,6 +161,14 @@ fn commit_go_to_stop(
     eid: EntityId,
     stop_eid: EntityId,
 ) {
+    // Guard: never dispatch an elevator to a stop it is restricted from.
+    if world
+        .elevator(eid)
+        .is_some_and(|car| car.restricted_stops().contains(&stop_eid))
+    {
+        return;
+    }
+
     // Short-circuit the common reassignment case: the same car
     // already committed to the same stop on a prior tick. Re-emitting
     // `ElevatorAssigned` each tick would drown observability consumers
