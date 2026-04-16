@@ -4,6 +4,7 @@
 use crate::builder::SimulationBuilder;
 use crate::components::ElevatorPhase;
 use crate::dispatch::scan::ScanDispatch;
+use crate::error::SimError;
 use crate::events::Event;
 use crate::stop::StopId;
 
@@ -272,7 +273,7 @@ fn push_destination_errors_on_non_elevator() {
         .spawn_rider_by_stop_id(StopId(0), StopId(2), 75.0)
         .unwrap();
     let result = sim.push_destination(rider, s1);
-    assert!(result.is_err());
+    assert!(matches!(result, Err(SimError::NotAnElevator(_))));
 }
 
 // 15
@@ -282,7 +283,7 @@ fn push_destination_errors_on_non_stop() {
     let elev = first_elevator(&sim);
     // Use the elevator entity as the target — not a stop.
     let result = sim.push_destination(elev, elev);
-    assert!(result.is_err());
+    assert!(matches!(result, Err(SimError::NotAStop(_))));
 }
 
 // Regression for greptile P1: when `advance_queue` redirects a moving

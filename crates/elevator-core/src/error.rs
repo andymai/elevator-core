@@ -1,5 +1,6 @@
 //! Error types for configuration validation and runtime failures.
 
+use crate::components::ServiceMode;
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::stop::StopId;
@@ -30,6 +31,21 @@ pub enum SimError {
         /// Human-readable explanation.
         reason: String,
     },
+    /// The entity is not an elevator.
+    NotAnElevator(EntityId),
+    /// The elevator is disabled.
+    ElevatorDisabled(EntityId),
+    /// The elevator is in an incompatible service mode.
+    WrongServiceMode {
+        /// The elevator entity.
+        entity: EntityId,
+        /// The service mode required by the operation.
+        expected: ServiceMode,
+        /// The elevator's current service mode.
+        actual: ServiceMode,
+    },
+    /// The entity is not a stop.
+    NotAStop(EntityId),
     /// A line entity was not found.
     LineNotFound(EntityId),
     /// No route exists between origin and destination across any group.
@@ -75,6 +91,19 @@ impl fmt::Display for SimError {
             Self::InvalidState { entity, reason } => {
                 write!(f, "invalid state for {entity:?}: {reason}")
             }
+            Self::NotAnElevator(id) => write!(f, "entity {id:?} is not an elevator"),
+            Self::ElevatorDisabled(id) => write!(f, "elevator {id:?} is disabled"),
+            Self::WrongServiceMode {
+                entity,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "elevator {entity:?} is in {actual} mode, expected {expected}"
+                )
+            }
+            Self::NotAStop(id) => write!(f, "entity {id:?} is not a stop"),
             Self::LineNotFound(id) => write!(f, "line entity {id:?} not found"),
             Self::NoRoute {
                 origin,
