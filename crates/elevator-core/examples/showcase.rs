@@ -324,7 +324,7 @@ fn part5_metrics_deep_dive() {
 
     // Tag the lobby stop — riders spawned there inherit the tag automatically.
     let lobby_entity = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(lobby_entity, "zone:lobby");
+    sim.tag_entity(lobby_entity, "zone:lobby").unwrap();
 
     // Spawn riders from the tagged lobby.
     for _ in 0..5 {
@@ -337,7 +337,7 @@ fn part5_metrics_deep_dive() {
     let special = sim
         .spawn_rider_by_stop_id(StopId(0), StopId(1), 60.0)
         .unwrap();
-    sim.tag_entity(special, "priority:express");
+    sim.tag_entity(special, "priority:express").unwrap();
 
     // Run enough ticks for deliveries.
     for _ in 0..600 {

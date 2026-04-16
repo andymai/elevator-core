@@ -146,6 +146,54 @@ impl std::error::Error for SimError {
     }
 }
 
+/// Failure modes for [`Simulation::eta`](crate::sim::Simulation::eta) queries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum EtaError {
+    /// The entity is not an elevator.
+    NotAnElevator(EntityId),
+    /// The entity is not a stop.
+    NotAStop(EntityId),
+    /// The stop is not in the elevator's destination queue.
+    StopNotQueued {
+        /// The queried elevator.
+        elevator: EntityId,
+        /// The queried stop.
+        stop: EntityId,
+    },
+    /// The elevator's service mode excludes it from dispatch-based queries.
+    ServiceModeExcluded(EntityId),
+    /// A stop in the route vanished during calculation.
+    StopVanished(EntityId),
+    /// No car has been assigned to serve the hall call at this stop.
+    NoCarAssigned(EntityId),
+}
+
+impl fmt::Display for EtaError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotAnElevator(id) => write!(f, "entity {id:?} is not an elevator"),
+            Self::NotAStop(id) => write!(f, "entity {id:?} is not a stop"),
+            Self::StopNotQueued { elevator, stop } => {
+                write!(f, "stop {stop:?} is not in elevator {elevator:?}'s queue")
+            }
+            Self::ServiceModeExcluded(id) => {
+                write!(f, "elevator {id:?} is in a dispatch-excluded service mode")
+            }
+            Self::StopVanished(id) => write!(f, "stop {id:?} vanished during ETA calculation"),
+            Self::NoCarAssigned(id) => {
+                write!(f, "no car assigned to serve hall call at stop {id:?}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for EtaError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
 /// Format a list of `GroupId`s as `[GroupId(0), GroupId(1)]` or `[]` if empty.
 fn format_group_list(groups: &[GroupId]) -> String {
     if groups.is_empty() {

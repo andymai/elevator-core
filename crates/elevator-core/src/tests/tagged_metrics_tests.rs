@@ -8,7 +8,7 @@ fn tagged_stop_metrics_track_riders() {
 
     // Tag stop 0 (Ground) with "zone:lobby".
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(stop0, "zone:lobby");
+    sim.tag_entity(stop0, "zone:lobby").unwrap();
 
     // Spawn riders from stop 0 → stop 2 (they inherit "zone:lobby" tag).
     sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
@@ -39,7 +39,7 @@ fn untagged_riders_dont_affect_tagged_metrics() {
 
     // Only tag stop 0.
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(stop0, "zone:ground");
+    sim.tag_entity(stop0, "zone:ground").unwrap();
 
     // Spawn a rider from stop 1 (not tagged).
     sim.spawn_rider_by_stop_id(StopId(1), StopId(2), 70.0)
@@ -64,8 +64,8 @@ fn multiple_tags_per_entity() {
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(stop0, "zone:lobby");
-    sim.tag_entity(stop0, "floor:ground");
+    sim.tag_entity(stop0, "zone:lobby").unwrap();
+    sim.tag_entity(stop0, "floor:ground").unwrap();
 
     sim.spawn_rider_by_stop_id(StopId(0), StopId(2), 70.0)
         .unwrap();
@@ -87,8 +87,8 @@ fn all_tags_lists_registered_tags() {
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
-    sim.tag_entity(stop0, "alpha");
-    sim.tag_entity(stop0, "beta");
+    sim.tag_entity(stop0, "alpha").unwrap();
+    sim.tag_entity(stop0, "beta").unwrap();
 
     let tags = sim.all_tags();
     assert!(tags.contains(&"alpha"));
