@@ -1,6 +1,5 @@
 //! Energy system: compute per-tick energy consumption and regeneration.
 
-use crate::components::ElevatorPhase;
 use crate::energy::compute_tick_energy;
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};

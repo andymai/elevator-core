@@ -701,6 +701,16 @@ impl World {
         self.ext_map::<T>()?.get(id).cloned()
     }
 
+    /// Get a shared reference to a custom component for an entity.
+    ///
+    /// Zero-copy alternative to [`get_ext`](Self::get_ext): prefer this when
+    /// `T` is large or expensive to clone, or when the caller only needs a
+    /// borrow. Unlike `get_ext`, `T` does not need to implement `Clone`.
+    #[must_use]
+    pub fn get_ext_ref<T: 'static + Send + Sync>(&self, id: EntityId) -> Option<&T> {
+        self.ext_map::<T>()?.get(id)
+    }
+
     /// Get a mutable reference to a custom component for an entity.
     pub fn get_ext_mut<T: 'static + Send + Sync>(&mut self, id: EntityId) -> Option<&mut T> {
         self.ext_map_mut::<T>()?.get_mut(id)

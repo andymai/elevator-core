@@ -22,3 +22,37 @@ pub struct StopConfig {
     /// Absolute position along the shaft axis (distance units from origin).
     pub position: f64,
 }
+
+impl StopConfig {
+    /// Build a `Vec<StopConfig>` from a compact `(name, position)` slice.
+    ///
+    /// `StopId`s are assigned sequentially starting at 0. Useful for demos,
+    /// tests, and any sim whose stops don't need hand-picked identifiers.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use elevator_core::stop::StopConfig;
+    ///
+    /// let stops = StopConfig::linear(&[
+    ///     ("Ground", 0.0),
+    ///     ("Floor 2", 4.0),
+    ///     ("Floor 3", 8.0),
+    /// ]);
+    /// assert_eq!(stops.len(), 3);
+    /// assert_eq!(stops[0].name, "Ground");
+    /// assert_eq!(stops[2].position, 8.0);
+    /// ```
+    #[must_use]
+    pub fn linear(stops: &[(&str, f64)]) -> Vec<Self> {
+        stops
+            .iter()
+            .enumerate()
+            .map(|(i, (name, position))| Self {
+                id: StopId(u32::try_from(i).unwrap_or(u32::MAX)),
+                name: (*name).to_owned(),
+                position: *position,
+            })
+            .collect()
+    }
+}
