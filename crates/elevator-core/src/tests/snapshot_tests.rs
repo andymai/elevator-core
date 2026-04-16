@@ -259,8 +259,11 @@ fn load_extensions_with_convenience() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-    sim.world_mut()
-        .insert_ext(rider, VipTag { level: 3 }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(
+        rider.entity(),
+        VipTag { level: 3 },
+        ExtKey::from_type_name(),
+    );
 
     let snap = sim.snapshot();
     let mut restored = snap.restore(None).unwrap();
@@ -296,8 +299,11 @@ fn load_extensions_reports_unregistered_types() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-    sim.world_mut()
-        .insert_ext(rider, VipTag { level: 1 }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(
+        rider.entity(),
+        VipTag { level: 1 },
+        ExtKey::from_type_name(),
+    );
 
     let snap = sim.snapshot();
     let mut restored = snap.restore(None).unwrap();
