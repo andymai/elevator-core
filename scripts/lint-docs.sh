@@ -38,12 +38,14 @@ fi
 echo "checking internal links..."
 for f in "$DOCS_SRC"/*.md; do
     fname="$(basename "$f")"
-    # Match [text](foo-bar.md) and [text](foo-bar.md#anchor), capturing just the filename
-    grep -oP '\]\(\K[a-z][-a-z0-9]*\.md(?=[)#])' "$f" 2>/dev/null | while read -r target; do
+    # Match [text](foo-bar.md) and [text](foo-bar.md#anchor), capturing just the filename.
+    # Use process substitution to keep the while loop in the current shell
+    # so err() increments ERRORS in the parent scope.
+    while IFS= read -r target; do
         if [[ ! -f "$DOCS_SRC/$target" ]]; then
             err "$fname: broken link to $target"
         fi
-    done
+    done < <(grep -oP '\]\(\K[a-z][-a-z0-9]*\.md(?=[)#])' "$f" 2>/dev/null)
 done
 
 # ── 3. Bare ```rust fences ───────────────────────────────────────
