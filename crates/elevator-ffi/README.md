@@ -93,7 +93,7 @@ harness against the compiled cdylib on three host platforms:
 |-----------------------|------------------|-------------|-------------------------|
 | Linux (x86-64)        | `ubuntu-latest`  | `linux-x64` | `libelevator_ffi.so`    |
 | Windows (x86-64)      | `windows-latest` | `win-x64`   | `elevator_ffi.dll`      |
-| macOS (Apple Silicon) | `macos-latest`   | `osx-arm64` | `libelevator_ffi.dylib` |
+| macOS (Apple Silicon) | `macos-15`       | `osx-arm64` | `libelevator_ffi.dylib` |
 
 The header-diff check runs only on Linux (all three produce identical
 output). `fail-fast: false` is set so a regression on one platform
