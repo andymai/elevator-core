@@ -512,7 +512,7 @@ pub mod prelude {
         DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
     };
     pub use crate::dispatch::{
-        AssignedCar, DestinationDispatch, DispatchStrategy, RepositionStrategy,
+        AssignedCar, DestinationDispatch, DispatchStrategy, RankContext, RepositionStrategy,
     };
     pub use crate::entity::EntityId;
     pub use crate::error::{EtaError, RejectionContext, RejectionReason, SimError};

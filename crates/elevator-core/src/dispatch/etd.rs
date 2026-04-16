@@ -12,7 +12,7 @@ use crate::components::{ElevatorPhase, Route};
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext};
 
 /// Estimated Time to Destination (ETD) dispatch algorithm.
 ///
@@ -94,17 +94,8 @@ impl DispatchStrategy for EtdDispatch {
         }
     }
 
-    fn rank(
-        &mut self,
-        car: EntityId,
-        car_position: f64,
-        _stop: EntityId,
-        stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        world: &World,
-    ) -> Option<f64> {
-        let cost = self.compute_cost(car, car_position, stop_position, world);
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        let cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);
         if cost.is_finite() { Some(cost) } else { None }
     }
 }

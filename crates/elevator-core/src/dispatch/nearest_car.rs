@@ -1,9 +1,6 @@
 //! Nearest-car dispatch — assigns each call to the closest idle elevator.
 
-use crate::entity::EntityId;
-use crate::world::World;
-
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup};
+use super::{DispatchStrategy, RankContext};
 
 /// Scores `(car, stop)` by absolute distance between the car and the stop.
 ///
@@ -27,16 +24,7 @@ impl Default for NearestCarDispatch {
 }
 
 impl DispatchStrategy for NearestCarDispatch {
-    fn rank(
-        &mut self,
-        _car: EntityId,
-        car_position: f64,
-        _stop: EntityId,
-        stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> Option<f64> {
-        Some((car_position - stop_position).abs())
+    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        Some((ctx.car_position - ctx.stop_position).abs())
     }
 }

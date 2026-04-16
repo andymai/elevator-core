@@ -6,7 +6,8 @@ use crate::dispatch::look::LookDispatch;
 use crate::dispatch::nearest_car::NearestCarDispatch;
 use crate::dispatch::scan::ScanDispatch;
 use crate::dispatch::{
-    self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
+    self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
+    RiderInfo,
 };
 use crate::door::DoorState;
 use crate::ids::GroupId;
@@ -502,16 +503,7 @@ fn nearest_car_distance_calculation() {
 struct AlwaysIdleDispatch;
 
 impl DispatchStrategy for AlwaysIdleDispatch {
-    fn rank(
-        &mut self,
-        _car: crate::entity::EntityId,
-        _car_position: f64,
-        _stop: crate::entity::EntityId,
-        _stop_position: f64,
-        _group: &ElevatorGroup,
-        _manifest: &DispatchManifest,
-        _world: &World,
-    ) -> Option<f64> {
+    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> {
         None
     }
 }
@@ -673,20 +665,11 @@ fn strategy_rank_is_order_independent_when_state_lives_in_prepare_car() {
             // Snapshot once; `rank` reads only.
             self.idle.insert(car, self.tick as f64);
         }
-        fn rank(
-            &mut self,
-            car: crate::entity::EntityId,
-            car_pos: f64,
-            _s: crate::entity::EntityId,
-            stop_pos: f64,
-            _g: &ElevatorGroup,
-            _m: &DispatchManifest,
-            _w: &World,
-        ) -> Option<f64> {
-            let boost = self.idle.get(&car).copied().unwrap_or(0.0);
+        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+            let boost = self.idle.get(&ctx.car).copied().unwrap_or(0.0);
             Some(
                 0.001f64
-                    .mul_add(-boost, (car_pos - stop_pos).abs())
+                    .mul_add(-boost, (ctx.car_position - ctx.stop_position).abs())
                     .max(0.0),
             )
         }
