@@ -187,3 +187,56 @@ fn extension_components() {
     world.despawn(e);
     assert!(world.ext::<VipTag>(e).is_none());
 }
+
+/// Verify that despawn cleans up hall_calls and car_calls.
+#[test]
+fn despawn_cleans_up_hall_and_car_calls() {
+    let mut world = World::new();
+    let stop_eid = world.spawn();
+    world.set_stop(
+        stop_eid,
+        Stop {
+            name: "S".into(),
+            position: 0.0,
+        },
+    );
+
+    let car_eid = world.spawn();
+    world.set_elevator(
+        car_eid,
+        Elevator {
+            phase: ElevatorPhase::Idle,
+            door: DoorState::Closed,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
+            riders: vec![],
+            target_stop: None,
+            door_transition_ticks: 15,
+            door_open_ticks: 60,
+            line: crate::entity::EntityId::default(),
+            repositioning: false,
+            restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
+            move_count: 0,
+            door_command_queue: Vec::new(),
+            manual_target_velocity: None,
+        },
+    );
+
+    // Populate car_calls for the elevator.
+    if let Some(cc) = world.car_calls_mut(car_eid) {
+        cc.push(crate::components::CarCall::new(car_eid, stop_eid, 0));
+    }
+    assert!(!world.car_calls(car_eid).is_empty());
+
+    world.despawn(car_eid);
+    assert!(
+        world.car_calls(car_eid).is_empty(),
+        "car_calls should be cleaned up after despawn"
+    );
+}
