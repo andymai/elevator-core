@@ -1,0 +1,54 @@
+[gd_scene load_steps=4 format=3 uid="uid://main_scene"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/elevator_view.gd" id="3"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1")
+
+[node name="ElevatorView" type="Node2D" parent="."]
+script = ExtResource("3")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="PanelContainer" parent="HUD"]
+offset_right = 320.0
+offset_bottom = 400.0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/Panel"]
+layout_mode = 2
+
+[node name="StatsLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+text = "Initializing..."
+script = ExtResource("2")
+
+[node name="Controls" type="HBoxContainer" parent="HUD/Panel/VBox"]
+layout_mode = 2
+
+[node name="PauseBtn" type="Button" parent="HUD/Panel/VBox/Controls"]
+layout_mode = 2
+text = "Pause"
+
+[node name="Speed1" type="Button" parent="HUD/Panel/VBox/Controls"]
+layout_mode = 2
+text = "1x"
+
+[node name="Speed2" type="Button" parent="HUD/Panel/VBox/Controls"]
+layout_mode = 2
+text = "2x"
+
+[node name="Speed10" type="Button" parent="HUD/Panel/VBox/Controls"]
+layout_mode = 2
+text = "10x"
+
+[node name="SpawnBtn" type="Button" parent="HUD/Panel/VBox/Controls"]
+layout_mode = 2
+text = "Spawn"
+
+[node name="HelpLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 11
+text = "Space: pause | 1: 1x | 2: 2x | 3: 10x"
