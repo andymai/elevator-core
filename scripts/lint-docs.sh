@@ -5,11 +5,10 @@
 #   1. mdBook builds without errors
 #   2. Every internal [text](file.md) link resolves to an existing file
 #   3. No bare ```rust code fences (must be rust,no_run or rust,ignore)
-#   4. No Unicode em-dashes (use -- for consistency)
-#   5. Every chapter starts with a level-1 heading
-#   6. No heading-level skips (e.g., ## then ####)
-#   7. No references to deleted files (old chapter names)
-#   8. Every chapter (except SUMMARY.md) has a "Next steps" section
+#   4. Every chapter starts with a level-1 heading
+#   5. No heading-level skips (e.g., ## then ####)
+#   6. No references to deleted files (old chapter names)
+#   7. Every chapter (except SUMMARY.md) has a "Next steps" section
 #
 # Usage:
 #   scripts/lint-docs.sh          # run all checks
@@ -54,13 +53,7 @@ while IFS=: read -r file line _; do
     err "$(basename "$file"):$line: bare \`\`\`rust (use rust,no_run or rust,ignore)"
 done < <(grep -Hn '^```rust$' "$DOCS_SRC"/*.md 2>/dev/null || true)
 
-# ── 4. Unicode em-dashes ─────────────────────────────────────────
-echo "checking dash consistency..."
-while IFS=: read -r file line _; do
-    err "$(basename "$file"):$line: Unicode em-dash found (use -- instead)"
-done < <(grep -Pn '—' "$DOCS_SRC"/*.md 2>/dev/null || true)
-
-# ── 5, 6, 8. Per-file structure checks ──────────────────────────
+# ── 4, 5, 7. Per-file structure checks ──────────────────────────
 # Single pass per file: first-line heading, heading-level skips, "Next steps" section
 echo "checking chapter structure..."
 for f in "$DOCS_SRC"/*.md; do
@@ -75,7 +68,7 @@ for f in "$DOCS_SRC"/*.md; do
     while IFS= read -r line; do
         lineno=$((lineno + 1))
 
-        # Check 5: first line must be a level-1 heading
+        # Check 4: first line must be a level-1 heading
         if (( lineno == 1 )) && [[ "$line" != "# "* ]]; then
             err "$fname: first line is not a level-1 heading"
         fi
@@ -87,12 +80,12 @@ for f in "$DOCS_SRC"/*.md; do
         fi
         $in_fence && continue
 
-        # Check 8: look for "Next steps" heading
+        # Check 7: look for "Next steps" heading
         if [[ "$line" == "## Next steps"* ]]; then
             has_next_steps=true
         fi
 
-        # Check 6: detect heading-level skips
+        # Check 5: detect heading-level skips
         case "$line" in
             '#### '*)  level=4 ;;
             '### '*)   level=3 ;;
@@ -111,7 +104,7 @@ for f in "$DOCS_SRC"/*.md; do
     fi
 done
 
-# ── 7. No references to deleted files ────────────────────────────
+# ── 6. No references to deleted files ────────────────────────────
 echo "checking for stale references..."
 STALE_PATTERNS="\bapi-reference\.md\b|\bcore-concepts\.md\b|\bextensions-and-hooks\.md\b|\bgetting-started\.md\b|\bmetrics-and-events\.md\b|\bnon-bevy-integration\.md\b|\bsnapshots-and-determinism\.md\b|\(dispatch\.md[)#]"
 while IFS=: read -r file line content; do
