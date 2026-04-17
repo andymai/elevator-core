@@ -1,5 +1,7 @@
 # Introduction
 
+> **Try it live:** the [in-browser playground](./playground/index.html) runs the full simulation — swap dispatch strategies, tune traffic, and share seeds without installing anything.
+
 **elevator-core** is an engine-agnostic elevator simulation library written in pure Rust. It gives you a tick-based simulation with realistic trapezoidal motion profiles, pluggable dispatch algorithms, and a typed event bus -- everything you need to build elevator games, building management tools, or algorithm testbeds without coupling to any particular game engine or rendering framework.
 
 ## Who is this for?
