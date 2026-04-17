@@ -39,8 +39,12 @@ pub struct CarDto {
 /// Per-stop rendering snapshot.
 #[derive(Serialize)]
 pub struct StopDto {
-    /// Stable entity id.
-    pub id: u32,
+    /// Stable entity id (matches `CarDto.target` for rendering assignment lines).
+    pub entity_id: u32,
+    /// Config-level `StopId`. The UI passes this back to `spawnRider` to
+    /// create riders between stops — `spawnRider` takes `StopId`, not
+    /// entity id, so the snapshot surfaces both.
+    pub stop_id: u32,
     /// Human-readable stop name.
     pub name: String,
     /// Position along the shaft axis.
@@ -87,11 +91,19 @@ impl Snapshot {
             })
             .collect();
 
+        // Build a reverse index once (entity id → config StopId) so we can
+        // surface both on each StopDto without walking the lookup N times.
+        let entity_to_stop_id: std::collections::HashMap<_, _> = sim
+            .stop_lookup_iter()
+            .map(|(stop_id, entity)| (*entity, stop_id.0))
+            .collect();
+
         let stops = sim
             .world()
             .iter_stops()
             .map(|(id, stop)| StopDto {
-                id: entity_to_u32(id),
+                entity_id: entity_to_u32(id),
+                stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(0),
                 name: stop.name().to_string(),
                 y: stop.position(),
                 waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
