@@ -1,0 +1,25 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Native plugins (built by build.sh)
+Assets/Plugins/Native/**/*.so
+Assets/Plugins/Native/**/*.dll
+Assets/Plugins/Native/**/*.dylib
+Assets/Plugins/Native/**/*.meta
