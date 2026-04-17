@@ -1,0 +1,46 @@
+[package]
+name = "elevator-wasm"
+version = "0.1.0"
+edition.workspace = true
+description = "wasm-bindgen surface for elevator-core (browser playground)"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints.rust]
+# wasm-bindgen's generated code contains `unsafe impl`s.
+unsafe_code = "allow"
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_docs_in_private_items = "allow"
+module_name_repetitions = "allow"
+missing_errors_doc = "warn"
+missing_panics_doc = "allow"
+# wasm-bindgen exports use `must_use` sparingly; avoid fighting the macro.
+must_use_candidate = "allow"
+# wasm-bindgen-exported methods cannot be `const fn` (the macro generates a
+# non-const wrapper), so the lint produces noise across every trivial getter.
+missing_const_for_fn = "allow"
+
+[dependencies]
+elevator-core = { path = "../elevator-core", features = ["traffic"] }
+wasm-bindgen = "0.2"
+serde = { workspace = true }
+serde-wasm-bindgen = "0.6"
+ron = { workspace = true }
+slotmap = { workspace = true }
+
+# getrandom's js backend is required for `rand` on wasm32 targets. Both
+# version trees in the dep graph (rand 0.10 pulls 0.4; some workspace members
+# still bring in 0.3) need the `wasm_js` backend enabled. Kept target-scoped so
+# native (x86_64) builds of this crate are unaffected.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom_v04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
