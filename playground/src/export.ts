@@ -15,10 +15,25 @@ export function downloadEventsCsv(events: SimEvent[], filename: string): void {
       e.stop ?? "",
       e.origin ?? "",
       e.destination ?? "",
-      (e.label ?? "").replace(/,/g, ";"),
+      csvEscape(e.label ?? ""),
     ].join(","),
   );
   download(`${header}\n${rows.join("\n")}`, filename, "text/csv");
+}
+
+/**
+ * RFC 4180-ish escape for a single CSV field. Quotes the field and doubles
+ * any embedded double-quotes when the value contains `,`, `"`, `\n`, or `\r`
+ * — all of which would otherwise break the row/column structure.
+ *
+ * `Other`-variant event labels come from Rust's `Debug` output and may in
+ * principle contain arbitrary punctuation, so we can't assume cleanliness.
+ */
+function csvEscape(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
 }
 
 /** Trigger a CSV file download of metrics snapshots over time. */

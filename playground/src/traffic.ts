@@ -19,7 +19,12 @@ export class TrafficDriver {
   /** Consume pending spawns and emit them. Call once per UI frame. */
   tickSpawns(sim: Sim, snapshot: Snapshot, ridersPerMinute: number, elapsedSeconds: number): void {
     if (ridersPerMinute <= 0 || snapshot.stops.length < 2) return;
-    this.#accumulator += (ridersPerMinute / 60) * elapsedSeconds;
+    // Clamp to ~4 frames at 60 Hz. When the browser tab is hidden
+    // requestAnimationFrame pauses entirely, so on restore the first
+    // `elapsedSeconds` is the full hidden duration — which at 120 riders/min
+    // would dump ~20 spawns in a single frame and visibly jolt the sim.
+    const dt = Math.min(elapsedSeconds, 4 / 60);
+    this.#accumulator += (ridersPerMinute / 60) * dt;
     while (this.#accumulator >= 1.0) {
       this.#accumulator -= 1.0;
       this.#spawnOne(sim, snapshot);

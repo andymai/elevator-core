@@ -25,6 +25,7 @@ export class CanvasRenderer {
   #canvas: HTMLCanvasElement;
   #ctx: CanvasRenderingContext2D;
   #dpr: number;
+  #onResize: () => void;
 
   constructor(canvas: HTMLCanvasElement) {
     this.#canvas = canvas;
@@ -33,7 +34,16 @@ export class CanvasRenderer {
     this.#ctx = ctx;
     this.#dpr = window.devicePixelRatio || 1;
     this.#resize();
-    window.addEventListener("resize", () => this.#resize());
+    // Store the bound handler so `dispose()` can detach it. Without this
+    // indirection, a later replacement of the renderer would leak the old
+    // listener — it would keep firing against a detached canvas.
+    this.#onResize = (): void => this.#resize();
+    window.addEventListener("resize", this.#onResize);
+  }
+
+  /** Detach the resize listener. Call when replacing the renderer. */
+  dispose(): void {
+    window.removeEventListener("resize", this.#onResize);
   }
 
   #resize(): void {
