@@ -77,6 +77,27 @@ impl super::Simulation {
         let origin = self.resolve_stop(origin.into())?;
         let destination = self.resolve_stop(destination.into())?;
         let weight: Weight = weight.into();
+        let group = self.auto_detect_group(origin, destination)?;
+
+        let route = Route::direct(origin, destination, group);
+        Ok(RiderId::from(self.spawn_rider_inner(
+            origin,
+            destination,
+            weight,
+            route,
+        )))
+    }
+
+    /// Find the single group that serves both `origin` and `destination`.
+    ///
+    /// Returns `Ok(group)` when exactly one group serves both stops.
+    /// Returns [`SimError::NoRoute`] when no group does.
+    /// Returns [`SimError::AmbiguousRoute`] when more than one does.
+    pub(super) fn auto_detect_group(
+        &self,
+        origin: EntityId,
+        destination: EntityId,
+    ) -> Result<GroupId, SimError> {
         let matching: Vec<GroupId> = self
             .groups
             .iter()
@@ -86,7 +107,7 @@ impl super::Simulation {
             .map(ElevatorGroup::id)
             .collect();
 
-        let group = match matching.len() {
+        match matching.len() {
             0 => {
                 let origin_groups: Vec<GroupId> = self
                     .groups
@@ -100,30 +121,20 @@ impl super::Simulation {
                     .filter(|g| g.stop_entities().contains(&destination))
                     .map(ElevatorGroup::id)
                     .collect();
-                return Err(SimError::NoRoute {
+                Err(SimError::NoRoute {
                     origin,
                     destination,
                     origin_groups,
                     destination_groups,
-                });
+                })
             }
-            1 => matching[0],
-            _ => {
-                return Err(SimError::AmbiguousRoute {
-                    origin,
-                    destination,
-                    groups: matching,
-                });
-            }
-        };
-
-        let route = Route::direct(origin, destination, group);
-        Ok(RiderId::from(self.spawn_rider_inner(
-            origin,
-            destination,
-            weight,
-            route,
-        )))
+            1 => Ok(matching[0]),
+            _ => Err(SimError::AmbiguousRoute {
+                origin,
+                destination,
+                groups: matching,
+            }),
+        }
     }
 
     /// Internal helper: spawn a rider entity with the given route.

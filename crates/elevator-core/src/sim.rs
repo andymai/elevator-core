@@ -274,50 +274,8 @@ impl RiderBuilder<'_> {
             }
             Route::direct(self.origin, self.destination, group)
         } else {
-            // Auto-detect group (same logic as spawn_rider).
-            let matching: Vec<GroupId> = self
-                .sim
-                .groups
-                .iter()
-                .filter(|g| {
-                    g.stop_entities().contains(&self.origin)
-                        && g.stop_entities().contains(&self.destination)
-                })
-                .map(ElevatorGroup::id)
-                .collect();
-
-            match matching.len() {
-                0 => {
-                    let origin_groups: Vec<GroupId> = self
-                        .sim
-                        .groups
-                        .iter()
-                        .filter(|g| g.stop_entities().contains(&self.origin))
-                        .map(ElevatorGroup::id)
-                        .collect();
-                    let destination_groups: Vec<GroupId> = self
-                        .sim
-                        .groups
-                        .iter()
-                        .filter(|g| g.stop_entities().contains(&self.destination))
-                        .map(ElevatorGroup::id)
-                        .collect();
-                    return Err(SimError::NoRoute {
-                        origin: self.origin,
-                        destination: self.destination,
-                        origin_groups,
-                        destination_groups,
-                    });
-                }
-                1 => Route::direct(self.origin, self.destination, matching[0]),
-                _ => {
-                    return Err(SimError::AmbiguousRoute {
-                        origin: self.origin,
-                        destination: self.destination,
-                        groups: matching,
-                    });
-                }
-            }
+            let group = self.sim.auto_detect_group(self.origin, self.destination)?;
+            Route::direct(self.origin, self.destination, group)
         };
 
         let eid = self
