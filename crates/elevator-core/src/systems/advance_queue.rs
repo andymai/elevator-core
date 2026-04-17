@@ -131,9 +131,9 @@ pub fn run(
                         update_indicators(world, events, eid, new_up, new_down, ctx.tick);
                     }
                     None => {
-                        // Queue was cleared; leave current target in place for
-                        // this PR (clearing does not abort mid-flight — see
-                        // TODO on Simulation::clear_destinations).
+                        // Queue cleared while moving: finish the current leg
+                        // and go idle. Hard-aborting mid-flight is a separate
+                        // operation (see Simulation::abort_movement).
                         let _ = current_target;
                     }
                 }
