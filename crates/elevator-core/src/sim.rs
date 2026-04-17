@@ -620,11 +620,11 @@ impl Simulation {
     /// [`future_stop_position`](Self::future_stop_position)), picks the
     /// closest stop at or past that position in the current direction of
     /// travel, re-targets there via
-    /// [`ElevatorPhase::Repositioning`](crate::components::ElevatorPhase::Repositioning)
+    /// [`ElevatorPhase::Repositioning`](crate::components::ElevatorPhase)
     /// so the car arrives **without opening doors**, and clears any queued
     /// destinations. Onboard riders stay aboard.
     ///
-    /// Emits [`Event::MovementAborted`](crate::events::Event::MovementAborted)
+    /// Emits [`Event::MovementAborted`](crate::events::Event)
     /// when an abort occurs.
     ///
     /// # No-op conditions

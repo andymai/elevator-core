@@ -32,7 +32,10 @@ cargo test -p elevator-core --all-features --doc --quiet
 cargo test -p elevator-bevy --doc --quiet
 
 echo "pre-commit: checking workspace..."
-cargo check --workspace --all-features --quiet
+# --all-targets catches benches / examples / integration-test drift. The
+# nightly bench workflow compiles these, but silent drift here would only
+# surface there — too late and out-of-band.
+cargo check --workspace --all-features --all-targets --quiet
 
 # Lint docs if any docs/ files or the README are staged. README.md is
 # pulled into the doctest harness, so it is under the same ignore-fence

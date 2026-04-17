@@ -155,7 +155,7 @@ impl WasmSim {
     }
 
     /// Pull a cheap snapshot for rendering. Returns a plain JS object matching
-    /// [`dto::Snapshot`].
+    /// the internal `dto::Snapshot` shape.
     ///
     /// # Errors
     ///
@@ -168,7 +168,7 @@ impl WasmSim {
     }
 
     /// Drain all queued events since the last call. Returns an array of tagged
-    /// objects (matching [`dto::EventDto`]).
+    /// objects (matching the internal `dto::EventDto` shape).
     ///
     /// # Errors
     ///

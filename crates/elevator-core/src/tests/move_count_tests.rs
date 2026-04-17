@@ -319,7 +319,7 @@ fn move_count_counts_reposition_arrivals() {
         "expected at least 2 moves (passing + arrival) during reposition, got {count}",
     );
     assert_eq!(
-        count as u64,
+        count,
         sim.metrics().total_moves(),
         "aggregate must equal sum of per-elevator counts",
     );
