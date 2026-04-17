@@ -9,6 +9,7 @@ mutants.out.old/
 .claude/agent-memory-local/
 .claude/*.lock
 .claude/worktrees/
+.worktrees/
 .idea/
 .vscode/
 *.code-workspace
