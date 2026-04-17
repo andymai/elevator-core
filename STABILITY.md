@@ -88,6 +88,8 @@ These items are **experimental** and may change in any minor version:
   blocks but not committed.
 - `energy::*` (feature-gated) — simplified per-elevator energy model.
   Opt-in via the `energy` feature; the accounting model may shift.
+- `time::TimeAdapter` — tick-to-wall-clock conversion utility.
+- `ids::*` — config-level typed identifiers (`GroupId`, etc.).
 
 These items are **internal**:
 
