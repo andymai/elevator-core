@@ -21,7 +21,7 @@ System deps (Ubuntu): `libudev-dev libasound2-dev`
 
 ## Pre-commit Hook
 
-Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features), tests, doc tests, and doc lint (when `docs/` files are staged). After cloning:
+Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features on core), core tests, doc tests, `cargo check --workspace` (catches FFI/bevy drift), a Cargo.lock drift guard, and doc lint (when `docs/` files are staged). After cloning:
 
 ```bash
 git config core.hooksPath .githooks
@@ -45,12 +45,18 @@ Key design decisions:
 
 ## Conventions
 
-Commits: conventional commits enforced by hook (`feat:`, `fix:`, `refactor:`, `chore:`, etc.)
+Commits: conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, etc.). `#[non_exhaustive]` enum additions are NOT breaking — use `feat:` not `feat!:`.
+
+PR workflow: every change lands via PR. Wait for the greptile review bot before merging; no auto-merge. After a PR merges, `git checkout main && git pull` before starting new work.
+
+Parallel work: use git worktrees under `.worktrees/<branch>` (gitignored). Sibling-directory worktrees and `.claude/worktrees/` are not the convention.
 
 Type naming — domain-first, no redundant suffixes:
 - `Rider`, `Elevator`, `Stop`, `Line` (not `RiderData`, `ElevatorCar`)
 - `RiderPhase`, `ElevatorPhase` (not `*State`); fields use `.phase`
 - `Event`, `RejectionReason` (not `SimEvent`, `String`)
+
+ID types: `ElevatorId`, `RiderId`, `StopId` are phantom-typed newtypes over `EntityId`. Prefer them on public API surfaces for type safety; `EntityId` is the untyped form used internally by `World`.
 
 ## Bevy API Notes (0.18)
 
