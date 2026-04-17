@@ -251,4 +251,25 @@ impl super::Simulation {
         self.pending_output = remaining;
         matched
     }
+
+    /// Register (or aggregate) a hall call on behalf of a specific
+    /// rider, including their destination in DCS mode.
+    fn register_hall_call_for_rider(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+        rider: EntityId,
+        destination: EntityId,
+    ) {
+        let mode = self
+            .groups
+            .iter()
+            .find(|g| g.stop_entities().contains(&stop))
+            .map(crate::dispatch::ElevatorGroup::hall_call_mode);
+        let dest = match mode {
+            Some(crate::dispatch::HallCallMode::Destination) => Some(destination),
+            _ => None,
+        };
+        self.ensure_hall_call(stop, direction, Some(rider), dest);
+    }
 }

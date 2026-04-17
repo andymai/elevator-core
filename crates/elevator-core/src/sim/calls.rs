@@ -6,6 +6,7 @@
 
 use crate::entity::{ElevatorId, EntityId};
 use crate::error::{EtaError, SimError};
+use crate::events::Event;
 use crate::stop::StopRef;
 
 impl super::Simulation {
@@ -187,5 +188,125 @@ impl super::Simulation {
         // Simple kinematic estimate. The `eta` module has a richer
         // trapezoidal model; the one-liner suits most hall-display use.
         Ok((distance / max_speed).ceil() as u64)
+    }
+
+    /// Create or aggregate into the hall call at `(stop, direction)`.
+    /// Emits [`Event::HallButtonPressed`] only on the *first* press.
+    pub(super) fn ensure_hall_call(
+        &mut self,
+        stop: EntityId,
+        direction: crate::components::CallDirection,
+        rider: Option<EntityId>,
+        destination: Option<EntityId>,
+    ) {
+        let mut fresh_press = false;
+        if self.world.hall_call(stop, direction).is_none() {
+            let mut call = crate::components::HallCall::new(stop, direction, self.tick);
+            call.destination = destination;
+            call.ack_latency_ticks = self.ack_latency_for_stop(stop);
+            if call.ack_latency_ticks == 0 {
+                // Controller has zero-tick latency — mark acknowledged
+                // immediately so dispatch sees the call this same tick.
+                call.acknowledged_at = Some(self.tick);
+            }
+            if let Some(rid) = rider {
+                call.pending_riders.push(rid);
+            }
+            self.world.set_hall_call(call);
+            fresh_press = true;
+        } else if let Some(existing) = self.world.hall_call_mut(stop, direction) {
+            if let Some(rid) = rider
+                && !existing.pending_riders.contains(&rid)
+            {
+                existing.pending_riders.push(rid);
+            }
+            // Prefer a populated destination over None; don't overwrite
+            // an existing destination even if a later press omits it.
+            if existing.destination.is_none() {
+                existing.destination = destination;
+            }
+        }
+        if fresh_press {
+            self.events.emit(Event::HallButtonPressed {
+                stop,
+                direction,
+                tick: self.tick,
+            });
+            // Zero-latency controllers acknowledge on the press tick.
+            if let Some(call) = self.world.hall_call(stop, direction)
+                && call.acknowledged_at == Some(self.tick)
+            {
+                self.events.emit(Event::HallCallAcknowledged {
+                    stop,
+                    direction,
+                    tick: self.tick,
+                });
+            }
+        }
+    }
+
+    /// Ack latency for the group whose `members` slice contains `entity`.
+    /// Defaults to 0 if no group matches (unreachable in normal builds).
+    fn ack_latency_for(
+        &self,
+        entity: EntityId,
+        members: impl Fn(&crate::dispatch::ElevatorGroup) -> &[EntityId],
+    ) -> u32 {
+        self.groups
+            .iter()
+            .find(|g| members(g).contains(&entity))
+            .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
+    }
+
+    /// Ack latency for the group that owns `stop` (0 if no group).
+    fn ack_latency_for_stop(&self, stop: EntityId) -> u32 {
+        self.ack_latency_for(stop, crate::dispatch::ElevatorGroup::stop_entities)
+    }
+
+    /// Ack latency for the group that owns `car` (0 if no group).
+    fn ack_latency_for_car(&self, car: EntityId) -> u32 {
+        self.ack_latency_for(car, crate::dispatch::ElevatorGroup::elevator_entities)
+    }
+
+    /// Create or aggregate into a car call for `(car, floor)`.
+    /// Emits [`Event::CarButtonPressed`] on first press; repeat presses
+    /// by other riders append to `pending_riders` without re-emitting.
+    fn ensure_car_call(&mut self, car: EntityId, floor: EntityId, rider: Option<EntityId>) {
+        let press_tick = self.tick;
+        let ack_latency = self.ack_latency_for_car(car);
+        let Some(queue) = self.world.car_calls_mut(car) else {
+            debug_assert!(
+                false,
+                "ensure_car_call: car {car:?} has no car_calls component"
+            );
+            return;
+        };
+        let existing_idx = queue.iter().position(|c| c.floor == floor);
+        let fresh = existing_idx.is_none();
+        if let Some(idx) = existing_idx {
+            if let Some(rid) = rider
+                && !queue[idx].pending_riders.contains(&rid)
+            {
+                queue[idx].pending_riders.push(rid);
+            }
+        } else {
+            let mut call = crate::components::CarCall::new(car, floor, press_tick);
+            call.ack_latency_ticks = ack_latency;
+            if ack_latency == 0 {
+                call.acknowledged_at = Some(press_tick);
+            }
+            if let Some(rid) = rider {
+                call.pending_riders.push(rid);
+            }
+            queue.push(call);
+        }
+        if fresh {
+            self.events.emit(Event::CarButtonPressed {
+                car,
+                floor,
+                rider,
+                tick: press_tick,
+            });
+        }
     }
 }
