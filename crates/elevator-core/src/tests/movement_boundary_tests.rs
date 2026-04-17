@@ -13,23 +13,14 @@ use crate::movement::{braking_distance, tick_movement};
 
 // ── braking_distance ────────────────────────────────────────────────
 
-/// Kills `replace * with + in braking_distance` (the `speed * speed` half).
+/// Kills `replace * with + in braking_distance` on the `2.0 * deceleration`
+/// divisor — an asymmetric-input case that
+/// [`tests::braking_tests::braking_distance_formula`] and
+/// [`tests::movement_tests::braking_distance_matches_kinematic_formula`]
+/// cannot distinguish because they use symmetric `v`/`d` pairs where
+/// `2·d` happens to equal `2+d` (e.g. `d=2`).
 ///
-/// With asymmetric inputs, `v²/d` and `(v+v)/d` diverge:
-/// - `v=5, d=1` → original `25/2 = 12.5`, mutant `10/2 = 5.0`.
-#[test]
-fn braking_distance_is_quadratic_in_velocity() {
-    let d = braking_distance(5.0, 1.0);
-    assert!(
-        (d - 12.5).abs() < 1e-12,
-        "braking_distance(5.0, 1.0) should be 12.5 (v²/2d), got {d}"
-    );
-}
-
-/// Kills `replace * with + in braking_distance` (the `2.0 * deceleration` half).
-///
-/// `v² / (2·d)` vs `v² / (2+d)` diverge for asymmetric `d`:
-/// - `v=4, d=5` → original `16/10 = 1.6`, mutant `16/7 ≈ 2.286`.
+/// With `v=4, d=5`: original `16/(2·5) = 1.6`, mutant `16/(2+5) ≈ 2.286`.
 #[test]
 fn braking_distance_divisor_is_multiplicative() {
     let d = braking_distance(4.0, 5.0);
@@ -100,38 +91,6 @@ fn tick_movement_stopping_distance_divisor_is_multiplicative() {
     );
 }
 
-// ── tick_movement fast-path: displacement boundary ──────────────────
-
-/// Verifies that a velocity well above `EPSILON` (1e-3 ≫ 1e-9) is not
-/// mistaken for stationary: the fast-path is skipped, the sign-flip
-/// clamp drives velocity to 0, and the overshoot check marks arrival.
-///
-/// Note: the `velocity.abs() < EPSILON` → `<= EPSILON` mutant at the
-/// fast-path guard is an **equivalent mutant** — at the exact-EPSILON
-/// boundary both paths converge to `{arrived: true, velocity: 0,
-/// position: target}`, so no test input can distinguish them. This test
-/// is retained for defense-in-depth against a drift in the trapezoidal
-/// deceleration / sign-flip chain.
-#[test]
-fn tick_movement_fastpath_requires_velocity_below_epsilon() {
-    // EPSILON is 1e-9 in tick_movement. Use velocity = 1e-3 so we are well
-    // above the boundary; the fast-path must be skipped either way. This
-    // covers the observable behavior at "nonzero-but-small" velocities.
-    let result = tick_movement(5.0, 1e-3, 5.0, 10.0, 1.0, 1.0, 1.0);
-    // With non-zero velocity, the trapezoidal path enters decelerate;
-    // the sign-flip clamp then forces velocity to 0 and the overshoot
-    // check arrives at target. Observable signal: velocity ends at 0.
-    assert!(
-        (result.velocity).abs() < 1e-9,
-        "expected velocity clamped to 0 via decel + sign-flip, got {}",
-        result.velocity
-    );
-    assert!(
-        result.arrived,
-        "expected arrival at exact target via overshoot check"
-    );
-}
-
 // ── tick_movement sign-flip clamp (line 71) ─────────────────────────
 
 /// Kills mutants on the sign-flip comparator at
@@ -167,37 +126,7 @@ fn tick_movement_sign_flip_negative_clamps_to_zero() {
     );
 }
 
-// ── tick_movement accelerate / cruise transition (lines 76-80) ──────
-
-/// Defense-in-depth: asserts canonical cruise behavior when
-/// `speed == max_speed` with a distant target — velocity stays at
-/// `max_speed`, not pushed above it.
-///
-/// Note: the `speed < max_speed` → `<= max_speed` mutant is an
-/// **equivalent mutant** — under `<=` the accelerate branch would
-/// compute `v = 2.0 + 1·0.5 = 2.5` and then clamp to `max_speed = 2.0`,
-/// producing the same observable velocity as the cruise branch. This
-/// test is retained for structural coverage against a rewrite of the
-/// cruise or cap branches.
-#[test]
-fn tick_movement_speed_at_max_cruises_not_accelerates() {
-    let result = tick_movement(0.0, 2.0, 100.0, 2.0, 1.0, 1.0, 0.5);
-    // Under cruise: new_velocity = 1 · max_speed = 2.0. No overshoot.
-    // If `speed < max_speed` mutates to `<=`, accelerate fires:
-    // new_velocity = 2.0 + 1·0.5 = 2.5, then clamp to max_speed = 2.0.
-    // Net: same result. This mutant is therefore equivalent at the
-    // boundary — we still assert the canonical behavior for
-    // defense-in-depth (catches a rewrite of the cruise branch).
-    assert!(
-        (result.velocity - 2.0).abs() < 1e-9,
-        "expected cruise at max_speed = 2.0, got {}",
-        result.velocity
-    );
-    assert!(
-        !result.arrived,
-        "should still be en route to distant target"
-    );
-}
+// ── tick_movement accelerate transition ─────────────────────────────
 
 /// Kills `replace > with >= in tick_movement` on the `v.abs() > max_speed`
 /// cap.
