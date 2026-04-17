@@ -51,6 +51,9 @@
 //!   [`Simulation::clear_destinations()`](crate::sim::Simulation::clear_destinations)
 //!   — override dispatch by pushing/clearing stops on an elevator's
 //!   [`DestinationQueue`](crate::components::DestinationQueue).
+//! - [`Simulation::abort_movement()`](crate::sim::Simulation::abort_movement)
+//!   — hard-abort an in-flight trip, braking the car to the nearest
+//!   reachable stop without opening doors (riders stay aboard).
 //!
 //! ### Persistence
 //!
