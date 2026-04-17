@@ -59,9 +59,9 @@ fn tick_movement_decelerates_when_stopping_distance_exceeds_remaining() {
 /// Choose target near the boundary to force divergence.
 ///
 /// Speed=4, decel=5, target=2.0: original stopping=1.6 < 2 → accelerate;
-/// new vel = 4 + 5·1 = 9 clamped to max 10. Mutant stopping=2.29 >= 2 →
-/// decelerate; new vel = 4 - 5 = -1 clamped to 0. Divergence on sign and
-/// magnitude.
+/// new vel = 4 + 5·1 = 9 (below max 10, no cap). Mutant stopping=2.29 >= 2
+/// → decelerate; new vel = 4 - 5 = -1 clamped to 0. Divergence on sign
+/// and magnitude.
 #[test]
 fn tick_movement_stopping_distance_divisor_is_multiplicative() {
     let result = tick_movement(0.0, 4.0, 2.0, 10.0, 5.0, 5.0, 1.0);
