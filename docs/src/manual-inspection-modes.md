@@ -161,13 +161,13 @@ sim.enable(elev)?;
 
 The `Event::ServiceModeChanged` event fires whenever `set_service_mode` changes an elevator's mode. It carries the `from` and `to` modes along with the elevator entity and tick:
 
-```rust,ignore
-Event::ServiceModeChanged {
-    elevator: EntityId,
-    from: ServiceMode,
-    to: ServiceMode,
-    tick: u64,
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn handle(event: Event) {
+if let Event::ServiceModeChanged { elevator, from, to, tick } = event {
+    let _ = (elevator, from, to, tick); // use the fields in your game
 }
+# }
 ```
 
 If you set the mode to its current value, no event is emitted and the call returns `Ok(())`.

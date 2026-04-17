@@ -22,7 +22,7 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 
 You define stops at arbitrary positions on a 1-D axis, spawn riders, and call `step()`. The engine handles dispatch, trapezoidal motion, doors, boarding, and metrics — your code just reacts to events.
 
-```rust
+```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 

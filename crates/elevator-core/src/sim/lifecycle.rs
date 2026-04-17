@@ -47,12 +47,21 @@ impl Simulation {
     /// This is the recommended way to restore extensions. It replaces the
     /// manual 3-step ceremony of `register_ext` → `load_extensions`:
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use elevator_core::prelude::*;
+    /// # use elevator_core::register_extensions;
+    /// # use elevator_core::snapshot::WorldSnapshot;
+    /// # use serde::{Serialize, Deserialize};
+    /// # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
+    /// # #[derive(Clone, Serialize, Deserialize)] struct TeamId;
+    /// # fn before(snapshot: WorldSnapshot) -> Result<(), SimError> {
     /// // Before (3-step ceremony):
     /// let mut sim = snapshot.restore(None)?;
     /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
     /// sim.world_mut().register_ext::<TeamId>(ExtKey::from_type_name());
     /// sim.load_extensions();
+    /// # Ok(()) }
+    /// # fn after(snapshot: WorldSnapshot) -> Result<(), SimError> {
     ///
     /// // After:
     /// let mut sim = snapshot.restore(None)?;
@@ -60,6 +69,7 @@ impl Simulation {
     ///     register_extensions!(world, VipTag, TeamId);
     /// });
     /// assert!(unregistered.is_empty(), "missing: {unregistered:?}");
+    /// # Ok(()) }
     /// ```
     ///
     /// Returns the names of any extension types in the snapshot that were

@@ -4,7 +4,7 @@
 # Checks:
 #   1. mdBook builds without errors
 #   2. Every internal [text](file.md) link resolves to an existing file
-#   3. No bare ```rust code fences (must be rust,no_run or rust,ignore)
+#   3. No `ignore` fences in docs/ or rustdoc; they hide drift from `cargo test --doc`
 #   4. Every chapter starts with a level-1 heading
 #   5. No heading-level skips (e.g., ## then ####)
 #   6. No references to deleted files (old chapter names)
@@ -47,11 +47,26 @@ for f in "$DOCS_SRC"/*.md; do
     done < <(grep -oP '\]\(\K[a-z][-a-z0-9]*\.md(?=[)#])' "$f" 2>/dev/null)
 done
 
-# ── 3. Bare ```rust fences ───────────────────────────────────────
+# ── 3. Forbid `ignore` fences ─────────────────────────────────────
+# Every Rust fence must compile via `cargo test --doc`. Use bare ```rust
+# (compiled and run) or ```rust,no_run (compiled only). Any fence tagged
+# `ignore` (bare `ignore`, `rust,ignore`, or combinations) lets drift slip
+# in silently, so it is not allowed — in the mdBook chapters OR in rustdoc
+# comments inside the workspace's Rust sources.
 echo "checking code fence annotations..."
+ignore_err() {
+    err "$1: \`\`\`ignore is not allowed (use rust or rust,no_run so the fence is type-checked)"
+}
+# Chapters and README: fence opens a line like ```rust,ignore or ```ignore.
+# README.md is included in the doctest pipeline via `include_str!`, so it
+# belongs under the same policy as the mdBook chapters.
 while IFS=: read -r file line _; do
-    err "$(basename "$file"):$line: bare \`\`\`rust (use rust,no_run or rust,ignore)"
-done < <(grep -Hn '^```rust$' "$DOCS_SRC"/*.md 2>/dev/null || true)
+    ignore_err "${file#"$REPO_ROOT/"}:$line"
+done < <(grep -HnE '^```.*\bignore\b' "$DOCS_SRC"/*.md "$REPO_ROOT"/README.md 2>/dev/null || true)
+# Rustdoc: fence inside /// or //! comments — same rule applies.
+while IFS=: read -r file line _; do
+    ignore_err "${file#"$REPO_ROOT/"}:$line"
+done < <(grep -rHnE '^\s*(///|//!)\s*```.*\bignore\b' "$REPO_ROOT"/crates/*/src 2>/dev/null || true)
 
 # ── 4, 5, 7. Per-file structure checks ──────────────────────────
 # Single pass per file: first-line heading, heading-level skips, "Next steps" section

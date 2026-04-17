@@ -52,8 +52,6 @@ Use `world.insert_ext()` to attach your component to an entity:
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct VipTag { level: u32, lounge_access: bool }
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -98,7 +96,13 @@ if let Some(vip) = sim.world_mut().ext_mut::<VipTag>(rider_id) {
 
 Extensions integrate with the query builder for ECS-style iteration:
 
-```rust,ignore
+```rust,no_run
+# use serde::{Serialize, Deserialize};
+# #[derive(Debug, Clone, Serialize, Deserialize)]
+# struct VipTag { level: u32, lounge_access: bool }
+# use elevator_core::prelude::*;
+# use elevator_core::query::Ext;
+# fn run(world: &mut World) {
 // Read-only iteration (cloned via Ext<T>)
 for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() {
     println!("{:?} is VIP level {}", id, vip.level);
@@ -108,6 +112,7 @@ for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() {
 world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| {
     tag.level += 1;
 });
+# }
 ```
 
 The mutable query collects entity IDs first, then iterates with mutable borrows, so it is safe to use without aliasing issues.

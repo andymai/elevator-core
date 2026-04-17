@@ -6,15 +6,22 @@ A rider is anything that rides an elevator. The core library is deliberately gen
 
 The simplest way to create a rider is `spawn_rider`, which takes an origin stop, a destination stop, and a weight:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &mut Simulation) -> Result<(), SimError> {
 let rider_id = sim.spawn_rider(StopId(0), StopId(3), 75.0)?;
+# let _ = rider_id;
+# Ok(())
+# }
 ```
 
 This creates a rider at stop 0, heading to stop 3, weighing 75 units. The rider starts in the `Waiting` phase and a `RiderSpawned` event is emitted.
 
 For more control, use the `RiderBuilder` fluent API:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &mut Simulation) -> Result<(), SimError> {
 let rider_id = sim.build_rider(StopId(0), StopId(3))?
     .weight(80.0)
     .patience(600)                 // abandon after 10 seconds at 60 tps
@@ -23,6 +30,9 @@ let rider_id = sim.build_rider(StopId(0), StopId(3))?
             .with_skip_full_elevator(true)
     )
     .spawn()?;
+# let _ = rider_id;
+# Ok(())
+# }
 ```
 
 The builder lets you set patience, boarding preferences, access control, and other per-rider options in a single chain.
@@ -58,7 +68,9 @@ Key accessors on the `Rider` component (all are getter methods):
 
 The simulation maintains a reverse index (`RiderIndex`) that tracks riders at each stop, enabling O(1) population queries without scanning every entity:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, lobby_entity: EntityId, floor_10: EntityId, stop_entity: EntityId) {
 // Who is waiting at the lobby?
 let waiting: Vec<EntityId> = sim.waiting_at(lobby_entity).collect();
 
@@ -67,6 +79,8 @@ let count = sim.residents_at(floor_10).count();
 
 // Did anyone abandon at this stop?
 let abandoned: Vec<EntityId> = sim.abandoned_at(stop_entity).collect();
+# let _ = (waiting, count, abandoned);
+# }
 ```
 
 These three methods cover the main population categories:
@@ -81,7 +95,9 @@ These three methods cover the main population categories:
 
 When you have an `EntityId` and need to know what it refers to, use the type-check helpers:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, id: EntityId) {
 if sim.is_rider(id) {
     // handle rider
 } else if sim.is_elevator(id) {
@@ -89,6 +105,7 @@ if sim.is_rider(id) {
 } else if sim.is_stop(id) {
     // handle stop
 }
+# }
 ```
 
 These are more readable than querying `sim.world().elevator(id).is_some()` and are the preferred pattern in game code.
@@ -105,15 +122,20 @@ Three methods manage rider state transitions after arrival or abandonment:
 
 Always use `sim.despawn_rider(id)` instead of calling `world.despawn()` directly -- it keeps the population index consistent and emits a `RiderDespawned` event.
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &mut Simulation, rider_id: RiderId, new_route: Route) -> Result<(), SimError> {
 // A rider arrives at their destination. Settle them as a resident.
 sim.settle_rider(rider_id)?;
 
 // Later, they want to go back down. Reroute them.
-sim.reroute_rider(rider_id, new_route)?;
+// (`reroute_rider` takes an `EntityId`; the sibling calls take `RiderId`.)
+sim.reroute_rider(rider_id.entity(), new_route)?;
 
 // Or remove them entirely.
 sim.despawn_rider(rider_id)?;
+# Ok(())
+# }
 ```
 
 ## Next steps

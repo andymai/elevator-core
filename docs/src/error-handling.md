@@ -78,17 +78,28 @@ When a rider cannot board an elevator, a `RiderRejected` event fires with a type
 
 Every `RiderRejected` event includes a `RejectionContext` with the numeric details behind the decision:
 
-```rust,ignore
-RejectionContext {
-    attempted_weight: OrderedFloat<f64>,  // weight the rider tried to add
-    current_load: OrderedFloat<f64>,      // elevator's load at rejection time
-    capacity: OrderedFloat<f64>,          // elevator's maximum weight capacity
-}
+```rust,no_run
+# use elevator_core::prelude::*;
+use ordered_float::OrderedFloat;
+
+let context = RejectionContext {
+    attempted_weight: OrderedFloat(80.0), // weight the rider tried to add
+    current_load: OrderedFloat(750.0),    // elevator's load at rejection time
+    capacity: OrderedFloat(800.0),        // elevator's maximum weight capacity
+};
+# let _ = context;
 ```
 
 `RejectionContext` implements `Display` for game-friendly feedback:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# use ordered_float::OrderedFloat;
+# let context = RejectionContext {
+#     attempted_weight: OrderedFloat(80.0),
+#     current_load: OrderedFloat(750.0),
+#     capacity: OrderedFloat(800.0),
+# };
 // "over capacity by 30.0kg (750.0/800.0 + 80.0)"
 println!("{}", context);
 ```

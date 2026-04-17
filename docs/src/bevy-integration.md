@@ -22,8 +22,13 @@ The app reads a RON config file, creates a `Simulation`, and renders the buildin
 
 The integration is built around a single Bevy plugin:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
 pub struct ElevatorSimPlugin;
+
+impl Plugin for ElevatorSimPlugin {
+    fn build(&self, _app: &mut App) { /* wire resources, systems, messages */ }
+}
 ```
 
 When you add this plugin to a Bevy app, it:
@@ -40,7 +45,9 @@ When you add this plugin to a Bevy app, it:
 
 The core simulation is wrapped in a Bevy resource:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
+# use elevator_core::prelude::*;
 #[derive(Resource)]
 pub struct SimulationRes {
     pub sim: Simulation,
@@ -53,7 +60,8 @@ Any Bevy system can access the simulation through `Res<SimulationRes>` (read) or
 
 Controls how many simulation ticks run per Bevy frame:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
 #[derive(Resource)]
 pub struct SimSpeed {
     pub multiplier: u32,
@@ -70,14 +78,20 @@ The built-in input system maps keyboard keys to speed changes.
 
 Core simulation events are bridged into Bevy's message system:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
+# use elevator_core::events::Event;
 #[derive(Message)]
 pub struct EventWrapper(pub Event);
 ```
 
 Bevy systems can read simulation events using `MessageReader<EventWrapper>`:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
+# use elevator_core::events::Event;
+# #[derive(Message, Clone)]
+# pub struct EventWrapper(pub Event);
 fn my_system(mut events: MessageReader<EventWrapper>) {
     for EventWrapper(event) in events.read() {
         match event {
@@ -94,7 +108,16 @@ fn my_system(mut events: MessageReader<EventWrapper>) {
 
 The bridge between elevator-core and Bevy is a single system that runs each frame:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
+# use elevator_core::events::Event;
+# use elevator_core::sim::Simulation;
+# #[derive(Resource)]
+# pub struct SimulationRes { pub sim: Simulation }
+# #[derive(Resource)]
+# pub struct SimSpeed { pub multiplier: u32 }
+# #[derive(Message, Clone)]
+# pub struct EventWrapper(pub Event);
 pub fn tick_simulation(
     mut sim: ResMut<SimulationRes>,
     speed: Res<SimSpeed>,
@@ -115,7 +138,7 @@ It steps the simulation `multiplier` times, then drains all events and re-emits 
 
 To add your own gameplay systems that interact with the simulation, access `SimulationRes`:
 
-```rust,ignore
+```rust,no_run
 use bevy::prelude::*;
 use elevator_bevy::sim_bridge::SimulationRes;
 use elevator_core::prelude::*;
@@ -135,7 +158,13 @@ fn print_metrics(sim: Res<SimulationRes>) {
 
 Register your system in the Bevy app after the plugin:
 
-```rust,ignore
+```rust,no_run
+# use bevy::prelude::*;
+# use elevator_bevy::sim_bridge::SimulationRes;
+# pub struct ElevatorSimPlugin;
+# impl Plugin for ElevatorSimPlugin { fn build(&self, _: &mut App) {} }
+# fn print_metrics(_sim: Res<SimulationRes>) {}
+# let mut app = App::new();
 app.add_plugins(ElevatorSimPlugin)
     .add_systems(Update, print_metrics);
 ```

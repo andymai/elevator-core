@@ -942,10 +942,15 @@ impl World {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use elevator_core::prelude::*;
+    /// # use serde::{Serialize, Deserialize};
+    /// # #[derive(Clone, Serialize, Deserialize)] struct VipTag { level: u32 }
+    /// # fn run(world: &mut World) {
     /// world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| {
     ///     tag.level += 1;
     /// });
+    /// # }
     /// ```
     pub fn query_ext_mut<T: 'static + Send + Sync>(&mut self) -> crate::query::ExtQueryMut<'_, T> {
         crate::query::ExtQueryMut::new(self)

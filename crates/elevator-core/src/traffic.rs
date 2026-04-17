@@ -21,13 +21,13 @@
 //! [`Simulation::spawn_rider`](crate::sim::Simulation::spawn_rider)
 //! (or the [`RiderBuilder`](crate::sim::RiderBuilder) for richer configuration).
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use elevator_core::prelude::*;
-//! use elevator_core::traffic::{PoissonSource, SpawnRequest};
-//!
-//! let config: SimConfig = /* load from RON */;
-//! let mut sim = SimulationBuilder::from_config(&config).build().unwrap();
-//! let mut source = PoissonSource::from_config(&config);
+//! use elevator_core::config::SimConfig;
+//! use elevator_core::traffic::{PoissonSource, TrafficSource};
+//! # fn run(config: &SimConfig) -> Result<(), SimError> {
+//! let mut sim = SimulationBuilder::from_config(config.clone()).build()?;
+//! let mut source = PoissonSource::from_config(config);
 //!
 //! for _ in 0..10_000 {
 //!     let tick = sim.current_tick();
@@ -36,6 +36,8 @@
 //!     }
 //!     sim.step();
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::config::SimConfig;
@@ -178,8 +180,10 @@ impl TrafficPattern {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
+/// use elevator_core::prelude::*;
 /// use elevator_core::traffic::{TrafficPattern, TrafficSchedule};
+/// use rand::{SeedableRng, rngs::StdRng};
 ///
 /// let schedule = TrafficSchedule::new(vec![
 ///     (0..3600, TrafficPattern::UpPeak),      // First hour: morning rush
@@ -189,8 +193,11 @@ impl TrafficPattern {
 /// ]);
 ///
 /// // Sampling uses the pattern active at the given tick
-/// let stops = vec![/* ... */];
-/// let (origin, dest) = schedule.sample(tick, &stops, &mut rng).unwrap();
+/// let stops = vec![StopId(0), StopId(1)];
+/// let mut rng = StdRng::seed_from_u64(0);
+/// let tick: u64 = 0;
+/// let (origin, dest) = schedule.sample_stop_ids(tick, &stops, &mut rng).unwrap();
+/// # let _ = (origin, dest);
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrafficSchedule {
@@ -311,10 +318,15 @@ pub struct SpawnRequest {
 /// Implementors produce zero or more [`SpawnRequest`]s per tick. The consumer
 /// is responsible for feeding them into the simulation:
 ///
-/// ```rust,ignore
+/// ```rust,no_run
+/// # use elevator_core::prelude::*;
+/// # use elevator_core::traffic::TrafficSource;
+/// # fn run(sim: &mut Simulation, source: &mut impl TrafficSource, tick: u64) -> Result<(), SimError> {
 /// for req in source.generate(tick) {
 ///     sim.spawn_rider(req.origin, req.destination, req.weight)?;
 /// }
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// This design keeps traffic generation external to the simulation loop,
@@ -341,19 +353,25 @@ pub trait TrafficSource {
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// use elevator_core::traffic::PoissonSource;
+/// ```rust,no_run
+/// use elevator_core::prelude::*;
+/// use elevator_core::config::SimConfig;
+/// use elevator_core::traffic::{PoissonSource, TrafficSchedule};
 ///
+/// # fn run(config: &SimConfig) {
 /// // From a SimConfig (reads stops and spawn parameters).
-/// let mut source = PoissonSource::from_config(&config);
+/// let mut source = PoissonSource::from_config(config);
 ///
 /// // Or build manually.
+/// let stops = vec![StopId(0), StopId(1)];
 /// let mut source = PoissonSource::new(
 ///     stops,
 ///     TrafficSchedule::office_day(3600),
 ///     120,           // mean_interval_ticks
 ///     (60.0, 90.0),  // weight_range
 /// );
+/// # let _ = source;
+/// # }
 /// ```
 pub struct PoissonSource {
     /// Sorted stop IDs (lowest position first).

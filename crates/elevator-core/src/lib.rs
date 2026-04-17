@@ -146,7 +146,13 @@
 //!
 //! Games attach custom data to any entity without modifying the library:
 //!
-//! ```rust,ignore
+//! ```rust,no_run
+//! # use elevator_core::prelude::*;
+//! # use elevator_core::query::Ext;
+//! # use serde::{Serialize, Deserialize};
+//! # #[derive(Debug, Clone, Serialize, Deserialize)]
+//! # struct VipTag { priority: u32 }
+//! # fn run(world: &mut World, rider_id: EntityId) {
 //! // Attach a VIP flag to a rider.
 //! world.insert_ext(rider_id, VipTag { priority: 1 }, ExtKey::from_type_name());
 //!
@@ -154,6 +160,7 @@
 //! for (id, rider, vip) in world.query::<(EntityId, &Rider, &Ext<VipTag>)>().iter() {
 //!     // ...
 //! }
+//! # }
 //! ```
 //!
 //! Extensions participate in snapshots via `serialize_extensions()` /
@@ -326,6 +333,9 @@
 
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+#[cfg(doctest)]
+mod doctests;
 
 /// Entity-component data types for the simulation.
 pub mod components;
