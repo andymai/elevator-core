@@ -53,32 +53,42 @@
 //!
 //! ## Crate layout
 //!
-//! | Module | Purpose |
-//! |--------|---------|
-//! | [`builder`] | Fluent [`SimulationBuilder`](builder::SimulationBuilder) API |
-//! | [`sim`] | Top-level [`Simulation`](sim::Simulation) runner and tick loop |
-//! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait |
-//! | [`world`] | ECS-style [`World`](world::World) with typed component storage |
-//! | [`components`] | Entity data types: [`Rider`](components::Rider), [`Elevator`](components::Elevator), [`Stop`](components::Stop), [`Line`](components::Line), [`Route`](components::Route), [`Patience`](components::Patience), [`Preferences`](components::Preferences), [`AccessControl`](components::AccessControl), [`DestinationQueue`](components::DestinationQueue), [`ServiceMode`](components::ServiceMode), [`Orientation`](components::Orientation), [`Position`](components::Position), [`Velocity`](components::Velocity), [`SpatialPosition`](components::SpatialPosition) |
-//! | [`config`] | RON-deserializable [`SimConfig`](config::SimConfig), [`GroupConfig`](config::GroupConfig), [`LineConfig`](config::LineConfig) |
-//! | [`events`] | [`Event`](events::Event) variants and the [`EventBus`](events::EventBus) |
-//! | [`metrics`] | Aggregate [`Metrics`](metrics::Metrics) (wait time, throughput, etc.) |
-//! | [`hooks`] | Lifecycle hook registration by [`Phase`](hooks::Phase) |
-//! | [`query`] | Entity query builder for filtering by component composition |
-//! | [`systems`] | Per-phase tick logic (dispatch, movement, doors, loading, ...) |
-//! | [`snapshot`] | [`WorldSnapshot`](snapshot::WorldSnapshot) save/restore with custom-strategy factory |
-//! | [`scenario`] | Deterministic scenario replay from recorded event streams |
-//! | [`topology`] | Lazy-rebuilt connectivity graph for cross-line routing |
-//! | [`traffic`] | [`TrafficSource`](traffic::TrafficSource) trait + `PoissonSource` (feature-gated) |
-//! | [`tagged_metrics`] | Per-tag metric accumulators for zone/line/priority breakdowns |
-//! | [`movement`] | Trapezoidal velocity-profile primitives ([`braking_distance`](movement::braking_distance), [`tick_movement`](movement::tick_movement)) |
-//! | [`door`] | Door finite-state machine ([`DoorState`](door::DoorState)) |
-//! | [`time`] | Tick-to-wall-clock conversion ([`TimeAdapter`](time::TimeAdapter)) |
-//! | `energy` | Simplified per-elevator energy modeling (gated behind the `energy` feature) |
-//! | [`stop`] | [`StopId`](stop::StopId) and [`StopConfig`](stop::StopConfig) |
-//! | [`entity`] | Opaque [`EntityId`](entity::EntityId) runtime identity |
-//! | [`ids`] | Config-level typed identifiers ([`GroupId`](ids::GroupId), etc.) |
-//! | [`error`] | [`SimError`](error::SimError), [`RejectionReason`](error::RejectionReason), [`RejectionContext`](error::RejectionContext) |
+//! ## Stability
+//!
+//! Every module below is classified as **stable**, **experimental**, or
+//! **internal**. Stable items break only in planned major versions
+//! with a deprecation cycle; experimental items may change in any
+//! minor version; internal items are not part of the supported surface.
+//! See [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md)
+//! for the full policy and cadence commitment.
+//!
+//! | Module | Purpose | Stability |
+//! |--------|---------|-----------|
+//! | [`builder`] | Fluent [`SimulationBuilder`](builder::SimulationBuilder) API | stable |
+//! | [`sim`] | Top-level [`Simulation`](sim::Simulation) runner and tick loop | stable (selected methods — see [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md)) |
+//! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait | experimental |
+//! | [`world`] | ECS-style [`World`](world::World) with typed component storage | experimental |
+//! | [`components`] | Entity data types: [`Rider`](components::Rider), [`Elevator`](components::Elevator), [`Stop`](components::Stop), [`Line`](components::Line), [`Route`](components::Route), [`Patience`](components::Patience), [`Preferences`](components::Preferences), [`AccessControl`](components::AccessControl), [`DestinationQueue`](components::DestinationQueue), [`ServiceMode`](components::ServiceMode), [`Orientation`](components::Orientation), [`Position`](components::Position), [`Velocity`](components::Velocity), [`SpatialPosition`](components::SpatialPosition) | stable (units + core), experimental (rest) |
+//! | [`config`] | RON-deserializable [`SimConfig`](config::SimConfig), [`GroupConfig`](config::GroupConfig), [`LineConfig`](config::LineConfig) | experimental |
+//! | [`events`] | [`Event`](events::Event) variants and the [`EventBus`](events::EventBus) | stable ([`Event`](events::Event)) |
+//! | [`metrics`] | Aggregate [`Metrics`](metrics::Metrics) (wait time, throughput, etc.) | stable |
+//! | [`hooks`] | Lifecycle hook registration by [`Phase`](hooks::Phase) | experimental |
+//! | [`query`] | Entity query builder for filtering by component composition | experimental |
+//! | [`systems`] | Per-phase tick logic (dispatch, movement, doors, loading, ...) | internal |
+//! | [`snapshot`] | [`WorldSnapshot`](snapshot::WorldSnapshot) save/restore with custom-strategy factory | stable |
+//! | [`scenario`] | Deterministic scenario replay from recorded event streams | experimental |
+//! | [`topology`] | Lazy-rebuilt connectivity graph for cross-line routing | experimental |
+//! | [`traffic`] | [`TrafficSource`](traffic::TrafficSource) trait + `PoissonSource` (feature-gated) | experimental |
+//! | [`tagged_metrics`] | Per-tag metric accumulators for zone/line/priority breakdowns | experimental |
+//! | [`movement`] | Trapezoidal velocity-profile primitives ([`braking_distance`](movement::braking_distance), [`tick_movement`](movement::tick_movement)) | experimental |
+//! | [`door`] | Door finite-state machine ([`DoorState`](door::DoorState)) | internal |
+//! | [`eta`] | Per-stop arrival-time estimation used by dispatch | internal |
+//! | [`time`] | Tick-to-wall-clock conversion ([`TimeAdapter`](time::TimeAdapter)) | experimental |
+//! | `energy` | Simplified per-elevator energy modeling (gated behind the `energy` feature) | experimental |
+//! | [`stop`] | [`StopId`](stop::StopId) and [`StopConfig`](stop::StopConfig) | stable |
+//! | [`entity`] | Opaque [`EntityId`](entity::EntityId) runtime identity | stable |
+//! | [`ids`] | Config-level typed identifiers ([`GroupId`](ids::GroupId), etc.) | experimental |
+//! | [`error`] | [`SimError`](error::SimError), [`RejectionReason`](error::RejectionReason), [`RejectionContext`](error::RejectionContext) | stable ([`SimError`](error::SimError)) |
 //!
 //! ## Architecture overview
 //!
