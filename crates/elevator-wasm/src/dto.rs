@@ -42,8 +42,9 @@ pub struct StopDto {
     /// Stable entity id (matches `CarDto.target` for rendering assignment lines).
     pub entity_id: u32,
     /// Config-level `StopId`. The UI passes this back to `spawnRider` to
-    /// create riders between stops — `spawnRider` takes `StopId`, not
-    /// entity id, so the snapshot surfaces both.
+    /// create riders between stops. Stops added at runtime (not present in
+    /// the initial config lookup) report `u32::MAX` as a sentinel so the UI
+    /// can reject them rather than silently routing riders to `StopId(0)`.
     pub stop_id: u32,
     /// Human-readable stop name.
     pub name: String,
@@ -103,7 +104,7 @@ impl Snapshot {
             .iter_stops()
             .map(|(id, stop)| StopDto {
                 entity_id: entity_to_u32(id),
-                stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(0),
+                stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(u32::MAX),
                 name: stop.name().to_string(),
                 y: stop.position(),
                 waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
@@ -307,9 +308,19 @@ impl From<Event> for EventDto {
     }
 }
 
-/// Best-effort tick extraction for variants we don't explicitly flatten. The
-/// field is cosmetic for the "Other" fallback and falls back to 0 if parsing
-/// fails — we don't want the playground to crash on an enum addition.
+/// Best-effort tick extraction for variants we don't explicitly flatten.
+///
+/// The field is cosmetic on the `Other` fallback and is parsed from the
+/// `Debug` representation of the event, which is a deliberate trade: adding
+/// a variant to `Event` in core must not break this crate's build, and an
+/// exhaustive match can't be written against a `#[non_exhaustive]` enum.
+///
+/// Known limitations:
+/// - Variants without a `tick` field (`ResidentsAtRemovedStop`,
+///   `RepositionStrategyNotRestored` as of this writing) always report `0`.
+/// - A future rename of the `Debug`-emitted `tick: ` field name would flip
+///   all "other" events to tick `0`. Since the variant name is still carried
+///   in `label`, that degradation is noticeable but not a crash.
 fn event_tick(event: &Event) -> u64 {
     let dbg = format!("{event:?}");
     dbg.split("tick: ")

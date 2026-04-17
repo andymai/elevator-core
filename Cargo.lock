@@ -2508,7 +2508,6 @@ dependencies = [
  "elevator-core",
  "getrandom 0.3.4",
  "getrandom 0.4.2",
- "js-sys",
  "ron",
  "serde",
  "serde-wasm-bindgen",

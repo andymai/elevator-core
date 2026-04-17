@@ -36,7 +36,6 @@ serde = { workspace = true }
 serde-wasm-bindgen = "0.6"
 ron = { workspace = true }
 slotmap = { workspace = true }
-js-sys = "0.3"
 
 # getrandom's js backend is required for `rand` on wasm32 targets. Both
 # version trees in the dep graph (rand 0.10 pulls 0.4; some workspace members
