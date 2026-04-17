@@ -1,0 +1,82 @@
+name: Mutation testing
+
+# On-demand only: cargo-mutants is expensive (hundreds of mutants, each
+# running the full test suite). This workflow surfaces a runnable audit
+# tool in the Actions UI without imposing nightly compute cost.
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Cargo package to test (defaults to elevator-core)
+        required: false
+        default: elevator-core
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants:
+    name: cargo-mutants (${{ inputs.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev
+
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+
+      - name: Run cargo-mutants
+        env:
+          PKG: ${{ inputs.package }}
+        # `|| true` keeps the job green regardless of surviving mutants —
+        # we always want the artifact uploaded even when the run finds
+        # misses. The summary step below turns the result into a
+        # human-readable status line on the Actions UI.
+        run: cargo mutants --package "$PKG" || true
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo '## cargo-mutants results'
+            echo ''
+            if [ -d mutants.out ]; then
+              caught=$(wc -l < mutants.out/caught.txt 2>/dev/null || echo 0)
+              missed=$(wc -l < mutants.out/missed.txt 2>/dev/null || echo 0)
+              timeout=$(wc -l < mutants.out/timeout.txt 2>/dev/null || echo 0)
+              unviable=$(wc -l < mutants.out/unviable.txt 2>/dev/null || echo 0)
+              total=$((caught + missed + timeout + unviable))
+              echo "| Outcome | Count |"
+              echo "|---------|-------|"
+              echo "| Caught | $caught |"
+              echo "| Missed | $missed |"
+              echo "| Timeout | $timeout |"
+              echo "| Unviable | $unviable |"
+              echo "| **Total** | **$total** |"
+              if [ "$total" -gt 0 ] && [ "$missed" -gt 0 ]; then
+                kill_rate=$(awk "BEGIN { printf \"%.1f\", ($caught / ($caught + $missed)) * 100 }")
+                echo ''
+                echo "Mutation kill rate: **${kill_rate}%** (caught / (caught + missed))"
+              fi
+            else
+              echo 'No mutants.out/ directory produced — run probably failed before mutation testing started.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutants.out artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-out-${{ inputs.package }}
+          path: mutants.out/
+          retention-days: 30
+          if-no-files-found: warn
