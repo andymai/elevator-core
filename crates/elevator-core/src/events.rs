@@ -59,6 +59,21 @@ pub enum Event {
         /// The tick when the pass occurred.
         tick: u64,
     },
+    /// An in-flight movement was aborted by
+    /// [`Simulation::abort_movement`](crate::sim::Simulation::abort_movement).
+    ///
+    /// The car brakes along its normal deceleration profile, re-targets to
+    /// the nearest reachable stop, and arrives there without opening doors
+    /// (onboard riders stay aboard). The pending destination queue is also
+    /// cleared as part of the abort.
+    MovementAborted {
+        /// The elevator whose trip was aborted.
+        elevator: EntityId,
+        /// The stop the car will brake to and park at.
+        stopped_at: EntityId,
+        /// The tick when the abort was requested.
+        tick: u64,
+    },
 
     // -- Rider events (unified: passengers, cargo, any rideable entity) --
     /// A new rider appeared at a stop and wants to travel.
@@ -694,6 +709,7 @@ impl Event {
             | Self::DoorCommandQueued { .. }
             | Self::DoorCommandApplied { .. }
             | Self::PassingFloor { .. }
+            | Self::MovementAborted { .. }
             | Self::ElevatorIdle { .. } => EventCategory::Elevator,
             Self::RiderSpawned { .. }
             | Self::RiderBoarded { .. }
