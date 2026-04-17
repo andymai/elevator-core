@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.0.0...elevator-core-v15.1.0) (2026-04-17)
+
+
+### Features
+
+* add Simulation::abort_movement for mid-flight trip cancellation ([#221](https://github.com/andymai/elevator-core/issues/221)) ([6a8a205](https://github.com/andymai/elevator-core/commit/6a8a205a38894c37e486f745c002023c2650ca28))
+
 ## [15.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v14.0.0...elevator-core-v15.0.0) (2026-04-16)
 
 
