@@ -144,6 +144,43 @@ jobs:
         working-directory: examples/csharp-harness
         run: dotnet run -c Release --no-build -- ../../assets/config/default.ron
 
+  wasm-gate:
+    name: wasm32 gate (elevator-core)
+    # Enforces the "core stays engine-agnostic" invariant: if anyone adds a
+    # non-wasm-safe dependency to elevator-core (rayon, tokio, mio, etc.) or
+    # pulls in a native-only system API, this job fails before the playground
+    # deploy ever sees the regression.
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'release-kun[bot]' ||
+      !startsWith(github.event.pull_request.title, 'chore(main): release')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+
+      # Core is only required to compile to wasm32 in its pure form (no
+      # browser runtime deps). The `traffic` feature pulls `rand` →
+      # `getrandom`, whose `wasm_js` backend is deliberately provided by
+      # `elevator-wasm` — not core — to keep core engine-agnostic. So we
+      # verify core is pure-wasm with no features and with each non-default
+      # feature in isolation; the `elevator-wasm` check below proves the
+      # full stack (core + traffic + shim) compiles end-to-end.
+      - name: Check core (no default features, wasm32)
+        run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features
+
+      - name: Check core (energy feature, wasm32)
+        run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features --features energy
+
+      - name: Check elevator-wasm bindgen crate (full stack)
+        # Exercises elevator-core with default features (incl. `traffic`)
+        # alongside the `wasm_js` getrandom shim — the only target+feature
+        # combination where core with `traffic` is expected to reach wasm.
+        run: cargo check -p elevator-wasm --target wasm32-unknown-unknown
+
   msrv:
     name: MSRV (elevator-core)
     if: |

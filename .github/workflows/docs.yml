@@ -7,6 +7,9 @@ on:
       - docs/**
       - scripts/lint-docs.sh
       - .github/workflows/docs.yml
+      - crates/elevator-wasm/**
+      - crates/elevator-core/**
+      - playground/**
   workflow_dispatch:
 
 permissions:
@@ -31,16 +34,61 @@ jobs:
         with:
           mdbook-version: latest
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
 
       - name: Install mdbook-mermaid
         run: cargo install mdbook-mermaid --locked
+
+      - name: Install wasm-pack
+        # Use the prebuilt binary so runners don't need libbz2-dev / openssl-dev.
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          # Pinned: a new wasm-pack release with breaking CLI changes could
+          # otherwise silently break this job. Bump deliberately.
+          version: "0.13.1"
 
       - name: Lint docs
         run: scripts/lint-docs.sh --quick
 
       - name: Build book
         run: mdbook build docs
+
+      - name: Build elevator-wasm
+        # Populates playground/public/pkg/ so Vite serves the wasm at runtime.
+        # --no-typescript: TS types live hand-written in playground/src/types.ts.
+        run: |
+          wasm-pack build crates/elevator-wasm \
+            --target web \
+            --out-dir ../../playground/public/pkg \
+            --release \
+            --no-typescript
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: playground/pnpm-lock.yaml
+
+      - name: Build playground
+        working-directory: playground
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Stage playground into mdBook output
+        # mdBook emits to target/book. Drop the playground bundle under
+        # /playground/ there so the deployed Pages site has both.
+        run: |
+          mkdir -p target/book/playground
+          cp -r playground/dist/. target/book/playground/
 
       - uses: actions/upload-pages-artifact@v3
         with:
