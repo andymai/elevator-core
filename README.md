@@ -14,6 +14,8 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 
 [Guide](https://andymai.github.io/elevator-core/) · [API Reference](https://docs.rs/elevator-core) · [Examples](crates/elevator-core/examples/) · [Changelog](CHANGELOG.md)
 
+**[▶ Try the live playground](https://andymai.github.io/elevator-core/playground/)** — swap dispatch strategies, tune traffic, and share seeds right in your browser.
+
 </div>
 
 <!-- Drop a GIF of the Bevy demo here when you have one -->
