@@ -1,4 +1,26 @@
-//! The `ElevatorSim` Godot node — wraps the core simulation.
+//! The `ElevatorSim` Godot node — public API for GDScript.
+//!
+//! # Exported properties
+//!
+//! | Property              | Type     | Description                         |
+//! |-----------------------|----------|-------------------------------------|
+//! | `config_path`         | `String` | Filesystem path to a RON config     |
+//! | `speed_multiplier`    | `i32`    | Sim steps per frame (0 = paused)    |
+//! | `auto_spawn`          | `bool`   | Enable random rider spawning        |
+//! | `spawn_interval_ticks`| `i32`    | Mean ticks between auto-spawns      |
+//! | `weight_min`          | `f64`    | Minimum auto-spawn rider weight     |
+//! | `weight_max`          | `f64`    | Maximum auto-spawn rider weight     |
+//!
+//! # GDScript methods
+//!
+//! **Rider management:** `spawn_rider`, `spawn_rider_ex`, `despawn_rider`
+//!
+//! **Strategy:** `set_strategy`
+//!
+//! **Frame data (read each frame):**
+//! `current_tick`, `stop_count`, `elevator_count`, `rider_count`,
+//! `get_stop`, `get_elevator`, `get_rider`, `get_metrics`,
+//! `eta_to_stop`, `drain_events`
 
 use godot::prelude::*;
 use slotmap::Key;
@@ -129,8 +151,10 @@ impl INode for ElevatorSim {
 impl ElevatorSim {
     // ── Rider management ────────────────────────────────────────────
 
-    /// Spawn a rider with default preferences. Returns the rider entity
-    /// ID (as i64 for GDScript compatibility), or -1 on failure.
+    /// Spawn a rider with default preferences.
+    ///
+    /// Returns the rider entity ID (as i64 for GDScript compatibility),
+    /// or -1 on failure.
     #[func]
     fn spawn_rider(&mut self, origin_stop_index: i32, dest_stop_index: i32, weight: f64) -> i64 {
         let Some(sim) = self.sim.as_mut() else {
@@ -150,6 +174,7 @@ impl ElevatorSim {
     }
 
     /// Spawn a rider with full preferences and patience.
+    ///
     /// Returns the rider entity ID (i64), or -1 on failure.
     /// Pass `max_wait_ticks < 0` to skip attaching a Patience component
     /// (the rider uses default patience behavior).
@@ -197,7 +222,9 @@ impl ElevatorSim {
     }
 
     /// Remove a rider from the simulation.
-    /// Pass the entity ID returned by spawn_rider; negative IDs are rejected.
+    ///
+    /// Pass the entity ID returned by `spawn_rider`; negative IDs are
+    /// rejected.
     #[func]
     fn despawn_rider(&mut self, rider_entity_id: i64) -> bool {
         if rider_entity_id < 0 {
@@ -215,7 +242,8 @@ impl ElevatorSim {
     // ── Strategy ────────────────────────────────────────────────────
 
     /// Set the dispatch strategy for a group.
-    /// strategy: 0=Scan, 1=Look, 2=NearestCar, 3=Etd.
+    ///
+    /// Strategy codes: 0 = Scan, 1 = Look, 2 = NearestCar, 3 = Etd.
     #[func]
     fn set_strategy(&mut self, group_id: i32, strategy: i32) {
         let Some(sim) = self.sim.as_mut() else {
@@ -252,7 +280,7 @@ impl ElevatorSim {
         self.sim.as_ref().map_or(0, |s| s.current_tick() as i64)
     }
 
-    /// Get the number of stops.
+    /// Get the number of stops in the simulation.
     #[func]
     fn stop_count(&self) -> i32 {
         self.sim
@@ -260,7 +288,7 @@ impl ElevatorSim {
             .map_or(0, |s| s.world().stop_ids().len() as i32)
     }
 
-    /// Get the number of elevators.
+    /// Get the number of elevators in the simulation.
     #[func]
     fn elevator_count(&self) -> i32 {
         self.sim
@@ -269,6 +297,9 @@ impl ElevatorSim {
     }
 
     /// Get stop data as a Dictionary.
+    ///
+    /// Keys: `entity_id`, `stop_id`, `position`, `name`, `waiting`,
+    /// `residents`, `abandoned`.
     #[func]
     fn get_stop(&self, index: i32) -> Dictionary<Variant, Variant> {
         let Some(sim) = self.sim.as_ref() else {
@@ -303,6 +334,9 @@ impl ElevatorSim {
     }
 
     /// Get elevator data as a Dictionary.
+    ///
+    /// Keys: `entity_id`, `phase`, `position`, `velocity`, `occupancy`,
+    /// `capacity_kg`, `current_load_kg`, `going_up`, `going_down`.
     #[func]
     fn get_elevator(&self, index: i32) -> Dictionary<Variant, Variant> {
         let Some(sim) = self.sim.as_ref() else {
@@ -332,10 +366,19 @@ impl ElevatorSim {
             "occupancy" => elev.riders().len() as i64,
             "capacity_kg" => elev.weight_capacity().value(),
             "current_load_kg" => elev.current_load().value(),
+            "going_up" => elev.going_up(),
+            "going_down" => elev.going_down(),
         }
     }
 
     /// Get rider data as a Dictionary.
+    ///
+    /// Keys: `entity_id`, `phase` (int tag), `current_stop`,
+    /// `elevator_entity` (entity ID of the elevator if boarding/riding/
+    /// exiting, otherwise 0).
+    ///
+    /// Phase tags: 0 = Waiting, 1 = Boarding, 2 = Riding, 3 = Exiting,
+    /// 4 = Walking, 5 = Arrived, 6 = Abandoned, 7 = Resident.
     #[func]
     fn get_rider(&self, index: i32) -> Dictionary<Variant, Variant> {
         let Some(sim) = self.sim.as_ref() else {
@@ -348,17 +391,19 @@ impl ElevatorSim {
         let Some(rider) = sim.world().rider(eid) else {
             return Dictionary::new();
         };
-        let phase_tag: i32 = match rider.phase() {
-            elevator_core::components::RiderPhase::Waiting => 0,
-            elevator_core::components::RiderPhase::Boarding(_) => 1,
-            elevator_core::components::RiderPhase::Riding(_) => 2,
-            elevator_core::components::RiderPhase::Exiting(_) => 3,
-            elevator_core::components::RiderPhase::Walking => 4,
-            elevator_core::components::RiderPhase::Arrived => 5,
-            elevator_core::components::RiderPhase::Abandoned => 6,
-            elevator_core::components::RiderPhase::Resident => 7,
-            _ => -1,
+
+        let (phase_tag, elevator_entity): (i32, i64) = match rider.phase() {
+            elevator_core::components::RiderPhase::Waiting => (0, 0),
+            elevator_core::components::RiderPhase::Boarding(e) => (1, e.data().as_ffi() as i64),
+            elevator_core::components::RiderPhase::Riding(e) => (2, e.data().as_ffi() as i64),
+            elevator_core::components::RiderPhase::Exiting(e) => (3, e.data().as_ffi() as i64),
+            elevator_core::components::RiderPhase::Walking => (4, 0),
+            elevator_core::components::RiderPhase::Arrived => (5, 0),
+            elevator_core::components::RiderPhase::Abandoned => (6, 0),
+            elevator_core::components::RiderPhase::Resident => (7, 0),
+            _ => (-1, 0),
         };
+
         let current_stop = rider
             .current_stop()
             .map_or(0i64, |s| s.data().as_ffi() as i64);
@@ -367,6 +412,7 @@ impl ElevatorSim {
             "entity_id" => eid.data().as_ffi() as i64,
             "phase" => phase_tag,
             "current_stop" => current_stop,
+            "elevator_entity" => elevator_entity,
         }
     }
 
@@ -379,6 +425,9 @@ impl ElevatorSim {
     }
 
     /// Get aggregate metrics as a Dictionary.
+    ///
+    /// Keys: `total_spawned`, `total_delivered`, `total_abandoned`,
+    /// `avg_wait_seconds`, `avg_ride_seconds`.
     #[func]
     fn get_metrics(&self) -> Dictionary<Variant, Variant> {
         let Some(sim) = self.sim.as_ref() else {
@@ -394,8 +443,36 @@ impl ElevatorSim {
         }
     }
 
+    /// Estimate time of arrival for an elevator at a stop.
+    ///
+    /// Returns estimated seconds as f64, or -1.0 if unavailable (e.g.
+    /// the stop is not in the elevator's queue, the elevator is in
+    /// manual/independent mode, or the indices are out of range).
+    #[func]
+    fn eta_to_stop(&self, elevator_index: i32, stop_index: i32) -> f64 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1.0;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let stop_ids = sim.world().stop_ids();
+        let Some(&elevator) = elev_ids.get(elevator_index as usize) else {
+            return -1.0;
+        };
+        let Some(&stop) = stop_ids.get(stop_index as usize) else {
+            return -1.0;
+        };
+        let typed_elev = elevator_core::entity::ElevatorId::from(elevator);
+        match sim.eta(typed_elev, stop) {
+            Ok(dur) => dur.as_secs_f64(),
+            Err(_) => -1.0,
+        }
+    }
+
     /// Drain all pending events as an Array of Dictionaries.
-    /// Each dict has: { kind, tick, rider, elevator, stop }.
+    ///
+    /// Each dict has at least: `kind` (String), `tick` (i64).
+    /// Additional keys depend on the event kind: `rider`, `elevator`,
+    /// `stop`, `destination`.
     #[func]
     fn drain_events(&mut self) -> Array<Dictionary<Variant, Variant>> {
         let Some(sim) = self.sim.as_mut() else {
