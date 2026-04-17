@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.import
+
+# Native libraries (built by build.sh)
+bin/*.so
+bin/*.dll
+bin/*.dylib
