@@ -4,8 +4,8 @@
 //! monolithic `sim.rs` for readability. See the parent module for the
 //! overarching essential-API summary.
 
-use crate::components::{Rider, RiderPhase, Route, Weight};
-use crate::dispatch::ElevatorGroup;
+use crate::components::{CallDirection, Rider, RiderPhase, Route, Weight};
+use crate::dispatch::{ElevatorGroup, HallCallMode};
 use crate::entity::{EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::Event;
@@ -160,7 +160,7 @@ impl super::Simulation {
         if let (Some(op), Some(dp)) = (
             self.world.stop_position(origin),
             self.world.stop_position(destination),
-        ) && let Some(direction) = crate::components::CallDirection::between(op, dp)
+        ) && let Some(direction) = CallDirection::between(op, dp)
         {
             self.register_hall_call_for_rider(origin, direction, eid, destination);
         }
@@ -257,7 +257,7 @@ impl super::Simulation {
     fn register_hall_call_for_rider(
         &mut self,
         stop: EntityId,
-        direction: crate::components::CallDirection,
+        direction: CallDirection,
         rider: EntityId,
         destination: EntityId,
     ) {
@@ -265,9 +265,9 @@ impl super::Simulation {
             .groups
             .iter()
             .find(|g| g.stop_entities().contains(&stop))
-            .map(crate::dispatch::ElevatorGroup::hall_call_mode);
+            .map(ElevatorGroup::hall_call_mode);
         let dest = match mode {
-            Some(crate::dispatch::HallCallMode::Destination) => Some(destination),
+            Some(HallCallMode::Destination) => Some(destination),
             _ => None,
         };
         self.ensure_hall_call(stop, direction, Some(rider), dest);

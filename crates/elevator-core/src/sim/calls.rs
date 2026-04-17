@@ -4,6 +4,8 @@
 //! monolithic `sim.rs` for readability. See the parent module for the
 //! overarching essential-API summary.
 
+use crate::components::{CallDirection, CarCall, HallCall};
+use crate::dispatch::ElevatorGroup;
 use crate::entity::{ElevatorId, EntityId};
 use crate::error::{EtaError, SimError};
 use crate::events::Event;
@@ -25,7 +27,7 @@ impl super::Simulation {
     pub fn press_hall_button(
         &mut self,
         stop: impl Into<StopRef>,
-        direction: crate::components::CallDirection,
+        direction: CallDirection,
     ) -> Result<(), SimError> {
         let stop = self.resolve_stop(stop.into())?;
         if self.world.stop(stop).is_none() {
@@ -74,7 +76,7 @@ impl super::Simulation {
         &mut self,
         car: ElevatorId,
         stop: EntityId,
-        direction: crate::components::CallDirection,
+        direction: CallDirection,
     ) -> Result<(), SimError> {
         let car = car.entity();
         let Some(elev) = self.world.elevator(car) else {
@@ -108,11 +110,7 @@ impl super::Simulation {
 
     /// Release a previous pin at `(stop, direction)`. No-op if the call
     /// doesn't exist or wasn't pinned.
-    pub fn unpin_assignment(
-        &mut self,
-        stop: EntityId,
-        direction: crate::components::CallDirection,
-    ) {
+    pub fn unpin_assignment(&mut self, stop: EntityId, direction: CallDirection) {
         if let Some(call) = self.world.hall_call_mut(stop, direction) {
             call.pinned = false;
         }
@@ -122,14 +120,14 @@ impl super::Simulation {
     /// reference per live `(stop, direction)` press; games use this to
     /// render lobby lamp states, pending-rider counts, or per-floor
     /// button animations.
-    pub fn hall_calls(&self) -> impl Iterator<Item = &crate::components::HallCall> {
+    pub fn hall_calls(&self) -> impl Iterator<Item = &HallCall> {
         self.world.iter_hall_calls()
     }
 
     /// Floor buttons currently pressed inside `car`. Returns an empty
     /// slice when the car has no aboard riders or hasn't been used.
     #[must_use]
-    pub fn car_calls(&self, car: ElevatorId) -> &[crate::components::CarCall] {
+    pub fn car_calls(&self, car: ElevatorId) -> &[CarCall] {
         let car = car.entity();
         self.world.car_calls(car)
     }
@@ -137,11 +135,7 @@ impl super::Simulation {
     /// Car currently assigned to serve the call at `(stop, direction)`,
     /// if dispatch has made an assignment yet.
     #[must_use]
-    pub fn assigned_car(
-        &self,
-        stop: EntityId,
-        direction: crate::components::CallDirection,
-    ) -> Option<EntityId> {
+    pub fn assigned_car(&self, stop: EntityId, direction: CallDirection) -> Option<EntityId> {
         self.world
             .hall_call(stop, direction)
             .and_then(|c| c.assigned_car)
@@ -156,11 +150,7 @@ impl super::Simulation {
     /// - [`EtaError::StopNotQueued`] if no car is assigned to the call.
     /// - [`EtaError::NotAnElevator`] if the assigned car has no positional
     ///   data or is not a valid elevator.
-    pub fn eta_for_call(
-        &self,
-        stop: EntityId,
-        direction: crate::components::CallDirection,
-    ) -> Result<u64, EtaError> {
+    pub fn eta_for_call(&self, stop: EntityId, direction: CallDirection) -> Result<u64, EtaError> {
         let call = self
             .world
             .hall_call(stop, direction)
@@ -195,13 +185,13 @@ impl super::Simulation {
     pub(super) fn ensure_hall_call(
         &mut self,
         stop: EntityId,
-        direction: crate::components::CallDirection,
+        direction: CallDirection,
         rider: Option<EntityId>,
         destination: Option<EntityId>,
     ) {
         let mut fresh_press = false;
         if self.world.hall_call(stop, direction).is_none() {
-            let mut call = crate::components::HallCall::new(stop, direction, self.tick);
+            let mut call = HallCall::new(stop, direction, self.tick);
             call.destination = destination;
             call.ack_latency_ticks = self.ack_latency_for_stop(stop);
             if call.ack_latency_ticks == 0 {
@@ -250,22 +240,22 @@ impl super::Simulation {
     fn ack_latency_for(
         &self,
         entity: EntityId,
-        members: impl Fn(&crate::dispatch::ElevatorGroup) -> &[EntityId],
+        members: impl Fn(&ElevatorGroup) -> &[EntityId],
     ) -> u32 {
         self.groups
             .iter()
             .find(|g| members(g).contains(&entity))
-            .map_or(0, crate::dispatch::ElevatorGroup::ack_latency_ticks)
+            .map_or(0, ElevatorGroup::ack_latency_ticks)
     }
 
     /// Ack latency for the group that owns `stop` (0 if no group).
     fn ack_latency_for_stop(&self, stop: EntityId) -> u32 {
-        self.ack_latency_for(stop, crate::dispatch::ElevatorGroup::stop_entities)
+        self.ack_latency_for(stop, ElevatorGroup::stop_entities)
     }
 
     /// Ack latency for the group that owns `car` (0 if no group).
     fn ack_latency_for_car(&self, car: EntityId) -> u32 {
-        self.ack_latency_for(car, crate::dispatch::ElevatorGroup::elevator_entities)
+        self.ack_latency_for(car, ElevatorGroup::elevator_entities)
     }
 
     /// Create or aggregate into a car call for `(car, floor)`.
@@ -290,7 +280,7 @@ impl super::Simulation {
                 queue[idx].pending_riders.push(rid);
             }
         } else {
-            let mut call = crate::components::CarCall::new(car, floor, press_tick);
+            let mut call = CarCall::new(car, floor, press_tick);
             call.ack_latency_ticks = ack_latency;
             if ack_latency == 0 {
                 call.acknowledged_at = Some(press_tick);
