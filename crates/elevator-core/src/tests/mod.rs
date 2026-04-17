@@ -37,6 +37,7 @@ mod topology_tests;
 mod traffic_tests;
 mod world_tests;
 
+mod abort_movement_tests;
 mod api_surface_tests;
 mod boundary_tests;
 mod braking_tests;

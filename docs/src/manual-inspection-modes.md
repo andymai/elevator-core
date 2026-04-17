@@ -129,6 +129,8 @@ This is useful for freight elevators, service lifts, or any elevator that should
 sim.set_service_mode(elev.entity(), ServiceMode::Independent)?;
 // Now manually send it somewhere.
 sim.push_destination(elev, StopId(2))?;
+// Changed your mind mid-trip? Brake the car to the nearest stop.
+sim.abort_movement(elev)?;
 # Ok(())
 # }
 ```

@@ -14,7 +14,7 @@ Integrating `elevator-core` into any host comes down to three things:
 
 3. **Read state out, inject input in.**
    - **Read state:** `sim.world()` returns a `World` you can query via `query::<(EntityId, &Rider, &Position)>()` for rendering, or via typed accessors (`world.elevator(id)`, `world.stop_position(id)`).
-   - **Inject input:** `sim.spawn_rider(origin, dest, weight)`, `sim.push_destination(elev, stop)`, `sim.reroute(rider, new_dest)`, `sim.set_service_mode(elev, mode)`.
+   - **Inject input:** `sim.spawn_rider(origin, dest, weight)`, `sim.push_destination(elev, stop)`, `sim.abort_movement(elev)`, `sim.reroute(rider, new_dest)`, `sim.set_service_mode(elev, mode)`.
    - **Change-event hook:** `sim.drain_events()` returns every event emitted during the last tick. Route them into toasts, particles, SFX, analytics.
 
 That's it. The entire public surface of the library is the `prelude` module (see [docs.rs](https://docs.rs/elevator-core)) plus a handful of typed submodules; no engine extension points, no traits your app must implement.

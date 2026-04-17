@@ -51,9 +51,10 @@ sim.press_hall_button(lobby, CallDirection::Down)?;
 // Cutscene pins the villain's elevator to the penthouse.
 sim.pin_assignment(villain_car, penthouse, CallDirection::Up)?;
 
-// Player hijacks -- release the pin, clear the car's existing queue.
+// Player hijacks -- release the pin and hard-abort the car's trip so
+// it brakes immediately instead of finishing the current leg.
 sim.unpin_assignment(penthouse, CallDirection::Up);
-sim.clear_destinations(villain_car)?;
+sim.abort_movement(villain_car)?;
 ```
 
 A pinned car that is mid-door-cycle (`Loading` / `DoorOpening` / `DoorClosing`) finishes its current cycle first; the pin takes effect on the next dispatch tick. Pins that cross lines (the car's line cannot reach the stop) return `SimError::LineDoesNotServeStop` rather than silently orphaning the call.

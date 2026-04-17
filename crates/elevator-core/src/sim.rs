@@ -51,6 +51,9 @@
 //!   [`Simulation::clear_destinations()`](crate::sim::Simulation::clear_destinations)
 //!   — override dispatch by pushing/clearing stops on an elevator's
 //!   [`DestinationQueue`](crate::components::DestinationQueue).
+//! - [`Simulation::abort_movement()`](crate::sim::Simulation::abort_movement)
+//!   — hard-abort an in-flight trip, braking the car to the nearest
+//!   reachable stop without opening doors (riders stay aboard).
 //!
 //! ### Persistence
 //!
@@ -68,8 +71,8 @@ mod lifecycle;
 mod topology;
 
 use crate::components::{
-    Accel, AccessControl, Orientation, Patience, Preferences, Rider, RiderPhase, Route,
-    SpatialPosition, Speed, Velocity, Weight,
+    Accel, AccessControl, ElevatorPhase, Orientation, Patience, Preferences, Rider, RiderPhase,
+    Route, SpatialPosition, Speed, Velocity, Weight,
 };
 use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
 use crate::entity::{ElevatorId, EntityId, RiderId};
@@ -589,10 +592,11 @@ impl Simulation {
 
     /// Clear an elevator's destination queue.
     ///
-    /// TODO: clearing does not currently abort an in-flight movement — the
-    /// elevator will finish its current leg and then go idle (since the
-    /// queue is empty). A future change can add a phase transition to
-    /// cancel mid-flight.
+    /// Does **not** affect an in-flight movement — the elevator will
+    /// finish its current leg and then go idle (since the queue is empty).
+    /// To stop a moving car immediately, use
+    /// [`abort_movement`](Self::abort_movement), which brakes the car to
+    /// the nearest reachable stop and also clears the queue.
     ///
     /// # Errors
     ///
@@ -605,6 +609,69 @@ impl Simulation {
         if let Some(q) = self.world.destination_queue_mut(elev) {
             q.clear();
         }
+        Ok(())
+    }
+
+    /// Abort the elevator's in-flight movement and park at the nearest
+    /// reachable stop.
+    ///
+    /// Computes the minimum stopping position under the car's normal
+    /// deceleration profile (see
+    /// [`future_stop_position`](Self::future_stop_position)), picks the
+    /// closest stop at or past that position in the current direction of
+    /// travel, re-targets there via
+    /// [`ElevatorPhase::Repositioning`](crate::components::ElevatorPhase::Repositioning)
+    /// so the car arrives **without opening doors**, and clears any queued
+    /// destinations. Onboard riders stay aboard.
+    ///
+    /// Emits [`Event::MovementAborted`](crate::events::Event::MovementAborted)
+    /// when an abort occurs.
+    ///
+    /// # No-op conditions
+    ///
+    /// Returns `Ok(())` without changes if the car is not currently moving
+    /// (any phase other than
+    /// [`MovingToStop`](crate::components::ElevatorPhase::MovingToStop) or
+    /// [`Repositioning`](crate::components::ElevatorPhase::Repositioning)),
+    /// or if the simulation has no stops.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::NotAnElevator`] if `elev` is not an elevator.
+    pub fn abort_movement(&mut self, elev: ElevatorId) -> Result<(), SimError> {
+        let eid = elev.entity();
+        let Some(car) = self.world.elevator(eid) else {
+            return Err(SimError::NotAnElevator(eid));
+        };
+        if !car.phase().is_moving() {
+            return Ok(());
+        }
+
+        let pos = self.world.position(eid).map_or(0.0, |p| p.value);
+        let vel = self.world.velocity(eid).map_or(0.0, |v| v.value);
+        let Some(brake_pos) = self.future_stop_position(eid) else {
+            return Ok(());
+        };
+
+        let Some(brake_stop) = brake_target_stop(&self.world, pos, vel, brake_pos) else {
+            return Ok(());
+        };
+
+        if let Some(car) = self.world.elevator_mut(eid) {
+            car.phase = ElevatorPhase::Repositioning(brake_stop);
+            car.target_stop = Some(brake_stop);
+            car.repositioning = true;
+        }
+        if let Some(q) = self.world.destination_queue_mut(eid) {
+            q.clear();
+        }
+
+        self.events.emit(Event::MovementAborted {
+            elevator: eid,
+            brake_target: brake_stop,
+            tick: self.tick,
+        });
+
         Ok(())
     }
 
@@ -2271,4 +2338,48 @@ impl fmt::Debug for Simulation {
             .field("entities", &self.world.entity_count())
             .finish_non_exhaustive()
     }
+}
+
+/// Pick the stop to park at when aborting an in-flight movement.
+///
+/// Tries three strategies in order:
+///
+/// 1. **Closest stop at or past `brake_pos` in the direction of travel.**
+///    The car can decelerate into it naturally without overshoot.
+/// 2. **Farthest stop still in the direction of travel (end-of-line).**
+///    If the car is too close to the end of the line to fit a full
+///    deceleration, pick the terminal stop ahead of it; the movement
+///    system's overshoot-snap will absorb the small residual distance.
+/// 3. **Nearest stop overall.** Only reachable when the car has no
+///    stops ahead of it at all (e.g., single-stop worlds or the car is
+///    already past the final stop); also handles the `vel == 0` case.
+///
+/// Returns `None` only if the world has no stops at all.
+fn brake_target_stop(world: &World, pos: f64, vel: f64, brake_pos: f64) -> Option<EntityId> {
+    let dir = vel.signum();
+    if dir != 0.0 {
+        let ahead_of_brake = world
+            .iter_stops()
+            .filter(|(_, stop)| (stop.position() - brake_pos) * dir >= 0.0)
+            .min_by(|(_, a), (_, b)| {
+                (a.position() - pos)
+                    .abs()
+                    .total_cmp(&(b.position() - pos).abs())
+            })
+            .map(|(id, _)| id);
+        if ahead_of_brake.is_some() {
+            return ahead_of_brake;
+        }
+        let ahead_of_car = world
+            .iter_stops()
+            .filter(|(_, stop)| (stop.position() - pos) * dir >= 0.0)
+            .max_by(|(_, a), (_, b)| {
+                ((a.position() - pos) * dir).total_cmp(&((b.position() - pos) * dir))
+            })
+            .map(|(id, _)| id);
+        if ahead_of_car.is_some() {
+            return ahead_of_car;
+        }
+    }
+    world.find_nearest_stop(brake_pos)
 }

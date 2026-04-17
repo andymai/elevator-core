@@ -26,10 +26,13 @@ If you want to tell an elevator exactly where to go -- bypassing strategy logic 
 sim.push_destination(elev, stop_a).unwrap();        // enqueue at back
 sim.push_destination_front(elev, stop_b).unwrap();  // jump to front of queue
 sim.clear_destinations(elev).unwrap();              // cancel all pending stops
+sim.abort_movement(elev).unwrap();                  // stop the current leg too
 let queue: &[EntityId] = sim.destination_queue(elev).unwrap();
 ```
 
 Adjacent duplicates are suppressed: pushing the same stop twice in a row is a no-op and emits a single `DestinationQueued` event.
+
+`clear_destinations` is a soft clear -- it only drains the pending queue. An elevator that is already mid-flight will finish its current leg and then go idle. To stop a moving car immediately, use `abort_movement`: it brakes the car along its normal deceleration profile, parks it at the nearest reachable stop (doors stay closed; onboard riders stay aboard), clears the queue, and emits `MovementAborted` so UI/metrics can react.
 
 Between the Dispatch and Movement phases, the **AdvanceQueue** phase reconciles each elevator's phase/target with the front of its queue. Idle elevators with a non-empty queue begin moving; elevators mid-flight whose queue front changed (because you called `push_destination_front`) are redirected. Movement pops the front on arrival.
 
