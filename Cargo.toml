@@ -5,6 +5,7 @@ members = [
     "crates/elevator-bevy",
     "crates/elevator-ffi",
     "crates/elevator-gdext",
+    "crates/elevator-wasm",
 ]
 default-members = ["crates/elevator-bevy"]
 
