@@ -668,7 +668,7 @@ impl Simulation {
 
         self.events.emit(Event::MovementAborted {
             elevator: eid,
-            stopped_at: brake_stop,
+            brake_target: brake_stop,
             tick: self.tick,
         });
 
@@ -2342,16 +2342,23 @@ impl fmt::Debug for Simulation {
 
 /// Pick the stop to park at when aborting an in-flight movement.
 ///
-/// Prefers the closest stop at or past `brake_pos` in the car's current
-/// direction of travel — the car can decelerate into it naturally without
-/// overshoot. If no such stop exists (e.g., the car is near the end of
-/// the line with no stop beyond the brake-rest point), falls back to the
-/// stop nearest `brake_pos` regardless of direction. Returns `None` only
-/// if the world has no stops at all.
+/// Tries three strategies in order:
+///
+/// 1. **Closest stop at or past `brake_pos` in the direction of travel.**
+///    The car can decelerate into it naturally without overshoot.
+/// 2. **Farthest stop still in the direction of travel (end-of-line).**
+///    If the car is too close to the end of the line to fit a full
+///    deceleration, pick the terminal stop ahead of it; the movement
+///    system's overshoot-snap will absorb the small residual distance.
+/// 3. **Nearest stop overall.** Only reachable when the car has no
+///    stops ahead of it at all (e.g., single-stop worlds or the car is
+///    already past the final stop); also handles the `vel == 0` case.
+///
+/// Returns `None` only if the world has no stops at all.
 fn brake_target_stop(world: &World, pos: f64, vel: f64, brake_pos: f64) -> Option<EntityId> {
     let dir = vel.signum();
     if dir != 0.0 {
-        let candidate = world
+        let ahead_of_brake = world
             .iter_stops()
             .filter(|(_, stop)| (stop.position() - brake_pos) * dir >= 0.0)
             .min_by(|(_, a), (_, b)| {
@@ -2360,8 +2367,18 @@ fn brake_target_stop(world: &World, pos: f64, vel: f64, brake_pos: f64) -> Optio
                     .total_cmp(&(b.position() - pos).abs())
             })
             .map(|(id, _)| id);
-        if candidate.is_some() {
-            return candidate;
+        if ahead_of_brake.is_some() {
+            return ahead_of_brake;
+        }
+        let ahead_of_car = world
+            .iter_stops()
+            .filter(|(_, stop)| (stop.position() - pos) * dir >= 0.0)
+            .max_by(|(_, a), (_, b)| {
+                ((a.position() - pos) * dir).total_cmp(&((b.position() - pos) * dir))
+            })
+            .map(|(id, _)| id);
+        if ahead_of_car.is_some() {
+            return ahead_of_car;
         }
     }
     world.find_nearest_stop(brake_pos)

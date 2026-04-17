@@ -19,7 +19,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `DoorCommandQueued { elevator, command, tick }` | A manual door command was accepted |
 | `DoorCommandApplied { elevator, command, tick }` | A queued door command took effect |
 | `PassingFloor { elevator, stop, moving_up, tick }` | An elevator passes a stop without stopping |
-| `MovementAborted { elevator, stopped_at, tick }` | `abort_movement` was called mid-flight; the car will brake to `stopped_at` without opening doors |
+| `MovementAborted { elevator, brake_target, tick }` | `abort_movement` was called mid-flight; the car will brake to `brake_target` without opening doors |
 | `CapacityChanged { elevator, current_load, capacity, tick }` | An elevator's load changed |
 | `DirectionIndicatorChanged { elevator, going_up, going_down, tick }` | Direction lamps changed |
 | `DestinationQueued { elevator, stop, tick }` | A stop was pushed onto the destination queue |

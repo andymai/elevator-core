@@ -111,9 +111,9 @@ fn abort_mid_flight_emits_event() {
         .filter_map(|e| match e {
             Event::MovementAborted {
                 elevator,
-                stopped_at,
+                brake_target,
                 ..
-            } => Some((*elevator, *stopped_at)),
+            } => Some((*elevator, *brake_target)),
             _ => None,
         })
         .collect();
