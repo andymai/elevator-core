@@ -1860,7 +1860,7 @@ mod tests {
         unsafe { ev_sim_destroy(handle) };
     }
 
-    /// Helper: create an EvSim handle from default.ron.
+    /// Helper: create an `EvSim` handle from default.ron.
     fn create_test_handle() -> *mut EvSim {
         let manifest = env!("CARGO_MANIFEST_DIR");
         let root = std::path::Path::new(manifest)
@@ -1874,7 +1874,7 @@ mod tests {
         handle
     }
 
-    /// Helper: get (first_stop_entity_id, last_stop_entity_id) from frame.
+    /// Helper: get (`first_stop_entity_id`, `last_stop_entity_id`) from frame.
     fn stop_entities(handle: *mut EvSim) -> (u64, u64) {
         let mut frame = EvFrame {
             elevators: std::ptr::null(),

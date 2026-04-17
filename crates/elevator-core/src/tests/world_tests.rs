@@ -188,7 +188,7 @@ fn extension_components() {
     assert!(world.ext::<VipTag>(e).is_none());
 }
 
-/// Verify that despawn cleans up hall_calls and car_calls.
+/// Verify that despawn cleans up `hall_calls` and `car_calls`.
 #[test]
 fn despawn_cleans_up_hall_and_car_calls() {
     let mut world = World::new();

@@ -17,6 +17,8 @@ use elevator_core::movement::tick_movement;
 use elevator_core::sim::Simulation;
 use elevator_core::stop::{StopConfig, StopId};
 
+mod common;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -32,22 +34,7 @@ fn make_config(num_stops: u32, num_elevators: u32) -> SimConfig {
         .collect();
 
     let elevators: Vec<ElevatorConfig> = (0..num_elevators)
-        .map(|i| ElevatorConfig {
-            id: i,
-            name: format!("E{i}"),
-            max_speed: 2.0,
-            acceleration: 1.0,
-            deceleration: 1.0,
-            weight_capacity: 1000.0,
-            starting_stop: StopId(0),
-            door_open_ticks: 5,
-            door_transition_ticks: 3,
-            restricted_stops: Vec::new(),
-            #[cfg(feature = "energy")]
-            energy_profile: None,
-            service_mode: None,
-            inspection_speed_factor: 0.25,
-        })
+        .map(|i| common::elevator_cfg(i, StopId(0), 2.0, 1.0, 1.0, 1000.0))
         .collect();
 
     SimConfig {
