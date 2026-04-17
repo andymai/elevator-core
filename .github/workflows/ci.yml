@@ -162,21 +162,23 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
 
-      - name: Check core (default features, wasm32)
-        run: cargo check -p elevator-core --target wasm32-unknown-unknown
-
+      # Core is only required to compile to wasm32 in its pure form (no
+      # browser runtime deps). The `traffic` feature pulls `rand` →
+      # `getrandom`, whose `wasm_js` backend is deliberately provided by
+      # `elevator-wasm` — not core — to keep core engine-agnostic. So we
+      # verify core is pure-wasm with no features and with each non-default
+      # feature in isolation; the `elevator-wasm` check below proves the
+      # full stack (core + traffic + shim) compiles end-to-end.
       - name: Check core (no default features, wasm32)
         run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features
 
       - name: Check core (energy feature, wasm32)
-        # Covers the non-default `energy` feature in isolation. Using
-        # `--features energy --no-default-features` rather than
-        # `--all-features` because enabling `traffic` pulls in `rand` →
-        # `getrandom`, whose `wasm_js` backend is deliberately only wired
-        # up in `elevator-wasm` so the core crate stays engine-agnostic.
         run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features --features energy
 
-      - name: Check elevator-wasm bindgen crate
+      - name: Check elevator-wasm bindgen crate (full stack)
+        # Exercises elevator-core with default features (incl. `traffic`)
+        # alongside the `wasm_js` getrandom shim — the only target+feature
+        # combination where core with `traffic` is expected to reach wasm.
         run: cargo check -p elevator-wasm --target wasm32-unknown-unknown
 
   msrv:
