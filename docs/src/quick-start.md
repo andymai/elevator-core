@@ -12,7 +12,7 @@ cargo add elevator-core
 
 The prelude re-exports everything you need for typical usage:
 
-```rust,ignore
+```rust
 use elevator_core::prelude::*;
 ```
 
@@ -55,8 +55,6 @@ A rider is anything that rides an elevator. Provide an origin stop, a destinatio
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)
@@ -81,8 +79,6 @@ Each call to `sim.step()` advances the simulation by one tick, running all [eigh
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)
@@ -106,7 +102,7 @@ while !arrived {
             }
             Event::RiderExited { rider, stop, tick, .. } => {
                 println!("Tick {tick}: rider {rider:?} exited at {stop:?}");
-                if rider == rider_id {
+                if rider == rider_id.entity() {
                     arrived = true;
                 }
             }
@@ -156,7 +152,7 @@ fn main() -> Result<(), SimError> {
                 }
                 Event::RiderExited { rider, stop, tick, .. } => {
                     println!("Tick {tick}: rider {rider:?} exited at {stop:?}");
-                    if rider == rider_id {
+                    if rider == rider_id.entity() {
                         arrived = true;
                     }
                 }

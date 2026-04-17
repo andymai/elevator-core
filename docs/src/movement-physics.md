@@ -86,7 +86,6 @@ Two methods estimate arrival times for UI countdown displays and dispatch logic:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::components::Direction;
 # let sim: Simulation = todo!();
 # let elev: ElevatorId = todo!();
 # let lobby: EntityId = todo!();
@@ -108,8 +107,13 @@ ETA queries can fail with `EtaError` -- the elevator might not be headed to that
 
 When an elevator passes a stop without stopping, a `PassingFloor` event fires:
 
-```rust,ignore
-Event::PassingFloor { elevator, stop, moving_up, tick }
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn handle(event: Event) {
+if let Event::PassingFloor { elevator, stop, moving_up, tick } = event {
+    let _ = (elevator, stop, moving_up, tick);
+}
+# }
 ```
 
 This is useful for:

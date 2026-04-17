@@ -18,14 +18,17 @@ Two modes are available, chosen per group via `HallCallMode`:
 - **`HallCallMode::Classic`** (default) -- traditional collective control. Hall calls carry direction only; the `CarCall` reveals the destination after boarding.
 - **`HallCallMode::Destination`** -- DCS mode. Hall calls carry a destination from the moment they are pressed (kiosk entry). Required by `DestinationDispatch`.
 
-```rust,ignore
+```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::dispatch::HallCallMode;
 
-let mut sim = SimulationBuilder::demo().build()?;
-for g in sim.groups_mut() {
-    g.set_hall_call_mode(HallCallMode::Destination);
-    g.set_ack_latency_ticks(5);  // 5-tick controller latency
+fn main() -> Result<(), SimError> {
+    let mut sim = SimulationBuilder::demo().build()?;
+    for g in sim.groups_mut() {
+        g.set_hall_call_mode(HallCallMode::Destination);
+        g.set_ack_latency_ticks(5);  // 5-tick controller latency
+    }
+    Ok(())
 }
 ```
 
@@ -44,7 +47,15 @@ Car calls follow the same pattern: `CarButtonPressed` fires on the first press p
 
 Games can drive the call system outside the normal rider flow:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# use elevator_core::components::hall_call::CallDirection;
+# fn run(
+#     sim: &mut Simulation,
+#     lobby: StopId,
+#     penthouse: EntityId,
+#     villain_car: ElevatorId,
+# ) -> Result<(), SimError> {
 // An NPC walks up and presses the down button.
 sim.press_hall_button(lobby, CallDirection::Down)?;
 
@@ -55,6 +66,8 @@ sim.pin_assignment(villain_car, penthouse, CallDirection::Up)?;
 // it brakes immediately instead of finishing the current leg.
 sim.unpin_assignment(penthouse, CallDirection::Up);
 sim.abort_movement(villain_car)?;
+# Ok(())
+# }
 ```
 
 A pinned car that is mid-door-cycle (`Loading` / `DoorOpening` / `DoorClosing`) finishes its current cycle first; the pin takes effect on the next dispatch tick. Pins that cross lines (the car's line cannot reach the stop) return `SimError::LineDoesNotServeStop` rather than silently orphaning the call.

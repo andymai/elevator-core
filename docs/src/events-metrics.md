@@ -185,8 +185,6 @@ For per-zone or per-label breakdowns, tag entities with string labels and query 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)

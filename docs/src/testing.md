@@ -13,13 +13,26 @@ The key ingredients for a replay test:
 3. Step for a fixed number of ticks and collect events.
 4. Run the same scenario again and compare.
 
-```rust,ignore
+```rust,no_run
+use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::dispatch::etd::EtdDispatch;
+
 /// A rider spawn scheduled at a specific tick.
 struct ScheduledSpawn {
     tick: u64,
     origin: StopId,
     destination: StopId,
     weight: f64,
+}
+
+fn car_config(id: u32, name: &str) -> ElevatorConfig {
+    ElevatorConfig {
+        id,
+        name: name.into(),
+        starting_stop: StopId(0),
+        ..Default::default()
+    }
 }
 
 fn run_scenario(spawns: &[ScheduledSpawn], total_ticks: u64) -> (Vec<Event>, Metrics) {
@@ -45,7 +58,7 @@ fn run_scenario(spawns: &[ScheduledSpawn], total_ticks: u64) -> (Vec<Event>, Met
 
 #[test]
 fn replay_is_deterministic() {
-    let spawns = vec![/* fixed schedule */];
+    let spawns: Vec<ScheduledSpawn> = vec![/* fixed schedule */];
     let (events_a, metrics_a) = run_scenario(&spawns, 5_000);
     let (events_b, metrics_b) = run_scenario(&spawns, 5_000);
 
@@ -63,7 +76,9 @@ A regression that introduces `HashMap` iteration into a code path, or any other 
 
 Save a snapshot, serialize it, deserialize it, restore, and verify the state matches:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# use elevator_core::snapshot::WorldSnapshot;
 #[test]
 fn snapshot_roundtrip_preserves_state() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -97,7 +112,9 @@ This catches serialization bugs, entity ID remapping errors, and missing compone
 
 For elevators in non-trivial phases (e.g., `Repositioning`), verify that the phase variant and its inner entity reference survived the remap:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(restored: &Simulation, elev_id: EntityId) {
 let restored_phase = restored.world().elevator(elev_id).unwrap().phase();
 match restored_phase {
     ElevatorPhase::Repositioning(target) => {
@@ -105,36 +122,41 @@ match restored_phase {
     }
     other => panic!("expected Repositioning, got {other:?}"),
 }
+# }
 ```
 
 ## Scenario scripting
 
 The `scenario` module provides a structured way to define timed rider spawns with pass/fail conditions. A `Scenario` bundles a `SimConfig`, a list of `TimedSpawn` events, evaluation conditions, and a tick limit:
 
-```rust,ignore
+```rust,no_run
+use elevator_core::prelude::*;
+use elevator_core::dispatch::scan::ScanDispatch;
 use elevator_core::scenario::{Scenario, TimedSpawn, Condition, ScenarioRunner};
 
-let scenario = Scenario {
-    name: "Morning rush".into(),
-    config: my_sim_config(),
-    spawns: vec![
-        TimedSpawn { tick: 0, origin: StopId(0), destination: StopId(2), weight: 72.0 },
-        TimedSpawn { tick: 15, origin: StopId(0), destination: StopId(1), weight: 85.0 },
-        TimedSpawn { tick: 60, origin: StopId(2), destination: StopId(0), weight: 68.0 },
-    ],
-    conditions: vec![
-        Condition::AvgWaitBelow(100.0),
-        Condition::MaxWaitBelow(300),
-        Condition::AbandonmentRateBelow(0.05),
-        Condition::AllDeliveredByTick(5000),
-    ],
-    max_ticks: 10_000,
-};
+fn run(my_sim_config: SimConfig) {
+    let scenario = Scenario {
+        name: "Morning rush".into(),
+        config: my_sim_config,
+        spawns: vec![
+            TimedSpawn { tick: 0, origin: StopId(0), destination: StopId(2), weight: 72.0 },
+            TimedSpawn { tick: 15, origin: StopId(0), destination: StopId(1), weight: 85.0 },
+            TimedSpawn { tick: 60, origin: StopId(2), destination: StopId(0), weight: 68.0 },
+        ],
+        conditions: vec![
+            Condition::AvgWaitBelow(100.0),
+            Condition::MaxWaitBelow(300),
+            Condition::AbandonmentRateBelow(0.05),
+            Condition::AllDeliveredByTick(5000),
+        ],
+        max_ticks: 10_000,
+    };
 
-let mut runner = ScenarioRunner::new(scenario, ScanDispatch::new()).unwrap();
-let result = runner.run_to_completion();
+    let mut runner = ScenarioRunner::new(scenario, ScanDispatch::new()).unwrap();
+    let result = runner.run_to_completion();
 
-assert!(result.passed, "scenario failed: {:?}", result.conditions);
+    assert!(result.passed, "scenario failed: {:?}", result.conditions);
+}
 ```
 
 Available conditions:
@@ -155,7 +177,8 @@ Scenarios are `Serialize + Deserialize`, so you can store them as RON files and 
 
 The `proptest` crate (a dev dependency of elevator-core) is used for fuzz-testing simulation invariants. The library's own tests use it to verify physics and convergence properties:
 
-```rust,ignore
+```rust,no_run
+use elevator_core::movement::tick_movement;
 use proptest::prelude::*;
 
 proptest! {
@@ -226,9 +249,12 @@ Criterion generates HTML reports in `target/criterion/` with statistical analysi
 
 **Assert that your fixture actually exercises the sim.** A deterministic replay test is vacuously correct if no riders ever board. Add sanity checks:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(events: Vec<Event>, metrics: &Metrics, expected_minimum: u64) {
 assert!(events.iter().any(|e| matches!(e, Event::RiderBoarded { .. })));
 assert!(metrics.total_delivered() >= expected_minimum);
+# }
 ```
 
 **Use `SimulationBuilder::demo()` for quick integration tests.** It creates a minimal two-stop, one-elevator setup that is enough to test most game logic without a full config.

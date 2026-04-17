@@ -26,8 +26,6 @@ A `WorldSnapshot` captures the full simulation state -- all entities, components
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -72,7 +70,6 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`) are auto-restored by n
 ```rust,no_run
 # use elevator_core::prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
-# use elevator_core::dispatch::RankContext;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
 #   fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
@@ -119,11 +116,15 @@ Snapshots are a stronger alternative -- you can start replay from any tick by re
 
 Run a seeded scenario for N ticks, snapshot, and diff against a golden snapshot:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &mut Simulation, expected: &str) {
 let snap = sim.snapshot();
 let actual = ron::to_string(&snap).unwrap();
-let expected = include_str!("../golden/scenario_a.ron");
+// Compare against a golden file checked into the repo:
+// let expected = include_str!("../golden/scenario_a.ron");
 assert_eq!(actual, expected);
+# }
 ```
 
 This catches unintended behavior changes anywhere in the tick pipeline. See [Testing Your Simulation](testing.md) for more patterns.
@@ -134,10 +135,6 @@ To compare dispatch strategies fairly, use identical seeded traffic across runs:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
-# use elevator_core::dispatch::scan::ScanDispatch;
-# use elevator_core::dispatch::etd::EtdDispatch;
 # fn build_sim(dispatch: impl DispatchStrategy + 'static) -> Simulation {
 #   SimulationBuilder::new()
 #       .stop(StopId(0), "Ground", 0.0)

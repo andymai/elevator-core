@@ -8,8 +8,6 @@ A **stop** is a named position along a 1D shaft axis. Unlike traditional elevato
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::stop::StopId;
-# use elevator_core::config::ElevatorConfig;
 # fn main() -> Result<(), SimError> {
 let sim = SimulationBuilder::new()
     .stop(StopId(0), "Basement", -3.0)
@@ -30,7 +28,9 @@ A **line** represents a physical path: a shaft, a tether, a track. Every elevato
 
 For simple single-shaft buildings, you never need to think about lines. The builder auto-creates a default line that includes all stops and all elevators:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn main() -> Result<(), SimError> {
 // This implicitly creates one line containing both elevators and all stops.
 SimulationBuilder::new()
     .stop(StopId(0), "Ground", 0.0)
@@ -38,6 +38,8 @@ SimulationBuilder::new()
     .elevator(ElevatorConfig { id: 0, ..Default::default() })
     .elevator(ElevatorConfig { id: 1, ..Default::default() })
     .build()?;
+# Ok(())
+# }
 ```
 
 Lines matter when you have separate shafts serving different sets of stops -- a low-rise bank that only reaches floors 1-20 and a high-rise bank that serves 20-40, for example.
@@ -94,8 +96,12 @@ The library uses three identity types. Knowing which to reach for saves confusio
 
 `StopId` is a config-level concept. When the simulation boots, each `StopId` is mapped to an `EntityId`. At runtime you work with `EntityId` everywhere. Convert when needed:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation) {
 let lobby_entity: Option<EntityId> = sim.stop_entity(StopId(0));
+# let _ = lobby_entity;
+# }
 ```
 
 ## Coordinate system
@@ -110,8 +116,12 @@ The fundamental unit of time is the **tick**. Each call to `sim.step()` advances
 
 Convert between ticks and seconds using the time API:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation) {
 let seconds = sim.time().ticks_to_seconds(120);  // 120 ticks -> seconds
+# let _ = seconds;
+# }
 ```
 
 The conversion uses `ticks_per_second` from your config (default: 60). At 60 ticks/second, 120 ticks = 2.0 seconds.

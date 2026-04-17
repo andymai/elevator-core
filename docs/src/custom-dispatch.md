@@ -19,7 +19,7 @@ flowchart LR
 
 ## The trait surface
 
-```rust,ignore
+```text
 pub trait DispatchStrategy: Send + Sync {
     /// Pre-pass hook with mutable world access. Used by sticky strategies
     /// (e.g. destination dispatch) to commit rider -> car assignments.
@@ -67,7 +67,7 @@ pub trait DispatchStrategy: Send + Sync {
 
 `RankContext` bundles the per-call arguments into a single struct:
 
-```rust,ignore
+```text
 pub struct RankContext<'a> {
     pub car: EntityId,
     pub car_position: f64,
@@ -85,7 +85,7 @@ Only `rank` is required. The default `fallback` returns `Idle`; the other hooks 
 
 "Nearest-car by distance, favoring stops with more waiting riders."
 
-```rust,ignore
+```rust,no_run
 use elevator_core::dispatch::{DispatchStrategy, RankContext};
 
 struct BusyStopNearest;
@@ -116,7 +116,7 @@ Strategies whose ranking depends on per-car state (a sweep direction, a queue po
 
 The built-in `ScanDispatch` uses this hook to decide whether the car's sweep direction should flip for the current pass. That decision depends on whole-group demand, so doing it inside `rank` would give different answers depending on which stop was scored first.
 
-```rust,ignore
+```rust,no_run
 use std::collections::HashMap;
 use elevator_core::dispatch::{
     DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
@@ -184,7 +184,7 @@ The framework calls `notify_removed(elevator)` on the group's dispatcher wheneve
 
 Forgetting to implement this is the most common correctness bug in custom strategies. `ScanDispatch` and `LookDispatch` both use it to evict direction entries.
 
-```rust,ignore
+```text
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -213,37 +213,49 @@ On restore, `WorldSnapshot::restore()` takes an optional factory function that m
 
 The canonical pattern:
 
-```rust,ignore
-use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy};
+```rust,no_run
+use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
+use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy, RankContext};
 use elevator_core::ids::GroupId;
 use elevator_core::snapshot::WorldSnapshot;
 
+#[derive(Default)]
+struct PriorityDispatch;
+impl DispatchStrategy for PriorityDispatch {
+    // Real implementations score against `ctx`; see `BusyStopNearest` above.
+    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+}
+
 const PRIORITY_NAME: &str = "priority";
 
-// When building the sim, install the strategy via `Simulation::set_dispatch`,
-// which takes both the strategy and the `BuiltinStrategy` id used for
-// snapshot serialization.
-let mut sim = SimulationBuilder::new()
-    .stop(StopId(0), "Ground", 0.0)
-    .stop(StopId(1), "Top", 10.0)
-    .elevator(ElevatorConfig::default())
-    .build()?;
-sim.set_dispatch(
-    GroupId(0),
-    Box::new(PriorityDispatch::default()),
-    BuiltinStrategy::Custom(PRIORITY_NAME.into()),
-);
+fn run(snapshot: WorldSnapshot) -> Result<(), SimError> {
+    // When building the sim, install the strategy via `Simulation::set_dispatch`,
+    // which takes both the strategy and the `BuiltinStrategy` id used for
+    // snapshot serialization.
+    let mut sim = SimulationBuilder::new()
+        .stop(StopId(0), "Ground", 0.0)
+        .stop(StopId(1), "Top", 10.0)
+        .elevator(ElevatorConfig::default())
+        .build()?;
+    sim.set_dispatch(
+        GroupId(0),
+        Box::new(PriorityDispatch),
+        BuiltinStrategy::Custom(PRIORITY_NAME.into()),
+    );
 
-// When restoring:
-let snapshot: WorldSnapshot = /* deserialized from RON/JSON/bincode */;
-let sim = snapshot.restore(Some(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
-    match name {
-        PRIORITY_NAME => Some(Box::new(PriorityDispatch::default())),
-        // Return `None` for unknown names -- the restore falls back to
-        // `ScanDispatch` rather than panicking.
-        _ => None,
-    }
-}));
+    // When restoring, the factory maps names back to strategy instances.
+    let sim = snapshot.restore(Some(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
+        match name {
+            PRIORITY_NAME => Some(Box::new(PriorityDispatch)),
+            // Return `None` for unknown names -- the restore falls back to
+            // `ScanDispatch` rather than panicking.
+            _ => None,
+        }
+    }))?;
+    let _ = sim;
+    Ok(())
+}
 ```
 
 The name is opaque to the library. Keep it stable across releases -- changing the name breaks old saved snapshots.
@@ -256,7 +268,12 @@ Two levels of test coverage work well:
 
 **Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction -- e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# struct BusyStopNearest;
+# impl DispatchStrategy for BusyStopNearest {
+#     fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+# }
 #[test]
 fn custom_strategy_assigns_nearest_car() {
     let mut sim = SimulationBuilder::new()

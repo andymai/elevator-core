@@ -9,7 +9,7 @@ Traffic generation is **external to the simulation loop**. A `TrafficSource` pro
 ```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
-use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule};
+use elevator_core::traffic::{PoissonSource, TrafficPattern, TrafficSchedule, TrafficSource};
 
 # fn main() -> Result<(), SimError> {
 let mut sim = SimulationBuilder::new()
@@ -146,7 +146,7 @@ For reproducible traffic, write a custom [`TrafficSource`](#custom-traffic-sourc
 ```rust,no_run
 use elevator_core::traffic::{TrafficSource, SpawnRequest, TrafficPattern};
 use elevator_core::stop::StopId;
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 struct SeededPoisson {
     stops: Vec<StopId>,
@@ -219,12 +219,16 @@ You can layer multiple sources, wrap them in a composite, or mix Poisson arrival
 
 A `SpawnRequest` is the minimal description of a rider to spawn:
 
-```rust,ignore
-pub struct SpawnRequest {
-    pub origin: StopId,
-    pub destination: StopId,
-    pub weight: f64,
-}
+```rust,no_run
+# use elevator_core::prelude::*;
+# use elevator_core::traffic::SpawnRequest;
+// Constructing a SpawnRequest to feed into the simulation:
+let req = SpawnRequest {
+    origin: StopId(0),
+    destination: StopId(1),
+    weight: 75.0,
+};
+# let _ = req;
 ```
 
 For riders that need patience, preferences, or access control, spawn through the simulation's `build_rider` fluent API instead of using `spawn_rider` directly:

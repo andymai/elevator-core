@@ -34,14 +34,19 @@ cargo run --example headless_trace -- \
 
 The body of the main loop is small enough to inline here:
 
-```rust,ignore
-for _ in 0..args.ticks {
+```rust,no_run
+# use elevator_core::prelude::*;
+# use std::io::Write;
+# fn run(sim: &mut Simulation, out: &mut impl Write, ticks: u64) -> Result<(), Box<dyn std::error::Error>> {
+for _ in 0..ticks {
     sim.step();
     for event in sim.drain_events() {
         let line = serde_json::to_string(&event)?;
         writeln!(out, "{line}")?;
     }
 }
+# Ok(())
+# }
 ```
 
 `Event` implements `Serialize` / `Deserialize`, so consumers in any language can read the NDJSON stream. This is the integration shape a web backend would use: stream events over SSE / WebSocket, have a JS frontend render them.
@@ -59,7 +64,7 @@ for _ in 0..args.ticks {
 
 The relevant integration pattern:
 
-```rust,ignore
+```text
 use elevator_core::components::{Elevator, RiderPhase, Stop};
 use elevator_core::prelude::*;
 use macroquad::prelude::*;
@@ -106,7 +111,7 @@ The rendering functions pull component state via `sim.world().query::<...>()` --
 
 The example above steps the sim once per rendered frame. If you want the sim to run at a fixed 60 tick/sec regardless of display refresh rate:
 
-```rust,ignore
+```text
 let mut tick_accumulator = 0.0_f64;
 let tick_interval = 1.0 / sim.time().ticks_per_second();
 
@@ -126,7 +131,7 @@ loop {
 
 [eframe](https://github.com/emilk/egui) is the immediate-mode UI framework behind egui. It's suited for inspector-style tools -- a dashboard on the sim rather than a game. We don't ship a runnable eframe example (eframe transitively pulls in wgpu, which is a heavy dep for an example), but the pattern is:
 
-```rust,ignore
+```text
 // Your app holds the sim as state.
 struct ElevatorApp {
     sim: Simulation,

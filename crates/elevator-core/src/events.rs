@@ -345,13 +345,14 @@ pub enum Event {
     /// Load values use [`OrderedFloat`] for
     /// `Eq` compatibility. Dereference to get the inner `f64`:
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use elevator_core::events::Event;
-    ///
+    /// # fn handle(event: Event) {
     /// if let Event::CapacityChanged { current_load, capacity, .. } = event {
     ///     let pct = *current_load / *capacity * 100.0;
     ///     println!("Elevator at {pct:.0}% capacity");
     /// }
+    /// # }
     /// ```
     CapacityChanged {
         /// The elevator whose load changed.

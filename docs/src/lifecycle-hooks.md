@@ -7,6 +7,7 @@ Hooks let you inject custom logic before or after any of the simulation's tick p
 ```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
+use elevator_core::hooks::Phase;
 use elevator_core::stop::StopId;
 
 fn main() -> Result<(), SimError> {
@@ -33,8 +34,7 @@ You can add hooks to a running simulation. This is useful when hook logic depend
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
+# use elevator_core::hooks::Phase;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -54,8 +54,7 @@ For multi-group buildings, you can register hooks that only fire for a specific 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
+# use elevator_core::hooks::Phase;
 # fn main() -> Result<(), SimError> {
 let sim = SimulationBuilder::new()
     .stop(StopId(0), "Ground", 0.0)
@@ -130,6 +129,7 @@ The hook closure cannot call `sim.current_tick()` directly (the simulation is bo
 ```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
+use elevator_core::hooks::Phase;
 use elevator_core::stop::StopId;
 use serde::{Serialize, Deserialize};
 
@@ -177,8 +177,9 @@ fn main() -> Result<(), SimError> {
 
     for _ in 0..600 {
         // Update the current tick resource before stepping.
+        let now = sim.current_tick();
         if let Some(t) = sim.world_mut().resource_mut::<CurrentTick>() {
-            t.0 = sim.current_tick();
+            t.0 = now;
         }
         sim.step();
     }

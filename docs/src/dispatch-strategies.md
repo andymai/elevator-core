@@ -138,14 +138,21 @@ fn main() -> Result<(), SimError> {
 
 After dispatch, idle elevators with no pending demand can be repositioned for better coverage. Configure a `RepositionStrategy` on the builder:
 
-```rust,ignore
+```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::config::ElevatorConfig;
 use elevator_core::dispatch::BuiltinReposition;
+use elevator_core::dispatch::reposition::SpreadEvenly;
 
-let sim = SimulationBuilder::new()
-    // ... stops and elevators ...
-    .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
-    .build()?;
+fn main() -> Result<(), SimError> {
+    let sim = SimulationBuilder::new()
+        .stop(StopId(0), "Ground", 0.0)
+        .stop(StopId(1), "Top", 10.0)
+        .elevator(ElevatorConfig::default())
+        .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)
+        .build()?;
+    Ok(())
+}
 ```
 
 The second argument is a `BuiltinReposition` identifier used for snapshot serialization. Pass the variant that matches your strategy so snapshots can restore it correctly.
