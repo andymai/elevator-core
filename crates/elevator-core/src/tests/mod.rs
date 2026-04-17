@@ -52,6 +52,7 @@ mod event_payload_tests;
 mod hall_call_tests;
 mod manual_mode_tests;
 mod move_count_tests;
+mod movement_boundary_tests;
 mod multi_elevator_tests;
 mod multi_line_tests;
 mod mutation_kills_tests;
