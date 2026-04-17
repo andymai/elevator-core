@@ -17,7 +17,7 @@
 /**
  * Current ABI version. Bumped for any breaking change to the C layout.
  */
-#define EV_ABI_VERSION 1
+#define EV_ABI_VERSION 2
 
 /**
  * `Event::HallButtonPressed`.
@@ -184,6 +184,14 @@ typedef struct EvElevatorView {
      * [`DoorState`] tag: 0 `Closed`, 1 `Opening`, 2 `Open`, 3 `Closing`.
      */
     uint8_t door_state;
+    /**
+     * Direction indicator: 1 if the "going up" lamp is lit, 0 otherwise.
+     */
+    uint8_t going_up;
+    /**
+     * Direction indicator: 1 if the "going down" lamp is lit, 0 otherwise.
+     */
+    uint8_t going_down;
 } EvElevatorView;
 
 /**

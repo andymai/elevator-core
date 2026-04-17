@@ -45,7 +45,7 @@ use elevator_core::sim::Simulation;
 use slotmap::{Key, KeyData};
 
 /// Current ABI version. Bumped for any breaking change to the C layout.
-pub const EV_ABI_VERSION: u32 = 1;
+pub const EV_ABI_VERSION: u32 = 2;
 
 /// Return the ABI version compiled into this shared library.
 #[unsafe(no_mangle)]
@@ -185,6 +185,10 @@ pub struct EvElevatorView {
     pub capacity_kg: f64,
     /// [`DoorState`] tag: 0 `Closed`, 1 `Opening`, 2 `Open`, 3 `Closing`.
     pub door_state: u8,
+    /// Direction indicator: 1 if the "going up" lamp is lit, 0 otherwise.
+    pub going_up: u8,
+    /// Direction indicator: 1 if the "going down" lamp is lit, 0 otherwise.
+    pub going_down: u8,
 }
 
 /// View of a single stop at the current tick.
@@ -578,6 +582,8 @@ fn populate_frame(ev: &mut EvSim) {
             occupancy: u32::try_from(elev.riders().len()).unwrap_or(u32::MAX),
             capacity_kg: elev.weight_capacity().value(),
             door_state: door_state_tag(elev.door()),
+            going_up: u8::from(elev.going_up()),
+            going_down: u8::from(elev.going_down()),
         });
     }
 
@@ -1543,8 +1549,8 @@ mod tests {
     use std::ffi::CString;
 
     #[test]
-    fn abi_version_is_one() {
-        assert_eq!(ev_abi_version(), 1);
+    fn abi_version_is_two() {
+        assert_eq!(ev_abi_version(), 2);
     }
 
     #[test]

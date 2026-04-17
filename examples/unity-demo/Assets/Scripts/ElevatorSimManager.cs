@@ -1,10 +1,16 @@
-// Main simulation manager MonoBehaviour.
-// Steps the sim, auto-spawns riders, and exposes frame data to other scripts.
+/// <summary>
+/// Main simulation manager MonoBehaviour.
+/// Steps the sim, auto-spawns riders, and exposes frame data to other scripts.
+/// </summary>
 
 using UnityEngine;
 
 namespace ElevatorDemo
 {
+    /// <summary>
+    /// Drives the simulation loop: steps the sim each frame, auto-spawns riders
+    /// on a random interval, drains events, and handles keyboard shortcuts.
+    /// </summary>
     public class ElevatorSimManager : MonoBehaviour
     {
         [Header("Configuration")]
@@ -21,12 +27,19 @@ namespace ElevatorDemo
         public float weightMin = 50f;
         public float weightMax = 100f;
 
+        /// <summary>The managed simulation handle. Null until Awake completes.</summary>
         public ElevatorSimulation Sim { get; private set; }
 
-        // Event counters for the HUD.
+        /// <summary>Cumulative count of RiderSpawned events.</summary>
         public int EventsSpawned { get; private set; }
+
+        /// <summary>Cumulative count of RiderBoarded events.</summary>
         public int EventsBoarded { get; private set; }
+
+        /// <summary>Cumulative count of RiderExited events.</summary>
         public int EventsExited { get; private set; }
+
+        /// <summary>Cumulative count of RiderAbandoned events.</summary>
         public int EventsAbandoned { get; private set; }
 
         private int _ticksUntilSpawn;
@@ -45,18 +58,14 @@ namespace ElevatorDemo
 
             int steps = Mathf.Max(0, speedMultiplier);
 
-            // Auto-spawn riders.
             if (autoSpawn && steps > 0)
                 MaybeSpawnRider(steps);
 
-            // Step the simulation.
             for (int i = 0; i < steps; i++)
                 Sim.Step();
 
-            // Update frame snapshot.
             Sim.GetFrame();
 
-            // Drain and count events.
             var events = Sim.DrainEvents();
             foreach (var ev in events)
             {
@@ -69,12 +78,7 @@ namespace ElevatorDemo
                 }
             }
 
-            // Handle keyboard shortcuts.
-            if (Input.GetKeyDown(KeyCode.Space))
-                speedMultiplier = speedMultiplier == 0 ? 1 : 0;
-            if (Input.GetKeyDown(KeyCode.Alpha1)) speedMultiplier = 1;
-            if (Input.GetKeyDown(KeyCode.Alpha2)) speedMultiplier = 2;
-            if (Input.GetKeyDown(KeyCode.Alpha3)) speedMultiplier = 10;
+            HandleKeyboardInput();
         }
 
         private void OnDestroy()
@@ -82,6 +86,7 @@ namespace ElevatorDemo
             Sim?.Dispose();
         }
 
+        /// <summary>Spawns a rider between two random stops with a random weight.</summary>
         public void SpawnRandomRider()
         {
             if (Sim == null || !Sim.IsValid || Sim.Stops.Length < 2) return;
@@ -95,6 +100,15 @@ namespace ElevatorDemo
                 Sim.Stops[originIdx].entity_id,
                 Sim.Stops[destIdx].entity_id,
                 weight);
+        }
+
+        private void HandleKeyboardInput()
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
+                speedMultiplier = speedMultiplier == 0 ? 1 : 0;
+            if (Input.GetKeyDown(KeyCode.Alpha1)) speedMultiplier = 1;
+            if (Input.GetKeyDown(KeyCode.Alpha2)) speedMultiplier = 2;
+            if (Input.GetKeyDown(KeyCode.Alpha3)) speedMultiplier = 10;
         }
 
         private void MaybeSpawnRider(int steps)

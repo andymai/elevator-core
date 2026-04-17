@@ -1,11 +1,14 @@
-// P/Invoke bindings for the elevator-ffi native library.
-// Struct layouts match crates/elevator-ffi/src/lib.rs exactly.
+/// <summary>
+/// P/Invoke bindings for the elevator-ffi native library.
+/// Struct layouts match crates/elevator-ffi/src/lib.rs exactly.
+/// </summary>
 
 using System;
 using System.Runtime.InteropServices;
 
 namespace ElevatorDemo
 {
+    /// <summary>Status code returned by every FFI entrypoint.</summary>
     public enum EvStatus : int
     {
         Ok = 0,
@@ -19,6 +22,7 @@ namespace ElevatorDemo
         Panic = 99,
     }
 
+    /// <summary>Built-in dispatch strategy identifier.</summary>
     public enum EvStrategy : int
     {
         Scan = 0,
@@ -27,6 +31,7 @@ namespace ElevatorDemo
         Etd = 3,
     }
 
+    /// <summary>Aggregate metrics at the current tick.</summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EvMetricsView
     {
@@ -37,6 +42,7 @@ namespace ElevatorDemo
         public ulong current_tick;
     }
 
+    /// <summary>Borrowed per-tick snapshot with slice pointers valid until the next frame call.</summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EvFrame
     {
@@ -49,6 +55,7 @@ namespace ElevatorDemo
         public EvMetricsView metrics;
     }
 
+    /// <summary>View of a single elevator at the current tick.</summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EvElevatorView
     {
@@ -63,8 +70,11 @@ namespace ElevatorDemo
         public uint occupancy;
         public double capacity_kg;
         public byte door_state;
+        public byte going_up;
+        public byte going_down;
     }
 
+    /// <summary>View of a single stop at the current tick.</summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EvStopView
     {
@@ -78,6 +88,7 @@ namespace ElevatorDemo
         public UIntPtr name_len;
     }
 
+    /// <summary>View of a single rider at the current tick.</summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EvRiderView
     {
@@ -88,7 +99,7 @@ namespace ElevatorDemo
         public ulong elevator_id;
     }
 
-    // Explicit layout for correct padding (bytes 2..8 are padding).
+    /// <summary>C-ABI-flat projection of simulation events.</summary>
     [StructLayout(LayoutKind.Explicit, Size = 48)]
     public struct EvEvent
     {
@@ -101,6 +112,7 @@ namespace ElevatorDemo
         [FieldOffset(40)] public ulong floor;
     }
 
+    /// <summary>Event kind discriminator constants.</summary>
     public static class EvEventKind
     {
         public const byte HallButtonPressed = 1;
@@ -114,6 +126,20 @@ namespace ElevatorDemo
         public const byte RiderAbandoned = 9;
     }
 
+    /// <summary>Rider phase constants matching the FFI EvRiderView.phase field.</summary>
+    public static class RiderPhase
+    {
+        public const byte Waiting = 0;
+        public const byte Boarding = 1;
+        public const byte Riding = 2;
+        public const byte Exiting = 3;
+        public const byte Walking = 4;
+        public const byte Arrived = 5;
+        public const byte Abandoned = 6;
+        public const byte Resident = 7;
+    }
+
+    /// <summary>Static P/Invoke declarations for the elevator_ffi native library.</summary>
     public static class ElevatorNative
     {
         private const string Lib = "elevator_ffi";
@@ -127,6 +153,10 @@ namespace ElevatorDemo
         [DllImport(Lib)] public static extern EvStatus ev_sim_step(IntPtr handle);
         [DllImport(Lib)]
         public static extern EvStatus ev_sim_frame(IntPtr handle, out EvFrame outFrame);
+        [DllImport(Lib)]
+        public static extern EvStatus ev_sim_best_eta(
+            IntPtr handle, ulong stopEntityId, sbyte direction,
+            out ulong outElevator, out double outSeconds);
         [DllImport(Lib)]
         public static extern EvStatus ev_sim_set_strategy(
             IntPtr handle, uint groupId, EvStrategy strategy);
@@ -142,6 +172,7 @@ namespace ElevatorDemo
         [DllImport(Lib)]
         public static extern uint ev_sim_pending_event_count(IntPtr handle);
 
+        /// <summary>Returns the last FFI error as a managed string.</summary>
         public static string LastError()
         {
             var ptr = ev_last_error();
