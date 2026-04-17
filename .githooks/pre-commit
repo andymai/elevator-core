@@ -27,6 +27,9 @@ cargo test -p elevator-core --all-features --quiet
 
 echo "pre-commit: running doc tests..."
 cargo test -p elevator-core --all-features --doc --quiet
+# elevator-bevy has its own doc tests (bevy-integration chapter). They are
+# fast once bevy is cached; catch drift here instead of waiting for CI.
+cargo test -p elevator-bevy --doc --quiet
 
 echo "pre-commit: checking workspace..."
 cargo check --workspace --all-features --quiet

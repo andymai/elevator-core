@@ -138,10 +138,14 @@ This phase is a read-only consumer -- it does not emit events.
 
 Each phase supports before/after lifecycle hooks, letting you inject custom logic without sub-stepping:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# use elevator_core::hooks::Phase;
+# fn run(sim: &mut Simulation) {
 sim.add_before_hook(Phase::Loading, |world| {
     // Custom logic before loading runs
 });
+# }
 ```
 
 See [Lifecycle Hooks](lifecycle-hooks.md) for the full hook API.
@@ -152,8 +156,6 @@ For advanced use cases, you can run individual phases instead of calling `step()
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)

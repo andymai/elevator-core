@@ -28,7 +28,9 @@ From `Stopped`, dispatch can assign a new target (back to `MovingToStop`) or lea
 
 Access elevator data through the simulation or the world directly:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, elevator_id: EntityId) {
 // World accessors return Option -- unwrap when you know the entity exists.
 let pos: f64 = sim.world().position(elevator_id).unwrap().value();
 let vel: f64 = sim.world().velocity(elevator_id).unwrap().value();
@@ -38,6 +40,8 @@ let elev = sim.world().elevator(elevator_id).unwrap();
 let phase = elev.phase();
 let load = elev.current_load();
 let capacity = elev.weight_capacity();
+# let _ = (pos, vel, phase, load, capacity);
+# }
 ```
 
 ## Direction indicators
@@ -59,17 +63,25 @@ The loading phase uses these lamps as a boarding filter. A rider heading up will
 
 Read the lamps through the simulation API:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, elevator_id: EntityId) {
 let going_up = sim.elevator_going_up(elevator_id);
 let going_down = sim.elevator_going_down(elevator_id);
+# let _ = (going_up, going_down);
+# }
 ```
 
 Or directly from the component:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &Simulation, elevator_id: EntityId) {
 let elev = sim.world().elevator(elevator_id).unwrap();
 let going_up = elev.going_up();
 let going_down = elev.going_down();
+# let _ = (going_up, going_down);
+# }
 ```
 
 ## Physics
@@ -104,8 +116,6 @@ When constructing elevators, use `ElevatorConfig` to set initial parameters:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
-# use elevator_core::config::ElevatorConfig;
-# use elevator_core::stop::StopId;
 # fn main() -> Result<(), SimError> {
 # let sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -133,13 +143,17 @@ All physics parameters must be positive. Invalid values are rejected at build ti
 
 Physics parameters, capacity, and door timing can be changed on a running elevator. This is useful for tycoon-style games where players upgrade elevators:
 
-```rust,ignore
+```rust,no_run
+# use elevator_core::prelude::*;
+# fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
 sim.set_max_speed(elev, 4.0)?;
 sim.set_acceleration(elev, 2.5)?;
 sim.set_deceleration(elev, 3.0)?;
 sim.set_weight_capacity(elev, 1500.0)?;
 sim.set_door_open_ticks(elev, 30)?;
 sim.set_door_transition_ticks(elev, 8)?;
+# Ok(())
+# }
 ```
 
 Each setter emits an `ElevatorUpgraded` event with the field name, old value, and new value. Changes take effect on the next tick.
