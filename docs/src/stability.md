@@ -12,11 +12,7 @@
 
 ## Where to find the current classification
 
-The module table at the top of the [`elevator-core` crate docs](https://docs.rs/elevator-core) is the canonical list. Every row has a Stability column. That table and `STABILITY.md` move together — if you're deciding whether to depend on a specific module, check the table first.
-
-As of v15.1.0 these items are stable: [`Simulation`](https://docs.rs/elevator-core/latest/elevator_core/sim/struct.Simulation.html)'s core methods, [`SimulationBuilder`](https://docs.rs/elevator-core/latest/elevator_core/builder/struct.SimulationBuilder.html), [`Event`](https://docs.rs/elevator-core/latest/elevator_core/events/enum.Event.html), [`SimError`](https://docs.rs/elevator-core/latest/elevator_core/error/enum.SimError.html), the ID newtypes, the physical-unit newtypes (`Weight`, `Speed`, `Accel`), and [`WorldSnapshot`](https://docs.rs/elevator-core/latest/elevator_core/snapshot/struct.WorldSnapshot.html).
-
-Experimental areas: `dispatch::*`, `hooks::*`, `topology::*`, `tagged_metrics::*`, `scenario::*`, `traffic::*`, `query::*`, `world` extension APIs, `config::*`, and `movement::*`.
+The module table at the top of the [`elevator-core` crate docs](https://docs.rs/elevator-core) has a Stability column for every row and is the canonical list. `STABILITY.md` lists the per-item day-one classification — check it before taking a dependency on a specific module.
 
 ## Depending on experimental APIs
 
@@ -32,9 +28,7 @@ When you bump the minor, expect a short migration task. The CHANGELOG will call 
 
 ## Cadence commitment
 
-`elevator-core` shipped 15 majors between v1.0 and v15.0 during API discovery. Going forward: **at most one breaking change to the stable surface per 60 days**, with planned majors bundling breaks together. Experimental surface isn't bound by this cap.
-
-The cadence commitment is not retroactive — it applies to releases after v15.1.0.
+The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. The commitment applies to releases after v15.1.0 — see [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md) for the specific bound and retroactivity note.
 
 ## Next steps
 
