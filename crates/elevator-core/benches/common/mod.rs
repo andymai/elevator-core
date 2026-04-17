@@ -1,10 +1,5 @@
-//! Shared bench configuration helpers.
-//!
-//! Each bench file compiles as its own binary, so this module is included
-//! via `mod common;` in each bench that needs it. Centralizes the
-//! `ElevatorConfig` construction so a field-type change (e.g. `f64` →
-//! `Accel`/`Speed`/`Weight`) lands in one place instead of drifting across
-//! bench files.
+//! Shared bench configuration helpers — centralises `ElevatorConfig`
+//! construction so a field-type change lands in one place.
 
 #![allow(dead_code)]
 
@@ -12,8 +7,8 @@ use elevator_core::components::{Accel, Speed, Weight};
 use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
 
-/// Build an `ElevatorConfig` with the given physics and benchmark-default
-/// door / service-mode / inspection settings.
+/// `(id, starting_stop, max_speed, acceleration, deceleration, weight_capacity)`
+/// — benchmark-default door/service/inspection settings are applied.
 pub fn elevator_cfg(
     id: u32,
     starting_stop: StopId,
