@@ -1,0 +1,32 @@
+SimConfig(
+    building: BuildingConfig(
+        name: "Demo Tower",
+        stops: [
+            StopConfig(id: StopId(0), name: "Ground", position: 0.0),
+            StopConfig(id: StopId(1), name: "Floor 2", position: 4.0),
+            StopConfig(id: StopId(2), name: "Floor 3", position: 7.5),
+            StopConfig(id: StopId(3), name: "Floor 4", position: 11.0),
+            StopConfig(id: StopId(4), name: "Roof", position: 15.0),
+        ],
+    ),
+    elevators: [
+        ElevatorConfig(
+            id: 0,
+            name: "Main",
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 60,
+            door_transition_ticks: 15,
+        ),
+    ],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        mean_interval_ticks: 120,
+        weight_range: (50.0, 100.0),
+    ),
+)
