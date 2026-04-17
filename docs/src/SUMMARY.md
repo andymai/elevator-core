@@ -41,6 +41,7 @@
 - [Traffic Generation](traffic-generation.md)
 - [Snapshots and Determinism](snapshots-determinism.md)
 - [Testing Your Simulation](testing.md)
+- [Stability and Versioning](stability.md)
 
 ---
 
