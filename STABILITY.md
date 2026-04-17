@@ -62,6 +62,7 @@ As of `elevator-core` v15.1.0, these items are **stable**:
 - `builder::SimulationBuilder` (entire public surface)
 - `events::Event` (enum, `#[non_exhaustive]`)
 - `error::SimError` (enum, `#[non_exhaustive]`)
+- `metrics::Metrics` (entire public surface)
 - `stop::{StopId, StopConfig}`
 - `entity::{ElevatorId, RiderId, EntityId}`
 - `components::{Weight, Speed, Accel}` and `components::units::UnitError`
@@ -85,12 +86,14 @@ These items are **experimental** and may change in any minor version:
   changes can happen here.
 - `movement::*` — trapezoidal-motion primitives. Useful as building
   blocks but not committed.
+- `energy::*` (feature-gated) — simplified per-elevator energy model.
+  Opt-in via the `energy` feature; the accounting model may shift.
 
 These items are **internal**:
 
 - `systems::*` — per-phase tick logic (`pub(crate)`).
-- `door::*`, `energy::*`, `eta::*` — low-level building blocks
-  re-exported only where practical.
+- `door::*`, `eta::*` — low-level building blocks re-exported only
+  where practical.
 - Anything `#[doc(hidden)]`.
 
 ## Wrapper crates

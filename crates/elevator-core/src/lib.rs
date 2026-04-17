@@ -82,6 +82,7 @@
 //! | [`tagged_metrics`] | Per-tag metric accumulators for zone/line/priority breakdowns | experimental |
 //! | [`movement`] | Trapezoidal velocity-profile primitives ([`braking_distance`](movement::braking_distance), [`tick_movement`](movement::tick_movement)) | experimental |
 //! | [`door`] | Door finite-state machine ([`DoorState`](door::DoorState)) | internal |
+//! | [`eta`] | Per-stop arrival-time estimation used by dispatch | internal |
 //! | [`time`] | Tick-to-wall-clock conversion ([`TimeAdapter`](time::TimeAdapter)) | experimental |
 //! | `energy` | Simplified per-elevator energy modeling (gated behind the `energy` feature) | experimental |
 //! | [`stop`] | [`StopId`](stop::StopId) and [`StopConfig`](stop::StopConfig) | stable |
