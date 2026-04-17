@@ -20,14 +20,14 @@ impl Simulation {
     // ── Dynamic topology ────────────────────────────────────────────
 
     /// Mark the topology graph dirty so it is rebuilt on next query.
-    pub(super) fn mark_topo_dirty(&self) {
+    fn mark_topo_dirty(&self) {
         if let Ok(mut g) = self.topo_graph.lock() {
             g.mark_dirty();
         }
     }
 
     /// Find the (`group_index`, `line_index`) for a line entity.
-    pub(super) fn find_line(&self, line: EntityId) -> Result<(usize, usize), SimError> {
+    fn find_line(&self, line: EntityId) -> Result<(usize, usize), SimError> {
         self.groups
             .iter()
             .enumerate()
@@ -700,7 +700,7 @@ impl Simulation {
     // ── Topology queries ─────────────────────────────────────────────
 
     /// Rebuild the topology graph if any mutation has invalidated it.
-    pub(super) fn ensure_graph_built(&self) {
+    fn ensure_graph_built(&self) {
         if let Ok(mut graph) = self.topo_graph.lock()
             && graph.is_dirty()
         {
