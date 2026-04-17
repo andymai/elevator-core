@@ -4,29 +4,13 @@
 //! monolithic `sim.rs` for readability. See the parent module for the
 //! overarching essential-API summary.
 
-#![allow(unused_imports)]
-
-use crate::components::{
-    Accel, AccessControl, ElevatorPhase, Orientation, Patience, Preferences, Rider, RiderPhase,
-    Route, SpatialPosition, Speed, Velocity, Weight,
-};
-use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
-use crate::entity::{ElevatorId, EntityId, RiderId};
-use crate::error::{EtaError, SimError};
-use crate::events::{Event, EventBus};
-use crate::hooks::{Phase, PhaseHooks};
+use crate::dispatch::DispatchStrategy;
+use crate::events::EventBus;
+use crate::hooks::Phase;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
-use crate::rider_index::RiderIndex;
-use crate::stop::{StopId, StopRef};
 use crate::systems::PhaseContext;
-use crate::time::TimeAdapter;
-use crate::topology::TopologyGraph;
-use crate::world::World;
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt;
-use std::sync::Mutex;
-use std::time::Duration;
+use std::collections::BTreeMap;
 
 impl super::Simulation {
     // ── Sub-stepping ────────────────────────────────────────────────
@@ -221,8 +205,9 @@ impl super::Simulation {
 
     /// Run only the reposition phase (with hooks).
     ///
-    /// Global before/after hooks always fire even when no [`RepositionStrategy`]
-    /// is configured. Per-group hooks only fire for groups that have a
+    /// Global before/after hooks always fire even when no
+    /// [`RepositionStrategy`](crate::dispatch::RepositionStrategy) is
+    /// configured. Per-group hooks only fire for groups that have a
     /// repositioner — this differs from other phases where per-group hooks
     /// fire unconditionally.
     pub fn run_reposition(&mut self) {

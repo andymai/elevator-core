@@ -4,41 +4,25 @@
 //! monolithic `sim.rs` for readability. See the parent module for the
 //! overarching essential-API summary.
 
-#![allow(unused_imports)]
-
-use crate::components::{
-    Accel, AccessControl, ElevatorPhase, Orientation, Patience, Preferences, Rider, RiderPhase,
-    Route, SpatialPosition, Speed, Velocity, Weight,
-};
-use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
-use crate::entity::{ElevatorId, EntityId, RiderId};
-use crate::error::{EtaError, SimError};
-use crate::events::{Event, EventBus};
-use crate::hooks::{Phase, PhaseHooks};
+use crate::components::{Rider, RiderPhase, Route, Weight};
+use crate::dispatch::ElevatorGroup;
+use crate::entity::{EntityId, RiderId};
+use crate::error::SimError;
+use crate::events::Event;
 use crate::ids::GroupId;
-use crate::metrics::Metrics;
-use crate::rider_index::RiderIndex;
-use crate::stop::{StopId, StopRef};
-use crate::systems::PhaseContext;
-use crate::time::TimeAdapter;
-use crate::topology::TopologyGraph;
-use crate::world::World;
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt;
-use std::sync::Mutex;
-use std::time::Duration;
+use crate::stop::StopRef;
 
 impl super::Simulation {
     // ── Rider spawning ───────────────────────────────────────────────
 
     /// Create a rider builder for fluent rider spawning.
     ///
-    /// Accepts [`EntityId`] or [`StopId`] for origin and destination
+    /// Accepts [`EntityId`] or [`StopId`](crate::stop::StopId) for origin and destination
     /// (anything that implements `Into<StopRef>`).
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::StopNotFound`] if a [`StopId`] does not exist
+    /// Returns [`SimError::StopNotFound`] if a [`StopId`](crate::stop::StopId) does not exist
     /// in the building configuration.
     ///
     /// ```
