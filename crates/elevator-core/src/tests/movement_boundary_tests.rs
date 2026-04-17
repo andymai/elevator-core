@@ -102,13 +102,16 @@ fn tick_movement_stopping_distance_divisor_is_multiplicative() {
 
 // ── tick_movement fast-path: displacement boundary ──────────────────
 
-/// Kills `replace < with <= in tick_movement` at the `velocity.abs() <
-/// EPSILON` half of the fast-path guard (the position side is covered by
-/// the existing proptest).
+/// Verifies that a velocity well above `EPSILON` (1e-3 ≫ 1e-9) is not
+/// mistaken for stationary: the fast-path is skipped, the sign-flip
+/// clamp drives velocity to 0, and the overshoot check marks arrival.
 ///
-/// At `displacement = 0` exactly and `velocity` just above EPSILON, the
-/// fast-path should *not* fire. Instead the trapezoidal path forces a
-/// deceleration.
+/// Note: the `velocity.abs() < EPSILON` → `<= EPSILON` mutant at the
+/// fast-path guard is an **equivalent mutant** — at the exact-EPSILON
+/// boundary both paths converge to `{arrived: true, velocity: 0,
+/// position: target}`, so no test input can distinguish them. This test
+/// is retained for defense-in-depth against a drift in the trapezoidal
+/// deceleration / sign-flip chain.
 #[test]
 fn tick_movement_fastpath_requires_velocity_below_epsilon() {
     // EPSILON is 1e-9 in tick_movement. Use velocity = 1e-3 so we are well
@@ -166,11 +169,16 @@ fn tick_movement_sign_flip_negative_clamps_to_zero() {
 
 // ── tick_movement accelerate / cruise transition (lines 76-80) ──────
 
-/// Kills `replace < with <= in tick_movement` on `speed < max_speed`.
-///
-/// At `speed == max_speed` exactly with a distant target, the cruise
-/// branch must fire (not accelerate). Observable: velocity stays at
+/// Defense-in-depth: asserts canonical cruise behavior when
+/// `speed == max_speed` with a distant target — velocity stays at
 /// `max_speed`, not pushed above it.
+///
+/// Note: the `speed < max_speed` → `<= max_speed` mutant is an
+/// **equivalent mutant** — under `<=` the accelerate branch would
+/// compute `v = 2.0 + 1·0.5 = 2.5` and then clamp to `max_speed = 2.0`,
+/// producing the same observable velocity as the cruise branch. This
+/// test is retained for structural coverage against a rewrite of the
+/// cruise or cap branches.
 #[test]
 fn tick_movement_speed_at_max_cruises_not_accelerates() {
     let result = tick_movement(0.0, 2.0, 100.0, 2.0, 1.0, 1.0, 0.5);
