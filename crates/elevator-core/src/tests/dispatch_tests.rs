@@ -605,7 +605,7 @@ fn assign_handles_large_group_without_overflow() {
 
 // ===== Single-elevator, single-stop edge case tests (#179) =====
 
-/// Build a `World` with 1 stop and return (world, stop_entities).
+/// Build a `World` with 1 stop and return (world, `stop_entities`).
 fn single_stop_world() -> (World, Vec<crate::entity::EntityId>) {
     let mut world = World::new();
     let eid = world.spawn();

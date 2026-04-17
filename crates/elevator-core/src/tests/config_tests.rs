@@ -1,3 +1,4 @@
+use crate::components::Orientation;
 use crate::config::SimConfig;
 use crate::error::SimError;
 
@@ -127,7 +128,7 @@ fn rejects_empty_line_serves() {
         name: "Empty".into(),
         serves: vec![],
         elevators: config.elevators.clone(),
-        orientation: Default::default(),
+        orientation: Orientation::default(),
         position: None,
         min_position: None,
         max_position: None,

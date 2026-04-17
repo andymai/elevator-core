@@ -6,6 +6,8 @@
 
 mod sim_node;
 
+pub use sim_node::ElevatorSim;
+
 use godot::prelude::*;
 
 /// GDExtension entry point.

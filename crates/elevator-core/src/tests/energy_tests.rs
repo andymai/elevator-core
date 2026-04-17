@@ -185,13 +185,10 @@ fn energy_consumed_events_emitted() {
 
     sim.step();
     let events = sim.drain_events();
-    let energy_events: Vec<_> = events
-        .iter()
-        .filter(|e| matches!(e, Event::EnergyConsumed { .. }))
-        .collect();
-
     assert!(
-        !energy_events.is_empty(),
+        events
+            .iter()
+            .any(|e| matches!(e, Event::EnergyConsumed { .. })),
         "expected at least one EnergyConsumed event per tick"
     );
 }

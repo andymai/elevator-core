@@ -22,7 +22,7 @@ fn first_elevator(sim: &crate::sim::Simulation) -> ElevatorId {
 }
 
 /// Drive the sim until the elevator is actively moving (phase is
-/// MovingToStop), then return the elevator's current phase. Panics if it
+/// `MovingToStop`), then return the elevator's current phase. Panics if it
 /// does not start moving within the budget.
 fn step_until_moving(sim: &mut crate::sim::Simulation, elev: ElevatorId) {
     for _ in 0..200 {
