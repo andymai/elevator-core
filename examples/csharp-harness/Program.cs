@@ -73,6 +73,8 @@ internal static class Native
         public uint occupancy;
         public double capacity_kg;
         public byte door_state;
+        public byte going_up;
+        public byte going_down;
     }
 
     // Matches crates/elevator-ffi/src/lib.rs::EvStopView.
@@ -170,7 +172,7 @@ internal static class Native
 internal static class Program
 {
     private const int TICKS = 600;
-    private const uint EXPECTED_ABI = 1;
+    private const uint EXPECTED_ABI = 2;
 
     private static int Main(string[] args)
     {
