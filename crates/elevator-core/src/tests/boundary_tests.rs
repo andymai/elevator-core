@@ -56,14 +56,15 @@ fn patience_one_abandons_after_one_tick() {
     );
 }
 
-/// Document: max_wait_ticks = 0 and max_wait_ticks = 1 both abandon on the first tick.
+/// Document: `max_wait_ticks` = 0 and `max_wait_ticks` = 1 both abandon on the first tick.
 ///
 /// The abandon condition is `waited_ticks >= max_wait_ticks.saturating_sub(1)`.
-/// - max_wait_ticks=0: saturating_sub(1) → 0, so 0 >= 0 is true → abandons before increment.
-/// - max_wait_ticks=1: saturating_sub(1) → 0, so 0 >= 0 is true → same behavior.
+/// - `max_wait_ticks=0`: `saturating_sub(1)` → 0, so 0 >= 0 is true → abandons before increment.
+/// - `max_wait_ticks=1`: `saturating_sub(1)` → 0, so 0 >= 0 is true → same behavior.
+///
 /// This equivalence is intentional: there is no meaningful difference between
 /// "zero patience" and "one-tick patience" since the check runs before the
-/// waited_ticks counter increments.
+/// `waited_ticks` counter increments.
 #[test]
 fn patience_zero_and_one_are_equivalent() {
     for max_wait in [0, 1] {
@@ -249,7 +250,7 @@ fn weight_exceeds_capacity_by_epsilon_rejects() {
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 799.5).unwrap();
-    let r2 = sim.spawn_rider(StopId(0), StopId(2), 0.500001).unwrap();
+    let r2 = sim.spawn_rider(StopId(0), StopId(2), 0.500_001).unwrap();
 
     // Run until r1 is aboard.
     for _ in 0..100 {
