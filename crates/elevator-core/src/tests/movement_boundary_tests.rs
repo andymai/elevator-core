@@ -40,23 +40,9 @@ fn braking_distance_divisor_is_multiplicative() {
 /// Observable: final velocity magnitude after one tick.
 #[test]
 fn tick_movement_decelerates_when_stopping_distance_exceeds_remaining() {
-    // Speed 10, decel 1: stopping_distance = 100/2 = 50. Target 2 units away.
-    // Original: stopping_distance(50) >= remaining(2) → decelerate. New vel
-    // = 10 + (-1 * 1) = 9.0.
-    // Mutant (speed+speed): stopping_distance = (10+10)/2 = 10; still >= 2,
-    // same decelerate branch, same velocity. Need a setup where the mutant
-    // picks the *accelerate* branch instead.
-    //
-    // Speed 2, decel 1, target 10 away: stopping = 4/2 = 2. `2 >= 10 - EPS`
-    // false → accelerate. Mutant: stopping = 4/2 = 2, same. Not useful.
-    //
-    // Speed 10, decel 1, target 10 away: stopping = 100/2 = 50 >= 10 →
-    // decelerate, new vel = 9. Mutant: stopping = 20/2 = 10 >= 10 → still
-    // decelerate. Borderline.
-    //
-    // Speed 5, decel 1, target 9 away: stopping = 25/2 = 12.5 >= 9 →
-    // decelerate. Mutant: stopping = 10/2 = 5 < 9 → accelerate (new vel = 6).
-    // Original new vel = 4. Divergence!
+    // Speed=5, decel=1, target=9 away: original stopping=25/2=12.5 >= 9 →
+    // decelerate (new vel=4). Mutant stopping=10/2=5 < 9 → accelerate (new
+    // vel=6). Diverges on velocity magnitude.
     let result = tick_movement(0.0, 5.0, 9.0, 10.0, 1.0, 1.0, 1.0);
     assert!(
         (result.velocity - 4.0).abs() < 1e-9,
