@@ -22,6 +22,16 @@ namespace ElevatorDemo
 
         public static ElevatorSimulation Create(string configPath)
         {
+            const uint ExpectedAbi = 1;
+            uint abiVersion = ElevatorNative.ev_abi_version();
+            if (abiVersion != ExpectedAbi)
+            {
+                Debug.LogError(
+                    $"elevator_ffi ABI version mismatch: expected {ExpectedAbi}, got {abiVersion}. " +
+                    "Run build.sh to recompile the native library.");
+                return new ElevatorSimulation(); // IsValid == false
+            }
+
             var sim = new ElevatorSimulation();
             sim._handle = ElevatorNative.ev_sim_create(configPath);
             if (sim._handle == IntPtr.Zero)

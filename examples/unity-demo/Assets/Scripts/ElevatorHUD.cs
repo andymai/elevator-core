@@ -57,10 +57,11 @@ namespace ElevatorDemo
                     $"Car {i}: {phase}  pos={e.position:F1}  vel={e.velocity:F2}", _labelStyle);
                 y += lineH;
 
-                float loadPct = e.capacity_kg > 0 ? (float)(e.position / e.capacity_kg * 100) : 0;
-                // Use current_load from occupancy * avg weight estimate.
+                float loadPct = e.capacity_kg > 0
+                    ? Mathf.Clamp01((float)(e.occupancy * 75.0 / e.capacity_kg)) * 100f
+                    : 0f;
                 GUI.Label(new Rect(x, y, w, lineH),
-                    $"  Capacity: {e.capacity_kg:F0} kg  Riders: {e.occupancy}", _labelStyle);
+                    $"  Capacity: {e.capacity_kg:F0} kg  Riders: {e.occupancy}  Load: {loadPct:F0}%", _labelStyle);
                 y += lineH;
             }
 
