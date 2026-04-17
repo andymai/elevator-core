@@ -57,10 +57,12 @@ echo "checking code fence annotations..."
 ignore_err() {
     err "$1: \`\`\`ignore is not allowed (use rust or rust,no_run so the fence is type-checked)"
 }
-# Chapters: fence opens a line like ```rust,ignore or ```ignore.
+# Chapters and README: fence opens a line like ```rust,ignore or ```ignore.
+# README.md is included in the doctest pipeline via `include_str!`, so it
+# belongs under the same policy as the mdBook chapters.
 while IFS=: read -r file line _; do
-    ignore_err "$(basename "$file"):$line"
-done < <(grep -HnE '^```.*\bignore\b' "$DOCS_SRC"/*.md 2>/dev/null || true)
+    ignore_err "${file#"$REPO_ROOT/"}:$line"
+done < <(grep -HnE '^```.*\bignore\b' "$DOCS_SRC"/*.md "$REPO_ROOT"/README.md 2>/dev/null || true)
 # Rustdoc: fence inside /// or //! comments — same rule applies.
 while IFS=: read -r file line _; do
     ignore_err "${file#"$REPO_ROOT/"}:$line"
