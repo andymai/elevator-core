@@ -168,6 +168,14 @@ jobs:
       - name: Check core (no default features, wasm32)
         run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features
 
+      - name: Check core (energy feature, wasm32)
+        # Covers the non-default `energy` feature in isolation. Using
+        # `--features energy --no-default-features` rather than
+        # `--all-features` because enabling `traffic` pulls in `rand` →
+        # `getrandom`, whose `wasm_js` backend is deliberately only wired
+        # up in `elevator-wasm` so the core crate stays engine-agnostic.
+        run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features --features energy
+
       - name: Check elevator-wasm bindgen crate
         run: cargo check -p elevator-wasm --target wasm32-unknown-unknown
 

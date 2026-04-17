@@ -45,7 +45,9 @@ jobs:
         # Use the prebuilt binary so runners don't need libbz2-dev / openssl-dev.
         uses: jetli/wasm-pack-action@v0.4.0
         with:
-          version: latest
+          # Pinned: a new wasm-pack release with breaking CLI changes could
+          # otherwise silently break this job. Bump deliberately.
+          version: "0.13.1"
 
       - name: Lint docs
         run: scripts/lint-docs.sh --quick
