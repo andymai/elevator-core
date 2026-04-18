@@ -88,6 +88,40 @@ fn too_few_stops_returns_none() {
     assert!(TrafficPattern::Uniform.sample(&stops, &mut rng).is_none());
 }
 
+/// Lunchtime should bias destinations toward the mid floor regardless of
+/// whether the building has an even or odd number of stops (#269).
+/// Pre-fix, `mid == upper_start` for even `n` made the bias silently
+/// degenerate to uniform.
+#[test]
+fn lunchtime_biases_to_mid_for_even_floor_count() {
+    let mut world = World::new();
+    let mut rng = rand::rng();
+
+    for n in [4usize, 6, 8, 10, 12] {
+        let stops = make_stops(&mut world, n);
+        let mid = (n - 1) / 2;
+        let mid_id = stops[mid];
+
+        let total = 2000;
+        let mut mid_dests = 0;
+        for _ in 0..total {
+            let (_, d) = TrafficPattern::Lunchtime.sample(&stops, &mut rng).unwrap();
+            if d == mid_id {
+                mid_dests += 1;
+            }
+        }
+        let ratio = mid_dests as f64 / total as f64;
+        // Pattern weighting: 40% upper→mid (all hit mid) + 20%·1/n uniform.
+        // Expected ≈ 0.4 + 0.2/n. Pre-fix this collapsed to ~ 1/n on even n.
+        // Threshold of 0.30 confirms the bias survives for both odd and even n.
+        assert!(
+            ratio > 0.30,
+            "Lunchtime n={n} should bias to mid (expected ~0.40, pre-fix would be ~{:.3}); got {ratio:.3}",
+            1.0 / n as f64
+        );
+    }
+}
+
 // ── TrafficSchedule ──────────────────────────────────────────────────
 
 #[test]

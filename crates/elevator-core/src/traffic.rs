@@ -78,7 +78,12 @@ fn sample_indices(
     }
 
     let lobby = 0;
-    let mid = n / 2;
+    // Lower-middle index. For even `n`, `n/2` equals `n.div_ceil(2)` (the
+    // upper-half start used by `Lunchtime`), making the two ranges overlap
+    // and silently disabling the bias. `(n - 1) / 2` keeps `mid` strictly
+    // below `upper_start` for even n while preserving the same value for
+    // odd n. (#269)
+    let mid = (n - 1) / 2;
 
     match pattern {
         TrafficPattern::Uniform => Some(uniform_pair_indices(n, rng)),
