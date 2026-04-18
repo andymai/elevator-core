@@ -199,6 +199,28 @@ fn scan_reverses_when_nothing_ahead() {
 fn scan_serves_rider_destination() {
     let (mut world, stops) = test_world();
     let elev = spawn_elevator(&mut world, 0.0);
+    // Put the rider *aboard* this car, not just in the manifest. The
+    // earlier form of this test faked aboard demand by only populating
+    // `riding_to_stop` — a fixture that can't occur in production since
+    // `build_manifest` derives `riding_to_stop` from each group car's
+    // `riders` list. Once `pair_can_do_work` started rejecting
+    // unservable self-pairs (to close the cross-car stall), the faked
+    // form became unreachable and the test asserted on a Hungarian
+    // fallback. Boarding the rider on this car restores the intent:
+    // the car has a destination to fulfil, so SCAN must drive there.
+    let rider = world.spawn();
+    world.set_rider(
+        rider,
+        Rider {
+            weight: Weight::from(70.0),
+            phase: RiderPhase::Riding(elev),
+            current_stop: None,
+            spawn_tick: 0,
+            board_tick: Some(0),
+        },
+    );
+    world.set_route(rider, Route::direct(stops[0], stops[2], GroupId(0)));
+    world.elevator_mut(elev).unwrap().riders.push(rider);
     let group = test_group(&stops, vec![elev]);
     let mut manifest = DispatchManifest::default();
     add_rider_dest(&mut manifest, &mut world, stops[2]);

@@ -174,7 +174,22 @@ impl EtdDispatch {
             return f64::INFINITY;
         };
 
-        let door_overhead_per_stop = f64::from(car.door_transition_ticks * 2 + car.door_open_ticks);
+        // Door overhead is a seconds-denominated cost so the Hungarian
+        // can compare it apples-to-apples against travel time and
+        // existing-rider delay. Pre-fix, this was summed in ticks,
+        // multiplied by `door_weight` (dimensionless), and added to
+        // seconds-valued terms — giving door cost ~60× the intended
+        // influence at 60 Hz. A single intervening stop could then
+        // outweigh a long travel time and bias ETD toward distant
+        // cars with clear shafts over closer ones with a single
+        // waypoint. Convert with the sim's tick rate (resource-
+        // provided) and fall back to 60 Hz for bare-World contexts
+        // such as unit-test fixtures.
+        let tick_rate = world
+            .resource::<crate::time::TickRate>()
+            .map_or(60.0, |r| r.0);
+        let door_overhead_per_stop =
+            f64::from(car.door_transition_ticks * 2 + car.door_open_ticks) / tick_rate;
 
         // Intervening pending stops between car and target contribute door overhead.
         let (lo, hi) = if elev_pos < target_pos {
