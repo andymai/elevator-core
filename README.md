@@ -12,7 +12,7 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 [![CI](https://img.shields.io/github/actions/workflow/status/andymai/elevator-core/ci.yml?label=CI)](https://github.com/andymai/elevator-core/actions)
 [![License](https://img.shields.io/crates/l/elevator-core.svg)](LICENSE-MIT)
 
-[Guide](https://andymai.github.io/elevator-core/) · [API Reference](https://docs.rs/elevator-core) · [Examples](crates/elevator-core/examples/) · [Changelog](CHANGELOG.md) · [Stability](STABILITY.md)
+[Guide](https://andymai.github.io/elevator-core/) · [API Reference](https://docs.rs/elevator-core) · [Examples](crates/elevator-core/examples/) · [Changelog](CHANGELOG.md) · [Stability](STABILITY.md) · [Bench history](https://andymai.github.io/elevator-core/bench/)
 
 **[▶ Try the live playground](https://andymai.github.io/elevator-core/playground/)** — swap dispatch strategies, tune traffic, and share seeds right in your browser.
 
