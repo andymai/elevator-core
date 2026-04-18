@@ -759,6 +759,42 @@ fn rider_builder_invalid_stop_id_returns_stop_not_found() {
     );
 }
 
+/// `spawn_rider` and `RiderBuilder::spawn` (when no explicit route is
+/// provided) reject `origin == destination`. Same-stop spawns produce
+/// no hall call so the rider would deadlock Waiting forever (#273).
+#[test]
+fn spawn_rider_rejects_origin_equals_destination() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let direct = sim.spawn_rider(StopId(0), StopId(0), 70.0);
+    assert!(
+        matches!(
+            direct,
+            Err(SimError::InvalidConfig {
+                field: "destination",
+                ..
+            })
+        ),
+        "spawn_rider with same stop must error, got {direct:?}"
+    );
+
+    let builder = sim.build_rider(StopId(1), StopId(1)).unwrap().spawn();
+    assert!(
+        matches!(
+            builder,
+            Err(SimError::InvalidConfig {
+                field: "destination",
+                ..
+            })
+        ),
+        "RiderBuilder::spawn with same stop must error, got {builder:?}"
+    );
+
+    // No rider was actually spawned.
+    assert_eq!(sim.metrics().total_spawned(), 0);
+}
+
 #[test]
 fn rider_builder_no_route_when_stops_not_in_same_group() {
     // Build a sim with two separate groups, each with its own stops.

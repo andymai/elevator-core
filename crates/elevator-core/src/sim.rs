@@ -268,14 +268,28 @@ impl RiderBuilder<'_> {
                 });
             }
             route
-        } else if let Some(group) = self.group {
-            if !self.sim.groups.iter().any(|g| g.id() == group) {
-                return Err(SimError::GroupNotFound(group));
-            }
-            Route::direct(self.origin, self.destination, group)
         } else {
-            let group = self.sim.auto_detect_group(self.origin, self.destination)?;
-            Route::direct(self.origin, self.destination, group)
+            // No explicit route: must build one from origin → destination.
+            // Same origin/destination produces a Route::direct that no hall
+            // call can summon a car for — rider deadlocks Waiting (#273).
+            // Trust users that supply their own route.
+            if self.origin == self.destination {
+                return Err(SimError::InvalidConfig {
+                    field: "destination",
+                    reason: "origin and destination must differ; same-stop \
+                             spawns deadlock with no hall call to summon a car"
+                        .into(),
+                });
+            }
+            if let Some(group) = self.group {
+                if !self.sim.groups.iter().any(|g| g.id() == group) {
+                    return Err(SimError::GroupNotFound(group));
+                }
+                Route::direct(self.origin, self.destination, group)
+            } else {
+                let group = self.sim.auto_detect_group(self.origin, self.destination)?;
+                Route::direct(self.origin, self.destination, group)
+            }
         };
 
         let eid = self
