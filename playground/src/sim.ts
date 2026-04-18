@@ -1,4 +1,4 @@
-import type { Metrics, SimEvent, Snapshot, StrategyName } from "./types";
+import type { Metrics, Snapshot, StrategyName } from "./types";
 
 // Thin TS wrapper around `WasmSim` that narrows JS values returned by
 // serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
@@ -24,7 +24,6 @@ interface WasmSimInstance {
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): unknown;
-  drainEvents(): unknown;
   metrics(): unknown;
   waitingCountAt(stopId: number): number;
   free(): void;
@@ -103,10 +102,6 @@ export class Sim {
 
   snapshot(): Snapshot {
     return this.#inner.snapshot() as Snapshot;
-  }
-
-  drainEvents(): SimEvent[] {
-    return this.#inner.drainEvents() as SimEvent[];
   }
 
   metrics(): Metrics {
