@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.14](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.13...elevator-core-v15.2.14) (2026-04-18)
+
+
+### Bug Fixes
+
+* **topology:** remove_stop drops CarCalls referencing the removed stop ([#302](https://github.com/andymai/elevator-core/issues/302)) ([031b4d5](https://github.com/andymai/elevator-core/commit/031b4d59e04616a37e6eb0188af028285f97e62a))
+
 ## [15.2.13](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.12...elevator-core-v15.2.13) (2026-04-18)
 
 
