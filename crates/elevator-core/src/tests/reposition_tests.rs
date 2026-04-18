@@ -338,6 +338,57 @@ fn predictive_parking_spreads_across_hot_stops() {
     );
 }
 
+/// Asymmetric topology: 3 idle cars but only 2 hot stops — the third
+/// car must stay put rather than park on a cold stop or pile onto a
+/// hot one. Catches a regression where `assign_greedy_by_score` kept
+/// iterating after running out of hot stops.
+#[test]
+fn predictive_parking_asymmetric_extra_car_stays_put() {
+    let (mut world, stops) = test_world_n(4);
+    let elev_a = spawn_elevator(&mut world, 0.0);
+    let elev_b = spawn_elevator(&mut world, 4.0);
+    let elev_c = spawn_elevator(&mut world, 8.0);
+    let group = test_group(&stops, vec![elev_a, elev_b, elev_c]);
+
+    let mut log = ArrivalLog::default();
+    for _ in 0..10 {
+        log.record(50, stops[2]);
+    }
+    for _ in 0..5 {
+        log.record(50, stops[3]);
+    }
+    world.insert_resource(log);
+    world.insert_resource(CurrentTick(100));
+
+    let idle = vec![(elev_a, 0.0), (elev_b, 4.0), (elev_c, 8.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    // At most two moves — one per hot stop. No car parks on a cold
+    // stop and no car doubles up on an already-claimed hot stop.
+    assert!(
+        result.len() <= 2,
+        "must not generate more moves than hot stops; got {result:?}"
+    );
+    let targets: std::collections::HashSet<_> = result.iter().map(|(_, s)| *s).collect();
+    for &(_, target) in &result {
+        assert!(
+            target == stops[2] || target == stops[3],
+            "target {target:?} is not one of the hot stops"
+        );
+    }
+    assert!(
+        targets.len() == result.len(),
+        "each hot stop must appear at most once; got {result:?}"
+    );
+}
+
 // ReturnToLobby with `with_home(2)`.
 #[test]
 fn return_to_lobby_custom_home() {

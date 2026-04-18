@@ -125,6 +125,21 @@ impl super::Simulation {
             .unwrap_or_default()
     }
 
+    /// Set how far back the arrival log retains entries before
+    /// `advance_tick` prunes them. Strategies querying a window longer
+    /// than the default (`5` minutes at 60 Hz, see
+    /// [`DEFAULT_ARRIVAL_WINDOW_TICKS`](crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS))
+    /// must call this with a matching retention or they will silently
+    /// see only the last 5 minutes of arrivals.
+    pub fn set_arrival_log_retention_ticks(&mut self, retention_ticks: u64) {
+        if let Some(r) = self
+            .world
+            .resource_mut::<crate::arrival_log::ArrivalLogRetention>()
+        {
+            r.0 = retention_ticks;
+        }
+    }
+
     /// Mutable access to the group collection. Use this to flip a group
     /// into [`HallCallMode::Destination`](crate::dispatch::HallCallMode)
     /// or tune its `ack_latency_ticks` after construction. Changing the
