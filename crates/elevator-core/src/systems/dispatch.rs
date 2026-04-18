@@ -262,18 +262,29 @@ fn record_hall_assignment(world: &mut World, stop: EntityId, car: EntityId) {
     let Some(stop_pos) = world.stop_position(stop) else {
         return;
     };
-    let direction = if stop_pos > car_pos {
-        CallDirection::Up
+    if stop_pos > car_pos {
+        update_assignment(world, stop, CallDirection::Up, car);
     } else if stop_pos < car_pos {
-        CallDirection::Down
+        update_assignment(world, stop, CallDirection::Down, car);
     } else {
-        // Same position — prefer whichever call exists (Up first).
-        if world.hall_call(stop, CallDirection::Up).is_some() {
-            CallDirection::Up
-        } else {
-            CallDirection::Down
-        }
-    };
+        // Equal position: dispatch picks a stop, not a direction. If both
+        // Up and Down calls exist at this stop, mark BOTH so the
+        // public `sim.assigned_car(stop, _)` accessor gives a consistent
+        // answer. Pre-fix only Up was updated (and only when an Up call
+        // existed) — Down's `assigned_car` stayed stale, lying to
+        // observability consumers. (#294)
+        update_assignment(world, stop, CallDirection::Up, car);
+        update_assignment(world, stop, CallDirection::Down, car);
+    }
+}
+
+/// Helper: set `assigned_car` on a hall call if it exists and is unpinned.
+fn update_assignment(
+    world: &mut World,
+    stop: EntityId,
+    direction: crate::components::CallDirection,
+    car: EntityId,
+) {
     if let Some(call) = world.hall_call_mut(stop, direction)
         && !call.pinned
     {
