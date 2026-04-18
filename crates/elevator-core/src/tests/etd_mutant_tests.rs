@@ -429,6 +429,96 @@ fn etd_full_car_skips_unreachable_pickup_on_the_way() {
     );
 }
 
+// ── Group-time / squared-wait cost ──────────────────────────────────
+
+/// With a positive `wait_squared_weight`, two equidistant pickups
+/// break the tie in favor of the stop hosting the older waiter —
+/// models commercial DCS's fairness-weighted throughput claim that
+/// damps the long-wait tail (Aalto EJOR 2016).
+#[test]
+fn etd_squared_wait_prefers_older_waiting_rider() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0); // at stops[1] (pos 4)
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Stop at pos 0 — rider waiting 1000 ticks.
+    let old_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[0])
+        .or_default()
+        .push(RiderInfo {
+            id: old_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 1000,
+        });
+    // Stop at pos 8 — rider waiting only 1 tick.
+    let new_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[2])
+        .or_default()
+        .push(RiderInfo {
+            id: new_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 1,
+        });
+
+    let mut etd = EtdDispatch::new().with_wait_squared_weight(1.0);
+    let decision = decide_one(&mut etd, elev, 4.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[0]),
+        "positive `wait_squared_weight` must bias ETD toward the stop with an older waiter"
+    );
+}
+
+/// A modest fairness weight must not override travel-time dominance
+/// when the far stop's extra wait isn't large enough to justify the
+/// detour. Regression guard against picking a too-aggressive bias
+/// scale that wrecks normal efficiency.
+#[test]
+fn etd_squared_wait_does_not_override_travel_time() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    let new_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[1])
+        .or_default()
+        .push(RiderInfo {
+            id: new_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 5,
+        });
+    let older = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: older,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 20,
+        });
+
+    let mut etd = EtdDispatch::new().with_wait_squared_weight(0.001);
+    let decision = decide_one(&mut etd, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[1]),
+        "modest wait_squared_weight must not reverse travel-time dominance"
+    );
+}
+
 // ── Equivalent mutants (documented, not tested) ─────────────────────
 //
 // The following mutants are observationally **equivalent** to the
