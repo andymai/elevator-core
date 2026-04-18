@@ -259,14 +259,23 @@ impl super::Simulation {
         Ok(())
     }
 
-    /// Internal: resolve an elevator entity or return a clear error.
+    /// Internal: resolve an elevator entity that is alive and not
+    /// disabled. Returns `NotAnElevator` if the entity is missing,
+    /// `ElevatorDisabled` if it has been disabled. Used by runtime
+    /// upgrade setters in `runtime.rs` so they can't silently mutate
+    /// an out-of-service car (#265).
     pub(super) fn require_elevator(
         &self,
         elevator: EntityId,
     ) -> Result<&crate::components::Elevator, SimError> {
-        self.world
+        let car = self
+            .world
             .elevator(elevator)
-            .ok_or(SimError::NotAnElevator(elevator))
+            .ok_or(SimError::NotAnElevator(elevator))?;
+        if self.world.is_disabled(elevator) {
+            return Err(SimError::ElevatorDisabled(elevator));
+        }
+        Ok(car)
     }
 
     /// Internal: positive-finite validator matching the construction-time
