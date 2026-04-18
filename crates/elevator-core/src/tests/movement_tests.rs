@@ -293,7 +293,8 @@ fn opposing_velocity_brakes_at_deceleration_rate() {
     let r = tick_movement(
         5.0, 2.0, 0.0, 3.0, /*accel*/ 1.0, /*decel*/ 4.0, 0.1,
     );
-    let expected_v = 2.0 - 4.0 * 0.1; // 1.6
+    // velocity - decel·dt = 2.0 - 4.0·0.1 = 1.6
+    let expected_v = 1.6_f64;
     assert!(
         (r.velocity - expected_v).abs() < 1e-9,
         "expected decel-rate slowdown to {expected_v}, got {}",
