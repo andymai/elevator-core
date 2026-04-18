@@ -20,7 +20,12 @@ interface WasmSimInstance {
   currentTick(): bigint;
   strategyName(): string;
   setStrategy(name: string): boolean;
-  spawnRider(origin: number, destination: number, weight: number): void;
+  spawnRider(
+    origin: number,
+    destination: number,
+    weight: number,
+    patienceTicks?: number,
+  ): void;
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): unknown;
@@ -100,8 +105,13 @@ export class Sim {
     return this.#inner.setStrategy(name);
   }
 
-  spawnRider(origin: number, destination: number, weight: number): void {
-    this.#inner.spawnRider(origin, destination, weight);
+  spawnRider(
+    origin: number,
+    destination: number,
+    weight: number,
+    patienceTicks?: number,
+  ): void {
+    this.#inner.spawnRider(origin, destination, weight, patienceTicks);
   }
 
   setTrafficRate(ridersPerMinute: number): void {

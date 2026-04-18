@@ -243,6 +243,13 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
   state.traffic = new TrafficDriver(state.permalink.seed);
   state.traffic.setPhases(scenario.phases);
   state.traffic.setIntensity(state.permalink.intensity);
+  // Scenario-level abandonment — converted from seconds to ticks using
+  // the sim's 60 Hz canonical rate. Scenarios omitting `abandonAfterSec`
+  // (convention burst) keep the pre-patience "wait forever" behavior
+  // so their stress tests stay punishing.
+  state.traffic.setPatienceTicks(
+    scenario.abandonAfterSec ? Math.round(scenario.abandonAfterSec * 60) : 0,
+  );
   // Tear the old panes down *before* building new ones so the freed wasm
   // memory is released before we allocate the replacements.
   disposePane(state.paneA);
@@ -275,7 +282,12 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
         const specs = state.traffic.drainSpawns(snapForSeed, 1 / 300);
         for (const spec of specs) {
           forEachPane(state, (pane) =>
-            pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight),
+            pane.sim.spawnRider(
+              spec.originStopId,
+              spec.destStopId,
+              spec.weight,
+              spec.patienceTicks,
+            ),
           );
         }
         // Break once we've seeded enough — drainSpawns caps per-frame
@@ -399,7 +411,12 @@ function loop(state: State): void {
       const specs = state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
         forEachPane(state, (pane) =>
-          pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight),
+          pane.sim.spawnRider(
+            spec.originStopId,
+            spec.destStopId,
+            spec.weight,
+            spec.patienceTicks,
+          ),
         );
       }
 

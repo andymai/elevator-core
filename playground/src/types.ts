@@ -121,4 +121,21 @@ export interface ScenarioMeta {
   hook: ScenarioHook;
   /** One-line narrative shown alongside the feature hook to frame what to watch for. */
   featureHint: string;
+  /**
+   * Time a rider will wait before abandoning the queue, in simulated
+   * seconds. Prevents scenarios whose peak phases run above the
+   * building's cruise capacity from accumulating an unbounded wait
+   * line — old waiters leave, new ones arrive, queue reaches a
+   * bounded steady state matching the demand/supply gap.
+   *
+   * Pre-fix, office-lunchtime under two cars at 65 riders/min vs.
+   * ~54/min cruise grew the queue forever; 90–120 s is a realistic
+   * human patience budget for commercial elevators (shorter during
+   * bursty peaks, longer during midday lulls — we use one value per
+   * scenario for simplicity).
+   *
+   * Omit to disable abandonment (convention burst leaves it off so
+   * the full 170-riders/min stress test actually applies pressure).
+   */
+  abandonAfterSec?: number;
 }
