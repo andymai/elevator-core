@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.4.1...elevator-core-v15.5.0) (2026-04-18)
+
+
+### Features
+
+* **playground:** rider abandonment + headless audit tool ([#326](https://github.com/andymai/elevator-core/issues/326)) ([ebe6bc6](https://github.com/andymai/elevator-core/commit/ebe6bc67e995ae4018a4e088893006237e617fc5))
+
 ## [15.4.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.4.0...elevator-core-v15.4.1) (2026-04-18)
 
 
