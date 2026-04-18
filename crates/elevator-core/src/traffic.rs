@@ -388,6 +388,12 @@ pub struct PoissonSource {
     rng: rand::rngs::StdRng,
     /// Tick of the next scheduled arrival.
     next_arrival_tick: u64,
+    /// True once the schedule is "committed" — either `generate()` has
+    /// processed at least one tick, or `with_mean_interval()` has been
+    /// called. Used by [`Self::with_rng`] to decide whether to reset the
+    /// anchor (so the new RNG drives sampling from tick 0) or keep the
+    /// current anchor (so a mid-simulation RNG swap does not rewind).
+    rng_committed: bool,
 }
 
 impl PoissonSource {
@@ -418,6 +424,7 @@ impl PoissonSource {
             weight_range,
             rng,
             next_arrival_tick: next,
+            rng_committed: false,
         }
     }
 
@@ -471,6 +478,9 @@ impl PoissonSource {
         self.mean_interval = ticks;
         self.next_arrival_tick =
             sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
+        // Treat an explicit interval change as committing to the current
+        // schedule; a later `with_rng` will not rewind the anchor.
+        self.rng_committed = true;
         self
     }
 
@@ -521,8 +531,18 @@ impl PoissonSource {
     #[must_use]
     pub fn with_rng(mut self, rng: rand::rngs::StdRng) -> Self {
         self.rng = rng;
-        self.next_arrival_tick =
-            sample_next_arrival(self.next_arrival_tick, self.mean_interval, &mut self.rng);
+        // If the schedule has not yet been committed (no `generate` calls,
+        // no `with_mean_interval`), reset the anchor to 0 so the new RNG
+        // drives sampling deterministically from the start. Otherwise the
+        // OS-seeded `next_arrival_tick` from `new()` would still anchor
+        // the schedule, defeating the determinism contract (#268).
+        let anchor = if self.rng_committed {
+            self.next_arrival_tick
+        } else {
+            0
+        };
+        self.next_arrival_tick = sample_next_arrival(anchor, self.mean_interval, &mut self.rng);
+        self.rng_committed = true;
         self
     }
 
@@ -543,6 +563,9 @@ impl PoissonSource {
 impl TrafficSource for PoissonSource {
     fn generate(&mut self, tick: u64) -> Vec<SpawnRequest> {
         let mut requests = Vec::new();
+        // First call locks in the current schedule — subsequent `with_rng`
+        // must not rewind the anchor.
+        self.rng_committed = true;
 
         while tick >= self.next_arrival_tick {
             // Use the scheduled arrival tick (not the current tick) so catch-up
