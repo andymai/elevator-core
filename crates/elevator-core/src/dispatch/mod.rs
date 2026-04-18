@@ -104,7 +104,41 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
     waiting.is_empty()
         || waiting
             .iter()
-            .any(|r| r.weight.value() <= remaining_capacity)
+            .any(|r| rider_can_board(r, car, ctx, remaining_capacity))
+}
+
+/// Whether a waiting rider could actually board this car, matching the
+/// same filters the loading phase applies. Prevents `pair_can_do_work`
+/// from approving a pickup whose only demand is direction-filtered or
+/// over-capacity — the loading phase would reject the rider, doors
+/// would cycle, and dispatch would re-pick the zero-cost self-pair.
+fn rider_can_board(
+    rider: &RiderInfo,
+    car: &crate::components::Elevator,
+    ctx: &RankContext<'_>,
+    remaining_capacity: f64,
+) -> bool {
+    if rider.weight.value() > remaining_capacity {
+        return false;
+    }
+    // Match `systems::loading`'s direction filter: a rider whose trip
+    // goes the opposite way of the car's committed direction will not
+    // be boarded. An unknown destination (no route yet) is treated as
+    // unconstrained — let the rider through and let the loading phase
+    // make the final call.
+    let Some(dest) = rider.destination else {
+        return true;
+    };
+    let Some(dest_pos) = ctx.world.stop_position(dest) else {
+        return true;
+    };
+    if dest_pos > ctx.stop_position && !car.going_up() {
+        return false;
+    }
+    if dest_pos < ctx.stop_position && !car.going_down() {
+        return false;
+    }
+    true
 }
 
 /// True when a full-load bypass applies: the car has a configured
