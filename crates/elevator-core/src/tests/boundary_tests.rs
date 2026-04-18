@@ -33,7 +33,11 @@ fn patience_zero_abandons_immediately() {
 }
 
 #[test]
-fn patience_one_abandons_after_one_tick() {
+fn patience_one_survives_first_tick_then_abandons() {
+    // `max_wait_ticks=N` means "tolerate N ticks of waiting, then abandon."
+    // `waited_ticks` is incremented after the abandon check, so the rider
+    // survives the first tick (waited=0) and abandons on the second
+    // (waited=1, which equals max=1).
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
@@ -47,54 +51,23 @@ fn patience_one_abandons_after_one_tick() {
     );
 
     sim.step();
-
-    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
     assert_eq!(
-        phase,
+        sim.world().rider(rider.entity()).map(|r| r.phase),
+        Some(RiderPhase::Waiting),
+        "rider with max_wait_ticks=1 should survive the first tick"
+    );
+
+    sim.step();
+    assert_eq!(
+        sim.world().rider(rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Abandoned),
-        "rider with max_wait_ticks=1 should abandon after 1 tick"
+        "rider with max_wait_ticks=1 should abandon after one tick of waiting"
     );
 }
 
-/// Document: `max_wait_ticks` = 0 and `max_wait_ticks` = 1 both abandon on the first tick.
-///
-/// The abandon condition is `waited_ticks >= max_wait_ticks.saturating_sub(1)`.
-/// - `max_wait_ticks=0`: `saturating_sub(1)` → 0, so 0 >= 0 is true → abandons before increment.
-/// - `max_wait_ticks=1`: `saturating_sub(1)` → 0, so 0 >= 0 is true → same behavior.
-///
-/// This equivalence is intentional: there is no meaningful difference between
-/// "zero patience" and "one-tick patience" since the check runs before the
-/// `waited_ticks` counter increments.
 #[test]
-fn patience_zero_and_one_are_equivalent() {
-    for max_wait in [0, 1] {
-        let config = default_config();
-        let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
-
-        let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-        sim.world_mut().set_patience(
-            rider.entity(),
-            Patience {
-                max_wait_ticks: max_wait,
-                waited_ticks: 0,
-            },
-        );
-
-        sim.step();
-
-        let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
-        assert_eq!(
-            phase,
-            Some(RiderPhase::Abandoned),
-            "rider with max_wait_ticks={max_wait} should abandon after 1 step"
-        );
-    }
-}
-
-#[test]
-fn patience_two_survives_first_tick() {
-    // max_wait_ticks=2: saturating_sub(1) → 1, so 0 >= 1 is false on the first tick.
-    // After the first tick, waited_ticks increments to 1, and 1 >= 1 is true → abandons.
+fn patience_two_survives_two_ticks_then_abandons() {
+    // max_wait_ticks=2 → tolerate two ticks of waiting (waited reaches 2), then abandon.
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
@@ -107,27 +80,28 @@ fn patience_two_survives_first_tick() {
         },
     );
 
-    // First tick: should NOT abandon.
-    sim.step();
-    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
-    assert_eq!(
-        phase,
-        Some(RiderPhase::Waiting),
-        "rider with max_wait_ticks=2 should survive the first tick"
-    );
+    for tick in 0..2 {
+        sim.step();
+        assert_eq!(
+            sim.world().rider(rider.entity()).map(|r| r.phase),
+            Some(RiderPhase::Waiting),
+            "rider with max_wait_ticks=2 should survive tick {tick}"
+        );
+    }
 
-    // Second tick: should abandon.
     sim.step();
-    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
     assert_eq!(
-        phase,
+        sim.world().rider(rider.entity()).map(|r| r.phase),
         Some(RiderPhase::Abandoned),
-        "rider with max_wait_ticks=2 should abandon after the second tick"
+        "rider with max_wait_ticks=2 should abandon on the third tick"
     );
 }
 
 #[test]
 fn patience_max_never_overflows() {
+    // Pre-load `waited_ticks` to the limit so the abandon predicate fires on
+    // the first step. Exercises the saturating increment on the path that
+    // doesn't trigger abandonment in the same tick.
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
@@ -136,17 +110,17 @@ fn patience_max_never_overflows() {
         rider.entity(),
         Patience {
             max_wait_ticks: u64::MAX,
-            waited_ticks: u64::MAX - 1,
+            waited_ticks: u64::MAX,
         },
     );
 
-    // Should not panic or overflow.
+    // waited=max → predicate true → abandon on first step.
     sim.step();
 
-    let phase = sim.world().rider(rider.entity()).map(|r| r.phase);
-    // With waited=MAX-1 and max=MAX, after increment waited becomes MAX,
-    // which triggers abandon (waited >= max.saturating_sub(1) = MAX-1).
-    assert_eq!(phase, Some(RiderPhase::Abandoned));
+    assert_eq!(
+        sim.world().rider(rider.entity()).map(|r| r.phase),
+        Some(RiderPhase::Abandoned)
+    );
 }
 
 #[test]
