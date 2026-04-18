@@ -400,11 +400,17 @@ fn assigned_car_within_window(
         return false;
     };
     let speed = car_data.max_speed().value();
-    if speed <= 0.0 {
+    if !speed.is_finite() || speed <= 0.0 {
         return false;
     }
-    let eta = ((car_pos - origin_pos).abs() / speed).round() as u64;
-    eta <= window
+    let eta_ticks = (car_pos - origin_pos).abs() / speed;
+    // A non-finite ETA (NaN from corrupted position) would saturate
+    // the `as u64` cast to 0 and erroneously latch the commitment —
+    // refuse to latch instead.
+    if !eta_ticks.is_finite() {
+        return false;
+    }
+    eta_ticks.round() as u64 <= window
 }
 
 /// Drop every sticky [`AssignedCar`] assignment that points at `car_eid`.

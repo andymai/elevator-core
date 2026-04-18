@@ -122,6 +122,8 @@ impl Simulation {
             params.inspection_speed_factor,
             params.door_transition_ticks,
             params.door_open_ticks,
+            params.bypass_load_up_pct,
+            params.bypass_load_down_pct,
         )?;
         if !starting_position.is_finite() {
             return Err(SimError::InvalidConfig {

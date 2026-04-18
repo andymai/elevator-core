@@ -83,8 +83,18 @@ impl EtdDispatch {
 
     /// Turn on the squared-wait fairness bonus. Higher values prefer
     /// older waiters more aggressively; `0.0` (the default) disables.
+    ///
+    /// # Panics
+    /// Panics on non-finite or negative weights. A `NaN` weight would
+    /// propagate through `mul_add` and silently disable every dispatch
+    /// rank; a negative weight would invert the fairness ordering.
+    /// Either is a programming error rather than a valid configuration.
     #[must_use]
-    pub const fn with_wait_squared_weight(mut self, weight: f64) -> Self {
+    pub fn with_wait_squared_weight(mut self, weight: f64) -> Self {
+        assert!(
+            weight.is_finite() && weight >= 0.0,
+            "wait_squared_weight must be finite and non-negative, got {weight}"
+        );
         self.wait_squared_weight = weight;
         self
     }

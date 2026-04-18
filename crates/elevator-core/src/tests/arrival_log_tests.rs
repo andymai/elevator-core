@@ -6,7 +6,7 @@
 //! (predictive parking). This module pins the core data structure that
 //! surfaces that signal to strategies.
 
-use crate::arrival_log::ArrivalLog;
+use crate::arrival_log::{ArrivalLog, CurrentTick, DEFAULT_ARRIVAL_WINDOW_TICKS};
 use crate::sim::Simulation;
 use crate::stop::StopId;
 use crate::world::World;
@@ -68,6 +68,64 @@ fn simulation_records_spawns_in_arrival_log() {
         .expect("ArrivalLog resource must be registered at construction")
         .arrivals_in_window(origin, sim.current_tick(), 60);
     assert_eq!(count, 2);
+}
+
+#[test]
+fn arrival_log_survives_snapshot_round_trip() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.step();
+
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    let before = sim
+        .world()
+        .resource::<ArrivalLog>()
+        .unwrap()
+        .arrivals_in_window(origin, sim.current_tick(), 120);
+    assert!(before >= 2, "precondition: snapshot source has arrivals");
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).unwrap();
+
+    let origin_after = restored.stop_entity(StopId(0)).unwrap();
+    let log_after = restored
+        .world()
+        .resource::<ArrivalLog>()
+        .expect("restore must reinstall the ArrivalLog resource");
+    assert_eq!(
+        log_after.arrivals_in_window(origin_after, restored.current_tick(), 120),
+        before,
+        "arrival counts must survive snapshot → restore"
+    );
+    // The tick mirror must also be re-installed and in sync.
+    let ct = restored
+        .world()
+        .resource::<CurrentTick>()
+        .expect("restore must reinstall the CurrentTick resource");
+    assert_eq!(ct.0, restored.current_tick());
+}
+
+#[test]
+fn arrival_log_is_pruned_by_step() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Step long enough that the original spawn ages out of the default
+    // rolling window. The log must have been pruned, not just ignored.
+    let target = DEFAULT_ARRIVAL_WINDOW_TICKS + 100;
+    while sim.current_tick() < target {
+        sim.step();
+    }
+
+    let log = sim.world().resource::<ArrivalLog>().unwrap();
+    assert_eq!(
+        log.len(),
+        0,
+        "entries older than the rolling window must be pruned, not merely filtered"
+    );
 }
 
 #[test]

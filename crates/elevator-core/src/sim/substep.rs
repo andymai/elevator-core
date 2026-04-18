@@ -66,6 +66,7 @@ impl super::Simulation {
     /// across tick boundaries.
     pub fn run_advance_transient(&mut self) {
         self.tick_in_progress = true;
+        self.sync_world_tick();
         self.hooks
             .run_before(Phase::AdvanceTransient, &mut self.world);
         for group in &self.groups {
@@ -89,6 +90,7 @@ impl super::Simulation {
 
     /// Run only the dispatch phase (with hooks).
     pub fn run_dispatch(&mut self) {
+        self.sync_world_tick();
         self.hooks.run_before(Phase::Dispatch, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -212,6 +214,7 @@ impl super::Simulation {
     /// repositioner — this differs from other phases where per-group hooks
     /// fire unconditionally.
     pub fn run_reposition(&mut self) {
+        self.sync_world_tick();
         self.hooks.run_before(Phase::Reposition, &mut self.world);
         if !self.repositioners.is_empty() {
             // Only run per-group hooks for groups that have a repositioner.
@@ -285,6 +288,30 @@ impl super::Simulation {
         self.pending_output.extend(self.events.drain());
         self.tick += 1;
         self.tick_in_progress = false;
+        // Keep the `CurrentTick` world resource in lockstep after the tick
+        // counter advances; substep consumers driving phases manually
+        // will see the fresh value on their next call.
+        self.sync_world_tick();
+        // Drop arrival-log entries older than the default rolling window.
+        // Unbounded growth would turn `arrivals_in_window` into an O(n)
+        // per-stop per-tick scan.
+        let cutoff = self
+            .tick
+            .saturating_sub(crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS);
+        if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+            log.prune_before(cutoff);
+        }
+    }
+
+    /// Mirror `self.tick` into the `CurrentTick` world resource so
+    /// phases that only have `&World` (reposition strategies, custom
+    /// consumers) can compute rolling-window queries without plumbing
+    /// `PhaseContext`. Called from `step()` and `advance_tick()` so
+    /// manual-phase callers stay in sync too.
+    fn sync_world_tick(&mut self) {
+        if let Some(ct) = self.world.resource_mut::<crate::arrival_log::CurrentTick>() {
+            ct.0 = self.tick;
+        }
     }
 
     /// Advance the simulation by one tick.
@@ -301,12 +328,7 @@ impl super::Simulation {
     /// assert_eq!(sim.current_tick(), 1);
     /// ```
     pub fn step(&mut self) {
-        // Mirror the current tick into the world so reposition strategies
-        // and other world-only consumers can query rolling arrival-rate
-        // windows without `PhaseContext`.
-        if let Some(ct) = self.world.resource_mut::<crate::arrival_log::CurrentTick>() {
-            ct.0 = self.tick;
-        }
+        self.sync_world_tick();
         self.world.snapshot_prev_positions();
         self.run_advance_transient();
         self.run_dispatch();

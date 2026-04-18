@@ -245,8 +245,18 @@ impl PredictiveParking {
 
     /// Create with a custom rolling window (ticks). Shorter windows
     /// react faster to traffic shifts; longer windows smooth out noise.
+    ///
+    /// # Panics
+    /// Panics on `window_ticks == 0`. A zero window would cause
+    /// `ArrivalLog::arrivals_in_window` to return 0 for every stop —
+    /// the strategy would silently no-op, which is almost never what
+    /// the caller meant.
     #[must_use]
     pub const fn with_window_ticks(window_ticks: u64) -> Self {
+        assert!(
+            window_ticks > 0,
+            "PredictiveParking::with_window_ticks requires a positive window"
+        );
         Self { window_ticks }
     }
 }
