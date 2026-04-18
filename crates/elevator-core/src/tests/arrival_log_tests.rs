@@ -74,6 +74,10 @@ fn simulation_records_spawns_in_arrival_log() {
 fn arrival_log_survives_snapshot_round_trip() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
+    // Configure a non-default retention window so the round-trip
+    // actually exercises the retention-persistence path.
+    let custom_retention = 72_000;
+    sim.set_arrival_log_retention_ticks(custom_retention);
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
     sim.step();
@@ -105,6 +109,13 @@ fn arrival_log_survives_snapshot_round_trip() {
         .resource::<CurrentTick>()
         .expect("restore must reinstall the CurrentTick resource");
     assert_eq!(ct.0, restored.current_tick());
+    // Retention survives round-trip too — otherwise
+    // `set_arrival_log_retention_ticks` silently no-ops post-restore.
+    let retention = restored
+        .world()
+        .resource::<crate::arrival_log::ArrivalLogRetention>()
+        .expect("restore must reinstall the ArrivalLogRetention resource");
+    assert_eq!(retention.0, custom_retention);
 }
 
 #[test]
