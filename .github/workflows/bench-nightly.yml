@@ -12,6 +12,12 @@ jobs:
     if: github.repository == 'andymai/elevator-core'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Serialize gh-pages pushes against `docs.yml` (which uses the same
+    # group). Otherwise a docs deploy and a manually-triggered bench run
+    # can race and the second `git push` is rejected as non-fast-forward.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       # `contents: write` is needed to push the time-series dashboard data
       # to gh-pages. `issues: write` keeps the existing regression-issue
@@ -89,25 +95,10 @@ jobs:
           path: target/criterion
           key: criterion-baseline-${{ github.ref_name }}-${{ github.run_id }}
 
-      # Publish a time-series dashboard at andymai.github.io/elevator-core/bench/.
-      # Parses Criterion's output from `bench-output.log` (already captured by
-      # `tee -a` above) and pushes per-bench history to gh-pages/bench/. The
-      # docs.yml workflow uses `keep_files: true` to preserve this directory
-      # across docs deploys.
-      - name: Publish bench history
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'cargo'
-          output-file-path: bench-output.log
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          gh-pages-branch: gh-pages
-          benchmark-data-dir-path: bench
-          # Non-blocking — the existing `Open issue on regression` step
-          # already alerts on Criterion's own regression detection.
-          alert-threshold: '110%'
-          fail-on-alert: false
-
+      # Open the regression issue *before* publishing to gh-pages so a
+      # `git push` failure in the publish step (rate-limit, non-fast-forward,
+      # auth hiccup) does not silently suppress the alert via the implicit
+      # `success()` gate on the issue step's `if:` condition.
       - name: Open issue on regression
         if: steps.detect.outputs.regressed == 'true'
         uses: actions/github-script@v7
@@ -131,3 +122,22 @@ jobs:
               body,
               labels: ['perf', 'automated'],
             });
+
+      # Publish a time-series dashboard at andymai.github.io/elevator-core/bench/.
+      # Parses Criterion's output from `bench-output.log` (already captured by
+      # `tee -a` above) and pushes per-bench history to gh-pages/bench/. The
+      # docs.yml workflow uses `keep_files: true` to preserve this directory
+      # across docs deploys.
+      - name: Publish bench history
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: bench-output.log
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: bench
+          # Non-blocking — the existing `Open issue on regression` step
+          # already alerts on Criterion's own regression detection.
+          alert-threshold: '110%'
+          fail-on-alert: false
