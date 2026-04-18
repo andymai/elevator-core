@@ -283,6 +283,46 @@ fn moving_downward() {
     panic!("did not arrive within 2000 ticks");
 }
 
+// ── Reversing-direction braking (#244) ─────────────────────────────
+
+#[test]
+fn opposing_velocity_brakes_at_deceleration_rate() {
+    // Car moving up at v=+2 is retargeted to a stop below (target=0). With
+    // asymmetric accel=1, decel=4, the slowdown must use decel (braking) not
+    // accel — `velocity - decel·dt` rather than `velocity + accel·dt·sign`.
+    let r = tick_movement(
+        5.0, 2.0, 0.0, 3.0, /*accel*/ 1.0, /*decel*/ 4.0, 0.1,
+    );
+    let expected_v = 2.0 - 4.0 * 0.1; // 1.6
+    assert!(
+        (r.velocity - expected_v).abs() < 1e-9,
+        "expected decel-rate slowdown to {expected_v}, got {}",
+        r.velocity
+    );
+}
+
+#[test]
+fn opposing_velocity_clamps_to_zero_then_reverses() {
+    // Same scenario but with a dt large enough that one decel step would
+    // flip the sign of velocity. The clamp must zero out velocity instead
+    // of letting it reverse mid-step.
+    let r = tick_movement(5.0, 1.0, 0.0, 3.0, 1.0, 4.0, 1.0); // decel*dt = 4 > v
+    assert!(
+        r.velocity.abs() < 1e-9,
+        "sign-flip clamp should zero velocity, got {}",
+        r.velocity
+    );
+
+    // On the next tick, with v=0 and target still below, the accelerate
+    // branch fires and the car begins moving downward at the accel rate.
+    let r2 = tick_movement(r.position, r.velocity, 0.0, 3.0, 1.0, 4.0, 0.1);
+    assert!(
+        r2.velocity < 0.0,
+        "after reaching v=0, should accelerate downward toward target, got {}",
+        r2.velocity
+    );
+}
+
 // ── Zero deceleration guard (#165) ─────────────────────────────────
 
 #[test]
