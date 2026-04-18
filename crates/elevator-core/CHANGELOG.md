@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.1.0...elevator-core-v15.2.0) (2026-04-18)
+
+
+### Features
+
+* **dispatch:** stabilize DispatchStrategy and built-in strategies ([#238](https://github.com/andymai/elevator-core/issues/238)) ([6a13d3d](https://github.com/andymai/elevator-core/commit/6a13d3d37bd93136670e268af72c530c229af9fb))
+
 ## [15.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.0.0...elevator-core-v15.1.0) (2026-04-17)
 
 
