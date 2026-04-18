@@ -57,18 +57,68 @@ export interface Metrics {
   total_moves: number;
 }
 
+export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination";
+
 /**
- * `destination` requires DCS hall-call mode which the playground scenarios
- * don't enable, so it's intentionally excluded from the user-facing dropdown.
- * The wasm API still accepts the value.
+ * One phase of a scenario's day cycle. The `TrafficDriver` linearly
+ * interpolates spawn volume between adjacent phases so transitions
+ * feel continuous rather than stepwise.
  */
-export type StrategyName = "scan" | "look" | "nearest" | "etd";
+export interface Phase {
+  /** Short human-readable label (e.g. "Morning rush"). */
+  name: string;
+  /** Phase duration in simulated seconds. */
+  durationSec: number;
+  /** Baseline spawn rate during this phase, in riders per minute. */
+  ridersPerMin: number;
+  /**
+   * Origin-selection weights, one entry per stop in the scenario's
+   * order. Unnormalized — the driver normalizes on each draw.
+   * If omitted or empty, origins are drawn uniformly.
+   */
+  originWeights?: number[];
+  /**
+   * Destination-selection weights, same shape as `originWeights`. If
+   * the drawn origin has weight 0 in this vector, the driver clones
+   * `originWeights` (reversed if `mirrorDestinations` is set) so a
+   * same-stop collision is still possible — the rider spec generator
+   * will flip it to the neighboring stop like today.
+   */
+  destWeights?: number[];
+}
+
+/**
+ * Optional scenario feature hooks. Applied once on scenario load so
+ * the scenario's signature behavior is visible without the user
+ * having to hunt for the right tunable.
+ */
+export type ScenarioHook =
+  | { kind: "none" }
+  | { kind: "etd_group_time"; waitSquaredWeight: number }
+  | { kind: "deferred_dcs"; commitmentWindowTicks: number }
+  | { kind: "predictive_parking"; windowTicks: number }
+  | { kind: "arrival_log" }
+  // bypass is already wired via the RON ElevatorConfig fields — this
+  // marker is purely for UI narration (label + description).
+  | { kind: "bypass_narration" };
 
 export interface ScenarioMeta {
   id: string;
   label: string;
   description: string;
   ron: string;
-  /** A sensible traffic rate (riders/min) for this scenario at start. */
-  suggestedTrafficRate: number;
+  /** Baseline dispatch strategy for this scenario. User can still swap. */
+  defaultStrategy: StrategyName;
+  /** Day-cycle phases, ordered. Empty array = static (used by convention-burst). */
+  phases: Phase[];
+  /**
+   * Seeded initial spawns dropped into the sim on load. Used by the
+   * convention scenario to produce an acute pre-loaded crowd; left 0
+   * for day-cycle scenarios.
+   */
+  seedSpawns: number;
+  /** Commercial-feature hook applied once on scenario load. */
+  hook: ScenarioHook;
+  /** One-line narrative shown alongside the feature hook to frame what to watch for. */
+  featureHint: string;
 }

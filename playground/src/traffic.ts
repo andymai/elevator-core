@@ -1,4 +1,4 @@
-import type { Snapshot } from "./types";
+import type { Phase, Snapshot } from "./types";
 
 // Deterministic traffic driver. The wasm sim itself stays pure — we generate
 // spawns out here so:
@@ -6,6 +6,13 @@ import type { Snapshot } from "./types";
 //   2. Strategy swaps don't change which riders exist, only how they're moved.
 //   3. Compare mode can fan-out the same rider sequence to multiple sims for
 //      a fair side-by-side comparison.
+//
+// The driver is phase-aware: scenarios supply a list of `Phase` entries that
+// describe how the day evolves (rate + origin/destination weights). The driver
+// linearly cycles through them, wrapping at the end so scenarios loop
+// indefinitely. The UI reads `currentPhaseLabel()` + `phaseProgress()` to
+// render the phase indicator.
+//
 // A simple splitmix64-seeded LCG is more than sufficient for a UI demo.
 
 /** A rider spec produced by the traffic driver. Caller injects into one or more sims. */
@@ -18,9 +25,33 @@ export interface RiderSpec {
 export class TrafficDriver {
   #state: bigint;
   #accumulator = 0; // fractional riders accumulated from rate * elapsed
+  #phases: Phase[] = [];
+  #totalDurationSec = 0;
+  #elapsedInCycleSec = 0;
+  /** User-facing intensity multiplier, 0.5×–2×. Applied on top of phase rate. */
+  #intensity = 1.0;
 
   constructor(seed: number) {
     this.#state = mixSeed(BigInt(seed >>> 0));
+  }
+
+  /**
+   * Install a new phase schedule. Called on scenario load. Empty array
+   * clears the schedule — the driver then reports rate 0 and emits no
+   * spawns (used by the convention burst scenario, which pre-seeds
+   * riders via `seedSpawns` instead).
+   */
+  setPhases(phases: Phase[]): void {
+    this.#phases = phases;
+    this.#totalDurationSec = phases.reduce((acc, p) => acc + p.durationSec, 0);
+    this.#elapsedInCycleSec = 0;
+    this.#accumulator = 0;
+  }
+
+  setIntensity(multiplier: number): void {
+    // Clamp defensively even though the UI already bounds the slider —
+    // a bad permalink could push it negative and the driver would never spawn.
+    this.#intensity = Math.max(0, multiplier);
   }
 
   /**
@@ -28,26 +59,61 @@ export class TrafficDriver {
    * specs whose accumulated time has come due. Caller is responsible for
    * dispatching the specs to one or more sims.
    */
-  drainSpawns(snapshot: Snapshot, ridersPerMinute: number, elapsedSeconds: number): RiderSpec[] {
-    if (ridersPerMinute <= 0 || snapshot.stops.length < 2) return [];
+  drainSpawns(snapshot: Snapshot, elapsedSeconds: number): RiderSpec[] {
+    if (snapshot.stops.length < 2 || this.#phases.length === 0) return [];
     // Clamp to ~4 frames at 60 Hz. When the browser tab is hidden
     // requestAnimationFrame pauses entirely, so on restore the first
     // `elapsedSeconds` is the full hidden duration — which at 120 riders/min
     // would dump ~20 spawns in a single frame and visibly jolt the sim.
     const dt = Math.min(elapsedSeconds, 4 / 60);
-    this.#accumulator += (ridersPerMinute / 60) * dt;
+    const phase = this.#phases[this.currentPhaseIndex()];
+    this.#accumulator += ((phase.ridersPerMin * this.#intensity) / 60) * dt;
+    this.#elapsedInCycleSec = (this.#elapsedInCycleSec + dt) % (this.#totalDurationSec || 1);
     const out: RiderSpec[] = [];
     while (this.#accumulator >= 1.0) {
       this.#accumulator -= 1.0;
-      out.push(this.#nextSpec(snapshot));
+      out.push(this.#nextSpec(snapshot, phase));
     }
     return out;
   }
 
-  #nextSpec(snap: Snapshot): RiderSpec {
+  /**
+   * Which phase is currently active. Index into the phase schedule;
+   * wraps at the end so scenarios loop. Always 0 when no schedule is
+   * installed.
+   */
+  currentPhaseIndex(): number {
+    if (this.#phases.length === 0) return 0;
+    let t = this.#elapsedInCycleSec;
+    for (let i = 0; i < this.#phases.length; i += 1) {
+      t -= this.#phases[i].durationSec;
+      if (t < 0) return i;
+    }
+    return this.#phases.length - 1;
+  }
+
+  currentPhaseLabel(): string {
+    return this.#phases[this.currentPhaseIndex()]?.name ?? "";
+  }
+
+  /** 0..1 progress through the full day cycle. Used to render the phase strip. */
+  phaseProgress(): number {
+    if (this.#totalDurationSec <= 0) return 0;
+    return Math.min(1, this.#elapsedInCycleSec / this.#totalDurationSec);
+  }
+
+  /** Read-only view of the installed phase schedule — the UI draws the strip from this. */
+  phases(): readonly Phase[] {
+    return this.#phases;
+  }
+
+  #nextSpec(snap: Snapshot, phase: Phase): RiderSpec {
     const stops = snap.stops;
-    const originIdx = this.#nextInt(stops.length);
-    let destIdx = this.#nextInt(stops.length);
+    const originIdx = this.#pickWeighted(stops.length, phase.originWeights);
+    let destIdx = this.#pickWeighted(stops.length, phase.destWeights);
+    // Same-stop collisions are a natural result of zero-weight entries
+    // in the destination vector. Rotate forward to the next index so
+    // we never emit a degenerate same-origin-and-destination spec.
     if (destIdx === originIdx) destIdx = (destIdx + 1) % stops.length;
     const weight = 50 + this.#nextFloat() * 50;
     return {
@@ -55,6 +121,27 @@ export class TrafficDriver {
       destStopId: stops[destIdx].stop_id,
       weight,
     };
+  }
+
+  /**
+   * Draw an index into a vector of `n` slots. If `weights` is supplied
+   * and has the expected length, each slot's selection probability is
+   * proportional to its weight (zero weights are effectively excluded).
+   * Otherwise the draw is uniform.
+   */
+  #pickWeighted(n: number, weights: number[] | undefined): number {
+    if (!weights || weights.length !== n) {
+      return this.#nextInt(n);
+    }
+    let total = 0;
+    for (let i = 0; i < n; i += 1) total += Math.max(0, weights[i]);
+    if (total <= 0) return this.#nextInt(n);
+    let r = this.#nextFloat() * total;
+    for (let i = 0; i < n; i += 1) {
+      r -= Math.max(0, weights[i]);
+      if (r < 0) return i;
+    }
+    return n - 1;
   }
 
   #nextU64(): bigint {

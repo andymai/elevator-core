@@ -28,6 +28,12 @@ interface WasmSimInstance {
   metrics(): unknown;
   waitingCountAt(stopId: number): number;
   free(): void;
+  // Scenario-feature hooks (optional for backwards-compat; absent until a
+  // fresh wasm build ships the new setters).
+  setHallCallModeDestination?(): void;
+  setEtdWithWaitSquaredWeight?(weight: number): void;
+  setDcsWithCommitmentWindow?(windowTicks: bigint): void;
+  setRepositionPredictiveParking?(windowTicks: bigint): void;
 }
 
 let modPromise: Promise<WasmModule> | null = null;
@@ -116,6 +122,31 @@ export class Sim {
 
   waitingCountAt(stopId: number): number {
     return this.#inner.waitingCountAt(stopId);
+  }
+
+  /**
+   * Apply a scenario feature hook. Falls through to a no-op if the
+   * active wasm build predates the setter (useful during local dev
+   * when the playground is served ahead of a wasm rebuild).
+   */
+  applyHook(hook: import("./types").ScenarioHook): void {
+    const w = this.#inner;
+    switch (hook.kind) {
+      case "none":
+      case "arrival_log":
+      case "bypass_narration":
+        return;
+      case "etd_group_time":
+        w.setEtdWithWaitSquaredWeight?.(hook.waitSquaredWeight);
+        return;
+      case "deferred_dcs":
+        w.setHallCallModeDestination?.();
+        w.setDcsWithCommitmentWindow?.(BigInt(hook.commitmentWindowTicks));
+        return;
+      case "predictive_parking":
+        w.setRepositionPredictiveParking?.(BigInt(hook.windowTicks));
+        return;
+    }
   }
 
   dispose(): void {

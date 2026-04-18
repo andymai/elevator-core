@@ -45,22 +45,28 @@
       <label class="ctl">
         <span class="ctl-k">
           <span>Speed</span>
-          <span id="speed-label" class="ctl-v">1&times;</span>
+          <span id="speed-label" class="ctl-v">4&times;</span>
         </span>
-        <input id="speed" type="range" min="1" max="16" step="1" value="1" />
+        <input id="speed" type="range" min="1" max="16" step="1" value="4" />
       </label>
       <label class="ctl">
         <span class="ctl-k">
-          <span>Traffic</span>
-          <span id="traffic-label" class="ctl-v">40 / min</span>
+          <span>Intensity</span>
+          <span id="traffic-label" class="ctl-v">1.0&times;</span>
         </span>
-        <input id="traffic" type="range" min="0" max="240" step="1" value="40" />
+        <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" />
       </label>
       <div class="actions">
         <button id="play" type="button">Pause</button>
         <button id="reset" type="button">Reset</button>
         <button id="share" type="button">Share</button>
       </div>
+    </section>
+
+    <section class="phase-strip" id="phase-strip">
+      <span class="phase-k">Phase</span>
+      <span id="phase-label" class="phase-v">&mdash;</span>
+      <span id="feature-hint" class="phase-hint"></span>
     </section>
 
     <main id="layout" class="layout" data-mode="single">

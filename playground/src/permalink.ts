@@ -9,21 +9,32 @@ export interface PermalinkState {
   strategyB: StrategyName;
   compare: boolean;
   seed: number;
-  trafficRate: number;
+  /**
+   * Multiplier applied on top of each phase's baseline `ridersPerMin`.
+   * A stand-in for the old `trafficRate` slider: replacing the absolute
+   * riders-per-minute with a relative knob keeps each scenario's
+   * intended traffic shape intact while still letting the user stress
+   * the controller.
+   */
+  intensity: number;
+  /** Playback multiplier (sim ticks per rendered frame). */
   speed: number;
 }
 
 export const DEFAULT_STATE: PermalinkState = {
-  scenario: "office-5",
-  strategyA: "look",
-  strategyB: "etd",
+  // `office-mid-rise` is the new canonical "default" scenario; the
+  // legacy `office-5` id resolves through `scenarioById` fallback to
+  // keep stale permalinks loading cleanly.
+  scenario: "office-mid-rise",
+  strategyA: "etd",
+  strategyB: "scan",
   compare: false,
   seed: 42,
-  trafficRate: 40,
-  speed: 1,
+  intensity: 1.0,
+  speed: 4,
 };
 
-const STRATEGIES: readonly StrategyName[] = ["scan", "look", "nearest", "etd"];
+const STRATEGIES: readonly StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
 
 function parseStrategy(raw: string | null, fallback: StrategyName): StrategyName {
   return raw !== null && (STRATEGIES as readonly string[]).includes(raw)
@@ -41,7 +52,7 @@ export function encodePermalink(state: PermalinkState): string {
   p.set("b", state.strategyB);
   if (state.compare) p.set("c", "1");
   p.set("k", String(state.seed));
-  p.set("t", String(state.trafficRate));
+  p.set("i", String(state.intensity));
   p.set("x", String(state.speed));
   return `?${p.toString()}`;
 }
@@ -54,7 +65,10 @@ export function decodePermalink(search: string): PermalinkState {
     strategyB: parseStrategy(p.get("b"), DEFAULT_STATE.strategyB),
     compare: p.get("c") === "1",
     seed: parseNum(p.get("k"), DEFAULT_STATE.seed),
-    trafficRate: parseNum(p.get("t"), DEFAULT_STATE.trafficRate),
+    // `t` was the old absolute riders-per-minute; if we see it we
+    // silently drop it and fall back to the default multiplier rather
+    // than try to re-interpret the value against an unknown scenario.
+    intensity: parseNum(p.get("i"), DEFAULT_STATE.intensity),
     speed: parseNum(p.get("x"), DEFAULT_STATE.speed),
   };
 }
