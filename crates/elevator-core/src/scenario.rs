@@ -112,9 +112,15 @@ impl ScenarioRunner {
         dispatch: impl DispatchStrategy + 'static,
     ) -> Result<Self, SimError> {
         let sim = Simulation::new(&scenario.config, dispatch)?;
+        // Sort spawns by tick so the cursor advance in `tick()` cannot
+        // gate an earlier spawn behind a later one. `sort_by_key` is
+        // stable, so spawns with the same tick keep their declaration
+        // order — important for replay determinism (#271).
+        let mut spawns = scenario.spawns;
+        spawns.sort_by_key(|s| s.tick);
         Ok(Self {
             sim,
-            spawns: scenario.spawns,
+            spawns,
             spawn_cursor: 0,
             conditions: scenario.conditions,
             max_ticks: scenario.max_ticks,
