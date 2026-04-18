@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.4.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.4.0...elevator-core-v15.4.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* **dispatch:** ETD audit — cross-car stall + unit mismatch + scenario rebalance ([#324](https://github.com/andymai/elevator-core/issues/324)) ([5fcd09d](https://github.com/andymai/elevator-core/commit/5fcd09ddb708bf3fe3359ca56d5e878fc95e090a))
+
 ## [15.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.3.1...elevator-core-v15.4.0) (2026-04-18)
 
 
