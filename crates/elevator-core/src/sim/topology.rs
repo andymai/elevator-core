@@ -325,27 +325,37 @@ impl Simulation {
         // Disable first to eject riders and reset state.
         let _ = self.disable(elevator);
 
-        // Find and remove from group/line topology.
-        let mut group_id = GroupId(0);
-        if let Ok((group_idx, line_idx)) = self.find_line(line) {
-            self.groups[group_idx].lines_mut()[line_idx]
-                .elevators_mut()
-                .retain(|&e| e != elevator);
-            self.groups[group_idx].rebuild_caches();
+        // Find and remove from group/line topology. If `find_line` fails
+        // the elevator's `line` ref points at a removed/moved line — an
+        // inconsistent state, but we still want to despawn for cleanup.
+        let resolved_group: Option<GroupId> = match self.find_line(line) {
+            Ok((group_idx, line_idx)) => {
+                self.groups[group_idx].lines_mut()[line_idx]
+                    .elevators_mut()
+                    .retain(|&e| e != elevator);
+                self.groups[group_idx].rebuild_caches();
 
-            // Notify dispatch strategy.
-            group_id = self.groups[group_idx].id();
-            if let Some(dispatcher) = self.dispatchers.get_mut(&group_id) {
-                dispatcher.notify_removed(elevator);
+                let gid = self.groups[group_idx].id();
+                // Notify dispatch strategy.
+                if let Some(dispatcher) = self.dispatchers.get_mut(&gid) {
+                    dispatcher.notify_removed(elevator);
+                }
+                Some(gid)
             }
-        }
+            Err(_) => None,
+        };
 
-        self.events.emit(Event::ElevatorRemoved {
-            elevator,
-            line,
-            group: group_id,
-            tick: self.tick,
-        });
+        // Only emit ElevatorRemoved when we resolved the actual group.
+        // Pre-fix this fired with `GroupId(0)` as a sentinel, masquerading
+        // a dangling-line cleanup as a legitimate group-0 removal (#266).
+        if let Some(group_id) = resolved_group {
+            self.events.emit(Event::ElevatorRemoved {
+                elevator,
+                line,
+                group: group_id,
+                tick: self.tick,
+            });
+        }
 
         // Despawn from world.
         self.world.despawn(elevator);
