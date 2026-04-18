@@ -76,6 +76,17 @@ impl super::Simulation {
     ) -> Result<RiderId, SimError> {
         let origin = self.resolve_stop(origin.into())?;
         let destination = self.resolve_stop(destination.into())?;
+        // Same origin & destination = no hall call gets registered (the
+        // direction is undefined), so the rider would sit Waiting forever
+        // while inflating `total_spawned`. Reject up front. (#273)
+        if origin == destination {
+            return Err(SimError::InvalidConfig {
+                field: "destination",
+                reason: "origin and destination must differ; same-stop \
+                         spawns deadlock with no hall call to summon a car"
+                    .into(),
+            });
+        }
         let weight: Weight = weight.into();
         let group = self.auto_detect_group(origin, destination)?;
 
