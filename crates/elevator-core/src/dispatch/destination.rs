@@ -156,25 +156,19 @@ impl DispatchStrategy for DestinationDispatch {
         for (_, riders) in manifest.iter_waiting_stops() {
             for info in riders {
                 if let Some(AssignedCar(c)) = world.ext::<AssignedCar>(info.id) {
-                    if world.elevator(c).is_some() && !world.is_disabled(c) {
-                        // Deferred commitment: when a window is configured
-                        // and the assigned car is still farther than the
-                        // window, strip the assignment so this rider
-                        // re-competes. Inside the window the commitment
-                        // latches — the assignment stays.
-                        if self
-                            .commitment_window_ticks
-                            .is_some_and(|w| !assigned_car_within_window(world, info.id, c, w))
-                        {
-                            stale_assignments.push(info.id);
-                            // Fall through so this rider joins `pending`
-                            // and gets re-assigned below.
-                        } else {
-                            continue; // sticky and live
-                        }
-                    } else {
-                        stale_assignments.push(info.id);
+                    // An assignment stays sticky only when the target
+                    // car is still alive and (no commitment window is
+                    // configured, or the car is already inside the
+                    // latch window). Otherwise strip it so the rider
+                    // re-competes below.
+                    let alive = world.elevator(c).is_some() && !world.is_disabled(c);
+                    let latched = self
+                        .commitment_window_ticks
+                        .is_none_or(|w| assigned_car_within_window(world, info.id, c, w));
+                    if alive && latched {
+                        continue; // sticky and live
                     }
+                    stale_assignments.push(info.id);
                 }
                 let Some(dest) = info.destination else {
                     continue;
