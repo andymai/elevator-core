@@ -254,18 +254,25 @@ fn bypass_never_blocks_aboard_exit() {
 
 /// `(0.0, 1.0]` is the only valid range. Reject NaN / negative / zero
 /// / >1 at construction time so the rank-time guard can trust the
-/// stored threshold.
+/// stored threshold. Covers both directions — the validator is
+/// symmetric, a regression touching only one branch should still fail.
 #[test]
 fn bypass_pct_out_of_range_rejected_at_construction() {
     for bad in [f64::NAN, -0.1, 0.0, 1.01, f64::INFINITY] {
-        let mut config = default_config();
-        config.elevators[0].bypass_load_up_pct = Some(bad);
-        let err = Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new())
-            .expect_err(&format!("Simulation::new must reject bypass pct = {bad}"));
-        assert!(
-            matches!(err, crate::error::SimError::InvalidConfig { field, .. } if field.contains("bypass_load_up_pct")),
-            "expected InvalidConfig on bypass_load_up_pct for {bad}, got {err:?}"
-        );
+        for (field_name, up, down) in [
+            ("bypass_load_up_pct", Some(bad), None),
+            ("bypass_load_down_pct", None, Some(bad)),
+        ] {
+            let mut config = default_config();
+            config.elevators[0].bypass_load_up_pct = up;
+            config.elevators[0].bypass_load_down_pct = down;
+            let err = Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new())
+                .expect_err(&format!("Simulation::new must reject {field_name} = {bad}"));
+            assert!(
+                matches!(&err, crate::error::SimError::InvalidConfig { field, .. } if field.contains(field_name)),
+                "expected InvalidConfig on {field_name} for {bad}, got {err:?}"
+            );
+        }
     }
 }
 

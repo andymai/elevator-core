@@ -43,6 +43,24 @@ pub struct CurrentTick(
 /// use to detect up-peak / down-peak transitions.
 pub const DEFAULT_ARRIVAL_WINDOW_TICKS: u64 = 18_000;
 
+/// World resource controlling how far back the [`ArrivalLog`] retains
+/// entries before `Simulation::advance_tick` prunes them.
+///
+/// Defaults to [`DEFAULT_ARRIVAL_WINDOW_TICKS`]. Strategies that query
+/// a longer window (e.g.
+/// [`PredictiveParking::with_window_ticks`](crate::dispatch::reposition::PredictiveParking::with_window_ticks)
+/// with a value greater than the default) will silently see only the
+/// last `DEFAULT_ARRIVAL_WINDOW_TICKS` unless this retention is
+/// widened via [`Simulation::set_arrival_log_retention_ticks`](crate::sim::Simulation::set_arrival_log_retention_ticks).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ArrivalLogRetention(pub u64);
+
+impl Default for ArrivalLogRetention {
+    fn default() -> Self {
+        Self(DEFAULT_ARRIVAL_WINDOW_TICKS)
+    }
+}
+
 /// Append-only log of per-stop arrival events used to compute rolling
 /// arrival-rate signals.
 ///

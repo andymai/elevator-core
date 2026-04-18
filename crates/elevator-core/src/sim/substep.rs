@@ -292,12 +292,16 @@ impl super::Simulation {
         // counter advances; substep consumers driving phases manually
         // will see the fresh value on their next call.
         self.sync_world_tick();
-        // Drop arrival-log entries older than the default rolling window.
+        // Drop arrival-log entries older than the configured retention.
         // Unbounded growth would turn `arrivals_in_window` into an O(n)
         // per-stop per-tick scan.
-        let cutoff = self
-            .tick
-            .saturating_sub(crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS);
+        let retention = self
+            .world
+            .resource::<crate::arrival_log::ArrivalLogRetention>()
+            .copied()
+            .unwrap_or_default()
+            .0;
+        let cutoff = self.tick.saturating_sub(retention);
         if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
             log.prune_before(cutoff);
         }
