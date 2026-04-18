@@ -47,6 +47,7 @@ type TopologyResult = (
 /// the runtime `add_elevator` path call this so an invalid set of params
 /// can never reach the world (zeroes blow up movement; zero door ticks
 /// stall the door FSM).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn validate_elevator_physics(
     max_speed: f64,
     acceleration: f64,
@@ -55,6 +56,8 @@ pub(super) fn validate_elevator_physics(
     inspection_speed_factor: f64,
     door_transition_ticks: u32,
     door_open_ticks: u32,
+    bypass_load_up_pct: Option<f64>,
+    bypass_load_down_pct: Option<f64>,
 ) -> Result<(), SimError> {
     if !max_speed.is_finite() || max_speed <= 0.0 {
         return Err(SimError::InvalidConfig {
@@ -96,6 +99,25 @@ pub(super) fn validate_elevator_physics(
         return Err(SimError::InvalidConfig {
             field: "elevators.door_open_ticks",
             reason: "must be > 0".into(),
+        });
+    }
+    validate_bypass_pct("elevators.bypass_load_up_pct", bypass_load_up_pct)?;
+    validate_bypass_pct("elevators.bypass_load_down_pct", bypass_load_down_pct)?;
+    Ok(())
+}
+
+/// `bypass_load_{up,down}_pct` must be a finite fraction in `(0.0, 1.0]`
+/// when set. `pct = 0.0` would bypass at an empty car (nonsense); `NaN`
+/// and infinities silently disable the bypass under the dispatch guard,
+/// which is a silent foot-gun. Reject at config time instead.
+fn validate_bypass_pct(field: &'static str, pct: Option<f64>) -> Result<(), SimError> {
+    let Some(pct) = pct else {
+        return Ok(());
+    };
+    if !pct.is_finite() || pct <= 0.0 || pct > 1.0 {
+        return Err(SimError::InvalidConfig {
+            field,
+            reason: format!("must be finite in (0.0, 1.0] when set, got {pct}"),
         });
     }
     Ok(())
@@ -696,6 +718,8 @@ impl Simulation {
             elev.inspection_speed_factor,
             elev.door_transition_ticks,
             elev.door_open_ticks,
+            elev.bypass_load_up_pct,
+            elev.bypass_load_down_pct,
         )?;
         if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
             return Err(SimError::InvalidConfig {

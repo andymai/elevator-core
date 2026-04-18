@@ -9,10 +9,12 @@
 use super::dispatch_tests::{
     add_demand, decide_all, decide_one, spawn_elevator, test_group, test_world,
 };
+use super::helpers::default_config;
 use crate::components::{ElevatorPhase, Route, Weight};
 use crate::dispatch::etd::EtdDispatch;
 use crate::dispatch::nearest_car::NearestCarDispatch;
 use crate::dispatch::{DispatchDecision, DispatchManifest, RiderInfo};
+use crate::sim::Simulation;
 
 #[test]
 fn etd_upward_bypass_skips_pickup_above_threshold() {
@@ -149,6 +151,66 @@ fn bypass_below_threshold_still_picks_up() {
     );
 }
 
+/// Multi-car regression: per-car thresholds must be isolated. Car A
+/// is above its up-bypass threshold, car B below — a pickup above
+/// both must be ranked only by B, not silently by both. Without
+/// per-car gating a refactor could make the bypass group-wide.
+#[test]
+fn bypass_is_per_car_not_group_wide() {
+    let (mut world, stops) = test_world();
+    let elev_full = spawn_elevator(&mut world, 0.0);
+    let elev_empty = spawn_elevator(&mut world, 4.0);
+    {
+        let car = world.elevator_mut(elev_full).unwrap();
+        car.current_load = Weight::from(car.weight_capacity.value() * 0.9);
+        car.set_bypass_load_up_pct(Some(0.80));
+        car.phase = ElevatorPhase::MovingToStop(stops[3]);
+    }
+    {
+        let car = world.elevator_mut(elev_empty).unwrap();
+        car.set_bypass_load_up_pct(Some(0.80));
+        car.phase = ElevatorPhase::MovingToStop(stops[3]);
+    }
+    // Aboard rider on the loaded car to pin direction.
+    let aboard = world.spawn();
+    world.elevator_mut(elev_full).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev_full, elev_empty]);
+    let mut manifest = DispatchManifest::default();
+    // Pickup above both cars — above the loaded car's threshold so
+    // the loaded one bypasses, but the empty one must still take it.
+    add_demand(&mut manifest, &mut world, stops[2], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut etd = EtdDispatch::new();
+    let decisions = decide_all(
+        &mut etd,
+        &[(elev_full, 0.0), (elev_empty, 4.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let empty_dec = decisions.iter().find(|(e, _)| *e == elev_empty).unwrap();
+    assert_eq!(
+        empty_dec.1,
+        DispatchDecision::GoToStop(stops[2]),
+        "the below-threshold car must take the pickup even when a peer bypasses"
+    );
+}
+
 #[test]
 fn bypass_never_blocks_aboard_exit() {
     let (mut world, stops) = test_world();
@@ -188,4 +250,39 @@ fn bypass_never_blocks_aboard_exit() {
         DispatchDecision::GoToStop(stops[2]),
         "bypass must never prevent the car from reaching an aboard rider's destination"
     );
+}
+
+/// `(0.0, 1.0]` is the only valid range. Reject NaN / negative / zero
+/// / >1 at construction time so the rank-time guard can trust the
+/// stored threshold.
+#[test]
+fn bypass_pct_out_of_range_rejected_at_construction() {
+    for bad in [f64::NAN, -0.1, 0.0, 1.01, f64::INFINITY] {
+        let mut config = default_config();
+        config.elevators[0].bypass_load_up_pct = Some(bad);
+        let err = Simulation::new(&config, crate::dispatch::scan::ScanDispatch::new())
+            .expect_err(&format!("Simulation::new must reject bypass pct = {bad}"));
+        assert!(
+            matches!(err, crate::error::SimError::InvalidConfig { field, .. } if field.contains("bypass_load_up_pct")),
+            "expected InvalidConfig on bypass_load_up_pct for {bad}, got {err:?}"
+        );
+    }
+}
+
+#[test]
+#[should_panic(expected = "wait_squared_weight must be finite and non-negative")]
+fn etd_wait_squared_weight_rejects_nan() {
+    let _ = EtdDispatch::new().with_wait_squared_weight(f64::NAN);
+}
+
+#[test]
+#[should_panic(expected = "wait_squared_weight must be finite and non-negative")]
+fn etd_wait_squared_weight_rejects_negative() {
+    let _ = EtdDispatch::new().with_wait_squared_weight(-1.0);
+}
+
+#[test]
+#[should_panic(expected = "PredictiveParking::with_window_ticks requires a positive window")]
+fn predictive_parking_rejects_zero_window() {
+    let _ = crate::dispatch::reposition::PredictiveParking::with_window_ticks(0);
 }

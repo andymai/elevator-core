@@ -119,6 +119,12 @@ pub struct WorldSnapshot {
     /// All pending hall calls across every stop. Absent in legacy snapshots.
     #[serde(default)]
     pub hall_calls: Vec<HallCall>,
+    /// Rolling per-stop arrival log. Empty in legacy snapshots; on
+    /// restore the log's `(tick, stop)` entries have their stop IDs
+    /// remapped through `id_remap` so they line up with the newly
+    /// allocated entity IDs.
+    #[serde(default)]
+    pub arrival_log: crate::arrival_log::ArrivalLog,
 }
 
 /// Per-line snapshot info within a group.
@@ -273,6 +279,14 @@ impl WorldSnapshot {
         let mut tags = self.metric_tags;
         tags.remap_entity_ids(&id_remap);
         world.insert_resource(tags);
+
+        // Restore the arrival log (per-stop spawn counts) and the
+        // tick-mirror resource — without these `PredictiveParking` and
+        // `DispatchManifest::arrivals_at` silently no-op post-restore.
+        let mut log = self.arrival_log;
+        log.remap_entity_ids(&id_remap);
+        world.insert_resource(log);
+        world.insert_resource(crate::arrival_log::CurrentTick(self.tick));
 
         let mut sim = crate::sim::Simulation::from_parts(
             world,
@@ -852,6 +866,10 @@ impl crate::sim::Simulation {
             extensions: self.world().serialize_extensions(),
             ticks_per_second: 1.0 / self.dt(),
             hall_calls: world.iter_hall_calls().cloned().collect(),
+            arrival_log: world
+                .resource::<crate::arrival_log::ArrivalLog>()
+                .cloned()
+                .unwrap_or_default(),
         }
     }
 

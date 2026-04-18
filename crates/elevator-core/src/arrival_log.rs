@@ -95,4 +95,18 @@ impl ArrivalLog {
     pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    /// Rewrite every entry's stop `EntityId` through `id_remap`, dropping
+    /// entries whose stop isn't present in the map. Used by snapshot
+    /// restore to translate pre-restore stop IDs to the new allocations.
+    pub fn remap_entity_ids(&mut self, id_remap: &std::collections::HashMap<EntityId, EntityId>) {
+        self.entries
+            .retain_mut(|(_, stop)| match id_remap.get(stop) {
+                Some(&new) => {
+                    *stop = new;
+                    true
+                }
+                None => false,
+            });
+    }
 }
