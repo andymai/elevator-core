@@ -951,3 +951,40 @@ fn press_hall_button_alone_dispatches_idle_elevator() {
         "rider-less hall call must summon idle car within 500 ticks"
     );
 }
+
+/// When a car is already at a stop and dispatch commits to that stop,
+/// `record_hall_assignment` must update BOTH Up and Down hall-call
+/// `assigned_car` fields if both calls exist there. Pre-fix only Up was
+/// written, leaving `sim.assigned_car(stop, Down)` lying about the
+/// observability state. (#294)
+///
+/// Uses the per-phase substep API to inspect state between `dispatch`
+/// (which sets `assigned_car`) and `doors` (which clears the hall call
+/// once the door opens). A full `step()` would race past the assertion
+/// because both phases run in the same tick.
+#[test]
+fn assigned_car_set_on_both_directions_when_car_at_stop() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let here = sim.stop_entity(StopId(0)).unwrap();
+    let elev = sim.world().elevator_ids()[0];
+    sim.press_hall_button(here, CallDirection::Up).unwrap();
+    sim.press_hall_button(here, CallDirection::Down).unwrap();
+
+    // Drive the tick by hand: ack the calls, then run dispatch, then
+    // check assigned_car on both directions BEFORE the doors phase
+    // clears the calls.
+    sim.run_advance_transient();
+    sim.run_dispatch();
+
+    assert_eq!(
+        sim.assigned_car(here, CallDirection::Up),
+        Some(elev),
+        "Up assigned_car must reflect the dispatched car"
+    );
+    assert_eq!(
+        sim.assigned_car(here, CallDirection::Down),
+        Some(elev),
+        "Down assigned_car must also reflect the dispatched car \
+         (pre-fix Down stayed None, lying about dispatch state)"
+    );
+}

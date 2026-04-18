@@ -693,7 +693,6 @@ impl crate::sim::Simulation {
     /// [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
     /// when invoked between `run_*` and `advance_tick`. (#297)
     #[must_use]
-    #[allow(clippy::too_many_lines)]
     pub fn snapshot(&self) -> WorldSnapshot {
         self.snapshot_inner()
     }

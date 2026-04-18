@@ -622,11 +622,14 @@ fn snapshot_bytes_rejects_mid_tick() {
     assert!(matches!(result, Err(SimError::MidTickSnapshot)));
 }
 
-/// Snapshot bytes are deterministic across processes — using `BTreeMap`
-/// for `stop_lookup`, `extensions`, and `metric_tags` removes the
-/// `HashMap` iteration-order non-determinism. (#254)
+/// Snapshot bytes are stable within a process. The actual cross-process
+/// determinism guarantee comes from the `BTreeMap` key-sort invariant
+/// applied to `stop_lookup`, `extensions`, and `metric_tags` (#254) —
+/// `HashMap`'s `RandomState` seed is fixed per-process, so this in-process
+/// test would pass even with the old `HashMap` code. The cross-process
+/// property is enforced by the type choice rather than a runtime test.
 #[test]
-fn snapshot_bytes_are_deterministic() {
+fn snapshot_bytes_are_stable_in_process() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let stop0 = sim.stop_entity(StopId(0)).unwrap();
