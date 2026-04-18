@@ -123,6 +123,15 @@ impl Simulation {
             params.door_transition_ticks,
             params.door_open_ticks,
         )?;
+        if !starting_position.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "starting_position",
+                reason: format!(
+                    "must be finite (got {starting_position}); NaN/±inf corrupt \
+                     SortedStops ordering and find_stop_at_position lookup"
+                ),
+            });
+        }
 
         let group_id = self
             .world

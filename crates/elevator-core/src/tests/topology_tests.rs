@@ -179,6 +179,52 @@ fn add_elevator_rejects_invalid_params() {
     sim.add_elevator(&valid(), line, 0.0).unwrap();
 }
 
+/// Non-finite `starting_position` corrupts `SortedStops` and movement-phase
+/// distance math. Reject it the same way `add_stop` does for stop position.
+#[test]
+fn add_elevator_rejects_non_finite_starting_position() {
+    use crate::error::SimError;
+
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    let params = ElevatorParams {
+        max_speed: Speed::from(2.0),
+        acceleration: Accel::from(1.5),
+        deceleration: Accel::from(2.0),
+        weight_capacity: Weight::from(800.0),
+        door_transition_ticks: 5,
+        door_open_ticks: 10,
+        restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
+    };
+
+    for (label, value) in [
+        ("NaN", f64::NAN),
+        ("+inf", f64::INFINITY),
+        ("-inf", f64::NEG_INFINITY),
+    ] {
+        let elev_count_before = sim.world().elevator_ids().len();
+        let result = sim.add_elevator(&params, line, value);
+        assert!(
+            matches!(
+                result,
+                Err(SimError::InvalidConfig {
+                    field: "starting_position",
+                    ..
+                })
+            ),
+            "expected InvalidConfig{{field=starting_position}} for {label}, got {result:?}"
+        );
+        assert_eq!(
+            sim.world().elevator_ids().len(),
+            elev_count_before,
+            "{label} must not add an elevator"
+        );
+    }
+}
+
 /// `add_stop` must reject non-finite positions instead of silently
 /// inserting them into `SortedStops` (where `partition_point` on NaN
 /// is undefined behavior for ordering) and the position map (where

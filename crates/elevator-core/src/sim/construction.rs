@@ -47,7 +47,7 @@ type TopologyResult = (
 /// the runtime `add_elevator` path call this so an invalid set of params
 /// can never reach the world (zeroes blow up movement; zero door ticks
 /// stall the door FSM).
-pub fn validate_elevator_physics(
+pub(super) fn validate_elevator_physics(
     max_speed: f64,
     acceleration: f64,
     deceleration: f64,
