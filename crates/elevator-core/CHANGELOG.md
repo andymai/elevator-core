@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.0...elevator-core-v15.2.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* **metrics:** only count multi-leg journey as one delivery ([#252](https://github.com/andymai/elevator-core/issues/252)) ([1805a6d](https://github.com/andymai/elevator-core/commit/1805a6deb5d24262263350cfa3bd6f309fd8f7ef))
+
 ## [15.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.1.0...elevator-core-v15.2.0) (2026-04-18)
 
 
