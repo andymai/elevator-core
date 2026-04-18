@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.12](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.11...elevator-core-v15.2.12) (2026-04-18)
+
+
+### Bug Fixes
+
+* **builder:** honour config-supplied group dispatch in from_config ([#299](https://github.com/andymai/elevator-core/issues/299)) ([6e701f9](https://github.com/andymai/elevator-core/commit/6e701f9b303f2d01912cc7bb4219335efde47749))
+
 ## [15.2.11](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.10...elevator-core-v15.2.11) (2026-04-18)
 
 
