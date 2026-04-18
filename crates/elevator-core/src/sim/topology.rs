@@ -408,6 +408,13 @@ impl Simulation {
             if let Some(q) = self.world.destination_queue_mut(eid) {
                 q.retain(|s| s != stop);
             }
+            // Drop any car-call whose floor is the removed stop. Built-in
+            // strategies don't currently route on car_calls but the public
+            // `sim.car_calls(car)` accessor and custom strategies (via
+            // `car_calls_for`) would otherwise return dangling refs (#293).
+            if let Some(calls) = self.world.car_calls_mut(eid) {
+                calls.retain(|c| c.floor != stop);
+            }
         }
 
         // Remove from all lines and groups.

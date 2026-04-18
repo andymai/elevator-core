@@ -268,6 +268,42 @@ fn remove_stop_clears_dangling_references_on_elevator() {
     );
 }
 
+/// Pre-fix, `remove_stop` left `CarCall.floor` references pointing at the
+/// despawned stop entity — visible through the public `sim.car_calls()`
+/// accessor and consumed by custom dispatch strategies. (#293)
+#[test]
+fn remove_stop_drops_car_calls_referencing_stop() {
+    use crate::components::CarCall;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let stop2 = sim.stop_entity(StopId(2)).unwrap();
+    let elev = sim.groups()[0].elevator_entities()[0];
+
+    // Pre-load a CarCall whose floor is stop2.
+    let tick = sim.current_tick();
+    sim.world_mut()
+        .car_calls_mut(elev)
+        .unwrap()
+        .push(CarCall::new(elev, stop2, tick));
+    assert!(
+        sim.car_calls(ElevatorId::from(elev))
+            .iter()
+            .any(|c| c.floor == stop2),
+        "precondition: car has a CarCall pointing at stop2"
+    );
+
+    sim.remove_stop(stop2).unwrap();
+
+    assert!(
+        sim.car_calls(ElevatorId::from(elev))
+            .iter()
+            .all(|c| c.floor != stop2),
+        "remove_stop must drop CarCall entries whose floor is the removed stop"
+    );
+}
+
 #[test]
 fn remove_nonexistent_stop_returns_entity_not_found() {
     let config = default_config();
