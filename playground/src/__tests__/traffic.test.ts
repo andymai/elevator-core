@@ -155,6 +155,44 @@ describe("TrafficDriver — phase schedule", () => {
     expect(checked).toBeGreaterThan(0);
   });
 
+  it("stamps patienceTicks on every spec when set, omits when unset", () => {
+    const d = new TrafficDriver(3);
+    d.setPhases([FLAT(60, 600)]);
+    const snap = snapshotWithStops(3);
+
+    // Unset (default 0): specs must carry no patienceTicks field.
+    let hadAny = false;
+    for (let i = 0; i < 30; i += 1) {
+      for (const s of d.drainSpawns(snap, 1 / 60)) {
+        hadAny = true;
+        expect(s.patienceTicks).toBeUndefined();
+      }
+    }
+    expect(hadAny).toBe(true);
+
+    // Set: every emitted spec carries the configured budget.
+    d.setPatienceTicks(5400); // 90 s at 60 Hz
+    let stamped = 0;
+    for (let i = 0; i < 30; i += 1) {
+      for (const s of d.drainSpawns(snap, 1 / 60)) {
+        expect(s.patienceTicks).toBe(5400);
+        stamped += 1;
+      }
+    }
+    expect(stamped).toBeGreaterThan(0);
+
+    // Zero disables again — a scenario that changes its mind on reset.
+    d.setPatienceTicks(0);
+    let afterZero = 0;
+    for (let i = 0; i < 30; i += 1) {
+      for (const s of d.drainSpawns(snap, 1 / 60)) {
+        expect(s.patienceTicks).toBeUndefined();
+        afterZero += 1;
+      }
+    }
+    expect(afterZero).toBeGreaterThan(0);
+  });
+
   it("is deterministic for a given seed", () => {
     const phases = [FLAT(120, 120)];
     const snap = snapshotWithStops(3);

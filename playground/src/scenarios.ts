@@ -99,6 +99,11 @@ const office: ScenarioMeta = {
   defaultStrategy: "etd",
   phases: officePhases,
   seedSpawns: 0,
+  // 90 s patience: office workers won't wait forever during a lunch
+  // burst — they take the stairs, grab the other bank, or skip the
+  // trip. Without this, lunchtime demand (65/min) above the pair's
+  // ~54/min cruise capacity grew the queue monotonically.
+  abandonAfterSec: 90,
   hook: { kind: "etd_group_time", waitSquaredWeight: 0.002 },
   featureHint:
     "Group-time ETD (`wait_squared_weight = 0.002`) — stops hosting older waiters win ties, damping long-wait tail during lunchtime bursts.",
@@ -191,6 +196,9 @@ const skyscraper: ScenarioMeta = {
   defaultStrategy: "etd",
   phases: skyPhases,
   seedSpawns: 0,
+  // 120 s patience: big buildings get a longer leash than mid-rise
+  // since the alternative (stairs) is less viable for 12 floors.
+  abandonAfterSec: 120,
   hook: { kind: "bypass_narration" },
   featureHint:
     "Direction-dependent bypass (80 % up / 50 % down) on all three cars — baked into the RON below. Watch the fullest car skip hall calls.",
@@ -303,6 +311,11 @@ const residential: ScenarioMeta = {
   defaultStrategy: "etd",
   phases: residentialPhases,
   seedSpawns: 0,
+  // 180 s: residents are less flighty than office workers (groceries,
+  // kids in tow, shared building) and the load stays well under cruise
+  // capacity, so abandonment rarely fires — it exists as a safety
+  // valve for user-triggered 2× intensity bursts.
+  abandonAfterSec: 180,
   hook: { kind: "predictive_parking", windowTicks: 9000 }, // 2.5 min at 60 Hz
   featureHint:
     "Predictive parking with a 2.5-min window — during the midday slump, idle cars pre-position toward the floors that spiked most recently.",
@@ -404,6 +417,11 @@ const hotel: ScenarioMeta = {
   defaultStrategy: "destination",
   phases: hotelPhases,
   seedSpawns: 0,
+  // 150 s: hotel guests with luggage are more patient than office
+  // workers but less than residents; tuned so check-in bursts still
+  // produce a visible queue without the queue ever running away
+  // under 2× intensity.
+  abandonAfterSec: 150,
   hook: { kind: "deferred_dcs", commitmentWindowTicks: 180 },
   featureHint:
     "Deferred DCS with a 3-s (180-tick) commitment window — sticky assignments keep re-competing until a car is close to the rider, yielding better matches under bursty demand.",
@@ -499,6 +517,10 @@ const convention: ScenarioMeta = {
   defaultStrategy: "etd",
   phases: conventionPhases,
   seedSpawns: 120,
+  // Intentionally omits `abandonAfterSec` — the whole point of this
+  // scenario is to stress-test dispatch under a real pile-up. Letting
+  // attendees abandon would gut the `arrival_log` rate signal's
+  // purpose, which is "how punishing is *persistent* demand?"
   hook: { kind: "arrival_log" },
   featureHint:
     "Arrival-rate signal lights up as the burst hits — `DispatchManifest::arrivals_at` feeds downstream strategies the per-stop intensity for the next 5 minutes.",
