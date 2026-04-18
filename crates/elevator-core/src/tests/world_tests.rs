@@ -188,6 +188,50 @@ fn extension_components() {
     assert!(world.ext::<VipTag>(e).is_none());
 }
 
+/// `register_ext` panics if a different type already owns this name (#262).
+/// Two extension types sharing one `ExtKey` name silently corrupts snapshot
+/// serde — `serialize_extensions` collapses both into one slot, and
+/// `deserialize_extensions` routes data via non-deterministic `HashMap::iter`.
+#[test]
+#[should_panic(expected = "already registered")]
+fn register_ext_panics_on_name_collision_via_register() {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct A;
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct B;
+
+    let mut world = World::new();
+    world.register_ext::<A>(ExtKey::new("foo"));
+    world.register_ext::<B>(ExtKey::new("foo")); // same name, different type → panic
+}
+
+#[test]
+#[should_panic(expected = "already registered")]
+fn register_ext_panics_on_name_collision_via_insert() {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct A;
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct B;
+
+    let mut world = World::new();
+    let e = world.spawn();
+    world.insert_ext(e, A, ExtKey::new("foo"));
+    world.insert_ext(e, B, ExtKey::new("foo")); // panic
+}
+
+#[test]
+fn register_ext_same_type_same_name_idempotent() {
+    // Re-registering the SAME type with the SAME name is a no-op (used for
+    // snapshot restore where `register_ext` is called per-type before
+    // `deserialize_extensions`).
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct A;
+
+    let mut world = World::new();
+    world.register_ext::<A>(ExtKey::new("foo"));
+    world.register_ext::<A>(ExtKey::new("foo")); // idempotent — no panic
+}
+
 /// Verify that despawn cleans up `hall_calls` and `car_calls`.
 #[test]
 fn despawn_cleans_up_hall_and_car_calls() {
