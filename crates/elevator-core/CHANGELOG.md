@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.11](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.10...elevator-core-v15.2.11) (2026-04-18)
+
+
+### Bug Fixes
+
+* **topology:** drop ElevatorRemoved sentinel for unresolved group ([#283](https://github.com/andymai/elevator-core/issues/283)) ([b54fa60](https://github.com/andymai/elevator-core/commit/b54fa60a86de4d3bd7009a0e967524255619e585))
+
 ## [15.2.10](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.9...elevator-core-v15.2.10) (2026-04-18)
 
 
