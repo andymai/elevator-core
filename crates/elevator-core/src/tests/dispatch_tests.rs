@@ -292,6 +292,127 @@ fn nearest_car_multiple_stops() {
     assert_eq!(b_dec.1, DispatchDecision::GoToStop(stops[3]));
 }
 
+/// A full nearest-car at a pickup stop whose only demand is a waiting
+/// rider it can't board must not be re-dispatched to that same stop.
+/// Pre-fix the pure distance rank collapses to 0 for the self-pair,
+/// winning over any real move — the car cycles doors forever.
+#[test]
+fn nearest_car_full_car_at_pickup_stop_prefers_rider_destination() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0); // at stops[1]
+    {
+        let car = world.elevator_mut(elev).unwrap();
+        car.current_load = car.weight_capacity;
+    }
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut nc = NearestCarDispatch::new();
+    let decision = decide_one(&mut nc, elev, 4.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "full car must be routed to its aboard rider's destination, not \
+         the un-serveable pickup at its current position"
+    );
+}
+
+/// A car carrying a rider whose destination lies *ahead* (upward) must
+/// reject a backward pickup even when that pickup is numerically closer.
+/// Pre-fix, the pure distance rank would pull the car backward to serve
+/// the pickup, indefinitely deferring the aboard rider's trip.
+#[test]
+fn nearest_car_skips_backward_pickup_when_rider_aboard() {
+    let (mut world, stops) = test_world();
+    // Car at stops[2] (pos 8), rider aboard going *up* to stops[3] (pos 12).
+    let elev = spawn_elevator(&mut world, 8.0);
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Pickup below the car — closer in raw distance but opposite direction.
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut nc = NearestCarDispatch::new();
+    let decision = decide_one(&mut nc, elev, 8.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "backward pickup must not preempt an aboard rider's forward destination"
+    );
+}
+
+/// Regression guard: on-the-way pickups are still allowed. The car at
+/// the origin with a rider bound for the top should pick up at the
+/// middle floor — serving passengers in transit is the whole point.
+#[test]
+fn nearest_car_accepts_on_the_way_pickup_when_rider_aboard() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Pickup at stops[1] (pos 4), between car (pos 0) and aboard dest (pos 12).
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut nc = NearestCarDispatch::new();
+    let decision = decide_one(&mut nc, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[1]),
+        "an en-route pickup must still win over the farther aboard destination"
+    );
+}
+
 // ===== ETD Tests =====
 
 #[test]
