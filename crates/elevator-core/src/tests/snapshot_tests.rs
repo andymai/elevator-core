@@ -582,3 +582,65 @@ fn snapshot_roundtrip_emits_no_dangling_warnings() {
         "normal snapshot should have no dangling references"
     );
 }
+
+/// `try_snapshot` rejects mid-tick captures so substep callers don't
+/// silently lose in-flight `EventBus` state. `snapshot()` keeps the old
+/// non-fallible signature for tick-boundary callers. (#297)
+#[test]
+fn try_snapshot_rejects_mid_tick() {
+    use crate::error::SimError;
+
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    // Start a tick via the substep API but don't call advance_tick.
+    sim.run_advance_transient();
+
+    let result = sim.try_snapshot();
+    assert!(
+        matches!(result, Err(SimError::MidTickSnapshot)),
+        "mid-tick try_snapshot must error, got {result:?}"
+    );
+
+    // After advance_tick, try_snapshot succeeds again.
+    sim.advance_tick();
+    assert!(sim.try_snapshot().is_ok());
+}
+
+/// `snapshot_bytes` also enforces the mid-tick guard — bytes path is
+/// the most common production use, so the constraint applies there too.
+#[test]
+fn snapshot_bytes_rejects_mid_tick() {
+    use crate::error::SimError;
+
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    sim.run_advance_transient();
+
+    let result = sim.snapshot_bytes();
+    assert!(matches!(result, Err(SimError::MidTickSnapshot)));
+}
+
+/// Snapshot bytes are deterministic across processes — using `BTreeMap`
+/// for `stop_lookup`, `extensions`, and `metric_tags` removes the
+/// `HashMap` iteration-order non-determinism. (#254)
+#[test]
+fn snapshot_bytes_are_deterministic() {
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
+    sim.tag_entity(stop0, "zone:lobby").unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(1), StopId(0), 60.0).unwrap();
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let bytes1 = sim.snapshot_bytes().unwrap();
+    let bytes2 = sim.snapshot_bytes().unwrap();
+    assert_eq!(
+        bytes1, bytes2,
+        "two snapshots of the same sim must be byte-identical"
+    );
+}

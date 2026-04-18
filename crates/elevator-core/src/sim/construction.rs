@@ -231,6 +231,7 @@ impl Simulation {
             reposition_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index: RiderIndex::default(),
+            tick_in_progress: false,
         })
     }
 
@@ -561,6 +562,7 @@ impl Simulation {
             reposition_buf: Vec::new(),
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index,
+            tick_in_progress: false,
         }
     }
 

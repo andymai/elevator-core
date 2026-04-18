@@ -65,6 +65,7 @@ impl super::Simulation {
     /// elevators to move before dispatch, or transient states to persist
     /// across tick boundaries.
     pub fn run_advance_transient(&mut self) {
+        self.tick_in_progress = true;
         self.hooks
             .run_before(Phase::AdvanceTransient, &mut self.world);
         for group in &self.groups {
@@ -283,6 +284,7 @@ impl super::Simulation {
     pub fn advance_tick(&mut self) {
         self.pending_output.extend(self.events.drain());
         self.tick += 1;
+        self.tick_in_progress = false;
     }
 
     /// Advance the simulation by one tick.

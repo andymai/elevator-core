@@ -4,7 +4,7 @@ use crate::entity::EntityId;
 use serde::{Deserialize, Serialize};
 
 /// Numeric identifier for a stop along the shaft.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct StopId(pub u32);
 
 /// A reference to a stop by either its config-time [`StopId`] or its

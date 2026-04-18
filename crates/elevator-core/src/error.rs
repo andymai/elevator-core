@@ -111,6 +111,10 @@ pub enum SimError {
         /// The group that references the strategy.
         group: GroupId,
     },
+    /// `try_snapshot` was called between phases of an in-progress tick.
+    /// Mid-tick snapshots silently lose `EventBus` state from earlier
+    /// phases of that tick — surface the constraint instead. (#297)
+    MidTickSnapshot,
 }
 
 impl fmt::Display for SimError {
@@ -194,6 +198,11 @@ impl fmt::Display for SimError {
                 )
             }
             Self::SnapshotFormat(reason) => write!(f, "malformed snapshot: {reason}"),
+            Self::MidTickSnapshot => write!(
+                f,
+                "snapshot taken between phases of an in-progress tick; \
+                 call advance_tick() before snapshot() in the substep API"
+            ),
             Self::UnresolvedCustomStrategy { name, group } => {
                 write!(
                     f,
