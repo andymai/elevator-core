@@ -12,6 +12,7 @@
 //!     .unwrap();
 //! ```
 
+use crate::arrival_log::{ArrivalLog, CurrentTick, DEFAULT_ARRIVAL_WINDOW_TICKS};
 use crate::entity::EntityId;
 use crate::tagged_metrics::{MetricTags, TaggedMetric};
 use crate::world::World;
@@ -207,6 +208,126 @@ impl RepositionStrategy for DemandWeighted {
                 occupied.push(*stop_pos);
             }
 
+            if assigned_elevators.len() == idle_elevators.len() {
+                break;
+            }
+        }
+    }
+}
+
+/// Predictive parking: park idle elevators near stops with the
+/// highest recent per-stop arrival rate.
+///
+/// Reads the [`ArrivalLog`] and [`CurrentTick`] world resources
+/// (always present under a built sim) to compute a rolling window of
+/// arrivals. Cars are greedily assigned to the highest-rate stops that
+/// don't already have a car nearby, so the group spreads across the
+/// hottest floors rather than clustering on one.
+///
+/// Parallels the headline feature of Otis Compass Infinity — forecast
+/// demand from recent traffic, pre-position cars accordingly. Falls
+/// back to no-op when no arrivals have been logged.
+pub struct PredictiveParking {
+    /// Rolling window (ticks) used to compute per-stop arrival counts.
+    /// Shorter windows react faster; longer windows smooth noise.
+    window_ticks: u64,
+}
+
+impl PredictiveParking {
+    /// Create with the default rolling window
+    /// ([`DEFAULT_ARRIVAL_WINDOW_TICKS`]).
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            window_ticks: DEFAULT_ARRIVAL_WINDOW_TICKS,
+        }
+    }
+
+    /// Create with a custom rolling window (ticks). Shorter windows
+    /// react faster to traffic shifts; longer windows smooth out noise.
+    #[must_use]
+    pub const fn with_window_ticks(window_ticks: u64) -> Self {
+        Self { window_ticks }
+    }
+}
+
+impl Default for PredictiveParking {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RepositionStrategy for PredictiveParking {
+    fn reposition(
+        &mut self,
+        idle_elevators: &[(EntityId, f64)],
+        stop_positions: &[(EntityId, f64)],
+        group: &ElevatorGroup,
+        world: &World,
+        out: &mut Vec<(EntityId, EntityId)>,
+    ) {
+        if idle_elevators.is_empty() || stop_positions.is_empty() {
+            return;
+        }
+        let Some(log) = world.resource::<ArrivalLog>() else {
+            return;
+        };
+        let now = world.resource::<CurrentTick>().map_or(0, |ct| ct.0);
+
+        // Score each stop by its arrival count over the window. Keep
+        // only positives — stops with zero recent arrivals are not
+        // parking targets (no signal to act on).
+        let mut scored: Vec<(EntityId, f64, u64)> = stop_positions
+            .iter()
+            .filter_map(|&(sid, pos)| {
+                let count = log.arrivals_in_window(sid, now, self.window_ticks);
+                if count == 0 {
+                    None
+                } else {
+                    Some((sid, pos, count))
+                }
+            })
+            .collect();
+        if scored.is_empty() {
+            return;
+        }
+        // Highest arrival count first; stable sort preserves stop-id
+        // order on ties so the result stays deterministic.
+        scored.sort_by_key(|(_, _, count)| std::cmp::Reverse(*count));
+
+        // Positions of non-idle elevators — we want to avoid parking
+        // on top of cars already in service.
+        let mut occupied: Vec<f64> = group
+            .elevator_entities()
+            .iter()
+            .filter_map(|&eid| {
+                if idle_elevators.iter().any(|(ie, _)| *ie == eid) {
+                    return None;
+                }
+                world.position(eid).map(|p| p.value)
+            })
+            .collect();
+
+        let mut assigned_elevators: Vec<EntityId> = Vec::new();
+        for (stop_eid, stop_pos, _count) in &scored {
+            if min_distance_to(*stop_pos, &occupied) < 1e-6 {
+                continue;
+            }
+            let closest = idle_elevators
+                .iter()
+                .filter(|(eid, _)| !assigned_elevators.contains(eid))
+                .min_by(|a, b| {
+                    let da = (a.1 - stop_pos).abs();
+                    let db = (b.1 - stop_pos).abs();
+                    da.total_cmp(&db)
+                });
+            if let Some(&(elev_eid, elev_pos)) = closest
+                && (elev_pos - stop_pos).abs() > 1e-6
+            {
+                out.push((elev_eid, *stop_eid));
+                assigned_elevators.push(elev_eid);
+                occupied.push(*stop_pos);
+            }
             if assigned_elevators.len() == idle_elevators.len() {
                 break;
             }

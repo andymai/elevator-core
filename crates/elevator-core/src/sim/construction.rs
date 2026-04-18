@@ -161,6 +161,7 @@ impl Simulation {
         // by dispatch/reposition strategies to drive traffic-mode
         // switches and predictive parking.
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
+        world.insert_resource(crate::arrival_log::CurrentTick::default());
 
         let (groups, dispatchers, strategy_ids) = if let Some(line_configs) = &config.building.lines
         {

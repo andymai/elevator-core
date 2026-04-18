@@ -1,9 +1,12 @@
 //! Tests for the repositioning system and ETD dispatch overhaul.
 
+use crate::arrival_log::{ArrivalLog, CurrentTick};
 use crate::builder::SimulationBuilder;
 use crate::components::{Accel, ElevatorPhase, RiderPhase, Speed, Weight};
 use crate::dispatch::etd::EtdDispatch;
-use crate::dispatch::reposition::{DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly};
+use crate::dispatch::reposition::{
+    DemandWeighted, NearestIdle, PredictiveParking, ReturnToLobby, SpreadEvenly,
+};
 use crate::dispatch::{
     self, BuiltinReposition, DispatchManifest, ElevatorGroup, LineInfo, RepositionStrategy,
 };
@@ -234,6 +237,105 @@ fn return_to_lobby_sends_to_home() {
 
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], (elev, stops[0]));
+}
+
+// PredictiveParking: idle car parks near the stop with the highest
+// recent arrival rate (Otis Compass Infinity model).
+#[test]
+fn predictive_parking_targets_highest_arrival_rate_stop() {
+    let (mut world, stops) = test_world_n(4);
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+
+    // Seed the arrival log: stop 2 gets 10 recent arrivals, stop 3 gets
+    // 3, others zero. Current tick = 100, default window covers 0..100.
+    let mut log = ArrivalLog::default();
+    for _ in 0..10 {
+        log.record(50, stops[2]);
+    }
+    for _ in 0..3 {
+        log.record(80, stops[3]);
+    }
+    world.insert_resource(log);
+    world.insert_resource(CurrentTick(100));
+
+    let idle = vec![(elev, 0.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    assert_eq!(result.len(), 1, "expected one parking move");
+    assert_eq!(
+        result[0],
+        (elev, stops[2]),
+        "highest recent-arrival stop must be the parking target"
+    );
+}
+
+#[test]
+fn predictive_parking_no_movement_when_log_empty() {
+    let (mut world, stops) = test_world_n(4);
+    let elev = spawn_elevator(&mut world, 0.0);
+    let group = test_group(&stops, vec![elev]);
+
+    world.insert_resource(ArrivalLog::default());
+    world.insert_resource(CurrentTick(100));
+
+    let idle = vec![(elev, 0.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    assert!(
+        result.is_empty(),
+        "no recent arrivals ⇒ no basis to move; got {result:?}"
+    );
+}
+
+#[test]
+fn predictive_parking_spreads_across_hot_stops() {
+    let (mut world, stops) = test_world_n(4);
+    let elev_a = spawn_elevator(&mut world, 0.0);
+    let elev_b = spawn_elevator(&mut world, 4.0);
+    let group = test_group(&stops, vec![elev_a, elev_b]);
+
+    // Two hot stops (different counts so the ordering is determinstic);
+    // two cars should end up at each rather than both at the hottest.
+    let mut log = ArrivalLog::default();
+    for _ in 0..10 {
+        log.record(50, stops[2]);
+    }
+    for _ in 0..5 {
+        log.record(50, stops[3]);
+    }
+    world.insert_resource(log);
+    world.insert_resource(CurrentTick(100));
+
+    let idle = vec![(elev_a, 0.0), (elev_b, 4.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    let targets: std::collections::HashSet<_> = result.iter().map(|(_, s)| *s).collect();
+    assert!(
+        targets.contains(&stops[2]) && targets.contains(&stops[3]),
+        "both hot stops must receive coverage, not both cars the single hottest; got {result:?}"
+    );
 }
 
 // ReturnToLobby with `with_home(2)`.

@@ -1,5 +1,12 @@
 //! Rolling per-stop arrival log.
 //!
+//! Carries a `CurrentTick` sibling resource that mirrors
+//! [`Simulation::current_tick`](crate::sim::Simulation::current_tick)
+//! so strategies reading the log from phases without direct access to
+//! `PhaseContext` (e.g. [`RepositionStrategy`](crate::dispatch::RepositionStrategy))
+//! can still compute windowed queries.
+//!
+//!
 //! Commercial group controllers sample per-stop arrival rates to pick
 //! traffic modes (up-peak, down-peak) and to pre-position idle cars
 //! ahead of expected demand (Otis Compass Infinity's *predictive
@@ -14,6 +21,19 @@
 
 use crate::entity::EntityId;
 use serde::{Deserialize, Serialize};
+
+/// World resource mirroring the current simulation tick.
+///
+/// Kept in sync by [`Simulation::step`](crate::sim::Simulation::step).
+/// Lets phases that don't receive a `PhaseContext` (reposition
+/// strategies, custom `World` consumers) compute rolling-window queries
+/// against [`ArrivalLog`] without plumbing tick through their
+/// signatures.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct CurrentTick(
+    /// Tick value at the start of the last `step()` entry.
+    pub u64,
+);
 
 /// Default rolling window (in ticks).
 ///

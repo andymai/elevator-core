@@ -301,6 +301,12 @@ impl super::Simulation {
     /// assert_eq!(sim.current_tick(), 1);
     /// ```
     pub fn step(&mut self) {
+        // Mirror the current tick into the world so reposition strategies
+        // and other world-only consumers can query rolling arrival-rate
+        // windows without `PhaseContext`.
+        if let Some(ct) = self.world.resource_mut::<crate::arrival_log::CurrentTick>() {
+            ct.0 = self.tick;
+        }
         self.world.snapshot_prev_positions();
         self.run_advance_transient();
         self.run_dispatch();
