@@ -13,7 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read
+      # `contents: write` is needed to push the time-series dashboard data
+      # to gh-pages. `issues: write` keeps the existing regression-issue
+      # creation behaviour working.
+      contents: write
       issues: write
     env:
       CARGO_TERM_COLOR: always
@@ -85,6 +88,25 @@ jobs:
         with:
           path: target/criterion
           key: criterion-baseline-${{ github.ref_name }}-${{ github.run_id }}
+
+      # Publish a time-series dashboard at andymai.github.io/elevator-core/bench/.
+      # Parses Criterion's output from `bench-output.log` (already captured by
+      # `tee -a` above) and pushes per-bench history to gh-pages/bench/. The
+      # docs.yml workflow uses `keep_files: true` to preserve this directory
+      # across docs deploys.
+      - name: Publish bench history
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: bench-output.log
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: bench
+          # Non-blocking — the existing `Open issue on regression` step
+          # already alerts on Criterion's own regression detection.
+          alert-threshold: '110%'
+          fail-on-alert: false
 
       - name: Open issue on regression
         if: steps.detect.outputs.regressed == 'true'

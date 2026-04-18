@@ -13,9 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  pages: write
-  id-token: write
-  contents: read
+  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -90,17 +88,18 @@ jobs:
           mkdir -p target/book/playground
           cp -r playground/dist/. target/book/playground/
 
-      - uses: actions/upload-pages-artifact@v3
+      # Publish to gh-pages branch (not the workflow Pages artifact) so the
+      # nightly-bench dashboard at /bench/ — pushed by
+      # benchmark-action/github-action-benchmark — can coexist on the same
+      # branch. `keep_files: true` preserves /bench/ across docs deploys.
+      #
+      # NOTE: requires repo Settings → Pages → "Build and deployment: Deploy
+      # from a branch / gh-pages / (root)". Without that, Pages will not
+      # serve the published files.
+      - uses: peaceiris/actions-gh-pages@v4
+        if: github.ref == 'refs/heads/main'
         with:
-          path: target/book
-
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: target/book
+          keep_files: true
