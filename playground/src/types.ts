@@ -27,6 +27,10 @@ export interface Stop {
   name: string;
   y: number;
   waiting: number;
+  /** Waiting riders whose destination is above this stop. Partition of `waiting`. */
+  waiting_up: number;
+  /** Waiting riders whose destination is below this stop. Partition of `waiting`. */
+  waiting_down: number;
   residents: number;
 }
 

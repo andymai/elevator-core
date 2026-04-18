@@ -52,6 +52,12 @@ pub struct StopDto {
     pub y: f64,
     /// Waiting rider count (O(1)).
     pub waiting: u32,
+    /// Waiting riders whose current route destination lies above this stop.
+    /// Partition of `waiting`; sum may be less than `waiting` for riders
+    /// without a Route (none in the playground, but the API is defensive).
+    pub waiting_up: u32,
+    /// Waiting riders whose current route destination lies below this stop.
+    pub waiting_down: u32,
     /// Resident rider count (O(1)).
     pub residents: u32,
 }
@@ -102,13 +108,18 @@ impl Snapshot {
         let stops = sim
             .world()
             .iter_stops()
-            .map(|(id, stop)| StopDto {
-                entity_id: entity_to_u32(id),
-                stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(u32::MAX),
-                name: stop.name().to_string(),
-                y: stop.position(),
-                waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
-                residents: u32::try_from(sim.resident_count_at(id)).unwrap_or(u32::MAX),
+            .map(|(id, stop)| {
+                let (up, down) = sim.waiting_direction_counts_at(id);
+                StopDto {
+                    entity_id: entity_to_u32(id),
+                    stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(u32::MAX),
+                    name: stop.name().to_string(),
+                    y: stop.position(),
+                    waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
+                    waiting_up: u32::try_from(up).unwrap_or(u32::MAX),
+                    waiting_down: u32::try_from(down).unwrap_or(u32::MAX),
+                    residents: u32::try_from(sim.resident_count_at(id)).unwrap_or(u32::MAX),
+                }
             })
             .collect();
 

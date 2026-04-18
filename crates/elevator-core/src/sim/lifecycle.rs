@@ -6,7 +6,9 @@
 
 use std::collections::HashSet;
 
-use crate::components::{Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route};
+use crate::components::{
+    CallDirection, Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route,
+};
 use crate::entity::{ElevatorId, EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::Event;
@@ -389,6 +391,48 @@ impl Simulation {
     #[must_use]
     pub fn waiting_count_at(&self, stop: EntityId) -> usize {
         self.rider_index.waiting_count_at(stop)
+    }
+
+    /// Partition waiting riders at `stop` by their route direction.
+    ///
+    /// Returns `(up, down)` where `up` counts riders whose current route
+    /// destination lies above `stop` (they want to go up) and `down` counts
+    /// riders whose destination lies below. Riders without a [`Route`] or
+    /// whose current leg has no destination are excluded from both counts —
+    /// they have no intrinsic direction. The sum `up + down` may therefore
+    /// be less than [`waiting_count_at`](Self::waiting_count_at).
+    ///
+    /// Runs in `O(waiting riders at stop)`. Designed for per-frame rendering
+    /// code that wants to show up/down queues separately; dispatch strategies
+    /// should read [`HallCall`](crate::components::HallCall)s instead.
+    #[must_use]
+    pub fn waiting_direction_counts_at(&self, stop: EntityId) -> (usize, usize) {
+        let Some(origin_pos) = self.world.stop(stop).map(crate::components::Stop::position) else {
+            return (0, 0);
+        };
+        let mut up = 0usize;
+        let mut down = 0usize;
+        for rider in self.rider_index.waiting_at(stop) {
+            let Some(route) = self.world.route(*rider) else {
+                continue;
+            };
+            let Some(dest_entity) = route.current_destination() else {
+                continue;
+            };
+            let Some(dest_pos) = self
+                .world
+                .stop(dest_entity)
+                .map(crate::components::Stop::position)
+            else {
+                continue;
+            };
+            match CallDirection::between(origin_pos, dest_pos) {
+                Some(CallDirection::Up) => up += 1,
+                Some(CallDirection::Down) => down += 1,
+                None => {}
+            }
+        }
+        (up, down)
     }
 
     /// Iterate over abandoned rider IDs at a stop (O(1) lookup).
