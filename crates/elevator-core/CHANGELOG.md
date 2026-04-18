@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.18](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.17...elevator-core-v15.2.18) (2026-04-18)
+
+
+### Bug Fixes
+
+* **snapshot:** reject legacy/mismatched schema versions on restore ([#305](https://github.com/andymai/elevator-core/issues/305)) ([7f70c5d](https://github.com/andymai/elevator-core/commit/7f70c5dcea444ca14c5b0d39ab853871ee0c0ce8))
+
 ## [15.2.17](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.16...elevator-core-v15.2.17) (2026-04-18)
 
 
