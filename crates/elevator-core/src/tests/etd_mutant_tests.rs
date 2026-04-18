@@ -64,7 +64,7 @@ fn etd_picks_faster_car_at_equal_distance() {
 
 /// Kills `replace > with >=` on the `max_speed > 0.0` finite-cost guard
 /// at line 120 (and similarly at line 149 inside the rider-detour
-/// loop). With max_speed exactly 0, the original returns INFINITY and
+/// loop). With `max_speed` exactly 0, the original returns INFINITY and
 /// the car is excluded; mutant `>= 0` would not exclude.
 #[test]
 fn etd_zero_max_speed_returns_infinity_cost() {
@@ -134,9 +134,9 @@ fn etd_intervening_pending_stop_adds_door_cost() {
 }
 
 /// Kills `replace * with +` on the `door_cost = intervening_stops *
-/// door_overhead_per_stop` multiplication. With door_overhead = 0
-/// (door_transition_ticks=0, door_open_ticks=0), original = 0; mutant
-/// = intervening_stops, which is non-zero. Need a setup where this
+/// door_overhead_per_stop` multiplication. With `door_overhead` = 0
+/// (`door_transition_ticks=0`, `door_open_ticks=0`), original = 0; mutant
+/// = `intervening_stops`, which is non-zero. Need a setup where this
 /// affects the decision.
 #[test]
 fn etd_door_cost_scales_with_door_ticks() {
@@ -238,7 +238,7 @@ fn etd_detour_for_existing_rider_costs_more() {
 
 /// Kills the direction-bonus mutants on lines 161-167 (`>` ↔ `>=`,
 /// `<` ↔ `==`/`<=`/`>` swaps, `&&` ↔ `||`). A car already moving toward
-/// the target along the same direction gets the −0.5·travel_time bonus.
+/// the target along the same direction gets the −`0.5·travel_time` bonus.
 #[test]
 fn etd_prefers_car_already_moving_toward_target() {
     let (mut world, stops) = test_world();
@@ -272,7 +272,7 @@ fn etd_prefers_car_already_moving_toward_target() {
 
 /// Kills the `None if car.phase == ElevatorPhase::Idle` match-guard
 /// mutants at line 173 (`true`, `false`, `==` → `!=`). Idle cars get
-/// a smaller bonus (-travel_time * 0.3) than moving-toward (-0.5).
+/// a smaller bonus (-`travel_time` * 0.3) than moving-toward (-0.5).
 /// We can verify the idle-bonus exists by comparing to a non-idle,
 /// non-moving phase.
 #[test]
