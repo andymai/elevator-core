@@ -67,13 +67,13 @@ As of `elevator-core` v15.1.0, these items are **stable**:
 - `entity::{ElevatorId, RiderId, EntityId}`
 - `components::{Weight, Speed, Accel}` and `components::units::UnitError`
 - `snapshot::WorldSnapshot`
+- `dispatch::DispatchStrategy` trait and the five built-in strategies
+  (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`,
+  `DestinationDispatch`). Trait method signatures and built-in public
+  API are frozen; covered by the standard deprecation policy.
 
 These items are **experimental** and may change in any minor version:
 
-- `dispatch::DispatchStrategy` and all built-in strategies
-  (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`,
-  `DestinationDispatch`). The plugin contract may shift as we
-  incorporate more dispatch algorithms.
 - `hooks::{Phase, PhaseHooks}` — the phase-hook registration surface.
 - `topology::*` — connectivity graph and multi-line routing queries.
 - `tagged_metrics::*` — per-tag metric accumulators.
@@ -128,3 +128,13 @@ instability of the implementation — the library has had 604 lib tests,
 
 This cadence commitment applies **going forward only**; it is not
 retroactive.
+
+## History
+
+Graduations from experimental to stable. The first entry doubles as
+proof-by-example that the policy mechanism works.
+
+- **v15.2.0** — `dispatch::DispatchStrategy` trait and the five built-in
+  strategies (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`,
+  `EtdDispatch`, `DestinationDispatch`) graduated from experimental to
+  stable.

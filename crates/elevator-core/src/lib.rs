@@ -66,7 +66,7 @@
 //! |--------|---------|-----------|
 //! | [`builder`] | Fluent [`SimulationBuilder`](builder::SimulationBuilder) API | stable |
 //! | [`sim`] | Top-level [`Simulation`](sim::Simulation) runner and tick loop | stable (selected methods — see [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md)) |
-//! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait | experimental |
+//! | [`dispatch`] | Dispatch strategies and the [`DispatchStrategy`](dispatch::DispatchStrategy) trait | stable |
 //! | [`world`] | ECS-style [`World`](world::World) with typed component storage | experimental |
 //! | [`components`] | Entity data types: [`Rider`](components::Rider), [`Elevator`](components::Elevator), [`Stop`](components::Stop), [`Line`](components::Line), [`Route`](components::Route), [`Patience`](components::Patience), [`Preferences`](components::Preferences), [`AccessControl`](components::AccessControl), [`DestinationQueue`](components::DestinationQueue), [`ServiceMode`](components::ServiceMode), [`Orientation`](components::Orientation), [`Position`](components::Position), [`Velocity`](components::Velocity), [`SpatialPosition`](components::SpatialPosition) | stable (units + core), experimental (rest) |
 //! | [`config`] | RON-deserializable [`SimConfig`](config::SimConfig), [`GroupConfig`](config::GroupConfig), [`LineConfig`](config::LineConfig) | experimental |
