@@ -145,7 +145,7 @@ pub fn run(
             }
             let patience = world.patience(id)?;
             let stop = r.current_stop?;
-            if patience.waited_ticks >= patience.max_wait_ticks.saturating_sub(1) {
+            if patience.waited_ticks >= patience.max_wait_ticks {
                 Some((id, stop))
             } else {
                 None
