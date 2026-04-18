@@ -71,6 +71,7 @@ As of `elevator-core` v15.1.0, these items are **stable**:
   (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`,
   `DestinationDispatch`). Trait method signatures and built-in public
   API are frozen; covered by the standard deprecation policy.
+  *(Graduated from experimental in v15.2.0 — see [History](#history).)*
 
 These items are **experimental** and may change in any minor version:
 

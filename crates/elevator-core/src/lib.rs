@@ -9,10 +9,10 @@
 //!
 //! ## Key capabilities
 //!
-//! - **Pluggable dispatch** — four built-in algorithms ([`dispatch::scan::ScanDispatch`],
+//! - **Pluggable dispatch** — five built-in algorithms ([`dispatch::scan::ScanDispatch`],
 //!   [`dispatch::look::LookDispatch`], [`dispatch::nearest_car::NearestCarDispatch`],
-//!   [`dispatch::etd::EtdDispatch`]) plus the [`dispatch::DispatchStrategy`] trait
-//!   for custom implementations.
+//!   [`dispatch::etd::EtdDispatch`], [`dispatch::destination::DestinationDispatch`])
+//!   plus the [`dispatch::DispatchStrategy`] trait for custom implementations.
 //! - **Trapezoidal motion profiles** — realistic acceleration, cruise, and
 //!   deceleration computed per-tick.
 //! - **Extension components** — attach arbitrary `Serialize + DeserializeOwned`
