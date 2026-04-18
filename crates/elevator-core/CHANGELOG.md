@@ -1,5 +1,17 @@
 # Changelog
 
+## [15.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.3.1...elevator-core-v15.4.0) (2026-04-18)
+
+
+### Features
+
+* **dispatch:** commercial controller features — bypass, arrival log, group-time, deferred DCS, predictive parking ([#320](https://github.com/andymai/elevator-core/issues/320)) ([2e93812](https://github.com/andymai/elevator-core/commit/2e9381228cda71577d95eb049cdcc78b4e95d035))
+
+
+### Bug Fixes
+
+* **dispatch:** close direction-filter self-assign stall ([#322](https://github.com/andymai/elevator-core/issues/322)) ([b4aefa2](https://github.com/andymai/elevator-core/commit/b4aefa23e93b019b9000519b9053a92b05f4cacd))
+
 ## [15.3.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.3.0...elevator-core-v15.3.1) (2026-04-18)
 
 
