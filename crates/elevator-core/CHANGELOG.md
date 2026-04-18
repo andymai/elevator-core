@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.17](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.16...elevator-core-v15.2.17) (2026-04-18)
+
+
+### Bug Fixes
+
+* **api:** AccessControl + record_hall_assignment + typed-ID footgun ([#289](https://github.com/andymai/elevator-core/issues/289)/[#290](https://github.com/andymai/elevator-core/issues/290)/[#294](https://github.com/andymai/elevator-core/issues/294)) ([#310](https://github.com/andymai/elevator-core/issues/310)) ([869e8fe](https://github.com/andymai/elevator-core/commit/869e8fedbdd06fea9c12d85aaa38d3c22b2ac645))
+
 ## [15.2.16](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.15...elevator-core-v15.2.16) (2026-04-18)
 
 
