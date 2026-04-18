@@ -193,19 +193,19 @@ impl SimulationBuilder {
 
     /// Create a builder from an existing [`SimConfig`].
     ///
-    /// Uses `ScanDispatch` as the default strategy. Call [`.dispatch()`](Self::dispatch)
-    /// to override.
+    /// Honours the `dispatch` field on each `GroupConfig` from the config —
+    /// no default is pre-seeded. Call [`.dispatch()`](Self::dispatch) or
+    /// [`.dispatch_for_group()`](Self::dispatch_for_group) to override the
+    /// per-group strategy from code; otherwise the config's choice (or
+    /// `ScanDispatch` if neither config nor builder specifies) is used.
+    /// Pre-fix this function unconditionally seeded `ScanDispatch` for
+    /// `GroupId(0)` and the override loop in construction stomped any
+    /// config-supplied strategy for that group (#287).
     #[must_use]
     pub fn from_config(config: SimConfig) -> Self {
-        let mut dispatchers = BTreeMap::new();
-        dispatchers.insert(
-            GroupId(0),
-            Box::new(ScanDispatch::new()) as Box<dyn DispatchStrategy>,
-        );
-
         Self {
             config,
-            dispatchers,
+            dispatchers: BTreeMap::new(),
             repositioners: Vec::new(),
             hooks: PhaseHooks::default(),
             ext_registrations: Vec::new(),

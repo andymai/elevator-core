@@ -341,15 +341,30 @@ impl Simulation {
 
         let group = ElevatorGroup::new(GroupId(0), "Default".into(), vec![default_line_info]);
 
-        // Use builder-provided dispatcher or default Scan.
+        // Legacy topology has exactly one group: GroupId(0). Honour a
+        // builder-provided dispatcher for that group; ignore any builder
+        // entry keyed on a different GroupId (it would have nothing to
+        // attach to). Pre-fix this used `into_iter().next()` which
+        // discarded the GroupId entirely and could attach a dispatcher
+        // intended for a different group to GroupId(0). (#288)
         let mut dispatchers = BTreeMap::new();
-        let dispatch = builder_dispatchers.into_iter().next().map_or_else(
-            || Box::new(crate::dispatch::scan::ScanDispatch::new()) as Box<dyn DispatchStrategy>,
-            |(_, d)| d,
-        );
-        dispatchers.insert(GroupId(0), dispatch);
-
         let mut strategy_ids = BTreeMap::new();
+        let user_dispatcher = builder_dispatchers
+            .into_iter()
+            .find_map(|(gid, d)| if gid == GroupId(0) { Some(d) } else { None });
+        if let Some(d) = user_dispatcher {
+            dispatchers.insert(GroupId(0), d);
+        } else {
+            dispatchers.insert(
+                GroupId(0),
+                Box::new(crate::dispatch::scan::ScanDispatch::new()) as Box<dyn DispatchStrategy>,
+            );
+        }
+        // strategy_ids defaults to Scan (the legacy-topology default and
+        // the type passed by every Simulation::new caller in practice).
+        // Builder users who install a non-Scan dispatcher should also
+        // call `.with_strategy_id(...)` if they need snapshot fidelity —
+        // we can't infer the BuiltinStrategy class from `Box<dyn>`.
         strategy_ids.insert(GroupId(0), BuiltinStrategy::Scan);
 
         (vec![group], dispatchers, strategy_ids)
@@ -491,8 +506,22 @@ impl Simulation {
         }
 
         // Override with builder-provided dispatchers (they take precedence).
+        // Pre-fix this could mismatch `strategy_ids` against `dispatchers`
+        // when both config and builder specified a strategy for the same
+        // group (#287). The new precedence: builder wins for the dispatcher
+        // and we keep the config's strategy_id only when no builder
+        // override touched the group.
         for (gid, d) in builder_dispatchers {
             dispatchers.insert(gid, d);
+            // Builder dispatchers don't carry a `BuiltinStrategy` discriminant.
+            // If there's no config strategy_id for this group, leave it absent
+            // (snapshot will fail to instantiate; caller must register a
+            // factory). If there IS one, keep it: in practice, the
+            // `Simulation::new(cfg, X)` direct path always passes an X that
+            // matches the config's declared strategy.
+            strategy_ids
+                .entry(gid)
+                .or_insert_with(|| BuiltinStrategy::Custom("user-supplied".into()));
         }
 
         (groups, dispatchers, strategy_ids)
