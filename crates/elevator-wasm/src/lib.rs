@@ -12,13 +12,26 @@
 
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
-    DestinationDispatch, DispatchStrategy, EtdDispatch, LookDispatch, NearestCarDispatch,
-    ScanDispatch,
+    BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, LookDispatch,
+    NearestCarDispatch, ScanDispatch,
 };
 use elevator_core::prelude::{Simulation, StopId};
 use wasm_bindgen::prelude::*;
 
 mod dto;
+
+/// Map a JS-facing strategy name to its `BuiltinStrategy` variant. Used to tag
+/// dispatcher instances so snapshots round-trip the active strategy id.
+fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
+    match name {
+        "scan" => Some(BuiltinStrategy::Scan),
+        "look" => Some(BuiltinStrategy::Look),
+        "nearest" => Some(BuiltinStrategy::NearestCar),
+        "etd" => Some(BuiltinStrategy::Etd),
+        "destination" => Some(BuiltinStrategy::Destination),
+        _ => None,
+    }
+}
 
 /// Construct a `Simulation` with a concrete dispatcher selected by name. We
 /// instantiate the concrete strategy at the call site (instead of boxing first)
@@ -59,9 +72,24 @@ impl WasmSim {
     pub fn new(config_ron: &str, strategy: &str) -> Result<Self, JsError> {
         let config: SimConfig =
             ron::from_str(config_ron).map_err(|e| JsError::new(&format!("config parse: {e}")))?;
-        let inner = make_sim(&config, strategy)
+        let mut inner = make_sim(&config, strategy)
             .ok_or_else(|| JsError::new(&format!("unknown strategy: {strategy}")))?
             .map_err(|e| JsError::new(&format!("sim build: {e}")))?;
+        // Default to SpreadEvenly reposition *only* when the config didn't
+        // pick one — scenarios with several cars on one line visibly benefit
+        // from active repositioning, but an explicit RON choice must win so
+        // downstream consumers (and future tests) aren't silently overridden.
+        let groups_needing_default: Vec<_> = inner
+            .groups()
+            .iter()
+            .map(elevator_core::dispatch::ElevatorGroup::id)
+            .filter(|gid| inner.reposition_id(*gid).is_none())
+            .collect();
+        for gid in groups_needing_default {
+            if let Some(strategy) = BuiltinReposition::SpreadEvenly.instantiate() {
+                inner.set_reposition(gid, strategy, BuiltinReposition::SpreadEvenly);
+            }
+        }
         Ok(Self {
             inner,
             strategy_name: strategy.to_string(),
@@ -102,21 +130,24 @@ impl WasmSim {
     /// without panicking.
     #[wasm_bindgen(js_name = setStrategy)]
     pub fn set_strategy(&mut self, name: &str) -> bool {
+        // Validate the name up front so we either swap every group or none —
+        // a partial swap would desync strategy state across groups and leave
+        // `strategy_name` ambiguous.
+        let Some(id) = strategy_id(name) else {
+            return false;
+        };
         // Each group owns its own dispatcher instance because strategies carry
-        // per-group state (e.g. the sweep direction in SCAN/LOOK).
+        // per-group state (e.g. the sweep direction in SCAN/LOOK). Routing
+        // through `set_dispatch` keeps `strategy_id` bookkeeping in sync for
+        // snapshot round-trips and downstream consumers.
         let group_ids: Vec<_> = self.inner.dispatchers().keys().copied().collect();
-        let mut inserted = false;
         for gid in group_ids {
-            let Some(dispatcher) = boxed_strategy(name) else {
-                return inserted;
-            };
-            self.inner.dispatchers_mut().insert(gid, dispatcher);
-            inserted = true;
+            if let Some(dispatcher) = id.instantiate() {
+                self.inner.set_dispatch(gid, dispatcher, id.clone());
+            }
         }
-        if inserted {
-            self.strategy_name = name.to_string();
-        }
-        inserted
+        self.strategy_name = name.to_string();
+        true
     }
 
     /// Spawn a single rider between two stop ids at the given weight.
@@ -202,20 +233,6 @@ impl WasmSim {
         self.inner.stop_entity(StopId(stop_id)).map_or(0, |e| {
             u32::try_from(self.inner.waiting_count_at(e)).unwrap_or(u32::MAX)
         })
-    }
-}
-
-/// Boxed variant of the strategy map used by `set_strategy` (the dispatcher
-/// map stores `Box<dyn DispatchStrategy>`, so rebuilding per group returns a
-/// fresh boxed instance). Returns `None` for unrecognised names.
-fn boxed_strategy(name: &str) -> Option<Box<dyn DispatchStrategy>> {
-    match name {
-        "scan" => Some(Box::new(ScanDispatch::new())),
-        "look" => Some(Box::new(LookDispatch::new())),
-        "nearest" => Some(Box::new(NearestCarDispatch::new())),
-        "etd" => Some(Box::new(EtdDispatch::new())),
-        "destination" => Some(Box::new(DestinationDispatch::new())),
-        _ => None,
     }
 }
 

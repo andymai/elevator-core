@@ -1,4 +1,4 @@
-import type { Metrics, SimEvent, Snapshot, StrategyName } from "./types";
+import type { Metrics, Snapshot, StrategyName } from "./types";
 
 // Thin TS wrapper around `WasmSim` that narrows JS values returned by
 // serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
@@ -70,6 +70,11 @@ export class Sim {
 
   step(n: number): void {
     this.#inner.stepMany(n);
+    // The wasm `EventBus` buffers every RiderSpawned / DoorOpened / ... event
+    // into `pending_output` until something drains it. The playground no
+    // longer consumes events (the event log was cut), so drop them here to
+    // keep the wasm heap from growing without bound during long sessions.
+    this.#inner.drainEvents();
   }
 
   get dt(): number {
@@ -103,10 +108,6 @@ export class Sim {
 
   snapshot(): Snapshot {
     return this.#inner.snapshot() as Snapshot;
-  }
-
-  drainEvents(): SimEvent[] {
-    return this.#inner.drainEvents() as SimEvent[];
   }
 
   metrics(): Metrics {
