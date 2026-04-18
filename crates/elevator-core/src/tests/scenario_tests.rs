@@ -289,3 +289,60 @@ fn deterministic_replay() {
         "Deterministic simulation should take identical tick counts"
     );
 }
+
+// ── ScenarioRunner — spawn ordering (#271) ───────────────────────────────────
+
+/// `ScenarioRunner::new` must sort spawns by tick. Pre-fix, the cursor
+/// advance in `tick()` would gate an earlier-tick spawn behind a
+/// later-tick predecessor declared first in the vec, silently moving
+/// the earlier rider to the later tick (#271).
+#[test]
+fn scenario_runner_sorts_out_of_order_spawns() {
+    use crate::scenario::{Scenario, ScenarioRunner, TimedSpawn};
+
+    let scenario = Scenario {
+        name: "out-of-order".into(),
+        config: default_config(),
+        spawns: vec![
+            TimedSpawn {
+                tick: 10,
+                origin: StopId(0),
+                destination: StopId(2),
+                weight: 70.0,
+            },
+            TimedSpawn {
+                tick: 5,
+                origin: StopId(0),
+                destination: StopId(1),
+                weight: 70.0,
+            },
+        ],
+        conditions: vec![],
+        max_ticks: 100,
+    };
+
+    let mut runner = ScenarioRunner::new(scenario, scan()).unwrap();
+
+    // Step through to tick 5. Only the tick=5 spawn should have fired.
+    for _ in 0..6 {
+        runner.tick();
+    }
+    assert_eq!(
+        runner.sim().metrics().total_spawned(),
+        1,
+        "only the tick=5 spawn should have happened by tick 5"
+    );
+
+    // Step to tick 10. Now the tick=10 spawn fires too.
+    for _ in 0..5 {
+        runner.tick();
+    }
+    assert_eq!(
+        runner.sim().metrics().total_spawned(),
+        2,
+        "both spawns should have happened by tick 10"
+    );
+
+    let _ = Weight::from(70.0); // suppress unused-import warning
+    let _: Option<Event> = None;
+}
