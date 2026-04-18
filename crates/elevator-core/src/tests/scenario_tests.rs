@@ -349,10 +349,23 @@ fn etd_full_car_delivers_aboard_rider_despite_unservable_pickup() {
 /// strategy happens to be default.
 #[test]
 fn every_builtin_strategy_eventually_delivers_all_riders() {
-    fn run_with<S: DispatchStrategy + 'static>(name: &str, strategy: S) {
+    fn run_with<S: DispatchStrategy + 'static>(name: &str, strategy: S, dcs: bool) {
         let mut config = default_config();
         config.elevators[0].weight_capacity = Weight::from(100.0);
         let mut sim = Simulation::new(&config, strategy).unwrap();
+        if dcs {
+            // DCS requires Destination hall-call mode and an
+            // `AssignedCar` extension registration; otherwise
+            // `pre_dispatch` early-returns and the test silently
+            // degrades to "no dispatch happens." Flip both here.
+            for g in sim.groups_mut() {
+                g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+            }
+            sim.world_mut()
+                .register_ext::<crate::dispatch::AssignedCar>(
+                    crate::dispatch::destination::ASSIGNED_CAR_KEY,
+                );
+        }
         sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
         sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
 
@@ -375,10 +388,15 @@ fn every_builtin_strategy_eventually_delivers_all_riders() {
         );
     }
 
-    run_with("SCAN", ScanDispatch::new());
-    run_with("LOOK", LookDispatch::new());
-    run_with("NearestCar", NearestCarDispatch::new());
-    run_with("ETD", EtdDispatch::new());
+    run_with("SCAN", ScanDispatch::new(), false);
+    run_with("LOOK", LookDispatch::new(), false);
+    run_with("NearestCar", NearestCarDispatch::new(), false);
+    run_with("ETD", EtdDispatch::new(), false);
+    run_with(
+        "Destination",
+        crate::dispatch::DestinationDispatch::new(),
+        true,
+    );
 }
 
 // ── ScenarioRunner — spawn ordering (#271) ───────────────────────────────────

@@ -67,6 +67,21 @@ fn pair_is_useful(ctx: &RankContext<'_>) -> bool {
         return true;
     }
 
+    // Route-less aboard riders (game-managed manual riders) don't
+    // publish a destination, so there's no committed path to protect.
+    // Any pickup is trivially on-the-way — fall back to the raw
+    // servability check. Otherwise we'd refuse every pickup the moment
+    // the car carried its first manually-managed passenger.
+    let has_routed_rider = car.riders().iter().any(|&rid| {
+        ctx.world
+            .route(rid)
+            .and_then(Route::current_destination)
+            .is_some()
+    });
+    if !has_routed_rider {
+        return true;
+    }
+
     // Pickups allowed only on the path to an aboard rider's destination.
     // Candidate at the car's position (to_cand = 0) trivially qualifies —
     // useful for same-floor boards.
