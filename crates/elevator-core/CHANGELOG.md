@@ -1,5 +1,13 @@
 # Changelog
 
+## [15.2.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.2...elevator-core-v15.2.3) (2026-04-18)
+
+
+### Bug Fixes
+
+* **movement:** brake at deceleration rate when velocity opposes target ([#250](https://github.com/andymai/elevator-core/issues/250)) ([5adacbd](https://github.com/andymai/elevator-core/commit/5adacbd396c409efbbb40f620cbb7045640a1b1f))
+* **patience:** correct max_wait_ticks off-by-one ([#249](https://github.com/andymai/elevator-core/issues/249)) ([90a4ae7](https://github.com/andymai/elevator-core/commit/90a4ae7cf7e0952958f99ecfbfafd95103b443b3))
+
 ## [15.2.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.1...elevator-core-v15.2.2) (2026-04-18)
 
 
