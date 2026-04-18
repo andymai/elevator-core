@@ -86,6 +86,16 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
     if can_exit_here {
         return true;
     }
+
+    // Direction-dependent full-load bypass (Otis Elevonic 411 model,
+    // patent US5490580A). A car loaded above its configured threshold
+    // in the current travel direction ignores hall calls in that same
+    // direction. Aboard riders still get delivered — the `can_exit_here`
+    // short-circuit above guarantees their destinations remain rank-able.
+    if bypass_in_current_direction(car, ctx) {
+        return false;
+    }
+
     let remaining_capacity = car.weight_capacity.value() - car.current_load.value();
     if remaining_capacity <= 0.0 {
         return false;
@@ -95,6 +105,45 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
         || waiting
             .iter()
             .any(|r| r.weight.value() <= remaining_capacity)
+}
+
+/// True when a full-load bypass applies: the car has a configured
+/// threshold for its current travel direction, is above that threshold,
+/// and the candidate stop lies in that same direction.
+fn bypass_in_current_direction(car: &crate::components::Elevator, ctx: &RankContext<'_>) -> bool {
+    // Derive travel direction from the car's current target, if any.
+    // An Idle or Stopped car has no committed direction → no bypass.
+    let Some(target) = car.phase().moving_target() else {
+        return false;
+    };
+    let Some(target_pos) = ctx.world.stop_position(target) else {
+        return false;
+    };
+    let going_up = target_pos > ctx.car_position;
+    let going_down = target_pos < ctx.car_position;
+    if !going_up && !going_down {
+        return false;
+    }
+    let threshold = if going_up {
+        car.bypass_load_up_pct()
+    } else {
+        car.bypass_load_down_pct()
+    };
+    let Some(pct) = threshold else {
+        return false;
+    };
+    let capacity = car.weight_capacity().value();
+    if capacity <= 0.0 {
+        return false;
+    }
+    let load_ratio = car.current_load().value() / capacity;
+    if load_ratio < pct {
+        return false;
+    }
+    // Only same-direction pickups get bypassed.
+    let stop_above = ctx.stop_position > ctx.car_position;
+    let stop_below = ctx.stop_position < ctx.car_position;
+    (going_up && stop_above) || (going_down && stop_below)
 }
 
 /// Metadata about a single rider, available to dispatch strategies.
