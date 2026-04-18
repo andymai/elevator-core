@@ -123,12 +123,20 @@ impl DispatchStrategy for DestinationDispatch {
             return;
         }
 
-        // Collect unassigned waiting riders in this group.
+        // Collect unassigned waiting riders in this group. A sticky
+        // assignment whose target car is dead or disabled is treated as
+        // void — re-assign rather than strand. (Lifecycle hooks in
+        // `disable`/`remove_elevator` normally clear these; this is the
+        // defense layer if cleanup is ever missed.)
+        let mut stale_assignments: Vec<EntityId> = Vec::new();
         let mut pending: Vec<(EntityId, EntityId, EntityId, f64)> = Vec::new();
         for (_, riders) in manifest.iter_waiting_stops() {
             for info in riders {
-                if world.ext::<AssignedCar>(info.id).is_some() {
-                    continue; // sticky
+                if let Some(AssignedCar(c)) = world.ext::<AssignedCar>(info.id) {
+                    if world.elevator(c).is_some() && !world.is_disabled(c) {
+                        continue; // sticky and live
+                    }
+                    stale_assignments.push(info.id);
                 }
                 let Some(dest) = info.destination else {
                     continue;
@@ -151,6 +159,10 @@ impl DispatchStrategy for DestinationDispatch {
             }
         }
         pending.sort_by_key(|(rid, ..)| *rid);
+        // Drop stale extensions so subsequent ticks see them as unassigned.
+        for rid in stale_assignments {
+            world.remove_ext::<AssignedCar>(rid);
+        }
 
         // Pre-compute committed-load per car (riders aboard + already-
         // assigned waiting riders not yet boarded). Used by cost function
@@ -313,6 +325,26 @@ impl DestinationDispatch {
         };
 
         pickup_time + ride_time + penalty * new_stops + idle_bonus + load_penalty
+    }
+}
+
+/// Drop every sticky [`AssignedCar`] assignment that points at `car_eid`.
+///
+/// Called by `Simulation::disable` and `Simulation::remove_elevator` when an
+/// elevator leaves service so DCS-routed riders are not stranded behind a
+/// dead reference. Assignments are sticky by design — if no one clears them,
+/// no other car will pick the rider up — so the lifecycle layer is responsible
+/// for invoking this helper at car-loss boundaries.
+pub fn clear_assignments_to(world: &mut crate::world::World, car_eid: EntityId) {
+    let stale: Vec<EntityId> = world
+        .iter_riders()
+        .filter_map(|(rid, _)| match world.ext::<AssignedCar>(rid) {
+            Some(AssignedCar(c)) if c == car_eid => Some(rid),
+            _ => None,
+        })
+        .collect();
+    for rid in stale {
+        world.remove_ext::<AssignedCar>(rid);
     }
 }
 

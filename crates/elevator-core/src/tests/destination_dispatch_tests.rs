@@ -407,3 +407,159 @@ fn dcs_gated_to_destination_mode() {
         "DCS must not assign when group is in Classic mode",
     );
 }
+
+// ── Sticky-assignment cleanup on car loss (#245) ─────────────────────
+
+#[test]
+fn disable_assigned_car_clears_sticky_and_lets_other_car_deliver() {
+    // Two cars, A and B. A rider is assigned to A; A is disabled before
+    // it can pick up. The cleanup hook in `disable()` must clear the
+    // sticky assignment so B can take the rider.
+    let mut sim =
+        Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
+
+    let elevs: Vec<_> = sim
+        .world()
+        .iter_elevators()
+        .map(|(eid, _, _)| eid)
+        .collect();
+    let car_a = elevs
+        .iter()
+        .copied()
+        .find(|&e| sim.world().position(e).map_or(0.0, |p| p.value) < 1.0)
+        .unwrap();
+    let car_b = elevs.iter().copied().find(|e| *e != car_a).unwrap();
+
+    // Rider at F2 → F3 — DCS will assign to the closer car (A).
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
+    sim.step();
+    let assigned = sim.world().ext::<AssignedCar>(rid.entity()).unwrap();
+    assert_eq!(
+        assigned.0, car_a,
+        "precondition: rider assigned to closer car A"
+    );
+
+    sim.disable(car_a).unwrap();
+    assert!(
+        sim.world().ext::<AssignedCar>(rid.entity()).is_none(),
+        "stale assignment to disabled car must be cleared"
+    );
+
+    // Run to completion — B must deliver.
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rid.entity())
+            .is_some_and(|r| r.phase() == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        Some(RiderPhase::Arrived),
+        "rider should be delivered by the surviving car"
+    );
+    let new_assignment = sim.world().ext::<AssignedCar>(rid.entity()).map(|a| a.0);
+    assert_eq!(
+        new_assignment,
+        Some(car_b),
+        "rider should be re-assigned to car B"
+    );
+}
+
+#[test]
+fn remove_assigned_car_clears_sticky_and_lets_other_car_deliver() {
+    // Same scenario as disable, but with `remove_elevator` (which calls
+    // disable internally and then despawns).
+    let mut sim =
+        Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
+
+    let elevs: Vec<_> = sim
+        .world()
+        .iter_elevators()
+        .map(|(eid, _, _)| eid)
+        .collect();
+    let car_a = elevs
+        .iter()
+        .copied()
+        .find(|&e| sim.world().position(e).map_or(0.0, |p| p.value) < 1.0)
+        .unwrap();
+
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 75.0).unwrap();
+    sim.step();
+    assert_eq!(
+        sim.world().ext::<AssignedCar>(rid.entity()).map(|a| a.0),
+        Some(car_a),
+        "precondition: rider assigned to A"
+    );
+
+    sim.remove_elevator(car_a).unwrap();
+    assert!(
+        sim.world().ext::<AssignedCar>(rid.entity()).is_none(),
+        "assignment to removed car must be cleared"
+    );
+    assert!(!sim.world().is_alive(car_a), "car A should be despawned");
+
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rid.entity())
+            .is_some_and(|r| r.phase() == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        Some(RiderPhase::Arrived),
+        "rider should be delivered by the surviving car after removal"
+    );
+}
+
+#[test]
+fn loading_ignores_dangling_assignment_to_dead_car() {
+    // Defense-in-depth: even if cleanup misses an assignment, loading
+    // must not strand the rider behind a dead reference. Forge a sticky
+    // assignment pointing at a despawned EntityId and verify the live
+    // car still picks the rider up.
+    let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
+    for g in sim.groups_mut() {
+        g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+    }
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
+
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
+
+    // Forge a dangling AssignedCar pointing at a despawned id, *before*
+    // any tick runs DCS pre_dispatch (which would otherwise overwrite).
+    let dead_id = sim.world_mut().spawn();
+    sim.world_mut().despawn(dead_id);
+    sim.world_mut()
+        .insert_ext(rid.entity(), AssignedCar(dead_id), ASSIGNED_CAR_KEY);
+
+    // Step. DCS sees the (dangling) AssignedCar and skips re-assignment;
+    // loading sees the assigned car is dead and ignores the sticky guard.
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rid.entity())
+            .is_some_and(|r| r.phase() == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+    assert_eq!(
+        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        Some(RiderPhase::Arrived),
+        "rider must be delivered despite dangling AssignedCar"
+    );
+}
