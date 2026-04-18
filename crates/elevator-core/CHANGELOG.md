@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.5](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.4...elevator-core-v15.2.5) (2026-04-18)
+
+
+### Bug Fixes
+
+* **world:** panic on ExtKey name collision to prevent silent serde corruption ([#267](https://github.com/andymai/elevator-core/issues/267)) ([397b5d7](https://github.com/andymai/elevator-core/commit/397b5d7f7151196d40f6bc6465992b70ee75b0bf))
+
 ## [15.2.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.3...elevator-core-v15.2.4) (2026-04-18)
 
 
