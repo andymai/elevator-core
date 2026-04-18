@@ -35,14 +35,17 @@ let modPromise: Promise<WasmModule> | null = null;
 /** Load the wasm-pack bundle exactly once and cache the resolved module. */
 export async function loadWasm(): Promise<WasmModule> {
   if (!modPromise) {
-    // Resolve relative to Vite's `BASE_URL` so the playground works under a
-    // subpath deploy (e.g. /elevator-core/playground/ on GitHub Pages).
-    const base = import.meta.env.BASE_URL.endsWith("/")
-      ? import.meta.env.BASE_URL
-      : `${import.meta.env.BASE_URL}/`;
-    const url = `${base}pkg/elevator_wasm.js`;
+    // Resolve relative to the document, not the bundled module URL. Vite's
+    // `base: "./"` rewrites static hrefs in HTML to be page-relative, but
+    // `import.meta.env.BASE_URL` evaluates to the literal `"./"` at runtime.
+    // A dynamic `import("./pkg/...")` from a module under `/assets/` then
+    // resolves against the module's URL → `/assets/pkg/...` → 404. Building
+    // the URL via `document.baseURI` resolves against the page in both
+    // local dev (`http://localhost:5173/`) and the subpath deploy
+    // (`https://andymai.github.io/elevator-core/playground/`).
+    const url = new URL("pkg/elevator_wasm.js", document.baseURI).href;
+    const wasmUrl = new URL("pkg/elevator_wasm_bg.wasm", document.baseURI).href;
     modPromise = import(/* @vite-ignore */ url).then(async (mod) => {
-      const wasmUrl = `${base}pkg/elevator_wasm_bg.wasm`;
       await (mod as WasmModule).default(wasmUrl);
       return mod as WasmModule;
     });
