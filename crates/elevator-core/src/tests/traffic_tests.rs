@@ -495,6 +495,63 @@ fn traffic_schedule_serde_roundtrip() {
     assert_eq!(deserialized.pattern_at(999), &TrafficPattern::Mixed);
 }
 
+/// `with_rng` at construction time must reset the schedule anchor so
+/// the seeded RNG drives sampling — pre-fix, the OS-RNG-sampled
+/// `next_arrival_tick` from `new()` polluted the deterministic schedule
+/// (#268). Two sources built with the same seed must produce identical
+/// `next_arrival_tick` values.
+#[test]
+fn with_rng_at_construction_is_deterministic() {
+    use rand::SeedableRng;
+
+    let make = || {
+        PoissonSource::new(
+            vec![StopId(0), StopId(1)],
+            TrafficSchedule::constant(TrafficPattern::Uniform),
+            120,
+            (60.0, 90.0),
+        )
+        .with_rng(rand::rngs::StdRng::seed_from_u64(42))
+    };
+
+    let a = make().next_arrival_tick();
+    let b = make().next_arrival_tick();
+    assert_eq!(a, b, "with_rng at construction must be deterministic");
+}
+
+/// Mid-simulation `with_rng` (after `generate` has advanced the schedule)
+/// must NOT rewind the anchor — that would cause a catch-up burst of
+/// every backlogged arrival on the next `generate(t)`.
+#[test]
+fn with_rng_mid_simulation_keeps_anchor() {
+    use rand::SeedableRng;
+
+    let mut source = PoissonSource::new(
+        vec![StopId(0), StopId(1)],
+        TrafficSchedule::constant(TrafficPattern::Uniform),
+        100,
+        (60.0, 90.0),
+    )
+    .with_rng(rand::rngs::StdRng::seed_from_u64(1));
+
+    // Advance the schedule to tick 1000.
+    let _ = source.generate(1000);
+    let anchor_before = source.next_arrival_tick();
+    assert!(
+        anchor_before > 1000,
+        "after generate(1000), next_arrival should be in the future"
+    );
+
+    // Swap RNG mid-simulation. The new anchor must be >= anchor_before
+    // (sampled forward from current), not < 1000 (which would burst).
+    let source = source.with_rng(rand::rngs::StdRng::seed_from_u64(2));
+    let anchor_after = source.next_arrival_tick();
+    assert!(
+        anchor_after >= anchor_before,
+        "mid-sim with_rng must not rewind the anchor: before={anchor_before}, after={anchor_after}"
+    );
+}
+
 /// `with_mean_interval` must resample `next_arrival_tick` so the builder
 /// chain `PoissonSource::new(..., tiny_mean, ...).with_mean_interval(big_mean)`
 /// does not leak the tick-0 arrival drawn from `tiny_mean`.
