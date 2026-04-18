@@ -81,6 +81,8 @@ fn spawn_elevator(world: &mut World, position: f64) -> EntityId {
             move_count: 0,
             door_command_queue: Vec::new(),
             manual_target_velocity: None,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
         },
     );
     eid
@@ -499,6 +501,10 @@ fn build_lobby_sim() -> crate::sim::Simulation {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         }])
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)

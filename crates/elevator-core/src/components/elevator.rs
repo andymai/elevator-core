@@ -175,6 +175,21 @@ pub struct Elevator {
     /// [`Elevator::manual_target_velocity`].
     #[serde(default)]
     pub(crate) manual_target_velocity: Option<f64>,
+    /// Load-ratio threshold (0..=1) above which this car ignores new
+    /// upward hall calls. Modeled on Otis Elevonic 411's full-load
+    /// bypass (patent US5490580A). `None` disables the bypass — the
+    /// default for backwards compatibility.
+    ///
+    /// Aboard riders still get delivered regardless; the threshold
+    /// affects *pickup* decisions only.
+    #[serde(default)]
+    pub(crate) bypass_load_up_pct: Option<f64>,
+    /// Load-ratio threshold for downward-direction pickups. Typically
+    /// set lower than `bypass_load_up_pct` because down-peak riders
+    /// accumulate more gradually and a half-full car has less incentive
+    /// to skip the next stop. `None` disables the bypass.
+    #[serde(default)]
+    pub(crate) bypass_load_down_pct: Option<f64>,
 }
 
 /// Default inspection speed factor (25% of normal speed).
@@ -276,6 +291,31 @@ impl Elevator {
     #[must_use]
     pub const fn inspection_speed_factor(&self) -> f64 {
         self.inspection_speed_factor
+    }
+
+    /// Load-ratio threshold above which upward-direction pickups are
+    /// skipped (full-load bypass). `None` disables the bypass. See the
+    /// field docs on [`Elevator`] for the underlying model.
+    #[must_use]
+    pub const fn bypass_load_up_pct(&self) -> Option<f64> {
+        self.bypass_load_up_pct
+    }
+
+    /// Load-ratio threshold above which downward-direction pickups are
+    /// skipped. `None` disables the bypass.
+    #[must_use]
+    pub const fn bypass_load_down_pct(&self) -> Option<f64> {
+        self.bypass_load_down_pct
+    }
+
+    /// Mutator for the upward full-load bypass threshold.
+    pub const fn set_bypass_load_up_pct(&mut self, pct: Option<f64>) {
+        self.bypass_load_up_pct = pct;
+    }
+
+    /// Mutator for the downward full-load bypass threshold.
+    pub const fn set_bypass_load_down_pct(&mut self, pct: Option<f64>) {
+        self.bypass_load_down_pct = pct;
     }
 
     /// Whether this car's up-direction indicator lamp is lit.

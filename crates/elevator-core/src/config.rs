@@ -131,6 +131,19 @@ pub struct ElevatorConfig {
     /// Speed multiplier for Inspection mode (0.0..1.0). Defaults to 0.25.
     #[serde(default = "default_inspection_speed_factor")]
     pub inspection_speed_factor: f64,
+    /// Full-load bypass threshold for upward pickups, as a fraction of
+    /// `weight_capacity` in `0.0..=1.0`. When the car is above this
+    /// ratio and travelling up, it skips new upward hall calls — aboard
+    /// riders still get delivered. `None` disables the bypass. Modeled
+    /// on Otis Elevonic 411 (patent US5490580A); commercial defaults
+    /// sit near 0.80.
+    #[serde(default)]
+    pub bypass_load_up_pct: Option<f64>,
+    /// Full-load bypass threshold for downward pickups. Typically
+    /// lower than the upward threshold — commercial defaults sit near
+    /// 0.50. `None` disables.
+    #[serde(default)]
+    pub bypass_load_down_pct: Option<f64>,
 }
 
 /// Default inspection speed factor (25% of normal speed).
@@ -175,6 +188,8 @@ impl Default for ElevatorConfig {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: default_inspection_speed_factor(),
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
         }
     }
 }

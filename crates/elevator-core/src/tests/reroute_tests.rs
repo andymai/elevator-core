@@ -49,6 +49,10 @@ fn three_stop_config() -> SimConfig {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         }],
         simulation: SimulationParams {
             ticks_per_second: 60.0,
@@ -154,6 +158,10 @@ fn disable_only_stop_causes_abandonment() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         }],
         simulation: SimulationParams {
             ticks_per_second: 60.0,
