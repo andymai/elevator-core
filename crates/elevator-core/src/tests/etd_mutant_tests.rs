@@ -20,9 +20,9 @@
 use super::dispatch_tests::{
     add_demand, decide_all, decide_one, spawn_elevator, test_group, test_world,
 };
-use crate::components::{ElevatorPhase, Route, Speed};
+use crate::components::{ElevatorPhase, Route, Speed, Weight};
 use crate::dispatch::etd::EtdDispatch;
-use crate::dispatch::{DispatchDecision, DispatchManifest};
+use crate::dispatch::{DispatchDecision, DispatchManifest, RiderInfo};
 
 // ── Travel-time component (lines 119-124) ───────────────────────────
 
@@ -330,6 +330,102 @@ fn etd_idle_short_trip_does_not_break_assignment() {
         decision,
         DispatchDecision::GoToStop(stops[2]),
         "lone idle elevator with negative raw cost (post-clamp 0) must still be assigned"
+    );
+}
+
+// ── Full-car stall guard ────────────────────────────────────────────
+
+/// A full car stopped at a pickup stop whose demand it can't serve
+/// (capacity = 0) must not be re-dispatched to that same stop. Pre-fix
+/// ETD's cost collapsed to 0 for the self-pair — travel time was 0,
+/// detour was 0, door overhead was 0 — which always beat any real
+/// move, producing an indefinite door-cycle loop that never delivered
+/// the aboard rider to their destination.
+#[test]
+fn etd_full_car_at_pickup_stop_prefers_rider_destination() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0); // at stops[1]
+    // Fill the car to capacity with a single aboard rider whose weight
+    // equals the car's capacity. Add another fully-weighted waiting rider
+    // at stops[1] that the car cannot board (over capacity).
+    {
+        let car = world.elevator_mut(elev).unwrap();
+        car.current_load = car.weight_capacity;
+    }
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Waiting rider at stops[1] — where the car is parked, car can't board.
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    // Aboard rider destination at stops[3] — matches production build_manifest.
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut etd = EtdDispatch::new();
+    let decision = decide_one(&mut etd, elev, 4.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "full car at a pickup-only stop must be routed to its rider's destination \
+         instead of self-assigning to the un-serveable stop"
+    );
+}
+
+/// Symmetric case: full car not at the stall stop, but the pickup
+/// candidate it would otherwise prefer (on-the-way, zero detour) is one
+/// it cannot board. Choose the aboard rider's destination.
+#[test]
+fn etd_full_car_skips_unreachable_pickup_on_the_way() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+    {
+        let car = world.elevator_mut(elev).unwrap();
+        car.current_load = car.weight_capacity;
+    }
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(
+        aboard,
+        Route::direct(stops[0], stops[3], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Pickup at stops[1] — on the way to stops[3] (pos 4 vs 12). Cheaper
+    // travel time than stops[3] but car can't board (full).
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut etd = EtdDispatch::new();
+    let decision = decide_one(&mut etd, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "a full car en route must skip pickup stops it can't serve and \
+         head straight to the aboard rider's destination"
     );
 }
 

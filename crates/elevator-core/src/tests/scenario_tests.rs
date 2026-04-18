@@ -1,5 +1,10 @@
 use crate::components::RiderPhase;
 use crate::components::Weight;
+use crate::dispatch::DispatchStrategy;
+use crate::dispatch::etd::EtdDispatch;
+use crate::dispatch::look::LookDispatch;
+use crate::dispatch::nearest_car::NearestCarDispatch;
+use crate::dispatch::scan::ScanDispatch;
 use crate::events::Event;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -287,6 +292,110 @@ fn deterministic_replay() {
     assert_eq!(
         ticks1, ticks2,
         "Deterministic simulation should take identical tick counts"
+    );
+}
+
+// ── ETD full-car stall regression ───────────────────────────────────────────
+
+/// Pre-fix, ETD would send a full car to any pickup stop whose only
+/// demand it couldn't serve — and if that stop happened to be the car's
+/// current position, the cost collapsed to zero and dispatch re-selected
+/// it forever. The car would cycle `(door-open, reject, door-close)`,
+/// never carrying its aboard rider to the destination.
+///
+/// Repro: small-capacity car, one rider it does carry, a second rider
+/// waiting on-the-way whose weight exceeds remaining capacity. With the
+/// bug the car parks at the pickup stop and never reaches the target.
+#[test]
+fn etd_full_car_delivers_aboard_rider_despite_unservable_pickup() {
+    let mut config = default_config();
+    // Capacity fits exactly one 70 kg rider.
+    config.elevators[0].weight_capacity = Weight::from(100.0);
+
+    let mut sim = Simulation::new(&config, EtdDispatch::new()).unwrap();
+    // Rider A at stops[0] → stops[2]. Will board and fill the car.
+    let a = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    // Rider B at stops[1] → stops[2]. Won't fit once A is aboard; the
+    // call at stops[1] stays active until the car comes back empty.
+    sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
+
+    let max_ticks = 20_000;
+    for _ in 0..max_ticks {
+        sim.step();
+        sim.drain_events();
+        if sim.world().rider(a.entity()).map(|r| r.phase) == Some(RiderPhase::Arrived) {
+            break;
+        }
+    }
+
+    assert_eq!(
+        sim.world().rider(a.entity()).map(|r| r.phase),
+        Some(RiderPhase::Arrived),
+        "aboard rider must reach their destination; ETD cannot stall the car \
+         at a pickup stop it lacks capacity to serve"
+    );
+}
+
+// ── Cross-strategy delivery safety ──────────────────────────────────────────
+
+/// Delivery guarantee: in a traffic mix that *exposes* the full-car
+/// self-assign stall (one 70 kg rider boards and saturates a 100 kg car,
+/// then a 70 kg rider waits at every other floor), every built-in
+/// strategy must still deliver both riders within a bounded tick count.
+///
+/// Runs SCAN, LOOK, `NearestCar`, and ETD through the same scenario so a
+/// regression in any one of them shows up as a test failure at the
+/// strategy that broke — not as a flaky timeout only hitting whichever
+/// strategy happens to be default.
+#[test]
+fn every_builtin_strategy_eventually_delivers_all_riders() {
+    fn run_with<S: DispatchStrategy + 'static>(name: &str, strategy: S, dcs: bool) {
+        let mut config = default_config();
+        config.elevators[0].weight_capacity = Weight::from(100.0);
+        let mut sim = Simulation::new(&config, strategy).unwrap();
+        if dcs {
+            // DCS requires Destination hall-call mode and an
+            // `AssignedCar` extension registration; otherwise
+            // `pre_dispatch` early-returns and the test silently
+            // degrades to "no dispatch happens." Flip both here.
+            for g in sim.groups_mut() {
+                g.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+            }
+            sim.world_mut()
+                .register_ext::<crate::dispatch::AssignedCar>(
+                    crate::dispatch::destination::ASSIGNED_CAR_KEY,
+                );
+        }
+        sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+        sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
+
+        let max_ticks = 20_000;
+        for _ in 0..max_ticks {
+            sim.step();
+            sim.drain_events();
+            if all_riders_arrived(&sim) {
+                break;
+            }
+        }
+
+        assert!(
+            all_riders_arrived(&sim),
+            "{name} must deliver both riders; phases: {:?}",
+            sim.world()
+                .iter_riders()
+                .map(|(_, r)| r.phase)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    run_with("SCAN", ScanDispatch::new(), false);
+    run_with("LOOK", LookDispatch::new(), false);
+    run_with("NearestCar", NearestCarDispatch::new(), false);
+    run_with("ETD", EtdDispatch::new(), false);
+    run_with(
+        "Destination",
+        crate::dispatch::DestinationDispatch::new(),
+        true,
     );
 }
 

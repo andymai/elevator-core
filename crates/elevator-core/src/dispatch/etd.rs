@@ -12,7 +12,7 @@ use crate::components::{ElevatorPhase, Route};
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
 
 /// Estimated Time to Destination (ETD) dispatch algorithm.
 ///
@@ -95,6 +95,16 @@ impl DispatchStrategy for EtdDispatch {
     }
 
     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        // Exclude `(car, stop)` pairs that can't produce any useful work.
+        // Without this guard, a full car whose only candidate stop is a
+        // pickup it lacks capacity to serve collapses to a zero-cost
+        // self-assignment (travel, detour, and door terms are all 0 when
+        // the car is already at the stop). Dispatch then re-selects that
+        // stop every tick — doors cycle open, reject, close, repeat — and
+        // the aboard riders are never carried to their destinations.
+        if !pair_can_do_work(ctx) {
+            return None;
+        }
         let cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);
         if cost.is_finite() { Some(cost) } else { None }
     }
