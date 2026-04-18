@@ -1,0 +1,19 @@
+{
+  "name": "elevator-wasm",
+  "type": "module",
+  "description": "wasm-bindgen surface for elevator-core (browser playground)",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andymai/elevator-core"
+  },
+  "files": [
+    "elevator_wasm_bg.wasm",
+    "elevator_wasm.js"
+  ],
+  "main": "elevator_wasm.js",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
