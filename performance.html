@@ -1,0 +1,411 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Performance - elevator-core</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/custom-cd824f6c.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-0cf96ab7.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-d2ca992d.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">elevator-core</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/andymai/elevator-core" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/andymai/elevator-core/edit/main/docs/src/src/performance.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="performance"><a class="header" href="#performance">Performance</a></h1>
+<p>This chapter covers complexity, memory, and practical scaling guidance. The core is designed to handle tens of thousands of riders per tick on a single thread, with per-tick cost dominated by the dispatch strategy you choose.</p>
+<h2 id="complexity-overview"><a class="header" href="#complexity-overview">Complexity overview</a></h2>
+<p>Let <code>E</code> = elevators, <code>R</code> = riders, <code>S</code> = stops. Per <code>sim.step()</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Phase</th><th>Cost</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Advance transient</td><td>O(R) worst-case, O(transitioning riders) typical</td><td>Only touches riders in <code>Boarding</code>/<code>Exiting</code>.</td></tr>
+<tr><td>Dispatch (scoring)</td><td>O(E · S) per strategy</td><td>Cost-matrix build: one <code>rank</code> call per <code>(car, stop)</code> pair. ETD scales further with aboard riders.</td></tr>
+<tr><td>Dispatch (assignment)</td><td>O(max(E, S)³)</td><td>Hungarian / Kuhn-Munkres matching over the cost matrix.</td></tr>
+<tr><td>Reposition</td><td>O(E · S)</td><td>Only runs if configured.</td></tr>
+<tr><td>Movement</td><td>O(E)</td><td>Pure arithmetic per elevator.</td></tr>
+<tr><td>Doors</td><td>O(E)</td><td>Door FSM per elevator.</td></tr>
+<tr><td>Loading</td><td>O(boarding + exiting at each open door)</td><td>Uses the rider index for per-stop queues.</td></tr>
+<tr><td>Metrics</td><td>O(events this tick)</td><td>Linear in the event count.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Population queries (<code>residents_at</code>, <code>waiting_at</code>, <code>abandoned_at</code>) are <strong>O(1)</strong> via the rider index, so UIs and hooks can poll them every tick without penalty.</p>
+<h2 id="memory"><a class="header" href="#memory">Memory</a></h2>
+<p>Rough per-entity memory (native <code>x86_64</code>, with default components):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Entity</th><th>Bytes (approx.)</th></tr>
+</thead>
+<tbody>
+<tr><td>Stop</td><td>~120</td></tr>
+<tr><td>Elevator</td><td>~200</td></tr>
+<tr><td>Rider (with <code>Route</code> and <code>Patience</code>)</td><td>~160</td></tr>
+</tbody>
+</table>
+</div>
+<p>Add your own extension components on top. A 10k-rider simulation with a dozen stops and a handful of elevators fits comfortably under 5 MB of live state.</p>
+<p>The event buffer grows until <code>drain_events()</code> is called – see <a href="events-metrics.html#draining-events">Events and Metrics – Draining events</a>.</p>
+<h2 id="benchmarks"><a class="header" href="#benchmarks">Benchmarks</a></h2>
+<p>The crate ships a benchmark suite (Criterion) in <code>crates/elevator-core/benches/</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bench</th><th>Measures</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sim_bench</code></td><td>End-to-end <code>step()</code> across representative scenarios</td></tr>
+<tr><td><code>scaling_bench</code></td><td>Throughput vs. rider count</td></tr>
+<tr><td><code>dispatch_bench</code></td><td>Per-strategy cost at a fixed rider load</td></tr>
+<tr><td><code>multi_line_bench</code></td><td>Multi-group, multi-line buildings</td></tr>
+<tr><td><code>query_bench</code></td><td>Population and lookup queries</td></tr>
+</tbody>
+</table>
+</div>
+<p>Run with:</p>
+<pre><code class="language-bash">cargo bench -p elevator-core
+</code></pre>
+<p>Results go to <code>target/criterion/</code> with HTML reports. A nightly GitHub
+Actions job (<code>.github/workflows/bench-nightly.yml</code>) reruns the full
+suite daily, caches a baseline, and opens an issue when Criterion
+flags a significant regression. There is no PR gate – bench noise on
+shared runners tends to swamp a strict per-PR check.</p>
+<h3 id="current-baselines"><a class="header" href="#current-baselines">Current baselines</a></h3>
+<p>Measured on a 32-core Linux x86_64 workstation (Rust stable, release
+profile, Criterion defaults: 3 s warmup, 5 s measurement). Numbers are
+the Criterion median unless noted. Shared-runner numbers will be
+noisier; treat these as orders of magnitude, not tight SLAs.</p>
+<h4 id="primitives"><a class="header" href="#primitives">Primitives</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Item</th><th>Time</th></tr>
+</thead>
+<tbody>
+<tr><td><code>tick_movement</code> (single call)</td><td>~1.3 ns</td></tr>
+<tr><td><code>sim_bench / dispatch / 3e_10s</code></td><td>~4.0 us</td></tr>
+<tr><td><code>sim_bench / dispatch / 10e_50s</code></td><td>~12 us</td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="full-tick-throughput-scaling_bench"><a class="header" href="#full-tick-throughput-scaling_bench">Full tick throughput (<code>scaling_bench</code>)</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Scenario</th><th>Time per run</th><th>Per tick</th></tr>
+</thead>
+<tbody>
+<tr><td>50 elevators, 200 stops, 2 000 riders, 100 ticks</td><td>~14 ms</td><td><strong>~143 us/tick</strong></td></tr>
+<tr><td>500 elevators, 5 000 stops, 50 000 riders, 10 ticks</td><td>~520 ms</td><td>~52 ms/tick</td></tr>
+<tr><td>10 000-rider spawn pressure test</td><td>~4.9 ms</td><td>–</td></tr>
+</tbody>
+</table>
+</div>
+<p>The realistic row is the one most consumers should care about: a
+medium office tower with 2 000 concurrent riders runs the full 8-phase
+tick in well under a millisecond on a single core.</p>
+<h4 id="dispatch-strategy-comparison-dispatch_bench"><a class="header" href="#dispatch-strategy-comparison-dispatch_bench">Dispatch strategy comparison (<code>dispatch_bench</code>)</a></h4>
+<p>Per <code>step()</code> cost at three scales, holding everything else constant:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Scale</th><th style="text-align: right">SCAN</th><th style="text-align: right">LOOK</th><th style="text-align: right">NearestCar</th><th style="text-align: right">ETD</th></tr>
+</thead>
+<tbody>
+<tr><td>5e, 10s</td><td style="text-align: right">61 us</td><td style="text-align: right">67 us</td><td style="text-align: right">63 us</td><td style="text-align: right">66 us</td></tr>
+<tr><td>20e, 50s</td><td style="text-align: right">436 us</td><td style="text-align: right">395 us</td><td style="text-align: right">423 us</td><td style="text-align: right">413 us</td></tr>
+<tr><td>50e, 200s</td><td style="text-align: right">2.18 ms</td><td style="text-align: right">2.00 ms</td><td style="text-align: right">2.04 ms</td><td style="text-align: right">1.96 ms</td></tr>
+</tbody>
+</table>
+</div>
+<p>The four built-in strategies land within ~15 % of each other at every
+scale. ETD is competitive despite its richer cost model because the
+other phases dominate wall-clock time. Pick the strategy that fits
+your dispatch <em>behavior</em> needs; they’re all fast enough.</p>
+<h4 id="query-surface-query_bench"><a class="header" href="#query-surface-query_bench">Query surface (<code>query_bench</code>)</a></h4>
+<p>O(n) over entity population, as the API docs promise:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Query</th><th style="text-align: right">100</th><th style="text-align: right">1 000</th><th style="text-align: right">10 000</th></tr>
+</thead>
+<tbody>
+<tr><td><code>query&lt;Rider&gt;</code></td><td style="text-align: right">13 us</td><td style="text-align: right">60 us</td><td style="text-align: right">744 us</td></tr>
+<tr><td><code>query_tuple&lt;&amp;Rider, &amp;Patience&gt;</code></td><td style="text-align: right">12 us</td><td style="text-align: right">52 us</td><td style="text-align: right">859 us</td></tr>
+<tr><td><code>query_elevators</code> (10/50/200)</td><td style="text-align: right">4 us</td><td style="text-align: right">5 us</td><td style="text-align: right">13 us</td></tr>
+</tbody>
+</table>
+</div>
+<p>Population queries on <code>RiderIndex</code> (<code>residents_at</code> / <code>waiting_at</code> /
+<code>abandoned_at</code>) are O(1) and don’t appear here – they run in tens of
+nanoseconds.</p>
+<h4 id="multi-group-topology-multi_line_bench"><a class="header" href="#multi-group-topology-multi_line_bench">Multi-group topology (<code>multi_line_bench</code>)</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Scenario</th><th>Time</th></tr>
+</thead>
+<tbody>
+<tr><td><code>multi_3g_2l_5e_20s / step()</code></td><td>~920 us</td></tr>
+<tr><td><code>cross_group_routing / 10 groups</code></td><td>~330 us</td></tr>
+<tr><td><code>topology_queries / reachable_stops_from</code></td><td>~177 us</td></tr>
+<tr><td><code>topology_queries / shortest_route</code></td><td>~161 us</td></tr>
+<tr><td><code>dynamic_topology / add_line</code></td><td>~2.5 us</td></tr>
+<tr><td><code>dynamic_topology / topology_rebuild</code></td><td>~21 us</td></tr>
+</tbody>
+</table>
+</div>
+<p>Runtime topology mutations (<code>add_line</code>, <code>remove_line</code>, <code>add_stop_to_line</code>)
+are single-digit microseconds because the graph is rebuilt lazily on
+next query, not eagerly on every mutation.</p>
+<p>Use these as a baseline when writing custom dispatch strategies – if
+your strategy’s <code>dispatch_bench</code> time is 10x the ETD baseline, expect
+a 10x slowdown in loaded simulations.</p>
+<h2 id="scaling-checklist"><a class="header" href="#scaling-checklist">Scaling checklist</a></h2>
+<p>For simulations above ~10k concurrent riders or above ~50 elevators:</p>
+<ol>
+<li><strong>Pick the cheapest dispatch strategy that meets your needs.</strong> <code>NearestCarDispatch</code> is usually a better default than ETD at scale.</li>
+<li><strong>Split into groups.</strong> Each group dispatches independently; two groups of 20 elevators each is cheaper than one group of 40.</li>
+<li><strong>Drain events every tick</strong> (or redirect into a bounded ring buffer) to keep memory flat.</li>
+<li><strong>Avoid heavy work in hooks.</strong> A hook that iterates all riders every tick is O(R) on top of the dispatch cost – prefer extension-attached flags you can toggle on-event.</li>
+<li><strong>Profile before optimizing.</strong> The Criterion benches make it straightforward to identify the hot phase – dispatch dominates far more often than movement or doors.</li>
+</ol>
+<h2 id="what-we-do-not-provide"><a class="header" href="#what-we-do-not-provide">What we do not provide</a></h2>
+<ul>
+<li><strong>Parallelism.</strong> The tick loop is single-threaded by design (determinism &gt; throughput). Run multiple sims in parallel across threads if you need more aggregate work.</li>
+<li><strong>GPU acceleration.</strong> Movement and dispatch are scalar – no SIMD or GPU backends.</li>
+<li><strong>Persistent indexes beyond per-stop population.</strong> If you need “all riders with extension X”, iterate and filter.</li>
+</ul>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<ul>
+<li><a href="bevy-integration.html">Bevy Integration</a> – a visual wrapper for rapid prototyping and debugging.</li>
+<li><a href="snapshots-determinism.html">Snapshots and Determinism</a> – save and restore simulation state for replay and testing.</li>
+<li><a href="custom-dispatch.html">Writing a Custom Dispatch</a> – build your own strategy and benchmark it against the baselines above.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="headless-non-bevy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="headless-non-bevy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="mermaid-eefea253.min.js"></script>
+        <script src="mermaid-init-ccf746f1.js"></script>
+
+
+
+    </div>
+    </body>
+</html>
