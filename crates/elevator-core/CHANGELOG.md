@@ -1,5 +1,13 @@
 # Changelog
 
+## [15.2.6](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.5...elevator-core-v15.2.6) (2026-04-18)
+
+
+### Bug Fixes
+
+* **traffic:** Lunchtime bias now applies for even-floor buildings ([#276](https://github.com/andymai/elevator-core/issues/276)) ([7bf98c1](https://github.com/andymai/elevator-core/commit/7bf98c159835af0accde065a95b3b433e1eb1463))
+* **traffic:** make PoissonSource::with_rng deterministic at construction ([#274](https://github.com/andymai/elevator-core/issues/274)) ([731f6f3](https://github.com/andymai/elevator-core/commit/731f6f38c91b88eba244ab456479e79668b2579c))
+
 ## [15.2.5](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.4...elevator-core-v15.2.5) (2026-04-18)
 
 
