@@ -70,6 +70,17 @@ impl Route {
         self.current_leg >= self.legs.len()
     }
 
+    /// Whether the current leg is the final leg of the route.
+    ///
+    /// Useful when an event fires *before* [`advance`](Self::advance) runs
+    /// — e.g. `RiderExited` (loading phase) precedes the route advance
+    /// (transient phase next tick), so consumers that need to know if the
+    /// exit terminates the journey check `is_last_leg`, not `is_complete`.
+    #[must_use]
+    pub const fn is_last_leg(&self) -> bool {
+        self.current_leg + 1 == self.legs.len()
+    }
+
     /// The destination of the current leg.
     #[must_use]
     pub fn current_destination(&self) -> Option<EntityId> {
