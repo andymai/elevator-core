@@ -488,6 +488,19 @@ impl Simulation {
 
         let old_group_id = self.groups[old_group_idx].id();
 
+        // Notify the old dispatcher that these elevators are leaving — its
+        // per-elevator state (e.g. ScanDispatch.direction keyed by EntityId)
+        // would otherwise leak indefinitely as lines move between groups.
+        // Mirrors the cleanup `reassign_elevator_to_line` already does. (#257)
+        let elevators_to_notify: Vec<EntityId> = self.groups[old_group_idx].lines()[line_idx]
+            .elevators()
+            .to_vec();
+        if let Some(dispatcher) = self.dispatchers.get_mut(&old_group_id) {
+            for eid in &elevators_to_notify {
+                dispatcher.notify_removed(*eid);
+            }
+        }
+
         // Remove LineInfo from old group.
         let line_info = self.groups[old_group_idx].lines_mut().remove(line_idx);
         self.groups[old_group_idx].rebuild_caches();
