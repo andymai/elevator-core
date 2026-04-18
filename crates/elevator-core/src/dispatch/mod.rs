@@ -134,6 +134,16 @@ pub struct DispatchManifest {
     /// entity. Strategies read this to plan intermediate stops without
     /// poking into `World` directly.
     pub(crate) car_calls_by_car: BTreeMap<EntityId, Vec<CarCall>>,
+    /// Recent arrivals per stop, counted over
+    /// [`DispatchManifest::arrival_window_ticks`] ticks. Populated from
+    /// the [`crate::arrival_log::ArrivalLog`] world resource each pass
+    /// so strategies can read a traffic-rate signal without touching
+    /// world state directly.
+    pub(crate) arrivals_at_stop: BTreeMap<EntityId, u64>,
+    /// Window the `arrivals_at_stop` counts cover, in ticks. Exposed so
+    /// strategies interpreting the raw counts can convert them to a
+    /// rate (per tick or per second).
+    pub(crate) arrival_window_ticks: u64,
 }
 
 impl DispatchManifest {
@@ -185,6 +195,25 @@ impl DispatchManifest {
     #[must_use]
     pub fn resident_count_at(&self, stop: EntityId) -> usize {
         self.resident_count_at_stop.get(&stop).copied().unwrap_or(0)
+    }
+
+    /// Rider arrivals at `stop` within the last
+    /// [`arrival_window_ticks`](Self::arrival_window_ticks) ticks. The
+    /// signal is the rolling-window per-stop arrival rate that
+    /// commercial controllers use to pick a traffic mode and that
+    /// [`crate::dispatch::reposition::PredictiveParking`] uses to
+    /// forecast demand. Unvisited stops return 0.
+    #[must_use]
+    pub fn arrivals_at(&self, stop: EntityId) -> u64 {
+        self.arrivals_at_stop.get(&stop).copied().unwrap_or(0)
+    }
+
+    /// Window size (in ticks) over which [`arrivals_at`](Self::arrivals_at)
+    /// counts events. Strategies convert counts to rates by dividing
+    /// by this.
+    #[must_use]
+    pub const fn arrival_window_ticks(&self) -> u64 {
+        self.arrival_window_ticks
     }
 
     /// The hall call at `(stop, direction)`, if pressed.

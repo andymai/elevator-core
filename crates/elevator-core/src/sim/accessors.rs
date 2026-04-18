@@ -103,6 +103,28 @@ impl super::Simulation {
         &self.groups
     }
 
+    /// Build the [`DispatchManifest`](crate::dispatch::DispatchManifest)
+    /// for `group` as it would appear at the start of the next dispatch
+    /// pass. Intended for tests and tools that need to inspect the
+    /// demand/arrival-rate picture without stepping the sim.
+    #[must_use]
+    pub fn build_dispatch_manifest(
+        &self,
+        group: &ElevatorGroup,
+    ) -> crate::dispatch::DispatchManifest {
+        crate::systems::dispatch::build_manifest(&self.world, group, self.tick, &self.rider_index)
+    }
+
+    /// Convenience wrapper returning the manifest for the first group —
+    /// what a single-group default-topology sim would dispatch against.
+    #[must_use]
+    pub fn peek_dispatch_manifest(&self) -> crate::dispatch::DispatchManifest {
+        self.groups
+            .first()
+            .map(|g| self.build_dispatch_manifest(g))
+            .unwrap_or_default()
+    }
+
     /// Mutable access to the group collection. Use this to flip a group
     /// into [`HallCallMode::Destination`](crate::dispatch::HallCallMode)
     /// or tune its `ack_latency_ticks` after construction. Changing the

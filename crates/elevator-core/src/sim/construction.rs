@@ -157,6 +157,11 @@ impl Simulation {
         sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
         world.insert_resource(crate::world::SortedStops(sorted));
 
+        // Per-stop arrival signal, appended on rider spawn and queried
+        // by dispatch/reposition strategies to drive traffic-mode
+        // switches and predictive parking.
+        world.insert_resource(crate::arrival_log::ArrivalLog::default());
+
         let (groups, dispatchers, strategy_ids) = if let Some(line_configs) = &config.building.lines
         {
             Self::build_explicit_topology(

@@ -362,6 +362,9 @@ pub mod systems;
 /// Central entity/component storage.
 pub mod world;
 
+/// Rolling per-stop arrival log, the signal source for rate-driven
+/// dispatch and repositioning.
+pub mod arrival_log;
 /// Fluent builder for constructing a Simulation programmatically.
 pub mod builder;
 /// Building and elevator configuration (RON deserialization).
