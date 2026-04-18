@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.18...elevator-core-v15.3.0) (2026-04-18)
+
+
+### Features
+
+* **playground:** direction-split queues, target markers, flying-dot animations ([#315](https://github.com/andymai/elevator-core/issues/315)) ([3bab3d0](https://github.com/andymai/elevator-core/commit/3bab3d0f046eaa2df0683c68e930340379b8fd33))
+
 ## [15.2.18](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.17...elevator-core-v15.2.18) (2026-04-18)
 
 
