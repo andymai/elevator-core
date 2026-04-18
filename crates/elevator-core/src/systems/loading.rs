@@ -139,10 +139,14 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
             }
             // Sticky hall-call destination assignment: if this rider has been
             // assigned to another car, the current car must skip them so the
-            // assigned car can pick them up.
+            // assigned car can pick them up. Stale assignments to a dead or
+            // disabled car are ignored — the rider is fair game for any car —
+            // as a defense against missed cleanup at car-loss boundaries.
             if let Some(crate::dispatch::AssignedCar(assigned)) =
                 world.ext::<crate::dispatch::AssignedCar>(rid)
                 && assigned != eid
+                && world.elevator(assigned).is_some()
+                && !world.is_disabled(assigned)
             {
                 return None;
             }
