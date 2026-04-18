@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.3...elevator-core-v15.2.4) (2026-04-18)
+
+
+### Bug Fixes
+
+* **config:** reject non-finite ticks_per_second ([#263](https://github.com/andymai/elevator-core/issues/263)) ([1b7d056](https://github.com/andymai/elevator-core/commit/1b7d056147a6f2ae81392cd8278f1abd248d5ef1))
+
 ## [15.2.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.2...elevator-core-v15.2.3) (2026-04-18)
 
 
