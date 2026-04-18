@@ -17,7 +17,7 @@ use crate::world::World;
 /// Run the assignment for a single car and return its decision. Mirrors
 /// the production flow in `systems::dispatch::run`: runs `pre_dispatch`
 /// (which can mutate `world`) and then the Hungarian assignment.
-fn decide_one(
+pub(super) fn decide_one(
     strategy: &mut dyn DispatchStrategy,
     car: crate::entity::EntityId,
     pos: f64,
@@ -31,7 +31,7 @@ fn decide_one(
 }
 
 /// Run the assignment for several cars in one pass (with `pre_dispatch`).
-fn decide_all(
+pub(super) fn decide_all(
     strategy: &mut dyn DispatchStrategy,
     cars: &[(crate::entity::EntityId, f64)],
     group: &ElevatorGroup,
@@ -43,7 +43,7 @@ fn decide_all(
 }
 
 /// Build a `World` with 4 stops and return (world, `stop_entities`).
-fn test_world() -> (World, Vec<crate::entity::EntityId>) {
+pub(super) fn test_world() -> (World, Vec<crate::entity::EntityId>) {
     let mut world = World::new();
     let stops: Vec<_> = [
         ("Ground", 0.0),
@@ -67,7 +67,7 @@ fn test_world() -> (World, Vec<crate::entity::EntityId>) {
     (world, stops)
 }
 
-fn test_group(
+pub(super) fn test_group(
     stop_entities: &[crate::entity::EntityId],
     elevator_entities: Vec<crate::entity::EntityId>,
 ) -> ElevatorGroup {
@@ -83,7 +83,7 @@ fn test_group(
     )
 }
 
-fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
+pub(super) fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
     let eid = world.spawn();
     world.set_position(eid, Position { value: position });
     world.set_velocity(eid, Velocity { value: 0.0 });
@@ -116,7 +116,7 @@ fn spawn_elevator(world: &mut World, position: f64) -> crate::entity::EntityId {
 }
 
 /// Add simulated waiting demand at a stop (creates a dummy `RiderInfo`).
-fn add_demand(
+pub(super) fn add_demand(
     manifest: &mut DispatchManifest,
     world: &mut World,
     stop: crate::entity::EntityId,

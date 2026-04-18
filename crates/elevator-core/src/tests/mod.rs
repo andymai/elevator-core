@@ -48,6 +48,7 @@ mod door_control_tests;
 #[cfg(feature = "energy")]
 mod energy_tests;
 mod eta_tests;
+mod etd_mutant_tests;
 mod event_payload_tests;
 mod hall_call_tests;
 mod manual_mode_tests;
