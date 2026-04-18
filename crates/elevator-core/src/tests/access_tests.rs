@@ -343,3 +343,34 @@ fn config_restricted_stops_serde_roundtrip() {
             .contains(&StopId(2))
     );
 }
+
+/// `AccessControl::default()` (empty `allowed_stops`) means unrestricted —
+/// every `can_access` query returns true. Pre-fix an empty set
+/// silently blocked all access, so `set_rider_access(rider,
+/// AccessControl::default())` bricked the rider with no warning. (#289)
+#[test]
+fn access_control_empty_allows_any_stop() {
+    use crate::entity::EntityId;
+
+    let ac = AccessControl::default();
+    assert!(ac.allowed_stops().is_empty());
+    // Any stop entity should be reachable. EntityId::default() is a
+    // safe stand-in here because `can_access` doesn't dereference the
+    // id, just predicates on set membership.
+    assert!(ac.can_access(EntityId::default()));
+}
+
+/// Non-empty `allowed_stops` is an allowlist: only listed stops pass.
+#[test]
+fn access_control_non_empty_is_an_allowlist() {
+    use crate::entity::EntityId;
+
+    let allowed = EntityId::default();
+    let mut set = HashSet::new();
+    set.insert(allowed);
+    let ac = AccessControl::new(set);
+
+    assert!(ac.can_access(allowed));
+    // Negative case (a different EntityId rejected) is covered by the
+    // existing `rider_rejected_by_rider_access_control` integration test.
+}

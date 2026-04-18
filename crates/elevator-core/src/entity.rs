@@ -36,6 +36,12 @@ macro_rules! typed_entity_id {
         }
 
         impl From<EntityId> for $name {
+            /// Wrap an `EntityId` in this typed newtype **without** verifying
+            /// the entity is actually of that kind. Wrong-type IDs surface
+            /// later as `EntityNotFound` / `NotAnElevator` from accessor
+            /// calls — for compile-time safety, prefer the typed
+            /// `_id` accessors on `Simulation` (`elevator_ids`,
+            /// `rider_ids`, etc.) that yield typed IDs directly. (#290)
             #[inline]
             fn from(id: EntityId) -> Self {
                 Self(id)
