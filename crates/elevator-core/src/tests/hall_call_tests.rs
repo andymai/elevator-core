@@ -917,3 +917,37 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
         "after ack-latency elapses, the call should appear in the manifest",
     );
 }
+
+/// `press_hall_button` without a backing rider must summon an idle car.
+/// Pre-fix `manifest.has_demand(stop)` was rider-only so rider-less
+/// hall calls (scripted NPCs, player input) were invisible to every
+/// built-in dispatcher. (#255)
+#[test]
+fn press_hall_button_alone_dispatches_idle_elevator() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let target = sim.stop_entity(StopId(2)).unwrap();
+    let elev = sim.world().elevator_ids()[0];
+    assert!(sim.world().elevator(elev).unwrap().target_stop.is_none());
+
+    sim.press_hall_button(target, CallDirection::Down).unwrap();
+
+    let target_pos = sim.world().stop_position(target).unwrap();
+    let mut summoned = false;
+    for _ in 0..500 {
+        sim.step();
+        let car = sim.world().elevator(elev).unwrap();
+        if car.target_stop == Some(target)
+            || sim
+                .world()
+                .position(elev)
+                .is_some_and(|p| (p.value - target_pos).abs() < 1.0)
+        {
+            summoned = true;
+            break;
+        }
+    }
+    assert!(
+        summoned,
+        "rider-less hall call must summon idle car within 500 ticks"
+    );
+}
