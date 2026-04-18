@@ -84,6 +84,42 @@ export class WasmSim {
         return this;
     }
     /**
+     * Swap every group's dispatcher to a DCS instance with the given
+     * deferred-commitment window. `window_ticks = 0` is equivalent to
+     * no window (immediate sticky).
+     * @param {bigint} window_ticks
+     */
+    setDcsWithCommitmentWindow(window_ticks) {
+        wasm.wasmsim_setDcsWithCommitmentWindow(this.__wbg_ptr, window_ticks);
+    }
+    /**
+     * Swap every group's dispatcher to a tuned ETD instance that
+     * applies the group-time squared-wait fairness bonus. Higher
+     * `weight` values bias dispatch more aggressively toward stops
+     * with older waiters; `0.0` matches the default ETD.
+     * @param {number} weight
+     */
+    setEtdWithWaitSquaredWeight(weight) {
+        wasm.wasmsim_setEtdWithWaitSquaredWeight(this.__wbg_ptr, weight);
+    }
+    /**
+     * Flip every group in the sim into the DCS hall-call mode. Required
+     * before `DestinationDispatch` can see rider destinations. Scenarios
+     * that want DCS (e.g. the hotel) call this once on load.
+     */
+    setHallCallModeDestination() {
+        wasm.wasmsim_setHallCallModeDestination(this.__wbg_ptr);
+    }
+    /**
+     * Install `PredictiveParking` as the reposition strategy for every
+     * group, with the given rolling window. Used by the residential
+     * scenario to spotlight arrival-rate-driven pre-positioning.
+     * @param {bigint} window_ticks
+     */
+    setRepositionPredictiveParking(window_ticks) {
+        wasm.wasmsim_setRepositionPredictiveParking(this.__wbg_ptr, window_ticks);
+    }
+    /**
      * Swap the dispatch strategy by name. Returns `true` on success.
      *
      * State is preserved; only the assignment policy changes. Unknown names
