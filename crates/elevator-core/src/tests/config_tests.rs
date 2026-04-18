@@ -146,6 +146,69 @@ fn rejects_non_finite_ticks_per_second() {
     }
 }
 
+/// `PassengerSpawnConfig` is now validated; previously bad inputs survived
+/// to `PoissonSource::from_config` and panicked later (#272).
+#[test]
+fn rejects_invalid_passenger_spawning() {
+    use super::helpers;
+    use crate::config::PassengerSpawnConfig;
+
+    let cases: Vec<(&'static str, PassengerSpawnConfig, &'static str)> = vec![
+        (
+            "weight_range=(NaN, 50)",
+            PassengerSpawnConfig {
+                mean_interval_ticks: 120,
+                weight_range: (f64::NAN, 50.0),
+            },
+            "passenger_spawning.weight_range",
+        ),
+        (
+            "weight_range=(50, +inf)",
+            PassengerSpawnConfig {
+                mean_interval_ticks: 120,
+                weight_range: (50.0, f64::INFINITY),
+            },
+            "passenger_spawning.weight_range",
+        ),
+        (
+            "weight_range=(-50, -50)",
+            PassengerSpawnConfig {
+                mean_interval_ticks: 120,
+                weight_range: (-50.0, -50.0),
+            },
+            "passenger_spawning.weight_range",
+        ),
+        (
+            "weight_range=(100, 50) inverted",
+            PassengerSpawnConfig {
+                mean_interval_ticks: 120,
+                weight_range: (100.0, 50.0),
+            },
+            "passenger_spawning.weight_range",
+        ),
+        (
+            "mean_interval_ticks=0",
+            PassengerSpawnConfig {
+                mean_interval_ticks: 0,
+                weight_range: (50.0, 100.0),
+            },
+            "passenger_spawning.mean_interval_ticks",
+        ),
+    ];
+
+    for (label, spawn, expected_field) in cases {
+        let mut config = helpers::default_config();
+        config.passenger_spawning = spawn;
+        let result = crate::sim::Simulation::new(&config, helpers::scan());
+        match result {
+            Err(SimError::InvalidConfig { field, .. }) if field == expected_field => {}
+            _ => panic!(
+                "{label} should produce InvalidConfig{{field={expected_field}}}, got {result:?}"
+            ),
+        }
+    }
+}
+
 #[test]
 fn rejects_empty_line_serves() {
     use super::helpers;
