@@ -19,9 +19,9 @@ The module table at the top of the [`elevator-core` crate docs](https://docs.rs/
 Pin to an exact minor version:
 
 ```toml
-# Use this if you touch dispatch, hooks, topology, traffic, extensions,
-# or any other experimental area:
-elevator-core = "=15.1"
+# Use this if you touch hooks, topology, traffic, extensions, or any
+# other experimental area:
+elevator-core = "=15.2"
 ```
 
 When you bump the minor, expect a short migration task. The CHANGELOG will call out what changed.
