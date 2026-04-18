@@ -6,7 +6,7 @@
 //! "what's the average wait time for zone:express?".
 
 use crate::entity::EntityId;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Per-tag metric accumulator.
 ///
@@ -96,10 +96,12 @@ impl TaggedMetric {
 /// metrics are pre-computed per tag each tick.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct MetricTags {
-    /// Entity → tags mapping.
-    entity_tags: HashMap<EntityId, Vec<String>>,
-    /// Tag → accumulated metrics.
-    tag_metrics: HashMap<String, TaggedMetric>,
+    /// Entity → tags mapping. `BTreeMap` for deterministic snapshot
+    /// serialization order (#254).
+    entity_tags: BTreeMap<EntityId, Vec<String>>,
+    /// Tag → accumulated metrics. `BTreeMap` for deterministic snapshot
+    /// serialization order (#254).
+    tag_metrics: BTreeMap<String, TaggedMetric>,
 }
 
 impl MetricTags {
@@ -185,7 +187,7 @@ impl MetricTags {
 
     /// Remap all entity IDs using the provided mapping (for snapshot restore).
     pub(crate) fn remap_entity_ids(&mut self, remap: &HashMap<EntityId, EntityId>) {
-        let old_tags: HashMap<EntityId, Vec<String>> = std::mem::take(&mut self.entity_tags);
+        let old_tags: BTreeMap<EntityId, Vec<String>> = std::mem::take(&mut self.entity_tags);
         for (old_id, tags) in old_tags {
             let new_id = remap.get(&old_id).copied().unwrap_or(old_id);
             self.entity_tags.insert(new_id, tags);
