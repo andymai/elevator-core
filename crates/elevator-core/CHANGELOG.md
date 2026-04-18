@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.7](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.6...elevator-core-v15.2.7) (2026-04-18)
+
+
+### Bug Fixes
+
+* **scenario:** sort spawns by tick in ScenarioRunner::new ([#278](https://github.com/andymai/elevator-core/issues/278)) ([be10fe5](https://github.com/andymai/elevator-core/commit/be10fe503bb68583709d1c5c9cf6e5f1c7579d38))
+
 ## [15.2.6](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.5...elevator-core-v15.2.6) (2026-04-18)
 
 
