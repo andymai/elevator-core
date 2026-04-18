@@ -88,6 +88,13 @@ pub struct EntitySnapshot {
 /// them out-of-band (#296).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldSnapshot {
+    /// Schema version of this snapshot. Bumped on incompatible changes
+    /// to the snapshot layout. Loading a snapshot whose version differs
+    /// from the current crate's expected version returns
+    /// [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion).
+    /// Legacy snapshots default to `0` (#295).
+    #[serde(default)]
+    pub version: u32,
     /// Current simulation tick.
     pub tick: u64,
     /// Time delta per tick.
@@ -182,6 +189,18 @@ impl WorldSnapshot {
         custom_strategy_factory: CustomStrategyFactory<'_>,
     ) -> Result<crate::sim::Simulation, crate::error::SimError> {
         use crate::world::{SortedStops, World};
+
+        // Reject snapshots from incompatible schema versions. The bytes
+        // envelope path also checks the crate semver string, but the RON/
+        // JSON path was previously unguarded — older snapshots silently
+        // deserialized with `#[serde(default)]` filling new fields, masking
+        // schema mismatches. (#295)
+        if self.version != SNAPSHOT_SCHEMA_VERSION {
+            return Err(crate::error::SimError::SnapshotVersion {
+                saved: format!("schema {}", self.version),
+                current: format!("schema {SNAPSHOT_SCHEMA_VERSION}"),
+            });
+        }
 
         let mut world = World::new();
 
@@ -662,6 +681,11 @@ impl WorldSnapshot {
 /// Magic bytes identifying a bincode snapshot blob.
 const SNAPSHOT_MAGIC: [u8; 8] = *b"ELEVSNAP";
 
+/// Schema version for [`WorldSnapshot`]. Bump on incompatible layout
+/// changes so RON/JSON restore can reject older snapshots loudly
+/// instead of silently filling new fields with `#[serde(default)]`.
+const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
+
 /// Byte-level snapshot envelope: magic + crate version + payload.
 ///
 /// Serialized via bincode. The magic and version fields are checked on
@@ -693,6 +717,7 @@ impl crate::sim::Simulation {
     /// [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
     /// when invoked between `run_*` and `advance_tick`. (#297)
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn snapshot(&self) -> WorldSnapshot {
         self.snapshot_inner()
     }
@@ -812,6 +837,7 @@ impl crate::sim::Simulation {
             .collect();
 
         WorldSnapshot {
+            version: SNAPSHOT_SCHEMA_VERSION,
             tick: self.current_tick(),
             dt: self.dt(),
             entities,
