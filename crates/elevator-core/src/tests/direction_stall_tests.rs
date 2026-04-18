@@ -283,3 +283,50 @@ fn etd_approves_self_pair_for_riderless_hall_call() {
          fix must not filter it out along with cross-car riding demand"
     );
 }
+
+/// Cross-car stall mirrored onto `NearestCar` — the fix lives in
+/// shared `pair_can_do_work`, so it applies uniformly across every
+/// built-in strategy that uses the guard. This test is an explicit
+/// regression for that contract, matching the paired-strategy
+/// pattern the direction-filter stall tests (above) already follow.
+#[test]
+fn nearest_car_skips_self_pair_when_only_demand_is_another_cars_riding() {
+    let (mut world, stops) = test_world();
+    let car_a = spawn_elevator(&mut world, 8.0);
+    let car_b = spawn_elevator(&mut world, 0.0);
+    {
+        let b = world.elevator_mut(car_b).unwrap();
+        b.going_up = true;
+        b.going_down = false;
+        b.phase = ElevatorPhase::MovingToStop(stops[2]);
+    }
+    let riding = world.spawn();
+    world.elevator_mut(car_b).unwrap().riders.push(riding);
+    world.set_route(
+        riding,
+        Route::direct(stops[0], stops[2], crate::ids::GroupId(0)),
+    );
+
+    let group = test_group(&stops, vec![car_a, car_b]);
+    let mut manifest = DispatchManifest::default();
+    manifest
+        .riding_to_stop
+        .entry(stops[2])
+        .or_default()
+        .push(RiderInfo {
+            id: riding,
+            destination: Some(stops[2]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut nc = NearestCarDispatch::new();
+    nc.pre_dispatch(&group, &manifest, &mut world);
+    let decisions = dispatch::assign(&mut nc, &[(car_a, 8.0)], &group, &manifest, &world).decisions;
+    assert_eq!(
+        decisions[0].1,
+        DispatchDecision::Idle,
+        "NearestCar must honor the cross-car stall fix — pair_can_do_work is \
+         shared, so regressions here would surface in both strategies"
+    );
+}
