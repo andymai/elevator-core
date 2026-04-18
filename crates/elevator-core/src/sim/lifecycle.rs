@@ -451,6 +451,16 @@ impl Simulation {
             // Drop any sticky DCS assignments pointing at this car so
             // routed riders are not stranded behind a dead reference.
             crate::dispatch::destination::clear_assignments_to(&mut self.world, id);
+            // Same for hall-call assignments — pre-fix, a pinned hall
+            // call to the disabled car was permanently stranded because
+            // dispatch kept committing the disabled car as the assignee
+            // and other cars couldn't take the call. (#292)
+            for hc in self.world.iter_hall_calls_mut() {
+                if hc.assigned_car == Some(id) {
+                    hc.assigned_car = None;
+                    hc.pinned = false;
+                }
+            }
 
             for rid in &rider_ids {
                 if let Some(r) = self.world.rider_mut(*rid) {

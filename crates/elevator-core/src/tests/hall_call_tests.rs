@@ -84,6 +84,35 @@ fn pin_assignment_pins_and_assigns() {
     assert!(!call.pinned);
 }
 
+/// Pre-fix, disabling a car holding a pinned hall-call assignment left
+/// `assigned_car=Some(disabled)` and `pinned=true` — dispatch kept
+/// committing the disabled car as the assignee, but movement skips
+/// disabled cars so the call was permanently stranded (#292).
+#[test]
+fn disable_clears_pinned_hall_call_assignment() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let stop = sim.stop_entity(StopId(1)).unwrap();
+    let car = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    sim.press_hall_button(stop, CallDirection::Up).unwrap();
+    sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
+    assert_eq!(
+        sim.assigned_car(stop, CallDirection::Up),
+        Some(car.entity()),
+        "precondition: pinned to disabled car"
+    );
+
+    sim.disable(car.entity()).unwrap();
+
+    assert_eq!(
+        sim.assigned_car(stop, CallDirection::Up),
+        None,
+        "disabled-car assignment must be cleared"
+    );
+    let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
+    assert!(!call.pinned, "pinned flag must be cleared");
+}
+
 /// Nonzero `ack_latency_ticks`: a hall call pressed at tick T only
 /// becomes acknowledged at tick T+N, and `HallCallAcknowledged` fires
 /// on exactly that tick. Locks in the deferred-ack path in
