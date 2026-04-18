@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.10](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.9...elevator-core-v15.2.10) (2026-04-18)
+
+
+### Bug Fixes
+
+* **sim:** pending_events flushes event bus to match drain semantics ([#286](https://github.com/andymai/elevator-core/issues/286)) ([165953d](https://github.com/andymai/elevator-core/commit/165953da0e35e9609947b35ad881f9a9d4ff1d73))
+
 ## [15.2.9](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.8...elevator-core-v15.2.9) (2026-04-18)
 
 
