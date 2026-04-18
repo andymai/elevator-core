@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.3.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.3.0...elevator-core-v15.3.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* **dispatch:** guard against full-car self-assign stalls across strategies ([#317](https://github.com/andymai/elevator-core/issues/317)) ([68cd242](https://github.com/andymai/elevator-core/commit/68cd242febe9baa97e91f2f6585d42f65707d5d4))
+
 ## [15.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.18...elevator-core-v15.3.0) (2026-04-18)
 
 
