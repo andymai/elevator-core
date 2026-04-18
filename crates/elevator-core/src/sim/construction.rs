@@ -185,6 +185,12 @@ impl Simulation {
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
         world.insert_resource(crate::arrival_log::CurrentTick::default());
         world.insert_resource(crate::arrival_log::ArrivalLogRetention::default());
+        // Expose tick rate to strategies that need to unit-convert
+        // tick-denominated elevator fields (door cycle, ack latency)
+        // into the second-denominated terms of their cost functions.
+        // Without this, ETD's door-overhead term was summing ticks
+        // into a seconds expression and getting ~60× over-weighted.
+        world.insert_resource(crate::time::TickRate(config.simulation.ticks_per_second));
 
         let (groups, dispatchers, strategy_ids) = if let Some(line_configs) = &config.building.lines
         {
@@ -574,6 +580,13 @@ impl Simulation {
     ) -> Self {
         let mut rider_index = RiderIndex::default();
         rider_index.rebuild(&world);
+        // Ensure the dispatch-visible tick rate matches the simulation
+        // tick rate after a snapshot restore; a snapshot that predates
+        // the `TickRate` resource leaves it absent and dispatch would
+        // otherwise fall back to the 60 Hz default even for a 30 Hz
+        // sim, silently halving ETD's door-cost scale.
+        let mut world = world;
+        world.insert_resource(crate::time::TickRate(ticks_per_second));
         Self {
             world,
             events: EventBus::default(),

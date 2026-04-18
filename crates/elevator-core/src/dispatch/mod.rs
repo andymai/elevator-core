@@ -101,10 +101,25 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
         return false;
     }
     let waiting = ctx.manifest.waiting_riders_at(ctx.stop);
-    waiting.is_empty()
-        || waiting
+    if !waiting.is_empty() {
+        return waiting
             .iter()
-            .any(|r| rider_can_board(r, car, ctx, remaining_capacity))
+            .any(|r| rider_can_board(r, car, ctx, remaining_capacity));
+    }
+    // No waiters at the stop, and no aboard rider of ours exits here
+    // (the `can_exit_here` short-circuit ruled that out above). Demand
+    // must therefore come from either another car's `riding_to_stop`
+    // (not work this car can perform) or a rider-less hall call
+    // (someone pressed a button with no rider attached yet — a press
+    // from `press_hall_button` or one whose riders have since been
+    // fulfilled or abandoned). Only the latter is actionable; without
+    // this filter an idle car parked at the stop collapses to cost 0,
+    // the Hungarian picks the self-pair every tick, and doors cycle
+    // open/close indefinitely while the other car finishes its trip.
+    ctx.manifest
+        .hall_calls_at_stop
+        .get(&ctx.stop)
+        .is_some_and(|calls| calls.iter().any(|c| c.pending_riders.is_empty()))
 }
 
 /// Whether a waiting rider could actually board this car, matching the

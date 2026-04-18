@@ -2,6 +2,27 @@
 
 use std::time::Duration;
 
+/// Simulation tick rate, exposed as a [`World`](crate::world::World) resource.
+///
+/// Dispatch strategies and other subsystems that only hold a `&World`
+/// need this to convert between tick-denominated elevator fields
+/// (e.g. `door_transition_ticks`) and the second-denominated terms
+/// they combine with (travel time, rider delay). Inserted once during
+/// [`Simulation::new`](crate::sim::Simulation::new) and restored from
+/// snapshots via the same path.
+///
+/// Strategies that miss the resource (e.g. in a bare-bones unit-test
+/// world) should fall back to 60 Hz — the canonical default and the
+/// only value used across the published scenarios.
+#[derive(Debug, Clone, Copy)]
+pub struct TickRate(pub f64);
+
+impl Default for TickRate {
+    fn default() -> Self {
+        Self(60.0)
+    }
+}
+
 /// Converts between simulation ticks and wall-clock time.
 ///
 /// The core simulation is purely tick-based for determinism.

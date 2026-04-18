@@ -38,12 +38,18 @@ function topBias(n: number): number[] {
 // ─── Mid-rise office — group-time ETD hook ──────────────────────────
 
 const OFFICE_STOPS = 6;
+// Two 800 kg cars (~10 riders/trip each) over a 20 m shaft at 2.2 m/s
+// cycle ~54 riders/min combined when healthy. Phase rates sit at
+// roughly 1.0–1.2× that during rushes — queues build visibly, group-
+// time ETD has something to fix, but the building doesn't collapse.
+// Under the original single-car config, morning/lunch demand was 2×+
+// cruise and the simulation just filled up — all strategies lost.
 const officePhases: Phase[] = [
   // 0: overnight — tiny trickle of late-workers or cleaners.
   {
     name: "Overnight",
     durationSec: 45,
-    ridersPerMin: 3,
+    ridersPerMin: 4,
     originWeights: uniform(OFFICE_STOPS),
     destWeights: uniform(OFFICE_STOPS),
   },
@@ -51,7 +57,7 @@ const officePhases: Phase[] = [
   {
     name: "Morning rush",
     durationSec: 60,
-    ridersPerMin: 80,
+    ridersPerMin: 55,
     originWeights: [8.5, 0.3, 0.3, 0.3, 0.3, 0.3],
     destWeights: topBias(OFFICE_STOPS).map((w, i) => (i === 0 ? 0 : w)),
   },
@@ -64,11 +70,13 @@ const officePhases: Phase[] = [
     destWeights: uniform(OFFICE_STOPS),
   },
   // 3: lunchtime — bidirectional burst between upper floors and a
-  // canteen on stop 1. The hardest pattern for any controller.
+  // canteen on stop 1. The hardest pattern for any controller, so it
+  // lands slightly above the pair's cruise capacity on purpose —
+  // this is where the group-time ETD hook gets its chance to shine.
   {
     name: "Lunchtime",
     durationSec: 45,
-    ridersPerMin: 110,
+    ridersPerMin: 65,
     // Origins skew toward upper floors (people leaving for lunch) and the canteen.
     originWeights: [0.3, 3, 2, 2, 2, 2],
     destWeights: [0.3, 3, 2, 2, 2, 2],
@@ -77,7 +85,7 @@ const officePhases: Phase[] = [
   {
     name: "Evening exodus",
     durationSec: 60,
-    ridersPerMin: 75,
+    ridersPerMin: 55,
     originWeights: topBias(OFFICE_STOPS).map((w, i) => (i === 0 ? 0 : w)),
     destWeights: lobbyOnly(OFFICE_STOPS),
   },
@@ -87,7 +95,7 @@ const office: ScenarioMeta = {
   id: "office-mid-rise",
   label: "Mid-rise office",
   description:
-    "Six floors, one 800 kg car. Walks through morning rush → midday → lunchtime → evening exodus. Group-time ETD damps tail waits under sustained load.",
+    "Six floors, two 800 kg cars. Walks through morning rush → midday → lunchtime → evening exodus. Group-time ETD damps tail waits under sustained load.",
   defaultStrategy: "etd",
   phases: officePhases,
   seedSpawns: 0,
@@ -114,6 +122,13 @@ const office: ScenarioMeta = {
             starting_stop: StopId(0),
             door_open_ticks: 55, door_transition_ticks: 14,
         ),
+        ElevatorConfig(
+            id: 1, name: "Car 2",
+            max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(3),
+            door_open_ticks: 55, door_transition_ticks: 14,
+        ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
     passenger_spawning: PassengerSpawnConfig(
@@ -126,6 +141,9 @@ const office: ScenarioMeta = {
 // ─── Skyscraper with sky lobby — full-load bypass hook ──────────────
 
 const SKY_STOPS = 13; // Lobby + 12 floors
+// Three 1200 kg cars at 4 m/s over a 48 m shaft cycle ~90 riders/min
+// combined when healthy. Rates target ~1.3–1.4× that during peaks so
+// the bypass hook actually sees full cars and gets to show its work.
 const skyPhases: Phase[] = [
   {
     name: "Overnight",
@@ -137,21 +155,21 @@ const skyPhases: Phase[] = [
   {
     name: "Morning rush",
     durationSec: 75,
-    ridersPerMin: 180,
+    ridersPerMin: 120,
     originWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
     destWeights: [0, ...topBias(SKY_STOPS - 1)],
   },
   {
     name: "Midday interfloor",
     durationSec: 60,
-    ridersPerMin: 60,
+    ridersPerMin: 45,
     originWeights: uniform(SKY_STOPS),
     destWeights: uniform(SKY_STOPS),
   },
   {
     name: "Lunchtime",
     durationSec: 45,
-    ridersPerMin: 140,
+    ridersPerMin: 100,
     // Sky lobby (stop 6) doubles as the canteen floor.
     originWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 3 : 1)),
     destWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 4 : 1)),
@@ -159,7 +177,7 @@ const skyPhases: Phase[] = [
   {
     name: "Evening exodus",
     durationSec: 75,
-    ridersPerMin: 170,
+    ridersPerMin: 115,
     originWeights: [0, ...topBias(SKY_STOPS - 1)],
     destWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
   },
@@ -232,6 +250,9 @@ const skyscraper: ScenarioMeta = {
 // ─── Residential tower — predictive parking hook ────────────────────
 
 const RES_STOPS = 8;
+// Two 700 kg cars cruise ~50 riders/min combined. Rates stay modest so
+// the midday quiet actually reads as quiet — predictive parking needs
+// the rate signal to drop between bursts to meaningfully pre-position.
 const residentialPhases: Phase[] = [
   {
     name: "Overnight",
@@ -244,7 +265,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Morning exodus",
     durationSec: 75,
-    ridersPerMin: 90,
+    ridersPerMin: 55,
     originWeights: [0, ...topBias(RES_STOPS - 1)],
     destWeights: lobbyOnly(RES_STOPS),
   },
@@ -252,7 +273,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Midday quiet",
     durationSec: 60,
-    ridersPerMin: 12,
+    ridersPerMin: 10,
     originWeights: uniform(RES_STOPS),
     destWeights: uniform(RES_STOPS),
   },
@@ -260,7 +281,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Afternoon drift",
     durationSec: 45,
-    ridersPerMin: 30,
+    ridersPerMin: 22,
     originWeights: Array.from({ length: RES_STOPS }, (_, i) => (i === 0 ? 3 : 1)),
     destWeights: uniform(RES_STOPS),
   },
@@ -268,7 +289,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Evening return",
     durationSec: 60,
-    ridersPerMin: 75,
+    ridersPerMin: 48,
     originWeights: lobbyOnly(RES_STOPS),
     destWeights: [0, ...topBias(RES_STOPS - 1)],
   },
@@ -326,12 +347,18 @@ const residential: ScenarioMeta = {
 // ─── Hotel 24/7 — deferred DCS hook ─────────────────────────────────
 
 const HOTEL_STOPS = 10;
+// Three 900 kg cars at 3 m/s cruise ~80 riders/min combined. Rush
+// rates sit at ~0.7× that — enough to keep all three cars visibly
+// busy and give deferred DCS bursts to reassign across, without
+// saturating. DCS's benefit comes from *reassignment opportunity*,
+// not from overload; if every car were permanently full there would
+// be nothing to defer.
 const hotelPhases: Phase[] = [
   // Pre-dawn baseline — minimal traffic.
   {
     name: "Overnight",
     durationSec: 45,
-    ridersPerMin: 4,
+    ridersPerMin: 5,
     originWeights: uniform(HOTEL_STOPS),
     destWeights: uniform(HOTEL_STOPS),
   },
@@ -347,7 +374,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Daytime",
     durationSec: 75,
-    ridersPerMin: 25,
+    ridersPerMin: 26,
     originWeights: uniform(HOTEL_STOPS),
     destWeights: uniform(HOTEL_STOPS),
   },
@@ -363,7 +390,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Late night",
     durationSec: 60,
-    ridersPerMin: 14,
+    ridersPerMin: 16,
     originWeights: [2, 2, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 0.5)],
     destWeights: [0.5, 0.5, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 1)],
   },
@@ -430,12 +457,17 @@ const hotel: ScenarioMeta = {
 // ─── Convention burst — arrival-log rate signal hook ────────────────
 
 const CONV_STOPS = 5;
+// Two 1500 kg cars cruise ~140 riders/min combined in a short 16 m
+// shaft. The keynote burst intentionally overshoots that — this
+// scenario is an acute stress test, so the arrival-log rate signal
+// actually has a spike to report. The rate still comes down enough
+// that the rest of the cycle is recognizably calm.
 const conventionPhases: Phase[] = [
   // Acute peak right after a keynote lets out.
   {
     name: "Keynote lets out",
     durationSec: 45,
-    ridersPerMin: 240,
+    ridersPerMin: 170,
     originWeights: Array.from({ length: CONV_STOPS }, (_, i) => (i === CONV_STOPS - 1 ? 8 : 1)),
     destWeights: [5, 2, 1, 1, 0],
   },
@@ -443,7 +475,7 @@ const conventionPhases: Phase[] = [
   {
     name: "Tapering",
     durationSec: 90,
-    ridersPerMin: 40,
+    ridersPerMin: 28,
     originWeights: uniform(CONV_STOPS),
     destWeights: uniform(CONV_STOPS),
   },
@@ -453,7 +485,7 @@ const conventionPhases: Phase[] = [
   {
     name: "Between sessions",
     durationSec: 135,
-    ridersPerMin: 8,
+    ridersPerMin: 6,
     originWeights: uniform(CONV_STOPS),
     destWeights: uniform(CONV_STOPS),
   },
