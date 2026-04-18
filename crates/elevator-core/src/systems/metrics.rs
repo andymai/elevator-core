@@ -1,5 +1,6 @@
 //! Phase 6: update aggregate metrics from events emitted this tick.
 
+use crate::components::Route;
 use crate::dispatch::ElevatorGroup;
 use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
@@ -36,7 +37,13 @@ pub fn run(
                 }
             }
             Event::RiderExited { rider, tick, .. } => {
-                if let Some(rd) = world.rider(*rider) {
+                // RiderExited fires per leg (loading phase). Count it as a
+                // delivery only when this exit terminates the journey:
+                // route absent (manual rider) or this is the final leg.
+                // Counting every leg would inflate throughput and corrupt
+                // tagged metrics by stripping tags after the first transfer.
+                let terminal = world.route(*rider).is_none_or(Route::is_last_leg);
+                if terminal && let Some(rd) = world.rider(*rider) {
                     let ride_ticks = rd.board_tick.map_or(0, |bt| tick.saturating_sub(bt));
                     metrics.record_delivery(ride_ticks, *tick);
                     tag_terminals.push((*rider, true));
