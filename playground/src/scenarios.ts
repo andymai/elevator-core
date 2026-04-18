@@ -5,11 +5,11 @@ import type { ScenarioMeta } from "./types";
 // `Simulation::new`, so a malformed RON here surfaces as a JS error from
 // `new WasmSim(...)`.
 
-const office5: ScenarioMeta = {
+const office: ScenarioMeta = {
   id: "office-5",
   label: "5-floor office",
-  description: "Five stops, one car. Moderate traffic. A good warm-up.",
-  suggestedTrafficRate: 8,
+  description: "Five stops, one car. Heavy enough traffic to see queues form.",
+  suggestedTrafficRate: 40,
   ron: `SimConfig(
     building: BuildingConfig(
         name: "5-Floor Office",
@@ -41,8 +41,8 @@ const office5: ScenarioMeta = {
 const skyscraper: ScenarioMeta = {
   id: "skyscraper-12",
   label: "12-floor skyscraper",
-  description: "Twelve stops, three cars. Heavier traffic stresses dispatch.",
-  suggestedTrafficRate: 30,
+  description: "Twelve stops, three cars on one shaft bank. Stress-tests dispatch.",
+  suggestedTrafficRate: 120,
   ron: `SimConfig(
     building: BuildingConfig(
         name: "12-Floor Skyscraper",
@@ -96,7 +96,7 @@ const rushHour: ScenarioMeta = {
   id: "rush-hour",
   label: "Rush-hour office",
   description: "5-floor office with 2 cars and very high arrival rate.",
-  suggestedTrafficRate: 60,
+  suggestedTrafficRate: 180,
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Rush-Hour Office",
@@ -136,7 +136,7 @@ const spaceElevator: ScenarioMeta = {
   id: "space-elevator",
   label: "Space elevator",
   description: "Two stops 1,000 km apart. Same engine, different scale.",
-  suggestedTrafficRate: 3,
+  suggestedTrafficRate: 8,
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Orbital Tether",
@@ -162,13 +162,8 @@ const spaceElevator: ScenarioMeta = {
 )`,
 };
 
-export const SCENARIOS: ScenarioMeta[] = [
-  office5,
-  skyscraper,
-  rushHour,
-  spaceElevator,
-];
+export const SCENARIOS: ScenarioMeta[] = [office, skyscraper, rushHour, spaceElevator];
 
 export function scenarioById(id: string): ScenarioMeta {
-  return SCENARIOS.find((s) => s.id === id) ?? office5;
+  return SCENARIOS.find((s) => s.id === id) ?? office;
 }

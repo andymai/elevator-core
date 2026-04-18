@@ -6,9 +6,9 @@
     <title>elevator-core playground</title>
     <meta
       name="description"
-      content="Live in-browser demo of the elevator-core Rust simulation library. Swap dispatch strategies, stream metrics, share your seed."
+      content="Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic."
     />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='2' fill='%2310b981'/%3E%3Crect x='8' y='6' width='8' height='4' fill='%230f172a'/%3E%3Crect x='8' y='14' width='8' height='4' fill='%230f172a'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%2306c2b5'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -16,67 +16,83 @@
       <h1>elevator-core playground</h1>
       <nav>
         <a href="https://github.com/andymai/elevator-core">repo</a>
-        <a href="https://docs.rs/elevator-core">docs.rs</a>
+        <a href="https://docs.rs/elevator-core">docs</a>
         <a href="../">guide</a>
       </nav>
     </header>
 
     <section class="controls">
-      <label>
-        Scenario
+      <label class="ctl">
+        <span class="ctl-k">Scenario</span>
         <select id="scenario"></select>
       </label>
-      <label>
-        Dispatch
-        <select id="strategy"></select>
+      <label class="ctl">
+        <span class="ctl-k">Strategy</span>
+        <select id="strategy-a"></select>
       </label>
-      <label>
-        Seed
+      <label class="ctl hidden" id="strategy-b-wrap">
+        <span class="ctl-k">vs</span>
+        <select id="strategy-b"></select>
+      </label>
+      <label class="ctl ctl-check">
+        <input id="compare" type="checkbox" />
+        <span class="ctl-k">Compare</span>
+      </label>
+      <label class="ctl">
+        <span class="ctl-k">Seed</span>
         <input id="seed" type="number" value="42" min="0" />
       </label>
-      <label>
-        Speed <span id="speed-label" class="value">4×</span>
-        <input id="speed" type="range" min="1" max="16" step="1" value="4" />
+      <label class="ctl">
+        <span class="ctl-k">
+          <span>Speed</span>
+          <span id="speed-label" class="ctl-v">1&times;</span>
+        </span>
+        <input id="speed" type="range" min="1" max="16" step="1" value="1" />
       </label>
-      <label>
-        Traffic <span id="traffic-label" class="value">8 / min</span>
-        <input id="traffic" type="range" min="0" max="120" step="1" value="8" />
+      <label class="ctl">
+        <span class="ctl-k">
+          <span>Traffic</span>
+          <span id="traffic-label" class="ctl-v">40 / min</span>
+        </span>
+        <input id="traffic" type="range" min="0" max="240" step="1" value="40" />
       </label>
       <div class="actions">
-        <button id="play">Pause</button>
-        <button id="reset">Reset</button>
-        <button id="share">Share seed</button>
-        <button id="csv-events">Export events.csv</button>
-        <button id="csv-metrics">Export metrics.csv</button>
-        <button id="gif">Record</button>
+        <button id="play" type="button">Pause</button>
+        <button id="reset" type="button">Reset</button>
+        <button id="share" type="button">Share</button>
       </div>
     </section>
 
-    <main class="layout">
-      <section class="shaft-wrap">
-        <canvas id="shaft"></canvas>
+    <main id="layout" class="layout" data-mode="single">
+      <section id="pane-a" class="pane pane-a">
+        <header class="pane-header">
+          <span class="pane-badge">A</span>
+          <span id="name-a" class="pane-name">LOOK</span>
+        </header>
+        <div class="shaft-wrap">
+          <canvas id="shaft-a"></canvas>
+        </div>
+        <div id="metrics-a" class="metric-strip"></div>
+        <canvas id="wait-chart-a" class="chart-small"></canvas>
       </section>
-      <aside class="right">
-        <section class="panel">
-          <h2>Metrics</h2>
-          <div id="metrics" class="metrics"></div>
-        </section>
-        <section class="panel">
-          <canvas id="wait-chart" class="chart-small"></canvas>
-        </section>
-        <section class="panel">
-          <canvas id="queue-chart" class="chart-small"></canvas>
-        </section>
-        <section class="panel">
-          <canvas id="heatmap" class="chart-heatmap"></canvas>
-        </section>
-      </aside>
-      <section class="panel event-log-panel">
-        <h2>Event log</h2>
-        <ul id="event-log" class="event-log"></ul>
+
+      <section id="pane-b" class="pane pane-b">
+        <header class="pane-header">
+          <span class="pane-badge">B</span>
+          <span id="name-b" class="pane-name">ETD</span>
+        </header>
+        <div class="shaft-wrap">
+          <canvas id="shaft-b"></canvas>
+        </div>
+        <div id="metrics-b" class="metric-strip"></div>
+        <canvas id="wait-chart-b" class="chart-small"></canvas>
       </section>
     </main>
 
+    <div id="loader" class="loader show" role="status" aria-live="polite">
+      <div class="loader-spinner" aria-hidden="true"></div>
+      <div class="loader-text">Loading simulation&hellip;</div>
+    </div>
     <div id="toast" class="toast" role="status"></div>
 
     <script type="module" src="./src/main.ts"></script>

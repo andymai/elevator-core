@@ -53,30 +53,12 @@ export interface Metrics {
   total_moves: number;
 }
 
-export type EventKind =
-  | "rider-spawned"
-  | "rider-boarded"
-  | "rider-exited"
-  | "rider-abandoned"
-  | "elevator-arrived"
-  | "elevator-departed"
-  | "door-opened"
-  | "door-closed"
-  | "elevator-assigned"
-  | "other";
-
-export interface SimEvent {
-  kind: EventKind;
-  tick: number;
-  rider?: number;
-  elevator?: number;
-  stop?: number;
-  origin?: number;
-  destination?: number;
-  label?: string;
-}
-
-export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination";
+/**
+ * `destination` requires DCS hall-call mode which the playground scenarios
+ * don't enable, so it's intentionally excluded from the user-facing dropdown.
+ * The wasm API still accepts the value.
+ */
+export type StrategyName = "scan" | "look" | "nearest" | "etd";
 
 export interface ScenarioMeta {
   id: string;

@@ -36,13 +36,11 @@ copies `dist/` into the GitHub Pages site under `/playground/`.
 
 | File | Purpose |
 |---|---|
-| `src/main.ts` | Entry point, requestAnimationFrame loop |
+| `src/main.ts` | Entry point, compare-mode wiring, requestAnimationFrame loop, scoreboard |
 | `src/sim.ts` | Typed TS wrapper around `WasmSim` |
-| `src/traffic.ts` | Seeded LCG rider spawning (determinism guarantee) |
-| `src/canvas.ts` | Shaft + cars + stops renderer |
-| `src/charts.ts` | Sparkline / bar chart / heatmap primitives |
-| `src/eventLog.ts` | Scrolling event view |
-| `src/export.ts` | CSV + GIF export (gif.js dynamic import) |
+| `src/traffic.ts` | Seeded LCG rider spec generator; fan-out is the caller's job |
+| `src/canvas.ts` | Shaft + cars + stops renderer with rider-dot rendering |
+| `src/charts.ts` | Sparkline primitive |
 | `src/permalink.ts` | URL query-string state encoding |
 | `src/scenarios.ts` | Embedded RON scenarios |
 | `src/types.ts` | DTO mirrors of the wasm-bindgen surface |
