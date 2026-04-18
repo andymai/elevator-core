@@ -583,6 +583,45 @@ impl Simulation {
             });
         }
 
+        Self::validate_passenger_spawning(&config.passenger_spawning)?;
+
+        Ok(())
+    }
+
+    /// Validate `PassengerSpawnConfig`. Without this, bad inputs reach
+    /// `PoissonSource::from_config` and panic later (NaN/negative weights
+    /// crash `random_range`/`Weight::from`; zero `mean_interval_ticks`
+    /// burst-fires every catch-up tick). (#272)
+    fn validate_passenger_spawning(
+        spawn: &crate::config::PassengerSpawnConfig,
+    ) -> Result<(), SimError> {
+        let (lo, hi) = spawn.weight_range;
+        if !lo.is_finite() || !hi.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "passenger_spawning.weight_range",
+                reason: format!("both endpoints must be finite, got ({lo}, {hi})"),
+            });
+        }
+        if lo < 0.0 || hi < 0.0 {
+            return Err(SimError::InvalidConfig {
+                field: "passenger_spawning.weight_range",
+                reason: format!("both endpoints must be non-negative, got ({lo}, {hi})"),
+            });
+        }
+        if lo > hi {
+            return Err(SimError::InvalidConfig {
+                field: "passenger_spawning.weight_range",
+                reason: format!("min must be <= max, got ({lo}, {hi})"),
+            });
+        }
+        if spawn.mean_interval_ticks == 0 {
+            return Err(SimError::InvalidConfig {
+                field: "passenger_spawning.mean_interval_ticks",
+                reason: "must be > 0; mean_interval_ticks=0 burst-fires \
+                         every catch-up tick"
+                    .into(),
+            });
+        }
         Ok(())
     }
 
