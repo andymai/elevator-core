@@ -35,10 +35,12 @@ function scaleFor(width: number): Scale {
   const lerp = (a: number, b: number): number => a + (b - a) * t;
   return {
     padX: lerp(8, 18),
-    padTop: lerp(8, 14),
+    padTop: lerp(20, 26),
     padBottom: lerp(30, 38),
     sparkH: lerp(18, 22),
-    labelW: lerp(40, 56),
+    // Fits "Floor 12" at 12px font without the truncate() ellipsis kicking in,
+    // plus breathing room in compare mode where the pane is narrower.
+    labelW: lerp(44, 68),
     upColW: lerp(20, 28),
     dnColW: lerp(20, 28),
     gutterGap: 4,
@@ -48,7 +50,7 @@ function scaleFor(width: number): Scale {
     fontSmall: lerp(9, 10),
     stopDotR: lerp(2.2, 2.6),
     carDotR: lerp(1.8, 2.3),
-    dirDotR: lerp(2.0, 2.4),
+    dirDotR: lerp(2.2, 2.6),
   };
 }
 
@@ -65,13 +67,17 @@ const PHASE_COLORS: Record<Car["phase"], string> = {
 
 const STOP_LINE = "#1f2431";
 const STOP_LABEL = "#c8ccd6";
+// Up and down use distinct hue families so the direction is legible at
+// small dot sizes. Cool blue reads as "up" (sky), warm amber as "down"
+// (gravity / descent).
 const UP_COLOR = "#7dd3fc";
-const DOWN_COLOR = "#c4b5fd";
+const DOWN_COLOR = "#fbbf24";
 const CAR_DOT_COLOR = "#f5f6f9";
 const OVERFLOW_COLOR = "#8b90a0";
 const SPARK_LINE = "#2e3445";
-const SPARK_TEXT = "#5d6271";
-const TARGET_RING = "rgba(6, 194, 181, 0.55)";
+const SPARK_TEXT = "#8b90a0";
+const TARGET_RING = "rgba(6, 194, 181, 0.85)";
+const TARGET_FILL = "rgba(6, 194, 181, 0.95)";
 
 // Board/alight animation baseline. Effective duration is divided by the sim
 // speed multiplier so fast-forwarded runs don't queue stale tweens.
@@ -81,6 +87,10 @@ const TWEEN_BASE_MS = 260;
 // velocity is visible at a glance without a text indicator.
 const TRAIL_STEPS = 3;
 const TRAIL_DT = 0.05; // seconds of motion per ghost step
+
+// Per-shaft width is capped so single-car scenarios don't stretch one tiny
+// car across the whole canvas. The lane region centers when the cap binds.
+const SHAFT_CAP = 160;
 
 /** One-shot board/alight animation tween. */
 interface Tween {
@@ -234,7 +244,15 @@ export class CanvasRenderer {
     const gutter = s.padX + s.labelW + s.upColW + s.dnColW + s.gutterGap;
     const lanesRegionW = Math.max(0, w - gutter - s.padX);
     const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 1), 0);
-    const shaftW = lanesRegionW / Math.max(totalShafts, 1);
+    // Cap per-shaft width so sparse scenarios (1-2 cars on a wide canvas)
+    // don't bury tiny cars in a seas of empty shaft. When the cap binds,
+    // center the used region inside the available room.
+    const naturalShaftW = lanesRegionW / Math.max(totalShafts, 1);
+    const shaftW = Math.min(naturalShaftW, SHAFT_CAP);
+    const lanesUsedW = shaftW * totalShafts;
+    const laneOffset = Math.max(0, (lanesRegionW - lanesUsedW) / 2);
+    const lanesLeft = gutter + laneOffset;
+    const lanesRight = lanesLeft + lanesUsedW;
 
     // Resolve each car's screen x once so every pass (shaft/car/target/trail)
     // reads from the same column assignment.
@@ -243,7 +261,7 @@ export class CanvasRenderer {
     for (const lineId of lineIds) {
       const cars = byLine.get(lineId) ?? [];
       for (const car of cars) {
-        carX.set(car.id, gutter + shaftW * (shaftIdx + 0.5));
+        carX.set(car.id, lanesLeft + shaftW * (shaftIdx + 0.5));
         shaftIdx++;
       }
     }
@@ -252,7 +270,8 @@ export class CanvasRenderer {
     const stopIdxById = new Map<number, number>();
     snap.stops.forEach((st, i) => stopIdxById.set(st.entity_id, i));
 
-    this.#drawStops(snap, toScreenY, s);
+    this.#drawDirectionHeaders(s);
+    this.#drawStops(snap, toScreenY, s, lanesLeft, lanesRight);
     this.#drawTargetMarkers(snap, carX, toScreenY, s, stopIdxById);
 
     // Shafts behind cars so trails/cars sit on top.
@@ -274,10 +293,26 @@ export class CanvasRenderer {
 
   // ── Stops, labels, direction queues ───────────────────────────────
 
+  #drawDirectionHeaders(s: Scale): void {
+    const ctx = this.#ctx;
+    const upX = s.padX + s.labelW + s.upColW / 2;
+    const dnX = s.padX + s.labelW + s.upColW + s.dnColW / 2;
+    const y = s.padTop / 2 + 1;
+    ctx.font = `${s.fontSmall.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillStyle = UP_COLOR;
+    ctx.fillText("\u25b2", upX, y);
+    ctx.fillStyle = DOWN_COLOR;
+    ctx.fillText("\u25bc", dnX, y);
+  }
+
   #drawStops(
     snap: Snapshot,
     toScreenY: (y: number) => number,
     s: Scale,
+    lanesLeft: number,
+    lanesRight: number,
   ): void {
     const ctx = this.#ctx;
     ctx.font = `${s.fontMain.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
@@ -286,8 +321,6 @@ export class CanvasRenderer {
     const labelX = s.padX;
     const upX = s.padX + s.labelW;
     const dnX = upX + s.upColW;
-    const gutter = dnX + s.dnColW + s.gutterGap;
-    const canvasRightPad = this.#canvas.clientWidth - s.padX;
 
     for (const stop of snap.stops) {
       const y = toScreenY(stop.y);
@@ -295,8 +328,8 @@ export class CanvasRenderer {
       ctx.strokeStyle = STOP_LINE;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(gutter, y);
-      ctx.lineTo(canvasRightPad, y);
+      ctx.moveTo(lanesLeft, y);
+      ctx.lineTo(lanesRight, y);
       ctx.stroke();
 
       ctx.fillStyle = STOP_LABEL;
@@ -345,6 +378,12 @@ export class CanvasRenderer {
     stopIdxById: Map<number, number>,
   ): void {
     const ctx = this.#ctx;
+    // Gentle 1Hz pulse on the outer ring so the marker catches the eye
+    // without strobing. Alpha wobbles in a narrow band so the marker
+    // remains crisp even at the pulse's trough.
+    const pulse = 0.75 + 0.2 * Math.sin(performance.now() * 0.005);
+    const outerR = s.carDotR * 5.2;
+    const midR = s.carDotR * 3.4;
     for (const car of snap.cars) {
       if (car.target == null) continue;
       const idx = stopIdxById.get(car.target);
@@ -353,16 +392,22 @@ export class CanvasRenderer {
       const cx = carX.get(car.id);
       if (cx == null) continue;
       const cy = toScreenY(stop.y);
-      // Outer ring (soft accent) + inner dot. Carries strategy intent: a
-      // ring on a stop means "this car is committed to going there".
-      ctx.strokeStyle = TARGET_RING;
-      ctx.lineWidth = 1.5;
+      // Outer pulsing ring + inner dot. The ring reads "this car is
+      // committed to going there"; the inner dot anchors the mark on
+      // the rung even when the ring is subtle.
+      ctx.strokeStyle = `rgba(6, 194, 181, ${pulse})`;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(cx, cy, s.carDotR * 3.2, 0, Math.PI * 2);
+      ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = "rgba(6, 194, 181, 0.9)";
+      ctx.strokeStyle = TARGET_RING;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(cx, cy, s.carDotR * 0.9, 0, Math.PI * 2);
+      ctx.arc(cx, cy, midR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = TARGET_FILL;
+      ctx.beginPath();
+      ctx.arc(cx, cy, s.carDotR * 1.1, 0, Math.PI * 2);
       ctx.fill();
     }
   }
