@@ -138,8 +138,19 @@ impl super::Simulation {
     }
 
     /// Peek at events pending for consumer retrieval.
-    #[must_use]
-    pub fn pending_events(&self) -> &[Event] {
+    ///
+    /// Flushes the active event bus into the output buffer first so the
+    /// returned slice reflects every event emitted up to this call —
+    /// matching what [`drain_events`](Self::drain_events) would return.
+    /// Without the flush, events emitted outside the tick loop
+    /// (`spawn_rider`, `disable`, …) would be invisible to peek but
+    /// visible to drain — observed during round-2 audit (#264).
+    ///
+    /// Takes `&mut self` because the flush mutates internal state. If
+    /// you only need a count or a quick check after `step()`, prefer
+    /// `pending_events().len()` or pattern-matching the slice directly.
+    pub fn pending_events(&mut self) -> &[Event] {
+        self.pending_output.extend(self.events.drain());
         &self.pending_output
     }
 }

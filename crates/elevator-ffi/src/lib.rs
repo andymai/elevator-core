@@ -468,12 +468,12 @@ pub unsafe extern "C" fn ev_sim_step(handle: *mut EvSim) -> EvStatus {
         // Safety: validity guaranteed by caller; no aliasing across threads.
         let ev = unsafe { &mut *handle };
         ev.sim.step();
-        forward_pending_events(&ev.sim);
+        forward_pending_events(&mut ev.sim);
         EvStatus::Ok
     })
 }
 
-fn forward_pending_events(sim: &Simulation) {
+fn forward_pending_events(sim: &mut Simulation) {
     with_log_callback(|cb| {
         for event in sim.pending_events() {
             let msg = format!("{event:?}");

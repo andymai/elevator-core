@@ -283,6 +283,39 @@ fn remove_nonexistent_stop_returns_entity_not_found() {
 
 // ── drain_events_where ────────────────────────────────────────────────────────
 
+/// `pending_events` and `drain_events` must agree on what events exist.
+/// Pre-fix, `pending_events` returned only the post-step output buffer
+/// and missed events emitted outside the tick loop (`spawn_rider`,
+/// `disable`, etc.) — `drain_events` flushed first so it saw them.
+/// (#264)
+#[test]
+fn pending_events_matches_drain_events() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    // Emit RiderSpawned outside the tick loop. Pre-fix, peek would be
+    // empty while drain returned [RiderSpawned] — peek and drain disagreed.
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+
+    let peek_count = sim.pending_events().len();
+    assert!(
+        peek_count >= 1,
+        "pending_events should flush the event bus and see RiderSpawned, got {peek_count}"
+    );
+
+    let drained = sim.drain_events();
+    assert_eq!(
+        drained.len(),
+        peek_count,
+        "drain must yield the same count peek reported"
+    );
+    assert!(
+        drained
+            .iter()
+            .any(|e| matches!(e, Event::RiderSpawned { .. }))
+    );
+}
+
 #[test]
 fn drain_events_where_returns_only_matching_events() {
     let config = default_config();
