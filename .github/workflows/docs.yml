@@ -84,9 +84,18 @@ jobs:
       - name: Stage playground into mdBook output
         # mdBook emits to target/book. Drop the playground bundle under
         # /playground/ there so the deployed Pages site has both.
+        #
+        # wasm-pack emits a `.gitignore` containing `*` inside `public/pkg/`
+        # so the source tree never tracks generated artifacts. Vite copies
+        # publicDir verbatim, so that file rides into `dist/pkg/.gitignore`
+        # and then into the staged tree. `peaceiris/actions-gh-pages` uses
+        # `git add` under the hood, which honors the nested ignore and
+        # silently drops every pkg/ file from the publish — the deploy
+        # succeeds but the playground 404s on its wasm. Strip it here.
         run: |
           mkdir -p target/book/playground
           cp -r playground/dist/. target/book/playground/
+          rm -f target/book/playground/pkg/.gitignore
 
       # Publish to gh-pages branch (not the workflow Pages artifact) so the
       # nightly-bench dashboard at /bench/ — pushed by
