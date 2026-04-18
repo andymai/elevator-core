@@ -22,13 +22,21 @@ export interface PermalinkState {
 }
 
 export const DEFAULT_STATE: PermalinkState = {
-  // `office-mid-rise` is the new canonical "default" scenario; the
-  // legacy `office-5` id resolves through `scenarioById` fallback to
-  // keep stale permalinks loading cleanly.
-  scenario: "office-mid-rise",
+  // First-impression tuning: skyscraper is the visually richest
+  // scenario (3 cars, 12 floors, bypass feature firing during morning
+  // rush) — office would have a visitor watching idle cars during
+  // "Overnight" for 45 sim-seconds before anything happens. The
+  // legacy `office-5` id still resolves through `scenarioById`
+  // fallback so stale permalinks keep loading cleanly.
+  scenario: "skyscraper-sky-lobby",
   strategyA: "etd",
   strategyB: "scan",
-  compare: false,
+  // Compare mode on by default: the single most visceral "one strategy
+  // is clearly better" demonstration the playground offers is the live
+  // scoreboard. A cold visitor in single-pane mode would have to
+  // manually swap strategies to notice any difference and most won't —
+  // defaulting compare on makes the library's payoff immediate.
+  compare: true,
   seed: 42,
   intensity: 1.0,
   speed: 4,
