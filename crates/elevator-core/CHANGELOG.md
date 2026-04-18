@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.9](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.8...elevator-core-v15.2.9) (2026-04-18)
+
+
+### Bug Fixes
+
+* **config:** validate PassengerSpawnConfig ([#281](https://github.com/andymai/elevator-core/issues/281)) ([3d7c980](https://github.com/andymai/elevator-core/commit/3d7c9805b492bd2e05fae1da91207a11004dc6f3))
+
 ## [15.2.8](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.7...elevator-core-v15.2.8) (2026-04-18)
 
 
