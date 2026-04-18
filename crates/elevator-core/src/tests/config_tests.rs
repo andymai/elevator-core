@@ -118,6 +118,34 @@ fn rejects_zero_door_open_ticks() {
     );
 }
 
+/// Non-finite `ticks_per_second` produces NaN/zero `dt` that silently
+/// corrupts every physics step (#261).
+#[test]
+fn rejects_non_finite_ticks_per_second() {
+    use super::helpers;
+    for (label, value) in [
+        ("NaN", f64::NAN),
+        ("+inf", f64::INFINITY),
+        ("-inf", f64::NEG_INFINITY),
+        ("zero", 0.0),
+        ("negative", -1.0),
+    ] {
+        let mut config = helpers::default_config();
+        config.simulation.ticks_per_second = value;
+        let result = crate::sim::Simulation::new(&config, helpers::scan());
+        assert!(
+            matches!(
+                result,
+                Err(SimError::InvalidConfig {
+                    field: "simulation.ticks_per_second",
+                    ..
+                })
+            ),
+            "ticks_per_second={label} should be rejected, got {result:?}"
+        );
+    }
+}
+
 #[test]
 fn rejects_empty_line_serves() {
     use super::helpers;
