@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.1...elevator-core-v15.2.2) (2026-04-18)
+
+
+### Bug Fixes
+
+* **dispatch:** clear DCS sticky assignment when assigned car is lost ([#251](https://github.com/andymai/elevator-core/issues/251)) ([c264c44](https://github.com/andymai/elevator-core/commit/c264c44d352cee7d5ed75e229d22170e6364c33c))
+
 ## [15.2.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.0...elevator-core-v15.2.1) (2026-04-18)
 
 
