@@ -511,7 +511,7 @@ export class CanvasRenderer {
           if (delta > 0) {
             // Board: prefer the heavier direction column as the origin. If
             // both queues are empty (already-boarded at this frame), fall
-            // back to a midpoint between them.
+            // back to the up column as a default origin.
             const useUp = stop.waiting_up >= stop.waiting_down;
             const originX = useUp ? upX + s.upColW / 2 : dnX + s.dnColW / 2;
             const color = useUp ? UP_COLOR : DOWN_COLOR;
@@ -553,6 +553,18 @@ export class CanvasRenderer {
     for (let i = this.#tweens.length - 1; i >= 0; i--) {
       const t = this.#tweens[i];
       if (now - t.bornAt > t.duration) this.#tweens.splice(i, 1);
+    }
+
+    // Drop state for cars no longer in the snapshot. `entity_to_u32` on the
+    // wasm side strips slotmap version bits, so a freed-then-refilled slot
+    // reuses the same JS-visible id. Without this cleanup, a resurrected
+    // car's first frame would see the dead car's final rider count as
+    // `prev.riders` and fire spurious board/alight tweens.
+    if (this.#carStates.size > snap.cars.length) {
+      const liveIds = new Set(snap.cars.map((c) => c.id));
+      for (const id of this.#carStates.keys()) {
+        if (!liveIds.has(id)) this.#carStates.delete(id);
+      }
     }
   }
 
