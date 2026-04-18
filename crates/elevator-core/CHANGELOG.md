@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.16](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.15...elevator-core-v15.2.16) (2026-04-18)
+
+
+### Bug Fixes
+
+* **dispatch:** hall calls + restricted_stops + group-reassign leak ([#255](https://github.com/andymai/elevator-core/issues/255)/[#256](https://github.com/andymai/elevator-core/issues/256)/[#257](https://github.com/andymai/elevator-core/issues/257)) ([#308](https://github.com/andymai/elevator-core/issues/308)) ([38846aa](https://github.com/andymai/elevator-core/commit/38846aaef0cda22e66af76f1d3bd51b5c25749e1))
+
 ## [15.2.15](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.14...elevator-core-v15.2.15) (2026-04-18)
 
 
