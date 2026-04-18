@@ -1,7 +1,7 @@
 //! Aggregate simulation metrics (wait times, throughput, distance).
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::collections::VecDeque;
 use std::fmt;
 
@@ -36,7 +36,7 @@ pub struct Metrics {
     /// enabled elevators. Overwritten each tick. Key is group name (String
     /// for serialization).
     #[serde(default)]
-    pub(crate) utilization_by_group: HashMap<String, f64>,
+    pub(crate) utilization_by_group: BTreeMap<String, f64>,
     /// Total distance traveled by elevators while repositioning.
     #[serde(default)]
     pub(crate) reposition_distance: f64,
@@ -148,7 +148,7 @@ impl Metrics {
 
     /// Per-group instantaneous elevator utilization (fraction of elevators moving).
     #[must_use]
-    pub const fn utilization_by_group(&self) -> &HashMap<String, f64> {
+    pub const fn utilization_by_group(&self) -> &BTreeMap<String, f64> {
         &self.utilization_by_group
     }
 

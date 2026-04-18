@@ -355,6 +355,13 @@ pub struct Simulation {
     topo_graph: Mutex<TopologyGraph>,
     /// Phase-partitioned reverse index for O(1) population queries.
     rider_index: RiderIndex,
+    /// True between the first per-phase `run_*` call and the matching
+    /// `advance_tick()`. Used by [`try_snapshot`](Self::try_snapshot) to
+    /// reject mid-tick captures that would lose in-progress event-bus
+    /// state. Always false outside the substep API path because
+    /// [`step()`](Self::step) takes `&mut self` and snapshots take
+    /// `&self`. (#297)
+    pub(crate) tick_in_progress: bool,
 }
 
 impl fmt::Debug for Simulation {

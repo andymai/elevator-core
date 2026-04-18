@@ -1,7 +1,7 @@
 //! Type-erased storage for extension components.
 
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -24,10 +24,11 @@ pub trait AnyExtMap: Send + Sync {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// Serialize all entries to a map of `EntityId` → RON string.
-    fn serialize_entries(&self) -> HashMap<EntityId, String>;
+    /// `BTreeMap` for deterministic ordering across snapshot processes.
+    fn serialize_entries(&self) -> BTreeMap<EntityId, String>;
 
     /// Deserialize entries from a map of `EntityId` → RON string, replacing current contents.
-    fn deserialize_entries(&mut self, data: &HashMap<EntityId, String>);
+    fn deserialize_entries(&mut self, data: &BTreeMap<EntityId, String>);
 }
 
 impl<T: 'static + Send + Sync + Serialize + DeserializeOwned> AnyExtMap
@@ -45,13 +46,13 @@ impl<T: 'static + Send + Sync + Serialize + DeserializeOwned> AnyExtMap
         self
     }
 
-    fn serialize_entries(&self) -> HashMap<EntityId, String> {
+    fn serialize_entries(&self) -> BTreeMap<EntityId, String> {
         self.iter()
             .filter_map(|(id, val)| ron::to_string(val).ok().map(|s| (id, s)))
             .collect()
     }
 
-    fn deserialize_entries(&mut self, data: &HashMap<EntityId, String>) {
+    fn deserialize_entries(&mut self, data: &BTreeMap<EntityId, String>) {
         for (id, ron_str) in data {
             if let Ok(val) = ron::from_str::<T>(ron_str) {
                 self.insert(*id, val);

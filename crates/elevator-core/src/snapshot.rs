@@ -18,7 +18,7 @@ use crate::metrics::Metrics;
 use crate::stop::StopId;
 use crate::tagged_metrics::MetricTags;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Serializable snapshot of a single entity's components.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,8 +74,18 @@ pub struct EntitySnapshot {
 /// and restore via [`WorldSnapshot::restore()`]. The game chooses the serde format
 /// (RON, JSON, bincode, etc.).
 ///
-/// Extension components and resources are NOT included. Games must
-/// handle their own custom data separately.
+/// **Determinism:** the map fields below all use `BTreeMap` instead of
+/// `HashMap` so postcard/RON/JSON serialize entries in a deterministic
+/// (key-sorted) order. With `HashMap`, two snapshots of the same sim
+/// taken in different processes produced different bytes, defeating
+/// content-addressed caching and bit-equality replay (#254).
+///
+/// **Extension components are included** (via `extensions`); games must
+/// register types via `register_ext` before `restore()` to materialize them.
+/// **Custom resources** inserted via `world.insert_resource` are NOT
+/// snapshotted — only the built-in `MetricTags` resource is captured
+/// in `metric_tags`. Games using custom resources must save and restore
+/// them out-of-band (#296).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldSnapshot {
     /// Current simulation tick.
@@ -87,14 +97,16 @@ pub struct WorldSnapshot {
     pub entities: Vec<EntitySnapshot>,
     /// Elevator groups (references into entities by index).
     pub groups: Vec<GroupSnapshot>,
-    /// Stop ID → entity index mapping.
-    pub stop_lookup: HashMap<StopId, usize>,
+    /// Stop ID → entity index mapping. `BTreeMap` for deterministic
+    /// snapshot bytes across processes (#254).
+    pub stop_lookup: BTreeMap<StopId, usize>,
     /// Global metrics at snapshot time.
     pub metrics: Metrics,
     /// Per-tag metric accumulators and entity-tag associations.
     pub metric_tags: MetricTags,
     /// Serialized extension component data: name → (`EntityId` → RON string).
-    pub extensions: HashMap<String, HashMap<EntityId, String>>,
+    /// Both maps are `BTreeMap` for deterministic snapshot bytes (#254).
+    pub extensions: BTreeMap<String, BTreeMap<EntityId, String>>,
     /// Ticks per second (for `TimeAdapter` reconstruction).
     pub ticks_per_second: f64,
     /// All pending hall calls across every stop. Absent in legacy snapshots.
@@ -145,7 +157,7 @@ pub struct GroupSnapshot {
 /// Stored as a world resource after `restore()`. Call
 /// `sim.load_extensions()` after registering extension types to
 /// deserialize the data.
-pub(crate) struct PendingExtensions(pub(crate) HashMap<String, HashMap<EntityId, String>>);
+pub(crate) struct PendingExtensions(pub(crate) BTreeMap<String, BTreeMap<EntityId, String>>);
 
 /// Factory function type for instantiating custom dispatch strategies by name.
 type CustomStrategyFactory<'a> =
@@ -537,13 +549,13 @@ impl WorldSnapshot {
 
     /// Remap `EntityId`s in extension data using the old→new mapping.
     fn remap_extensions(
-        extensions: &HashMap<String, HashMap<EntityId, String>>,
+        extensions: &BTreeMap<String, BTreeMap<EntityId, String>>,
         id_remap: &HashMap<EntityId, EntityId>,
-    ) -> HashMap<String, HashMap<EntityId, String>> {
+    ) -> BTreeMap<String, BTreeMap<EntityId, String>> {
         extensions
             .iter()
             .map(|(name, entries)| {
-                let remapped: HashMap<EntityId, String> = entries
+                let remapped: BTreeMap<EntityId, String> = entries
                     .iter()
                     .map(|(old_id, data)| {
                         let new_id = id_remap.get(old_id).copied().unwrap_or(*old_id);
@@ -669,10 +681,44 @@ impl crate::sim::Simulation {
     /// Create a serializable snapshot of the current simulation state.
     ///
     /// The snapshot captures all entities, components, groups, metrics,
-    /// and the tick counter. Extension components and custom resources
-    /// are NOT included — games must serialize those separately.
+    /// the tick counter, and extension component data (game must
+    /// re-register types via `register_ext` before `restore`).
+    /// Custom resources inserted via `world.insert_resource` are NOT
+    /// captured — games using them must save/restore separately (#296).
+    ///
+    /// **Mid-tick safety:** `snapshot()` returns a snapshot regardless
+    /// of whether you are mid-tick (between phase calls in the substep
+    /// API). For substep callers that care about event-bus state, use
+    /// [`try_snapshot`](Self::try_snapshot) which returns
+    /// [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
+    /// when invoked between `run_*` and `advance_tick`. (#297)
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn snapshot(&self) -> WorldSnapshot {
+        self.snapshot_inner()
+    }
+
+    /// Like [`snapshot`](Self::snapshot) but returns
+    /// [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
+    /// when called between phases of an in-progress tick. (#297)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
+    /// when invoked between a `run_*` phase call and the matching
+    /// `advance_tick`.
+    pub fn try_snapshot(&self) -> Result<WorldSnapshot, crate::error::SimError> {
+        if self.tick_in_progress {
+            return Err(crate::error::SimError::MidTickSnapshot);
+        }
+        Ok(self.snapshot())
+    }
+
+    /// Internal snapshot builder shared by [`snapshot`](Self::snapshot)
+    /// and [`try_snapshot`](Self::try_snapshot). Holds the line-count
+    /// allow so the public methods remain visible in nursery lints.
+    #[allow(clippy::too_many_lines)]
+    fn snapshot_inner(&self) -> WorldSnapshot {
         let world = self.world();
 
         // Build entity index: map EntityId → position in vec.
@@ -761,7 +807,7 @@ impl crate::sim::Simulation {
             .collect();
 
         // Snapshot stop lookup (convert EntityIds to indices).
-        let stop_lookup: HashMap<StopId, usize> = self
+        let stop_lookup: BTreeMap<StopId, usize> = self
             .stop_lookup_iter()
             .filter_map(|(sid, eid)| id_to_index.get(eid).map(|&idx| (*sid, idx)))
             .collect();
@@ -800,15 +846,17 @@ impl crate::sim::Simulation {
     /// not included.
     ///
     /// # Errors
-    /// Returns [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
-    /// if postcard encoding fails. This is unreachable for well-formed
-    /// `WorldSnapshot` values (all fields derive `Serialize`), so callers
-    /// that don't care can `unwrap`.
+    /// - [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
+    ///   if postcard encoding fails. Unreachable for well-formed
+    ///   `WorldSnapshot` values, so callers that don't care can `unwrap`.
+    /// - [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
+    ///   if invoked between phases of an in-progress tick (substep API
+    ///   path) — the in-flight `EventBus` would otherwise be lost. (#297)
     pub fn snapshot_bytes(&self) -> Result<Vec<u8>, crate::error::SimError> {
         let envelope = SnapshotEnvelope {
             magic: SNAPSHOT_MAGIC,
             version: env!("CARGO_PKG_VERSION").to_owned(),
-            payload: self.snapshot(),
+            payload: self.try_snapshot()?,
         };
         postcard::to_allocvec(&envelope)
             .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))

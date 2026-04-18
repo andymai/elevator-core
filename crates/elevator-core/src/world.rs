@@ -1,7 +1,7 @@
 //! Central entity/component storage (struct-of-arrays ECS).
 
 use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::marker::PhantomData;
 
 use slotmap::{SecondaryMap, SlotMap};
@@ -799,9 +799,10 @@ impl World {
     }
 
     /// Serialize all extension component data for snapshot.
-    /// Returns name → (`EntityId` → RON string) mapping.
-    pub(crate) fn serialize_extensions(&self) -> HashMap<String, HashMap<EntityId, String>> {
-        let mut result = HashMap::new();
+    /// Returns name → (`EntityId` → RON string) mapping. `BTreeMap` for
+    /// deterministic snapshot bytes across processes (#254).
+    pub(crate) fn serialize_extensions(&self) -> BTreeMap<String, BTreeMap<EntityId, String>> {
+        let mut result = BTreeMap::new();
         for (type_id, map) in &self.extensions {
             if let Some(name) = self.ext_names.get(type_id) {
                 result.insert(name.clone(), map.serialize_entries());
@@ -814,7 +815,7 @@ impl World {
     /// have been registered (via `register_ext_deserializer`) before calling.
     pub(crate) fn deserialize_extensions(
         &mut self,
-        data: &HashMap<String, HashMap<EntityId, String>>,
+        data: &BTreeMap<String, BTreeMap<EntityId, String>>,
     ) {
         for (name, entries) in data {
             // Find the TypeId by name.
