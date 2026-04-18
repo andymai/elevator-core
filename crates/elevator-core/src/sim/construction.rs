@@ -571,11 +571,13 @@ impl Simulation {
             Self::validate_legacy_elevators(&config.elevators, &config.building)?;
         }
 
-        if config.simulation.ticks_per_second <= 0.0 {
+        if !config.simulation.ticks_per_second.is_finite()
+            || config.simulation.ticks_per_second <= 0.0
+        {
             return Err(SimError::InvalidConfig {
                 field: "simulation.ticks_per_second",
                 reason: format!(
-                    "must be positive, got {}",
+                    "must be finite and positive, got {}",
                     config.simulation.ticks_per_second
                 ),
             });
