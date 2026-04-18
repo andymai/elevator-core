@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.8](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.7...elevator-core-v15.2.8) (2026-04-18)
+
+
+### Bug Fixes
+
+* **sim:** reject spawn_rider(s, s, _) self-loops ([#279](https://github.com/andymai/elevator-core/issues/279)) ([85daf55](https://github.com/andymai/elevator-core/commit/85daf55f3d9b72cabd598fe53e0c856a5bf936a1))
+
 ## [15.2.7](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.6...elevator-core-v15.2.7) (2026-04-18)
 
 
