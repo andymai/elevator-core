@@ -20,6 +20,13 @@ export interface RiderSpec {
   originStopId: number;
   destStopId: number;
   weight: number;
+  /**
+   * Optional wait budget (in sim ticks) before this rider abandons
+   * the queue. Set per-scenario by the caller via {@link TrafficDriver.setPatienceTicks}
+   * so every rider in a scenario inherits the same patience — per-rider
+   * variability is nice but this is a UI demo, not a human-model study.
+   */
+  patienceTicks?: number;
 }
 
 export class TrafficDriver {
@@ -30,6 +37,8 @@ export class TrafficDriver {
   #elapsedInCycleSec = 0;
   /** User-facing intensity multiplier, 0.5×–2×. Applied on top of phase rate. */
   #intensity = 1.0;
+  /** Patience budget stamped onto each emitted spec. 0 = abandonment off. */
+  #patienceTicks = 0;
 
   constructor(seed: number) {
     this.#state = mixSeed(BigInt(seed >>> 0));
@@ -52,6 +61,15 @@ export class TrafficDriver {
     // Clamp defensively even though the UI already bounds the slider —
     // a bad permalink could push it negative and the driver would never spawn.
     this.#intensity = Math.max(0, multiplier);
+  }
+
+  /**
+   * Stamp every emitted {@link RiderSpec} with this patience budget
+   * (in sim ticks). Zero or negative values disable abandonment —
+   * riders wait forever. Set once when a scenario loads.
+   */
+  setPatienceTicks(ticks: number): void {
+    this.#patienceTicks = Math.max(0, Math.floor(ticks));
   }
 
   /**
@@ -120,6 +138,7 @@ export class TrafficDriver {
       originStopId: stops[originIdx].stop_id,
       destStopId: stops[destIdx].stop_id,
       weight,
+      patienceTicks: this.#patienceTicks > 0 ? this.#patienceTicks : undefined,
     };
   }
 

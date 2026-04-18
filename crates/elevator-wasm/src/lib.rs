@@ -152,19 +152,42 @@ impl WasmSim {
 
     /// Spawn a single rider between two stop ids at the given weight.
     ///
+    /// When `patience_ticks` is provided (non-zero), the rider gets a
+    /// [`Patience`](elevator_core::components::Patience) budget —
+    /// riders waiting longer than that transition to `Abandoned` in
+    /// the `advance_transient` phase. Heavy-load scenarios need this
+    /// so queues can self-regulate: without abandonment, a two-car
+    /// office under a 65-riders/min lunchtime pattern grows its
+    /// waiting-count monotonically because demand persistently
+    /// exceeds cruise throughput and no one ever leaves.
+    ///
+    /// Pass `0` (or omit on the JS side via `undefined`) to disable
+    /// abandonment for this rider — preserves the pre-patience
+    /// behavior for scenarios that want bounded queues.
+    ///
     /// # Errors
     ///
-    /// Returns a JS error if either stop id is unknown or the rider is
-    /// rejected by the sim.
+    /// Returns a JS error if either stop id is unknown, the rider is
+    /// rejected by the sim, or the `(origin, destination)` route
+    /// can't be auto-detected.
     #[wasm_bindgen(js_name = spawnRider)]
     pub fn spawn_rider(
         &mut self,
         origin: u32,
         destination: u32,
         weight: f64,
+        patience_ticks: Option<u32>,
     ) -> Result<(), JsError> {
-        self.inner
-            .spawn_rider(StopId(origin), StopId(destination), weight)
+        let mut builder = self
+            .inner
+            .build_rider(StopId(origin), StopId(destination))
+            .map_err(|e| JsError::new(&format!("spawn: {e}")))?
+            .weight(weight);
+        if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
+            builder = builder.patience(u64::from(ticks));
+        }
+        builder
+            .spawn()
             .map(|_| ())
             .map_err(|e| JsError::new(&format!("spawn: {e}")))
     }
