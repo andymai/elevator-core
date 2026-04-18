@@ -121,10 +121,28 @@ impl DispatchManifest {
         self.riding_to_stop.get(&stop).map_or(0, Vec::len)
     }
 
-    /// Whether a stop has any demand (waiting riders or riders heading there).
+    /// Whether a stop has any demand for this group: waiting riders,
+    /// riders heading there, or a *rider-less* hall call (one that
+    /// `press_hall_button` placed without a backing rider). Pre-fix
+    /// the rider-less case was invisible to every built-in dispatcher,
+    /// so explicit button presses with no associated rider went
+    /// unanswered indefinitely (#255).
+    ///
+    /// Hall calls *with* `pending_riders` are not double-counted —
+    /// those riders already appear in `waiting_count_at` for the
+    /// groups whose dispatch surface they belong to. Adding the call
+    /// to `has_demand` for *every* group that serves the stop would
+    /// pull cars from groups the rider doesn't even want, causing
+    /// open/close oscillation regression that the multi-group test
+    /// `dispatch_ignores_waiting_rider_targeting_another_group` pins.
     #[must_use]
     pub fn has_demand(&self, stop: EntityId) -> bool {
-        self.waiting_count_at(stop) > 0 || self.riding_count_to(stop) > 0
+        self.waiting_count_at(stop) > 0
+            || self.riding_count_to(stop) > 0
+            || self
+                .hall_calls_at_stop
+                .get(&stop)
+                .is_some_and(|calls| calls.iter().any(|c| c.pending_riders.is_empty()))
     }
 
     /// Number of residents at a stop (read-only hint, not active demand).
@@ -713,7 +731,19 @@ pub(crate) fn assign(
     let mut data: Vec<i64> = vec![ASSIGNMENT_SENTINEL; n * cols];
     for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
         strategy.prepare_car(car_eid, car_pos, group, manifest, world);
+        // Cache the car's restricted-stops set for this row so each
+        // (car, stop) pair can short-circuit before calling rank().
+        // Pre-fix only DCS consulted restricted_stops; SCAN/LOOK/NC/ETD
+        // happily ranked restricted pairs and `commit_go_to_stop` later
+        // silently dropped the assignment, starving the call. (#256)
+        let restricted = world
+            .elevator(car_eid)
+            .map(|c| c.restricted_stops().clone())
+            .unwrap_or_default();
         for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
+            if restricted.contains(&stop_eid) {
+                continue; // leave SENTINEL — this pair is unavailable
+            }
             let ctx = RankContext {
                 car: car_eid,
                 car_position: car_pos,
