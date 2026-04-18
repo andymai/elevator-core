@@ -165,16 +165,31 @@ export class WasmSim {
     /**
      * Spawn a single rider between two stop ids at the given weight.
      *
+     * When `patience_ticks` is provided (non-zero), the rider gets a
+     * [`Patience`](elevator_core::components::Patience) budget —
+     * riders waiting longer than that transition to `Abandoned` in
+     * the `advance_transient` phase. Heavy-load scenarios need this
+     * so queues can self-regulate: without abandonment, a two-car
+     * office under a 65-riders/min lunchtime pattern grows its
+     * waiting-count monotonically because demand persistently
+     * exceeds cruise throughput and no one ever leaves.
+     *
+     * Pass `0` (or omit on the JS side via `undefined`) to disable
+     * abandonment for this rider — preserves the pre-patience
+     * behavior for scenarios that want bounded queues.
+     *
      * # Errors
      *
-     * Returns a JS error if either stop id is unknown or the rider is
-     * rejected by the sim.
+     * Returns a JS error if either stop id is unknown, the rider is
+     * rejected by the sim, or the `(origin, destination)` route
+     * can't be auto-detected.
      * @param {number} origin
      * @param {number} destination
      * @param {number} weight
+     * @param {number | null} [patience_ticks]
      */
-    spawnRider(origin, destination, weight) {
-        const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight);
+    spawnRider(origin, destination, weight, patience_ticks) {
+        const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
@@ -328,6 +343,10 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
