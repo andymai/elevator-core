@@ -3,26 +3,27 @@ import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } 
 import { SCENARIOS, scenarioById } from "./scenarios";
 import { Sim } from "./sim";
 import { TrafficDriver } from "./traffic";
-import type { Metrics, Snapshot, StrategyName } from "./types";
+import type { Metrics, ScenarioMeta, Snapshot, StrategyName } from "./types";
 
 // The playground is a side-by-side comparator: up to two sims run the same
 // rider stream under different dispatch strategies. In single mode only
 // pane A is visible. A lightweight scoreboard highlights which strategy is
 // winning on each live metric.
 
-const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd"];
+const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
 const STRATEGY_LABELS: Record<StrategyName, string> = {
   scan: "SCAN",
   look: "LOOK",
   nearest: "NEAREST",
   etd: "ETD",
+  destination: "DCS",
 };
 const WAIT_HISTORY_LEN = 120;
 const COLOR_A = "#7dd3fc";
 const COLOR_B = "#fda4af";
 
 const speedLabel = (v: number): string => `${v}\u00d7`;
-const trafficLabel = (v: number): string => `${v} / min`;
+const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
 
 interface Pane {
   strategy: StrategyName;
@@ -67,14 +68,16 @@ interface UiHandles {
   seedInput: HTMLInputElement;
   speedInput: HTMLInputElement;
   speedLabel: HTMLElement;
-  trafficInput: HTMLInputElement;
-  trafficLabel: HTMLElement;
+  intensityInput: HTMLInputElement;
+  intensityLabel: HTMLElement;
   playBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
   shareBtn: HTMLButtonElement;
   layout: HTMLElement;
   loader: HTMLElement;
   toast: HTMLElement;
+  phaseLabel: HTMLElement | null;
+  featureHint: HTMLElement | null;
   paneA: PaneHandles;
   paneB: PaneHandles;
 }
@@ -82,6 +85,10 @@ interface UiHandles {
 async function boot(): Promise<void> {
   const ui = wireUi();
   const permalink = { ...DEFAULT_STATE, ...decodePermalink(window.location.search) };
+  // If the permalink points at a scenario we don't have, fall back to the
+  // scenario's `defaultStrategy` for pane A so "Share link from hotel"
+  // doesn't deliver a mismatched config to the recipient.
+  reconcileStrategyWithScenario(permalink);
   applyPermalinkToUi(permalink, ui);
   const state: State = {
     running: true,
@@ -99,12 +106,26 @@ async function boot(): Promise<void> {
   loop(state);
 }
 
+/**
+ * When the user switches to a scenario whose default strategy differs
+ * from the one currently selected, and they haven't explicitly picked
+ * a strategy for the new scenario, snap pane A to the scenario's
+ * default. Pane B stays put — compare mode deliberately pins both
+ * strategies across scenario switches.
+ */
+function reconcileStrategyWithScenario(p: PermalinkState): void {
+  const scenario = scenarioById(p.scenario);
+  p.scenario = scenario.id; // Canonicalise legacy ids through the fallback.
+}
+
 function wireUi(): UiHandles {
   const q = <T extends HTMLElement>(id: string): T => {
     const el = document.getElementById(id);
     if (!el) throw new Error(`missing element #${id}`);
     return el as T;
   };
+  const qOpt = <T extends HTMLElement>(id: string): T | null =>
+    (document.getElementById(id) as T | null) ?? null;
   const paneHandles = (suffix: "a" | "b", accent: string): PaneHandles => ({
     root: q(`pane-${suffix}`),
     canvas: q<HTMLCanvasElement>(`shaft-${suffix}`),
@@ -121,14 +142,16 @@ function wireUi(): UiHandles {
     seedInput: q<HTMLInputElement>("seed"),
     speedInput: q<HTMLInputElement>("speed"),
     speedLabel: q("speed-label"),
-    trafficInput: q<HTMLInputElement>("traffic"),
-    trafficLabel: q("traffic-label"),
+    intensityInput: q<HTMLInputElement>("traffic"),
+    intensityLabel: q("traffic-label"),
     playBtn: q<HTMLButtonElement>("play"),
     resetBtn: q<HTMLButtonElement>("reset"),
     shareBtn: q<HTMLButtonElement>("share"),
     layout: q("layout"),
     loader: q("loader"),
     toast: q("toast"),
+    phaseLabel: qOpt("phase-label"),
+    featureHint: qOpt("feature-hint"),
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
   };
@@ -149,6 +172,14 @@ function wireUi(): UiHandles {
     }
   }
 
+  // Rewire the intensity slider now that the semantics changed from
+  // "absolute riders/min" to "0.5x–2x multiplier". Driven here rather
+  // than in HTML so permalinks with stale `t=` values still land in
+  // the new range.
+  ui.intensityInput.min = "0.5";
+  ui.intensityInput.max = "2";
+  ui.intensityInput.step = "0.1";
+
   return ui;
 }
 
@@ -162,8 +193,10 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   ui.seedInput.value = String(p.seed);
   ui.speedInput.value = String(p.speed);
   ui.speedLabel.textContent = speedLabel(p.speed);
-  ui.trafficInput.value = String(p.trafficRate);
-  ui.trafficLabel.textContent = trafficLabel(p.trafficRate);
+  ui.intensityInput.value = String(p.intensity);
+  ui.intensityLabel.textContent = intensityLabel(p.intensity);
+  const scenario = scenarioById(p.scenario);
+  if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
 }
 
 /** Run `fn` against each active pane. Lets call sites fan out without null-checks. */
@@ -180,11 +213,13 @@ function disposePane(pane: Pane | null): void {
 async function makePane(
   handles: PaneHandles,
   strategy: StrategyName,
-  state: State,
+  scenario: ScenarioMeta,
 ): Promise<Pane> {
-  const scenario = scenarioById(state.permalink.scenario);
   const sim = await Sim.create(scenario.ron, strategy);
-  sim.setTrafficRate(state.permalink.trafficRate);
+  // Apply the scenario's commercial-feature hook once on load. The
+  // user can still swap strategies afterwards; the hook's effects
+  // stick only as long as the strategy it tuned remains active.
+  sim.applyHook(scenario.hook);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
   handles.name.textContent = STRATEGY_LABELS[strategy];
   initMetricRows(handles.metrics);
@@ -201,10 +236,13 @@ async function makePane(
 async function resetAll(state: State, ui: UiHandles): Promise<void> {
   const token = ++state.initToken;
   ui.loader.classList.add("show");
+  const scenario = scenarioById(state.permalink.scenario);
   // Swap in the fresh TrafficDriver *before* creating panes. If paneB
   // construction throws after paneA was installed, the surviving paneA
   // must see the reset seed — not the previous driver's accumulator.
   state.traffic = new TrafficDriver(state.permalink.seed);
+  state.traffic.setPhases(scenario.phases);
+  state.traffic.setIntensity(state.permalink.intensity);
   // Tear the old panes down *before* building new ones so the freed wasm
   // memory is released before we allocate the replacements.
   disposePane(state.paneA);
@@ -212,20 +250,42 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
   state.paneA = null;
   state.paneB = null;
   try {
-    const paneA = await makePane(ui.paneA, state.permalink.strategyA, state);
+    const paneA = await makePane(ui.paneA, state.permalink.strategyA, scenario);
     if (token !== state.initToken) {
       disposePane(paneA);
       return;
     }
     state.paneA = paneA;
     if (state.permalink.compare) {
-      const paneB = await makePane(ui.paneB, state.permalink.strategyB, state);
+      const paneB = await makePane(ui.paneB, state.permalink.strategyB, scenario);
       if (token !== state.initToken) {
         disposePane(paneB);
         return;
       }
       state.paneB = paneB;
     }
+    // Seed pre-loaded spawns (convention scenario) once both panes are
+    // live so the injection is apples-to-apples across compared sims.
+    if (scenario.seedSpawns > 0) {
+      const snapForSeed = state.paneA.sim.snapshot();
+      for (let i = 0; i < scenario.seedSpawns; i += 1) {
+        // Abuse drainSpawns by feeding a full minute's worth of
+        // elapsed time at 300 riders/min so the driver emits the
+        // seed count from the first phase's distribution.
+        const specs = state.traffic.drainSpawns(snapForSeed, 1 / 300);
+        for (const spec of specs) {
+          forEachPane(state, (pane) =>
+            pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight),
+          );
+        }
+        // Break once we've seeded enough — drainSpawns caps per-frame
+        // output at its internal accumulator, so we just loop until
+        // cumulative emission >= the target.
+        if (specs.length === 0) break;
+      }
+    }
+    if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
+    updatePhaseIndicator(state, ui);
   } catch (err) {
     if (token === state.initToken) {
       toast(ui, `Init failed: ${(err as Error).message}`);
@@ -241,19 +301,20 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
 function attachListeners(state: State, ui: UiHandles): void {
   ui.scenarioSelect.addEventListener("change", async () => {
     const scenario = scenarioById(ui.scenarioSelect.value);
+    // Snap pane A (and pane B when in single-pane mode) to the
+    // scenario's recommended strategy. In compare mode we leave both
+    // panes alone so the user's comparison setup survives.
+    const nextStrategyA = state.permalink.compare
+      ? state.permalink.strategyA
+      : scenario.defaultStrategy;
     state.permalink = {
       ...state.permalink,
       scenario: scenario.id,
-      trafficRate: scenario.suggestedTrafficRate,
+      strategyA: nextStrategyA,
     };
-    ui.trafficInput.value = String(state.permalink.trafficRate);
-    ui.trafficLabel.textContent = trafficLabel(state.permalink.trafficRate);
-    // Bump max when the scenario's default exceeds the range slider cap.
-    ui.trafficInput.max = String(
-      Math.max(Number(ui.trafficInput.max), state.permalink.trafficRate + 20),
-    );
+    ui.strategyASelect.value = nextStrategyA;
     await resetAll(state, ui);
-    toast(ui, `${scenario.label}`);
+    toast(ui, `${scenario.label} · ${STRATEGY_LABELS[nextStrategyA]}`);
   });
   // Strategy changes reset the whole comparator so both panes stay aligned
   // on the same rider stream from t=0 — mixing pre- and post-change metrics
@@ -294,11 +355,11 @@ function attachListeners(state: State, ui: UiHandles): void {
     state.permalink.speed = v;
     ui.speedLabel.textContent = speedLabel(v);
   });
-  ui.trafficInput.addEventListener("input", () => {
-    const v = Number(ui.trafficInput.value);
-    state.permalink.trafficRate = v;
-    forEachPane(state, (pane) => pane.sim.setTrafficRate(v));
-    ui.trafficLabel.textContent = trafficLabel(v);
+  ui.intensityInput.addEventListener("input", () => {
+    const v = Number(ui.intensityInput.value);
+    state.permalink.intensity = v;
+    state.traffic.setIntensity(v);
+    ui.intensityLabel.textContent = intensityLabel(v);
   });
 
   ui.playBtn.addEventListener("click", () => {
@@ -319,6 +380,7 @@ function attachListeners(state: State, ui: UiHandles): void {
 }
 
 function loop(state: State): void {
+  let uiFrame = 0;
   const frame = (): void => {
     const now = performance.now();
     const elapsed = (now - state.lastFrameTime) / 1000;
@@ -330,7 +392,11 @@ function loop(state: State): void {
 
       const snapA = state.paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
-      const specs = state.traffic.drainSpawns(snapA, state.permalink.trafficRate, elapsed);
+      // `elapsed` is wall-clock; scaling by `ticks` keeps the sim-time
+      // budget the driver operates on in lockstep with the actual
+      // simulation advance.
+      const simElapsed = elapsed * ticks;
+      const specs = state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
         forEachPane(state, (pane) =>
           pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight),
@@ -345,6 +411,9 @@ function loop(state: State): void {
       }
 
       updateScoreboard(state);
+      // Phase indicator updates at ~15 Hz so it stays readable even
+      // when the sim is racing ahead.
+      if ((uiFrame += 1) % 4 === 0) updatePhaseIndicatorFromState(state);
     }
 
     requestAnimationFrame(frame);
@@ -358,6 +427,19 @@ function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   pane.waitHistory.push(metrics.avg_wait_s);
   if (pane.waitHistory.length > WAIT_HISTORY_LEN) pane.waitHistory.shift();
   pane.renderer.draw(snap, pane.waitHistory, speed);
+}
+
+function updatePhaseIndicator(state: State, ui: UiHandles): void {
+  if (!ui.phaseLabel) return;
+  const label = state.traffic.currentPhaseLabel();
+  ui.phaseLabel.textContent = label || "—";
+}
+
+function updatePhaseIndicatorFromState(state: State): void {
+  const el = document.getElementById("phase-label");
+  if (!el) return;
+  const label = state.traffic.currentPhaseLabel();
+  if (el.textContent !== label) el.textContent = label || "—";
 }
 
 function updateScoreboard(state: State): void {

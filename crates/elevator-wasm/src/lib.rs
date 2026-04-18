@@ -234,6 +234,67 @@ impl WasmSim {
             u32::try_from(self.inner.waiting_count_at(e)).unwrap_or(u32::MAX)
         })
     }
+
+    /// Flip every group in the sim into the DCS hall-call mode. Required
+    /// before `DestinationDispatch` can see rider destinations. Scenarios
+    /// that want DCS (e.g. the hotel) call this once on load.
+    #[wasm_bindgen(js_name = setHallCallModeDestination)]
+    pub fn set_hall_call_mode_destination(&mut self) {
+        use elevator_core::dispatch::HallCallMode;
+        for group in self.inner.groups_mut() {
+            group.set_hall_call_mode(HallCallMode::Destination);
+        }
+    }
+
+    /// Swap every group's dispatcher to a tuned ETD instance that
+    /// applies the group-time squared-wait fairness bonus. Higher
+    /// `weight` values bias dispatch more aggressively toward stops
+    /// with older waiters; `0.0` matches the default ETD.
+    #[wasm_bindgen(js_name = setEtdWithWaitSquaredWeight)]
+    pub fn set_etd_with_wait_squared_weight(&mut self, weight: f64) {
+        let group_ids: Vec<_> = self.inner.dispatchers().keys().copied().collect();
+        for gid in group_ids {
+            let strategy = EtdDispatch::new().with_wait_squared_weight(weight);
+            self.inner
+                .set_dispatch(gid, Box::new(strategy), BuiltinStrategy::Etd);
+        }
+        self.strategy_name = "etd".to_string();
+    }
+
+    /// Swap every group's dispatcher to a DCS instance with the given
+    /// deferred-commitment window. `window_ticks = 0` is equivalent to
+    /// no window (immediate sticky).
+    #[wasm_bindgen(js_name = setDcsWithCommitmentWindow)]
+    pub fn set_dcs_with_commitment_window(&mut self, window_ticks: u64) {
+        let group_ids: Vec<_> = self.inner.dispatchers().keys().copied().collect();
+        for gid in group_ids {
+            let strategy = DestinationDispatch::new().with_commitment_window_ticks(window_ticks);
+            self.inner
+                .set_dispatch(gid, Box::new(strategy), BuiltinStrategy::Destination);
+        }
+        self.strategy_name = "destination".to_string();
+    }
+
+    /// Install `PredictiveParking` as the reposition strategy for every
+    /// group, with the given rolling window. Used by the residential
+    /// scenario to spotlight arrival-rate-driven pre-positioning.
+    #[wasm_bindgen(js_name = setRepositionPredictiveParking)]
+    pub fn set_reposition_predictive_parking(&mut self, window_ticks: u64) {
+        use elevator_core::dispatch::reposition::PredictiveParking;
+        let group_ids: Vec<_> = self
+            .inner
+            .groups()
+            .iter()
+            .map(elevator_core::dispatch::ElevatorGroup::id)
+            .collect();
+        for gid in group_ids {
+            self.inner.set_reposition(
+                gid,
+                Box::new(PredictiveParking::with_window_ticks(window_ticks)),
+                BuiltinReposition::PredictiveParking,
+            );
+        }
+    }
 }
 
 /// List of built-in strategy names in a stable order (for populating dropdowns).
