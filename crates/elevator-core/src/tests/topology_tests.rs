@@ -68,6 +68,117 @@ fn add_elevator_at_runtime() {
     )));
 }
 
+/// `add_elevator` runtime path must validate physics & door params (#247).
+/// Construction-time validation rejects these; the runtime path was
+/// previously silent, letting zero/negative speed or zero door ticks
+/// reach the world and crash later phases.
+#[test]
+fn add_elevator_rejects_invalid_params() {
+    use crate::error::SimError;
+
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    let valid = || ElevatorParams {
+        max_speed: Speed::from(2.0),
+        acceleration: Accel::from(1.5),
+        deceleration: Accel::from(2.0),
+        weight_capacity: Weight::from(800.0),
+        door_transition_ticks: 5,
+        door_open_ticks: 10,
+        restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
+    };
+
+    // Note: Speed/Weight/Accel constructors panic on NaN/Inf/negative, so
+    // those cases can't reach `add_elevator` through the public API. Cover
+    // the values that *can* — zeroes for unit-typed fields, plus NaN/Inf
+    // for the raw f64 inspection_speed_factor.
+    let cases: Vec<(&'static str, ElevatorParams)> = vec![
+        (
+            "max_speed=0",
+            ElevatorParams {
+                max_speed: Speed::from(0.0),
+                ..valid()
+            },
+        ),
+        (
+            "acceleration=0",
+            ElevatorParams {
+                acceleration: Accel::from(0.0),
+                ..valid()
+            },
+        ),
+        (
+            "deceleration=0",
+            ElevatorParams {
+                deceleration: Accel::from(0.0),
+                ..valid()
+            },
+        ),
+        (
+            "weight_capacity=0",
+            ElevatorParams {
+                weight_capacity: Weight::from(0.0),
+                ..valid()
+            },
+        ),
+        (
+            "door_transition_ticks=0",
+            ElevatorParams {
+                door_transition_ticks: 0,
+                ..valid()
+            },
+        ),
+        (
+            "door_open_ticks=0",
+            ElevatorParams {
+                door_open_ticks: 0,
+                ..valid()
+            },
+        ),
+        (
+            "inspection_speed_factor=0",
+            ElevatorParams {
+                inspection_speed_factor: 0.0,
+                ..valid()
+            },
+        ),
+        (
+            "inspection_speed_factor=NaN",
+            ElevatorParams {
+                inspection_speed_factor: f64::NAN,
+                ..valid()
+            },
+        ),
+        (
+            "inspection_speed_factor=-1",
+            ElevatorParams {
+                inspection_speed_factor: -1.0,
+                ..valid()
+            },
+        ),
+    ];
+
+    for (label, params) in cases {
+        let elev_count_before = sim.world().elevator_ids().len();
+        let result = sim.add_elevator(&params, line, 0.0);
+        assert!(
+            matches!(result, Err(SimError::InvalidConfig { .. })),
+            "expected InvalidConfig for {label}, got {result:?}"
+        );
+        assert_eq!(
+            sim.world().elevator_ids().len(),
+            elev_count_before,
+            "{label} must not add an elevator"
+        );
+    }
+
+    // Sanity: a valid params set still succeeds afterwards.
+    sim.add_elevator(&valid(), line, 0.0).unwrap();
+}
+
 /// `add_stop` must reject non-finite positions instead of silently
 /// inserting them into `SortedStops` (where `partition_point` on NaN
 /// is undefined behavior for ordering) and the position map (where
