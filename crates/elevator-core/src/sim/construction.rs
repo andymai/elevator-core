@@ -42,6 +42,65 @@ type TopologyResult = (
     BTreeMap<GroupId, BuiltinStrategy>,
 );
 
+/// Validate the physics fields shared by [`crate::config::ElevatorConfig`]
+/// and [`super::ElevatorParams`]. Both construction-time validation and
+/// the runtime `add_elevator` path call this so an invalid set of params
+/// can never reach the world (zeroes blow up movement; zero door ticks
+/// stall the door FSM).
+pub(super) fn validate_elevator_physics(
+    max_speed: f64,
+    acceleration: f64,
+    deceleration: f64,
+    weight_capacity: f64,
+    inspection_speed_factor: f64,
+    door_transition_ticks: u32,
+    door_open_ticks: u32,
+) -> Result<(), SimError> {
+    if !max_speed.is_finite() || max_speed <= 0.0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.max_speed",
+            reason: format!("must be finite and positive, got {max_speed}"),
+        });
+    }
+    if !acceleration.is_finite() || acceleration <= 0.0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.acceleration",
+            reason: format!("must be finite and positive, got {acceleration}"),
+        });
+    }
+    if !deceleration.is_finite() || deceleration <= 0.0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.deceleration",
+            reason: format!("must be finite and positive, got {deceleration}"),
+        });
+    }
+    if !weight_capacity.is_finite() || weight_capacity <= 0.0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.weight_capacity",
+            reason: format!("must be finite and positive, got {weight_capacity}"),
+        });
+    }
+    if !inspection_speed_factor.is_finite() || inspection_speed_factor <= 0.0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.inspection_speed_factor",
+            reason: format!("must be finite and positive, got {inspection_speed_factor}"),
+        });
+    }
+    if door_transition_ticks == 0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.door_transition_ticks",
+            reason: "must be > 0".into(),
+        });
+    }
+    if door_open_ticks == 0 {
+        return Err(SimError::InvalidConfig {
+            field: "elevators.door_open_ticks",
+            reason: "must be > 0".into(),
+        });
+    }
+    Ok(())
+}
+
 impl Simulation {
     /// Create a new simulation from config and a dispatch strategy.
     ///
@@ -549,48 +608,15 @@ impl Simulation {
         elev: &crate::config::ElevatorConfig,
         building: &crate::config::BuildingConfig,
     ) -> Result<(), SimError> {
-        if elev.max_speed.value() <= 0.0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.max_speed",
-                reason: format!("must be positive, got {}", elev.max_speed.value()),
-            });
-        }
-        if elev.acceleration.value() <= 0.0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.acceleration",
-                reason: format!("must be positive, got {}", elev.acceleration.value()),
-            });
-        }
-        if elev.deceleration.value() <= 0.0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.deceleration",
-                reason: format!("must be positive, got {}", elev.deceleration.value()),
-            });
-        }
-        if elev.weight_capacity.value() <= 0.0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.weight_capacity",
-                reason: format!("must be positive, got {}", elev.weight_capacity.value()),
-            });
-        }
-        if elev.inspection_speed_factor <= 0.0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.inspection_speed_factor",
-                reason: format!("must be positive, got {}", elev.inspection_speed_factor),
-            });
-        }
-        if elev.door_transition_ticks == 0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.door_transition_ticks",
-                reason: "must be > 0".into(),
-            });
-        }
-        if elev.door_open_ticks == 0 {
-            return Err(SimError::InvalidConfig {
-                field: "elevators.door_open_ticks",
-                reason: "must be > 0".into(),
-            });
-        }
+        validate_elevator_physics(
+            elev.max_speed.value(),
+            elev.acceleration.value(),
+            elev.deceleration.value(),
+            elev.weight_capacity.value(),
+            elev.inspection_speed_factor,
+            elev.door_transition_ticks,
+            elev.door_open_ticks,
+        )?;
         if !building.stops.iter().any(|s| s.id == elev.starting_stop) {
             return Err(SimError::InvalidConfig {
                 field: "elevators.starting_stop",

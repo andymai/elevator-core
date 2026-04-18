@@ -112,6 +112,27 @@ impl Simulation {
         line: EntityId,
         starting_position: f64,
     ) -> Result<EntityId, SimError> {
+        // Reject malformed params before they reach the world. Without this,
+        // zero/negative physics or zero door ticks crash later phases.
+        super::construction::validate_elevator_physics(
+            params.max_speed.value(),
+            params.acceleration.value(),
+            params.deceleration.value(),
+            params.weight_capacity.value(),
+            params.inspection_speed_factor,
+            params.door_transition_ticks,
+            params.door_open_ticks,
+        )?;
+        if !starting_position.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "starting_position",
+                reason: format!(
+                    "must be finite (got {starting_position}); NaN/±inf corrupt \
+                     SortedStops ordering and find_stop_at_position lookup"
+                ),
+            });
+        }
+
         let group_id = self
             .world
             .line(line)
