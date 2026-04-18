@@ -459,7 +459,7 @@ fn disable_assigned_car_clears_sticky_and_lets_other_car_deliver() {
         }
     }
     assert_eq!(
-        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        sim.world().rider(rid.entity()).map(Rider::phase),
         Some(RiderPhase::Arrived),
         "rider should be delivered by the surviving car"
     );
@@ -517,7 +517,7 @@ fn remove_assigned_car_clears_sticky_and_lets_other_car_deliver() {
         }
     }
     assert_eq!(
-        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        sim.world().rider(rid.entity()).map(Rider::phase),
         Some(RiderPhase::Arrived),
         "rider should be delivered by the surviving car after removal"
     );
@@ -545,8 +545,10 @@ fn loading_ignores_dangling_assignment_to_dead_car() {
     sim.world_mut()
         .insert_ext(rid.entity(), AssignedCar(dead_id), ASSIGNED_CAR_KEY);
 
-    // Step. DCS sees the (dangling) AssignedCar and skips re-assignment;
-    // loading sees the assigned car is dead and ignores the sticky guard.
+    // Step. The dangling AssignedCar exercises BOTH defense layers:
+    // DCS pre_dispatch (layer 2) detects target is dead, drops the
+    // extension, and re-assigns to the live car. Loading's liveness
+    // check (layer 3) is the fallback if cleanup is missed entirely.
     for _ in 0..10_000 {
         sim.step();
         if sim
@@ -558,7 +560,7 @@ fn loading_ignores_dangling_assignment_to_dead_car() {
         }
     }
     assert_eq!(
-        sim.world().rider(rid.entity()).map(|r| r.phase()),
+        sim.world().rider(rid.entity()).map(Rider::phase),
         Some(RiderPhase::Arrived),
         "rider must be delivered despite dangling AssignedCar"
     );

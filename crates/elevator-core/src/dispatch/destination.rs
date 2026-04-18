@@ -174,9 +174,10 @@ impl DispatchStrategy for DestinationDispatch {
             // Count riders whose weight is "committed" to a specific car:
             // actively aboard (Boarding/Riding) or still-Waiting with a
             // sticky assignment. Terminal phases (Exiting, Arrived,
-            // Abandoned, Resident, Walking) must not contribute — AssignedCar
-            // is sticky and never cleared, so including them would permanently
-            // inflate the former car's committed load over long runs.
+            // Abandoned, Resident, Walking) must not contribute — they no
+            // longer need elevator service, and stale `AssignedCar`
+            // extensions on them would inflate the former car's committed
+            // load until cleared.
             let car = match rider.phase() {
                 RiderPhase::Riding(c) | RiderPhase::Boarding(c) => Some(c),
                 RiderPhase::Waiting => world.ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
