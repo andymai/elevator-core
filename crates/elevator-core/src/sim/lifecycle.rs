@@ -448,6 +448,10 @@ impl Simulation {
             let pos = self.world.position(id).map_or(0.0, |p| p.value);
             let nearest_stop = self.world.find_nearest_stop(pos);
 
+            // Drop any sticky DCS assignments pointing at this car so
+            // routed riders are not stranded behind a dead reference.
+            crate::dispatch::destination::clear_assignments_to(&mut self.world, id);
+
             for rid in &rider_ids {
                 if let Some(r) = self.world.rider_mut(*rid) {
                     r.phase = RiderPhase::Waiting;
