@@ -63,8 +63,12 @@ pub fn tick_movement(
     let speed = velocity.abs();
     let safe_decel = deceleration.max(EPSILON);
     let stopping_distance = speed * speed / (2.0 * safe_decel);
+    // Opposing direction: car is moving away from the (possibly retargeted)
+    // destination. Must brake at `deceleration` before accelerating back —
+    // not at `acceleration`, which is the wrong physics when accel ≠ decel.
+    let opposing = velocity * sign < 0.0;
 
-    let new_velocity = if stopping_distance >= distance_remaining - EPSILON {
+    let new_velocity = if opposing || stopping_distance >= distance_remaining - EPSILON {
         // Decelerate
         let v = (-safe_decel * dt).mul_add(velocity.signum(), velocity);
         // Clamp to zero if sign would flip.
