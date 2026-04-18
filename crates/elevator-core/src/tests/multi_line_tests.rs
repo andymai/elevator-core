@@ -464,6 +464,68 @@ fn cross_group_rider_arrives_via_explicit_two_leg_route() {
     );
 }
 
+/// Regression: a multi-leg journey is one delivery, not one per leg (#246).
+///
+/// Before the fix, `RiderExited` fired at every transfer and the metrics
+/// handler treated each as terminal — `total_delivered` became leg-count
+/// instead of rider-count.
+#[test]
+fn multi_leg_journey_counts_as_single_delivery() {
+    let config = two_group_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let ground = sim.stop_entity(StopId(0)).unwrap();
+    let transfer = sim.stop_entity(StopId(1)).unwrap();
+    let top = sim.stop_entity(StopId(2)).unwrap();
+
+    let route = Route {
+        legs: vec![
+            RouteLeg {
+                from: ground,
+                to: transfer,
+                via: TransportMode::Group(GroupId(0)),
+            },
+            RouteLeg {
+                from: transfer,
+                to: top,
+                via: TransportMode::Group(GroupId(1)),
+            },
+        ],
+        current_leg: 0,
+    };
+
+    let rider = sim
+        .build_rider(ground, top)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
+        .unwrap();
+
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rider.entity())
+            .is_some_and(|r| r.phase == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+
+    assert_eq!(
+        sim.world().rider(rider.entity()).map(|r| r.phase),
+        Some(RiderPhase::Arrived),
+        "rider should arrive at Top via transfer"
+    );
+    assert_eq!(
+        sim.metrics().total_delivered,
+        1,
+        "two-leg journey must count as one delivery, not two"
+    );
+    assert_eq!(sim.metrics().total_spawned, 1, "spawn count should be one");
+}
+
 // ── 6. Loading group filter ───────────────────────────────────────────────────
 
 #[test]
