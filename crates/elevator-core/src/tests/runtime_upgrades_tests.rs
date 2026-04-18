@@ -282,6 +282,31 @@ fn set_on_non_elevator_returns_invalid_state() {
     assert!(matches!(err, SimError::NotAnElevator(_)));
 }
 
+/// Runtime setters must reject disabled elevators (#265). Pre-fix,
+/// `require_elevator` only checked existence, so `set_max_speed` etc.
+/// would silently mutate a disabled car and emit `ElevatorUpgraded`.
+#[test]
+fn set_on_disabled_elevator_returns_disabled_error() {
+    let (mut sim, elev) = make_sim();
+    let before = sim.world().elevator(elev.entity()).unwrap().max_speed();
+
+    sim.disable(elev.entity()).unwrap();
+
+    let err = sim.set_max_speed(elev, 99.0).unwrap_err();
+    assert!(
+        matches!(err, SimError::ElevatorDisabled(_)),
+        "expected ElevatorDisabled, got {err:?}"
+    );
+
+    // The setter must not have mutated the disabled car.
+    sim.enable(elev.entity()).unwrap();
+    assert_eq!(
+        sim.world().elevator(elev.entity()).unwrap().max_speed(),
+        before,
+        "disabled-elevator setter must not mutate state"
+    );
+}
+
 // ── Velocity preservation ────────────────────────────────────────────
 
 /// When `max_speed` is raised mid-flight the current velocity is preserved
