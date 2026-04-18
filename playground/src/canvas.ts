@@ -92,9 +92,9 @@ const TRAIL_DT = 0.05; // seconds of motion per ghost step
 // car across the whole canvas. The lane region centers when the cap binds.
 const SHAFT_CAP = 160;
 
-/** One-shot board/alight animation tween. */
+/** One-shot animation tween — board into a car, alight out, or abandon the queue. */
 interface Tween {
-  kind: "board" | "alight";
+  kind: "board" | "alight" | "abandon";
   bornAt: number;
   duration: number;
   startX: number;
@@ -107,6 +107,12 @@ interface Tween {
 /** Per-car frame-to-frame memory used to detect board/alight transitions. */
 interface CarState {
   riders: number;
+}
+
+/** Per-stop frame-to-frame memory used to detect abandonment — a drop in
+ *  the stop's waiting count *not* explained by a board at that stop. */
+interface StopState {
+  waiting: number;
 }
 
 /**
@@ -170,6 +176,7 @@ export class CanvasRenderer {
 
   #accent: string;
   #carStates: Map<number, CarState> = new Map();
+  #stopStates: Map<number, StopState> = new Map();
   #tweens: Tween[] = [];
   #sparkLabel: string;
 
@@ -478,14 +485,19 @@ export class CanvasRenderer {
     const upX = s.padX + s.labelW;
     const dnX = upX + s.upColW;
 
+    // First pass: compute per-car rider deltas and accumulate per-stop
+    // board totals. Boards must be known *before* the stop pass so a
+    // stop whose waiting count dropped can distinguish between "a car
+    // picked them up" and "they gave up." Without this separation the
+    // abandon tween fires whenever anyone boards, which reads as
+    // "everyone gives up during rush hour" — the opposite of truth.
+    const boardsAtStop = new Map<number, number>();
+    const carTweens: Array<() => void> = [];
     for (const car of snap.cars) {
       const prev = this.#carStates.get(car.id);
       const riders = car.riders;
-      const phase = car.phase;
       const cx = carX.get(car.id);
 
-      // Find the nearest stop to this car's y — useful when `loading` to
-      // know which stop rung the rider exchange is happening at.
       let nearestIdx: number | null = null;
       let nearestDist = Infinity;
       for (let i = 0; i < snap.stops.length; i++) {
@@ -495,58 +507,104 @@ export class CanvasRenderer {
           nearestIdx = i;
         }
       }
-      const stopIdx = phase === "loading" && nearestDist < 0.5 ? nearestIdx : null;
+      const stopIdx = car.phase === "loading" && nearestDist < 0.5 ? nearestIdx : null;
 
-      if (prev && cx != null) {
+      if (prev && cx != null && stopIdx != null) {
         const delta = riders - prev.riders;
-        // Loading phase: rider count diffs correspond to board/alight at the
-        // stop we're parked at. A mixed frame (some boarded + some alighted)
-        // shows only the net — tolerable approximation for animation.
-        if (stopIdx != null && delta !== 0) {
+        if (delta > 0) {
+          const stop = snap.stops[stopIdx];
+          boardsAtStop.set(
+            stop.entity_id,
+            (boardsAtStop.get(stop.entity_id) ?? 0) + delta,
+          );
+        }
+        if (delta !== 0) {
           const stop = snap.stops[stopIdx];
           const stopY = toScreenY(stop.y);
           const carY = toScreenY(car.y);
           const count = Math.min(Math.abs(delta), 6);
-
           if (delta > 0) {
-            // Board: prefer the heavier direction column as the origin. If
-            // both queues are empty (already-boarded at this frame), fall
-            // back to the up column as a default origin.
             const useUp = stop.waiting_up >= stop.waiting_down;
             const originX = useUp ? upX + s.upColW / 2 : dnX + s.dnColW / 2;
             const color = useUp ? UP_COLOR : DOWN_COLOR;
             for (let k = 0; k < count; k++) {
-              this.#tweens.push({
-                kind: "board",
-                bornAt: now + k * stagger,
-                duration,
-                startX: originX,
-                startY: stopY,
-                endX: cx,
-                endY: carY,
-                color,
-              });
+              carTweens.push(() =>
+                this.#tweens.push({
+                  kind: "board",
+                  bornAt: now + k * stagger,
+                  duration,
+                  startX: originX,
+                  startY: stopY,
+                  endX: cx,
+                  endY: carY,
+                  color,
+                }),
+              );
             }
           } else {
-            // Alight: fade from the car, drifting outward toward the gutter
-            // so exits read as "leaving the building".
             for (let k = 0; k < count; k++) {
-              this.#tweens.push({
-                kind: "alight",
-                bornAt: now + k * stagger,
-                duration,
-                startX: cx,
-                startY: carY,
-                endX: cx + 18,
-                endY: carY + 10,
-                color: CAR_DOT_COLOR,
-              });
+              carTweens.push(() =>
+                this.#tweens.push({
+                  kind: "alight",
+                  bornAt: now + k * stagger,
+                  duration,
+                  startX: cx,
+                  startY: carY,
+                  endX: cx + 18,
+                  endY: carY + 10,
+                  color: CAR_DOT_COLOR,
+                }),
+              );
             }
           }
         }
       }
 
       this.#carStates.set(car.id, { riders });
+    }
+
+    // Second pass: stop-level diffs. A drop in waiting count that
+    // exceeds the boards attributed to this stop this frame is an
+    // abandonment — rider hit their patience budget and walked off.
+    // Cap the visual count per stop per frame so a hundred simultaneous
+    // abandonments during a stress test don't carpet the canvas.
+    for (const stop of snap.stops) {
+      const waiting = stop.waiting_up + stop.waiting_down;
+      const prev = this.#stopStates.get(stop.entity_id);
+      if (prev) {
+        const dropped = prev.waiting - waiting;
+        const boards = boardsAtStop.get(stop.entity_id) ?? 0;
+        const abandons = Math.max(0, dropped - boards);
+        if (abandons > 0) {
+          const stopY = toScreenY(stop.y);
+          // Drift leftward past the stop label — reads as "walked off
+          // to find the stairs / another car." The outward direction
+          // visually disambiguates abandons from alights (which drift
+          // right, toward the shaft, i.e. "got delivered").
+          const startX = upX + s.upColW / 2;
+          const count = Math.min(abandons, 4);
+          for (let k = 0; k < count; k++) {
+            this.#tweens.push({
+              kind: "abandon",
+              bornAt: now + k * stagger,
+              // Abandon tweens run longer than board/alight so they
+              // remain visible as a distinct event rather than blending
+              // into the boarding flurry at a busy stop.
+              duration: duration * 1.5,
+              startX,
+              startY: stopY,
+              endX: startX - 26,
+              endY: stopY - 6,
+              color: OVERFLOW_COLOR,
+            });
+          }
+        }
+      }
+      this.#stopStates.set(stop.entity_id, { waiting });
+    }
+
+    for (const enqueue of carTweens) {
+      enqueue();
     }
 
     // Reap completed tweens. Walk in reverse so splice indices stay valid.
@@ -566,6 +624,12 @@ export class CanvasRenderer {
         if (!liveIds.has(id)) this.#carStates.delete(id);
       }
     }
+    if (this.#stopStates.size > snap.stops.length) {
+      const liveIds = new Set(snap.stops.map((st) => st.entity_id));
+      for (const id of this.#stopStates.keys()) {
+        if (!liveIds.has(id)) this.#stopStates.delete(id);
+      }
+    }
   }
 
   #drawTweens(s: Scale): void {
@@ -583,10 +647,19 @@ export class CanvasRenderer {
               t.startX + (t.endX - t.startX) * eased,
               t.startY + (t.endY - t.startY) * eased,
             ];
-      const alpha = t.kind === "alight" ? 1 - eased : 0.9;
+      // Board is persistent (delivered into car), alight and abandon
+      // fade out as the rider leaves the picture. Abandon gets a
+      // slight extra fade curve so it reads as "fading away in
+      // frustration" rather than the cleaner alight "delivered" fade.
+      const alpha =
+        t.kind === "board" ? 0.9 : t.kind === "abandon" ? (1 - eased) ** 1.5 : 1 - eased;
+      // Abandon dots are slightly smaller — deemphasizes them visually
+      // relative to boards/alights so they read as "ambient loss"
+      // rather than flashing warnings.
+      const radius = t.kind === "abandon" ? s.carDotR * 0.85 : s.carDotR;
       ctx.fillStyle = hexWithAlpha(t.color, alpha);
       ctx.beginPath();
-      ctx.arc(x, y, s.carDotR, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
