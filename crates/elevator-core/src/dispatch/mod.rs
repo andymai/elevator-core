@@ -940,6 +940,8 @@ pub enum BuiltinReposition {
     DemandWeighted,
     /// Keep idle elevators where they are (no-op).
     NearestIdle,
+    /// Pre-position cars near stops with the highest recent arrival rate.
+    PredictiveParking,
     /// Custom strategy identified by name.
     Custom(String),
 }
@@ -951,6 +953,7 @@ impl std::fmt::Display for BuiltinReposition {
             Self::ReturnToLobby => write!(f, "ReturnToLobby"),
             Self::DemandWeighted => write!(f, "DemandWeighted"),
             Self::NearestIdle => write!(f, "NearestIdle"),
+            Self::PredictiveParking => write!(f, "PredictiveParking"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -968,6 +971,7 @@ impl BuiltinReposition {
             Self::ReturnToLobby => Some(Box::new(reposition::ReturnToLobby::new())),
             Self::DemandWeighted => Some(Box::new(reposition::DemandWeighted)),
             Self::NearestIdle => Some(Box::new(reposition::NearestIdle)),
+            Self::PredictiveParking => Some(Box::new(reposition::PredictiveParking::new())),
             Self::Custom(_) => None,
         }
     }
