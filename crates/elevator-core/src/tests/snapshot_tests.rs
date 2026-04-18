@@ -558,6 +558,40 @@ fn snapshot_preserves_hall_call_ack_state_under_latency() {
     assert_eq!(call.ack_latency_ticks, 10);
 }
 
+/// `WorldSnapshot::restore` rejects a snapshot whose `version` differs
+/// from the current schema. Pre-fix the RON/JSON path silently accepted
+/// older snapshots and let `#[serde(default)]` fill new fields with
+/// zeros — masking schema mismatches. (#295)
+#[test]
+fn restore_rejects_mismatched_schema_version() {
+    use crate::error::SimError;
+
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let mut snap = sim.snapshot();
+    snap.version = u32::MAX;
+    let result = snap.restore(None);
+    assert!(
+        matches!(result, Err(SimError::SnapshotVersion { .. })),
+        "mismatched schema version must be rejected, got {result:?}"
+    );
+}
+
+/// Legacy snapshots (`version = 0`, the `#[serde(default)]` fallback)
+/// are also rejected — confirms the field is consulted on the RON/JSON
+/// path even when missing from the source.
+#[test]
+fn restore_rejects_legacy_zero_version() {
+    use crate::error::SimError;
+
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    let mut snap = sim.snapshot();
+    snap.version = 0;
+    let result = snap.restore(None);
+    assert!(matches!(result, Err(SimError::SnapshotVersion { .. })));
+}
+
 /// Normal snapshot roundtrip should produce no `SnapshotDanglingReference` events.
 #[test]
 fn snapshot_roundtrip_emits_no_dangling_warnings() {
