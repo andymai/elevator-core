@@ -745,6 +745,7 @@ impl World {
         key: ExtKey<T>,
     ) {
         let type_id = TypeId::of::<T>();
+        Self::assert_ext_name_unique(&self.ext_names, type_id, key.name());
         let map = self
             .extensions
             .entry(type_id)
@@ -849,11 +850,41 @@ impl World {
         key: ExtKey<T>,
     ) -> ExtKey<T> {
         let type_id = TypeId::of::<T>();
+        Self::assert_ext_name_unique(&self.ext_names, type_id, key.name());
         self.extensions
             .entry(type_id)
             .or_insert_with(|| Box::new(SecondaryMap::<EntityId, T>::new()));
         self.ext_names.insert(type_id, key.name().to_owned());
         key
+    }
+
+    /// Panic if `name` is already registered to a different `TypeId`.
+    ///
+    /// Two extension types sharing one `ExtKey` name silently corrupts
+    /// snapshot serde: `serialize_extensions` collapses both types' data
+    /// into one slot in the result map, and `deserialize_extensions`
+    /// routes the data to whichever `TypeId` `HashMap::iter().find` returns
+    /// first — a non-deterministic choice. Failing fast here prevents
+    /// the corruption from ever being written.
+    ///
+    /// Panic chosen over `Result` because [`register_ext`](Self::register_ext)
+    /// and [`insert_ext`](Self::insert_ext) are non-fallible by design and
+    /// changing their signatures would break every consumer. Name collisions
+    /// are programmer errors discoverable at startup, not runtime conditions
+    /// to recover from.
+    #[allow(clippy::panic)]
+    fn assert_ext_name_unique(ext_names: &HashMap<TypeId, String>, type_id: TypeId, name: &str) {
+        if let Some((existing_tid, _)) = ext_names
+            .iter()
+            .find(|(tid, n)| **tid != type_id && n.as_str() == name)
+        {
+            panic!(
+                "ExtKey name {name:?} is already registered to a different type \
+                 ({existing_tid:?}); each extension type needs a unique key name. \
+                 If renaming is impractical, use ExtKey::from_type_name() so the \
+                 name embeds the fully-qualified Rust type name."
+            );
+        }
     }
 
     // ── Disabled entity management ──────────────────────────────────
