@@ -169,6 +169,9 @@ impl super::Simulation {
         );
         self.world.set_route(eid, route);
         self.rider_index.insert_waiting(origin, eid);
+        if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+            log.record(self.tick, origin);
+        }
         self.events.emit(Event::RiderSpawned {
             rider: eid,
             origin,

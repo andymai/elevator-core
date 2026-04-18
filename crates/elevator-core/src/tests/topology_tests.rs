@@ -48,6 +48,10 @@ fn add_elevator_at_runtime() {
         door_open_ticks: 8,
         restricted_stops: HashSet::new(),
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     };
 
     let elev = sim.add_elevator(&params, line, 4.0).unwrap();
@@ -89,6 +93,10 @@ fn add_elevator_rejects_invalid_params() {
         door_open_ticks: 10,
         restricted_stops: HashSet::new(),
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     };
 
     // Note: Speed/Weight/Accel constructors panic on NaN/Inf/negative, so
@@ -198,6 +206,10 @@ fn add_elevator_rejects_non_finite_starting_position() {
         door_open_ticks: 10,
         restricted_stops: HashSet::new(),
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     };
 
     for (label, value) in [
@@ -267,6 +279,10 @@ fn add_to_nonexistent_line_returns_error() {
         door_open_ticks: 1,
         restricted_stops: HashSet::new(),
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     };
     let result = sim.add_elevator(&params, bogus, 0.0);
     assert!(result.is_err());

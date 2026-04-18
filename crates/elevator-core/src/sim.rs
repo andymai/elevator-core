@@ -117,6 +117,11 @@ pub struct ElevatorParams {
     pub restricted_stops: HashSet<EntityId>,
     /// Speed multiplier for Inspection mode (0.0..1.0).
     pub inspection_speed_factor: f64,
+    /// Full-load bypass threshold for upward pickups (see
+    /// [`Elevator::bypass_load_up_pct`](crate::components::Elevator::bypass_load_up_pct)).
+    pub bypass_load_up_pct: Option<f64>,
+    /// Full-load bypass threshold for downward pickups.
+    pub bypass_load_down_pct: Option<f64>,
 }
 
 impl Default for ElevatorParams {
@@ -130,6 +135,8 @@ impl Default for ElevatorParams {
             door_open_ticks: 10,
             restricted_stops: HashSet::new(),
             inspection_speed_factor: 0.25,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
         }
     }
 }

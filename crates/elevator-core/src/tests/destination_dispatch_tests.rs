@@ -52,6 +52,10 @@ fn single_car_config() -> SimConfig {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         }],
         simulation: SimulationParams {
             ticks_per_second: 60.0,
@@ -110,6 +114,10 @@ fn two_cars_same_group_config() -> SimConfig {
                         energy_profile: None,
                         service_mode: None,
                         inspection_speed_factor: 0.25,
+
+                        bypass_load_up_pct: None,
+
+                        bypass_load_down_pct: None,
                     },
                     ElevatorConfig {
                         id: 2,
@@ -126,6 +134,10 @@ fn two_cars_same_group_config() -> SimConfig {
                         energy_profile: None,
                         service_mode: None,
                         inspection_speed_factor: 0.25,
+
+                        bypass_load_up_pct: None,
+
+                        bypass_load_down_pct: None,
                     },
                 ],
                 orientation: Orientation::Vertical,
@@ -563,5 +575,90 @@ fn loading_ignores_dangling_assignment_to_dead_car() {
         sim.world().rider(rid.entity()).map(Rider::phase),
         Some(RiderPhase::Arrived),
         "rider must be delivered despite dangling AssignedCar"
+    );
+}
+
+/// Deferred commitment: when `commitment_window_ticks` is `Some(window)`,
+/// a rider's sticky assignment is re-evaluated each pass until the
+/// assigned car is within `window` ticks of the rider's origin. The
+/// original car stays chosen once inside the window, even if a closer
+/// car appears. Models KONE Polaris's two-button reallocation regime
+/// (DCS calls remain fixed on press; two-button hall calls re-allocate
+/// continuously until commitment).
+#[test]
+fn commitment_window_reassigns_when_current_car_is_far() {
+    let mut sim = Simulation::new(
+        &two_cars_same_group_config(),
+        DestinationDispatch::new().with_commitment_window_ticks(3),
+    )
+    .unwrap();
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
+
+    // Identify the two elevators by name.
+    let elevs: Vec<_> = sim
+        .world()
+        .iter_elevators()
+        .map(|(eid, _, _)| eid)
+        .collect();
+    // Map by config name: A at stop 0 (pos 0), B at stop 3 (pos 12).
+    let car_a = elevs[0];
+    let car_b = elevs[1];
+
+    // Spawn a rider at stop 1 (pos 4) going to stop 2 (pos 8). Force the
+    // sticky assignment onto the far car (B, pos 12 → 8 units to origin).
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
+    sim.world_mut()
+        .insert_ext(rid.entity(), AssignedCar(car_b), ASSIGNED_CAR_KEY);
+
+    // One dispatch pass: with `commitment_window_ticks = 3` and B's ETA
+    // of 4 ticks (8 units / 2 speed), the commitment hasn't latched yet,
+    // so the rider is free to migrate to car A (ETA 2 ticks).
+    sim.step();
+
+    assert_eq!(
+        sim.world().ext::<AssignedCar>(rid.entity()),
+        Some(AssignedCar(car_a)),
+        "a far-away sticky assignment must be re-evaluated when outside the commitment window"
+    );
+}
+
+/// Counterpart to the reassignment case: a car already inside the
+/// commitment window keeps its rider even if a closer car appears.
+#[test]
+fn commitment_window_locks_when_current_car_is_close() {
+    let mut sim = Simulation::new(
+        &two_cars_same_group_config(),
+        DestinationDispatch::new().with_commitment_window_ticks(10),
+    )
+    .unwrap();
+    sim.world_mut()
+        .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);
+
+    let elevs: Vec<_> = sim
+        .world()
+        .iter_elevators()
+        .map(|(eid, _, _)| eid)
+        .collect();
+    let car_a = elevs[0]; // at pos 0
+    let car_b = elevs[1]; // at pos 12
+
+    // Spawn rider at stop 1 (pos 4). Sticky to B. B's ETA ≈ 4 ticks,
+    // well inside the 10-tick commitment window — reassignment denied.
+    let rid = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
+    sim.world_mut()
+        .insert_ext(rid.entity(), AssignedCar(car_b), ASSIGNED_CAR_KEY);
+
+    sim.step();
+
+    assert_eq!(
+        sim.world().ext::<AssignedCar>(rid.entity()),
+        Some(AssignedCar(car_b)),
+        "inside the commitment window, sticky must hold even when a closer car is available"
+    );
+    // A didn't steal the rider.
+    assert_ne!(
+        sim.world().ext::<AssignedCar>(rid.entity()),
+        Some(AssignedCar(car_a)),
     );
 }

@@ -119,6 +119,19 @@ pub struct WorldSnapshot {
     /// All pending hall calls across every stop. Absent in legacy snapshots.
     #[serde(default)]
     pub hall_calls: Vec<HallCall>,
+    /// Rolling per-stop arrival log. Empty in legacy snapshots; on
+    /// restore the log's `(tick, stop)` entries have their stop IDs
+    /// remapped through `id_remap` so they line up with the newly
+    /// allocated entity IDs.
+    #[serde(default)]
+    pub arrival_log: crate::arrival_log::ArrivalLog,
+    /// Retention window for the arrival log (ticks). Captured so a
+    /// host-configured value (e.g. via
+    /// `Simulation::set_arrival_log_retention_ticks`) survives
+    /// snapshot round-trip; legacy snapshots default to
+    /// [`DEFAULT_ARRIVAL_WINDOW_TICKS`](crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS).
+    #[serde(default)]
+    pub arrival_log_retention: crate::arrival_log::ArrivalLogRetention,
 }
 
 /// Per-line snapshot info within a group.
@@ -273,6 +286,19 @@ impl WorldSnapshot {
         let mut tags = self.metric_tags;
         tags.remap_entity_ids(&id_remap);
         world.insert_resource(tags);
+
+        // Restore the arrival log (per-stop spawn counts) and the
+        // tick-mirror resource — without these `PredictiveParking` and
+        // `DispatchManifest::arrivals_at` silently no-op post-restore.
+        // Also re-seat `ArrivalLogRetention`: post-restore the first
+        // `advance_tick` prunes the log, and missing this resource
+        // quietly falls back to the default window, clipping any
+        // longer retention the host configured.
+        let mut log = self.arrival_log;
+        log.remap_entity_ids(&id_remap);
+        world.insert_resource(log);
+        world.insert_resource(crate::arrival_log::CurrentTick(self.tick));
+        world.insert_resource(self.arrival_log_retention);
 
         let mut sim = crate::sim::Simulation::from_parts(
             world,
@@ -852,6 +878,14 @@ impl crate::sim::Simulation {
             extensions: self.world().serialize_extensions(),
             ticks_per_second: 1.0 / self.dt(),
             hall_calls: world.iter_hall_calls().cloned().collect(),
+            arrival_log: world
+                .resource::<crate::arrival_log::ArrivalLog>()
+                .cloned()
+                .unwrap_or_default(),
+            arrival_log_retention: world
+                .resource::<crate::arrival_log::ArrivalLogRetention>()
+                .copied()
+                .unwrap_or_default(),
         }
     }
 

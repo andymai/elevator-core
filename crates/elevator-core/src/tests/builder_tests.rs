@@ -64,6 +64,10 @@ fn from_config_produces_valid_sim() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         }],
         simulation: SimulationParams {
             ticks_per_second: 30.0,
@@ -121,6 +125,10 @@ fn builder_with_stops_and_elevators() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         })
         .ticks_per_second(120.0)
         .build();
@@ -206,6 +214,10 @@ fn from_config_honours_config_group_dispatch() {
                     energy_profile: None,
                     service_mode: None,
                     inspection_speed_factor: 0.25,
+
+                    bypass_load_up_pct: None,
+
+                    bypass_load_down_pct: None,
                 }],
                 orientation: crate::components::Orientation::Vertical,
                 position: None,
@@ -285,6 +297,10 @@ fn from_config_dispatch_override_marks_strategy_as_custom() {
                     energy_profile: None,
                     service_mode: None,
                     inspection_speed_factor: 0.25,
+
+                    bypass_load_up_pct: None,
+
+                    bypass_load_down_pct: None,
                 }],
                 orientation: crate::components::Orientation::Vertical,
                 position: None,

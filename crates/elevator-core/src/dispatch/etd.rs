@@ -28,6 +28,13 @@ pub struct EtdDispatch {
     pub delay_weight: f64,
     /// Weight for door open/close overhead at intermediate stops.
     pub door_weight: f64,
+    /// Weight for the squared-wait "group-time" fairness bonus. Each
+    /// candidate stop's cost is reduced by this weight times the sum
+    /// of `wait_ticks²` across waiting riders at the stop, so stops
+    /// hosting older calls win ties. Defaults to `0.0` (no bias);
+    /// positive values damp the long-wait tail (Aalto EJOR 2016
+    /// group-time assignment model).
+    pub wait_squared_weight: f64,
     /// Positions of every demanded stop in the group, cached by
     /// [`DispatchStrategy::pre_dispatch`] so `rank` avoids rebuilding the
     /// list for every `(car, stop)` pair.
@@ -37,13 +44,15 @@ pub struct EtdDispatch {
 impl EtdDispatch {
     /// Create a new `EtdDispatch` with default weights.
     ///
-    /// Defaults: `wait_weight = 1.0`, `delay_weight = 1.0`, `door_weight = 0.5`.
+    /// Defaults: `wait_weight = 1.0`, `delay_weight = 1.0`,
+    /// `door_weight = 0.5`, `wait_squared_weight = 0.0`.
     #[must_use]
     pub fn new() -> Self {
         Self {
             wait_weight: 1.0,
             delay_weight: 1.0,
             door_weight: 0.5,
+            wait_squared_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
     }
@@ -55,6 +64,7 @@ impl EtdDispatch {
             wait_weight: 1.0,
             delay_weight,
             door_weight: 0.5,
+            wait_squared_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
     }
@@ -66,8 +76,27 @@ impl EtdDispatch {
             wait_weight,
             delay_weight,
             door_weight,
+            wait_squared_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
+    }
+
+    /// Turn on the squared-wait fairness bonus. Higher values prefer
+    /// older waiters more aggressively; `0.0` (the default) disables.
+    ///
+    /// # Panics
+    /// Panics on non-finite or negative weights. A `NaN` weight would
+    /// propagate through `mul_add` and silently disable every dispatch
+    /// rank; a negative weight would invert the fairness ordering.
+    /// Either is a programming error rather than a valid configuration.
+    #[must_use]
+    pub fn with_wait_squared_weight(mut self, weight: f64) -> Self {
+        assert!(
+            weight.is_finite() && weight >= 0.0,
+            "wait_squared_weight must be finite and non-negative, got {weight}"
+        );
+        self.wait_squared_weight = weight;
+        self
     }
 }
 
@@ -105,7 +134,19 @@ impl DispatchStrategy for EtdDispatch {
         if !pair_can_do_work(ctx) {
             return None;
         }
-        let cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);
+        let mut cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);
+        if self.wait_squared_weight > 0.0 {
+            let wait_sq: f64 = ctx
+                .manifest
+                .waiting_riders_at(ctx.stop)
+                .iter()
+                .map(|r| {
+                    let w = r.wait_ticks as f64;
+                    w * w
+                })
+                .sum();
+            cost = self.wait_squared_weight.mul_add(-wait_sq, cost).max(0.0);
+        }
         if cost.is_finite() { Some(cost) } else { None }
     }
 }

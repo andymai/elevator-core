@@ -400,6 +400,10 @@ fn part6_configuration() {
                 energy_profile: None,
                 service_mode: None,
                 inspection_speed_factor: 0.25,
+
+                bypass_load_up_pct: None,
+
+                bypass_load_down_pct: None,
             },
             ElevatorConfig {
                 id: 1,
@@ -416,6 +420,10 @@ fn part6_configuration() {
                 energy_profile: None,
                 service_mode: None,
                 inspection_speed_factor: 0.25,
+
+                bypass_load_up_pct: None,
+
+                bypass_load_down_pct: None,
             },
         ],
         simulation: SimulationParams {

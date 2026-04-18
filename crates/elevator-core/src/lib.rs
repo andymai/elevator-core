@@ -362,6 +362,9 @@ pub mod systems;
 /// Central entity/component storage.
 pub mod world;
 
+/// Rolling per-stop arrival log, the signal source for rate-driven
+/// dispatch and repositioning.
+pub mod arrival_log;
 /// Fluent builder for constructing a Simulation programmatically.
 pub mod builder;
 /// Building and elevator configuration (RON deserialization).
@@ -502,7 +505,8 @@ macro_rules! register_extensions {
 ///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
 ///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
 ///   [`SpreadEvenly`](crate::dispatch::reposition::SpreadEvenly),
-///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted)
+///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted),
+///   [`PredictiveParking`](crate::dispatch::reposition::PredictiveParking)
 /// - **Identity:** [`EntityId`](crate::entity::EntityId),
 ///   [`StopId`](crate::stop::StopId), [`StopRef`](crate::stop::StopRef),
 ///   [`GroupId`](crate::ids::GroupId)
@@ -531,7 +535,7 @@ pub mod prelude {
     };
     pub use crate::config::{ElevatorConfig, GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
-        DemandWeighted, NearestIdle, ReturnToLobby, SpreadEvenly,
+        DemandWeighted, NearestIdle, PredictiveParking, ReturnToLobby, SpreadEvenly,
     };
     pub use crate::dispatch::{
         AssignedCar, DestinationDispatch, DispatchDecision, DispatchManifest, DispatchStrategy,
