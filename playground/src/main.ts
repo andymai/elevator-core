@@ -204,7 +204,10 @@ async function makePane(
 async function resetAll(state: State, ui: UiHandles): Promise<void> {
   const token = ++state.initToken;
   ui.loader.classList.add("show");
-  const fresh = new TrafficDriver(state.permalink.seed);
+  // Swap in the fresh TrafficDriver *before* creating panes. If paneB
+  // construction throws after paneA was installed, the surviving paneA
+  // must see the reset seed — not the previous driver's accumulator.
+  state.traffic = new TrafficDriver(state.permalink.seed);
   // Tear the old panes down *before* building new ones so the freed wasm
   // memory is released before we allocate the replacements.
   disposePane(state.paneA);
@@ -226,7 +229,6 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
       }
       state.paneB = paneB;
     }
-    state.traffic = fresh;
   } catch (err) {
     if (token === state.initToken) {
       toast(ui, `Init failed: ${(err as Error).message}`);

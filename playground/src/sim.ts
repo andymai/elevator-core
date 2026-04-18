@@ -24,6 +24,7 @@ interface WasmSimInstance {
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): unknown;
+  drainEvents(): unknown;
   metrics(): unknown;
   waitingCountAt(stopId: number): number;
   free(): void;
@@ -69,6 +70,11 @@ export class Sim {
 
   step(n: number): void {
     this.#inner.stepMany(n);
+    // The wasm `EventBus` buffers every RiderSpawned / DoorOpened / ... event
+    // into `pending_output` until something drains it. The playground no
+    // longer consumes events (the event log was cut), so drop them here to
+    // keep the wasm heap from growing without bound during long sessions.
+    this.#inner.drainEvents();
   }
 
   get dt(): number {

@@ -35,10 +35,11 @@ export function encodePermalink(state: PermalinkState): string {
   const p = new URLSearchParams();
   p.set("s", state.scenario);
   p.set("a", state.strategyA);
-  if (state.compare) {
-    p.set("b", state.strategyB);
-    p.set("c", "1");
-  }
+  // Always persist `b` so a shared non-compare URL still remembers the B
+  // strategy when the recipient toggles compare on. Only the compare flag
+  // itself is conditional.
+  p.set("b", state.strategyB);
+  if (state.compare) p.set("c", "1");
   p.set("k", String(state.seed));
   p.set("t", String(state.trafficRate));
   p.set("x", String(state.speed));
