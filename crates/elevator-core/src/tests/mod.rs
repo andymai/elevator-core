@@ -65,3 +65,4 @@ mod resident_tests;
 mod rider_index_tests;
 mod runtime_upgrades_tests;
 mod service_mode_tests;
+mod waiting_direction_tests;

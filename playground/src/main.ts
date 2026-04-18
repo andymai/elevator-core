@@ -1,5 +1,4 @@
 import { CanvasRenderer } from "./canvas";
-import { drawSparkline } from "./charts";
 import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } from "./permalink";
 import { SCENARIOS, scenarioById } from "./scenarios";
 import { Sim } from "./sim";
@@ -30,7 +29,6 @@ interface Pane {
   sim: Sim;
   renderer: CanvasRenderer;
   metricsEl: HTMLElement;
-  waitChart: HTMLCanvasElement;
   waitHistory: number[];
   latestMetrics: Metrics | null;
 }
@@ -57,7 +55,7 @@ interface PaneHandles {
   canvas: HTMLCanvasElement;
   name: HTMLElement;
   metrics: HTMLElement;
-  chart: HTMLCanvasElement;
+  accent: string;
 }
 
 interface UiHandles {
@@ -107,12 +105,12 @@ function wireUi(): UiHandles {
     if (!el) throw new Error(`missing element #${id}`);
     return el as T;
   };
-  const paneHandles = (suffix: "a" | "b"): PaneHandles => ({
+  const paneHandles = (suffix: "a" | "b", accent: string): PaneHandles => ({
     root: q(`pane-${suffix}`),
     canvas: q<HTMLCanvasElement>(`shaft-${suffix}`),
     name: q(`name-${suffix}`),
     metrics: q(`metrics-${suffix}`),
-    chart: q<HTMLCanvasElement>(`wait-chart-${suffix}`),
+    accent,
   });
   const ui: UiHandles = {
     scenarioSelect: q<HTMLSelectElement>("scenario"),
@@ -131,8 +129,8 @@ function wireUi(): UiHandles {
     layout: q("layout"),
     loader: q("loader"),
     toast: q("toast"),
-    paneA: paneHandles("a"),
-    paneB: paneHandles("b"),
+    paneA: paneHandles("a", COLOR_A),
+    paneB: paneHandles("b", COLOR_B),
   };
 
   for (const s of SCENARIOS) {
@@ -187,7 +185,7 @@ async function makePane(
   const scenario = scenarioById(state.permalink.scenario);
   const sim = await Sim.create(scenario.ron, strategy);
   sim.setTrafficRate(state.permalink.trafficRate);
-  const renderer = new CanvasRenderer(handles.canvas);
+  const renderer = new CanvasRenderer(handles.canvas, handles.accent);
   handles.name.textContent = STRATEGY_LABELS[strategy];
   initMetricRows(handles.metrics);
   return {
@@ -195,7 +193,6 @@ async function makePane(
     sim,
     renderer,
     metricsEl: handles.metrics,
-    waitChart: handles.chart,
     waitHistory: [],
     latestMetrics: null,
   };
@@ -341,9 +338,10 @@ function loop(state: State): void {
       }
 
       // Re-snapshot each pane post-spawn so waiting dots reflect the new riders.
-      renderPane(state.paneA, state.paneA.sim.snapshot(), COLOR_A);
+      const speed = state.permalink.speed;
+      renderPane(state.paneA, state.paneA.sim.snapshot(), speed);
       if (state.paneB) {
-        renderPane(state.paneB, state.paneB.sim.snapshot(), COLOR_B);
+        renderPane(state.paneB, state.paneB.sim.snapshot(), speed);
       }
 
       updateScoreboard(state);
@@ -354,13 +352,12 @@ function loop(state: State): void {
   requestAnimationFrame(frame);
 }
 
-function renderPane(pane: Pane, snap: Snapshot, color: string): void {
-  pane.renderer.draw(snap);
+function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   const metrics = pane.sim.metrics();
   pane.latestMetrics = metrics;
   pane.waitHistory.push(metrics.avg_wait_s);
   if (pane.waitHistory.length > WAIT_HISTORY_LEN) pane.waitHistory.shift();
-  drawSparkline(pane.waitChart, pane.waitHistory, "Avg wait (s)", color);
+  pane.renderer.draw(snap, pane.waitHistory, speed);
 }
 
 function updateScoreboard(state: State): void {
