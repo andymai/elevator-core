@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.13](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.12...elevator-core-v15.2.13) (2026-04-18)
+
+
+### Bug Fixes
+
+* **sim:** clear HallCall assignments when assigned car is disabled ([#300](https://github.com/andymai/elevator-core/issues/300)) ([1d2534d](https://github.com/andymai/elevator-core/commit/1d2534d0a70f8ecade489855e8973809ed124480))
+
 ## [15.2.12](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.11...elevator-core-v15.2.12) (2026-04-18)
 
 
