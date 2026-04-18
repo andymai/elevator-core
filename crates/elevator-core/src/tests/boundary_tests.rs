@@ -99,9 +99,11 @@ fn patience_two_survives_two_ticks_then_abandons() {
 
 #[test]
 fn patience_max_never_overflows() {
-    // Pre-load `waited_ticks` to the limit so the abandon predicate fires on
-    // the first step. Exercises the saturating increment on the path that
-    // doesn't trigger abandonment in the same tick.
+    // Pre-load `waited_ticks = u64::MAX` (equal to max_wait_ticks) so the
+    // abandon predicate fires on the first step. Every Waiting rider
+    // — including those being abandoned this tick — still goes through
+    // the saturating_add(1) increment loop; this verifies no overflow
+    // occurs on that path.
     let config = default_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
