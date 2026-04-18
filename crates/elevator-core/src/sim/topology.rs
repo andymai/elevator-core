@@ -488,6 +488,14 @@ impl Simulation {
 
         let old_group_id = self.groups[old_group_idx].id();
 
+        // Same-group reassign is a no-op. Skip BEFORE the notify_removed
+        // calls or we'd needlessly clear each elevator's dispatcher state
+        // (direction tracking in SCAN/LOOK, etc.) on a redundant move.
+        // Matches the early-return pattern in `reassign_elevator_to_line`.
+        if old_group_id == new_group {
+            return Ok(old_group_id);
+        }
+
         // Notify the old dispatcher that these elevators are leaving — its
         // per-elevator state (e.g. ScanDispatch.direction keyed by EntityId)
         // would otherwise leak indefinitely as lines move between groups.
@@ -505,10 +513,10 @@ impl Simulation {
         let line_info = self.groups[old_group_idx].lines_mut().remove(line_idx);
         self.groups[old_group_idx].rebuild_caches();
 
-        // Add LineInfo to new group.
-        // Re-lookup new_group_idx since removal may have shifted indices
-        // (only possible if old and new are different groups; if same group
-        // the line_info was already removed above).
+        // Re-lookup new_group_idx by ID — we didn't capture it before the
+        // mutation. (Removal of a `LineInfo` from a group's inner `lines`
+        // vec doesn't shift `self.groups` indices, so this is purely about
+        // not having stored the index earlier, not about index invalidation.)
         let new_group_idx = self
             .groups
             .iter()
