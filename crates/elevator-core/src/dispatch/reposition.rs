@@ -51,10 +51,23 @@ impl RepositionStrategy for SpreadEvenly {
             .collect();
 
         for &(elev_eid, elev_pos) in idle_elevators {
+            // Primary criterion: maximize the minimum distance from any
+            // already-occupied position (true "spread"). Tie-breaker:
+            // prefer the stop closest to the elevator's current position
+            // — otherwise, with no occupied positions at sim start, every
+            // stop is tied at `INFINITY` and `max_by`'s last-wins default
+            // ships every car to the topmost stop. That was the reported
+            // "cars travel to the top at sim start with no demand" bug.
             let best = stop_positions.iter().max_by(|a, b| {
                 let min_a = min_distance_to(a.1, &occupied);
                 let min_b = min_distance_to(b.1, &occupied);
-                min_a.total_cmp(&min_b)
+                min_a.total_cmp(&min_b).then_with(|| {
+                    let dist_a = (a.1 - elev_pos).abs();
+                    let dist_b = (b.1 - elev_pos).abs();
+                    // `max_by` returns the greater element; invert so the
+                    // closer stop to the elevator is considered greater.
+                    dist_b.total_cmp(&dist_a)
+                })
             });
 
             if let Some(&(stop_eid, stop_pos)) = best {

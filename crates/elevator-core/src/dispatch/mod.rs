@@ -55,11 +55,47 @@ pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{CallDirection, CarCall, HallCall, Weight};
+use crate::components::{CallDirection, CarCall, HallCall, Route, Weight};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
 use std::collections::BTreeMap;
+
+/// Whether assigning `ctx.car` to `ctx.stop` can perform useful work.
+///
+/// "Useful" here means one of: exit an aboard rider, board a waiting
+/// rider that fits, or answer a rider-less hall call with at least some
+/// spare capacity. A pair that can do none of those is a no-op move —
+/// and worse, a zero-cost one when the car is already parked at the
+/// stop — which dispatch strategies must exclude to avoid door-cycle
+/// stalls against unservable demand.
+///
+/// Built-in strategies use this as a universal floor; delivery-safety
+/// guarantees are only as strong as this guard. Custom strategies
+/// should call it at the top of their `rank` implementations when
+/// capacity-based stalls are a concern.
+#[must_use]
+pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
+    let Some(car) = ctx.world.elevator(ctx.car) else {
+        return false;
+    };
+    let can_exit_here = car
+        .riders()
+        .iter()
+        .any(|&rid| ctx.world.route(rid).and_then(Route::current_destination) == Some(ctx.stop));
+    if can_exit_here {
+        return true;
+    }
+    let remaining_capacity = car.weight_capacity.value() - car.current_load.value();
+    if remaining_capacity <= 0.0 {
+        return false;
+    }
+    let waiting = ctx.manifest.waiting_riders_at(ctx.stop);
+    waiting.is_empty()
+        || waiting
+            .iter()
+            .any(|r| r.weight.value() <= remaining_capacity)
+}
 
 /// Metadata about a single rider, available to dispatch strategies.
 #[derive(Debug, Clone)]

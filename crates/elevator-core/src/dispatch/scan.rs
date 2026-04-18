@@ -11,7 +11,7 @@ use crate::entity::EntityId;
 use crate::world::World;
 
 use super::sweep::{self, SweepDirection, SweepMode};
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
 
 /// Elevator dispatch using the SCAN (elevator) algorithm.
 ///
@@ -77,6 +77,15 @@ impl DispatchStrategy for ScanDispatch {
     }
 
     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        // Reject un-servable pairs so a full car with only
+        // over-capacity waiting demand at its own stop can't open/close
+        // doors indefinitely. SCAN's direction reversal normally lifts
+        // it out of the self-stop within one tick (strict-ahead excludes
+        // the current position), but the Lenient transition tick would
+        // still rank the self-pair at cost 0 without this guard.
+        if !pair_can_do_work(ctx) {
+            return None;
+        }
         sweep::rank(
             self.mode_for(ctx.car),
             self.direction_for(ctx.car),

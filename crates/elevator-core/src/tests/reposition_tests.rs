@@ -130,14 +130,42 @@ fn spread_evenly_distributes_elevators() {
     if result.len() == 2 {
         assert_ne!(result[0].1, result[1].1, "should spread to different stops");
     }
-    // `elev_b` is also idle so it's excluded from `occupied` when elev_a is
-    // placed — the `occupied` set is empty, `min_distance_to` returns
-    // INFINITY for every stop, and `max_by(..total_cmp)` deterministically
-    // returns the last element (`stops[4]`). The outcome is correct but
-    // the "farthest from other occupied positions" intuition is only what
-    // the strategy *would* do once `elev_b` is assigned a position — here
-    // elev_a is processed first while `occupied` is still empty.
-    assert_eq!(result[0].1, stops[4]);
+    // With the no-spurious-movement tiebreak, elev_a (first iterated) is
+    // processed while `occupied` is empty, so every stop ties at INFINITY
+    // and the tie-break picks the stop closest to elev_a's current
+    // position — stops[0], which elev_a is already at. No move is pushed.
+    // Only elev_b (with `occupied=[0]` after elev_a is placed) actually
+    // moves, landing on stops[4] as the farthest-from-occupied.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], (elev_b, stops[4]));
+}
+
+/// Regression for the "cars travel to the top at sim start" bug: a
+/// single idle car already parked at a stop, with no other occupied
+/// positions to spread against, must not be told to move. Pre-fix,
+/// `max_by` resolved the all-INFINITY tie by returning the last stop
+/// in iteration order — so every car got shipped to the topmost stop
+/// whenever the sim started with no demand.
+#[test]
+fn spread_evenly_no_movement_with_lone_idle_car() {
+    let (mut world, stops) = test_world_n(5);
+    let elev = spawn_elevator(&mut world, 0.0); // at stops[0]
+    let group = test_group(&stops, vec![elev]);
+
+    let idle = vec![(elev, 0.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = SpreadEvenly;
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    assert!(
+        result.is_empty(),
+        "a lone idle car at a stop must not be repositioned; got {result:?}"
+    );
 }
 
 // SpreadEvenly edge case: single stop — no movement needed if already there.
