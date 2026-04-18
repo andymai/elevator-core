@@ -603,6 +603,10 @@ fn iter_repositioning_elevators_returns_elevator_during_reposition() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         })
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)
@@ -664,6 +668,10 @@ fn iter_repositioning_elevators_empty_after_reposition_completes() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         })
         .dispatch(EtdDispatch::new())
         .reposition(ReturnToLobby::new(), BuiltinReposition::ReturnToLobby)
@@ -895,6 +903,10 @@ fn rider_builder_no_route_when_stops_not_in_same_group() {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         })
         .build()
         .unwrap();

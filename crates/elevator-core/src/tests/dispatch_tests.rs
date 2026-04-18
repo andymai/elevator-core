@@ -110,6 +110,8 @@ pub(super) fn spawn_elevator(world: &mut World, position: f64) -> crate::entity:
             move_count: 0,
             door_command_queue: Vec::new(),
             manual_target_velocity: None,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
         },
     );
     eid

@@ -32,5 +32,9 @@ pub fn elevator_cfg(
         energy_profile: None,
         service_mode: None,
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     }
 }

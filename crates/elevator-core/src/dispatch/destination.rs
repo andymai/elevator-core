@@ -63,13 +63,25 @@ pub struct DestinationDispatch {
     /// Units: ticks per newly-added stop. `None` ⇒ derive from the car's
     /// own door timings (~`open + 2 * transition`).
     stop_penalty: Option<f64>,
+    /// Deferred-commitment window. When `Some(window)`, a rider's
+    /// sticky assignment is re-evaluated each pass until the assigned
+    /// car is within `window` ticks of the rider's origin — modelling
+    /// KONE Polaris's two-button reallocation regime (DCS calls fix on
+    /// press; two-button hall calls re-allocate continuously until
+    /// commitment). `None` ⇒ immediate sticky (the default), matching
+    /// fixed-on-press DCS behavior.
+    commitment_window_ticks: Option<u64>,
 }
 
 impl DestinationDispatch {
-    /// Create a new `DestinationDispatch` with defaults.
+    /// Create a new `DestinationDispatch` with defaults (immediate sticky,
+    /// no commitment window).
     #[must_use]
     pub const fn new() -> Self {
-        Self { stop_penalty: None }
+        Self {
+            stop_penalty: None,
+            commitment_window_ticks: None,
+        }
     }
 
     /// Override the fresh-stop penalty (ticks per new stop added to a
@@ -77,6 +89,16 @@ impl DestinationDispatch {
     #[must_use]
     pub const fn with_stop_penalty(mut self, penalty: f64) -> Self {
         self.stop_penalty = Some(penalty);
+        self
+    }
+
+    /// Enable deferred commitment: riders' sticky assignments are
+    /// re-evaluated each pass until the currently-assigned car is
+    /// within `window` ticks of the rider's origin. At that point the
+    /// commitment latches and later ticks leave the assignment alone.
+    #[must_use]
+    pub const fn with_commitment_window_ticks(mut self, window: u64) -> Self {
+        self.commitment_window_ticks = Some(window);
         self
     }
 }
@@ -88,6 +110,7 @@ impl Default for DestinationDispatch {
 }
 
 impl DispatchStrategy for DestinationDispatch {
+    #[allow(clippy::too_many_lines)]
     fn pre_dispatch(
         &mut self,
         group: &ElevatorGroup,
@@ -133,7 +156,16 @@ impl DispatchStrategy for DestinationDispatch {
         for (_, riders) in manifest.iter_waiting_stops() {
             for info in riders {
                 if let Some(AssignedCar(c)) = world.ext::<AssignedCar>(info.id) {
-                    if world.elevator(c).is_some() && !world.is_disabled(c) {
+                    // An assignment stays sticky only when the target
+                    // car is still alive and (no commitment window is
+                    // configured, or the car is already inside the
+                    // latch window). Otherwise strip it so the rider
+                    // re-competes below.
+                    let alive = world.elevator(c).is_some() && !world.is_disabled(c);
+                    let latched = self
+                        .commitment_window_ticks
+                        .is_none_or(|w| assigned_car_within_window(world, info.id, c, w));
+                    if alive && latched {
                         continue; // sticky and live
                     }
                     stale_assignments.push(info.id);
@@ -338,6 +370,41 @@ impl DestinationDispatch {
 
         pickup_time + ride_time + penalty * new_stops + idle_bonus + load_penalty
     }
+}
+
+/// True when the `car` assigned to `rider` is within `window` ticks of
+/// the rider's origin, measured by raw distance / `max_speed`. Used to
+/// decide whether a deferred commitment has latched.
+fn assigned_car_within_window(
+    world: &crate::world::World,
+    rider: EntityId,
+    car: EntityId,
+    window: u64,
+) -> bool {
+    let Some(leg) = world.route(rider).and_then(|r| r.current()) else {
+        return false;
+    };
+    let Some(origin_pos) = world.stop_position(leg.from) else {
+        return false;
+    };
+    let Some(car_pos) = world.position(car).map(|p| p.value) else {
+        return false;
+    };
+    let Some(car_data) = world.elevator(car) else {
+        return false;
+    };
+    let speed = car_data.max_speed().value();
+    if !speed.is_finite() || speed <= 0.0 {
+        return false;
+    }
+    let eta_ticks = (car_pos - origin_pos).abs() / speed;
+    // A non-finite ETA (NaN from corrupted position) would saturate
+    // the `as u64` cast to 0 and erroneously latch the commitment —
+    // refuse to latch instead.
+    if !eta_ticks.is_finite() {
+        return false;
+    }
+    eta_ticks.round() as u64 <= window
 }
 
 /// Drop every sticky [`AssignedCar`] assignment that points at `car_eid`.

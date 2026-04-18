@@ -86,6 +86,16 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
     if can_exit_here {
         return true;
     }
+
+    // Direction-dependent full-load bypass (Otis Elevonic 411 model,
+    // patent US5490580A). A car loaded above its configured threshold
+    // in the current travel direction ignores hall calls in that same
+    // direction. Aboard riders still get delivered — the `can_exit_here`
+    // short-circuit above guarantees their destinations remain rank-able.
+    if bypass_in_current_direction(car, ctx) {
+        return false;
+    }
+
     let remaining_capacity = car.weight_capacity.value() - car.current_load.value();
     if remaining_capacity <= 0.0 {
         return false;
@@ -95,6 +105,45 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
         || waiting
             .iter()
             .any(|r| r.weight.value() <= remaining_capacity)
+}
+
+/// True when a full-load bypass applies: the car has a configured
+/// threshold for its current travel direction, is above that threshold,
+/// and the candidate stop lies in that same direction.
+fn bypass_in_current_direction(car: &crate::components::Elevator, ctx: &RankContext<'_>) -> bool {
+    // Derive travel direction from the car's current target, if any.
+    // An Idle or Stopped car has no committed direction → no bypass.
+    let Some(target) = car.phase().moving_target() else {
+        return false;
+    };
+    let Some(target_pos) = ctx.world.stop_position(target) else {
+        return false;
+    };
+    let going_up = target_pos > ctx.car_position;
+    let going_down = target_pos < ctx.car_position;
+    if !going_up && !going_down {
+        return false;
+    }
+    let threshold = if going_up {
+        car.bypass_load_up_pct()
+    } else {
+        car.bypass_load_down_pct()
+    };
+    let Some(pct) = threshold else {
+        return false;
+    };
+    let capacity = car.weight_capacity().value();
+    if capacity <= 0.0 {
+        return false;
+    }
+    let load_ratio = car.current_load().value() / capacity;
+    if load_ratio < pct {
+        return false;
+    }
+    // Only same-direction pickups get bypassed.
+    let stop_above = ctx.stop_position > ctx.car_position;
+    let stop_below = ctx.stop_position < ctx.car_position;
+    (going_up && stop_above) || (going_down && stop_below)
 }
 
 /// Metadata about a single rider, available to dispatch strategies.
@@ -134,6 +183,16 @@ pub struct DispatchManifest {
     /// entity. Strategies read this to plan intermediate stops without
     /// poking into `World` directly.
     pub(crate) car_calls_by_car: BTreeMap<EntityId, Vec<CarCall>>,
+    /// Recent arrivals per stop, counted over
+    /// [`DispatchManifest::arrival_window_ticks`] ticks. Populated from
+    /// the [`crate::arrival_log::ArrivalLog`] world resource each pass
+    /// so strategies can read a traffic-rate signal without touching
+    /// world state directly.
+    pub(crate) arrivals_at_stop: BTreeMap<EntityId, u64>,
+    /// Window the `arrivals_at_stop` counts cover, in ticks. Exposed so
+    /// strategies interpreting the raw counts can convert them to a
+    /// rate (per tick or per second).
+    pub(crate) arrival_window_ticks: u64,
 }
 
 impl DispatchManifest {
@@ -185,6 +244,25 @@ impl DispatchManifest {
     #[must_use]
     pub fn resident_count_at(&self, stop: EntityId) -> usize {
         self.resident_count_at_stop.get(&stop).copied().unwrap_or(0)
+    }
+
+    /// Rider arrivals at `stop` within the last
+    /// [`arrival_window_ticks`](Self::arrival_window_ticks) ticks. The
+    /// signal is the rolling-window per-stop arrival rate that
+    /// commercial controllers use to pick a traffic mode and that
+    /// [`crate::dispatch::reposition::PredictiveParking`] uses to
+    /// forecast demand. Unvisited stops return 0.
+    #[must_use]
+    pub fn arrivals_at(&self, stop: EntityId) -> u64 {
+        self.arrivals_at_stop.get(&stop).copied().unwrap_or(0)
+    }
+
+    /// Window size (in ticks) over which [`arrivals_at`](Self::arrivals_at)
+    /// counts events. Strategies convert counts to rates by dividing
+    /// by this.
+    #[must_use]
+    pub const fn arrival_window_ticks(&self) -> u64 {
+        self.arrival_window_ticks
     }
 
     /// The hall call at `(stop, direction)`, if pressed.
@@ -862,6 +940,8 @@ pub enum BuiltinReposition {
     DemandWeighted,
     /// Keep idle elevators where they are (no-op).
     NearestIdle,
+    /// Pre-position cars near stops with the highest recent arrival rate.
+    PredictiveParking,
     /// Custom strategy identified by name.
     Custom(String),
 }
@@ -873,6 +953,7 @@ impl std::fmt::Display for BuiltinReposition {
             Self::ReturnToLobby => write!(f, "ReturnToLobby"),
             Self::DemandWeighted => write!(f, "DemandWeighted"),
             Self::NearestIdle => write!(f, "NearestIdle"),
+            Self::PredictiveParking => write!(f, "PredictiveParking"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -890,6 +971,7 @@ impl BuiltinReposition {
             Self::ReturnToLobby => Some(Box::new(reposition::ReturnToLobby::new())),
             Self::DemandWeighted => Some(Box::new(reposition::DemandWeighted)),
             Self::NearestIdle => Some(Box::new(reposition::NearestIdle)),
+            Self::PredictiveParking => Some(Box::new(reposition::PredictiveParking::new())),
             Self::Custom(_) => None,
         }
     }

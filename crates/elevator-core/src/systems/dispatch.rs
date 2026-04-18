@@ -322,7 +322,8 @@ pub fn update_indicators(
 }
 
 /// Build a dispatch manifest with per-rider metadata for a group.
-fn build_manifest(
+#[allow(clippy::too_many_lines)]
+pub fn build_manifest(
     world: &World,
     group: &ElevatorGroup,
     tick: u64,
@@ -439,6 +440,20 @@ fn build_manifest(
             .collect();
         if !calls.is_empty() {
             manifest.car_calls_by_car.insert(car, calls);
+        }
+    }
+
+    // Snapshot rolling per-stop arrival rates. Strategies read this via
+    // `DispatchManifest::arrivals_at` to drive mode switches and
+    // predictive parking without touching world state directly.
+    let window = crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS;
+    manifest.arrival_window_ticks = window;
+    if let Some(log) = world.resource::<crate::arrival_log::ArrivalLog>() {
+        for &stop in group.stop_entities() {
+            let count = log.arrivals_in_window(stop, tick, window);
+            if count > 0 {
+                manifest.arrivals_at_stop.insert(stop, count);
+            }
         }
     }
 

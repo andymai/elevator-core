@@ -122,6 +122,10 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
             energy_profile: None,
             service_mode: None,
             inspection_speed_factor: 0.25,
+
+            bypass_load_up_pct: None,
+
+            bypass_load_down_pct: None,
         })
         .collect();
 
@@ -262,6 +266,10 @@ proptest! {
                 energy_profile: None,
                 service_mode: None,
                 inspection_speed_factor: 0.25,
+
+                bypass_load_up_pct: None,
+
+                bypass_load_down_pct: None,
             }],
             simulation: SimulationParams { ticks_per_second: 60.0 },
             passenger_spawning: PassengerSpawnConfig {

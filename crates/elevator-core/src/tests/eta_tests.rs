@@ -231,6 +231,10 @@ fn best_eta_picks_min_across_elevators() {
         energy_profile: None,
         service_mode: None,
         inspection_speed_factor: 0.25,
+
+        bypass_load_up_pct: None,
+
+        bypass_load_down_pct: None,
     });
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let elevs: Vec<_> = sim.world().iter_elevators().map(|(e, _, _)| e).collect();
