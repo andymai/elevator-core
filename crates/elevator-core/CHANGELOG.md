@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.2.15](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.14...elevator-core-v15.2.15) (2026-04-18)
+
+
+### Bug Fixes
+
+* **snapshot:** determinism + mid-tick guard + custom-resource docs ([#254](https://github.com/andymai/elevator-core/issues/254)/[#296](https://github.com/andymai/elevator-core/issues/296)/[#297](https://github.com/andymai/elevator-core/issues/297)) ([#306](https://github.com/andymai/elevator-core/issues/306)) ([233aa48](https://github.com/andymai/elevator-core/commit/233aa48eac423512149499e89a80e9d7d7575dda))
+
 ## [15.2.14](https://github.com/andymai/elevator-core/compare/elevator-core-v15.2.13...elevator-core-v15.2.14) (2026-04-18)
 
 
