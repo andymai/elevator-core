@@ -519,6 +519,136 @@ fn disable_elevator_clears_its_rider_list() {
     );
 }
 
+/// `disable(elevator)` wipes the car's pressed floor buttons. Without
+/// the clear, a re-enabled car would re-surface button presses from
+/// its prior (now-ejected) riders, and dispatch would plan against
+/// those stale destinations.
+#[test]
+fn disable_elevator_clears_car_calls() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    // Let the rider board and press their floor button.
+    for _ in 0..5_000 {
+        sim.step();
+        sim.drain_events();
+        if !sim.world().car_calls(elev.entity()).is_empty() {
+            break;
+        }
+    }
+    assert!(
+        !sim.world().car_calls(elev.entity()).is_empty(),
+        "car should have a pressed floor button before disable"
+    );
+
+    sim.disable(elev.entity()).unwrap();
+    assert!(
+        sim.world().car_calls(elev.entity()).is_empty(),
+        "disable must wipe car_calls so re-enable doesn't inherit stale presses"
+    );
+}
+
+/// `disable(elevator)` notifies the group's dispatcher of the removal
+/// so strategies with per-car state (SCAN/LOOK direction tracking)
+/// clear it. Parallel to `remove_elevator` / `reassign_elevator_to_line`,
+/// which already do this — `disable` was the odd one out.
+#[test]
+fn disable_elevator_notifies_dispatcher() {
+    use crate::dispatch::{DispatchDecision, DispatchStrategy, RankContext};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Counter {
+        removed: Arc<AtomicUsize>,
+    }
+    impl DispatchStrategy for Counter {
+        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+            Some((ctx.car_position - ctx.stop_position).abs())
+        }
+        fn notify_removed(&mut self, _elevator: EntityId) {
+            self.removed.fetch_add(1, Ordering::Relaxed);
+        }
+        fn fallback(
+            &mut self,
+            _car: EntityId,
+            _pos: f64,
+            _group: &crate::dispatch::ElevatorGroup,
+            _manifest: &crate::dispatch::DispatchManifest,
+            _world: &crate::world::World,
+        ) -> DispatchDecision {
+            DispatchDecision::Idle
+        }
+    }
+
+    let removed = Arc::new(AtomicUsize::new(0));
+    let strategy = Counter {
+        removed: Arc::clone(&removed),
+    };
+    let mut sim = crate::sim::Simulation::new(&default_config(), strategy).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    sim.disable(elev.entity()).unwrap();
+
+    assert_eq!(
+        removed.load(Ordering::Relaxed),
+        1,
+        "disable(elevator) must call DispatchStrategy::notify_removed exactly once"
+    );
+}
+
+/// `remove_elevator` must call `notify_removed` exactly once, even
+/// though it also invokes `disable()` as a subroutine. Pre-fix, the
+/// notify hook would fire twice — once from `disable`, once from
+/// `remove_elevator`'s own explicit call — which is safe for the
+/// idempotent built-in strategies but violates the contract for
+/// counting custom strategies.
+#[test]
+fn remove_elevator_notifies_dispatcher_exactly_once() {
+    use crate::dispatch::{DispatchDecision, DispatchStrategy, RankContext};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Counter {
+        removed: Arc<AtomicUsize>,
+    }
+    impl DispatchStrategy for Counter {
+        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+            Some((ctx.car_position - ctx.stop_position).abs())
+        }
+        fn notify_removed(&mut self, _elevator: EntityId) {
+            self.removed.fetch_add(1, Ordering::Relaxed);
+        }
+        fn fallback(
+            &mut self,
+            _car: EntityId,
+            _pos: f64,
+            _group: &crate::dispatch::ElevatorGroup,
+            _manifest: &crate::dispatch::DispatchManifest,
+            _world: &crate::world::World,
+        ) -> DispatchDecision {
+            DispatchDecision::Idle
+        }
+    }
+
+    let removed = Arc::new(AtomicUsize::new(0));
+    let strategy = Counter {
+        removed: Arc::clone(&removed),
+    };
+    let mut sim = crate::sim::Simulation::new(&default_config(), strategy).unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    sim.remove_elevator(elev.entity()).unwrap();
+
+    assert_eq!(
+        removed.load(Ordering::Relaxed),
+        1,
+        "remove_elevator must call notify_removed exactly once despite invoking disable internally"
+    );
+}
+
 // ── 6. Despawn cleanup ───────────────────────────────────────────────────────
 
 #[test]
