@@ -269,6 +269,104 @@ impl RepositionStrategy for PredictiveParking {
     }
 }
 
+/// Mode-gated reposition: dispatches to an inner strategy chosen
+/// by the current [`TrafficMode`](crate::traffic_detector::TrafficMode).
+///
+/// Closes the playground-reported "chaotic repositioning" complaint:
+/// the single-strategy defaults either lock cars to the lobby
+/// ([`ReturnToLobby`]) or shuttle them toward the hottest stop
+/// ([`PredictiveParking`]) regardless of traffic shape. Adaptive
+/// picks per mode:
+///
+/// | Mode                                              | Inner                      |
+/// |---------------------------------------------------|----------------------------|
+/// | [`UpPeak`](crate::traffic_detector::TrafficMode::UpPeak)         | [`ReturnToLobby`]           |
+/// | [`InterFloor`](crate::traffic_detector::TrafficMode::InterFloor) | [`PredictiveParking`]       |
+/// | [`DownPeak`](crate::traffic_detector::TrafficMode::DownPeak)     | [`PredictiveParking`] (today) |
+/// | [`Idle`](crate::traffic_detector::TrafficMode::Idle)             | no-op (stay put)             |
+///
+/// The `DownPeak` row uses `PredictiveParking` for now — it'll
+/// become a dedicated upper-floor-biased variant once
+/// `TrafficDetector` emits `DownPeak` (needs the destination-log
+/// that today's [`ArrivalLog`] doesn't carry). Falls back to a
+/// `PredictiveParking`-like default if the detector is missing
+/// from `World` (e.g. hand-built tests bypassing `Simulation`).
+pub struct AdaptiveParking {
+    /// Inner strategy used in up-peak mode. Configurable so games
+    /// can pin a different home stop (sky-lobby buildings, e.g.).
+    return_to_lobby: ReturnToLobby,
+    /// Inner strategy used when demand is diffuse or heading down.
+    predictive: PredictiveParking,
+}
+
+impl AdaptiveParking {
+    /// Create with defaults: `ReturnToLobby::new()` (home = stop 0)
+    /// and `PredictiveParking::new()` (default rolling window).
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            return_to_lobby: ReturnToLobby::new(),
+            predictive: PredictiveParking::new(),
+        }
+    }
+
+    /// Override the home stop used during `UpPeak`. Same semantics as
+    /// [`ReturnToLobby::with_home`].
+    #[must_use]
+    pub const fn with_home(mut self, index: usize) -> Self {
+        self.return_to_lobby = ReturnToLobby::with_home(index);
+        self
+    }
+
+    /// Override the window used for `InterFloor` / `DownPeak`
+    /// predictive parking. Same semantics as
+    /// [`PredictiveParking::with_window_ticks`].
+    ///
+    /// # Panics
+    /// Panics on `window_ticks = 0`, matching `PredictiveParking`.
+    #[must_use]
+    pub const fn with_window_ticks(mut self, window_ticks: u64) -> Self {
+        self.predictive = PredictiveParking::with_window_ticks(window_ticks);
+        self
+    }
+}
+
+impl Default for AdaptiveParking {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RepositionStrategy for AdaptiveParking {
+    fn reposition(
+        &mut self,
+        idle_elevators: &[(EntityId, f64)],
+        stop_positions: &[(EntityId, f64)],
+        group: &ElevatorGroup,
+        world: &World,
+        out: &mut Vec<(EntityId, EntityId)>,
+    ) {
+        use crate::traffic_detector::{TrafficDetector, TrafficMode};
+        let mode = world
+            .resource::<TrafficDetector>()
+            .map_or(TrafficMode::InterFloor, TrafficDetector::current_mode);
+        match mode {
+            TrafficMode::Idle => {
+                // Stay put — no point commuting when there's no
+                // demand to pre-position for.
+            }
+            TrafficMode::UpPeak => {
+                self.return_to_lobby
+                    .reposition(idle_elevators, stop_positions, group, world, out);
+            }
+            TrafficMode::DownPeak | TrafficMode::InterFloor => {
+                self.predictive
+                    .reposition(idle_elevators, stop_positions, group, world, out);
+            }
+        }
+    }
+}
+
 /// No-op strategy: idle elevators stay where they stopped.
 ///
 /// Use this to disable repositioning for a group while keeping
