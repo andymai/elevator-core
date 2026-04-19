@@ -35,7 +35,44 @@ pathfinding = { version = "4", default-features = false }
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1"
+rand = { workspace = true }
 serde_json = "1"
+
+[[test]]
+name = "scenarios_basic"
+path = "tests/scenarios/basic.rs"
+
+[[test]]
+name = "scenarios_deterministic_replay"
+path = "tests/scenarios/deterministic_replay.rs"
+
+[[test]]
+name = "scenarios_dispatch_matrix"
+path = "tests/scenarios/dispatch_matrix.rs"
+
+[[test]]
+name = "scenarios_edge_cases"
+path = "tests/scenarios/edge_cases.rs"
+
+[[test]]
+name = "scenarios_multi_line"
+path = "tests/scenarios/multi_line.rs"
+
+[[test]]
+name = "scenarios_negative"
+path = "tests/scenarios/negative.rs"
+
+[[test]]
+name = "scenarios_service_modes"
+path = "tests/scenarios/service_modes.rs"
+
+[[test]]
+name = "scenarios_single_call_single_car"
+path = "tests/scenarios/single_call_single_car.rs"
+
+[[test]]
+name = "scenarios_snapshot_roundtrip"
+path = "tests/scenarios/snapshot_roundtrip.rs"
 
 [[bench]]
 name = "sim_bench"
