@@ -132,9 +132,9 @@ pub struct WorldSnapshot {
     /// [`DEFAULT_ARRIVAL_WINDOW_TICKS`](crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS).
     #[serde(default)]
     pub arrival_log_retention: crate::arrival_log::ArrivalLogRetention,
-    /// Mirror of [`arrival_log`] keyed on rider *destination* — what
+    /// Mirror of `arrival_log` keyed on rider *destination* — what
     /// powers the `DownPeak` classifier branch. Same remap semantics
-    /// as [`arrival_log`] on restore. Empty in legacy snapshots; the
+    /// as `arrival_log` on restore. Empty in legacy snapshots; the
     /// detector silently under-classifies `DownPeak` until the post-
     /// restore log refills.
     #[serde(default)]
