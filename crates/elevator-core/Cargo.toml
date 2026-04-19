@@ -47,6 +47,10 @@ name = "scenarios_basic"
 path = "tests/scenarios/basic.rs"
 
 [[test]]
+name = "scenarios_penthouse_pickup"
+path = "tests/scenarios/penthouse_pickup.rs"
+
+[[test]]
 name = "scenarios_deterministic_replay"
 path = "tests/scenarios/deterministic_replay.rs"
 
