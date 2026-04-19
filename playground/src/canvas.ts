@@ -1,4 +1,4 @@
-import type { Car, Snapshot, Stop } from "./types";
+import type { Car, CarBubble, Snapshot, Stop } from "./types";
 
 // 2-D renderer. Each stop is a horizontal rung with two direction columns
 // (▲ up / ▼ down) showing waiting riders partitioned by route direction.
@@ -209,7 +209,12 @@ export class CanvasRenderer {
     this.#ctx.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
   }
 
-  draw(snap: Snapshot, waitHistory: number[], speedMultiplier: number): void {
+  draw(
+    snap: Snapshot,
+    waitHistory: number[],
+    speedMultiplier: number,
+    bubbles?: Map<number, CarBubble>,
+  ): void {
     this.#resize();
     const { clientWidth: w, clientHeight: h } = this.#canvas;
     this.#ctx.clearRect(0, 0, w, h);
@@ -295,7 +300,91 @@ export class CanvasRenderer {
     this.#computeTweens(snap, carX, toScreenY, s, speedMultiplier);
     this.#drawTweens(s);
 
+    if (bubbles && bubbles.size > 0) {
+      this.#drawBubbles(snap, carX, toScreenY, s, bubbles, w);
+    }
+
     this.#drawSparkline(waitHistory, w, h, s);
+  }
+
+  /**
+   * Draw a small rounded speech-bubble with a tail pointing to each
+   * car that has a fresh action. Bubbles render on top of cars and
+   * tweens so narration stays legible.
+   *
+   * Placement rules:
+   * - Prefer the right side of the car; flip to the left when the
+   *   bubble would clip the canvas edge (common in compare mode).
+   * - Vertically center on the car; no jitter even when the car
+   *   moves, so the bubble reads steadily during motion.
+   */
+  #drawBubbles(
+    snap: Snapshot,
+    carX: Map<number, number>,
+    toScreenY: (y: number) => number,
+    s: Scale,
+    bubbles: Map<number, CarBubble>,
+    canvasWidth: number,
+  ): void {
+    const ctx = this.#ctx;
+    const padX = 6;
+    const padY = 3;
+    const tailW = 5;
+    const tailH = 4;
+    const radius = 5;
+    const font = `${s.fontSmall}px system-ui, sans-serif`;
+    ctx.font = font;
+    ctx.textBaseline = "middle";
+
+    for (const car of snap.cars) {
+      const bubble = bubbles.get(car.id);
+      if (!bubble) continue;
+      const cx = carX.get(car.id);
+      if (cx === undefined) continue;
+      const cy = toScreenY(car.y);
+
+      const textW = ctx.measureText(bubble.text).width;
+      const bubbleW = textW + padX * 2;
+      const bubbleH = s.fontSmall + padY * 2 + 2;
+
+      // Tail side: prefer right; flip when the bubble would overflow
+      // the canvas. In compare mode the right pane's canvas is
+      // narrow enough that the right-side default would clip.
+      const halfCar = s.carW / 2;
+      const rightEdge = cx + halfCar + tailW + bubbleW + 2;
+      const side: "left" | "right" = rightEdge > canvasWidth - 2 ? "left" : "right";
+
+      const bx =
+        side === "right" ? cx + halfCar + tailW : cx - halfCar - tailW - bubbleW;
+      const by = cy - bubbleH / 2;
+
+      // Rounded-rect body.
+      ctx.fillStyle = "rgba(18, 22, 31, 0.92)";
+      ctx.strokeStyle = "rgba(125, 211, 252, 0.55)";
+      ctx.lineWidth = 1;
+      roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tail — small triangle pointing at the car.
+      ctx.beginPath();
+      if (side === "right") {
+        ctx.moveTo(bx, cy - tailH / 2);
+        ctx.lineTo(bx - tailW, cy);
+        ctx.lineTo(bx, cy + tailH / 2);
+      } else {
+        ctx.moveTo(bx + bubbleW, cy - tailH / 2);
+        ctx.lineTo(bx + bubbleW + tailW, cy);
+        ctx.lineTo(bx + bubbleW, cy + tailH / 2);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Text.
+      ctx.fillStyle = "#e8ecf5";
+      ctx.fillText(bubble.text, bx + padX, cy);
+    }
   }
 
   // ── Stops, labels, direction queues ───────────────────────────────
@@ -836,6 +925,40 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     else hi = mid - 1;
   }
   return lo === 0 ? ellipsis : text.slice(0, lo) + ellipsis;
+}
+
+/**
+ * Build a rounded-rectangle path on `ctx`. Caller fills/strokes.
+ * Uses `CanvasRenderingContext2D.roundRect` when available
+ * (Chrome/Edge 99+, Safari 16+, Firefox 113+) and falls back to a
+ * manual path for older engines. The playground's Vite + esbuild
+ * target is modern browsers; the fallback keeps a local dev build on
+ * an older headless Chromium (e.g. CI screenshotters) working.
+ */
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, w, h, rr);
+    return;
+  }
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
 }
 
 // Internal re-export so TS doesn't mark `Stop` as unused if the module is

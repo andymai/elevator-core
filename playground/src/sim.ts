@@ -1,4 +1,4 @@
-import type { Metrics, Snapshot, StrategyName } from "./types";
+import type { BubbleEvent, Metrics, Snapshot, StrategyName } from "./types";
 
 // Thin TS wrapper around `WasmSim` that narrows JS values returned by
 // serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
@@ -89,11 +89,23 @@ export class Sim {
 
   step(n: number): void {
     this.#inner.stepMany(n);
-    // The wasm `EventBus` buffers every RiderSpawned / DoorOpened / ... event
-    // into `pending_output` until something drains it. The playground no
-    // longer consumes events (the event log was cut), so drop them here to
-    // keep the wasm heap from growing without bound during long sessions.
-    this.#inner.drainEvents();
+  }
+
+  /**
+   * Drain queued sim events into a typed array. Called once per frame
+   * by the playground's render pipeline to update per-car speech
+   * bubbles; also keeps the wasm `EventBus` from growing without bound
+   * during long sessions (previously the bus was drained-and-discarded
+   * inside `step` for exactly that reason).
+   */
+  drainEvents(): BubbleEvent[] {
+    const raw = this.#inner.drainEvents();
+    // The wasm bindgen surface returns `unknown` because the Rust side
+    // serialises via `serde-wasm-bindgen`. The DTO shape is authored in
+    // `crates/elevator-wasm/src/dto.rs` and mirrored by `BubbleEvent`;
+    // the tagged-union `kind: string` fallback absorbs any future variant
+    // the UI doesn't special-case.
+    return (raw as BubbleEvent[] | null | undefined) ?? [];
   }
 
   get dt(): number {
