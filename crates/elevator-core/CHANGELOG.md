@@ -1,5 +1,13 @@
 # Changelog
 
+## [15.5.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.3...elevator-core-v15.5.4) (2026-04-19)
+
+
+### Bug Fixes
+
+* **dispatch:** multi-leg wait-time accounting + drop full-rider scans ([#337](https://github.com/andymai/elevator-core/issues/337)) ([451febe](https://github.com/andymai/elevator-core/commit/451febe43798d1e9cd8e6ca63562e385dc6be562))
+* **dispatch:** three correctness-hygiene fixes ([#339](https://github.com/andymai/elevator-core/issues/339)) ([578901f](https://github.com/andymai/elevator-core/commit/578901fe04c606b5e2dd63bcb9b5a15f1b21132f))
+
 ## [15.5.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.2...elevator-core-v15.5.3) (2026-04-19)
 
 
