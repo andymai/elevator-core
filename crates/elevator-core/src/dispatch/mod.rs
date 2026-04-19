@@ -850,6 +850,80 @@ fn scale_cost(cost: f64) -> i64 {
         .clamp(0.0, (ASSIGNMENT_SENTINEL - 1) as f64) as i64
 }
 
+/// Build the pending-demand stop list, subtracting stops whose demand
+/// is already being absorbed by a car in its door cycle.
+///
+/// The filter exists because `has_demand` stays true during
+/// [`ElevatorPhase::DoorOpening`] — a waiting rider only transitions
+/// to `Boarding` in the Loading phase, one tick later. Without this
+/// subtraction, a second car is dispatched to a call whose first car
+/// is already at the stop with doors opening, producing the visible
+/// "all cars converge on one rider" regression.
+///
+/// Only the three door phases (Opening / Loading / Closing) count as
+/// "servicing": `Stopped` means parked-with-doors-closed, a
+/// legitimately reassignable state that must not mask demand.
+/// Line-pinned riders (`TransportMode::Line(L)`) keep a stop pending
+/// even when a car is present, because a car on Shaft A can't absorb
+/// a rider pinned to Shaft B — the correct line's car still needs
+/// to be dispatched.
+fn pending_stops_minus_covered(
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+) -> Vec<(EntityId, f64)> {
+    use crate::components::{ElevatorPhase, RiderPhase, TransportMode};
+    let servicing: std::collections::HashMap<EntityId, EntityId> = group
+        .elevator_entities()
+        .iter()
+        .filter_map(|&eid| {
+            let car = world.elevator(eid)?;
+            let target = car.target_stop()?;
+            matches!(
+                car.phase(),
+                ElevatorPhase::DoorOpening | ElevatorPhase::Loading | ElevatorPhase::DoorClosing
+            )
+            .then_some((target, eid))
+        })
+        .collect();
+
+    let is_covered = |stop_eid: EntityId| -> bool {
+        let Some(&car_eid) = servicing.get(&stop_eid) else {
+            return false;
+        };
+        let Some(car_line) = world
+            .elevator(car_eid)
+            .map(crate::components::Elevator::line)
+        else {
+            return false;
+        };
+        for (rider_eid, rider) in world.iter_riders() {
+            if rider.phase != RiderPhase::Waiting {
+                continue;
+            }
+            if rider.current_stop() != Some(stop_eid) {
+                continue;
+            }
+            if let Some(route) = world.route(rider_eid)
+                && let Some(leg) = route.current()
+                && let TransportMode::Line(required) = leg.via
+                && required != car_line
+            {
+                return false;
+            }
+        }
+        true
+    };
+
+    group
+        .stop_entities()
+        .iter()
+        .filter(|s| manifest.has_demand(**s))
+        .filter(|s| !is_covered(**s))
+        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
+        .collect()
+}
+
 /// Run one group's assignment pass: build the cost matrix, solve the
 /// optimal bipartite matching, then resolve unassigned cars via
 /// [`DispatchStrategy::fallback`].
@@ -862,13 +936,10 @@ pub(crate) fn assign(
     manifest: &DispatchManifest,
     world: &World,
 ) -> AssignmentResult {
-    // Collect stops with active demand and known positions.
-    let pending_stops: Vec<(EntityId, f64)> = group
-        .stop_entities()
-        .iter()
-        .filter(|s| manifest.has_demand(**s))
-        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
-        .collect();
+    // Collect stops with active demand and known positions, excluding
+    // any whose demand is already being absorbed by a car mid door
+    // cycle (see `pending_stops_minus_covered` for the why).
+    let pending_stops = pending_stops_minus_covered(group, manifest, world);
 
     let n = idle_cars.len();
     let m = pending_stops.len();
