@@ -9,8 +9,8 @@
       content="Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic."
     />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%2306c2b5'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3C/svg%3E" />
-    <script type="module" crossorigin src="./assets/index-C0Rg-z85.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BKkrnqGX.css">
+    <script type="module" crossorigin src="./assets/index-DuAWPgyr.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CJZHoL9d.css">
   </head>
   <body>
     <header class="top">
@@ -58,9 +58,62 @@
         <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" />
       </label>
       <div class="actions">
+        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel">
+          Tweak parameters
+        </button>
         <button id="play" type="button">Pause</button>
         <button id="reset" type="button">Reset</button>
         <button id="share" type="button">Share</button>
+      </div>
+    </section>
+
+    <section class="tweak-panel" id="tweak-panel" hidden aria-label="Building physics parameters">
+      <div class="tweak-row" data-key="cars">
+        <span class="tweak-label">Cars</span>
+        <div class="tweak-stepper">
+          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+          <span class="tweak-value">2</span>
+          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+        </div>
+        <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
+        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
+      </div>
+      <div class="tweak-row" data-key="maxSpeed">
+        <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
+        <div class="tweak-stepper">
+          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+          <span class="tweak-value">2.5</span>
+          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+        </div>
+        <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
+        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
+      </div>
+      <div class="tweak-row" data-key="weightCapacity">
+        <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
+        <div class="tweak-stepper">
+          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+          <span class="tweak-value">800</span>
+          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+        </div>
+        <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
+        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
+      </div>
+      <div class="tweak-row" data-key="doorCycleSec">
+        <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
+        <div class="tweak-stepper">
+          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+          <span class="tweak-value">5.5</span>
+          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+        </div>
+        <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
+        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
+      </div>
+      <div class="tweak-foot">
+        <span class="tweak-foot-hint">
+          Speed, capacity, and door cycle hot-swap live. Changing the
+          car count rebuilds the sim.
+        </span>
+        <button type="button" id="tweak-reset-all" hidden>Reset all</button>
       </div>
     </section>
 
