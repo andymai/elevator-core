@@ -1118,6 +1118,9 @@ pub enum BuiltinReposition {
     NearestIdle,
     /// Pre-position cars near stops with the highest recent arrival rate.
     PredictiveParking,
+    /// Mode-gated: picks between `ReturnToLobby` / `PredictiveParking`
+    /// based on the current `TrafficDetector` mode.
+    Adaptive,
     /// Custom strategy identified by name.
     Custom(String),
 }
@@ -1130,6 +1133,7 @@ impl std::fmt::Display for BuiltinReposition {
             Self::DemandWeighted => write!(f, "DemandWeighted"),
             Self::NearestIdle => write!(f, "NearestIdle"),
             Self::PredictiveParking => write!(f, "PredictiveParking"),
+            Self::Adaptive => write!(f, "Adaptive"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -1148,6 +1152,7 @@ impl BuiltinReposition {
             Self::DemandWeighted => Some(Box::new(reposition::DemandWeighted)),
             Self::NearestIdle => Some(Box::new(reposition::NearestIdle)),
             Self::PredictiveParking => Some(Box::new(reposition::PredictiveParking::new())),
+            Self::Adaptive => Some(Box::new(reposition::AdaptiveParking::new())),
             Self::Custom(_) => None,
         }
     }

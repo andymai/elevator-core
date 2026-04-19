@@ -13,6 +13,7 @@
 mod helpers;
 
 mod access_tests;
+mod adaptive_parking_tests;
 mod builder_tests;
 mod config_tests;
 mod dispatch_tests;
