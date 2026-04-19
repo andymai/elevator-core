@@ -124,6 +124,19 @@ fn top_floor_peak_origin_never_equals_destination() {
     }
 }
 
+/// `TopFloorPeak` must survive a serde round-trip so scenarios that
+/// reference it in RON (and snapshots capturing a
+/// [`crate::traffic::TrafficSchedule`] that uses it) restore to the
+/// same variant. Greptile P2 on #364.
+#[test]
+fn top_floor_peak_serde_roundtrip() {
+    let v = TrafficPattern::TopFloorPeak;
+    let s = ron::to_string(&v).unwrap();
+    assert_eq!(s, "TopFloorPeak");
+    let back: TrafficPattern = ron::from_str(&s).unwrap();
+    assert_eq!(v, back);
+}
+
 #[test]
 fn too_few_stops_returns_none() {
     let mut world = World::new();
