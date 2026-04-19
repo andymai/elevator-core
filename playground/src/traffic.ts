@@ -78,7 +78,14 @@ export class TrafficDriver {
    * dispatching the specs to one or more sims.
    */
   drainSpawns(snapshot: Snapshot, elapsedSeconds: number): RiderSpec[] {
-    if (snapshot.stops.length < 2 || this.#phases.length === 0) return [];
+    if (this.#phases.length === 0) return [];
+    // `stop_id === 0xFFFFFFFF` is the wasm DTO sentinel for stops added
+    // at runtime (absent from the initial config lookup). Feeding it to
+    // `spawn_rider` throws a JsError the scenario caller usually swallows,
+    // so spawns would silently drop. Gate addressable stops here so a
+    // snapshot with &lt;2 addressable stops produces no specs at all.
+    const addressable = snapshot.stops.filter((s) => s.stop_id !== 0xffffffff);
+    if (addressable.length < 2) return [];
     // Clamp to ~4 frames at 60 Hz. When the browser tab is hidden
     // requestAnimationFrame pauses entirely, so on restore the first
     // `elapsedSeconds` is the full hidden duration — which at 120 riders/min
@@ -126,7 +133,7 @@ export class TrafficDriver {
   }
 
   #nextSpec(snap: Snapshot, phase: Phase): RiderSpec {
-    const stops = snap.stops;
+    const stops = snap.stops.filter((s) => s.stop_id !== 0xffffffff);
     const originIdx = this.#pickWeighted(stops.length, phase.originWeights);
     let destIdx = this.#pickWeighted(stops.length, phase.destWeights);
     // Same-stop collisions are a natural result of zero-weight entries

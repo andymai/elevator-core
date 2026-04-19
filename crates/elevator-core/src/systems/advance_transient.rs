@@ -67,9 +67,17 @@ fn handle_exit(
             if let Some(r) = world.rider_mut(id) {
                 r.phase = RiderPhase::Waiting;
             }
-            // Rider is now Waiting at their current_stop — add to index.
+            // Record arrival at transfer stops so the arrival log and
+            // dispatch manifest count demand at sky-lobby floors. Reset
+            // `waited_ticks` so per-leg wait is measured, not lifetime.
             if let Some(stop) = world.rider(id).and_then(|r| r.current_stop) {
                 rider_index.insert_waiting(stop, id);
+                if let Some(log) = world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+                    log.record(ctx.tick, stop);
+                }
+                if let Some(p) = world.patience_mut(id) {
+                    p.waited_ticks = 0;
+                }
             }
         }
     } else if let Some(r) = world.rider_mut(id) {

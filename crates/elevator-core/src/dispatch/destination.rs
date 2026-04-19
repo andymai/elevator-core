@@ -28,7 +28,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{DestinationQueue, Direction, ElevatorPhase, TransportMode};
+use crate::components::{DestinationQueue, Direction, ElevatorPhase};
 use crate::entity::EntityId;
 use crate::world::{ExtKey, World};
 
@@ -179,12 +179,7 @@ impl DispatchStrategy for DestinationDispatch {
                 let Some(leg) = route.current() else {
                     continue;
                 };
-                let group_ok = match leg.via {
-                    TransportMode::Group(g) => g == group.id(),
-                    TransportMode::Line(l) => group.lines().iter().any(|li| li.entity() == l),
-                    TransportMode::Walk => false,
-                };
-                if !group_ok {
+                if !group.accepts_leg(leg) {
                     continue;
                 }
                 pending.push((info.id, leg.from, dest, info.weight.value()));
@@ -196,27 +191,26 @@ impl DispatchStrategy for DestinationDispatch {
             world.remove_ext::<AssignedCar>(rid);
         }
 
-        // Pre-compute committed-load per car (riders aboard + already-
-        // assigned waiting riders not yet boarded). Used by cost function
-        // to discourage piling more riders onto an already-full car.
+        // Pre-compute committed-load per candidate car: aboard total
+        // (`current_load`) plus Waiting riders sticky-assigned to it.
+        // Terminal-phase riders whose `AssignedCar` was not cleaned up
+        // are filtered by the `RiderPhase::Waiting` check below.
         let mut committed_load: std::collections::BTreeMap<EntityId, f64> =
             std::collections::BTreeMap::new();
-        for (rid, rider) in world.iter_riders() {
-            use crate::components::RiderPhase;
-            // Count riders whose weight is "committed" to a specific car:
-            // actively aboard (Boarding/Riding) or still-Waiting with a
-            // sticky assignment. Terminal phases (Exiting, Arrived,
-            // Abandoned, Resident, Walking) must not contribute — they no
-            // longer need elevator service, and stale `AssignedCar`
-            // extensions on them would inflate the former car's committed
-            // load until cleared.
-            let car = match rider.phase() {
-                RiderPhase::Riding(c) | RiderPhase::Boarding(c) => Some(c),
-                RiderPhase::Waiting => world.ext::<AssignedCar>(rid).map(|AssignedCar(c)| c),
-                _ => None,
-            };
-            if let Some(c) = car {
-                *committed_load.entry(c).or_insert(0.0) += rider.weight.value();
+        for &eid in &candidate_cars {
+            if let Some(car) = world.elevator(eid) {
+                committed_load.insert(eid, car.current_load().value());
+            }
+        }
+        let waiting_assignments: Vec<(EntityId, EntityId)> = world
+            .ext_map::<AssignedCar>()
+            .map(|m| m.iter().map(|(rid, AssignedCar(c))| (rid, *c)).collect())
+            .unwrap_or_default();
+        for (rid, car) in waiting_assignments {
+            if let Some(rider) = world.rider(rid)
+                && rider.phase() == crate::components::RiderPhase::Waiting
+            {
+                *committed_load.entry(car).or_insert(0.0) += rider.weight.value();
             }
         }
 
@@ -339,15 +333,21 @@ impl DestinationDispatch {
         let ride_time = ride_dist / car.max_speed().value() + door_overhead;
 
         // Fresh stops added: 0, 1, or 2 depending on whether origin/dest
-        // are already queued for this car.
-        let existing: Vec<EntityId> = world
-            .destination_queue(eid)
-            .map_or_else(Vec::new, |q| q.queue().to_vec());
+        // are already queued for this car. Probe the queue slice directly
+        // instead of cloning it — `compute_cost` runs once per
+        // (car, candidate-rider) pair each DCS tick, and at the scale of a
+        // busy commercial group the Vec clone was the dominant allocation
+        // in `pre_dispatch`.
+        let queue_contains = |s: EntityId| {
+            world
+                .destination_queue(eid)
+                .is_some_and(|q| q.queue().contains(&s))
+        };
         let mut new_stops = 0f64;
-        if !existing.contains(&origin) {
+        if !queue_contains(origin) {
             new_stops += 1.0;
         }
-        if !existing.contains(&dest) && dest != origin {
+        if dest != origin && !queue_contains(dest) {
             new_stops += 1.0;
         }
 
@@ -410,18 +410,17 @@ fn assigned_car_within_window(
 /// Drop every sticky [`AssignedCar`] assignment that points at `car_eid`.
 ///
 /// Called by `Simulation::disable` and `Simulation::remove_elevator` when an
-/// elevator leaves service so DCS-routed riders are not stranded behind a
-/// dead reference. Assignments are sticky by design — if no one clears them,
-/// no other car will pick the rider up — so the lifecycle layer is responsible
-/// for invoking this helper at car-loss boundaries.
+/// elevator leaves service, so DCS-routed riders are not stranded behind a
+/// dead reference.
 pub fn clear_assignments_to(world: &mut crate::world::World, car_eid: EntityId) {
     let stale: Vec<EntityId> = world
-        .iter_riders()
-        .filter_map(|(rid, _)| match world.ext::<AssignedCar>(rid) {
-            Some(AssignedCar(c)) if c == car_eid => Some(rid),
-            _ => None,
+        .ext_map::<AssignedCar>()
+        .map(|m| {
+            m.iter()
+                .filter_map(|(rid, AssignedCar(c))| (*c == car_eid).then_some(rid))
+                .collect()
         })
-        .collect();
+        .unwrap_or_default();
     for rid in stale {
         world.remove_ext::<AssignedCar>(rid);
     }
@@ -471,15 +470,21 @@ fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
         }
     };
 
-    // Gather (origin?, dest) pairs from all sticky-assigned riders for this car.
+    // Gather (origin?, dest) pairs from sticky-assigned riders on this car.
+    let assigned_ids: Vec<EntityId> = world
+        .ext_map::<AssignedCar>()
+        .map(|m| {
+            m.iter()
+                .filter_map(|(rid, AssignedCar(c))| (*c == car_eid).then_some(rid))
+                .collect()
+        })
+        .unwrap_or_default();
+
     let mut trips: Vec<Trip> = Vec::new();
-    for (rid, rider) in world.iter_riders() {
-        let Some(AssignedCar(assigned)) = world.ext::<AssignedCar>(rid) else {
+    for rid in assigned_ids {
+        let Some(rider) = world.rider(rid) else {
             continue;
         };
-        if assigned != car_eid {
-            continue;
-        }
         let Some(dest) = world
             .route(rid)
             .and_then(crate::components::Route::current_destination)

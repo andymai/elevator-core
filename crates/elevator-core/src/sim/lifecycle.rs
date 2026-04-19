@@ -264,12 +264,21 @@ impl Simulation {
 
         if let Some(r) = self.world.rider_mut(id) {
             r.phase = RiderPhase::Waiting;
+            // Reset spawn_tick so manifest wait_ticks measures time since
+            // reroute, not time since the original spawn as a Resident.
+            r.spawn_tick = self.tick;
         }
         self.world.set_route(id, route);
 
         // Reset patience if present.
         if let Some(p) = self.world.patience_mut(id) {
             p.waited_ticks = 0;
+        }
+
+        // A rerouted resident is indistinguishable from a fresh arrival —
+        // record it so predictive parking and `arrivals_at` see the demand.
+        if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+            log.record(self.tick, stop);
         }
 
         self.metrics.record_reroute();

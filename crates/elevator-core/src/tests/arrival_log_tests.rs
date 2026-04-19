@@ -140,6 +140,64 @@ fn arrival_log_is_pruned_by_step() {
 }
 
 #[test]
+fn reroute_records_arrival_and_resets_spawn_tick() {
+    // When `reroute_rider` flips a `Resident` back to `Waiting`, the
+    // controller should see the change as a fresh arrival — otherwise
+    // predictive parking and the dispatch manifest's `arrivals_at`
+    // signal undercount real demand (the resident pressed the button
+    // and is waiting *now*, not at the tick they were settled). The
+    // rider's `spawn_tick` must also be reset so ETD's wait-squared
+    // bonus doesn't treat them as if they'd been waiting since original
+    // spawn, which would saturate the fairness penalty.
+    use crate::components::{RiderPhase, Route};
+    use crate::ids::GroupId;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Take the rider to arrival and settle them at StopId(2).
+    for _ in 0..10_000 {
+        sim.step();
+        if sim
+            .world()
+            .rider(rider.entity())
+            .is_some_and(|r| r.phase() == RiderPhase::Arrived)
+        {
+            break;
+        }
+    }
+    sim.settle_rider(rider).unwrap();
+
+    let stop2 = sim.stop_entity(StopId(2)).unwrap();
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
+    let settle_tick = sim.current_tick();
+
+    // Drop the arrival log so we measure only the reroute-driven entry.
+    if let Some(log) = sim.world_mut().resource_mut::<ArrivalLog>() {
+        log.prune_before(settle_tick + 1);
+    }
+
+    // Reroute: head back down to StopId(0).
+    let route = Route::direct(stop2, stop0, GroupId(0));
+    sim.reroute_rider(rider.entity(), route).unwrap();
+
+    // ArrivalLog must have a fresh entry at StopId(2) — this is where
+    // the rider "appeared" as waiting demand.
+    let count = sim
+        .world()
+        .resource::<ArrivalLog>()
+        .unwrap()
+        .arrivals_in_window(stop2, sim.current_tick(), 10);
+    assert_eq!(count, 1, "reroute must record an arrival at the new origin");
+
+    // spawn_tick advanced so downstream wait-time calcs use the reroute
+    // boundary as their reference, not the original spawn.
+    let r = sim.world().rider(rider.entity()).unwrap();
+    assert_eq!(r.spawn_tick(), sim.current_tick());
+}
+
+#[test]
 fn dispatch_manifest_exposes_recent_arrivals() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
