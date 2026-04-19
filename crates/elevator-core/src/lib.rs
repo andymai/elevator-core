@@ -503,12 +503,22 @@ macro_rules! register_extensions {
 ///   [`LookDispatch`](crate::dispatch::LookDispatch),
 ///   [`NearestCarDispatch`](crate::dispatch::NearestCarDispatch),
 ///   [`EtdDispatch`](crate::dispatch::EtdDispatch),
+///   [`RsrDispatch`](crate::dispatch::RsrDispatch),
+///   [`BuiltinStrategy`](crate::dispatch::BuiltinStrategy),
+///   [`BuiltinReposition`](crate::dispatch::BuiltinReposition),
 ///   plus the built-in reposition strategies
 ///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
 ///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
 ///   [`SpreadEvenly`](crate::dispatch::reposition::SpreadEvenly),
 ///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted),
-///   [`PredictiveParking`](crate::dispatch::reposition::PredictiveParking)
+///   [`PredictiveParking`](crate::dispatch::reposition::PredictiveParking),
+///   [`AdaptiveParking`](crate::dispatch::reposition::AdaptiveParking)
+/// - **Traffic observation:** [`TrafficDetector`](crate::traffic_detector::TrafficDetector),
+///   [`TrafficMode`](crate::traffic_detector::TrafficMode),
+///   [`ArrivalLog`](crate::arrival_log::ArrivalLog),
+///   [`DestinationLog`](crate::arrival_log::DestinationLog),
+///   [`CurrentTick`](crate::arrival_log::CurrentTick),
+///   [`ArrivalLogRetention`](crate::arrival_log::ArrivalLogRetention)
 /// - **Identity:** [`EntityId`](crate::entity::EntityId),
 ///   [`StopId`](crate::stop::StopId), [`StopRef`](crate::stop::StopRef),
 ///   [`GroupId`](crate::ids::GroupId)
@@ -529,6 +539,7 @@ macro_rules! register_extensions {
 /// - Traffic generation types from [`crate::traffic`] (feature-gated)
 /// - Snapshot types from [`crate::snapshot`]
 pub mod prelude {
+    pub use crate::arrival_log::{ArrivalLog, ArrivalLogRetention, CurrentTick, DestinationLog};
     pub use crate::builder::SimulationBuilder;
     pub use crate::components::{
         Accel, AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, Line,
@@ -537,12 +548,13 @@ pub mod prelude {
     };
     pub use crate::config::{ElevatorConfig, GroupConfig, LineConfig, SimConfig};
     pub use crate::dispatch::reposition::{
-        DemandWeighted, NearestIdle, PredictiveParking, ReturnToLobby, SpreadEvenly,
+        AdaptiveParking, DemandWeighted, NearestIdle, PredictiveParking, ReturnToLobby,
+        SpreadEvenly,
     };
     pub use crate::dispatch::{
-        AssignedCar, DestinationDispatch, DispatchDecision, DispatchManifest, DispatchStrategy,
-        ElevatorGroup, EtdDispatch, LookDispatch, NearestCarDispatch, RankContext,
-        RepositionStrategy, ScanDispatch,
+        AssignedCar, BuiltinReposition, BuiltinStrategy, DestinationDispatch, DispatchDecision,
+        DispatchManifest, DispatchStrategy, ElevatorGroup, EtdDispatch, LookDispatch,
+        NearestCarDispatch, RankContext, RepositionStrategy, RsrDispatch, ScanDispatch,
     };
     pub use crate::entity::{ElevatorId, EntityId, RiderId};
     pub use crate::error::{EtaError, RejectionContext, RejectionReason, SimError};
@@ -552,6 +564,7 @@ pub mod prelude {
     pub use crate::sim::{RiderBuilder, Simulation};
     pub use crate::stop::{StopConfig, StopId, StopRef};
     pub use crate::time::TimeAdapter;
+    pub use crate::traffic_detector::{TrafficDetector, TrafficMode};
     pub use crate::world::{ExtKey, World};
 }
 
