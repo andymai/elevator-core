@@ -214,6 +214,36 @@ fn simulation_installs_traffic_detector_resource() {
     );
 }
 
+/// `Simulation::new` must install both logs — missing `DestinationLog`
+/// silently disables `DownPeak` detection because rider-spawn's
+/// `resource_mut` call no-ops when the resource isn't present.
+#[test]
+fn simulation_installs_both_arrival_and_destination_logs() {
+    let sim = Simulation::new(&default_config(), scan()).unwrap();
+    assert!(
+        sim.world().resource::<ArrivalLog>().is_some(),
+        "Simulation::new must insert an ArrivalLog resource"
+    );
+    assert!(
+        sim.world().resource::<DestinationLog>().is_some(),
+        "Simulation::new must insert a DestinationLog resource — \
+         missing it silently disables DownPeak detection"
+    );
+}
+
+/// End-to-end: spawning a rider must append to both logs. Catches the
+/// regression where only `ArrivalLog` was installed in `new()` and
+/// `DestinationLog` writes silently no-op'd.
+#[test]
+fn rider_spawn_appends_to_both_logs() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let arrivals_len = sim.world().resource::<ArrivalLog>().unwrap().len();
+    let destinations_len = sim.world().resource::<DestinationLog>().unwrap().len();
+    assert_eq!(arrivals_len, 1, "arrival log must carry 1 entry");
+    assert_eq!(destinations_len, 1, "destination log must carry 1 entry");
+}
+
 /// The metrics phase must refresh the detector each tick. After a
 /// burst of lobby-spawns and enough sim time for the window to fill,
 /// the detector's `last_update_tick` must be recent relative to the
