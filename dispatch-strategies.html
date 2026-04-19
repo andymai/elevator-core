@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c518f07f.js";
+            window.path_to_searchindex_js = "searchindex-2d1d1ae1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d2ca992d.js"></script>
@@ -182,7 +182,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="dispatch-strategies"><a class="header" href="#dispatch-strategies">Dispatch Strategies</a></h1>
-<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the five built-in strategies, and how to choose between them.</p>
+<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the six built-in strategies, and how to choose between them.</p>
 <h2 id="how-dispatch-works"><a class="header" href="#how-dispatch-works">How dispatch works</a></h2>
 <p>Each tick, the Dispatch phase runs four steps:</p>
 <ol>
@@ -223,6 +223,7 @@ let queue: &amp;[EntityId] = sim.destination_queue(elev).unwrap();
 <tr><td><code>NearestCarDispatch</code></td><td>Assign each call to the closest idle elevator</td><td>Multi-elevator groups</td><td>Low average wait; can cause bunching when elevators cluster</td></tr>
 <tr><td><code>EtdDispatch</code></td><td>Minimize estimated time to destination across all riders</td><td>Multi-elevator groups with mixed traffic</td><td>Best average performance; higher per-tick computation</td></tr>
 <tr><td><code>DestinationDispatch</code></td><td>Sticky rider-to-car assignment via lobby kiosk input</td><td>Destination-dispatch systems (DCS)</td><td>Requires <code>HallCallMode::Destination</code>; best with lobby kiosks</td></tr>
+<tr><td><code>RsrDispatch</code></td><td>Additive composite: ETA + wrong-direction / load / car-call-affinity terms</td><td>Production-style controllers with tunable preferences</td><td>Weights default to a nearest-car baseline; opt in per term</td></tr>
 </tbody>
 </table>
 </div>
@@ -259,7 +260,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .build()?;
     Ok(())
 }</code></pre>
-<p>All five strategies live in their respective modules:</p>
+<p>All six strategies live in their respective modules:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::dispatch::scan::ScanDispatch;
@@ -267,6 +268,7 @@ use elevator_core::dispatch::look::LookDispatch;
 use elevator_core::dispatch::nearest_car::NearestCarDispatch;
 use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::dispatch::destination::DestinationDispatch;
+use elevator_core::dispatch::rsr::RsrDispatch;
 <span class="boring">}</span></code></pre>
 <p>The ETD strategy accepts a delay weight that controls how much it penalizes delays to existing riders when assigning a new call:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
