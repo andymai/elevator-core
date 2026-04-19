@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.9.1...elevator-core-v15.10.0) (2026-04-19)
+
+
+### Features
+
+* **dispatch:** add RsrDispatch — additive composite cost stack ([#350](https://github.com/andymai/elevator-core/issues/350)) ([b906abc](https://github.com/andymai/elevator-core/commit/b906abc9993094b63826c7cfc020ad0787fea1d3))
+
 ## [15.9.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.9.0...elevator-core-v15.9.1) (2026-04-19)
 
 
