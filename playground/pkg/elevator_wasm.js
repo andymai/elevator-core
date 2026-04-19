@@ -93,6 +93,44 @@ export class WasmSim {
         wasm.wasmsim_setDcsWithCommitmentWindow(this.__wbg_ptr, window_ticks);
     }
     /**
+     * Set `door_open_ticks` (dwell duration) on every elevator.
+     *
+     * Takes effect on the **next** door cycle — an in-progress dwell
+     * completes its original timing to avoid visual glitches. See
+     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` as a `JsError` if `ticks`
+     * is zero.
+     * @param {number} ticks
+     */
+    setDoorOpenTicksAll(ticks) {
+        const ret = wasm.wasmsim_setDoorOpenTicksAll(this.__wbg_ptr, ticks);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Set `door_transition_ticks` (open- and close-transition duration)
+     * on every elevator.
+     *
+     * Takes effect on the next door cycle. See
+     * [`Simulation::set_door_transition_ticks`](elevator_core::sim::Simulation::set_door_transition_ticks).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` as a `JsError` if `ticks`
+     * is zero.
+     * @param {number} ticks
+     */
+    setDoorTransitionTicksAll(ticks) {
+        const ret = wasm.wasmsim_setDoorTransitionTicksAll(this.__wbg_ptr, ticks);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Swap every group's dispatcher to a tuned ETD instance that
      * applies the group-time squared-wait fairness bonus. Higher
      * `weight` values bias dispatch more aggressively toward stops
@@ -109,6 +147,25 @@ export class WasmSim {
      */
     setHallCallModeDestination() {
         wasm.wasmsim_setHallCallModeDestination(this.__wbg_ptr);
+    }
+    /**
+     * Set `max_speed` (m/s) on every elevator in the sim.
+     *
+     * Velocity is preserved across the change; the movement integrator
+     * clamps to the new cap on the next tick. See
+     * [`Simulation::set_max_speed`](elevator_core::sim::Simulation::set_max_speed).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` as a `JsError` if `speed` is
+     * not a positive finite number.
+     * @param {number} speed
+     */
+    setMaxSpeedAll(speed) {
+        const ret = wasm.wasmsim_setMaxSpeedAll(this.__wbg_ptr, speed);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Install `PredictiveParking` as the reposition strategy for every
@@ -144,6 +201,26 @@ export class WasmSim {
      */
     setTrafficRate(riders_per_minute) {
         wasm.wasmsim_setTrafficRate(this.__wbg_ptr, riders_per_minute);
+    }
+    /**
+     * Set `weight_capacity` (kg) on every elevator in the sim.
+     *
+     * Applied immediately. A new cap below `current_load` leaves the
+     * car temporarily overweight (no riders ejected); subsequent
+     * boarding rejects further additions. See
+     * [`Simulation::set_weight_capacity`](elevator_core::sim::Simulation::set_weight_capacity).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` as a `JsError` if `capacity`
+     * is not a positive finite number.
+     * @param {number} capacity
+     */
+    setWeightCapacityAll(capacity) {
+        const ret = wasm.wasmsim_setWeightCapacityAll(this.__wbg_ptr, capacity);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Pull a cheap snapshot for rendering. Returns a plain JS object matching
