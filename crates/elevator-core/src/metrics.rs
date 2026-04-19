@@ -105,8 +105,7 @@ impl Default for Metrics {
 
 impl Metrics {
     /// Create a new `Metrics` with default throughput window (3600 ticks)
-    /// and default wait-sample capacity
-    /// ([`default_wait_sample_capacity`], 10 000).
+    /// and default wait-sample capacity (10 000).
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -182,10 +181,9 @@ impl Metrics {
         self.max_wait_time
     }
 
-    /// 95th-percentile wait time over the last
-    /// [`wait_sample_capacity`](Self::wait_sample_capacity) boardings (ticks).
-    /// Shorthand for `percentile_wait_time(95.0)`. Returns `0` when no
-    /// samples have been recorded.
+    /// 95th-percentile wait time over the last `wait_sample_capacity`
+    /// boardings (ticks). Shorthand for `percentile_wait_time(95.0)`.
+    /// Returns `0` when no samples have been recorded.
     ///
     /// CIBSE and community-benchmark traffic studies score against
     /// percentiles rather than the `(avg, max)` pair alone — max is
