@@ -102,6 +102,57 @@ export type ScenarioHook =
   // marker is purely for UI narration (label + description).
   | { kind: "bypass_narration" };
 
+/**
+ * Per-elevator physics defaults applied uniformly when the playground
+ * builds a scenario's RON. Mirrors a subset of `ElevatorConfig`'s
+ * fields — only the ones the "Tweak parameters" drawer surfaces (plus
+ * fixed-by-scenario fields like accel/decel and bypass that ride along
+ * but aren't user-tunable in v1).
+ *
+ * Times use ticks at the canonical 60 Hz simulation rate so they match
+ * the engine's storage form directly (no conversion at the boundary).
+ */
+export interface ElevatorPhysics {
+  /** Maximum travel speed (m/s). */
+  maxSpeed: number;
+  /** Acceleration (m/s²). Not user-tweakable in v1; kept here so RON regen is faithful. */
+  acceleration: number;
+  /** Deceleration (m/s²). Not user-tweakable in v1; kept here so RON regen is faithful. */
+  deceleration: number;
+  /** Weight capacity (kg). */
+  weightCapacity: number;
+  /** Door dwell ticks (60 Hz). */
+  doorOpenTicks: number;
+  /** Door open/close transition ticks (60 Hz). */
+  doorTransitionTicks: number;
+  /** Optional full-load up-direction bypass threshold (0..1). */
+  bypassLoadUpPct?: number;
+  /** Optional full-load down-direction bypass threshold (0..1). */
+  bypassLoadDownPct?: number;
+}
+
+/** Bounds for a single tweakable parameter (slider min/max/step). */
+export interface TweakRange {
+  min: number;
+  max: number;
+  step: number;
+}
+
+/**
+ * Per-scenario tweak bounds for the four user-facing knobs. Exists so
+ * the space elevator (50 m/s climbers, 1000 m shaft, 1 car) can have
+ * sane bounds distinct from a commercial building.
+ */
+export interface TweakRanges {
+  cars: TweakRange;
+  /** Max speed in m/s. */
+  maxSpeed: TweakRange;
+  /** Weight capacity in kg. */
+  weightCapacity: TweakRange;
+  /** Combined door cycle time in seconds (dwell + 2× transition). */
+  doorCycleSec: TweakRange;
+}
+
 export interface ScenarioMeta {
   id: string;
   label: string;
@@ -121,6 +172,33 @@ export interface ScenarioMeta {
   hook: ScenarioHook;
   /** One-line narrative shown alongside the feature hook to frame what to watch for. */
   featureHint: string;
+  /**
+   * Building name as it appears in the RON `BuildingConfig.name` field.
+   * Used by the "Tweak parameters" drawer to regenerate RON when the
+   * car count changes (every other RON section is preserved verbatim).
+   */
+  buildingName: string;
+  /** Stops in scenario order, mirroring the RON `stops:` array. */
+  stops: Array<{ name: string; positionM: number }>;
+  /**
+   * Number of elevators in the scenario's canonical RON. The drawer
+   * displays this as the "default" badge and resets to it when the
+   * user clicks the reset chevron on the cars stepper.
+   */
+  defaultCars: number;
+  /**
+   * Per-elevator defaults applied to every car when regenerating RON
+   * for a different car count or under user overrides. Single template
+   * because every scenario today uses identical physics across its
+   * cars; per-elevator tunability is a future expansion.
+   */
+  elevatorDefaults: ElevatorPhysics;
+  /** Bounds the drawer uses for each slider. */
+  tweakRanges: TweakRanges;
+  /** Mean spawn interval in ticks at 60 Hz (RON `passenger_spawning.mean_interval_ticks`). */
+  passengerMeanIntervalTicks: number;
+  /** Rider weight range in kg, for the RON `passenger_spawning.weight_range`. */
+  passengerWeightRange: [number, number];
   /**
    * Time a rider will wait before abandoning the queue, in simulated
    * seconds. Prevents scenarios whose peak phases run above the
