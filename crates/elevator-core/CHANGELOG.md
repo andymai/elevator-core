@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.11.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.11.0...elevator-core-v15.11.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **dispatch:** commit cars mid-trip to stops with active demand — holistic fix for empty touch-and-go, reassignment churn, lopsided utilization ([#362](https://github.com/andymai/elevator-core/issues/362)) ([d225f6c](https://github.com/andymai/elevator-core/commit/d225f6c720a0bf5b69c626d4130d8f025794b9a9))
+
 ## [15.11.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.10.0...elevator-core-v15.11.0) (2026-04-19)
 
 
