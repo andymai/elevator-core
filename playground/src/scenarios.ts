@@ -146,9 +146,15 @@ const office: ScenarioMeta = {
 // ─── Skyscraper with sky lobby — full-load bypass hook ──────────────
 
 const SKY_STOPS = 13; // Lobby + 12 floors
-// Three 1200 kg cars at 4 m/s over a 48 m shaft cycle ~90 riders/min
-// combined when healthy. Rates target ~1.3–1.4× that during peaks so
-// the bypass hook actually sees full cars and gets to show its work.
+// Three 1200 kg cars at 4 m/s through a 48 m shaft. Asymmetric
+// lobby-heavy traffic is much slower than the symmetric-cruise
+// number would suggest — each round trip is ~40 s and carries only
+// ~6–8 riders (demand spreads across 12 destination floors), giving
+// ~30 riders/min combined during peaks. Phase rates target just
+// above that so bypass still triggers (cars hit 80 % during rush)
+// but the queue doesn't snowball and mass-abandon on first paint.
+// The original 120 riders/min peak was ~4× peak capacity — visibly
+// broken as a first-impression scenario.
 const skyPhases: Phase[] = [
   {
     name: "Overnight",
@@ -160,21 +166,21 @@ const skyPhases: Phase[] = [
   {
     name: "Morning rush",
     durationSec: 75,
-    ridersPerMin: 120,
+    ridersPerMin: 48,
     originWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
     destWeights: [0, ...topBias(SKY_STOPS - 1)],
   },
   {
     name: "Midday interfloor",
     durationSec: 60,
-    ridersPerMin: 45,
+    ridersPerMin: 30,
     originWeights: uniform(SKY_STOPS),
     destWeights: uniform(SKY_STOPS),
   },
   {
     name: "Lunchtime",
     durationSec: 45,
-    ridersPerMin: 100,
+    ridersPerMin: 42,
     // Sky lobby (stop 6) doubles as the canteen floor.
     originWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 3 : 1)),
     destWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 4 : 1)),
@@ -182,7 +188,7 @@ const skyPhases: Phase[] = [
   {
     name: "Evening exodus",
     durationSec: 75,
-    ridersPerMin: 115,
+    ridersPerMin: 42,
     originWeights: [0, ...topBias(SKY_STOPS - 1)],
     destWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
   },
@@ -196,9 +202,12 @@ const skyscraper: ScenarioMeta = {
   defaultStrategy: "etd",
   phases: skyPhases,
   seedSpawns: 0,
-  // 120 s patience: big buildings get a longer leash than mid-rise
-  // since the alternative (stairs) is less viable for 12 floors.
-  abandonAfterSec: 120,
+  // 180 s patience: 3 minutes is the realistic commercial-lobby
+  // threshold before a hurried commuter peels off to the stairs or
+  // another bank. 120 s (the original) caused riders to hit the cap
+  // at the tail of morning rush even with well-tuned rates; 180 s
+  // gives ETD room to drain the queue between phases.
+  abandonAfterSec: 180,
   hook: { kind: "bypass_narration" },
   featureHint:
     "Direction-dependent bypass (80 % up / 50 % down) on all three cars — baked into the RON below. Watch the fullest car skip hall calls.",
