@@ -75,10 +75,16 @@ impl WasmSim {
         let mut inner = make_sim(&config, strategy)
             .ok_or_else(|| JsError::new(&format!("unknown strategy: {strategy}")))?
             .map_err(|e| JsError::new(&format!("sim build: {e}")))?;
-        // Default to SpreadEvenly reposition *only* when the config didn't
-        // pick one — scenarios with several cars on one line visibly benefit
-        // from active repositioning, but an explicit RON choice must win so
-        // downstream consumers (and future tests) aren't silently overridden.
+        // Default to PredictiveParking reposition *only* when the config
+        // didn't pick one. SpreadEvenly used to be the default, but it's
+        // position-only — during morning up-peak (lobby-heavy) or evening
+        // down-peak it actively pushes idle cars *away* from demand, so
+        // two of three cars end up shuttling to the sky lobby and the
+        // penthouse while the first car handles every lobby call alone.
+        // PredictiveParking reads the arrival log's rolling window and
+        // greedily seats idle cars at the hottest stops, which is what
+        // most observers expect from a multi-car playground. An explicit
+        // RON choice still wins so downstream consumers can opt out.
         let groups_needing_default: Vec<_> = inner
             .groups()
             .iter()
@@ -86,8 +92,8 @@ impl WasmSim {
             .filter(|gid| inner.reposition_id(*gid).is_none())
             .collect();
         for gid in groups_needing_default {
-            if let Some(strategy) = BuiltinReposition::SpreadEvenly.instantiate() {
-                inner.set_reposition(gid, strategy, BuiltinReposition::SpreadEvenly);
+            if let Some(strategy) = BuiltinReposition::PredictiveParking.instantiate() {
+                inner.set_reposition(gid, strategy, BuiltinReposition::PredictiveParking);
             }
         }
         Ok(Self {
