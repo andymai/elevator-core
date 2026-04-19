@@ -39,6 +39,14 @@ interface WasmSimInstance {
   setEtdWithWaitSquaredWeight?(weight: number): void;
   setDcsWithCommitmentWindow?(windowTicks: bigint): void;
   setRepositionPredictiveParking?(windowTicks: bigint): void;
+  // Live elevator-physics setters (uniform across every car). Optional
+  // until a fresh wasm-pack build ships them; the playground falls back
+  // to a sim rebuild when absent so a stale `public/pkg/` doesn't break
+  // local dev.
+  setMaxSpeedAll?(speed: number): void;
+  setWeightCapacityAll?(capacityKg: number): void;
+  setDoorOpenTicksAll?(ticks: number): void;
+  setDoorTransitionTicksAll?(ticks: number): void;
 }
 
 let modPromise: Promise<WasmModule> | null = null;
@@ -132,6 +140,35 @@ export class Sim {
 
   waitingCountAt(stopId: number): number {
     return this.#inner.waitingCountAt(stopId);
+  }
+
+  /**
+   * Hot-swap building physics across every elevator. Returns `true`
+   * when the wasm setters were available and applied; `false` when
+   * the live build predates them (caller can fall back to a full
+   * sim rebuild). All four parameters are applied as a unit so a
+   * partial swap can't leave the sim in an inconsistent state.
+   */
+  applyPhysicsLive(params: {
+    maxSpeed: number;
+    weightCapacityKg: number;
+    doorOpenTicks: number;
+    doorTransitionTicks: number;
+  }): boolean {
+    const w = this.#inner;
+    if (
+      !w.setMaxSpeedAll ||
+      !w.setWeightCapacityAll ||
+      !w.setDoorOpenTicksAll ||
+      !w.setDoorTransitionTicksAll
+    ) {
+      return false;
+    }
+    w.setMaxSpeedAll(params.maxSpeed);
+    w.setWeightCapacityAll(params.weightCapacityKg);
+    w.setDoorOpenTicksAll(params.doorOpenTicks);
+    w.setDoorTransitionTicksAll(params.doorTransitionTicks);
+    return true;
   }
 
   /**
