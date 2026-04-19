@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.1...elevator-core-v15.5.2) (2026-04-19)
+
+
+### Bug Fixes
+
+* **playground:** realistic door times + proportional rate retune ([#331](https://github.com/andymai/elevator-core/issues/331)) ([132493e](https://github.com/andymai/elevator-core/commit/132493e01f4a7a8e8c3f9e8b5defad61ebe80a67))
+
 ## [15.5.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.0...elevator-core-v15.5.1) (2026-04-19)
 
 
