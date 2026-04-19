@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.9.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.9.0...elevator-core-v15.9.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **scenario:** gate merge doc test body behind traffic feature ([#354](https://github.com/andymai/elevator-core/issues/354)) ([78ce67a](https://github.com/andymai/elevator-core/commit/78ce67a07c93596e490ad6cbefc86d4fde4b9be0))
+
 ## [15.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.8.1...elevator-core-v15.9.0) (2026-04-19)
 
 
