@@ -164,11 +164,22 @@ export class Sim {
     ) {
       return false;
     }
-    w.setMaxSpeedAll(params.maxSpeed);
-    w.setWeightCapacityAll(params.weightCapacityKg);
-    w.setDoorOpenTicksAll(params.doorOpenTicks);
-    w.setDoorTransitionTicksAll(params.doorTransitionTicks);
-    return true;
+    // Each `setAll` is a `wasm_bindgen` function that throws on the
+    // underlying `SimError` (validation failures, non-finite inputs).
+    // Slider bounds plus `Math.max(1, ...)` in params.ts mean we
+    // shouldn't hit that path — but if we do, swallow the throw and
+    // report "not all live" so the caller falls back to a full
+    // `resetAll` rather than leaving the sim partially mutated (which
+    // in compare mode could desync the two panes).
+    try {
+      w.setMaxSpeedAll(params.maxSpeed);
+      w.setWeightCapacityAll(params.weightCapacityKg);
+      w.setDoorOpenTicksAll(params.doorOpenTicks);
+      w.setDoorTransitionTicksAll(params.doorTransitionTicks);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**

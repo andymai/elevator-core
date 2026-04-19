@@ -113,6 +113,15 @@ async function boot(): Promise<void> {
   // scenario's `defaultStrategy` for pane A so "Share link from hotel"
   // doesn't deliver a mismatched config to the recipient.
   reconcileStrategyWithScenario(permalink);
+  // Compact decoded overrides against the resolved scenario so a URL
+  // that carries values matching the current default (possible if a
+  // scenario default shifted between share-time and load-time) doesn't
+  // spuriously auto-open the drawer with zero active highlights.
+  // `encodePermalink`'s contract is that callers compact first; this
+  // is the decode-side counterpart, done once at boot rather than in
+  // every subsequent write path.
+  const scenario = scenarioById(permalink.scenario);
+  permalink.overrides = compactOverrides(scenario, permalink.overrides);
   applyPermalinkToUi(permalink, ui);
   const state: State = {
     running: true,
@@ -131,15 +140,15 @@ async function boot(): Promise<void> {
 }
 
 /**
- * When the user switches to a scenario whose default strategy differs
- * from the one currently selected, and they haven't explicitly picked
- * a strategy for the new scenario, snap pane A to the scenario's
- * default. Pane B stays put — compare mode deliberately pins both
- * strategies across scenario switches.
+ * Canonicalise legacy scenario ids (e.g. `"office-5"`) through the
+ * `scenarioById` fallback so the rest of boot operates on the current
+ * canonical id. Strategy is intentionally left alone: on first load
+ * we honour whatever the permalink encoded — the snap-to-scenario-default
+ * behavior only fires on an interactive scenario change, not on boot.
  */
 function reconcileStrategyWithScenario(p: PermalinkState): void {
   const scenario = scenarioById(p.scenario);
-  p.scenario = scenario.id; // Canonicalise legacy ids through the fallback.
+  p.scenario = scenario.id;
 }
 
 function wireUi(): UiHandles {

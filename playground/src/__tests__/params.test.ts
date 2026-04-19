@@ -38,6 +38,22 @@ describe("params: defaults extraction", () => {
       expect(dop, `${s.id} door_open_ticks`).toBe(s.elevatorDefaults.doorOpenTicks);
       const dtr = Number(/door_transition_ticks:\s*(\d+)/.exec(s.ron)?.[1] ?? "NaN");
       expect(dtr, `${s.id} door_transition_ticks`).toBe(s.elevatorDefaults.doorTransitionTicks);
+
+      // passenger_spawning fields feed buildScenarioRon too — a typo in
+      // the struct would silently desync from the RON literal on a
+      // car-count change (which regenerates RON) even though the default
+      // load still uses the literal directly.
+      const meanTicks = Number(/mean_interval_ticks:\s*(\d+)/.exec(s.ron)?.[1] ?? "NaN");
+      expect(meanTicks, `${s.id} mean_interval_ticks`).toBe(s.passengerMeanIntervalTicks);
+      const weightRangeMatch = /weight_range:\s*\(([\d.]+),\s*([\d.]+)\)/.exec(s.ron);
+      expect(Number(weightRangeMatch?.[1] ?? "NaN"), `${s.id} weight_range[0]`).toBeCloseTo(
+        s.passengerWeightRange[0],
+        5,
+      );
+      expect(Number(weightRangeMatch?.[2] ?? "NaN"), `${s.id} weight_range[1]`).toBeCloseTo(
+        s.passengerWeightRange[1],
+        5,
+      );
     }
   });
 
