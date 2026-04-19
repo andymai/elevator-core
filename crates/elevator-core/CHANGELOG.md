@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.5](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.4...elevator-core-v15.5.5) (2026-04-19)
+
+
+### Bug Fixes
+
+* **lifecycle:** notify dispatcher and clear car_calls on disable(elevator) ([#341](https://github.com/andymai/elevator-core/issues/341)) ([73bad8b](https://github.com/andymai/elevator-core/commit/73bad8bf78730a35a8a6fbb26a161db7b5fb6611))
+
 ## [15.5.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.3...elevator-core-v15.5.4) (2026-04-19)
 
 
