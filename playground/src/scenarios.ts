@@ -1,4 +1,18 @@
-import type { Phase, ScenarioMeta } from "./types";
+import type { Phase, ScenarioMeta, TweakRanges } from "./types";
+
+// ─── Default tweak bounds ───────────────────────────────────────────
+//
+// One set of bounds works for every commercial scenario (mid-rise
+// office through skyscraper). The space elevator overrides these
+// because its operating envelope (50 m/s climbers, 1000 m shaft, 2
+// stops) is two orders of magnitude away from a building.
+
+const COMMERCIAL_TWEAK_RANGES: TweakRanges = {
+  cars: { min: 1, max: 6, step: 1 },
+  maxSpeed: { min: 0.5, max: 12, step: 0.5 },
+  weightCapacity: { min: 200, max: 2500, step: 100 },
+  doorCycleSec: { min: 2, max: 12, step: 0.5 },
+};
 
 // Scenarios are embedded as RON strings so the playground is a single static
 // bundle with no extra fetches. Each scenario is validated by elevator-core's
@@ -106,6 +120,27 @@ const office: ScenarioMeta = {
   hook: { kind: "etd_group_time", waitSquaredWeight: 0.002 },
   featureHint:
     "Group-time ETD (`wait_squared_weight = 0.002`) — stops hosting older waiters win ties, damping long-wait tail during lunchtime bursts.",
+  buildingName: "Mid-Rise Office",
+  stops: [
+    { name: "Lobby", positionM: 0.0 },
+    { name: "Floor 2", positionM: 4.0 },
+    { name: "Floor 3", positionM: 8.0 },
+    { name: "Floor 4", positionM: 12.0 },
+    { name: "Floor 5", positionM: 16.0 },
+    { name: "Floor 6", positionM: 20.0 },
+  ],
+  defaultCars: 2,
+  elevatorDefaults: {
+    maxSpeed: 2.2,
+    acceleration: 1.5,
+    deceleration: 2.0,
+    weightCapacity: 800.0,
+    doorOpenTicks: 210,
+    doorTransitionTicks: 60,
+  },
+  tweakRanges: COMMERCIAL_TWEAK_RANGES,
+  passengerMeanIntervalTicks: 90,
+  passengerWeightRange: [50.0, 100.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Mid-Rise Office",
@@ -213,6 +248,36 @@ const skyscraper: ScenarioMeta = {
   hook: { kind: "bypass_narration" },
   featureHint:
     "Direction-dependent bypass (80 % up / 50 % down) on all three cars — baked into the RON below. Watch the fullest car skip hall calls.",
+  buildingName: "Skyscraper (Sky Lobby)",
+  stops: [
+    { name: "Lobby", positionM: 0.0 },
+    { name: "Floor 2", positionM: 4.0 },
+    { name: "Floor 3", positionM: 8.0 },
+    { name: "Floor 4", positionM: 12.0 },
+    { name: "Floor 5", positionM: 16.0 },
+    { name: "Floor 6", positionM: 20.0 },
+    { name: "Sky Lobby", positionM: 24.0 },
+    { name: "Floor 8", positionM: 28.0 },
+    { name: "Floor 9", positionM: 32.0 },
+    { name: "Floor 10", positionM: 36.0 },
+    { name: "Floor 11", positionM: 40.0 },
+    { name: "Floor 12", positionM: 44.0 },
+    { name: "Penthouse", positionM: 48.0 },
+  ],
+  defaultCars: 3,
+  elevatorDefaults: {
+    maxSpeed: 4.0,
+    acceleration: 2.0,
+    deceleration: 2.5,
+    weightCapacity: 1200.0,
+    doorOpenTicks: 300,
+    doorTransitionTicks: 72,
+    bypassLoadUpPct: 0.8,
+    bypassLoadDownPct: 0.5,
+  },
+  tweakRanges: COMMERCIAL_TWEAK_RANGES,
+  passengerMeanIntervalTicks: 30,
+  passengerWeightRange: [55.0, 100.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Skyscraper (Sky Lobby)",
@@ -345,6 +410,29 @@ const residential: ScenarioMeta = {
   hook: { kind: "predictive_parking", windowTicks: 9000 }, // 2.5 min at 60 Hz
   featureHint:
     "Predictive parking with a 2.5-min window — during the midday slump, idle cars pre-position toward the floors that spiked most recently.",
+  buildingName: "Residential Tower",
+  stops: [
+    { name: "Lobby", positionM: 0.0 },
+    { name: "Floor 2", positionM: 3.5 },
+    { name: "Floor 3", positionM: 7.0 },
+    { name: "Floor 4", positionM: 10.5 },
+    { name: "Floor 5", positionM: 14.0 },
+    { name: "Floor 6", positionM: 17.5 },
+    { name: "Floor 7", positionM: 21.0 },
+    { name: "Penthouse", positionM: 24.5 },
+  ],
+  defaultCars: 2,
+  elevatorDefaults: {
+    maxSpeed: 2.5,
+    acceleration: 1.6,
+    deceleration: 2.2,
+    weightCapacity: 700.0,
+    doorOpenTicks: 180,
+    doorTransitionTicks: 60,
+  },
+  tweakRanges: COMMERCIAL_TWEAK_RANGES,
+  passengerMeanIntervalTicks: 75,
+  passengerWeightRange: [50.0, 95.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Residential Tower",
@@ -455,6 +543,31 @@ const hotel: ScenarioMeta = {
   hook: { kind: "deferred_dcs", commitmentWindowTicks: 180 },
   featureHint:
     "Deferred DCS with a 3-s (180-tick) commitment window — sticky assignments keep re-competing until a car is close to the rider, yielding better matches under bursty demand.",
+  buildingName: "Hotel 24/7",
+  stops: [
+    { name: "Lobby", positionM: 0.0 },
+    { name: "Restaurant", positionM: 3.5 },
+    { name: "Floor 3", positionM: 7.0 },
+    { name: "Floor 4", positionM: 10.5 },
+    { name: "Floor 5", positionM: 14.0 },
+    { name: "Floor 6", positionM: 17.5 },
+    { name: "Floor 7", positionM: 21.0 },
+    { name: "Floor 8", positionM: 24.5 },
+    { name: "Floor 9", positionM: 28.0 },
+    { name: "Penthouse", positionM: 31.5 },
+  ],
+  defaultCars: 3,
+  elevatorDefaults: {
+    maxSpeed: 3.0,
+    acceleration: 1.8,
+    deceleration: 2.3,
+    weightCapacity: 900.0,
+    doorOpenTicks: 240,
+    doorTransitionTicks: 60,
+  },
+  tweakRanges: COMMERCIAL_TWEAK_RANGES,
+  passengerMeanIntervalTicks: 120,
+  passengerWeightRange: [50.0, 95.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Hotel 24/7",
@@ -564,6 +677,26 @@ const convention: ScenarioMeta = {
   hook: { kind: "arrival_log" },
   featureHint:
     "Arrival-rate signal lights up as the burst hits — `DispatchManifest::arrivals_at` feeds downstream strategies the per-stop intensity for the next 5 minutes.",
+  buildingName: "Convention Center",
+  stops: [
+    { name: "Lobby", positionM: 0.0 },
+    { name: "Exhibit Hall", positionM: 4.0 },
+    { name: "Mezzanine", positionM: 8.0 },
+    { name: "Ballroom", positionM: 12.0 },
+    { name: "Keynote Hall", positionM: 16.0 },
+  ],
+  defaultCars: 2,
+  elevatorDefaults: {
+    maxSpeed: 3.5,
+    acceleration: 2.0,
+    deceleration: 2.5,
+    weightCapacity: 1500.0,
+    doorOpenTicks: 300,
+    doorTransitionTicks: 60,
+  },
+  tweakRanges: { ...COMMERCIAL_TWEAK_RANGES, cars: { min: 1, max: 5, step: 1 } },
+  passengerMeanIntervalTicks: 30,
+  passengerWeightRange: [55.0, 100.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Convention Center",
@@ -628,6 +761,31 @@ const spaceElevator: ScenarioMeta = {
   hook: { kind: "none" },
   featureHint:
     "No controller feature to showcase — this scenario exists to demonstrate that the engine is topology-agnostic.",
+  buildingName: "Orbital Tether",
+  stops: [
+    { name: "Ground Station", positionM: 0.0 },
+    { name: "Orbital Platform", positionM: 1000.0 },
+  ],
+  defaultCars: 1,
+  elevatorDefaults: {
+    maxSpeed: 50.0,
+    acceleration: 10.0,
+    deceleration: 15.0,
+    weightCapacity: 10000.0,
+    doorOpenTicks: 120,
+    doorTransitionTicks: 30,
+  },
+  // Space elevator's operating envelope is two orders of magnitude
+  // away from a building. Bigger steps, no car-count tweaking
+  // (only 2 stops; multiple climbers on a tether is its own can of worms).
+  tweakRanges: {
+    cars: { min: 1, max: 1, step: 1 },
+    maxSpeed: { min: 5, max: 100, step: 5 },
+    weightCapacity: { min: 1000, max: 20000, step: 1000 },
+    doorCycleSec: { min: 2, max: 8, step: 0.5 },
+  },
+  passengerMeanIntervalTicks: 900,
+  passengerWeightRange: [60.0, 90.0],
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Orbital Tether",

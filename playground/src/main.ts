@@ -1,4 +1,15 @@
 import { CanvasRenderer } from "./canvas";
+import {
+  PARAM_KEYS,
+  applyPhysicsOverrides,
+  buildScenarioRon,
+  compactOverrides,
+  defaultFor,
+  isOverridden,
+  resolveParam,
+  type Overrides,
+  type ParamKey,
+} from "./params";
 import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } from "./permalink";
 import { SCENARIOS, scenarioById } from "./scenarios";
 import { Sim } from "./sim";
@@ -59,6 +70,15 @@ interface PaneHandles {
   accent: string;
 }
 
+interface TweakRowHandles {
+  root: HTMLElement;
+  value: HTMLElement;
+  defaultV: HTMLElement;
+  dec: HTMLButtonElement;
+  inc: HTMLButtonElement;
+  reset: HTMLButtonElement;
+}
+
 interface UiHandles {
   scenarioSelect: HTMLSelectElement;
   strategyASelect: HTMLSelectElement;
@@ -73,6 +93,10 @@ interface UiHandles {
   playBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
   shareBtn: HTMLButtonElement;
+  tweakBtn: HTMLButtonElement;
+  tweakPanel: HTMLElement;
+  tweakResetAllBtn: HTMLButtonElement;
+  tweakRows: Record<ParamKey, TweakRowHandles>;
   layout: HTMLElement;
   loader: HTMLElement;
   toast: HTMLElement;
@@ -89,6 +113,15 @@ async function boot(): Promise<void> {
   // scenario's `defaultStrategy` for pane A so "Share link from hotel"
   // doesn't deliver a mismatched config to the recipient.
   reconcileStrategyWithScenario(permalink);
+  // Compact decoded overrides against the resolved scenario so a URL
+  // that carries values matching the current default (possible if a
+  // scenario default shifted between share-time and load-time) doesn't
+  // spuriously auto-open the drawer with zero active highlights.
+  // `encodePermalink`'s contract is that callers compact first; this
+  // is the decode-side counterpart, done once at boot rather than in
+  // every subsequent write path.
+  const scenario = scenarioById(permalink.scenario);
+  permalink.overrides = compactOverrides(scenario, permalink.overrides);
   applyPermalinkToUi(permalink, ui);
   const state: State = {
     running: true,
@@ -107,15 +140,15 @@ async function boot(): Promise<void> {
 }
 
 /**
- * When the user switches to a scenario whose default strategy differs
- * from the one currently selected, and they haven't explicitly picked
- * a strategy for the new scenario, snap pane A to the scenario's
- * default. Pane B stays put — compare mode deliberately pins both
- * strategies across scenario switches.
+ * Canonicalise legacy scenario ids (e.g. `"office-5"`) through the
+ * `scenarioById` fallback so the rest of boot operates on the current
+ * canonical id. Strategy is intentionally left alone: on first load
+ * we honour whatever the permalink encoded — the snap-to-scenario-default
+ * behavior only fires on an interactive scenario change, not on boot.
  */
 function reconcileStrategyWithScenario(p: PermalinkState): void {
   const scenario = scenarioById(p.scenario);
-  p.scenario = scenario.id; // Canonicalise legacy ids through the fallback.
+  p.scenario = scenario.id;
 }
 
 function wireUi(): UiHandles {
@@ -133,6 +166,29 @@ function wireUi(): UiHandles {
     metrics: q(`metrics-${suffix}`),
     accent,
   });
+  const tweakRow = (key: ParamKey): TweakRowHandles => {
+    const root = document.querySelector<HTMLElement>(`.tweak-row[data-key="${key}"]`);
+    if (!root) throw new Error(`missing tweak row for ${key}`);
+    const get = <T extends HTMLElement>(sel: string): T => {
+      const el = root.querySelector<T>(sel);
+      if (!el) throw new Error(`missing ${sel} in tweak row ${key}`);
+      return el;
+    };
+    return {
+      root,
+      value: get<HTMLElement>(".tweak-value"),
+      defaultV: get<HTMLElement>(".tweak-default-v"),
+      dec: get<HTMLButtonElement>(".tweak-dec"),
+      inc: get<HTMLButtonElement>(".tweak-inc"),
+      reset: get<HTMLButtonElement>(".tweak-reset"),
+    };
+  };
+  const tweakRows: Record<ParamKey, TweakRowHandles> = {
+    cars: tweakRow("cars"),
+    maxSpeed: tweakRow("maxSpeed"),
+    weightCapacity: tweakRow("weightCapacity"),
+    doorCycleSec: tweakRow("doorCycleSec"),
+  };
   const ui: UiHandles = {
     scenarioSelect: q<HTMLSelectElement>("scenario"),
     strategyASelect: q<HTMLSelectElement>("strategy-a"),
@@ -147,6 +203,10 @@ function wireUi(): UiHandles {
     playBtn: q<HTMLButtonElement>("play"),
     resetBtn: q<HTMLButtonElement>("reset"),
     shareBtn: q<HTMLButtonElement>("share"),
+    tweakBtn: q<HTMLButtonElement>("tweak"),
+    tweakPanel: q("tweak-panel"),
+    tweakResetAllBtn: q<HTMLButtonElement>("tweak-reset-all"),
+    tweakRows,
     layout: q("layout"),
     loader: q("loader"),
     toast: q("toast"),
@@ -197,6 +257,71 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   ui.intensityLabel.textContent = intensityLabel(p.intensity);
   const scenario = scenarioById(p.scenario);
   if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
+  // Auto-open the drawer when the permalink carries any override —
+  // the recipient sees what the sender customized without an extra
+  // click. A clean URL leaves the drawer closed so first-time
+  // visitors meet the unchanged playground.
+  if (Object.keys(p.overrides).length > 0) {
+    setTweakOpen(ui, true);
+  }
+  renderTweakPanel(scenario, p.overrides, ui);
+}
+
+/**
+ * Format a tweak value for the readout. `cars` and `weightCapacity`
+ * step in whole units so they read as integers; speed and door cycle
+ * use one decimal to match their step sizes.
+ */
+function formatTweakValue(key: ParamKey, value: number): string {
+  switch (key) {
+    case "cars":
+      return String(Math.round(value));
+    case "weightCapacity":
+      return String(Math.round(value));
+    case "maxSpeed":
+    case "doorCycleSec":
+      return value.toFixed(1);
+  }
+}
+
+/**
+ * Refresh every drawer row to reflect the current scenario + overrides.
+ * Called on boot, on scenario switch, and after each stepper click.
+ *
+ * Side effects beyond the displayed values:
+ *  - Disables `+`/`-` at the slider's bounds so users can't push the
+ *    value out of range (defensive — `resolveParam` clamps anyway).
+ *  - Toggles the per-row "Reset" button visibility based on whether
+ *    the row's value differs from the scenario default.
+ *  - Toggles the "Reset all" button visibility based on whether *any*
+ *    row is overridden.
+ */
+function renderTweakPanel(
+  scenario: ScenarioMeta,
+  overrides: Overrides,
+  ui: UiHandles,
+): void {
+  let anyOverridden = false;
+  for (const key of PARAM_KEYS) {
+    const row = ui.tweakRows[key];
+    const range = scenario.tweakRanges[key];
+    const value = resolveParam(scenario, key, overrides);
+    const def = defaultFor(scenario, key);
+    const overridden = isOverridden(scenario, key, value);
+    if (overridden) anyOverridden = true;
+    row.value.textContent = formatTweakValue(key, value);
+    row.defaultV.textContent = formatTweakValue(key, def);
+    row.dec.disabled = value <= range.min + 1e-9;
+    row.inc.disabled = value >= range.max - 1e-9;
+    row.root.dataset.overridden = String(overridden);
+    row.reset.hidden = !overridden;
+  }
+  ui.tweakResetAllBtn.hidden = !anyOverridden;
+}
+
+function setTweakOpen(ui: UiHandles, open: boolean): void {
+  ui.tweakBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  ui.tweakPanel.hidden = !open;
 }
 
 /** Run `fn` against each active pane. Lets call sites fan out without null-checks. */
@@ -214,8 +339,16 @@ async function makePane(
   handles: PaneHandles,
   strategy: StrategyName,
   scenario: ScenarioMeta,
+  overrides: Overrides,
 ): Promise<Pane> {
-  const sim = await Sim.create(scenario.ron, strategy);
+  // Always regenerate RON so user overrides (including non-default
+  // car count) are baked into the initial sim. Hot-swappable knobs
+  // could in principle apply post-construction via `applyPhysicsLive`,
+  // but baking them in keeps the sim's initial state identical to
+  // a recipient who loads the same permalink — no transient first-
+  // tick using defaults followed by a setter call.
+  const ron = buildScenarioRon(scenario, overrides);
+  const sim = await Sim.create(ron, strategy);
   // Apply the scenario's commercial-feature hook once on load. The
   // user can still swap strategies afterwards; the hook's effects
   // stick only as long as the strategy it tuned remains active.
@@ -257,14 +390,24 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
   state.paneA = null;
   state.paneB = null;
   try {
-    const paneA = await makePane(ui.paneA, state.permalink.strategyA, scenario);
+    const paneA = await makePane(
+      ui.paneA,
+      state.permalink.strategyA,
+      scenario,
+      state.permalink.overrides,
+    );
     if (token !== state.initToken) {
       disposePane(paneA);
       return;
     }
     state.paneA = paneA;
     if (state.permalink.compare) {
-      const paneB = await makePane(ui.paneB, state.permalink.strategyB, scenario);
+      const paneB = await makePane(
+        ui.paneB,
+        state.permalink.strategyB,
+        scenario,
+        state.permalink.overrides,
+      );
       if (token !== state.initToken) {
         disposePane(paneB);
         return;
@@ -298,6 +441,7 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
     }
     if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
     updatePhaseIndicator(state, ui);
+    renderTweakPanel(scenario, state.permalink.overrides, ui);
   } catch (err) {
     if (token === state.initToken) {
       toast(ui, `Init failed: ${(err as Error).message}`);
@@ -319,13 +463,20 @@ function attachListeners(state: State, ui: UiHandles): void {
     const nextStrategyA = state.permalink.compare
       ? state.permalink.strategyA
       : scenario.defaultStrategy;
+    // Clear all parameter overrides on scenario switch — every
+    // scenario has its own physics envelope (a 0.5 m/s slider value
+    // makes sense for residential, makes no sense for the space
+    // elevator) so cross-scenario carry-over surprised more than it
+    // helped during early prototyping.
     state.permalink = {
       ...state.permalink,
       scenario: scenario.id,
       strategyA: nextStrategyA,
+      overrides: {},
     };
     ui.strategyASelect.value = nextStrategyA;
     await resetAll(state, ui);
+    renderTweakPanel(scenario, state.permalink.overrides, ui);
     toast(ui, `${scenario.label} · ${STRATEGY_LABELS[nextStrategyA]}`);
   });
   // Strategy changes reset the whole comparator so both panes stay aligned
@@ -381,6 +532,21 @@ function attachListeners(state: State, ui: UiHandles): void {
   ui.resetBtn.addEventListener("click", () => {
     void resetAll(state, ui);
     toast(ui, "Reset");
+  });
+
+  // ── Tweak panel ──────────────────────────────────────────────────
+  ui.tweakBtn.addEventListener("click", () => {
+    const open = ui.tweakBtn.getAttribute("aria-expanded") !== "true";
+    setTweakOpen(ui, open);
+  });
+  for (const key of PARAM_KEYS) {
+    const row = ui.tweakRows[key];
+    row.dec.addEventListener("click", () => bumpParam(state, ui, key, -1));
+    row.inc.addEventListener("click", () => bumpParam(state, ui, key, +1));
+    row.reset.addEventListener("click", () => resetParam(state, ui, key));
+  }
+  ui.tweakResetAllBtn.addEventListener("click", () => {
+    void resetAllOverrides(state, ui);
   });
   ui.shareBtn.addEventListener("click", async () => {
     const qs = encodePermalink(state.permalink);
@@ -572,6 +738,139 @@ function toast(ui: UiHandles, msg: string): void {
   ui.toast.classList.add("show");
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => ui.toast.classList.remove("show"), 1600);
+}
+
+// ─── Tweak panel: state mutation ─────────────────────────────────────
+
+/**
+ * Step a single param up or down by its scenario-defined step size,
+ * then apply the change. Quietly clamps to the param's range so a
+ * disabled +/- button can't be activated via keyboard repeat.
+ */
+function bumpParam(state: State, ui: UiHandles, key: ParamKey, dir: number): void {
+  const scenario = scenarioById(state.permalink.scenario);
+  const range = scenario.tweakRanges[key];
+  const current = resolveParam(scenario, key, state.permalink.overrides);
+  const next = clampToRange(current + dir * range.step, range.min, range.max);
+  // Round to a multiple of `step` so the steppers always land on a
+  // canonical lattice point — protects against floating-point drift
+  // accumulating over repeated clicks.
+  const snapped = snapToStep(next, range.min, range.step);
+  setOverride(state, ui, scenario, key, snapped);
+}
+
+function resetParam(state: State, ui: UiHandles, key: ParamKey): void {
+  const scenario = scenarioById(state.permalink.scenario);
+  const next = { ...state.permalink.overrides };
+  delete next[key];
+  state.permalink = { ...state.permalink, overrides: next };
+  // Per-key reset of the live-mutated knobs goes through the same
+  // hot-swap path so metrics don't reset; cars-count reset rebuilds.
+  if (key === "cars") {
+    void resetAll(state, ui);
+    toast(ui, "Cars reset");
+  } else {
+    applyHotSwapAndRender(state, ui, scenario);
+    toast(ui, `${labelForKey(key)} reset`);
+  }
+}
+
+async function resetAllOverrides(state: State, ui: UiHandles): Promise<void> {
+  const scenario = scenarioById(state.permalink.scenario);
+  const hadCarsOverride = isOverridden(
+    scenario,
+    "cars",
+    resolveParam(scenario, "cars", state.permalink.overrides),
+  );
+  state.permalink = { ...state.permalink, overrides: {} };
+  if (hadCarsOverride) {
+    await resetAll(state, ui);
+  } else {
+    applyHotSwapAndRender(state, ui, scenario);
+  }
+  toast(ui, "Parameters reset");
+}
+
+/**
+ * Update one override and apply it: hot-swap for live-mutated keys,
+ * full sim rebuild for `cars`. Keeps the in-memory permalink in sync
+ * and re-renders the drawer.
+ */
+function setOverride(
+  state: State,
+  ui: UiHandles,
+  scenario: ScenarioMeta,
+  key: ParamKey,
+  value: number,
+): void {
+  const next: Overrides = { ...state.permalink.overrides, [key]: value };
+  state.permalink = {
+    ...state.permalink,
+    overrides: compactOverrides(scenario, next),
+  };
+  if (key === "cars") {
+    void resetAll(state, ui);
+  } else {
+    applyHotSwapAndRender(state, ui, scenario);
+  }
+}
+
+/**
+ * Push max-speed / capacity / door-cycle into the live sim via the
+ * uniform setters and refresh the drawer's display values. Used for
+ * every override change *except* cars-count, which needs a full
+ * `resetAll`.
+ *
+ * If the wasm build predates the setters (`applyPhysicsLive` returns
+ * `false`), fall back to a sim rebuild — same observable result, just
+ * with a metrics reset. This keeps local dev usable when the
+ * playground reloads ahead of a fresh `wasm-pack build`.
+ */
+function applyHotSwapAndRender(
+  state: State,
+  ui: UiHandles,
+  scenario: ScenarioMeta,
+): void {
+  const physics = applyPhysicsOverrides(scenario, state.permalink.overrides);
+  const params = {
+    maxSpeed: physics.maxSpeed,
+    weightCapacityKg: physics.weightCapacity,
+    doorOpenTicks: physics.doorOpenTicks,
+    doorTransitionTicks: physics.doorTransitionTicks,
+  };
+  let allLive = true;
+  forEachPane(state, (pane) => {
+    if (!pane.sim.applyPhysicsLive(params)) allLive = false;
+  });
+  renderTweakPanel(scenario, state.permalink.overrides, ui);
+  if (!allLive) void resetAll(state, ui);
+}
+
+function clampToRange(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+/**
+ * Round `v` to the nearest multiple of `step` measured from `min`.
+ * Used by `bumpParam` so successive +/- clicks always land on
+ * canonical grid values regardless of the starting point.
+ */
+function snapToStep(v: number, min: number, step: number): number {
+  const stepsFromMin = Math.round((v - min) / step);
+  return min + stepsFromMin * step;
+}
+
+function labelForKey(key: ParamKey): string {
+  switch (key) {
+    case "cars":
+      return "Cars";
+    case "maxSpeed":
+      return "Max speed";
+    case "weightCapacity":
+      return "Capacity";
+    case "doorCycleSec":
+      return "Door cycle";
+  }
 }
 
 void boot();

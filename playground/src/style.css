@@ -189,6 +189,196 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+/* ── Tweak panel ───────────────────────────────────────────────────── */
+
+.tweak-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 10px 18px;
+  padding: 12px 20px 14px;
+  background: linear-gradient(180deg, var(--ink-1) 0%, var(--ink-0) 100%);
+  border-bottom: 1px solid var(--line-1);
+  font-variant-numeric: tabular-nums;
+  animation: tweak-slide var(--t-norm) ease-out;
+}
+.tweak-panel[hidden] {
+  display: none;
+}
+@keyframes tweak-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tweak-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--ink-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--r-2);
+  transition:
+    border-color var(--t-norm),
+    background var(--t-norm);
+}
+.tweak-row[data-overridden="true"] {
+  border-color: rgba(6, 194, 181, 0.35);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--ink-2) 100%);
+}
+
+.tweak-label {
+  font-size: 11.5px;
+  color: var(--fg-1);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+.tweak-unit {
+  color: var(--fg-3);
+  font-size: 10.5px;
+  margin-left: 4px;
+}
+
+.tweak-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  background: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+.tweak-stepper button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fg-1);
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--t-quick),
+    color var(--t-quick);
+  box-shadow: none;
+  border-radius: 0;
+  letter-spacing: 0;
+}
+.tweak-stepper button:hover {
+  background: var(--ink-3);
+  color: var(--fg-0);
+  transform: none;
+  box-shadow: none;
+}
+.tweak-stepper button:active {
+  background: var(--ink-4);
+}
+.tweak-stepper button:disabled {
+  color: var(--fg-3);
+  cursor: not-allowed;
+  background: transparent;
+}
+.tweak-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  height: 28px;
+  padding: 0 8px;
+  color: var(--fg-0);
+  font-size: 12.5px;
+  font-weight: 500;
+  border-left: 1px solid var(--line-2);
+  border-right: 1px solid var(--line-2);
+  background: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.tweak-row[data-overridden="true"] .tweak-value {
+  color: var(--accent);
+}
+
+.tweak-default {
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.tweak-default-v {
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tweak-reset {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 8px;
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition:
+    color var(--t-quick),
+    border-color var(--t-quick),
+    background var(--t-quick);
+  box-shadow: none;
+}
+.tweak-reset:hover {
+  color: var(--fg-0);
+  border-color: var(--line-3);
+  background: var(--ink-3);
+  transform: none;
+  box-shadow: none;
+}
+
+.tweak-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.tweak-foot-hint {
+  flex: 1;
+}
+#tweak-reset-all {
+  font-size: 11px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  letter-spacing: 0.01em;
+}
+#tweak-reset-all:hover {
+  background: var(--ink-3);
+  color: var(--fg-0);
+  border-color: var(--line-3);
+  box-shadow: none;
+  transform: none;
+}
+
+/* The "Tweak parameters" trigger echoes the play button's accent
+ * treatment when the panel is open so it's visually clear the panel
+ * is the active surface. */
+#tweak[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: rgba(6, 194, 181, 0.35);
+  background: linear-gradient(180deg, rgba(6, 194, 181, 0.12) 0%, rgba(6, 194, 181, 0.04) 100%);
+}
+
 .ctl {
   display: flex;
   flex-direction: column;

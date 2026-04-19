@@ -258,6 +258,122 @@ impl WasmSim {
         })
     }
 
+    // ── Uniform elevator-physics setters ─────────────────────────────
+    //
+    // Apply a single value to every elevator in the sim. Wired to the
+    // playground "Tweak parameters" drawer so visitors can mutate
+    // building physics live without rebuilding the sim. Each calls into
+    // the underlying `Simulation::set_*` mutator, which validates input
+    // and emits an `ElevatorUpgraded` event per car. Errors from the
+    // first failing car short-circuit and surface to JS — typical
+    // failure modes are out-of-range values that the UI's slider
+    // bounds should already prevent.
+
+    /// Set `max_speed` (m/s) on every elevator in the sim.
+    ///
+    /// Velocity is preserved across the change; the movement integrator
+    /// clamps to the new cap on the next tick. See
+    /// [`Simulation::set_max_speed`](elevator_core::sim::Simulation::set_max_speed).
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` as a `JsError` if `speed` is
+    /// not a positive finite number.
+    #[wasm_bindgen(js_name = setMaxSpeedAll)]
+    pub fn set_max_speed_all(&mut self, speed: f64) -> Result<(), JsError> {
+        let ids: Vec<_> = self
+            .inner
+            .world()
+            .iter_elevators()
+            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+            .collect();
+        for id in ids {
+            self.inner
+                .set_max_speed(id, speed)
+                .map_err(|e| JsError::new(&format!("set_max_speed: {e}")))?;
+        }
+        Ok(())
+    }
+
+    /// Set `weight_capacity` (kg) on every elevator in the sim.
+    ///
+    /// Applied immediately. A new cap below `current_load` leaves the
+    /// car temporarily overweight (no riders ejected); subsequent
+    /// boarding rejects further additions. See
+    /// [`Simulation::set_weight_capacity`](elevator_core::sim::Simulation::set_weight_capacity).
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` as a `JsError` if `capacity`
+    /// is not a positive finite number.
+    #[wasm_bindgen(js_name = setWeightCapacityAll)]
+    pub fn set_weight_capacity_all(&mut self, capacity: f64) -> Result<(), JsError> {
+        let ids: Vec<_> = self
+            .inner
+            .world()
+            .iter_elevators()
+            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+            .collect();
+        for id in ids {
+            self.inner
+                .set_weight_capacity(id, capacity)
+                .map_err(|e| JsError::new(&format!("set_weight_capacity: {e}")))?;
+        }
+        Ok(())
+    }
+
+    /// Set `door_open_ticks` (dwell duration) on every elevator.
+    ///
+    /// Takes effect on the **next** door cycle — an in-progress dwell
+    /// completes its original timing to avoid visual glitches. See
+    /// [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` as a `JsError` if `ticks`
+    /// is zero.
+    #[wasm_bindgen(js_name = setDoorOpenTicksAll)]
+    pub fn set_door_open_ticks_all(&mut self, ticks: u32) -> Result<(), JsError> {
+        let ids: Vec<_> = self
+            .inner
+            .world()
+            .iter_elevators()
+            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+            .collect();
+        for id in ids {
+            self.inner
+                .set_door_open_ticks(id, ticks)
+                .map_err(|e| JsError::new(&format!("set_door_open_ticks: {e}")))?;
+        }
+        Ok(())
+    }
+
+    /// Set `door_transition_ticks` (open- and close-transition duration)
+    /// on every elevator.
+    ///
+    /// Takes effect on the next door cycle. See
+    /// [`Simulation::set_door_transition_ticks`](elevator_core::sim::Simulation::set_door_transition_ticks).
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` as a `JsError` if `ticks`
+    /// is zero.
+    #[wasm_bindgen(js_name = setDoorTransitionTicksAll)]
+    pub fn set_door_transition_ticks_all(&mut self, ticks: u32) -> Result<(), JsError> {
+        let ids: Vec<_> = self
+            .inner
+            .world()
+            .iter_elevators()
+            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+            .collect();
+        for id in ids {
+            self.inner
+                .set_door_transition_ticks(id, ticks)
+                .map_err(|e| JsError::new(&format!("set_door_transition_ticks: {e}")))?;
+        }
+        Ok(())
+    }
+
     /// Flip every group in the sim into the DCS hall-call mode. Required
     /// before `DestinationDispatch` can see rider destinations. Scenarios
     /// that want DCS (e.g. the hotel) call this once on load.

@@ -1,3 +1,4 @@
+import { PARAM_KEYS, type Overrides, type ParamKey } from "./params";
 import type { StrategyName } from "./types";
 
 // URL state encoding. Keeps the sim reproducible: sharing the URL replays
@@ -19,7 +20,28 @@ export interface PermalinkState {
   intensity: number;
   /** Playback multiplier (sim ticks per rendered frame). */
   speed: number;
+  /**
+   * User overrides for building physics (cars, max speed, capacity,
+   * door cycle). Empty record means "everything at scenario default".
+   * Encoded compactly so default scenarios still produce short URLs;
+   * any present key auto-opens the drawer for the recipient so they
+   * see what was customized.
+   */
+  overrides: Overrides;
 }
+
+/**
+ * Compact two-letter URL keys per overridable param. Two letters
+ * because the existing core knobs already claim every short single
+ * letter (`s`/`a`/`b`/`c`/`k`/`i`/`x`); a separate two-letter
+ * namespace keeps readers oriented.
+ */
+const OVERRIDE_KEYS: Record<ParamKey, string> = {
+  cars: "ec",
+  maxSpeed: "ms",
+  weightCapacity: "wc",
+  doorCycleSec: "dc",
+};
 
 export const DEFAULT_STATE: PermalinkState = {
   // First-impression tuning: skyscraper is the visually richest
@@ -45,6 +67,7 @@ export const DEFAULT_STATE: PermalinkState = {
   // keeps dispatch decisions readable without making a cold visitor
   // wait a real minute to see morning rush develop.
   speed: 2,
+  overrides: {},
 };
 
 const STRATEGIES: readonly StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
@@ -67,11 +90,28 @@ export function encodePermalink(state: PermalinkState): string {
   p.set("k", String(state.seed));
   p.set("i", String(state.intensity));
   p.set("x", String(state.speed));
+  // Overrides: only emit keys the user has actually moved away from
+  // default. Caller (main.ts) is responsible for compacting via
+  // `compactOverrides()` before encoding so a value that rounds back
+  // to the default doesn't leak into the URL.
+  for (const k of PARAM_KEYS) {
+    const v = state.overrides[k];
+    if (v !== undefined && Number.isFinite(v)) {
+      p.set(OVERRIDE_KEYS[k], formatOverride(v));
+    }
+  }
   return `?${p.toString()}`;
 }
 
 export function decodePermalink(search: string): PermalinkState {
   const p = new URLSearchParams(search);
+  const overrides: Overrides = {};
+  for (const k of PARAM_KEYS) {
+    const raw = p.get(OVERRIDE_KEYS[k]);
+    if (raw === null) continue;
+    const n = Number(raw);
+    if (Number.isFinite(n)) overrides[k] = n;
+  }
   return {
     scenario: p.get("s") ?? DEFAULT_STATE.scenario,
     strategyA: parseStrategy(p.get("a") ?? p.get("d"), DEFAULT_STATE.strategyA),
@@ -83,6 +123,7 @@ export function decodePermalink(search: string): PermalinkState {
     // than try to re-interpret the value against an unknown scenario.
     intensity: parseNum(p.get("i"), DEFAULT_STATE.intensity),
     speed: parseNum(p.get("x"), DEFAULT_STATE.speed),
+    overrides,
   };
 }
 
@@ -90,4 +131,15 @@ function parseNum(raw: string | null, fallback: number): number {
   if (raw === null) return fallback;
   const n = Number(raw);
   return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Render a numeric override compactly. Integer-valued numbers (cars
+ * count, whole-kg capacity at default step, whole-second door cycle)
+ * round-trip without trailing `.0`; fractional values keep up to two
+ * decimals so `2.5 m/s` stays `"2.5"` rather than `"2.499999"`.
+ */
+function formatOverride(n: number): string {
+  if (Number.isInteger(n)) return String(n);
+  return Number(n.toFixed(2)).toString();
 }
