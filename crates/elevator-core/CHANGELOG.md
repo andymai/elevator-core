@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.2...elevator-core-v15.5.3) (2026-04-19)
+
+
+### Bug Fixes
+
+* **dispatch:** don't re-dispatch cars to a stop mid-door-cycle ([#334](https://github.com/andymai/elevator-core/issues/334)) ([ea17944](https://github.com/andymai/elevator-core/commit/ea1794440ae33ca65918bdb0f94be415f4e19ae8))
+
 ## [15.5.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.1...elevator-core-v15.5.2) (2026-04-19)
 
 
