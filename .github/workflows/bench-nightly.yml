@@ -66,12 +66,17 @@ jobs:
           cargo bench -p elevator-core --bench query_bench       -- --save-baseline nightly 2>&1 | tee -a bench-output.log
 
       # Extract any line tagged by Criterion as a significant regression
-      # (`change: ... Performance has regressed.`) and flag them.
+      # (`change: ... Performance has regressed.`) and flag them. `-B 3`
+      # captures the preceding bench-name, `time:`, and `change:` lines so
+      # the resulting issue body actually identifies *which* bench regressed
+      # and by how much, rather than a stack of bare "Performance has
+      # regressed." lines.
       - name: Detect regressions
         id: detect
         run: |
-          if grep -E 'Performance has regressed' bench-output.log > regressions.txt; then
+          if grep -qE 'Performance has regressed' bench-output.log; then
             echo "regressed=true"  >> "$GITHUB_OUTPUT"
+            grep -B 3 -E 'Performance has regressed' bench-output.log > regressions.txt
             echo "== Regressions detected =="
             cat regressions.txt
           else
