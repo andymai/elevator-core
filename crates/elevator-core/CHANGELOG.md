@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.15.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.0...elevator-core-v15.15.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **loading:** refresh direction lamps on arrival from remaining work ([#378](https://github.com/andymai/elevator-core/issues/378)) ([a41d293](https://github.com/andymai/elevator-core/commit/a41d293b64eea78051a6461c700918b2752741c5))
+
 ## [15.15.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.14.1...elevator-core-v15.15.0) (2026-04-19)
 
 
