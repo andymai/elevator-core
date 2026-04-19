@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-2f506e3b.js";
+            window.path_to_searchindex_js = "searchindex-c518f07f.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d2ca992d.js"></script>
@@ -308,6 +308,7 @@ for event in sim.drain_events() {
 println!("Avg wait time:     {:.1} ticks", m.avg_wait_time());
 println!("Avg ride time:     {:.1} ticks", m.avg_ride_time());
 println!("Max wait time:     {} ticks", m.max_wait_time());
+println!("p95 wait time:     {} ticks", m.p95_wait_time());
 println!("Throughput:        {} riders/window", m.throughput());
 println!("Total delivered:   {}", m.total_delivered());
 println!("Total abandoned:   {}", m.total_abandoned());
@@ -325,6 +326,9 @@ println!("Total distance:    {:.1} units", m.total_distance());
 <tr><td><code>avg_wait_time()</code></td><td>Average ticks from spawn to board, across all riders that boarded</td></tr>
 <tr><td><code>avg_ride_time()</code></td><td>Average ticks from board to exit, across all delivered riders</td></tr>
 <tr><td><code>max_wait_time()</code></td><td>Longest wait observed (ticks)</td></tr>
+<tr><td><code>p95_wait_time()</code></td><td>95th-percentile wait over the most recent boardings (ticks). CIBSE and community benchmarks score against percentiles rather than avg/max.</td></tr>
+<tr><td><code>percentile_wait_time(p)</code></td><td>Wait-time percentile (<code>0.0..=100.0</code>) over the retained sample window</td></tr>
+<tr><td><code>wait_sample_count()</code></td><td>Number of wait samples currently retained in the ring buffer</td></tr>
 <tr><td><code>throughput()</code></td><td>Riders delivered in the current throughput window (default: 3600 ticks)</td></tr>
 <tr><td><code>total_delivered()</code></td><td>Cumulative riders successfully delivered</td></tr>
 <tr><td><code>total_spawned()</code></td><td>Cumulative riders spawned</td></tr>
