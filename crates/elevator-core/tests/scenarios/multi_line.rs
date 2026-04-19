@@ -139,16 +139,18 @@ fn group_routed_riders_load_balance_across_shafts() {
     }
     assert_eq!(sim.metrics().total_delivered(), 12);
 
-    // Every rider has Arrived now, so we can't introspect which car
-    // carried them post-hoc; instead assert both cars did move —
-    // load_balance would place at least one rider on each line, so
-    // each car's position should not still be at the starting stop
-    // (after non-trivial motion, positions may differ from 0).
+    // Load-balancing means dispatch spread riders across both shafts
+    // rather than letting one car take the full burst. Every rider
+    // has Arrived now, so we can't introspect which car carried each
+    // — but if Shaft B sat idle its car never moved, so its position
+    // stays at StopId(0). Requiring both cars to have moved is the
+    // strongest check this vantage point allows.
     let pos_a = sim.world().position(car_a).unwrap().value();
     let pos_b = sim.world().position(car_b).unwrap().value();
     assert!(
-        pos_a != 0.0 || pos_b != 0.0,
-        "neither car moved off StopId(0) ({pos_a}, {pos_b})"
+        pos_a != 0.0 && pos_b != 0.0,
+        "expected both cars to move off StopId(0) under load-balancing; \
+         pos_a={pos_a}, pos_b={pos_b}"
     );
 }
 
