@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.14.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.13.0...elevator-core-v15.14.0) (2026-04-19)
+
+
+### Features
+
+* **dispatch:** AdaptiveParking reposition — gates by TrafficMode ([#366](https://github.com/andymai/elevator-core/issues/366)) ([3b46cd6](https://github.com/andymai/elevator-core/commit/3b46cd6c8ac0f371db95832c442d40c9b97ae3f1))
+
 ## [15.13.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.12.0...elevator-core-v15.13.0) (2026-04-19)
 
 
