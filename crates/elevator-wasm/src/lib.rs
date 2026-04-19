@@ -157,7 +157,11 @@ impl WasmSim {
             TrafficMode::UpPeak => "UpPeak".into(),
             TrafficMode::InterFloor => "InterFloor".into(),
             TrafficMode::DownPeak => "DownPeak".into(),
-            _ => "Unknown".into(),
+            // `#[non_exhaustive]` forces this arm; fall back to the
+            // "no committed pattern" mode so the TS union stays closed
+            // and the badge renders in the styled (dimmed) Idle colour
+            // instead of unstyled defaults.
+            _ => "Idle".into(),
         }
     }
 
