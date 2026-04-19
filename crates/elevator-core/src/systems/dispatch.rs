@@ -1,6 +1,6 @@
 //! Phase 2: assign idle/stopped elevators to stops via the dispatch strategy.
 
-use crate::components::{ElevatorPhase, RiderPhase, Route, TransportMode};
+use crate::components::{ElevatorPhase, Route};
 use crate::dispatch::{
     self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
 };
@@ -331,39 +331,31 @@ pub fn build_manifest(
 ) -> DispatchManifest {
     let mut manifest = DispatchManifest::default();
 
-    // Waiting riders at this group's stops.
-    for (rid, rider) in world.iter_riders() {
-        if world.is_disabled(rid) {
-            continue;
-        }
-        if rider.phase != RiderPhase::Waiting {
-            continue;
-        }
-        if let Some(stop) = rider.current_stop
-            && group.stop_entities().contains(&stop)
-        {
-            // Group/line match: only include riders whose current route leg targets
-            // this group (or one of its lines). Mirrors the filter in systems/loading.rs
-            // so dispatch and loading agree about which riders this group can serve.
-            if let Some(route) = world.route(rid)
-                && let Some(leg) = route.current()
-            {
-                match leg.via {
-                    TransportMode::Group(g) => {
-                        if g != group.id() {
-                            continue;
-                        }
-                    }
-                    TransportMode::Line(l) => {
-                        if !group.lines().iter().any(|line| line.entity() == l) {
-                            continue;
-                        }
-                    }
-                    TransportMode::Walk => continue,
-                }
+    // Per-stop index is O(waiting_riders_in_group); iter_riders would be
+    // O(total_riders · groups) and would include residents.
+    for &stop in group.stop_entities() {
+        for &rid in rider_index.waiting_at(stop) {
+            if world.is_disabled(rid) {
+                continue;
             }
-            let destination = world.route(rid).and_then(Route::current_destination);
-            let wait_ticks = tick.saturating_sub(rider.spawn_tick);
+            let Some(rider) = world.rider(rid) else {
+                continue;
+            };
+            // Route-less riders are untargeted demand; routed riders must
+            // match a leg this group can serve.
+            let route = world.route(rid);
+            if let Some(leg) = route.and_then(Route::current)
+                && !group.accepts_leg(leg)
+            {
+                continue;
+            }
+            let destination = route.and_then(Route::current_destination);
+            // `Patience::waited_ticks` resets each leg; `spawn_tick` is a
+            // lifetime counter that overcounts wait at transfer stops.
+            let wait_ticks = world.patience(rid).map_or_else(
+                || tick.saturating_sub(rider.spawn_tick),
+                crate::components::Patience::waited_ticks,
+            );
             manifest
                 .waiting_at_stop
                 .entry(stop)

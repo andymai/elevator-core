@@ -64,12 +64,25 @@ fn handle_exit(
             .rider(id)
             .is_some_and(|r| r.phase() != RiderPhase::Arrived)
         {
+            // Record arrival at transfer stops so the arrival log and
+            // dispatch manifest count demand at sky-lobby floors. Reset
+            // both `spawn_tick` and `Patience::waited_ticks` so per-leg
+            // wait is measured, not lifetime — `build_manifest` falls
+            // back to `spawn_tick` for riders without Patience, so
+            // resetting only one of the two would leave that path stuck
+            // on the lifetime counter. Matches `reroute_rider`.
             if let Some(r) = world.rider_mut(id) {
                 r.phase = RiderPhase::Waiting;
+                r.spawn_tick = ctx.tick;
             }
-            // Rider is now Waiting at their current_stop — add to index.
             if let Some(stop) = world.rider(id).and_then(|r| r.current_stop) {
                 rider_index.insert_waiting(stop, id);
+                if let Some(log) = world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+                    log.record(ctx.tick, stop);
+                }
+                if let Some(p) = world.patience_mut(id) {
+                    p.waited_ticks = 0;
+                }
             }
         }
     } else if let Some(r) = world.rider_mut(id) {
@@ -187,11 +200,11 @@ pub fn run(
     // Time-triggered abandonment: riders with `Preferences::abandon_after_ticks`
     // give up once their *waiting* time exceeds their budget. Uses
     // `Patience::waited_ticks` when available — that counter only
-    // increments while the rider is in `Waiting`, so it correctly
-    // excludes ride time for multi-leg routes. Riders without
-    // `Patience` fall back to `tick - spawn_tick` (a lifetime budget)
-    // which is accurate for single-leg trips, the common case. Runs
-    // after the patience path so both limits can coexist.
+    // increments while the rider is in `Waiting`, so it excludes ride
+    // time for multi-leg routes. Riders without `Patience` fall back
+    // to `tick - spawn_tick`; `handle_exit` and `reroute_rider` reset
+    // `spawn_tick` on every Waiting re-entry, so the fallback is also
+    // per-leg. Runs after the patience path so both limits can coexist.
     let time_abandon: Vec<(EntityId, EntityId)> = world
         .iter_riders()
         .filter_map(|(id, r)| {
