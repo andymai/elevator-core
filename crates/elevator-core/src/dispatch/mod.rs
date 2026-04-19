@@ -874,26 +874,32 @@ fn scale_cost(cost: f64) -> i64 {
         .clamp(0.0, (ASSIGNMENT_SENTINEL - 1) as f64) as i64
 }
 
-/// Build the pending-demand stop list, subtracting stops whose demand
-/// is already being absorbed by a car in its door cycle.
+/// Build the pending-demand stop list, subtracting stops whose
+/// demand is already being absorbed by a car — either currently in
+/// its door cycle at the stop, or en route via `MovingToStop`.
 ///
-/// The filter exists because `has_demand` stays true during
-/// [`ElevatorPhase::DoorOpening`] — a waiting rider only transitions
-/// to `Boarding` in the Loading phase, one tick later. Without this
-/// subtraction, a second car is dispatched to a call whose first car
-/// is already at the stop with doors opening, producing the visible
-/// "all cars converge on one rider" regression.
+/// Both phases count as "servicing" because they represent a
+/// commitment to open doors at the target with remaining capacity
+/// that waiting riders can (typically) fit into. Without the
+/// `MovingToStop` case, a new idle car becoming available during
+/// car A's trip to the lobby gets paired with the same lobby call
+/// on the next dispatch tick — car B travels empty behind car A
+/// and the playground shows two cars doing a lobby touch-and-go
+/// for one rider. Composes with the commitment set in
+/// [`systems::dispatch`](crate::systems::dispatch), which excludes
+/// committed cars from the idle pool at the same time.
 ///
-/// Only the three door phases (Opening / Loading / Closing) count as
-/// "servicing": `Stopped` means parked-with-doors-closed, a
-/// legitimately reassignable state that must not mask demand.
-/// Line-pinned riders (`TransportMode::Line(L)`) keep a stop pending
-/// even when a car is present, because a car on Shaft A can't absorb
-/// a rider pinned to Shaft B — the correct line's car still needs
-/// to be dispatched. Coverage also fails when the waiting riders'
-/// combined weight exceeds the servicing car's remaining capacity —
-/// the leftover spills out when doors close and deserves its own
-/// dispatch immediately rather than after a full cycle delay.
+/// `Stopped` (parked-with-doors-closed) is deliberately *not* in
+/// the list: that's a legitimately reassignable state.
+/// `Repositioning` is also excluded — a repositioning car doesn't
+/// open doors on arrival, so it cannot absorb waiting riders.
+///
+/// Line-pinned riders (`TransportMode::Line(L)`) keep a stop
+/// pending even when a car is present, because a car on Shaft A
+/// can't absorb a rider pinned to Shaft B. Coverage also fails
+/// when the waiting riders' combined weight exceeds the servicing
+/// car's remaining capacity — the leftover spills out when doors
+/// close and deserves its own dispatch immediately.
 fn pending_stops_minus_covered(
     group: &ElevatorGroup,
     manifest: &DispatchManifest,
@@ -909,7 +915,10 @@ fn pending_stops_minus_covered(
             let target = car.target_stop()?;
             matches!(
                 car.phase(),
-                ElevatorPhase::DoorOpening | ElevatorPhase::Loading | ElevatorPhase::DoorClosing
+                ElevatorPhase::MovingToStop(_)
+                    | ElevatorPhase::DoorOpening
+                    | ElevatorPhase::Loading
+                    | ElevatorPhase::DoorClosing
             )
             .then(|| {
                 let remaining = car.weight_capacity().value() - car.current_load().value();
