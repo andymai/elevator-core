@@ -1,4 +1,4 @@
-import type { BubbleEvent, Metrics, Snapshot, StrategyName } from "./types";
+import type { BubbleEvent, Metrics, Snapshot, StrategyName, TrafficMode } from "./types";
 
 // Thin TS wrapper around `WasmSim` that narrows JS values returned by
 // serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
@@ -19,6 +19,7 @@ interface WasmSimInstance {
   dt(): number;
   currentTick(): bigint;
   strategyName(): string;
+  trafficMode?(): string;
   setStrategy(name: string): boolean;
   spawnRider(
     origin: number,
@@ -119,6 +120,15 @@ export class Sim {
 
   strategyName(): StrategyName {
     return this.#inner.strategyName() as StrategyName;
+  }
+
+  /**
+   * Current traffic mode from the core TrafficDetector. Returns
+   * `"Idle"` when the getter is missing from a stale `public/pkg/`
+   * build, keeping the UI robust across wasm rebuilds.
+   */
+  trafficMode(): TrafficMode {
+    return (this.#inner.trafficMode?.() as TrafficMode) ?? "Idle";
   }
 
   setStrategy(name: StrategyName): boolean {
