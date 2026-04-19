@@ -55,7 +55,9 @@ pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{CallDirection, CarCall, HallCall, Route, Weight};
+use crate::components::{
+    CallDirection, CarCall, ElevatorPhase, HallCall, Route, TransportMode, Weight,
+};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -850,6 +852,103 @@ fn scale_cost(cost: f64) -> i64 {
         .clamp(0.0, (ASSIGNMENT_SENTINEL - 1) as f64) as i64
 }
 
+/// Build the pending-demand stop list, subtracting stops whose demand
+/// is already being absorbed by a car in its door cycle.
+///
+/// The filter exists because `has_demand` stays true during
+/// [`ElevatorPhase::DoorOpening`] — a waiting rider only transitions
+/// to `Boarding` in the Loading phase, one tick later. Without this
+/// subtraction, a second car is dispatched to a call whose first car
+/// is already at the stop with doors opening, producing the visible
+/// "all cars converge on one rider" regression.
+///
+/// Only the three door phases (Opening / Loading / Closing) count as
+/// "servicing": `Stopped` means parked-with-doors-closed, a
+/// legitimately reassignable state that must not mask demand.
+/// Line-pinned riders (`TransportMode::Line(L)`) keep a stop pending
+/// even when a car is present, because a car on Shaft A can't absorb
+/// a rider pinned to Shaft B — the correct line's car still needs
+/// to be dispatched. Coverage also fails when the waiting riders'
+/// combined weight exceeds the servicing car's remaining capacity —
+/// the leftover spills out when doors close and deserves its own
+/// dispatch immediately rather than after a full cycle delay.
+fn pending_stops_minus_covered(
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+) -> Vec<(EntityId, f64)> {
+    // Vec + linear scan is fine: groups have O(few) elevators and
+    // this runs once per dispatch tick.
+    let servicing: Vec<(EntityId, EntityId, f64)> = group
+        .elevator_entities()
+        .iter()
+        .filter_map(|&eid| {
+            let car = world.elevator(eid)?;
+            let target = car.target_stop()?;
+            matches!(
+                car.phase(),
+                ElevatorPhase::DoorOpening | ElevatorPhase::Loading | ElevatorPhase::DoorClosing
+            )
+            .then(|| {
+                let remaining = car.weight_capacity().value() - car.current_load().value();
+                (target, car.line(), remaining)
+            })
+        })
+        .collect();
+
+    // A stop is "covered" iff every waiting rider this group sees can
+    // board at least one of the door-cycling cars here (line check)
+    // AND the combined remaining capacity of the cars whose line
+    // accepts the rider is enough to board them all (capacity check).
+    //
+    // Iterates `manifest.waiting_riders_at` rather than `world.iter_riders`
+    // so `TransportMode::Walk` riders and cross-group-routed riders
+    // (excluded by `build_manifest`) don't inflate the weight total.
+    let is_covered = |stop_eid: EntityId| {
+        // Single fold so readers see the "same cars, both attributes"
+        // invariant structurally — the two derived values can never
+        // disagree about which cars contributed.
+        let (lines_here, capacity_here): (Vec<EntityId>, f64) =
+            servicing
+                .iter()
+                .fold((Vec::new(), 0.0), |(mut lines, cap), &(stop, line, rem)| {
+                    if stop == stop_eid {
+                        lines.push(line);
+                        (lines, cap + rem)
+                    } else {
+                        (lines, cap)
+                    }
+                });
+        if lines_here.is_empty() {
+            return false;
+        }
+        let mut total_weight = 0.0;
+        for rider in manifest.waiting_riders_at(stop_eid) {
+            let required_line = world
+                .route(rider.id)
+                .and_then(Route::current)
+                .and_then(|leg| match leg.via {
+                    TransportMode::Line(l) => Some(l),
+                    _ => None,
+                });
+            if let Some(required) = required_line
+                && !lines_here.contains(&required)
+            {
+                return false;
+            }
+            total_weight += rider.weight.value();
+        }
+        total_weight <= capacity_here
+    };
+
+    group
+        .stop_entities()
+        .iter()
+        .filter(|s| manifest.has_demand(**s) && !is_covered(**s))
+        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
+        .collect()
+}
+
 /// Run one group's assignment pass: build the cost matrix, solve the
 /// optimal bipartite matching, then resolve unassigned cars via
 /// [`DispatchStrategy::fallback`].
@@ -862,13 +961,10 @@ pub(crate) fn assign(
     manifest: &DispatchManifest,
     world: &World,
 ) -> AssignmentResult {
-    // Collect stops with active demand and known positions.
-    let pending_stops: Vec<(EntityId, f64)> = group
-        .stop_entities()
-        .iter()
-        .filter(|s| manifest.has_demand(**s))
-        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
-        .collect();
+    // Collect stops with active demand and known positions, excluding
+    // any whose demand is already being absorbed by a car mid door
+    // cycle (see `pending_stops_minus_covered` for the why).
+    let pending_stops = pending_stops_minus_covered(group, manifest, world);
 
     let n = idle_cars.len();
     let m = pending_stops.len();
