@@ -332,19 +332,20 @@ impl Simulation {
         // Find and remove from group/line topology. If `find_line` fails
         // the elevator's `line` ref points at a removed/moved line — an
         // inconsistent state, but we still want to despawn for cleanup.
+        //
+        // The `disable` call above already fired `notify_removed` on the
+        // group's dispatcher — the cache still includes the elevator at
+        // that point — so no additional notify is needed here. Custom
+        // `DispatchStrategy::notify_removed` impls that count invocations
+        // (e.g. tests with an `AtomicUsize`) can assume exactly one call
+        // per removal.
         let resolved_group: Option<GroupId> = match self.find_line(line) {
             Ok((group_idx, line_idx)) => {
                 self.groups[group_idx].lines_mut()[line_idx]
                     .elevators_mut()
                     .retain(|&e| e != elevator);
                 self.groups[group_idx].rebuild_caches();
-
-                let gid = self.groups[group_idx].id();
-                // Notify dispatch strategy.
-                if let Some(dispatcher) = self.dispatchers.get_mut(&gid) {
-                    dispatcher.notify_removed(elevator);
-                }
-                Some(gid)
+                Some(self.groups[group_idx].id())
             }
             Err(_) => None,
         };
