@@ -149,3 +149,21 @@ pub fn run_until_done(sim: &mut Simulation, max_ticks: u64) -> bool {
     }
     false
 }
+
+/// Assert the sim's p95 wait time is strictly below `ticks`, with a
+/// failure message that surfaces the observed p95 and sample count.
+/// Scenario tests use this instead of inlining `assert!` so the
+/// message shape is uniform across the canonical benchmark suite.
+///
+/// # Panics
+/// Panics if [`Metrics::p95_wait_time`](crate::metrics::Metrics::p95_wait_time)
+/// is at or above `ticks`.
+pub fn assert_p95_wait_under(sim: &Simulation, ticks: u64) {
+    let m = sim.metrics();
+    let observed = m.p95_wait_time();
+    assert!(
+        observed < ticks,
+        "expected p95 wait < {ticks} ticks, observed {observed} (samples: {})",
+        m.wait_sample_count(),
+    );
+}

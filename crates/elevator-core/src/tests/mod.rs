@@ -45,6 +45,7 @@ mod arrival_log_tests;
 mod boundary_tests;
 mod braking_tests;
 mod bypass_tests;
+mod canonical_benchmarks;
 mod destination_dispatch_tests;
 mod destination_queue_tests;
 mod direction_indicator_tests;
