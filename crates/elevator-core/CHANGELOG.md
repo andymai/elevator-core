@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.13.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.12.0...elevator-core-v15.13.0) (2026-04-19)
+
+
+### Features
+
+* **traffic:** TopFloorPeak pattern for stranded-penthouse scenarios ([#364](https://github.com/andymai/elevator-core/issues/364)) ([3440bb8](https://github.com/andymai/elevator-core/commit/3440bb84314b82bc9db39165d9e497a447e62020))
+
 ## [15.12.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.11.1...elevator-core-v15.12.0) (2026-04-19)
 
 
