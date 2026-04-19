@@ -127,35 +127,40 @@ pub fn run(
     refresh_traffic_detector(world, ctx.tick);
 }
 
-/// Clone the arrival + destination logs, collect stops in position
-/// order (lobby first), and hand everything to the auto-installed
-/// [`TrafficDetector`](crate::traffic_detector::TrafficDetector).
-/// Skipped when the detector is absent — games running a bare
-/// `World` without it get a silent no-op. A missing
-/// [`DestinationLog`](crate::arrival_log::DestinationLog) is
+/// Refresh the auto-installed
+/// [`TrafficDetector`](crate::traffic_detector::TrafficDetector) with
+/// the latest rolling window. Skipped when the detector is absent —
+/// games running a bare `World` without it get a silent no-op. A
+/// missing [`DestinationLog`](crate::arrival_log::DestinationLog) is
 /// tolerated with a default-empty fallback so down-peak detection
 /// silently disables without panicking.
+///
+/// Temporarily removes the detector (a few f64/u64 fields) so we can
+/// hold immutable references to the logs without cloning them — a
+/// naive `resource()` read + `resource_mut()` write conflicts with
+/// the borrow checker, and cloning the logs every tick was an
+/// 18 000-entry heap copy at default retention.
 fn refresh_traffic_detector(world: &mut World, tick: u64) {
-    let Some(arrivals) = world.resource::<crate::arrival_log::ArrivalLog>().cloned() else {
+    let Some(mut detector) = world.remove_resource::<crate::traffic_detector::TrafficDetector>()
+    else {
         return;
     };
-    if world
-        .resource::<crate::traffic_detector::TrafficDetector>()
-        .is_none()
-    {
+    let Some(arrivals) = world.resource::<crate::arrival_log::ArrivalLog>() else {
+        // No arrivals resource — nothing to classify. Re-insert the
+        // detector so the next tick can try again.
+        world.insert_resource(detector);
         return;
-    }
+    };
+    let destinations_fallback = crate::arrival_log::DestinationLog::default();
     let destinations = world
         .resource::<crate::arrival_log::DestinationLog>()
-        .cloned()
-        .unwrap_or_default();
+        .unwrap_or(&destinations_fallback);
     let mut stops: Vec<_> = world
         .iter_stops()
         .map(|(eid, s)| (eid, s.position))
         .collect();
     stops.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
     let stop_ids: Vec<crate::entity::EntityId> = stops.into_iter().map(|(eid, _)| eid).collect();
-    if let Some(detector) = world.resource_mut::<crate::traffic_detector::TrafficDetector>() {
-        detector.update(&arrivals, &destinations, tick, &stop_ids);
-    }
+    detector.update(arrivals, destinations, tick, &stop_ids);
+    world.insert_resource(detector);
 }

@@ -132,6 +132,19 @@ pub struct WorldSnapshot {
     /// [`DEFAULT_ARRIVAL_WINDOW_TICKS`](crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS).
     #[serde(default)]
     pub arrival_log_retention: crate::arrival_log::ArrivalLogRetention,
+    /// Mirror of `arrival_log` keyed on rider *destination* — what
+    /// powers the `DownPeak` classifier branch. Same remap semantics
+    /// as `arrival_log` on restore. Empty in legacy snapshots; the
+    /// detector silently under-classifies `DownPeak` until the post-
+    /// restore log refills.
+    #[serde(default)]
+    pub destination_log: crate::arrival_log::DestinationLog,
+    /// Traffic-mode classifier state. Carries the current mode,
+    /// thresholds, and last-update tick across snapshot round-trip
+    /// so a restored sim doesn't momentarily reset to `Idle` when
+    /// the metrics phase hasn't run yet.
+    #[serde(default)]
+    pub traffic_detector: crate::traffic_detector::TrafficDetector,
 }
 
 /// Per-line snapshot info within a group.
@@ -299,6 +312,19 @@ impl WorldSnapshot {
         world.insert_resource(log);
         world.insert_resource(crate::arrival_log::CurrentTick(self.tick));
         world.insert_resource(self.arrival_log_retention);
+        // Destination log mirrors the same remap — entries reference
+        // rider destinations, which are stop entities that were just
+        // reallocated. Without the remap every entry would reference
+        // a dead ID and the classifier's down-peak branch would
+        // silently see zero.
+        let mut dest_log = self.destination_log;
+        dest_log.remap_entity_ids(&id_remap);
+        world.insert_resource(dest_log);
+        // The detector carries classified-mode state plus thresholds.
+        // Re-inserting it last-writer-wins means the restore carries
+        // the *classified* state forward — refresh_traffic_detector
+        // will update on the next metrics phase with fresh counts.
+        world.insert_resource(self.traffic_detector);
 
         let mut sim = crate::sim::Simulation::from_parts(
             world,
@@ -885,6 +911,14 @@ impl crate::sim::Simulation {
             arrival_log_retention: world
                 .resource::<crate::arrival_log::ArrivalLogRetention>()
                 .copied()
+                .unwrap_or_default(),
+            destination_log: world
+                .resource::<crate::arrival_log::DestinationLog>()
+                .cloned()
+                .unwrap_or_default(),
+            traffic_detector: world
+                .resource::<crate::traffic_detector::TrafficDetector>()
+                .cloned()
                 .unwrap_or_default(),
         }
     }

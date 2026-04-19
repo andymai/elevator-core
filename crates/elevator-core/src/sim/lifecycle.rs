@@ -278,8 +278,16 @@ impl Simulation {
 
         // A rerouted resident is indistinguishable from a fresh arrival —
         // record it so predictive parking and `arrivals_at` see the demand.
+        // Mirror into the destination log so down-peak classification stays
+        // coherent for multi-leg riders.
         if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
             log.record(self.tick, stop);
+        }
+        if let Some(log) = self
+            .world
+            .resource_mut::<crate::arrival_log::DestinationLog>()
+        {
+            log.record(self.tick, new_destination);
         }
 
         self.metrics.record_reroute();
