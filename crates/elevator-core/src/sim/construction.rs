@@ -185,6 +185,10 @@ impl Simulation {
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
         world.insert_resource(crate::arrival_log::CurrentTick::default());
         world.insert_resource(crate::arrival_log::ArrivalLogRetention::default());
+        // Traffic-mode classifier. Auto-refreshed in the metrics phase
+        // from the same rolling window; strategies read the current
+        // mode via `World::resource::<TrafficDetector>()`.
+        world.insert_resource(crate::traffic_detector::TrafficDetector::default());
         // Expose tick rate to strategies that need to unit-convert
         // tick-denominated elevator fields (door cycle, ack latency)
         // into the second-denominated terms of their cost functions.

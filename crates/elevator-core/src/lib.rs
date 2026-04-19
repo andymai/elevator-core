@@ -409,6 +409,8 @@ pub mod topology;
 /// Traffic generation (arrival patterns).
 #[cfg(feature = "traffic")]
 pub mod traffic;
+/// Traffic-mode detector (up-peak / idle / inter-floor).
+pub mod traffic_detector;
 
 /// Register multiple extension types for snapshot deserialization in one call.
 ///
