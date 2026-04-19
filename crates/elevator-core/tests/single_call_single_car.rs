@@ -179,24 +179,15 @@ fn burst_exceeding_capacity_dispatches_a_second_car_under_nearest() {
     burst_invariant(NearestCarDispatch::new(), "NEAREST");
 }
 
-/// Line-pinning: two shafts, rider pinned to Shaft B. When Shaft A's
-/// car happens to be door-cycling at the pickup stop, the filter must
-/// NOT treat the stop as covered (Shaft A can't absorb a Shaft-B-
-/// pinned rider). The correct car on Shaft B must still be dispatched
-/// so the rider eventually boards it — not Shaft A.
-///
-/// Exercises the `TransportMode::Line(required) != car_line` branch in
-/// `is_covered` that the dispatch fix specifically introduced.
-#[test]
-fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
-    use elevator_core::components::{Orientation, RouteLeg, TransportMode};
+/// Build a twin-shaft sim (one car per shaft, 2 stops, SCAN).
+fn twin_shaft_sim() -> Simulation {
+    use elevator_core::components::Orientation;
     use elevator_core::config::{
         BuildingConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimulationParams,
     };
     use elevator_core::dispatch::BuiltinStrategy;
-    use elevator_core::ids::GroupId;
 
-    let make_car = |id: u32, name: &str| ElevatorConfig {
+    let car = |id: u32, name: &str| ElevatorConfig {
         id,
         name: name.into(),
         max_speed: Speed::from(2.0),
@@ -207,6 +198,17 @@ fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
         door_open_ticks: 30,
         door_transition_ticks: 10,
         ..ElevatorConfig::default()
+    };
+    let line = |id: u32, name: &str, car: ElevatorConfig| LineConfig {
+        id,
+        name: name.into(),
+        serves: vec![StopId(0), StopId(1)],
+        elevators: vec![car],
+        orientation: Orientation::Vertical,
+        position: None,
+        min_position: None,
+        max_position: None,
+        max_cars: None,
     };
     let config = SimConfig {
         building: BuildingConfig {
@@ -224,28 +226,8 @@ fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
                 },
             ],
             lines: Some(vec![
-                LineConfig {
-                    id: 1,
-                    name: "Shaft A".into(),
-                    serves: vec![StopId(0), StopId(1)],
-                    elevators: vec![make_car(1, "A")],
-                    orientation: Orientation::Vertical,
-                    position: None,
-                    min_position: None,
-                    max_position: None,
-                    max_cars: None,
-                },
-                LineConfig {
-                    id: 2,
-                    name: "Shaft B".into(),
-                    serves: vec![StopId(0), StopId(1)],
-                    elevators: vec![make_car(2, "B")],
-                    orientation: Orientation::Vertical,
-                    position: None,
-                    min_position: None,
-                    max_position: None,
-                    max_cars: None,
-                },
+                line(1, "Shaft A", car(1, "A")),
+                line(2, "Shaft B", car(2, "B")),
             ]),
             groups: Some(vec![GroupConfig {
                 id: 0,
@@ -266,11 +248,26 @@ fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
             weight_range: (50.0, 100.0),
         },
     };
-    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    Simulation::new(&config, ScanDispatch::new()).unwrap()
+}
 
-    // Discover each shaft's line entity by name so the rider's route
-    // can pin to "Shaft B" regardless of the order the engine assigns
-    // line EntityIds.
+/// Line-pinning: two shafts, rider pinned to Shaft B. When Shaft A's
+/// car happens to be door-cycling at the pickup stop, the filter must
+/// NOT treat the stop as covered (Shaft A can't absorb a Shaft-B-
+/// pinned rider). The correct car on Shaft B must still be dispatched
+/// so the rider eventually boards it — not Shaft A.
+///
+/// Exercises the `TransportMode::Line(required) != car_line` branch in
+/// `is_covered` that the dispatch fix specifically introduced.
+#[test]
+fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
+    use elevator_core::components::{RouteLeg, TransportMode};
+    use elevator_core::ids::GroupId;
+
+    let mut sim = twin_shaft_sim();
+
+    // Discover Shaft B's line entity by name so the rider's route
+    // pins to it regardless of EntityId assignment order.
     let shaft_b_line = sim
         .lines_in_group(GroupId(0))
         .into_iter()
@@ -280,25 +277,21 @@ fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
 
     let lobby = sim.stop_entity(StopId(0)).unwrap();
     let sky = sim.stop_entity(StopId(1)).unwrap();
-    let route = Route {
-        legs: vec![RouteLeg {
-            from: lobby,
-            to: sky,
-            via: TransportMode::Line(shaft_b_line),
-        }],
-        current_leg: 0,
-    };
     let rider = sim
         .build_rider(lobby, sky)
         .unwrap()
         .weight(70.0)
-        .route(route)
+        .route(Route {
+            legs: vec![RouteLeg {
+                from: lobby,
+                to: sky,
+                via: TransportMode::Line(shaft_b_line),
+            }],
+            current_leg: 0,
+        })
         .spawn()
         .unwrap();
 
-    // Step until the rider boards — MUST be Shaft B's car even though
-    // Shaft A's car is parked at the same stop and will cycle doors
-    // repeatedly under SCAN's "go to any pending demand" policy.
     let mut boarded_by = None;
     for _ in 0..3000 {
         sim.step();
