@@ -16,8 +16,26 @@
 //! inside a strategy.
 
 use crate::components::{CarCall, ElevatorPhase};
+use crate::traffic_detector::{TrafficDetector, TrafficMode};
 
 use super::{DispatchStrategy, RankContext, pair_can_do_work};
+
+/// Look up the current [`TrafficMode`] from `ctx.world` and return the
+/// scaling factor to apply to the wrong-direction penalty.
+///
+/// Returns `multiplier` when the mode is `UpPeak` or `DownPeak`, else
+/// `1.0`. Also returns `1.0` when the detector resource is missing —
+/// keeping the strategy functional in tests that skip `Simulation::new`.
+fn peak_scaling(ctx: &RankContext<'_>, multiplier: f64) -> f64 {
+    let mode = ctx
+        .world
+        .resource::<TrafficDetector>()
+        .map_or(TrafficMode::Idle, TrafficDetector::current_mode);
+    match mode {
+        TrafficMode::UpPeak | TrafficMode::DownPeak => multiplier,
+        _ => 1.0,
+    }
+}
 
 /// Additive RSR-style cost stack. Lower scores win the Hungarian
 /// assignment.
@@ -62,6 +80,23 @@ pub struct RsrDispatch {
     /// emptier cars for new pickups without an on/off cliff.
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
+    /// Multiplier applied to `wrong_direction_penalty` when the
+    /// [`TrafficDetector`](crate::traffic_detector::TrafficDetector)
+    /// classifies the current tick as
+    /// [`UpPeak`](crate::traffic_detector::TrafficMode::UpPeak) or
+    /// [`DownPeak`](crate::traffic_detector::TrafficMode::DownPeak).
+    ///
+    /// Default `1.0` (mode-agnostic — behaviour identical to pre-peak
+    /// tuning). Raising it strengthens directional commitment during
+    /// peaks where a car carrying a lobby-bound load shouldn't be
+    /// pulled backwards to grab a new pickup. Off-peak periods keep
+    /// the unscaled penalty, leaving inter-floor assignments free
+    /// to reverse cheaply.
+    ///
+    /// Silently reduces to `1.0` when no `TrafficDetector` resource
+    /// is installed — tests and custom sims that bypass the auto-install
+    /// stay unaffected.
+    pub peak_direction_multiplier: f64,
 }
 
 impl RsrDispatch {
@@ -74,6 +109,7 @@ impl RsrDispatch {
             wrong_direction_penalty: 0.0,
             coincident_car_call_bonus: 0.0,
             load_penalty_coeff: 0.0,
+            peak_direction_multiplier: 1.0,
         }
     }
 
@@ -136,6 +172,23 @@ impl RsrDispatch {
         self.eta_weight = weight;
         self
     }
+
+    /// Set the peak-direction multiplier.
+    ///
+    /// # Panics
+    /// Panics on non-finite or sub-1.0 values. A multiplier below `1.0`
+    /// would *weaken* the direction penalty during peaks (the opposite
+    /// of the intent) — explicitly disallowed so a typo doesn't silently
+    /// invert the tuning.
+    #[must_use]
+    pub fn with_peak_direction_multiplier(mut self, factor: f64) -> Self {
+        assert!(
+            factor.is_finite() && factor >= 1.0,
+            "peak_direction_multiplier must be finite and ≥ 1.0, got {factor}"
+        );
+        self.peak_direction_multiplier = factor;
+        self
+    }
 }
 
 impl Default for RsrDispatch {
@@ -172,7 +225,14 @@ impl DispatchStrategy for RsrDispatch {
             let cand_above = ctx.stop_position > ctx.car_position;
             let cand_below = ctx.stop_position < ctx.car_position;
             if (car_going_up && cand_below) || (car_going_down && cand_above) {
-                cost += self.wrong_direction_penalty;
+                // During up-peak/down-peak the directional invariant
+                // is load-bearing (a committed car shouldn't reverse
+                // to grab a new pickup), so scale the penalty up.
+                // Off-peak, the base value still rules — inter-floor
+                // traffic wants cheap reversals.
+                let scaled = self.wrong_direction_penalty
+                    * peak_scaling(ctx, self.peak_direction_multiplier);
+                cost += scaled;
             }
         }
 

@@ -239,6 +239,162 @@ fn eta_weight_rejects_negative() {
     let _ = RsrDispatch::new().with_eta_weight(-0.5);
 }
 
+#[test]
+#[should_panic(expected = "peak_direction_multiplier must be finite and ≥ 1.0")]
+fn peak_direction_multiplier_rejects_below_one() {
+    let _ = RsrDispatch::new().with_peak_direction_multiplier(0.5);
+}
+
+#[test]
+#[should_panic(expected = "peak_direction_multiplier must be finite and ≥ 1.0")]
+fn peak_direction_multiplier_rejects_nan() {
+    let _ = RsrDispatch::new().with_peak_direction_multiplier(f64::NAN);
+}
+
+// ── Peak-direction multiplier ───────────────────────────────────────
+
+/// During `UpPeak` the multiplier amplifies the wrong-direction
+/// penalty. A base penalty that's small enough to lose on distance
+/// alone wins with the peak multiplier applied.
+#[test]
+fn peak_direction_multiplier_strengthens_penalty_in_up_peak() {
+    use crate::arrival_log::ArrivalLog;
+    use crate::traffic_detector::{TrafficDetector, TrafficMode};
+
+    let (mut world, stops) = test_world();
+    let committed_up = spawn_elevator(&mut world, 6.0);
+    let idle_far = spawn_elevator(&mut world, 16.0);
+    world.elevator_mut(committed_up).unwrap().phase =
+        crate::components::ElevatorPhase::MovingToStop(stops[3]);
+
+    // Seed a detector that classifies as UpPeak. Using the classifier's
+    // own path here instead of reaching into private fields keeps the
+    // test coupled to the public invariant, not the storage shape.
+    let mut detector = TrafficDetector::new().with_window_ticks(3_600);
+    let mut log = ArrivalLog::default();
+    let lobby = stops[0];
+    for t in 0..70u64 {
+        log.record(t * 50, lobby);
+    }
+    detector.update(
+        &log,
+        &crate::arrival_log::DestinationLog::default(),
+        3_500,
+        &stops,
+    );
+    assert_eq!(detector.current_mode(), TrafficMode::UpPeak);
+    world.insert_resource(detector);
+
+    let group = test_group(&stops, vec![committed_up, idle_far]);
+    let mut manifest = DispatchManifest::default();
+    // Demand at stops[0] (below committed_up, above idle_far's dist).
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+
+    // Base penalty too small to swing the assignment on its own (car
+    // at pos 6 vs pos 16; ETAs ~6 and ~16 for stops[0] at pos 0). Peak
+    // multiplier of 3× turns 5.0 into 15.0, enough to dominate the
+    // 10-unit ETA advantage.
+    let mut rsr = RsrDispatch::new()
+        .with_wrong_direction_penalty(5.0)
+        .with_peak_direction_multiplier(3.0);
+    let decisions = decide_all(
+        &mut rsr,
+        &[(committed_up, 6.0), (idle_far, 16.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let idle_dec = decisions.iter().find(|(e, _)| *e == idle_far).unwrap();
+    assert_eq!(
+        idle_dec.1,
+        DispatchDecision::GoToStop(stops[0]),
+        "peak multiplier must strengthen direction penalty enough to reroute"
+    );
+}
+
+/// Off-peak (`InterFloor`) the multiplier is a no-op: the same 5.0 base
+/// penalty that flipped the decision under `UpPeak` stays too small, so
+/// distance wins and the committed-up car takes the job.
+#[test]
+fn peak_direction_multiplier_is_noop_off_peak() {
+    use crate::arrival_log::ArrivalLog;
+    use crate::traffic_detector::{TrafficDetector, TrafficMode};
+
+    let (mut world, stops) = test_world();
+    let committed_up = spawn_elevator(&mut world, 6.0);
+    let idle_far = spawn_elevator(&mut world, 16.0);
+    world.elevator_mut(committed_up).unwrap().phase =
+        crate::components::ElevatorPhase::MovingToStop(stops[3]);
+
+    // Uniform arrivals → InterFloor, not UpPeak.
+    let mut detector = TrafficDetector::new().with_window_ticks(3_600);
+    let mut log = ArrivalLog::default();
+    for t in 0..60u64 {
+        for &s in &stops {
+            log.record(t * 10, s);
+        }
+    }
+    detector.update(
+        &log,
+        &crate::arrival_log::DestinationLog::default(),
+        3_500,
+        &stops,
+    );
+    assert_eq!(detector.current_mode(), TrafficMode::InterFloor);
+    world.insert_resource(detector);
+
+    let group = test_group(&stops, vec![committed_up, idle_far]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+
+    let mut rsr = RsrDispatch::new()
+        .with_wrong_direction_penalty(5.0)
+        .with_peak_direction_multiplier(3.0);
+    let decisions = decide_all(
+        &mut rsr,
+        &[(committed_up, 6.0), (idle_far, 16.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let committed_dec = decisions.iter().find(|(e, _)| *e == committed_up).unwrap();
+    assert_eq!(
+        committed_dec.1,
+        DispatchDecision::GoToStop(stops[0]),
+        "off-peak must leave the base penalty unscaled — closer car wins"
+    );
+}
+
+/// Missing `TrafficDetector` resource (e.g. a test that bypasses
+/// `Simulation::new`) silently reduces to the base penalty — strategies
+/// must not panic on absent detector.
+#[test]
+fn peak_direction_multiplier_tolerates_missing_detector() {
+    let (mut world, stops) = test_world();
+    let committed_up = spawn_elevator(&mut world, 6.0);
+    let idle_far = spawn_elevator(&mut world, 16.0);
+    world.elevator_mut(committed_up).unwrap().phase =
+        crate::components::ElevatorPhase::MovingToStop(stops[3]);
+
+    let group = test_group(&stops, vec![committed_up, idle_far]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+
+    let mut rsr = RsrDispatch::new()
+        .with_wrong_direction_penalty(5.0)
+        .with_peak_direction_multiplier(3.0);
+    // Same assertion as off-peak: without detector, no scaling applies.
+    let decisions = decide_all(
+        &mut rsr,
+        &[(committed_up, 6.0), (idle_far, 16.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let committed_dec = decisions.iter().find(|(e, _)| *e == committed_up).unwrap();
+    assert_eq!(committed_dec.1, DispatchDecision::GoToStop(stops[0]));
+}
+
 // ── Sanity: _elev unused suppresses dead-code warning ──────────────
 #[allow(dead_code)]
 fn _touch(_elev: EntityId) {}
