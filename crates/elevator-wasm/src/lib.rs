@@ -455,7 +455,7 @@ impl WasmSim {
 #[wasm_bindgen(js_name = builtinStrategies)]
 #[must_use]
 pub fn builtin_strategies() -> Vec<JsValue> {
-    ["scan", "look", "nearest", "etd", "destination"]
+    ["scan", "look", "nearest", "etd", "destination", "rsr"]
         .iter()
         .map(|s| JsValue::from_str(s))
         .collect()
