@@ -6,7 +6,9 @@ use crate::error::SimError;
 use crate::metrics::Metrics;
 use crate::sim::Simulation;
 use crate::stop::StopId;
+#[cfg(feature = "traffic")]
 use crate::traffic::TrafficPattern;
+#[cfg(feature = "traffic")]
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
@@ -358,6 +360,11 @@ impl SpawnSchedule {
     /// Returns the schedule with generated spawns appended. If `stops`
     /// has fewer than 2 entries, no spawns are generated (pattern
     /// sampling requires at least two stops).
+    ///
+    /// Requires the `traffic` feature — gated so no-default-features
+    /// builds (notably the wasm32 gate CI job) don't pull in `rand`
+    /// and the `traffic` module transitively.
+    #[cfg(feature = "traffic")]
     #[must_use]
     pub fn from_pattern(
         mut self,
