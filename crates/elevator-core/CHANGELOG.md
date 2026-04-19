@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.8.1...elevator-core-v15.9.0) (2026-04-19)
+
+
+### Features
+
+* **metrics:** add p95_wait_time + percentile_wait_time to Metrics ([#347](https://github.com/andymai/elevator-core/issues/347)) ([b5cc121](https://github.com/andymai/elevator-core/commit/b5cc121e716bc15249c3453a0de5029da74d4309))
+
 ## [15.8.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.8.0...elevator-core-v15.8.1) (2026-04-19)
 
 
