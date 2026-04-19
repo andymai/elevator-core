@@ -80,6 +80,50 @@ fn down_peak_biases_dest_to_lobby() {
     );
 }
 
+/// `TopFloorPeak` biases origins to the topmost stop — mirror of
+/// `UpPeak` for the other end of the shaft. Catches the regression
+/// class "stranded top-floor rider never dispatched" that plain
+/// `Mixed` or `Uniform` patterns rarely exercise.
+#[test]
+fn top_floor_peak_biases_origin_to_top() {
+    let mut world = World::new();
+    let stops = make_stops(&mut world, 10);
+    let top = *stops.last().unwrap();
+    let mut rng = rand::rng();
+
+    let mut top_origins = 0;
+    let total = 1000;
+    for _ in 0..total {
+        let (o, _) = TrafficPattern::TopFloorPeak
+            .sample(&stops, &mut rng)
+            .unwrap();
+        if o == top {
+            top_origins += 1;
+        }
+    }
+    let ratio = top_origins as f64 / total as f64;
+    assert!(
+        ratio > 0.5,
+        "TopFloorPeak should have >50% origins from the top stop, got {ratio:.2}"
+    );
+}
+
+/// A `TopFloorPeak` rider's destination must never equal the origin;
+/// the rejection-sampling branch for inter-floor fallbacks handles
+/// the `< 1/n` tail where `uniform_pair_indices` collision-retries.
+#[test]
+fn top_floor_peak_origin_never_equals_destination() {
+    let mut world = World::new();
+    let stops = make_stops(&mut world, 6);
+    let mut rng = rand::rng();
+    for _ in 0..2_000 {
+        let (o, d) = TrafficPattern::TopFloorPeak
+            .sample(&stops, &mut rng)
+            .unwrap();
+        assert_ne!(o, d, "origin == destination leaks a zero-length trip");
+    }
+}
+
 #[test]
 fn too_few_stops_returns_none() {
     let mut world = World::new();
