@@ -113,6 +113,7 @@ let m = sim.metrics();
 println!("Avg wait time:     {:.1} ticks", m.avg_wait_time());
 println!("Avg ride time:     {:.1} ticks", m.avg_ride_time());
 println!("Max wait time:     {} ticks", m.max_wait_time());
+println!("p95 wait time:     {} ticks", m.p95_wait_time());
 println!("Throughput:        {} riders/window", m.throughput());
 println!("Total delivered:   {}", m.total_delivered());
 println!("Total abandoned:   {}", m.total_abandoned());
@@ -128,6 +129,9 @@ println!("Total distance:    {:.1} units", m.total_distance());
 | `avg_wait_time()` | Average ticks from spawn to board, across all riders that boarded |
 | `avg_ride_time()` | Average ticks from board to exit, across all delivered riders |
 | `max_wait_time()` | Longest wait observed (ticks) |
+| `p95_wait_time()` | 95th-percentile wait over the most recent boardings (ticks). CIBSE and community benchmarks score against percentiles rather than avg/max. |
+| `percentile_wait_time(p)` | Wait-time percentile (`0.0..=100.0`) over the retained sample window |
+| `wait_sample_count()` | Number of wait samples currently retained in the ring buffer |
 | `throughput()` | Riders delivered in the current throughput window (default: 3600 ticks) |
 | `total_delivered()` | Cumulative riders successfully delivered |
 | `total_spawned()` | Cumulative riders spawned |

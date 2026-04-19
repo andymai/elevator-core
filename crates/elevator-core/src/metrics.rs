@@ -9,7 +9,7 @@ use std::fmt;
 ///
 /// Games query this via `sim.metrics()` for HUD display, scoring,
 /// or scenario evaluation.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Metrics {
     // -- Queryable metrics (accessed via getters) --
@@ -71,15 +71,70 @@ pub struct Metrics {
     delivery_window: VecDeque<u64>,
     /// Window size for throughput calculation.
     pub(crate) throughput_window_ticks: u64,
+    /// Ring buffer of the most-recent wait samples (spawn-to-board ticks).
+    /// Powers [`percentile_wait_time`](Metrics::percentile_wait_time). Capped
+    /// by [`wait_sample_capacity`](Self::wait_sample_capacity); oldest samples
+    /// are evicted when full.
+    #[serde(default)]
+    wait_samples: VecDeque<u64>,
+    /// Maximum number of wait samples retained. `0` disables sampling; the
+    /// default matches [`default_wait_sample_capacity`], ~80 KB of RAM.
+    #[serde(default = "default_wait_sample_capacity")]
+    pub(crate) wait_sample_capacity: usize,
+}
+
+/// Default capacity for the wait-sample ring buffer. 10 000 samples is
+/// enough to keep a stable p95 over multi-hour simulations while bounding
+/// memory at ~80 KB. Exposed as a named function so serde's
+/// `#[serde(default = "...")]` can reference it for schema evolution.
+const fn default_wait_sample_capacity() -> usize {
+    10_000
+}
+
+impl Default for Metrics {
+    /// Delegates to [`Metrics::new`] so `#[derive(Default)]`-on-holders and
+    /// direct `Metrics::default()` callers get the same 3600-tick throughput
+    /// window and 10 000-sample wait buffer that `new()` wires up. Without
+    /// this, the derived `Default` would zero every field — silently
+    /// disabling `p95_wait_time` sampling and collapsing the throughput
+    /// window to an empty range (greptile review of #347).
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Metrics {
-    /// Create a new `Metrics` with default throughput window (3600 ticks).
+    /// Create a new `Metrics` with default throughput window (3600 ticks)
+    /// and default wait-sample capacity (10 000).
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
+            avg_wait_time: 0.0,
+            avg_ride_time: 0.0,
+            max_wait_time: 0,
+            throughput: 0,
+            total_delivered: 0,
+            total_abandoned: 0,
+            total_spawned: 0,
+            abandonment_rate: 0.0,
+            total_distance: 0.0,
+            utilization_by_group: BTreeMap::new(),
+            reposition_distance: 0.0,
+            total_moves: 0,
+            total_settled: 0,
+            total_rerouted: 0,
+            #[cfg(feature = "energy")]
+            total_energy_consumed: 0.0,
+            #[cfg(feature = "energy")]
+            total_energy_regenerated: 0.0,
+            sum_wait_ticks: 0,
+            sum_ride_ticks: 0,
+            boarded_count: 0,
+            delivered_count: 0,
+            delivery_window: VecDeque::new(),
             throughput_window_ticks: 3600, // default: 1 minute at 60 tps
-            ..Default::default()
+            wait_samples: VecDeque::new(),
+            wait_sample_capacity: default_wait_sample_capacity(),
         }
     }
 
@@ -87,6 +142,22 @@ impl Metrics {
     #[must_use]
     pub const fn with_throughput_window(mut self, window_ticks: u64) -> Self {
         self.throughput_window_ticks = window_ticks;
+        self
+    }
+
+    /// Set the wait-sample ring buffer capacity (builder pattern). `0`
+    /// disables wait sampling entirely; [`percentile_wait_time`](Self::percentile_wait_time)
+    /// will return 0 once the buffer is empty.
+    ///
+    /// Shrinking below the current sample count truncates from the front
+    /// (oldest samples evicted first) so the retained window always
+    /// represents the most recent waits.
+    #[must_use]
+    pub fn with_wait_sample_capacity(mut self, capacity: usize) -> Self {
+        self.wait_sample_capacity = capacity;
+        while self.wait_samples.len() > capacity {
+            self.wait_samples.pop_front();
+        }
         self
     }
 
@@ -108,6 +179,54 @@ impl Metrics {
     #[must_use]
     pub const fn max_wait_time(&self) -> u64 {
         self.max_wait_time
+    }
+
+    /// 95th-percentile wait time over the last `wait_sample_capacity`
+    /// boardings (ticks). Shorthand for `percentile_wait_time(95.0)`.
+    /// Returns `0` when no samples have been recorded.
+    ///
+    /// CIBSE and community-benchmark traffic studies score against
+    /// percentiles rather than the `(avg, max)` pair alone — max is
+    /// dominated by rare outliers, avg hides the tail.
+    #[must_use]
+    pub fn p95_wait_time(&self) -> u64 {
+        self.percentile_wait_time(95.0)
+    }
+
+    /// Wait-time percentile over the retained sample window (ticks).
+    ///
+    /// Uses the "nearest-rank" method: `ceil(p/100 * n)`-th smallest
+    /// sample, clamped into `0..n`. `p = 0.0` returns the minimum,
+    /// `p = 100.0` returns the maximum. Returns `0` when the buffer
+    /// is empty.
+    ///
+    /// # Panics
+    /// Panics if `p` is NaN or outside `[0.0, 100.0]`.
+    #[must_use]
+    pub fn percentile_wait_time(&self, p: f64) -> u64 {
+        assert!(
+            p.is_finite() && (0.0..=100.0).contains(&p),
+            "percentile must be finite and in [0, 100], got {p}"
+        );
+        if self.wait_samples.is_empty() {
+            return 0;
+        }
+        let mut sorted: Vec<u64> = self.wait_samples.iter().copied().collect();
+        sorted.sort_unstable();
+        let n = sorted.len();
+        #[allow(clippy::cast_precision_loss)] // n ≤ capacity, set by user
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let rank = ((p / 100.0) * n as f64).ceil() as usize;
+        let idx = rank.saturating_sub(1).min(n - 1);
+        sorted[idx]
+    }
+
+    /// Number of wait samples currently retained in the ring buffer.
+    /// Useful for tests and HUDs that want to display "5 000 samples
+    /// over last window" style diagnostics.
+    #[must_use]
+    pub fn wait_sample_count(&self) -> usize {
+        self.wait_samples.len()
     }
 
     /// Riders delivered in the current throughput window.
@@ -229,6 +348,12 @@ impl Metrics {
         self.avg_wait_time = self.sum_wait_ticks as f64 / self.boarded_count as f64;
         if wait_ticks > self.max_wait_time {
             self.max_wait_time = wait_ticks;
+        }
+        if self.wait_sample_capacity > 0 {
+            if self.wait_samples.len() == self.wait_sample_capacity {
+                self.wait_samples.pop_front();
+            }
+            self.wait_samples.push_back(wait_ticks);
         }
     }
 
