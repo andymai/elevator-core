@@ -323,6 +323,12 @@ impl Simulation {
             tags.remove_entity(id);
         }
 
+        // Purge stale `pending_riders` entries before the entity slot
+        // is reused. `world.despawn` cleans ext storage keyed on this
+        // rider (e.g. `AssignedCar`) but not back-references living on
+        // stop/car entities.
+        self.world.scrub_rider_from_pending_calls(id);
+
         self.world.despawn(id);
 
         self.events.emit(Event::RiderDespawned {
@@ -684,6 +690,10 @@ impl Simulation {
                 if let Some(r) = self.world.rider_mut(rid) {
                     r.phase = RiderPhase::Abandoned;
                 }
+                // Fourth abandonment site (alongside the two in
+                // `advance_transient`); same stale-ID hazard. Scrub
+                // the rider from every hall/car-call pending list.
+                self.world.scrub_rider_from_pending_calls(rid);
                 if let Some(stop) = rider_current_stop {
                     self.rider_index.remove_waiting(stop, rid);
                     self.rider_index.insert_abandoned(stop, rid);

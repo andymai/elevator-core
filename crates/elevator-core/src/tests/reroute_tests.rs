@@ -198,6 +198,22 @@ fn disable_only_stop_causes_abandonment() {
         })
         .count();
     assert_eq!(invalidated_count, 1);
+
+    // `invalidate_routes_for_stop`'s abandon path is the fourth
+    // rider-abandonment site in the codebase; like the two in
+    // `advance_transient` it must scrub the rider from every hall call
+    // so `pending_riders.is_empty()` stays accurate for mode detection
+    // and car-call cleanup.
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    let up = sim
+        .world()
+        .hall_call(origin, crate::components::CallDirection::Up);
+    if let Some(call) = up {
+        assert!(
+            !call.pending_riders.contains(&rider.entity()),
+            "stop-disable abandonment must scrub pending_riders"
+        );
+    }
 }
 
 #[test]
