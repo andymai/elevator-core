@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.11.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.10.0...elevator-core-v15.11.0) (2026-04-19)
+
+
+### Features
+
+* **scenario:** canonical benchmark suite + Condition::P95WaitBelow ([#357](https://github.com/andymai/elevator-core/issues/357)) ([53377fd](https://github.com/andymai/elevator-core/commit/53377fd21f9933b18717d5eb1e9c2265ababd5de))
+
 ## [15.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.9.1...elevator-core-v15.10.0) (2026-04-19)
 
 
