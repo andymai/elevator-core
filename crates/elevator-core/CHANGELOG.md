@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.7.0...elevator-core-v15.8.0) (2026-04-19)
+
+
+### Features
+
+* **scenario:** add SpawnSchedule builder + multi-floor test helpers ([#348](https://github.com/andymai/elevator-core/issues/348)) ([95c5e73](https://github.com/andymai/elevator-core/commit/95c5e7356ba64e9a522088dce4b69209ea8fc3ac))
+
 ## [15.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.6.0...elevator-core-v15.7.0) (2026-04-19)
 
 
