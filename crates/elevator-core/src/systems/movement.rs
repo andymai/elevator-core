@@ -1,13 +1,67 @@
 //! Phase 3: update position/velocity for moving elevators.
 
-use crate::components::ElevatorPhase;
+use crate::components::{ElevatorPhase, Route};
 use crate::door::DoorState;
+use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
 use crate::movement::tick_movement;
 use crate::world::{SortedStops, World};
 
 use super::PhaseContext;
+use super::dispatch::update_indicators;
+
+/// Compute direction lamps for a just-arrived car from aboard-rider
+/// destinations and the remaining destination queue. The travel-leg
+/// direction (`going_up` / `going_down` during `MovingToStop`) reflects
+/// where the car came *from* — on arrival at an edge floor (top or
+/// bottom) or after delivering the last passenger for one direction,
+/// it's stale. The loading-phase direction filter trusts these lamps,
+/// so a stale `(up=true, down=false)` silently rejects every down-rider
+/// waiting at the top floor.
+///
+/// Returns `(true, true)` when there's no committed next direction (no
+/// aboard riders and no queued stops) — the car is effectively idle at
+/// this stop and should accept hall calls in either direction. The same
+/// rule applies when the car will continue in both directions (unusual
+/// but possible with a multi-destination queue that crosses back over
+/// the stop).
+fn direction_from_remaining_work(world: &World, eid: EntityId, stop_pos: f64) -> (bool, bool) {
+    let Some(car) = world.elevator(eid) else {
+        return (true, true);
+    };
+    let mut needs_up = false;
+    let mut needs_down = false;
+    for &rid in &car.riders {
+        if let Some(dest) = world.route(rid).and_then(Route::current_destination)
+            && let Some(dest_pos) = world.stop_position(dest)
+        {
+            if dest_pos > stop_pos {
+                needs_up = true;
+            } else if dest_pos < stop_pos {
+                needs_down = true;
+            }
+        }
+    }
+    if let Some(q) = world.destination_queue(eid) {
+        for &next_stop in q {
+            if let Some(next_pos) = world.stop_position(next_stop) {
+                if next_pos > stop_pos {
+                    needs_up = true;
+                } else if next_pos < stop_pos {
+                    needs_down = true;
+                }
+            }
+        }
+    }
+    // No committed next direction → accept both. Ensures a car that
+    // arrived for an unassigned hall call doesn't bounce a rider going
+    // the opposite direction from its last leg.
+    if !needs_up && !needs_down {
+        return (true, true);
+    }
+    (needs_up, needs_down)
+}
 
 /// Update position/velocity for all moving elevators.
 #[allow(clippy::too_many_lines)]
@@ -182,6 +236,13 @@ pub fn run(
                     at_stop: target_stop_eid,
                     tick: ctx.tick,
                 });
+                // Refresh direction lamps from remaining work (aboard
+                // riders + queue) rather than the just-ended travel leg.
+                // Without this the loading-phase direction filter rejects
+                // every rider wanting to go opposite to the travel
+                // direction — the penthouse down-rider bug.
+                let (new_up, new_down) = direction_from_remaining_work(world, eid, target_pos);
+                update_indicators(world, events, eid, new_up, new_down, ctx.tick);
             }
         }
     }
