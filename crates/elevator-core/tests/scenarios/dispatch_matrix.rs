@@ -23,7 +23,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use elevator_core::dispatch::{EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch};
+use elevator_core::dispatch::{
+    EtdDispatch, LookDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
+};
 use elevator_core::scenario::{Condition, Scenario};
 use elevator_core::stop::StopId;
 
@@ -319,4 +321,59 @@ scenario_test!(
         max_ticks: MAX_TICKS,
     },
     NearestCarDispatch::new(),
+);
+
+// ── RSR coverage ────────────────────────────────────────────────────
+// RSR with defaults (all penalties/bonuses disabled) reduces to the
+// nearest-car baseline — we reuse the *fast* thresholds that already
+// apply to NearestCarDispatch. If a future RSR default turn enough
+// weights on that it diverges from nearest, retune the thresholds and
+// re-point these tests at their own conditions.
+
+scenario_test!(
+    rsr_under_morning_rush,
+    Scenario {
+        name: "RSR morning rush".into(),
+        config: canonical_building(),
+        spawns: morning_rush(MORNING_RIDERS, MORNING_WINDOW, TOP_STOP, MORNING_SEED),
+        conditions: morning_conditions(),
+        max_ticks: MAX_TICKS,
+    },
+    RsrDispatch::new(),
+);
+
+scenario_test!(
+    rsr_under_evening_rush,
+    Scenario {
+        name: "RSR evening rush".into(),
+        config: canonical_building(),
+        spawns: evening_rush(EVENING_RIDERS, EVENING_WINDOW, TOP_STOP, EVENING_SEED),
+        conditions: evening_fast_conditions(),
+        max_ticks: MAX_TICKS,
+    },
+    RsrDispatch::new(),
+);
+
+scenario_test!(
+    rsr_under_interfloor,
+    Scenario {
+        name: "RSR interfloor".into(),
+        config: canonical_building(),
+        spawns: interfloor(INTERFLOOR_RIDERS, INTERFLOOR_WINDOW, 10, INTERFLOOR_SEED),
+        conditions: interfloor_fast_conditions(),
+        max_ticks: MAX_TICKS,
+    },
+    RsrDispatch::new(),
+);
+
+scenario_test!(
+    rsr_under_burst,
+    Scenario {
+        name: "RSR burst".into(),
+        config: canonical_building(),
+        spawns: burst(BURST_RIDERS, BURST_TICK, StopId(3), StopId(8)),
+        conditions: burst_conditions(),
+        max_ticks: MAX_TICKS,
+    },
+    RsrDispatch::new(),
 );
