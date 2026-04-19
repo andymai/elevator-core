@@ -462,7 +462,7 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 75,
-        riders_per_min: 120.0,
+        riders_per_min: 48.0,
         origin_weights: &[
             14.0, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
         ],
@@ -472,13 +472,13 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 60,
-        riders_per_min: 45.0,
+        riders_per_min: 30.0,
         origin_weights: &[1.0; 13],
         dest_weights: &[1.0; 13],
     },
     Phase {
         duration_sec: 45,
-        riders_per_min: 100.0,
+        riders_per_min: 42.0,
         // Sky lobby at index 6 weighted 3× as origin, 4× as dest.
         origin_weights: &[
             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -489,7 +489,7 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 75,
-        riders_per_min: 115.0,
+        riders_per_min: 42.0,
         origin_weights: &[
             0.0, 1.0, 1.045, 1.091, 1.136, 1.182, 1.227, 1.273, 1.318, 1.364, 1.409, 1.455, 1.5,
         ],
@@ -565,7 +565,7 @@ const SCENARIOS: &[Scenario] = &[
         label: "Skyscraper (sky lobby)",
         ron: SKY_RON,
         phases: SKY_PHASES,
-        abandon_after_sec: Some(120),
+        abandon_after_sec: Some(180),
         seed_spawns: 0,
     },
 ];
