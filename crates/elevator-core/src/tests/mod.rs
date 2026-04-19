@@ -29,6 +29,7 @@ mod reroute_tests;
 mod resource_tests;
 mod scenario_tests;
 mod snapshot_tests;
+mod spawn_schedule_tests;
 mod substep_tests;
 mod tagged_metrics_tests;
 mod time_tests;
