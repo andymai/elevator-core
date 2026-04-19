@@ -103,6 +103,19 @@ fn no_stops_is_idle() {
     assert_eq!(d.current_mode(), TrafficMode::Idle);
 }
 
+/// An empty arrival window with `idle_rate_threshold = 0.0` must
+/// still classify as `Idle` — the docstring promises "min rate to
+/// leave Idle," which a zero threshold trivially satisfies, but the
+/// strict `<` in the rate comparison wouldn't on its own (0 < 0 is
+/// false). Greptile regression pin for the #361 review.
+#[test]
+fn zero_threshold_with_empty_window_stays_idle() {
+    let mut d = TrafficDetector::new().with_idle_rate_threshold(0.0);
+    let (_w, stops) = fake_stops();
+    d.update(&ArrivalLog::default(), 3_600, &stops);
+    assert_eq!(d.current_mode(), TrafficMode::Idle);
+}
+
 #[test]
 #[should_panic(expected = "TrafficDetector::with_window_ticks requires a positive window")]
 fn zero_window_panics() {

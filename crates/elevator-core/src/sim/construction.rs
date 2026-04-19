@@ -591,6 +591,19 @@ impl Simulation {
         // sim, silently halving ETD's door-cost scale.
         let mut world = world;
         world.insert_resource(crate::time::TickRate(ticks_per_second));
+        // Re-insert the traffic detector for the same forward-compat
+        // reason as `TickRate`: a snapshot taken before this resource
+        // existed wouldn't carry it, and `refresh_traffic_detector` in
+        // the metrics phase would silently no-op forever post-restore
+        // (greptile review of #361). `insert_resource` is
+        // last-writer-wins, so snapshots that already carry a
+        // detector keep their stored state.
+        if world
+            .resource::<crate::traffic_detector::TrafficDetector>()
+            .is_none()
+        {
+            world.insert_resource(crate::traffic_detector::TrafficDetector::default());
+        }
         Self {
             world,
             events: EventBus::default(),

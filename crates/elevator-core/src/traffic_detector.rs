@@ -179,19 +179,25 @@ impl TrafficDetector {
         for &s in stops {
             total = total.saturating_add(log.arrivals_in_window(s, now, self.window_ticks));
         }
+        // An empty window is always `Idle`, independent of the
+        // configured threshold. Guards the `idle_rate_threshold = 0.0`
+        // edge case where the strict `<` comparison below wouldn't
+        // catch `total == 0` (greptile review of #361).
+        if total == 0 {
+            self.current = TrafficMode::Idle;
+            return;
+        }
         #[allow(clippy::cast_precision_loss)] // counts fit in f64 mantissa
         let rate_per_tick = total as f64 / self.window_ticks as f64;
         if rate_per_tick < self.idle_rate_threshold {
             self.current = TrafficMode::Idle;
             return;
         }
-        if total > 0 {
-            #[allow(clippy::cast_precision_loss)]
-            let fraction = lobby_count as f64 / total as f64;
-            if fraction >= self.up_peak_fraction {
-                self.current = TrafficMode::UpPeak;
-                return;
-            }
+        #[allow(clippy::cast_precision_loss)]
+        let fraction = lobby_count as f64 / total as f64;
+        if fraction >= self.up_peak_fraction {
+            self.current = TrafficMode::UpPeak;
+            return;
         }
         self.current = TrafficMode::InterFloor;
     }
