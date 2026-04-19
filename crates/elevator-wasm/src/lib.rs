@@ -142,7 +142,7 @@ impl WasmSim {
     ///
     /// Returns one of `"Idle" | "UpPeak" | "InterFloor" | "DownPeak"`.
     /// The UI renders this next to the strategy picker so users can see
-    /// AdaptiveParking's mode-gated branching live as the simulation
+    /// `AdaptiveParking`'s mode-gated branching live as the simulation
     /// swings between morning rush, midday drift, and evening rush.
     #[wasm_bindgen(js_name = trafficMode)]
     pub fn traffic_mode(&self) -> String {
@@ -151,17 +151,16 @@ impl WasmSim {
             .inner
             .world()
             .resource::<TrafficDetector>()
-            .map_or(TrafficMode::Idle, |d| d.current_mode());
+            .map_or(TrafficMode::Idle, TrafficDetector::current_mode);
         match mode {
-            TrafficMode::Idle => "Idle".into(),
             TrafficMode::UpPeak => "UpPeak".into(),
             TrafficMode::InterFloor => "InterFloor".into(),
             TrafficMode::DownPeak => "DownPeak".into(),
-            // `#[non_exhaustive]` forces this arm; fall back to the
-            // "no committed pattern" mode so the TS union stays closed
-            // and the badge renders in the styled (dimmed) Idle colour
-            // instead of unstyled defaults.
-            _ => "Idle".into(),
+            // `Idle` + the `#[non_exhaustive]` wildcard collapse into
+            // the same fallback: an unknown future variant should
+            // render as the styled (dimmed) Idle badge rather than
+            // unstyled defaults, keeping the TS union closed.
+            TrafficMode::Idle | _ => "Idle".into(),
         }
     }
 
