@@ -38,18 +38,17 @@ function topBias(n: number): number[] {
 // ─── Mid-rise office — group-time ETD hook ──────────────────────────
 
 const OFFICE_STOPS = 6;
-// Two 800 kg cars (~10 riders/trip each) over a 20 m shaft at 2.2 m/s
-// cycle ~54 riders/min combined when healthy. Phase rates sit at
-// roughly 1.0–1.2× that during rushes — queues build visibly, group-
-// time ETD has something to fix, but the building doesn't collapse.
-// Under the original single-car config, morning/lunch demand was 2×+
-// cruise and the simulation just filled up — all strategies lost.
+// Two 800 kg cars (~10 riders/trip each). With 5.5 s round-trip door
+// overhead now in place (3.5 s dwell + 2 × 1 s transition), per-car
+// round trip is ~35 s across 3 intermediate stops, giving ~18
+// riders/min combined. Phase rates stay at ~1.1–1.4× that during
+// rushes so queues build visibly without overflowing patience.
 const officePhases: Phase[] = [
   // 0: overnight — tiny trickle of late-workers or cleaners.
   {
     name: "Overnight",
     durationSec: 45,
-    ridersPerMin: 4,
+    ridersPerMin: 3,
     originWeights: uniform(OFFICE_STOPS),
     destWeights: uniform(OFFICE_STOPS),
   },
@@ -57,7 +56,7 @@ const officePhases: Phase[] = [
   {
     name: "Morning rush",
     durationSec: 60,
-    ridersPerMin: 55,
+    ridersPerMin: 30,
     originWeights: [8.5, 0.3, 0.3, 0.3, 0.3, 0.3],
     destWeights: topBias(OFFICE_STOPS).map((w, i) => (i === 0 ? 0 : w)),
   },
@@ -65,7 +64,7 @@ const officePhases: Phase[] = [
   {
     name: "Midday interfloor",
     durationSec: 60,
-    ridersPerMin: 30,
+    ridersPerMin: 16,
     originWeights: uniform(OFFICE_STOPS),
     destWeights: uniform(OFFICE_STOPS),
   },
@@ -76,7 +75,7 @@ const officePhases: Phase[] = [
   {
     name: "Lunchtime",
     durationSec: 45,
-    ridersPerMin: 65,
+    ridersPerMin: 36,
     // Origins skew toward upper floors (people leaving for lunch) and the canteen.
     originWeights: [0.3, 3, 2, 2, 2, 2],
     destWeights: [0.3, 3, 2, 2, 2, 2],
@@ -85,7 +84,7 @@ const officePhases: Phase[] = [
   {
     name: "Evening exodus",
     durationSec: 60,
-    ridersPerMin: 55,
+    ridersPerMin: 30,
     originWeights: topBias(OFFICE_STOPS).map((w, i) => (i === 0 ? 0 : w)),
     destWeights: lobbyOnly(OFFICE_STOPS),
   },
@@ -125,14 +124,18 @@ const office: ScenarioMeta = {
             max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
             weight_capacity: 800.0,
             starting_stop: StopId(0),
-            door_open_ticks: 55, door_transition_ticks: 14,
+            // Realistic mid-rise commercial: 3.5 s dwell, 1 s each way.
+            // The previous ~1 s total cycle was ~4× faster than any
+            // real elevator and read as cartoonish on the canvas —
+            // doors barely flickered before cars peeled off again.
+            door_open_ticks: 210, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 1, name: "Car 2",
             max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
             weight_capacity: 800.0,
             starting_stop: StopId(3),
-            door_open_ticks: 55, door_transition_ticks: 14,
+            door_open_ticks: 210, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
@@ -146,15 +149,14 @@ const office: ScenarioMeta = {
 // ─── Skyscraper with sky lobby — full-load bypass hook ──────────────
 
 const SKY_STOPS = 13; // Lobby + 12 floors
-// Three 1200 kg cars at 4 m/s through a 48 m shaft. Asymmetric
-// lobby-heavy traffic is much slower than the symmetric-cruise
-// number would suggest — each round trip is ~40 s and carries only
-// ~6–8 riders (demand spreads across 12 destination floors), giving
-// ~30 riders/min combined during peaks. Phase rates target just
-// above that so bypass still triggers (cars hit 80 % during rush)
-// but the queue doesn't snowball and mass-abandon on first paint.
-// The original 120 riders/min peak was ~4× peak capacity — visibly
-// broken as a first-impression scenario.
+// Three 1200 kg cars at 4 m/s through a 48 m shaft. With realistic
+// 5 s door dwell + 2 × 1.2 s transitions now in place (7.4 s per
+// stop), asymmetric lobby-heavy traffic cycles ~19 riders/min
+// combined — each round trip is ~55 s and carries 6–8 riders.
+// Phase rates target just above that so bypass still triggers
+// (cars hit 80 % during rush) but queues don't snowball and
+// mass-abandon. Earlier tuning used fantasy 1.4 s door cycles which
+// both looked unrealistic and inflated the apparent throughput.
 const skyPhases: Phase[] = [
   {
     name: "Overnight",
@@ -166,21 +168,21 @@ const skyPhases: Phase[] = [
   {
     name: "Morning rush",
     durationSec: 75,
-    ridersPerMin: 48,
+    ridersPerMin: 20,
     originWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
     destWeights: [0, ...topBias(SKY_STOPS - 1)],
   },
   {
     name: "Midday interfloor",
     durationSec: 60,
-    ridersPerMin: 30,
+    ridersPerMin: 13,
     originWeights: uniform(SKY_STOPS),
     destWeights: uniform(SKY_STOPS),
   },
   {
     name: "Lunchtime",
     durationSec: 45,
-    ridersPerMin: 42,
+    ridersPerMin: 17,
     // Sky lobby (stop 6) doubles as the canteen floor.
     originWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 3 : 1)),
     destWeights: Array.from({ length: SKY_STOPS }, (_, i) => (i === 6 ? 4 : 1)),
@@ -188,7 +190,7 @@ const skyPhases: Phase[] = [
   {
     name: "Evening exodus",
     durationSec: 75,
-    ridersPerMin: 42,
+    ridersPerMin: 18,
     originWeights: [0, ...topBias(SKY_STOPS - 1)],
     destWeights: [14, ...Array.from({ length: SKY_STOPS - 1 }, () => 0.25)],
   },
@@ -236,7 +238,11 @@ const skyscraper: ScenarioMeta = {
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(0),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            // High-rise commercial: 5 s dwell (surge loading during
+            // rush), 1.2 s each way. The long dwell is what lets the
+            // bypass hook matter — a full car's few seconds saved by
+            // skipping a hall call is meaningful at this scale.
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
         ElevatorConfig(
@@ -244,7 +250,11 @@ const skyscraper: ScenarioMeta = {
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(6),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            // High-rise commercial: 5 s dwell (surge loading during
+            // rush), 1.2 s each way. The long dwell is what lets the
+            // bypass hook matter — a full car's few seconds saved by
+            // skipping a hall call is meaningful at this scale.
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
         ElevatorConfig(
@@ -252,7 +262,11 @@ const skyscraper: ScenarioMeta = {
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(12),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            // High-rise commercial: 5 s dwell (surge loading during
+            // rush), 1.2 s each way. The long dwell is what lets the
+            // bypass hook matter — a full car's few seconds saved by
+            // skipping a hall call is meaningful at this scale.
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
     ],
@@ -267,14 +281,17 @@ const skyscraper: ScenarioMeta = {
 // ─── Residential tower — predictive parking hook ────────────────────
 
 const RES_STOPS = 8;
-// Two 700 kg cars cruise ~50 riders/min combined. Rates stay modest so
-// the midday quiet actually reads as quiet — predictive parking needs
-// the rate signal to drop between bursts to meaningfully pre-position.
+// Two 700 kg cars at 2.5 m/s over 24.5 m. With realistic 5 s door
+// cycle (3 s dwell + 2 × 1 s transition), round trip is ~35 s and
+// each car delivers ~15 riders/min — 30 combined. Rates stay
+// modest so the midday quiet actually reads as quiet — predictive
+// parking needs the rate signal to drop between bursts to
+// meaningfully pre-position.
 const residentialPhases: Phase[] = [
   {
     name: "Overnight",
     durationSec: 60,
-    ridersPerMin: 4,
+    ridersPerMin: 3,
     originWeights: uniform(RES_STOPS),
     destWeights: uniform(RES_STOPS),
   },
@@ -282,7 +299,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Morning exodus",
     durationSec: 75,
-    ridersPerMin: 55,
+    ridersPerMin: 35,
     originWeights: [0, ...topBias(RES_STOPS - 1)],
     destWeights: lobbyOnly(RES_STOPS),
   },
@@ -290,7 +307,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Midday quiet",
     durationSec: 60,
-    ridersPerMin: 10,
+    ridersPerMin: 7,
     originWeights: uniform(RES_STOPS),
     destWeights: uniform(RES_STOPS),
   },
@@ -298,7 +315,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Afternoon drift",
     durationSec: 45,
-    ridersPerMin: 22,
+    ridersPerMin: 14,
     originWeights: Array.from({ length: RES_STOPS }, (_, i) => (i === 0 ? 3 : 1)),
     destWeights: uniform(RES_STOPS),
   },
@@ -306,7 +323,7 @@ const residentialPhases: Phase[] = [
   {
     name: "Evening return",
     durationSec: 60,
-    ridersPerMin: 48,
+    ridersPerMin: 30,
     originWeights: lobbyOnly(RES_STOPS),
     destWeights: [0, ...topBias(RES_STOPS - 1)],
   },
@@ -348,14 +365,18 @@ const residential: ScenarioMeta = {
             max_speed: 2.5, acceleration: 1.6, deceleration: 2.2,
             weight_capacity: 700.0,
             starting_stop: StopId(0),
-            door_open_ticks: 50, door_transition_ticks: 14,
+            // Residential: 3 s dwell, 1 s each way. Lighter traffic
+            // than commercial; no luggage-loading dwell to pad.
+            door_open_ticks: 180, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 1, name: "Car 2",
             max_speed: 2.5, acceleration: 1.6, deceleration: 2.2,
             weight_capacity: 700.0,
             starting_stop: StopId(4),
-            door_open_ticks: 50, door_transition_ticks: 14,
+            // Residential: 3 s dwell, 1 s each way. Lighter traffic
+            // than commercial; no luggage-loading dwell to pad.
+            door_open_ticks: 180, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
@@ -369,18 +390,18 @@ const residential: ScenarioMeta = {
 // ─── Hotel 24/7 — deferred DCS hook ─────────────────────────────────
 
 const HOTEL_STOPS = 10;
-// Three 900 kg cars at 3 m/s cruise ~80 riders/min combined. Rush
-// rates sit at ~0.7× that — enough to keep all three cars visibly
-// busy and give deferred DCS bursts to reassign across, without
-// saturating. DCS's benefit comes from *reassignment opportunity*,
-// not from overload; if every car were permanently full there would
-// be nothing to defer.
+// Three 900 kg cars at 3 m/s over 31.5 m. With 6 s door cycle (4 s
+// dwell for luggage + 2 × 1 s transition), round trip is ~45 s and
+// each car delivers ~15 riders/min — ~48 combined. Rush rates sit
+// at ~0.6× that so all three cars stay visibly busy during check-in
+// / check-out bursts without saturating; DCS's benefit comes from
+// *reassignment opportunity*, not from overload.
 const hotelPhases: Phase[] = [
   // Pre-dawn baseline — minimal traffic.
   {
     name: "Overnight",
     durationSec: 45,
-    ridersPerMin: 5,
+    ridersPerMin: 3,
     originWeights: uniform(HOTEL_STOPS),
     destWeights: uniform(HOTEL_STOPS),
   },
@@ -388,7 +409,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Check-out rush",
     durationSec: 60,
-    ridersPerMin: 55,
+    ridersPerMin: 32,
     originWeights: [0, 0.5, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 1)],
     destWeights: [5, 2, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 0.3)],
   },
@@ -396,7 +417,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Daytime",
     durationSec: 75,
-    ridersPerMin: 26,
+    ridersPerMin: 15,
     originWeights: uniform(HOTEL_STOPS),
     destWeights: uniform(HOTEL_STOPS),
   },
@@ -404,7 +425,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Check-in rush",
     durationSec: 60,
-    ridersPerMin: 50,
+    ridersPerMin: 28,
     originWeights: [4, 1, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 0.3)],
     destWeights: [0, 0.5, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 1)],
   },
@@ -412,7 +433,7 @@ const hotelPhases: Phase[] = [
   {
     name: "Late night",
     durationSec: 60,
-    ridersPerMin: 16,
+    ridersPerMin: 10,
     originWeights: [2, 2, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 0.5)],
     destWeights: [0.5, 0.5, ...Array.from({ length: HOTEL_STOPS - 2 }, () => 1)],
   },
@@ -456,21 +477,30 @@ const hotel: ScenarioMeta = {
             max_speed: 3.0, acceleration: 1.8, deceleration: 2.3,
             weight_capacity: 900.0,
             starting_stop: StopId(0),
-            door_open_ticks: 60, door_transition_ticks: 15,
+            // Hotel: 4 s dwell (luggage carts, guests with bags),
+            // 1 s each way. Longer than office, shorter than
+            // transit — fits the observed commercial range.
+            door_open_ticks: 240, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 1, name: "Car B",
             max_speed: 3.0, acceleration: 1.8, deceleration: 2.3,
             weight_capacity: 900.0,
             starting_stop: StopId(4),
-            door_open_ticks: 60, door_transition_ticks: 15,
+            // Hotel: 4 s dwell (luggage carts, guests with bags),
+            // 1 s each way. Longer than office, shorter than
+            // transit — fits the observed commercial range.
+            door_open_ticks: 240, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 2, name: "Car C",
             max_speed: 3.0, acceleration: 1.8, deceleration: 2.3,
             weight_capacity: 900.0,
             starting_stop: StopId(9),
-            door_open_ticks: 60, door_transition_ticks: 15,
+            // Hotel: 4 s dwell (luggage carts, guests with bags),
+            // 1 s each way. Longer than office, shorter than
+            // transit — fits the observed commercial range.
+            door_open_ticks: 240, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
@@ -484,17 +514,18 @@ const hotel: ScenarioMeta = {
 // ─── Convention burst — arrival-log rate signal hook ────────────────
 
 const CONV_STOPS = 5;
-// Two 1500 kg cars cruise ~140 riders/min combined in a short 16 m
-// shaft. The keynote burst intentionally overshoots that — this
-// scenario is an acute stress test, so the arrival-log rate signal
-// actually has a spike to report. The rate still comes down enough
-// that the rest of the cycle is recognizably calm.
+// Two 1500 kg cars at 3.5 m/s over a short 16 m shaft. With 7 s door
+// cycle (5 s dwell for group boarding + 2 × 1 s transition), round
+// trip is ~30 s and each car delivers ~40 riders/min — ~80
+// combined. The keynote burst intentionally overshoots that to
+// stress-test dispatch; the rate still drops enough between bursts
+// that the cycle is recognizably calm.
 const conventionPhases: Phase[] = [
   // Acute peak right after a keynote lets out.
   {
     name: "Keynote lets out",
     durationSec: 45,
-    ridersPerMin: 170,
+    ridersPerMin: 110,
     originWeights: Array.from({ length: CONV_STOPS }, (_, i) => (i === CONV_STOPS - 1 ? 8 : 1)),
     destWeights: [5, 2, 1, 1, 0],
   },
@@ -502,7 +533,7 @@ const conventionPhases: Phase[] = [
   {
     name: "Tapering",
     durationSec: 90,
-    ridersPerMin: 28,
+    ridersPerMin: 18,
     originWeights: uniform(CONV_STOPS),
     destWeights: uniform(CONV_STOPS),
   },
@@ -512,7 +543,7 @@ const conventionPhases: Phase[] = [
   {
     name: "Between sessions",
     durationSec: 135,
-    ridersPerMin: 6,
+    ridersPerMin: 4,
     originWeights: uniform(CONV_STOPS),
     destWeights: uniform(CONV_STOPS),
   },
@@ -550,14 +581,22 @@ const convention: ScenarioMeta = {
             max_speed: 3.5, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1500.0,
             starting_stop: StopId(0),
-            door_open_ticks: 50, door_transition_ticks: 12,
+            // Convention: 5 s dwell for group boarding. Big crowds
+            // after keynote are slow to actually step through the
+            // threshold; rushing the doors closed ejects riders
+            // mid-walk and re-opens, a realistic failure mode.
+            door_open_ticks: 300, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 1, name: "Car 2",
             max_speed: 3.5, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1500.0,
             starting_stop: StopId(4),
-            door_open_ticks: 50, door_transition_ticks: 12,
+            // Convention: 5 s dwell for group boarding. Big crowds
+            // after keynote are slow to actually step through the
+            // threshold; rushing the doors closed ejects riders
+            // mid-walk and re-opens, a realistic failure mode.
+            door_open_ticks: 300, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
