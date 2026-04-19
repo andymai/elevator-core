@@ -138,6 +138,29 @@ impl WasmSim {
         self.strategy_name.clone()
     }
 
+    /// Current traffic mode as classified by `TrafficDetector`.
+    ///
+    /// Returns one of `"Idle" | "UpPeak" | "InterFloor" | "DownPeak"`.
+    /// The UI renders this next to the strategy picker so users can see
+    /// AdaptiveParking's mode-gated branching live as the simulation
+    /// swings between morning rush, midday drift, and evening rush.
+    #[wasm_bindgen(js_name = trafficMode)]
+    pub fn traffic_mode(&self) -> String {
+        use elevator_core::traffic_detector::{TrafficDetector, TrafficMode};
+        let mode = self
+            .inner
+            .world()
+            .resource::<TrafficDetector>()
+            .map_or(TrafficMode::Idle, |d| d.current_mode());
+        match mode {
+            TrafficMode::Idle => "Idle".into(),
+            TrafficMode::UpPeak => "UpPeak".into(),
+            TrafficMode::InterFloor => "InterFloor".into(),
+            TrafficMode::DownPeak => "DownPeak".into(),
+            _ => "Unknown".into(),
+        }
+    }
+
     /// Swap the dispatch strategy by name. Returns `true` on success.
     ///
     /// State is preserved; only the assignment policy changes. Unknown names

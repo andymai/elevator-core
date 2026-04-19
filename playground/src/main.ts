@@ -49,6 +49,7 @@ interface Pane {
   sim: Sim;
   renderer: CanvasRenderer;
   metricsEl: HTMLElement;
+  modeEl: HTMLElement;
   waitHistory: number[];
   latestMetrics: Metrics | null;
   /**
@@ -89,6 +90,7 @@ interface PaneHandles {
   root: HTMLElement;
   canvas: HTMLCanvasElement;
   name: HTMLElement;
+  mode: HTMLElement;
   metrics: HTMLElement;
   accent: string;
 }
@@ -186,6 +188,7 @@ function wireUi(): UiHandles {
     root: q(`pane-${suffix}`),
     canvas: q<HTMLCanvasElement>(`shaft-${suffix}`),
     name: q(`name-${suffix}`),
+    mode: q(`mode-${suffix}`),
     metrics: q(`metrics-${suffix}`),
     accent,
   });
@@ -384,6 +387,7 @@ async function makePane(
     sim,
     renderer,
     metricsEl: handles.metrics,
+    modeEl: handles.mode,
     waitHistory: [],
     latestMetrics: null,
     bubbles: new Map(),
@@ -729,6 +733,23 @@ function updateScoreboard(state: State): void {
     renderMetricRows(paneB.metricsEl, paneB.latestMetrics, compare.b);
   } else {
     renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null);
+  }
+  updateModeBadge(paneA);
+  if (paneB) updateModeBadge(paneB);
+}
+
+/**
+ * Reflect the pane's current `TrafficMode` onto its header badge. The
+ * `data-mode` attribute drives per-mode colour in CSS; textContent is
+ * only rewritten when it actually changed so the DOM stays quiet for
+ * steady-state frames (keeps devtools' "attribute changed" traces
+ * readable during debugging).
+ */
+function updateModeBadge(pane: Pane): void {
+  const mode = pane.sim.trafficMode();
+  if (pane.modeEl.dataset.mode !== mode) {
+    pane.modeEl.dataset.mode = mode;
+    pane.modeEl.textContent = mode;
   }
 }
 
