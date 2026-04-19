@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.12.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.11.1...elevator-core-v15.12.0) (2026-04-19)
+
+
+### Features
+
+* **traffic-detector:** rolling-window classifier as world resource ([#361](https://github.com/andymai/elevator-core/issues/361)) ([a4e08ca](https://github.com/andymai/elevator-core/commit/a4e08ca2a6896f1d278eb0c622d214c384c5e440))
+
 ## [15.11.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.11.0...elevator-core-v15.11.1) (2026-04-19)
 
 
