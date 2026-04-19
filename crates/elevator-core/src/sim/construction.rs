@@ -604,6 +604,16 @@ impl Simulation {
         {
             world.insert_resource(crate::traffic_detector::TrafficDetector::default());
         }
+        // Same forward-compat pattern for the destination log. An
+        // older snapshot would leave the detector unable to detect
+        // down-peak post-restore; a fresh empty log lets it resume
+        // classification after a few ticks of observed traffic.
+        if world
+            .resource::<crate::arrival_log::DestinationLog>()
+            .is_none()
+        {
+            world.insert_resource(crate::arrival_log::DestinationLog::default());
+        }
         Self {
             world,
             events: EventBus::default(),

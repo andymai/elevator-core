@@ -20,7 +20,7 @@
 //! [`crate::traffic_detector::TrafficMode::DownPeak`] is in the enum
 //! for API stability and will flip on in a follow-up.
 
-use crate::arrival_log::ArrivalLog;
+use crate::arrival_log::{ArrivalLog, DestinationLog};
 use crate::entity::EntityId;
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +69,12 @@ pub struct TrafficDetector {
     /// threshold for "clear up-peak" from the rolling-average
     /// classifier lineage.
     up_peak_fraction: f64,
+    /// Lobby-destination fraction at or above which we flip to
+    /// [`TrafficMode::DownPeak`]. Uses the same 0.6 default as
+    /// `up_peak_fraction` — the two peaks are mirror statistical
+    /// events and the clarity-threshold literature treats them
+    /// symmetrically.
+    down_peak_fraction: f64,
     /// Last classified mode; returned by [`current_mode`](Self::current_mode).
     current: TrafficMode,
     /// Tick of the most recent `update` call. Read by snapshot
@@ -86,6 +92,7 @@ impl Default for TrafficDetector {
             // perspective — empty overnight or cold-start scenarios.
             idle_rate_threshold: 2.0 / 3600.0,
             up_peak_fraction: 0.6,
+            down_peak_fraction: 0.6,
             current: TrafficMode::Idle,
             last_update_tick: 0,
         }
@@ -142,6 +149,21 @@ impl TrafficDetector {
         self
     }
 
+    /// Override the lobby-destination fraction that trips
+    /// down-peak.
+    ///
+    /// # Panics
+    /// Panics if `fraction` is NaN or outside `[0.0, 1.0]`.
+    #[must_use]
+    pub fn with_down_peak_fraction(mut self, fraction: f64) -> Self {
+        assert!(
+            fraction.is_finite() && (0.0..=1.0).contains(&fraction),
+            "down_peak_fraction must be finite and in [0, 1], got {fraction}"
+        );
+        self.down_peak_fraction = fraction;
+        self
+    }
+
     /// The most recently classified mode.
     #[must_use]
     pub const fn current_mode(&self) -> TrafficMode {
@@ -160,46 +182,84 @@ impl TrafficDetector {
         self.window_ticks
     }
 
-    /// Re-classify using arrivals from `log` as of tick `now`. `stops`
-    /// is the list of stop entities to aggregate over; the *first*
-    /// entry is treated as the lobby for up-peak classification, so
-    /// callers must pass them in position order (lobby first).
+    /// Re-classify using arrivals and destinations as of tick
+    /// `now`. `stops` is the list of stop entities to aggregate
+    /// over; the *first* entry is treated as the lobby for both
+    /// up-peak and down-peak classification, so callers must pass
+    /// them in position order (lobby first). `destinations` may be
+    /// an empty (default-constructed) `DestinationLog` — in that
+    /// case down-peak detection silently no-ops and only the
+    /// origin-driven modes fire.
+    ///
+    /// Precedence when both peaks meet their thresholds (rare —
+    /// lobby-origins and lobby-destinations can't both be ≥60% in a
+    /// 100-arrival window without overlap): `UpPeak` wins because
+    /// the origin signal arrives first in time (rider spawn is what
+    /// logs the arrival; the destination signal arrives at the same
+    /// instant but the dispatcher sees up-peak's lobby queue before
+    /// down-peak's upper-floor queue absorbs the car).
     ///
     /// Idempotent — calling twice with the same inputs yields the
-    /// same mode. Called once per tick by the metrics phase; callers
-    /// driving the sim manually (tests, games stepping by hand) can
-    /// invoke it directly.
-    pub fn update(&mut self, log: &ArrivalLog, now: u64, stops: &[EntityId]) {
+    /// same mode. Called once per tick by the metrics phase;
+    /// callers driving the sim manually can invoke it directly.
+    pub fn update(
+        &mut self,
+        arrivals: &ArrivalLog,
+        destinations: &DestinationLog,
+        now: u64,
+        stops: &[EntityId],
+    ) {
         self.last_update_tick = now;
         if stops.is_empty() || self.window_ticks == 0 {
             self.current = TrafficMode::Idle;
             return;
         }
         let lobby = stops[0];
-        let lobby_count = log.arrivals_in_window(lobby, now, self.window_ticks);
-        let mut total: u64 = 0;
+        let lobby_origin_count = arrivals.arrivals_in_window(lobby, now, self.window_ticks);
+        let lobby_dest_count = destinations.destinations_in_window(lobby, now, self.window_ticks);
+        let mut total_origin: u64 = 0;
+        let mut total_dest: u64 = 0;
         for &s in stops {
-            total = total.saturating_add(log.arrivals_in_window(s, now, self.window_ticks));
+            total_origin =
+                total_origin.saturating_add(arrivals.arrivals_in_window(s, now, self.window_ticks));
+            total_dest = total_dest.saturating_add(destinations.destinations_in_window(
+                s,
+                now,
+                self.window_ticks,
+            ));
         }
-        // An empty window is always `Idle`, independent of the
-        // configured threshold. Guards the `idle_rate_threshold = 0.0`
-        // edge case where the strict `<` comparison below wouldn't
-        // catch `total == 0` (greptile review of #361).
-        if total == 0 {
+        // An empty arrivals window is always `Idle`, independent of
+        // the configured threshold. Guards the `idle_rate_threshold
+        // = 0.0` edge case where the strict `<` comparison below
+        // wouldn't catch `total == 0`.
+        if total_origin == 0 {
             self.current = TrafficMode::Idle;
             return;
         }
         #[allow(clippy::cast_precision_loss)] // counts fit in f64 mantissa
-        let rate_per_tick = total as f64 / self.window_ticks as f64;
+        let rate_per_tick = total_origin as f64 / self.window_ticks as f64;
         if rate_per_tick < self.idle_rate_threshold {
             self.current = TrafficMode::Idle;
             return;
         }
         #[allow(clippy::cast_precision_loss)]
-        let fraction = lobby_count as f64 / total as f64;
-        if fraction >= self.up_peak_fraction {
+        let up_fraction = lobby_origin_count as f64 / total_origin as f64;
+        if up_fraction >= self.up_peak_fraction {
             self.current = TrafficMode::UpPeak;
             return;
+        }
+        // Down-peak: check only if the destination log has seen
+        // any activity; a zero-destination window (old snapshot or
+        // pure rider-less hall calls) would divide by zero and
+        // spuriously match the threshold at `0/0 = NaN` — falling
+        // through to `InterFloor` is the safer default.
+        if total_dest > 0 {
+            #[allow(clippy::cast_precision_loss)]
+            let down_fraction = lobby_dest_count as f64 / total_dest as f64;
+            if down_fraction >= self.down_peak_fraction {
+                self.current = TrafficMode::DownPeak;
+                return;
+            }
         }
         self.current = TrafficMode::InterFloor;
     }
