@@ -421,10 +421,14 @@ impl SpawnSchedule {
     /// plus a uniform inter-floor background:
     ///
     /// ```
-    /// # use elevator_core::scenario::SpawnSchedule;
-    /// # use elevator_core::stop::StopId;
-    /// # use elevator_core::traffic::TrafficPattern;
-    /// # use rand::SeedableRng;
+    /// # #[cfg(not(feature = "traffic"))]
+    /// # fn main() {}
+    /// # #[cfg(feature = "traffic")]
+    /// # fn main() {
+    /// use elevator_core::scenario::SpawnSchedule;
+    /// use elevator_core::stop::StopId;
+    /// use elevator_core::traffic::TrafficPattern;
+    /// use rand::SeedableRng;
     /// let mut rng = rand::rngs::StdRng::seed_from_u64(7);
     /// let stops = vec![StopId(0), StopId(1), StopId(2)];
     /// let background = SpawnSchedule::new().from_pattern(
@@ -433,6 +437,7 @@ impl SpawnSchedule {
     /// let up_peak = SpawnSchedule::new().burst(StopId(0), StopId(2), 20, 0, 70.0);
     /// let combined = up_peak.merge(background);
     /// assert!(combined.len() >= 20);
+    /// # }
     /// ```
     #[must_use]
     pub fn merge(mut self, other: Self) -> Self {
