@@ -195,6 +195,20 @@ fn reroute_records_arrival_and_resets_spawn_tick() {
     // boundary as their reference, not the original spawn.
     let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.spawn_tick(), sim.current_tick());
+
+    // The new destination (stop0 — the lobby) must be logged so down-peak
+    // classification counts the rerouted rider. Before this fix the reroute
+    // path only touched ArrivalLog, silently undercounting lobby-bound
+    // multi-leg traffic.
+    let dest_count = sim
+        .world()
+        .resource::<crate::arrival_log::DestinationLog>()
+        .unwrap()
+        .destinations_in_window(stop0, sim.current_tick(), 10);
+    assert_eq!(
+        dest_count, 1,
+        "reroute must record the new destination in the destination log"
+    );
 }
 
 #[test]

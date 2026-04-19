@@ -77,8 +77,18 @@ fn handle_exit(
             }
             if let Some(stop) = world.rider(id).and_then(|r| r.current_stop) {
                 rider_index.insert_waiting(stop, id);
+                // Capture the next leg's destination before we take mutable
+                // borrows of the arrival log — the destination log pairs
+                // with the arrival log on every append so down-peak stays
+                // coherent through multi-leg trips.
+                let next_destination = world.route(id).and_then(Route::current_destination);
                 if let Some(log) = world.resource_mut::<crate::arrival_log::ArrivalLog>() {
                     log.record(ctx.tick, stop);
+                }
+                if let Some(dest) = next_destination
+                    && let Some(log) = world.resource_mut::<crate::arrival_log::DestinationLog>()
+                {
+                    log.record(ctx.tick, dest);
                 }
                 if let Some(p) = world.patience_mut(id) {
                     p.waited_ticks = 0;

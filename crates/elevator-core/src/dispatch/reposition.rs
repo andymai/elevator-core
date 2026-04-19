@@ -278,19 +278,20 @@ impl RepositionStrategy for PredictiveParking {
 /// ([`PredictiveParking`]) regardless of traffic shape. Adaptive
 /// picks per mode:
 ///
-/// | Mode                                              | Inner                      |
-/// |---------------------------------------------------|----------------------------|
-/// | [`UpPeak`](crate::traffic_detector::TrafficMode::UpPeak)         | [`ReturnToLobby`]           |
-/// | [`InterFloor`](crate::traffic_detector::TrafficMode::InterFloor) | [`PredictiveParking`]       |
-/// | [`DownPeak`](crate::traffic_detector::TrafficMode::DownPeak)     | [`PredictiveParking`] (today) |
-/// | [`Idle`](crate::traffic_detector::TrafficMode::Idle)             | no-op (stay put)             |
+/// | Mode                                                             | Inner                |
+/// |------------------------------------------------------------------|----------------------|
+/// | [`UpPeak`](crate::traffic_detector::TrafficMode::UpPeak)         | [`ReturnToLobby`]    |
+/// | [`InterFloor`](crate::traffic_detector::TrafficMode::InterFloor) | [`PredictiveParking`]|
+/// | [`DownPeak`](crate::traffic_detector::TrafficMode::DownPeak)     | [`PredictiveParking`]|
+/// | [`Idle`](crate::traffic_detector::TrafficMode::Idle)             | no-op (stay put)     |
 ///
-/// The `DownPeak` row uses `PredictiveParking` for now — it'll
-/// become a dedicated upper-floor-biased variant once
-/// `TrafficDetector` emits `DownPeak` (needs the destination-log
-/// that today's [`ArrivalLog`] doesn't carry). Falls back to a
-/// `PredictiveParking`-like default if the detector is missing
-/// from `World` (e.g. hand-built tests bypassing `Simulation`).
+/// `DownPeak` reuses `PredictiveParking` intentionally: during a down
+/// peak, upper floors are the high-arrival stops (riders spawn there
+/// heading to the lobby), and `PredictiveParking` scores stops by
+/// [`ArrivalLog`] counts — so it correctly biases idle cars upward
+/// without needing a destination-aware variant. Falls back to
+/// `InterFloor` routing if the detector is missing from `World`
+/// (e.g. hand-built tests bypassing `Simulation`).
 pub struct AdaptiveParking {
     /// Inner strategy used in up-peak mode. Configurable so games
     /// can pin a different home stop (sky-lobby buildings, e.g.).
