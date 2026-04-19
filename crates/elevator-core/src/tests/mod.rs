@@ -35,6 +35,7 @@ mod substep_tests;
 mod tagged_metrics_tests;
 mod time_tests;
 mod topology_tests;
+mod traffic_detector_tests;
 #[cfg(feature = "traffic")]
 mod traffic_tests;
 mod world_tests;

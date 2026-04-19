@@ -185,6 +185,10 @@ impl Simulation {
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
         world.insert_resource(crate::arrival_log::CurrentTick::default());
         world.insert_resource(crate::arrival_log::ArrivalLogRetention::default());
+        // Traffic-mode classifier. Auto-refreshed in the metrics phase
+        // from the same rolling window; strategies read the current
+        // mode via `World::resource::<TrafficDetector>()`.
+        world.insert_resource(crate::traffic_detector::TrafficDetector::default());
         // Expose tick rate to strategies that need to unit-convert
         // tick-denominated elevator fields (door cycle, ack latency)
         // into the second-denominated terms of their cost functions.
@@ -587,6 +591,29 @@ impl Simulation {
         // sim, silently halving ETD's door-cost scale.
         let mut world = world;
         world.insert_resource(crate::time::TickRate(ticks_per_second));
+        // Re-insert the traffic detector for the same forward-compat
+        // reason as `TickRate`: a snapshot taken before this resource
+        // existed wouldn't carry it, and `refresh_traffic_detector` in
+        // the metrics phase would silently no-op forever post-restore
+        // (greptile review of #361). `insert_resource` is
+        // last-writer-wins, so snapshots that already carry a
+        // detector keep their stored state.
+        if world
+            .resource::<crate::traffic_detector::TrafficDetector>()
+            .is_none()
+        {
+            world.insert_resource(crate::traffic_detector::TrafficDetector::default());
+        }
+        // Same forward-compat pattern for the destination log. An
+        // older snapshot would leave the detector unable to detect
+        // down-peak post-restore; a fresh empty log lets it resume
+        // classification after a few ticks of observed traffic.
+        if world
+            .resource::<crate::arrival_log::DestinationLog>()
+            .is_none()
+        {
+            world.insert_resource(crate::arrival_log::DestinationLog::default());
+        }
         Self {
             world,
             events: EventBus::default(),
