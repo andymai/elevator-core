@@ -5,7 +5,7 @@
 //! pins the detector to one mode and verifies the idle-car moves
 //! match the mode's inner strategy.
 
-use crate::arrival_log::{ArrivalLog, CurrentTick};
+use crate::arrival_log::{ArrivalLog, CurrentTick, DestinationLog};
 use crate::dispatch::reposition::AdaptiveParking;
 use crate::dispatch::{BuiltinReposition, RepositionStrategy};
 use crate::entity::EntityId;
@@ -60,7 +60,7 @@ fn force_mode(sim: &mut Simulation, mode: TrafficMode) {
                 log.record(t * 50, lobby);
             }
             let stops: Vec<EntityId> = sim.world().iter_stops().map(|(eid, _)| eid).collect();
-            detector.update(&log, 3_500, &stops);
+            detector.update(&log, &DestinationLog::default(), 3_500, &stops);
         }
         TrafficMode::InterFloor => {
             let mut log = ArrivalLog::default();
@@ -70,21 +70,31 @@ fn force_mode(sim: &mut Simulation, mode: TrafficMode) {
                     log.record(t * 10, s);
                 }
             }
-            detector.update(&log, 3_500, &stops);
+            detector.update(&log, &DestinationLog::default(), 3_500, &stops);
         }
         TrafficMode::DownPeak => {
-            // Not yet emitted by V1 detector; test behaviour against
-            // an `InterFloor`-seeded detector since Adaptive handles
-            // them identically today. Real `DownPeak` validation
-            // waits for the destination-log follow-up.
-            let mut log = ArrivalLog::default();
+            // Seed a destination-heavy window: origins spread across
+            // upper floors, destinations dominated by the lobby.
+            let mut arrivals = ArrivalLog::default();
+            let mut destinations = DestinationLog::default();
             let stops: Vec<EntityId> = sim.world().iter_stops().map(|(eid, _)| eid).collect();
-            for t in 0..60u64 {
-                for &s in &stops {
-                    log.record(t * 10, s);
+            let lobby = stops[0];
+            // 30 arrivals each at every non-lobby stop.
+            for t in 0..30u64 {
+                for &s in &stops[1..] {
+                    arrivals.record(t * 50, s);
                 }
             }
-            detector.update(&log, 3_500, &stops);
+            // 75% of destinations at the lobby → down-peak.
+            for t in 0..60u64 {
+                destinations.record(t * 25, lobby);
+            }
+            for t in 0..20u64 {
+                for &s in &stops[1..] {
+                    destinations.record(t * 25, s);
+                }
+            }
+            detector.update(&arrivals, &destinations, 3_500, &stops);
         }
     }
     // Ensure the detector's view is consistent with `CurrentTick` the
