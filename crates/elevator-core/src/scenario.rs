@@ -135,6 +135,16 @@ impl ScenarioRunner {
         &self.sim
     }
 
+    /// Mutable access to the underlying simulation.
+    ///
+    /// Lets scenario drivers toggle service modes, set manual velocities, or
+    /// tweak per-elevator state between ticks — for example, switching a car
+    /// to [`ServiceMode::Inspection`](crate::components::ServiceMode::Inspection)
+    /// mid-run before continuing to call [`tick`](Self::tick).
+    pub const fn sim_mut(&mut self) -> &mut Simulation {
+        &mut self.sim
+    }
+
     /// Number of rider spawn attempts that were skipped due to errors
     /// (e.g. referencing disabled or removed stops).
     #[must_use]
