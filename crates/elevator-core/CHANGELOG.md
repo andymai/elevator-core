@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.6.0...elevator-core-v15.7.0) (2026-04-19)
+
+
+### Features
+
+* **dispatch:** add age_linear_weight to EtdDispatch for starvation avoidance ([#345](https://github.com/andymai/elevator-core/issues/345)) ([ef07fee](https://github.com/andymai/elevator-core/commit/ef07fee47babd151a81177908ac74b65846515cc))
+
 ## [15.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.5...elevator-core-v15.6.0) (2026-04-19)
 
 
