@@ -690,6 +690,10 @@ impl Simulation {
                 if let Some(r) = self.world.rider_mut(rid) {
                     r.phase = RiderPhase::Abandoned;
                 }
+                // Fourth abandonment site (alongside the two in
+                // `advance_transient`); same stale-ID hazard. Scrub
+                // the rider from every hall/car-call pending list.
+                self.world.scrub_rider_from_pending_calls(rid);
                 if let Some(stop) = rider_current_stop {
                     self.rider_index.remove_waiting(stop, rid);
                     self.rider_index.insert_abandoned(stop, rid);
