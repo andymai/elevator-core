@@ -589,7 +589,10 @@ fn loading_ignores_dangling_assignment_to_dead_car() {
 fn commitment_window_reassigns_when_current_car_is_far() {
     let mut sim = Simulation::new(
         &two_cars_same_group_config(),
-        DestinationDispatch::new().with_commitment_window_ticks(3),
+        // B's travel time to origin is ~240 ticks at 60 Hz (8 units /
+        // 2 m/s = 4 s); a 180-tick window is still outside, so the
+        // commitment has not yet latched.
+        DestinationDispatch::new().with_commitment_window_ticks(180),
     )
     .unwrap();
     sim.world_mut()
@@ -611,9 +614,8 @@ fn commitment_window_reassigns_when_current_car_is_far() {
     sim.world_mut()
         .insert_ext(rid.entity(), AssignedCar(car_b), ASSIGNED_CAR_KEY);
 
-    // One dispatch pass: with `commitment_window_ticks = 3` and B's ETA
-    // of 4 ticks (8 units / 2 speed), the commitment hasn't latched yet,
-    // so the rider is free to migrate to car A (ETA 2 ticks).
+    // One dispatch pass: B is outside the 180-tick commitment window,
+    // so the rider is free to migrate to car A (ETA ~120 ticks).
     sim.step();
 
     assert_eq!(
@@ -629,7 +631,9 @@ fn commitment_window_reassigns_when_current_car_is_far() {
 fn commitment_window_locks_when_current_car_is_close() {
     let mut sim = Simulation::new(
         &two_cars_same_group_config(),
-        DestinationDispatch::new().with_commitment_window_ticks(10),
+        // B's ETA is ~240 ticks at 60 Hz; a 600-tick window comfortably
+        // covers it, so the sticky assignment stays locked.
+        DestinationDispatch::new().with_commitment_window_ticks(600),
     )
     .unwrap();
     sim.world_mut()
@@ -643,8 +647,8 @@ fn commitment_window_locks_when_current_car_is_close() {
     let car_a = elevs[0]; // at pos 0
     let car_b = elevs[1]; // at pos 12
 
-    // Spawn rider at stop 1 (pos 4). Sticky to B. B's ETA ≈ 4 ticks,
-    // well inside the 10-tick commitment window — reassignment denied.
+    // Spawn rider at stop 1 (pos 4). Sticky to B. B's ETA ≈ 240 ticks,
+    // well inside the 600-tick commitment window — reassignment denied.
     let rid = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     sim.world_mut()
         .insert_ext(rid.entity(), AssignedCar(car_b), ASSIGNED_CAR_KEY);
