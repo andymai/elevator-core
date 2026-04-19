@@ -178,3 +178,140 @@ fn burst_exceeding_capacity_dispatches_a_second_car_under_etd() {
 fn burst_exceeding_capacity_dispatches_a_second_car_under_nearest() {
     burst_invariant(NearestCarDispatch::new(), "NEAREST");
 }
+
+/// Line-pinning: two shafts, rider pinned to Shaft B. When Shaft A's
+/// car happens to be door-cycling at the pickup stop, the filter must
+/// NOT treat the stop as covered (Shaft A can't absorb a Shaft-B-
+/// pinned rider). The correct car on Shaft B must still be dispatched
+/// so the rider eventually boards it — not Shaft A.
+///
+/// Exercises the `TransportMode::Line(required) != car_line` branch in
+/// `is_covered` that the dispatch fix specifically introduced.
+#[test]
+fn line_pinned_rider_not_absorbed_by_other_shaft_door_cycle() {
+    use elevator_core::components::{Orientation, RouteLeg, TransportMode};
+    use elevator_core::config::{
+        BuildingConfig, GroupConfig, LineConfig, PassengerSpawnConfig, SimulationParams,
+    };
+    use elevator_core::dispatch::BuiltinStrategy;
+    use elevator_core::ids::GroupId;
+
+    let make_car = |id: u32, name: &str| ElevatorConfig {
+        id,
+        name: name.into(),
+        max_speed: Speed::from(2.0),
+        acceleration: Accel::from(1.5),
+        deceleration: Accel::from(2.0),
+        weight_capacity: Weight::from(800.0),
+        starting_stop: StopId(0),
+        door_open_ticks: 30,
+        door_transition_ticks: 10,
+        ..ElevatorConfig::default()
+    };
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Twin Shaft".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "Lobby".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "Sky".into(),
+                    position: 20.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "Shaft A".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![make_car(1, "A")],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "Shaft B".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![make_car(2, "B")],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+            ]),
+            groups: Some(vec![GroupConfig {
+                id: 0,
+                name: "All Shafts".into(),
+                lines: vec![1, 2],
+                dispatch: BuiltinStrategy::Scan,
+                reposition: None,
+                hall_call_mode: None,
+                ack_latency_ticks: None,
+            }]),
+        },
+        elevators: vec![],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Discover each shaft's line entity by name so the rider's route
+    // can pin to "Shaft B" regardless of the order the engine assigns
+    // line EntityIds.
+    let shaft_b_line = sim
+        .lines_in_group(GroupId(0))
+        .into_iter()
+        .find(|&le| sim.world().line(le).is_some_and(|l| l.name() == "Shaft B"))
+        .expect("Shaft B line should exist");
+    let shaft_b_car = sim.elevators_on_line(shaft_b_line)[0];
+
+    let lobby = sim.stop_entity(StopId(0)).unwrap();
+    let sky = sim.stop_entity(StopId(1)).unwrap();
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: lobby,
+            to: sky,
+            via: TransportMode::Line(shaft_b_line),
+        }],
+        current_leg: 0,
+    };
+    let rider = sim
+        .build_rider(lobby, sky)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
+        .unwrap();
+
+    // Step until the rider boards — MUST be Shaft B's car even though
+    // Shaft A's car is parked at the same stop and will cycle doors
+    // repeatedly under SCAN's "go to any pending demand" policy.
+    let mut boarded_by = None;
+    for _ in 0..3000 {
+        sim.step();
+        if let Some(r) = sim.world().rider(rider.entity())
+            && let RiderPhase::Boarding(eid) | RiderPhase::Riding(eid) = r.phase()
+        {
+            boarded_by = Some(eid);
+            break;
+        }
+    }
+    assert_eq!(
+        boarded_by,
+        Some(shaft_b_car),
+        "line-pinned rider must board Shaft B's car, never Shaft A's — `is_covered` must not mark the stop covered while the wrong-line car is door-cycling"
+    );
+}
