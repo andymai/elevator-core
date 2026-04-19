@@ -629,6 +629,38 @@ button:active {
   letter-spacing: 0.01em;
   color: var(--fg-0);
 }
+.pane-mode {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--r-1);
+  border: 1px solid var(--line-1);
+  background: var(--ink-2);
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pane-mode[data-mode="Idle"] {
+  opacity: 0.55;
+}
+.pane-mode[data-mode="UpPeak"] {
+  background: color-mix(in oklab, var(--ok) 22%, var(--ink-2));
+  color: var(--ok);
+  border-color: color-mix(in oklab, var(--ok) 35%, var(--line-1));
+}
+.pane-mode[data-mode="InterFloor"] {
+  background: color-mix(in oklab, var(--accent) 18%, var(--ink-2));
+  color: var(--accent-up);
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--line-1));
+}
+.pane-mode[data-mode="DownPeak"] {
+  background: color-mix(in oklab, var(--bad) 22%, var(--ink-2));
+  color: var(--bad);
+  border-color: color-mix(in oklab, var(--bad) 35%, var(--line-1));
+}
 
 .shaft-wrap {
   background: radial-gradient(ellipse at 50% 0%, var(--ink-3) 0%, var(--ink-1) 80%);

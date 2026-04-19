@@ -60,6 +60,16 @@ export interface Metrics {
 export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination" | "rsr";
 
 /**
+ * Traffic-mode readout from the core `TrafficDetector`, surfaced by
+ * `Sim.trafficMode()`. Mirrors the Rust `TrafficMode` enum 1:1.
+ * `AdaptiveParking` reads this each reposition pass to pick between
+ * `ReturnToLobby` / `PredictiveParking` / no-op — exposing it in the UI
+ * lets users see *why* idle-car movement changes over the course of a
+ * scenario.
+ */
+export type TrafficMode = "Idle" | "UpPeak" | "InterFloor" | "DownPeak";
+
+/**
  * Decoded event DTOs surfaced by `Sim.drainEvents`. Kind-tagged to
  * mirror the Rust `EventDto` shape (`#[serde(tag = "kind", rename_all =
  * "kebab-case")]`). Only the cases the speech-bubble layer consumes are
