@@ -81,10 +81,8 @@ pub struct RsrDispatch {
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
     /// Multiplier applied to `wrong_direction_penalty` when the
-    /// [`TrafficDetector`](crate::traffic_detector::TrafficDetector)
-    /// classifies the current tick as
-    /// [`UpPeak`](crate::traffic_detector::TrafficMode::UpPeak) or
-    /// [`DownPeak`](crate::traffic_detector::TrafficMode::DownPeak).
+    /// [`TrafficDetector`] classifies the current tick as
+    /// [`TrafficMode::UpPeak`] or [`TrafficMode::DownPeak`].
     ///
     /// Default `1.0` (mode-agnostic — behaviour identical to pre-peak
     /// tuning). Raising it strengthens directional commitment during
