@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.0...elevator-core-v15.5.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **playground:** skyscraper peak rates were 1.5-4x realistic capacity ([#329](https://github.com/andymai/elevator-core/issues/329)) ([0ea40b2](https://github.com/andymai/elevator-core/commit/0ea40b26328ec8518a5940e9afb9aae1336dffaf))
+
 ## [15.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.4.1...elevator-core-v15.5.0) (2026-04-18)
 
 
