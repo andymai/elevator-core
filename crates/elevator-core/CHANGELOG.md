@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.8.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.8.0...elevator-core-v15.8.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **scenario:** gate SpawnSchedule::from_pattern behind traffic feature ([#351](https://github.com/andymai/elevator-core/issues/351)) ([5f16102](https://github.com/andymai/elevator-core/commit/5f161026365055675ffd28cf85f74a4f5fdf961f))
+
 ## [15.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.7.0...elevator-core-v15.8.0) (2026-04-19)
 
 
