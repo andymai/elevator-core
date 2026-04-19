@@ -1,11 +1,12 @@
 //! Traffic-mode detector.
 //!
-//! Classifies the current simulation moment into one of a small set of
-//! [`TrafficMode`]s by reading the [`ArrivalLog`](crate::arrival_log::ArrivalLog)'s
-//! rolling window. Consumers — dispatch tuning, adaptive reposition,
-//! HUD narration — read [`TrafficDetector::current_mode`] each tick to
-//! get a cheap, pre-computed answer instead of re-deriving it
-//! themselves.
+//! Classifies the current simulation moment into one of a small set
+//! of `TrafficMode` variants by reading the
+//! [`ArrivalLog`](crate::arrival_log::ArrivalLog)'s rolling window.
+//! Consumers — dispatch tuning, adaptive reposition, HUD narration —
+//! read [`crate::traffic_detector::TrafficDetector::current_mode`]
+//! each tick to get a cheap, pre-computed answer instead of
+//! re-deriving it themselves.
 //!
 //! V1 implements the hard-rule classifier from Siikonen's
 //! fuzzy-labelled traffic patterns (the fuzzy membership math reduces
@@ -14,9 +15,10 @@
 //! a rolling window; idle when the total arrival rate is below a
 //! noise floor; everything else is inter-floor. Down-peak detection
 //! needs a destination signal (rides heading *to* the lobby, not
-//! arrivals *from* it) which the base [`ArrivalLog`] doesn't carry;
-//! `DownPeak` is in [`TrafficMode`] for API stability and will flip
-//! on in a follow-up.
+//! arrivals *from* it) which the base
+//! [`ArrivalLog`](crate::arrival_log::ArrivalLog) doesn't carry;
+//! [`crate::traffic_detector::TrafficMode::DownPeak`] is in the enum
+//! for API stability and will flip on in a follow-up.
 
 use crate::arrival_log::ArrivalLog;
 use crate::entity::EntityId;
@@ -30,12 +32,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub enum TrafficMode {
-    /// Total arrival rate is below [`TrafficDetector::idle_rate_threshold`].
+    /// Total arrival rate is below the detector's `idle_rate_threshold`.
     /// Reposition strategies should stay put; dispatch can drop
     /// starvation-avoidance bonuses.
     #[default]
     Idle,
-    /// Lobby-origin fraction is above [`TrafficDetector::up_peak_fraction`].
+    /// Lobby-origin fraction is above the detector's `up_peak_fraction`.
     /// Classic morning rush — reposition to lobby, prefer faster
     /// lobby↔upper cycles.
     UpPeak,
@@ -52,9 +54,9 @@ pub enum TrafficMode {
 /// Rolling-window classifier for the sim's current traffic pattern.
 ///
 /// Stored as a world resource under `World::resource::<TrafficDetector>()`
-/// and auto-refreshed each tick in the metrics phase. Manual reconstruction
-/// is supported via [`TrafficDetector::with_*`] builders for tests that
-/// bypass `Simulation`.
+/// and auto-refreshed each tick in the metrics phase. Manual
+/// reconstruction is supported via the `with_*` builders for tests
+/// that bypass `Simulation`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrafficDetector {
     /// Window over which arrivals are counted (ticks).
