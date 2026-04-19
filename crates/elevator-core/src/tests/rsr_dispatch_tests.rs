@@ -312,6 +312,59 @@ fn peak_direction_multiplier_strengthens_penalty_in_up_peak() {
     );
 }
 
+/// Mirror of `peak_direction_multiplier_strengthens_penalty_in_up_peak`
+/// for `DownPeak`. The `match` arm treats both peaks symmetrically;
+/// this test guards against a future split that might scale only one.
+#[test]
+fn peak_direction_multiplier_strengthens_penalty_in_down_peak() {
+    use crate::arrival_log::{ArrivalLog, DestinationLog};
+    use crate::traffic_detector::{TrafficDetector, TrafficMode};
+
+    let (mut world, stops) = test_world();
+    let committed_up = spawn_elevator(&mut world, 6.0);
+    let idle_far = spawn_elevator(&mut world, 16.0);
+    world.elevator_mut(committed_up).unwrap().phase = ElevatorPhase::MovingToStop(stops[3]);
+
+    // Seed a DownPeak classification: sparse origins across upper
+    // floors, dominant destination at the lobby.
+    let mut detector = TrafficDetector::new().with_window_ticks(3_600);
+    let mut arrivals = ArrivalLog::default();
+    let mut destinations = DestinationLog::default();
+    let lobby = stops[0];
+    for t in 0..30u64 {
+        for &s in &stops[1..] {
+            arrivals.record(t * 50, s);
+        }
+    }
+    for t in 0..60u64 {
+        destinations.record(t * 25, lobby);
+    }
+    detector.update(&arrivals, &destinations, 3_500, &stops);
+    assert_eq!(detector.current_mode(), TrafficMode::DownPeak);
+    world.insert_resource(detector);
+
+    let group = test_group(&stops, vec![committed_up, idle_far]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+
+    let mut rsr = RsrDispatch::new()
+        .with_wrong_direction_penalty(5.0)
+        .with_peak_direction_multiplier(3.0);
+    let decisions = decide_all(
+        &mut rsr,
+        &[(committed_up, 6.0), (idle_far, 16.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let idle_dec = decisions.iter().find(|(e, _)| *e == idle_far).unwrap();
+    assert_eq!(
+        idle_dec.1,
+        DispatchDecision::GoToStop(stops[0]),
+        "DownPeak multiplier must strengthen direction penalty symmetrically with UpPeak"
+    );
+}
+
 /// Off-peak (`InterFloor`) the multiplier is a no-op: the same 5.0 base
 /// penalty that flipped the decision under `UpPeak` stays too small, so
 /// distance wins and the committed-up car takes the job.
