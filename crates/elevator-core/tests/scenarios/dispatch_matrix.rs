@@ -57,7 +57,15 @@ const MAX_TICKS: u64 = 10_000;
 fn morning_conditions() -> Vec<Condition> {
     vec![
         Condition::AllDeliveredByTick(3257),
-        Condition::AvgWaitBelow(273.0),
+        // Bumped from 273 → 390 when the dispatch commitment-set fix
+        // (commits in-flight cars so Hungarian stops yanking them off
+        // mid-trip) landed. Average wait rose ~19% in exchange for
+        // eliminating the double-dispatch + reassignment-ping-pong
+        // that the playground was reporting as empty lobby touch-
+        // and-gos and "the other two cars wandering" behaviour.
+        // 390 leaves ~20% headroom over the new 324-tick observed
+        // baseline, matching the top-comment convention.
+        Condition::AvgWaitBelow(390.0),
         Condition::AbandonmentRateBelow(0.05),
     ]
 }
@@ -195,7 +203,12 @@ fn interfloor_fast_conditions() -> Vec<Condition> {
 fn interfloor_sweep_conditions() -> Vec<Condition> {
     vec![
         Condition::AllDeliveredByTick(5511),
-        Condition::AvgWaitBelow(1054.0),
+        // Bumped from 1054 → 1740 by the dispatch commitment-set
+        // fix. Interfloor traffic reassigns heavily (every rider
+        // generates a new dispatch call), so the regression is
+        // larger than morning rush. 1740 leaves ~20% headroom over
+        // the new 1447-tick observed baseline.
+        Condition::AvgWaitBelow(1740.0),
         Condition::AbandonmentRateBelow(0.05),
     ]
 }

@@ -841,12 +841,23 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
         visible_call_count: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Observer {
-        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
-            // Track running max so a later `rank` call observing zero
-            // calls (e.g. after the car arrived and cleared the call)
-            // doesn't overwrite a previous nonzero observation.
-            let count = ctx.manifest.iter_hall_calls().count();
+        fn pre_dispatch(
+            &mut self,
+            _group: &crate::dispatch::ElevatorGroup,
+            manifest: &crate::dispatch::DispatchManifest,
+            _world: &mut crate::world::World,
+        ) {
+            // Observe in `pre_dispatch` (runs every tick) rather than
+            // `rank` (skipped once a car is committed to the stop by
+            // the commitment-set filter in `systems::dispatch`).
+            // Track running max so a later call observing zero calls
+            // (after car arrives and clears) doesn't overwrite a
+            // previous nonzero observation.
+            let count = manifest.iter_hall_calls().count();
             self.visible_call_count.fetch_max(count, Ordering::Relaxed);
+        }
+
+        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             Some((ctx.car_position - ctx.stop_position).abs())
         }
     }
