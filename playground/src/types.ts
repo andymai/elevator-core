@@ -57,7 +57,7 @@ export interface Metrics {
   total_moves: number;
 }
 
-export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination";
+export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination" | "rsr";
 
 /**
  * Decoded event DTOs surfaced by `Sim.drainEvents`. Kind-tagged to

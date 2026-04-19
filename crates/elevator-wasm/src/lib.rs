@@ -13,7 +13,7 @@
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
     BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, LookDispatch,
-    NearestCarDispatch, ScanDispatch,
+    NearestCarDispatch, RsrDispatch, ScanDispatch,
 };
 use elevator_core::prelude::{Simulation, StopId};
 use wasm_bindgen::prelude::*;
@@ -29,6 +29,7 @@ fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
         "nearest" => Some(BuiltinStrategy::NearestCar),
         "etd" => Some(BuiltinStrategy::Etd),
         "destination" => Some(BuiltinStrategy::Destination),
+        "rsr" => Some(BuiltinStrategy::Rsr),
         _ => None,
     }
 }
@@ -47,6 +48,11 @@ fn make_sim(
         "nearest" => Simulation::new(config, NearestCarDispatch::new()),
         "etd" => Simulation::new(config, EtdDispatch::new()),
         "destination" => Simulation::new(config, DestinationDispatch::new()),
+        // RSR is the composite cost-stack strategy (ETA + wrong-
+        // direction / car-call-affinity / load-fraction terms). The
+        // playground exposes it with the stock weights — callers
+        // seeking non-default tunings must drop to the Rust API.
+        "rsr" => Simulation::new(config, RsrDispatch::new()),
         _ => return None,
     })
 }

@@ -28,13 +28,14 @@ import type {
 // pane A is visible. A lightweight scoreboard highlights which strategy is
 // winning on each live metric.
 
-const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
+const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd", "destination", "rsr"];
 const STRATEGY_LABELS: Record<StrategyName, string> = {
   scan: "SCAN",
   look: "LOOK",
   nearest: "NEAREST",
   etd: "ETD",
   destination: "DCS",
+  rsr: "RSR",
 };
 const WAIT_HISTORY_LEN = 120;
 const COLOR_A = "#7dd3fc";
