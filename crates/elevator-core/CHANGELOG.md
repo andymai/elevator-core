@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.15.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.14.1...elevator-core-v15.15.0) (2026-04-19)
+
+
+### Features
+
+* **scenarios:** RSR matrix coverage + Adaptive/DownPeak end-to-end ([#375](https://github.com/andymai/elevator-core/issues/375)) ([5b6851d](https://github.com/andymai/elevator-core/commit/5b6851d1e64e1b69c39e3f1309966d2880faea5d))
+
 ## [15.14.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.14.0...elevator-core-v15.14.1) (2026-04-19)
 
 
