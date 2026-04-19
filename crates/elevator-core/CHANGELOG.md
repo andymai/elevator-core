@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.14.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.14.0...elevator-core-v15.14.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **core-wiring:** install DestinationLog in Simulation::new; expand prelude ([#371](https://github.com/andymai/elevator-core/issues/371)) ([1d6000a](https://github.com/andymai/elevator-core/commit/1d6000afeb0b10dc022291994ac6b2b830e6dd7f))
+
 ## [15.14.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.13.0...elevator-core-v15.14.0) (2026-04-19)
 
 
