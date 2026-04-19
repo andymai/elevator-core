@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.5...elevator-core-v15.6.0) (2026-04-19)
+
+
+### Features
+
+* **scenario:** scenario-driven coverage suite (33 new tests) ([#343](https://github.com/andymai/elevator-core/issues/343)) ([f246a89](https://github.com/andymai/elevator-core/commit/f246a891d5e464a3f2aa916e00b8aaf5405e81a6))
+
 ## [15.5.5](https://github.com/andymai/elevator-core/compare/elevator-core-v15.5.4...elevator-core-v15.5.5) (2026-04-19)
 
 
