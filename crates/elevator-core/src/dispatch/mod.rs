@@ -42,6 +42,8 @@ pub mod look;
 pub mod nearest_car;
 /// Built-in repositioning strategies.
 pub mod reposition;
+/// Relative System Response (RSR) dispatch algorithm.
+pub mod rsr;
 /// SCAN dispatch algorithm.
 pub mod scan;
 /// Shared sweep-direction logic used by SCAN and LOOK.
@@ -51,6 +53,7 @@ pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
 pub use look::LookDispatch;
 pub use nearest_car::NearestCarDispatch;
+pub use rsr::RsrDispatch;
 pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
@@ -393,6 +396,9 @@ pub enum BuiltinStrategy {
     Etd,
     /// Hall-call destination dispatch — sticky per-rider assignment.
     Destination,
+    /// Relative System Response — additive composite of ETA, direction,
+    /// car-call affinity, and load-share terms.
+    Rsr,
     /// Custom strategy identified by name. The game must provide a factory.
     Custom(String),
 }
@@ -405,6 +411,7 @@ impl std::fmt::Display for BuiltinStrategy {
             Self::NearestCar => write!(f, "NearestCar"),
             Self::Etd => write!(f, "Etd"),
             Self::Destination => write!(f, "Destination"),
+            Self::Rsr => write!(f, "Rsr"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -423,6 +430,7 @@ impl BuiltinStrategy {
             Self::NearestCar => Some(Box::new(nearest_car::NearestCarDispatch::new())),
             Self::Etd => Some(Box::new(etd::EtdDispatch::new())),
             Self::Destination => Some(Box::new(destination::DestinationDispatch::new())),
+            Self::Rsr => Some(Box::new(rsr::RsrDispatch::new())),
             Self::Custom(_) => None,
         }
     }
