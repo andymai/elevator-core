@@ -47,6 +47,7 @@ You can mix imperative and strategy-driven dispatch freely. Dispatch keeps the q
 | `NearestCarDispatch` | Assign each call to the closest idle elevator | Multi-elevator groups | Low average wait; can cause bunching when elevators cluster |
 | `EtdDispatch` | Minimize estimated time to destination across all riders | Multi-elevator groups with mixed traffic | Best average performance; higher per-tick computation |
 | `DestinationDispatch` | Sticky rider-to-car assignment via lobby kiosk input | Destination-dispatch systems (DCS) | Requires `HallCallMode::Destination`; best with lobby kiosks |
+| `RsrDispatch` | Additive composite: ETA + wrong-direction / load / car-call-affinity terms | Production-style controllers with tunable preferences | Weights default to a nearest-car baseline; opt in per term |
 
 ### Choosing a strategy
 
