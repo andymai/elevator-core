@@ -66,7 +66,11 @@ enum LoadAction {
 
 /// Read-only pass: inspect world state and collect one `LoadAction` per elevator.
 #[allow(clippy::too_many_lines)]
-fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> {
+fn collect_actions(
+    world: &World,
+    elevator_ids: &[EntityId],
+    rider_index: &RiderIndex,
+) -> Vec<LoadAction> {
     let mut actions: Vec<LoadAction> = Vec::new();
 
     for &eid in elevator_ids {
@@ -123,109 +127,112 @@ fn collect_actions(world: &World, elevator_ids: &[EntityId]) -> Vec<LoadAction> 
         // rider wants to go the opposite direction from the car's indicator.
         let mut direction_filtered: Option<EntityId> = None;
 
-        let board_rider = world.iter_riders().find_map(|(rid, rider)| {
-            if world.is_disabled(rid) {
-                return None;
-            }
-            if rider.phase != RiderPhase::Waiting || rider.current_stop != Some(current_stop) {
-                return None;
-            }
-            // Must want to depart from this stop (check route leg origin).
-            let route_ok = world
-                .route(rid)
-                .is_none_or(|route| route.current().is_none_or(|leg| leg.from == current_stop));
-            if !route_ok {
-                return None;
-            }
-            // Sticky hall-call destination assignment: if this rider has been
-            // assigned to another car, the current car must skip them so the
-            // assigned car can pick them up. Stale assignments to a dead or
-            // disabled car are ignored — the rider is fair game for any car —
-            // as a defense against missed cleanup at car-loss boundaries.
-            if let Some(crate::dispatch::AssignedCar(assigned)) =
-                world.ext::<crate::dispatch::AssignedCar>(rid)
-                && assigned != eid
-                && world.elevator(assigned).is_some()
-                && !world.is_disabled(assigned)
-            {
-                return None;
-            }
-            // Group/line match: rider must want this elevator's group (or specific line).
-            if let Some(route) = world.route(rid)
-                && let Some(leg) = route.current()
-            {
-                match leg.via {
-                    TransportMode::Group(g) => {
-                        if elev_group != Some(g) {
-                            return None;
-                        }
-                    }
-                    TransportMode::Line(l) => {
-                        if elev_line != l {
-                            return None;
-                        }
-                    }
-                    TransportMode::Walk => {
-                        return None; // Walking riders don't board elevators.
-                    }
-                }
-            }
-            // Access control: check rider can reach destination via this elevator.
-            if let Some(dest) = world.route(rid).and_then(Route::current_destination) {
-                if car_restricted_stops.contains(&dest) {
-                    if access_rejected.is_none() {
-                        access_rejected = Some(rid);
-                    }
+        // Per-stop index excludes Residents; iter_riders would scan them all.
+        let board_rider = rider_index
+            .waiting_at(current_stop)
+            .iter()
+            .copied()
+            .find_map(|rid| {
+                if world.is_disabled(rid) {
                     return None;
                 }
-                if let Some(ac) = world.access_control(rid)
-                    && !ac.can_access(dest)
+                let rider = world.rider(rid)?;
+                // Must want to depart from this stop (check route leg origin).
+                let route_ok = world
+                    .route(rid)
+                    .is_none_or(|route| route.current().is_none_or(|leg| leg.from == current_stop));
+                if !route_ok {
+                    return None;
+                }
+                // Sticky hall-call destination assignment: if this rider has been
+                // assigned to another car, the current car must skip them so the
+                // assigned car can pick them up. Stale assignments to a dead or
+                // disabled car are ignored — the rider is fair game for any car —
+                // as a defense against missed cleanup at car-loss boundaries.
+                if let Some(crate::dispatch::AssignedCar(assigned)) =
+                    world.ext::<crate::dispatch::AssignedCar>(rid)
+                    && assigned != eid
+                    && world.elevator(assigned).is_some()
+                    && !world.is_disabled(assigned)
                 {
-                    if access_rejected.is_none() {
-                        access_rejected = Some(rid);
+                    return None;
+                }
+                // Group/line match: rider must want this elevator's group (or specific line).
+                if let Some(route) = world.route(rid)
+                    && let Some(leg) = route.current()
+                {
+                    match leg.via {
+                        TransportMode::Group(g) => {
+                            if elev_group != Some(g) {
+                                return None;
+                            }
+                        }
+                        TransportMode::Line(l) => {
+                            if elev_line != l {
+                                return None;
+                            }
+                        }
+                        TransportMode::Walk => {
+                            return None; // Walking riders don't board elevators.
+                        }
+                    }
+                }
+                // Access control: check rider can reach destination via this elevator.
+                if let Some(dest) = world.route(rid).and_then(Route::current_destination) {
+                    if car_restricted_stops.contains(&dest) {
+                        if access_rejected.is_none() {
+                            access_rejected = Some(rid);
+                        }
+                        return None;
+                    }
+                    if let Some(ac) = world.access_control(rid)
+                        && !ac.can_access(dest)
+                    {
+                        if access_rejected.is_none() {
+                            access_rejected = Some(rid);
+                        }
+                        return None;
+                    }
+                    // Direction indicator filter: rider must be going in a direction
+                    // this car will serve. A filtered rider silently stays waiting —
+                    // no rejection event — so a later car in the right direction can
+                    // pick them up.
+                    let cur_pos = world.position(current_stop).map(|p| p.value);
+                    let dest_pos = world.position(dest).map(|p| p.value);
+                    if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
+                        if dp > cp && !car.going_up {
+                            if direction_filtered.is_none() {
+                                direction_filtered = Some(rid);
+                            }
+                            return None;
+                        }
+                        if dp < cp && !car.going_down {
+                            if direction_filtered.is_none() {
+                                direction_filtered = Some(rid);
+                            }
+                            return None;
+                        }
+                    }
+                }
+                // Rider preferences: skip crowded elevators.
+                if let Some(prefs) = world.preferences(rid)
+                    && prefs.skip_full_elevator
+                    && load_ratio > prefs.max_crowding_factor
+                {
+                    if preference_rejected.is_none() {
+                        preference_rejected = Some(rid);
                     }
                     return None;
                 }
-                // Direction indicator filter: rider must be going in a direction
-                // this car will serve. A filtered rider silently stays waiting —
-                // no rejection event — so a later car in the right direction can
-                // pick them up.
-                let cur_pos = world.position(current_stop).map(|p| p.value);
-                let dest_pos = world.position(dest).map(|p| p.value);
-                if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
-                    if dp > cp && !car.going_up {
-                        if direction_filtered.is_none() {
-                            direction_filtered = Some(rid);
-                        }
-                        return None;
+                if rider.weight.value() <= remaining_capacity {
+                    Some((rid, rider.weight.value()))
+                } else {
+                    if rejected_candidate.is_none() {
+                        rejected_candidate = Some(rid);
                     }
-                    if dp < cp && !car.going_down {
-                        if direction_filtered.is_none() {
-                            direction_filtered = Some(rid);
-                        }
-                        return None;
-                    }
+                    None
                 }
-            }
-            // Rider preferences: skip crowded elevators.
-            if let Some(prefs) = world.preferences(rid)
-                && prefs.skip_full_elevator
-                && load_ratio > prefs.max_crowding_factor
-            {
-                if preference_rejected.is_none() {
-                    preference_rejected = Some(rid);
-                }
-                return None;
-            }
-            if rider.weight.value() <= remaining_capacity {
-                Some((rid, rider.weight.value()))
-            } else {
-                if rejected_candidate.is_none() {
-                    rejected_candidate = Some(rid);
-                }
-                None
-            }
-        });
+            });
 
         if let Some((rid, weight)) = board_rider {
             actions.push(LoadAction::Board {
@@ -505,6 +512,6 @@ pub fn run(
     elevator_ids: &[EntityId],
     rider_index: &mut RiderIndex,
 ) {
-    let actions = collect_actions(world, elevator_ids);
+    let actions = collect_actions(world, elevator_ids, rider_index);
     apply_actions(actions, world, events, ctx, rider_index);
 }

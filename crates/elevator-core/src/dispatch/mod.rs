@@ -654,6 +654,20 @@ impl ElevatorGroup {
         &self.stop_entities
     }
 
+    /// Whether this group can serve a rider on `leg`. A `Group(g)` leg
+    /// matches by group id; a `Line(l)` leg matches if `l` belongs to
+    /// this group; `Walk` never rides an elevator.
+    #[must_use]
+    pub fn accepts_leg(&self, leg: &crate::components::RouteLeg) -> bool {
+        match leg.via {
+            crate::components::TransportMode::Group(g) => g == self.id,
+            crate::components::TransportMode::Line(l) => {
+                self.lines.iter().any(|li| li.entity() == l)
+            }
+            crate::components::TransportMode::Walk => false,
+        }
+    }
+
     /// Push a stop entity directly into the group's stop cache.
     ///
     /// Use when a stop belongs to the group for dispatch purposes but is
