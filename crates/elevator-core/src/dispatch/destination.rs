@@ -397,7 +397,14 @@ fn assigned_car_within_window(
     if !speed.is_finite() || speed <= 0.0 {
         return false;
     }
-    let eta_ticks = (car_pos - origin_pos).abs() / speed;
+    // `distance / speed` is seconds (speed is distance/second); convert
+    // to ticks so `window` is apples-to-apples. Same class of unit fix
+    // as ETD's door-cost conversion (see `etd.rs`). Fall back to 60 Hz
+    // for bare-World fixtures that don't seat a `TickRate` resource.
+    let tick_rate = world
+        .resource::<crate::time::TickRate>()
+        .map_or(60.0, |r| r.0);
+    let eta_ticks = (car_pos - origin_pos).abs() / speed * tick_rate;
     // A non-finite ETA (NaN from corrupted position) would saturate
     // the `as u64` cast to 0 and erroneously latch the commitment —
     // refuse to latch instead.

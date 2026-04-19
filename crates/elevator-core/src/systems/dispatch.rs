@@ -437,8 +437,12 @@ pub fn build_manifest(
 
     // Snapshot rolling per-stop arrival rates. Strategies read this via
     // `DispatchManifest::arrivals_at` to drive mode switches and
-    // predictive parking without touching world state directly.
-    let window = crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS;
+    // predictive parking without touching world state directly. The
+    // window tracks `ArrivalLogRetention` so `set_arrival_log_retention_ticks`
+    // widens what strategies see, not just what the log keeps.
+    let window = world
+        .resource::<crate::arrival_log::ArrivalLogRetention>()
+        .map_or(crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS, |r| r.0);
     manifest.arrival_window_ticks = window;
     if let Some(log) = world.resource::<crate::arrival_log::ArrivalLog>() {
         for &stop in group.stop_entities() {

@@ -188,6 +188,10 @@ pub fn run(
         if let Some(r) = world.rider_mut(id) {
             r.phase = RiderPhase::Abandoned;
         }
+        // An abandoned rider is not a waiter any more; leaving their
+        // ID in `pending_riders` would spuriously hold car calls open
+        // and count them in mode-detection `is_empty()` checks.
+        world.scrub_rider_from_pending_calls(id);
         rider_index.remove_waiting(stop, id);
         rider_index.insert_abandoned(stop, id);
         events.emit(Event::RiderAbandoned {
@@ -229,6 +233,7 @@ pub fn run(
         if let Some(r) = world.rider_mut(id) {
             r.phase = RiderPhase::Abandoned;
         }
+        world.scrub_rider_from_pending_calls(id);
         rider_index.remove_waiting(stop, id);
         rider_index.insert_abandoned(stop, id);
         events.emit(Event::RiderAbandoned {

@@ -988,3 +988,61 @@ fn assigned_car_set_on_both_directions_when_car_at_stop() {
          (pre-fix Down stayed None, lying about dispatch state)"
     );
 }
+
+/// Despawning a waiting rider must remove them from the stop's
+/// `HallCall::pending_riders`; leaving their ID in the list keeps a
+/// stale back-reference alive until a car happens to clear the call.
+#[test]
+fn despawn_rider_scrubs_hall_call_pending_riders() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    assert!(
+        sim.world()
+            .hall_call(origin, CallDirection::Up)
+            .unwrap()
+            .pending_riders
+            .contains(&rid.entity())
+    );
+
+    sim.despawn_rider(rid).unwrap();
+
+    let call = sim.world().hall_call(origin, CallDirection::Up).unwrap();
+    assert!(
+        !call.pending_riders.contains(&rid.entity()),
+        "despawn_rider must scrub the rider from pending_riders"
+    );
+}
+
+/// An abandoning rider stays alive in the world but has stopped
+/// competing for service — their ID must be removed from
+/// `pending_riders` so the call's mode-detection (`is_empty()`) and
+/// load accounting stay accurate.
+#[test]
+fn abandonment_scrubs_hall_call_pending_riders() {
+    use crate::components::Preferences;
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    let rid = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    // Attach a 1-tick patience so the rider abandons immediately.
+    sim.world_mut().set_preferences(
+        rid.entity(),
+        Preferences::default().with_abandon_after_ticks(Some(1)),
+    );
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+
+    // Step enough ticks for time-triggered abandonment to fire.
+    for _ in 0..3 {
+        sim.step();
+    }
+
+    let call = sim.world().hall_call(origin, CallDirection::Up);
+    // The call may either be entirely gone (if cleared by a car
+    // opening doors) or still present — but if present, must not
+    // contain the abandoned rider.
+    if let Some(call) = call {
+        assert!(
+            !call.pending_riders.contains(&rid.entity()),
+            "abandonment must scrub the rider from pending_riders"
+        );
+    }
+}

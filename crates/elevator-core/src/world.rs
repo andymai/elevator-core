@@ -612,6 +612,27 @@ impl World {
         Some(self.car_calls.entry(car)?.or_default())
     }
 
+    /// Remove `rider` from every hall- and car-call's `pending_riders`
+    /// list, and drop car calls whose list becomes empty as a result.
+    ///
+    /// Call on despawn or abandonment so stale rider IDs don't hold
+    /// calls open past the rider's life. Mirrors the per-exit cleanup
+    /// in `systems::loading` (for `Exit`-time car-call pruning). Hall
+    /// calls stay alive after the list empties: they may still represent
+    /// a script-driven press with no associated rider, and are cleared
+    /// the usual way when an eligible car opens doors.
+    pub(crate) fn scrub_rider_from_pending_calls(&mut self, rider: EntityId) {
+        for call in self.iter_hall_calls_mut() {
+            call.pending_riders.retain(|r| *r != rider);
+        }
+        for calls in self.car_calls.values_mut() {
+            for c in calls.iter_mut() {
+                c.pending_riders.retain(|r| *r != rider);
+            }
+            calls.retain(|c| !c.pending_riders.is_empty());
+        }
+    }
+
     // ── Typed query helpers ──────────────────────────────────────────
 
     /// Iterate all elevator entities (have `Elevator` + `Position`).
