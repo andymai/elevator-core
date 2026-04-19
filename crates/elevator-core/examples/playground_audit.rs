@@ -388,26 +388,26 @@ const OFFICE_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 60,
-        riders_per_min: 55.0,
+        riders_per_min: 30.0,
         origin_weights: &[8.5, 0.3, 0.3, 0.3, 0.3, 0.3],
         // topBias(6) × (i==0 ? 0 : w): 0, 1.1, 1.2, 1.3, 1.4, 1.5
         dest_weights: &[0.0, 1.1, 1.2, 1.3, 1.4, 1.5],
     },
     Phase {
         duration_sec: 60,
-        riders_per_min: 30.0,
+        riders_per_min: 16.0,
         origin_weights: &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         dest_weights: &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
     },
     Phase {
         duration_sec: 45,
-        riders_per_min: 65.0,
+        riders_per_min: 36.0,
         origin_weights: &[0.3, 3.0, 2.0, 2.0, 2.0, 2.0],
         dest_weights: &[0.3, 3.0, 2.0, 2.0, 2.0, 2.0],
     },
     Phase {
         duration_sec: 60,
-        riders_per_min: 55.0,
+        riders_per_min: 30.0,
         // topBias(6) × (i==0 ? 0 : w): 0, 1.1, 1.2, 1.3, 1.4, 1.5
         origin_weights: &[0.0, 1.1, 1.2, 1.3, 1.4, 1.5],
         dest_weights: &[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -432,14 +432,14 @@ const OFFICE_RON: &str = r#"SimConfig(
             max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
             weight_capacity: 800.0,
             starting_stop: StopId(0),
-            door_open_ticks: 55, door_transition_ticks: 14,
+            door_open_ticks: 210, door_transition_ticks: 60,
         ),
         ElevatorConfig(
             id: 1, name: "Car 2",
             max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
             weight_capacity: 800.0,
             starting_stop: StopId(3),
-            door_open_ticks: 55, door_transition_ticks: 14,
+            door_open_ticks: 210, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
@@ -462,7 +462,7 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 75,
-        riders_per_min: 48.0,
+        riders_per_min: 20.0,
         origin_weights: &[
             14.0, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
         ],
@@ -472,13 +472,13 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 60,
-        riders_per_min: 30.0,
+        riders_per_min: 13.0,
         origin_weights: &[1.0; 13],
         dest_weights: &[1.0; 13],
     },
     Phase {
         duration_sec: 45,
-        riders_per_min: 42.0,
+        riders_per_min: 17.0,
         // Sky lobby at index 6 weighted 3× as origin, 4× as dest.
         origin_weights: &[
             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -489,7 +489,7 @@ const SKY_PHASES: &[Phase] = &[
     },
     Phase {
         duration_sec: 75,
-        riders_per_min: 42.0,
+        riders_per_min: 18.0,
         origin_weights: &[
             0.0, 1.0, 1.045, 1.091, 1.136, 1.182, 1.227, 1.273, 1.318, 1.364, 1.409, 1.455, 1.5,
         ],
@@ -524,7 +524,7 @@ const SKY_RON: &str = r#"SimConfig(
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(0),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
         ElevatorConfig(
@@ -532,7 +532,7 @@ const SKY_RON: &str = r#"SimConfig(
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(6),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
         ElevatorConfig(
@@ -540,7 +540,7 @@ const SKY_RON: &str = r#"SimConfig(
             max_speed: 4.0, acceleration: 2.0, deceleration: 2.5,
             weight_capacity: 1200.0,
             starting_stop: StopId(12),
-            door_open_ticks: 55, door_transition_ticks: 16,
+            door_open_ticks: 300, door_transition_ticks: 72,
             bypass_load_up_pct: Some(0.80), bypass_load_down_pct: Some(0.50),
         ),
     ],

@@ -39,7 +39,12 @@ export const DEFAULT_STATE: PermalinkState = {
   compare: true,
   seed: 42,
   intensity: 1.0,
-  speed: 4,
+  // 2× default (was 4×): after door times moved to realistic
+  // commercial values (3–5 s dwell), 4× playback made the whole
+  // scenario feel frantic — doors flashed, cars teleported. 2×
+  // keeps dispatch decisions readable without making a cold visitor
+  // wait a real minute to see morning rush develop.
+  speed: 2,
 };
 
 const STRATEGIES: readonly StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
