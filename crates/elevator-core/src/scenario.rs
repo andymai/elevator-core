@@ -6,6 +6,8 @@ use crate::error::SimError;
 use crate::metrics::Metrics;
 use crate::sim::Simulation;
 use crate::stop::StopId;
+use crate::traffic::TrafficPattern;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 /// A timed rider spawn event within a scenario.
@@ -252,5 +254,209 @@ fn evaluate_condition(
             passed: metrics.abandonment_rate() < *threshold,
             actual_value: metrics.abandonment_rate(),
         },
+    }
+}
+
+// ── SpawnSchedule builder ───────────────────────────────────────────
+
+/// Fluent builder for [`TimedSpawn`] sequences that feed [`Scenario::spawns`].
+///
+/// Unifies two common authoring shapes in one place:
+/// - Deterministic bursts (fixed origin/destination, fixed tick or regular
+///   cadence), where exact tick counts matter — e.g. "20 riders leave the
+///   lobby at tick 0", "1 rider every 600 ticks for 10 minutes".
+/// - Poisson draws from a [`TrafficPattern`], where the origin/destination
+///   pair is stochastic but the arrival process is exponential.
+///
+/// The final [`Vec<TimedSpawn>`] is extracted via [`into_spawns`](Self::into_spawns)
+/// and handed to [`Scenario::spawns`]. Scenarios with mixed shapes chain
+/// builders via [`merge`](Self::merge):
+///
+/// ```
+/// use elevator_core::scenario::SpawnSchedule;
+/// use elevator_core::stop::StopId;
+///
+/// let schedule = SpawnSchedule::new()
+///     .burst(StopId(0), StopId(5), 10, 0, 70.0)
+///     .staggered(StopId(0), StopId(3), 5, 1_000, 300, 70.0);
+/// assert_eq!(schedule.len(), 15);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct SpawnSchedule {
+    /// Accumulated spawns. Order is authoring order;
+    /// [`ScenarioRunner::new`] sorts by tick on construction.
+    spawns: Vec<TimedSpawn>,
+}
+
+impl SpawnSchedule {
+    /// Create an empty schedule.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { spawns: Vec::new() }
+    }
+
+    /// Append `count` identical spawns, all firing on `at_tick`. Use this
+    /// for the classic "crowd appears simultaneously" shape (morning
+    /// stand-up, event dismissal).
+    #[must_use]
+    pub fn burst(
+        mut self,
+        origin: StopId,
+        destination: StopId,
+        count: usize,
+        at_tick: u64,
+        weight: f64,
+    ) -> Self {
+        self.spawns.reserve(count);
+        for _ in 0..count {
+            self.spawns.push(TimedSpawn {
+                tick: at_tick,
+                origin,
+                destination,
+                weight,
+            });
+        }
+        self
+    }
+
+    /// Append `count` spawns starting at `start_tick`, each `stagger_ticks`
+    /// apart. A `stagger_ticks = 0` degenerates to [`burst`](Self::burst).
+    /// Use this for deterministic arrival cadences — e.g. "one rider every
+    /// 10 seconds" — where Poisson variance would obscure the test signal.
+    #[must_use]
+    pub fn staggered(
+        mut self,
+        origin: StopId,
+        destination: StopId,
+        count: usize,
+        start_tick: u64,
+        stagger_ticks: u64,
+        weight: f64,
+    ) -> Self {
+        self.spawns.reserve(count);
+        for i in 0..count as u64 {
+            self.spawns.push(TimedSpawn {
+                tick: start_tick + i * stagger_ticks,
+                origin,
+                destination,
+                weight,
+            });
+        }
+        self
+    }
+
+    /// Append Poisson-distributed spawns from a [`TrafficPattern`] over
+    /// `duration_ticks`, with exponential inter-arrival times of mean
+    /// `mean_interval_ticks`. `weight_range` is a uniform draw per spawn.
+    /// The supplied `rng` advances but is not taken — callers can continue
+    /// using it for other deterministic draws.
+    ///
+    /// `stops` must be sorted by position (lobby first) to match
+    /// [`TrafficPattern`]'s lobby-origin peak-pattern assumption. See
+    /// [`TrafficPattern::sample_stop_ids`].
+    ///
+    /// Returns the schedule with generated spawns appended. If `stops`
+    /// has fewer than 2 entries, no spawns are generated (pattern
+    /// sampling requires at least two stops).
+    #[must_use]
+    pub fn from_pattern(
+        mut self,
+        pattern: TrafficPattern,
+        stops: &[StopId],
+        duration_ticks: u64,
+        mean_interval_ticks: u32,
+        weight_range: (f64, f64),
+        rng: &mut impl RngExt,
+    ) -> Self {
+        if stops.len() < 2 || mean_interval_ticks == 0 {
+            return self;
+        }
+        let (wlo, whi) = if weight_range.0 > weight_range.1 {
+            (weight_range.1, weight_range.0)
+        } else {
+            weight_range
+        };
+        let mut tick = 0u64;
+        loop {
+            // Exponential inter-arrival time, clamped to avoid ln(0).
+            let u: f64 = rng.random_range(0.0001..1.0);
+            let interval = -(f64::from(mean_interval_ticks)) * u.ln();
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let step = (interval as u64).max(1);
+            tick = tick.saturating_add(step);
+            if tick >= duration_ticks {
+                break;
+            }
+            if let Some((origin, destination)) = pattern.sample_stop_ids(stops, rng) {
+                let weight = rng.random_range(wlo..=whi);
+                self.spawns.push(TimedSpawn {
+                    tick,
+                    origin,
+                    destination,
+                    weight,
+                });
+            }
+        }
+        self
+    }
+
+    /// Append a single spawn. Useful for one-off riders mixed into a
+    /// larger pattern (e.g. a "stranded top-floor" rider sitting atop
+    /// a [`from_pattern`](Self::from_pattern) stream).
+    #[must_use]
+    pub fn push(mut self, spawn: TimedSpawn) -> Self {
+        self.spawns.push(spawn);
+        self
+    }
+
+    /// Absorb another schedule's spawns. Chainable drop-in for
+    /// composing heterogeneous arrival shapes — e.g. up-peak burst
+    /// plus a uniform inter-floor background:
+    ///
+    /// ```
+    /// # use elevator_core::scenario::SpawnSchedule;
+    /// # use elevator_core::stop::StopId;
+    /// # use elevator_core::traffic::TrafficPattern;
+    /// # use rand::SeedableRng;
+    /// let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+    /// let stops = vec![StopId(0), StopId(1), StopId(2)];
+    /// let background = SpawnSchedule::new().from_pattern(
+    ///     TrafficPattern::Uniform, &stops, 10_000, 300, (70.0, 80.0), &mut rng,
+    /// );
+    /// let up_peak = SpawnSchedule::new().burst(StopId(0), StopId(2), 20, 0, 70.0);
+    /// let combined = up_peak.merge(background);
+    /// assert!(combined.len() >= 20);
+    /// ```
+    #[must_use]
+    pub fn merge(mut self, other: Self) -> Self {
+        self.spawns.extend(other.spawns);
+        self
+    }
+
+    /// Number of spawns currently in the schedule.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.spawns.len()
+    }
+
+    /// Whether the schedule has no spawns.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.spawns.is_empty()
+    }
+
+    /// Borrow the underlying spawns (useful for inspection in tests).
+    #[must_use]
+    pub fn spawns(&self) -> &[TimedSpawn] {
+        &self.spawns
+    }
+
+    /// Consume the builder and return the spawns, ready to drop into
+    /// [`Scenario::spawns`]. [`ScenarioRunner::new`] sorts them by tick
+    /// on construction, so builders don't need to maintain a sorted
+    /// invariant.
+    #[must_use]
+    pub fn into_spawns(self) -> Vec<TimedSpawn> {
+        self.spawns
     }
 }
