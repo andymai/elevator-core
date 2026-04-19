@@ -97,7 +97,7 @@ export class TrafficDriver {
     const out: RiderSpec[] = [];
     while (this.#accumulator >= 1.0) {
       this.#accumulator -= 1.0;
-      out.push(this.#nextSpec(snapshot, phase));
+      out.push(this.#nextSpec(addressable, phase));
     }
     return out;
   }
@@ -132,8 +132,7 @@ export class TrafficDriver {
     return this.#phases;
   }
 
-  #nextSpec(snap: Snapshot, phase: Phase): RiderSpec {
-    const stops = snap.stops.filter((s) => s.stop_id !== 0xffffffff);
+  #nextSpec(stops: Snapshot["stops"], phase: Phase): RiderSpec {
     const originIdx = this.#pickWeighted(stops.length, phase.originWeights);
     let destIdx = this.#pickWeighted(stops.length, phase.destWeights);
     // Same-stop collisions are a natural result of zero-weight entries
