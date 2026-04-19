@@ -35,6 +35,18 @@ pub struct EtdDispatch {
     /// positive values damp the long-wait tail (Aalto EJOR 2016
     /// group-time assignment model).
     pub wait_squared_weight: f64,
+    /// Weight for the linear waiting-age fairness term. Each candidate
+    /// stop's cost is reduced by this weight times the sum of
+    /// `wait_ticks` across waiting riders at the stop, so stops hosting
+    /// older calls win ties without the quadratic blow-up of
+    /// [`wait_squared_weight`](Self::wait_squared_weight). Defaults to
+    /// `0.0` (no bias); positive values implement the linear
+    /// collective-group-control fairness term from Lim 1983 /
+    /// Barney–dos Santos 1985 CGC.
+    ///
+    /// Composes additively with `wait_squared_weight`: users wanting
+    /// the full CGC shape can set both (`k·Σw + λ·Σw²`).
+    pub age_linear_weight: f64,
     /// Positions of every demanded stop in the group, cached by
     /// [`DispatchStrategy::pre_dispatch`] so `rank` avoids rebuilding the
     /// list for every `(car, stop)` pair.
@@ -45,7 +57,8 @@ impl EtdDispatch {
     /// Create a new `EtdDispatch` with default weights.
     ///
     /// Defaults: `wait_weight = 1.0`, `delay_weight = 1.0`,
-    /// `door_weight = 0.5`, `wait_squared_weight = 0.0`.
+    /// `door_weight = 0.5`, `wait_squared_weight = 0.0`,
+    /// `age_linear_weight = 0.0`.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -53,6 +66,7 @@ impl EtdDispatch {
             delay_weight: 1.0,
             door_weight: 0.5,
             wait_squared_weight: 0.0,
+            age_linear_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
     }
@@ -65,6 +79,7 @@ impl EtdDispatch {
             delay_weight,
             door_weight: 0.5,
             wait_squared_weight: 0.0,
+            age_linear_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
     }
@@ -77,6 +92,7 @@ impl EtdDispatch {
             delay_weight,
             door_weight,
             wait_squared_weight: 0.0,
+            age_linear_weight: 0.0,
             pending_positions: SmallVec::new(),
         }
     }
@@ -96,6 +112,24 @@ impl EtdDispatch {
             "wait_squared_weight must be finite and non-negative, got {weight}"
         );
         self.wait_squared_weight = weight;
+        self
+    }
+
+    /// Turn on the linear waiting-age fairness term. Higher values
+    /// prefer older waiters more aggressively; `0.0` (the default)
+    /// disables. Composes additively with
+    /// [`with_wait_squared_weight`](Self::with_wait_squared_weight).
+    ///
+    /// # Panics
+    /// Panics on non-finite or negative weights, for the same reasons
+    /// as [`with_wait_squared_weight`](Self::with_wait_squared_weight).
+    #[must_use]
+    pub fn with_age_linear_weight(mut self, weight: f64) -> Self {
+        assert!(
+            weight.is_finite() && weight >= 0.0,
+            "age_linear_weight must be finite and non-negative, got {weight}"
+        );
+        self.age_linear_weight = weight;
         self
     }
 }
@@ -146,6 +180,15 @@ impl DispatchStrategy for EtdDispatch {
                 })
                 .sum();
             cost = self.wait_squared_weight.mul_add(-wait_sq, cost).max(0.0);
+        }
+        if self.age_linear_weight > 0.0 {
+            let wait_sum: f64 = ctx
+                .manifest
+                .waiting_riders_at(ctx.stop)
+                .iter()
+                .map(|r| r.wait_ticks as f64)
+                .sum();
+            cost = self.age_linear_weight.mul_add(-wait_sum, cost).max(0.0);
         }
         if cost.is_finite() { Some(cost) } else { None }
     }

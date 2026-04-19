@@ -107,6 +107,7 @@ use elevator_core::dispatch::etd::EtdDispatch;
 
 let etd = EtdDispatch::new();                         // default delay_weight = 1.0
 let etd_conservative = EtdDispatch::with_delay_weight(1.5);  // favor existing riders
+let etd_fair = EtdDispatch::new().with_age_linear_weight(1.0); // linear starvation-avoidance (CGC)
 ```
 
 ## Multi-group dispatch
