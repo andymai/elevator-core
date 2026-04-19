@@ -323,6 +323,12 @@ impl Simulation {
             tags.remove_entity(id);
         }
 
+        // Purge stale `pending_riders` entries before the entity slot
+        // is reused. `world.despawn` cleans ext storage keyed on this
+        // rider (e.g. `AssignedCar`) but not back-references living on
+        // stop/car entities.
+        self.world.scrub_rider_from_pending_calls(id);
+
         self.world.despawn(id);
 
         self.events.emit(Event::RiderDespawned {
