@@ -33,6 +33,11 @@ pub enum Condition {
     AvgWaitBelow(f64),
     /// Maximum wait time must be below this value (ticks).
     MaxWaitBelow(u64),
+    /// 95th-percentile wait time must be below this value (ticks).
+    /// Uses [`Metrics::p95_wait_time`](crate::metrics::Metrics::p95_wait_time);
+    /// returns 0 (vacuously passing) when the wait-sample buffer is
+    /// empty or disabled.
+    P95WaitBelow(u64),
     /// Throughput must be above this value (riders per window).
     ThroughputAbove(u64),
     /// All spawned riders must reach a terminal state (delivered or abandoned)
@@ -239,6 +244,11 @@ fn evaluate_condition(
             condition: condition.clone(),
             passed: metrics.max_wait_time() < *threshold,
             actual_value: metrics.max_wait_time() as f64,
+        },
+        Condition::P95WaitBelow(threshold) => ConditionResult {
+            condition: condition.clone(),
+            passed: metrics.p95_wait_time() < *threshold,
+            actual_value: metrics.p95_wait_time() as f64,
         },
         Condition::ThroughputAbove(threshold) => ConditionResult {
             condition: condition.clone(),
