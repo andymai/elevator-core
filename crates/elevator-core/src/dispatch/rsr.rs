@@ -26,6 +26,15 @@ use super::{DispatchStrategy, RankContext, pair_can_do_work};
 /// except `eta_weight` (1.0), giving a baseline that mirrors
 /// [`NearestCarDispatch`](super::NearestCarDispatch) until terms are
 /// opted in.
+///
+/// # Weight invariants
+///
+/// Every weight field must be **finite and non-negative**. The
+/// `with_*` builder methods enforce this with `assert!`; direct field
+/// mutation bypasses the check and is a caller responsibility. A `NaN` weight propagates through the multiply-add
+/// chain and silently collapses every pair's cost to zero (Rust's
+/// `NaN.max(0.0) == 0.0`), producing an arbitrary but type-valid
+/// assignment from the Hungarian solver — a hard bug to diagnose.
 pub struct RsrDispatch {
     /// Weight on `travel_time = distance / max_speed` (seconds).
     /// Default `1.0`; raising it shifts the blend toward travel time.
@@ -49,9 +58,9 @@ pub struct RsrDispatch {
     /// (`load_penalty_coeff · load_ratio`).
     ///
     /// Fires for partially loaded cars below the `bypass_load_*_pct`
-    /// threshold enforced by [`pair_can_do_work`](super::pair_can_do_work);
-    /// lets you prefer emptier cars for new pickups without an on/off
-    /// cliff. Default `0.0`.
+    /// threshold enforced by [`pair_can_do_work`]; lets you prefer
+    /// emptier cars for new pickups without an on/off cliff.
+    /// Default `0.0`.
     pub load_penalty_coeff: f64,
 }
 

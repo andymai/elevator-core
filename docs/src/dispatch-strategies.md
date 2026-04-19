@@ -1,6 +1,6 @@
 # Dispatch Strategies
 
-Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the five built-in strategies, and how to choose between them.
+Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the six built-in strategies, and how to choose between them.
 
 ## How dispatch works
 
@@ -91,7 +91,7 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-All five strategies live in their respective modules:
+All six strategies live in their respective modules:
 
 ```rust,no_run
 use elevator_core::dispatch::scan::ScanDispatch;
@@ -99,6 +99,7 @@ use elevator_core::dispatch::look::LookDispatch;
 use elevator_core::dispatch::nearest_car::NearestCarDispatch;
 use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::dispatch::destination::DestinationDispatch;
+use elevator_core::dispatch::rsr::RsrDispatch;
 ```
 
 The ETD strategy accepts a delay weight that controls how much it penalizes delays to existing riders when assigning a new call:
