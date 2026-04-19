@@ -9,7 +9,7 @@ use std::fmt;
 ///
 /// Games query this via `sim.metrics()` for HUD display, scoring,
 /// or scenario evaluation.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Metrics {
     // -- Queryable metrics (accessed via getters) --
@@ -91,16 +91,51 @@ const fn default_wait_sample_capacity() -> usize {
     10_000
 }
 
+impl Default for Metrics {
+    /// Delegates to [`Metrics::new`] so `#[derive(Default)]`-on-holders and
+    /// direct `Metrics::default()` callers get the same 3600-tick throughput
+    /// window and 10 000-sample wait buffer that `new()` wires up. Without
+    /// this, the derived `Default` would zero every field — silently
+    /// disabling `p95_wait_time` sampling and collapsing the throughput
+    /// window to an empty range (greptile review of #347).
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Metrics {
     /// Create a new `Metrics` with default throughput window (3600 ticks)
     /// and default wait-sample capacity
     /// ([`default_wait_sample_capacity`], 10 000).
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
+            avg_wait_time: 0.0,
+            avg_ride_time: 0.0,
+            max_wait_time: 0,
+            throughput: 0,
+            total_delivered: 0,
+            total_abandoned: 0,
+            total_spawned: 0,
+            abandonment_rate: 0.0,
+            total_distance: 0.0,
+            utilization_by_group: BTreeMap::new(),
+            reposition_distance: 0.0,
+            total_moves: 0,
+            total_settled: 0,
+            total_rerouted: 0,
+            #[cfg(feature = "energy")]
+            total_energy_consumed: 0.0,
+            #[cfg(feature = "energy")]
+            total_energy_regenerated: 0.0,
+            sum_wait_ticks: 0,
+            sum_ride_ticks: 0,
+            boarded_count: 0,
+            delivered_count: 0,
+            delivery_window: VecDeque::new(),
             throughput_window_ticks: 3600, // default: 1 minute at 60 tps
+            wait_samples: VecDeque::new(),
             wait_sample_capacity: default_wait_sample_capacity(),
-            ..Default::default()
         }
     }
 

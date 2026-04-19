@@ -14,6 +14,28 @@ fn p95_is_zero_on_empty_metrics() {
     assert_eq!(m.wait_sample_count(), 0);
 }
 
+/// `Metrics::default()` must match `Metrics::new()` so downstream structs
+/// that derive `Default` and hold a `Metrics` don't silently get wait
+/// sampling disabled (greptile review of #347).
+#[test]
+fn default_matches_new_for_sampling_capacity() {
+    let from_default = Metrics::default();
+    let from_new = Metrics::new();
+    assert_eq!(
+        from_default.wait_sample_capacity,
+        from_new.wait_sample_capacity
+    );
+    assert_eq!(
+        from_default.throughput_window_ticks,
+        from_new.throughput_window_ticks
+    );
+    // Spot-check that the default actually samples: push one, it should retain.
+    let mut m = Metrics::default();
+    m.record_board(100);
+    assert_eq!(m.wait_sample_count(), 1);
+    assert_eq!(m.p95_wait_time(), 100);
+}
+
 #[test]
 fn p95_of_single_sample_equals_that_sample() {
     let mut m = Metrics::new();
@@ -90,7 +112,7 @@ fn avg_and_max_persist_after_buffer_eviction() {
     assert_eq!(m.wait_sample_count(), 2);
 }
 
-/// A capacity of 0 disables sampling entirely: record_board still
+/// A capacity of 0 disables sampling entirely: `record_board` still
 /// updates avg/max (checked in a sibling test) but p95 stays 0.
 #[test]
 fn zero_capacity_disables_sampling() {
