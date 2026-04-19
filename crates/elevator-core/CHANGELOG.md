@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.16.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.2...elevator-core-v15.16.0) (2026-04-19)
+
+
+### Features
+
+* **rsr:** peak_direction_multiplier — TrafficMode-aware wrong-direction scaling ([#374](https://github.com/andymai/elevator-core/issues/374)) ([1599543](https://github.com/andymai/elevator-core/commit/159954382a2943740b3fbc1c4b81226a7ab1f99a))
+
 ## [15.15.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.1...elevator-core-v15.15.2) (2026-04-19)
 
 
