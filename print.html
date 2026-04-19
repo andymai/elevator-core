@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0cf96ab7.js";
+            window.path_to_searchindex_js = "searchindex-2f506e3b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d2ca992d.js"></script>
@@ -1340,6 +1340,7 @@ use elevator_core::dispatch::destination::DestinationDispatch;
 
 let etd = EtdDispatch::new();                         // default delay_weight = 1.0
 let etd_conservative = EtdDispatch::with_delay_weight(1.5);  // favor existing riders
+let etd_fair = EtdDispatch::new().with_age_linear_weight(1.0); // linear starvation-avoidance (CGC)
 <span class="boring">}</span></code></pre>
 <h2 id="multi-group-dispatch"><a class="header" href="#multi-group-dispatch">Multi-group dispatch</a></h2>
 <p>Large buildings often have separate elevator banks – a low-rise group serving floors 1-20 and a high-rise group serving floors 20-40. Each group can use its own dispatch strategy.</p>
