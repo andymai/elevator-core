@@ -53,10 +53,54 @@ pub fn run(
             })
             .collect();
 
-        // Dispatch pool: idle/stopped cars, plus pre-pickup cars with
-        // no riders aboard. The second class enables reassignment mid-
-        // trip for cars that haven't picked anyone up yet. Cars carrying
-        // riders stay committed to their current trip.
+        // Commitment set: cars mid-trip to a stop that still has
+        // demand. Their (car, stop) pair is locked for this pass — the
+        // car is excluded from the Hungarian idle pool and its target
+        // is excluded by `pending_stops_minus_covered` via the
+        // `MovingToStop` branch of the servicing filter. Together
+        // these eliminate two classes of wasted motion:
+        //
+        // - Reassignment ping-pong: a newly-idle car that's closer to
+        //   stop X would otherwise steal car A's trip to X every tick;
+        //   A is canceled mid-flight, then re-paired, then canceled
+        //   again as more idle cars appear.
+        //
+        // - Double dispatch: without reserving the target, Hungarian
+        //   pairs another idle car to the same stop A is servicing;
+        //   two cars arrive for one rider and the loser does an empty
+        //   touch-and-go (symptom reported by the playground).
+        //
+        // A car whose target has **no remaining demand** (rider
+        // abandoned, call cleared by another car) is *not* committed
+        // — it falls back through the normal pool so Hungarian can
+        // redirect or idle it rather than waste the rest of the trip.
+        let committed_pairs: Vec<(EntityId, EntityId)> = group
+            .elevator_entities()
+            .iter()
+            .filter_map(|&eid| {
+                let car = world.elevator(eid)?;
+                if !matches!(car.phase, ElevatorPhase::MovingToStop(_)) {
+                    return None;
+                }
+                if !car.riders.is_empty() {
+                    return None;
+                }
+                if car.repositioning {
+                    return None;
+                }
+                let target = car.target_stop()?;
+                if !manifest.has_demand(target) {
+                    return None;
+                }
+                Some((eid, target))
+            })
+            .collect();
+
+        // Dispatch pool: idle/stopped cars, plus pre-pickup cars
+        // whose in-flight trip has become useless (target lost all
+        // demand) — those get a chance to be redirected. Committed
+        // cars (target still has demand) stay out so their trips
+        // run to completion without per-tick reassignment churn.
         let idle_elevators: Vec<(EntityId, f64)> = group
             .elevator_entities()
             .iter()
@@ -71,6 +115,9 @@ pub fn run(
                     return None;
                 }
                 if pinned_pairs.iter().any(|(car, _)| car == eid) {
+                    return None;
+                }
+                if committed_pairs.iter().any(|(car, _)| car == eid) {
                     return None;
                 }
                 let car = world.elevator(*eid)?;
