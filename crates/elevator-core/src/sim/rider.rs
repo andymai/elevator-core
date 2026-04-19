@@ -172,6 +172,12 @@ impl super::Simulation {
         if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
             log.record(self.tick, origin);
         }
+        if let Some(log) = self
+            .world
+            .resource_mut::<crate::arrival_log::DestinationLog>()
+        {
+            log.record(self.tick, destination);
+        }
         self.events.emit(Event::RiderSpawned {
             rider: eid,
             origin,

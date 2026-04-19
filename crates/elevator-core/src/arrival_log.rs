@@ -128,3 +128,76 @@ impl ArrivalLog {
             });
     }
 }
+
+/// Append-only log of rider *destinations*, mirror of [`ArrivalLog`]
+/// for the outgoing side of a trip.
+///
+/// Enables destination-aware signals that the origin-only
+/// `ArrivalLog` can't produce — specifically
+/// [`TrafficMode::DownPeak`](crate::traffic_detector::TrafficMode::DownPeak)
+/// detection, which triggers on "lots of riders heading *to* the
+/// lobby" rather than "lots of riders arriving *from* it."
+///
+/// Auto-installed alongside [`ArrivalLog`] by `Simulation::new` and
+/// appended to in the same rider-spawn path. Shares
+/// [`ArrivalLogRetention`]'s retention window so the two logs can't
+/// drift against each other's time horizon.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DestinationLog {
+    /// `(tick, destination_stop)` pairs. Entries are appended in
+    /// tick order; all queries go through
+    /// [`destinations_in_window`](Self::destinations_in_window).
+    entries: Vec<(u64, EntityId)>,
+}
+
+impl DestinationLog {
+    /// Record that a rider spawned at `tick` heading to `destination`.
+    pub fn record(&mut self, tick: u64, destination: EntityId) {
+        self.entries.push((tick, destination));
+    }
+
+    /// Count rides to `stop` within the window `[now - window, now]`
+    /// inclusive. `window_ticks = 0` always returns 0.
+    #[must_use]
+    pub fn destinations_in_window(&self, stop: EntityId, now: u64, window_ticks: u64) -> u64 {
+        if window_ticks == 0 {
+            return 0;
+        }
+        let lower = now.saturating_sub(window_ticks);
+        self.entries
+            .iter()
+            .filter(|(t, s)| *s == stop && *t >= lower && *t <= now)
+            .count() as u64
+    }
+
+    /// Prune entries older than `cutoff` ticks. Called from
+    /// `Simulation::advance_tick` alongside [`ArrivalLog::prune_before`].
+    pub fn prune_before(&mut self, cutoff: u64) {
+        self.entries.retain(|(t, _)| *t >= cutoff);
+    }
+
+    /// Number of recorded events (diagnostic / tests).
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Whether the log has no recorded events.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Remap entity IDs for snapshot restore. Mirrors
+    /// [`ArrivalLog::remap_entity_ids`].
+    pub fn remap_entity_ids(&mut self, id_remap: &std::collections::HashMap<EntityId, EntityId>) {
+        self.entries
+            .retain_mut(|(_, stop)| match id_remap.get(stop) {
+                Some(&new) => {
+                    *stop = new;
+                    true
+                }
+                None => false,
+            });
+    }
+}

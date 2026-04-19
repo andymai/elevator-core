@@ -305,6 +305,12 @@ impl super::Simulation {
         if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
             log.prune_before(cutoff);
         }
+        if let Some(log) = self
+            .world
+            .resource_mut::<crate::arrival_log::DestinationLog>()
+        {
+            log.prune_before(cutoff);
+        }
     }
 
     /// Mirror `self.tick` into the `CurrentTick` world resource so

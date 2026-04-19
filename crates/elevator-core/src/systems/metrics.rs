@@ -124,4 +124,38 @@ pub fn run(
     }
 
     metrics.update_throughput(ctx.tick);
+    refresh_traffic_detector(world, ctx.tick);
+}
+
+/// Clone the arrival + destination logs, collect stops in position
+/// order (lobby first), and hand everything to the auto-installed
+/// [`TrafficDetector`](crate::traffic_detector::TrafficDetector).
+/// Skipped when the detector is absent — games running a bare
+/// `World` without it get a silent no-op. A missing
+/// [`DestinationLog`](crate::arrival_log::DestinationLog) is
+/// tolerated with a default-empty fallback so down-peak detection
+/// silently disables without panicking.
+fn refresh_traffic_detector(world: &mut World, tick: u64) {
+    let Some(arrivals) = world.resource::<crate::arrival_log::ArrivalLog>().cloned() else {
+        return;
+    };
+    if world
+        .resource::<crate::traffic_detector::TrafficDetector>()
+        .is_none()
+    {
+        return;
+    }
+    let destinations = world
+        .resource::<crate::arrival_log::DestinationLog>()
+        .cloned()
+        .unwrap_or_default();
+    let mut stops: Vec<_> = world
+        .iter_stops()
+        .map(|(eid, s)| (eid, s.position))
+        .collect();
+    stops.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    let stop_ids: Vec<crate::entity::EntityId> = stops.into_iter().map(|(eid, _)| eid).collect();
+    if let Some(detector) = world.resource_mut::<crate::traffic_detector::TrafficDetector>() {
+        detector.update(&arrivals, &destinations, tick, &stop_ids);
+    }
 }
