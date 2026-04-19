@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.15.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.1...elevator-core-v15.15.2) (2026-04-19)
+
+
+### Bug Fixes
+
+* **session-review:** snapshot + reroute destination-log + perf + wasm registry ([#377](https://github.com/andymai/elevator-core/issues/377)) ([ca4c25a](https://github.com/andymai/elevator-core/commit/ca4c25aad1857a9620e97ef98aeab244b663310f))
+
 ## [15.15.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.0...elevator-core-v15.15.1) (2026-04-19)
 
 
