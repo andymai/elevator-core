@@ -14,7 +14,14 @@ import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } 
 import { SCENARIOS, scenarioById } from "./scenarios";
 import { Sim } from "./sim";
 import { TrafficDriver } from "./traffic";
-import type { Metrics, ScenarioMeta, Snapshot, StrategyName } from "./types";
+import type {
+  BubbleEvent,
+  CarBubble,
+  Metrics,
+  ScenarioMeta,
+  Snapshot,
+  StrategyName,
+} from "./types";
 
 // The playground is a side-by-side comparator: up to two sims run the same
 // rider stream under different dispatch strategies. In single mode only
@@ -43,7 +50,22 @@ interface Pane {
   metricsEl: HTMLElement;
   waitHistory: number[];
   latestMetrics: Metrics | null;
+  /**
+   * Per-car speech bubbles. Keyed by car entity id. Each entry fades
+   * after [`BUBBLE_TTL_MS`] wall-clock milliseconds; stale entries are
+   * evicted lazily in [`updateBubbles`] so the map never grows past
+   * `cars × 1`.
+   */
+  bubbles: Map<number, CarBubble>;
 }
+
+/**
+ * How long a speech bubble lingers after its triggering event, in
+ * wall-clock milliseconds. Chosen so that under 1× playback the bubble
+ * reads comfortably; at 16× it's short enough that stale events don't
+ * linger past the action they describe.
+ */
+const BUBBLE_TTL_MS = 1400;
 
 interface State {
   running: boolean;
@@ -363,6 +385,7 @@ async function makePane(
     metricsEl: handles.metrics,
     waitHistory: [],
     latestMetrics: null,
+    bubbles: new Map(),
   };
 }
 
@@ -566,7 +589,14 @@ function loop(state: State): void {
 
     if (state.running && state.ready && state.paneA) {
       const ticks = state.permalink.speed;
-      forEachPane(state, (pane) => pane.sim.step(ticks));
+      forEachPane(state, (pane) => {
+        pane.sim.step(ticks);
+        // Drain events every frame so the wasm `EventBus` can't grow
+        // unbounded during long sessions, and feed the speech-bubble
+        // layer the freshest per-car action.
+        const events = pane.sim.drainEvents();
+        updateBubbles(pane, events);
+      });
 
       const snapA = state.paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
@@ -609,7 +639,70 @@ function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   pane.latestMetrics = metrics;
   pane.waitHistory.push(metrics.avg_wait_s);
   if (pane.waitHistory.length > WAIT_HISTORY_LEN) pane.waitHistory.shift();
-  pane.renderer.draw(snap, pane.waitHistory, speed);
+  // Evict stale bubbles lazily before handing the map to the renderer.
+  const now = performance.now();
+  for (const [carId, bubble] of pane.bubbles) {
+    if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
+  }
+  pane.renderer.draw(snap, pane.waitHistory, speed, pane.bubbles);
+}
+
+/**
+ * Translate this frame's raw events into per-car speech-bubble state.
+ * Latest event wins — at high speed multipliers a single frame can
+ * contain many events per car, and keeping just the last keeps the
+ * UI readable without pathologically long message queues.
+ *
+ * Uses stop name/id lookups from the pane's latest snapshot via
+ * [`resolveStopName`]; unresolved stop ids fall back to the numeric
+ * id rather than dropping the bubble.
+ */
+function updateBubbles(pane: Pane, events: BubbleEvent[]): void {
+  if (events.length === 0) return;
+  const expiresAt = performance.now() + BUBBLE_TTL_MS;
+  const snap = pane.sim.snapshot();
+  const stopName = (id: number): string => resolveStopName(snap, id);
+  for (const ev of events) {
+    const text = bubbleTextFor(ev, stopName);
+    if (text === null) continue;
+    // Some events are rider-scoped rather than car-scoped (spawn,
+    // abandon). bubbleTextFor returns `null` for those, so we only
+    // get here when `ev` carries an `elevator` field.
+    const carId = (ev as { elevator?: number }).elevator;
+    if (carId === undefined) continue;
+    pane.bubbles.set(carId, { text, expiresAt });
+  }
+}
+
+/** Map an event to a short human-readable bubble text, or `null` for
+ *  events that have no car to attach to (rider-spawned, rider-abandoned). */
+function bubbleTextFor(ev: BubbleEvent, stopName: (id: number) => string): string | null {
+  switch (ev.kind) {
+    case "elevator-assigned":
+      return `Heading to ${stopName(ev.stop)}`;
+    case "elevator-departed":
+      return `Leaving ${stopName(ev.stop)}`;
+    case "elevator-arrived":
+      return `Arrived at ${stopName(ev.stop)}`;
+    case "door-opened":
+      return "Doors open";
+    case "door-closed":
+      return "Doors closed";
+    case "rider-boarded":
+      return "Boarding";
+    case "rider-exited":
+      return `Dropping off at ${stopName(ev.stop)}`;
+    default:
+      return null;
+  }
+}
+
+/** Look up a stop's human-readable name by `entity_id` from a snapshot,
+ *  falling back to the numeric id when the stop isn't in this frame's
+ *  snapshot (can happen briefly after a config reset). */
+function resolveStopName(snap: Snapshot, stopEntityId: number): string {
+  const stop = snap.stops.find((s) => s.entity_id === stopEntityId);
+  return stop?.name ?? `stop #${stopEntityId}`;
 }
 
 function updatePhaseIndicator(state: State, ui: UiHandles): void {
