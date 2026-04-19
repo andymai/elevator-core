@@ -181,8 +181,11 @@ impl Simulation {
 
         // Per-stop arrival signal, appended on rider spawn and queried
         // by dispatch/reposition strategies to drive traffic-mode
-        // switches and predictive parking.
+        // switches and predictive parking. The destination mirror is
+        // what powers down-peak detection — without it the classifier
+        // sees `total_dest = 0` and silently never emits `DownPeak`.
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
+        world.insert_resource(crate::arrival_log::DestinationLog::default());
         world.insert_resource(crate::arrival_log::CurrentTick::default());
         world.insert_resource(crate::arrival_log::ArrivalLogRetention::default());
         // Traffic-mode classifier. Auto-refreshed in the metrics phase
