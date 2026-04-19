@@ -21,6 +21,7 @@ mod error_tests;
 mod event_serde_tests;
 mod feature_tests;
 mod hooks_tests;
+mod metrics_percentile_tests;
 mod metrics_tests;
 mod movement_tests;
 mod proptest_tests;
