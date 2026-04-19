@@ -295,6 +295,27 @@ export class WasmSim {
         }
     }
     /**
+     * Current traffic mode as classified by `TrafficDetector`.
+     *
+     * Returns one of `"Idle" | "UpPeak" | "InterFloor" | "DownPeak"`.
+     * The UI renders this next to the strategy picker so users can see
+     * `AdaptiveParking`'s mode-gated branching live as the simulation
+     * swings between morning rush, midday drift, and evening rush.
+     * @returns {string}
+     */
+    trafficMode() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmsim_trafficMode(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * Current traffic rate (riders/minute).
      * @returns {number}
      */
