@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use crate::components::{
     CallDirection, Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route,
 };
+use crate::dispatch::ElevatorGroup;
 use crate::entity::{ElevatorId, EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::Event;
@@ -548,6 +549,30 @@ impl Simulation {
                 car.current_load = crate::components::Weight::ZERO;
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
+            }
+            // Wipe any pressed floor buttons. On re-enable they'd
+            // otherwise resurface as active demand with stale press
+            // ticks, and dispatch would plan against a rider set that
+            // no longer exists.
+            if let Some(calls) = self.world.car_calls_mut(id) {
+                calls.clear();
+            }
+            // Tell the group's dispatcher the car left. SCAN/LOOK
+            // keep per-car direction state across ticks; without this
+            // a disabled-then-enabled car would re-enter service with
+            // whatever sweep direction it had before, potentially
+            // colliding with the new sweep state. Mirrors the
+            // `remove_elevator` / `reassign_elevator_to_line` paths in
+            // `topology.rs`, which already do this.
+            let group_id = self
+                .groups
+                .iter()
+                .find(|g| g.elevator_entities().contains(&id))
+                .map(ElevatorGroup::id);
+            if let Some(gid) = group_id
+                && let Some(dispatcher) = self.dispatchers.get_mut(&gid)
+            {
+                dispatcher.notify_removed(id);
             }
             if had_load && let Some(cap) = capacity {
                 self.events.emit(Event::CapacityChanged {
