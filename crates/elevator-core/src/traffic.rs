@@ -62,6 +62,13 @@ pub enum TrafficPattern {
     Lunchtime,
     /// Mixed: combination of up-peak, down-peak, and inter-floor traffic.
     Mixed,
+    /// Stranded top-floor: most riders originate at the **topmost** stop
+    /// (rather than the lobby) and head elsewhere. Models the canonical
+    /// community-benchmark shape where a penthouse or rooftop deck
+    /// drives isolated, low-rate demand that easily gets starved by
+    /// lobby-centric dispatchers. Unlike [`UpPeak`](Self::UpPeak),
+    /// origins are skewed *away* from the lobby.
+    TopFloorPeak,
 }
 
 /// Sample an (origin, destination) index pair from `n` stops.
@@ -129,6 +136,19 @@ fn sample_indices(
                 Some((lobby, rng.random_range(1..n)))
             } else if r < 0.6 {
                 Some((rng.random_range(1..n), lobby))
+            } else {
+                Some(uniform_pair_indices(n, rng))
+            }
+        }
+
+        TrafficPattern::TopFloorPeak => {
+            // 80% from the top stop, 20% inter-floor. Destination is
+            // drawn from `0..top` so origin ≠ destination without
+            // needing the rejection-sampling loop in
+            // `uniform_pair_indices`.
+            let top = n - 1;
+            if rng.random_range(0.0..1.0) < 0.8 {
+                Some((top, rng.random_range(0..top)))
             } else {
                 Some(uniform_pair_indices(n, rng))
             }
