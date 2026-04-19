@@ -55,7 +55,9 @@ pub use scan::ScanDispatch;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{CallDirection, CarCall, HallCall, Route, Weight};
+use crate::components::{
+    CallDirection, CarCall, ElevatorPhase, HallCall, Route, TransportMode, Weight,
+};
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
@@ -866,14 +868,18 @@ fn scale_cost(cost: f64) -> i64 {
 /// Line-pinned riders (`TransportMode::Line(L)`) keep a stop pending
 /// even when a car is present, because a car on Shaft A can't absorb
 /// a rider pinned to Shaft B — the correct line's car still needs
-/// to be dispatched.
+/// to be dispatched. Coverage also fails when the waiting riders'
+/// combined weight exceeds the servicing car's remaining capacity —
+/// the leftover spills out when doors close and deserves its own
+/// dispatch immediately rather than after a full cycle delay.
 fn pending_stops_minus_covered(
     group: &ElevatorGroup,
     manifest: &DispatchManifest,
     world: &World,
 ) -> Vec<(EntityId, f64)> {
-    use crate::components::{ElevatorPhase, RiderPhase, TransportMode};
-    let servicing: std::collections::HashMap<EntityId, EntityId> = group
+    // Vec + linear scan is fine: groups have O(few) elevators and
+    // this runs once per dispatch tick.
+    let servicing: Vec<(EntityId, EntityId, f64)> = group
         .elevator_entities()
         .iter()
         .filter_map(|&eid| {
@@ -883,43 +889,62 @@ fn pending_stops_minus_covered(
                 car.phase(),
                 ElevatorPhase::DoorOpening | ElevatorPhase::Loading | ElevatorPhase::DoorClosing
             )
-            .then_some((target, eid))
+            .then(|| {
+                let remaining = car.weight_capacity().value() - car.current_load().value();
+                (target, car.line(), remaining)
+            })
         })
         .collect();
 
-    let is_covered = |stop_eid: EntityId| -> bool {
-        let Some(&car_eid) = servicing.get(&stop_eid) else {
+    // A stop is "covered" iff every waiting rider this group sees can
+    // board at least one of the door-cycling cars here (line check)
+    // AND the combined remaining capacity of the cars whose line
+    // accepts the rider is enough to board them all (capacity check).
+    //
+    // Iterates `manifest.waiting_riders_at` rather than `world.iter_riders`
+    // so `TransportMode::Walk` riders and cross-group-routed riders
+    // (excluded by `build_manifest`) don't inflate the weight total.
+    let is_covered = |stop_eid: EntityId| {
+        // Single fold so readers see the "same cars, both attributes"
+        // invariant structurally — the two derived values can never
+        // disagree about which cars contributed.
+        let (lines_here, capacity_here): (Vec<EntityId>, f64) =
+            servicing
+                .iter()
+                .fold((Vec::new(), 0.0), |(mut lines, cap), &(stop, line, rem)| {
+                    if stop == stop_eid {
+                        lines.push(line);
+                        (lines, cap + rem)
+                    } else {
+                        (lines, cap)
+                    }
+                });
+        if lines_here.is_empty() {
             return false;
-        };
-        let Some(car_line) = world
-            .elevator(car_eid)
-            .map(crate::components::Elevator::line)
-        else {
-            return false;
-        };
-        for (rider_eid, rider) in world.iter_riders() {
-            if rider.phase != RiderPhase::Waiting {
-                continue;
-            }
-            if rider.current_stop() != Some(stop_eid) {
-                continue;
-            }
-            if let Some(route) = world.route(rider_eid)
-                && let Some(leg) = route.current()
-                && let TransportMode::Line(required) = leg.via
-                && required != car_line
+        }
+        let mut total_weight = 0.0;
+        for rider in manifest.waiting_riders_at(stop_eid) {
+            let required_line = world
+                .route(rider.id)
+                .and_then(Route::current)
+                .and_then(|leg| match leg.via {
+                    TransportMode::Line(l) => Some(l),
+                    _ => None,
+                });
+            if let Some(required) = required_line
+                && !lines_here.contains(&required)
             {
                 return false;
             }
+            total_weight += rider.weight.value();
         }
-        true
+        total_weight <= capacity_here
     };
 
     group
         .stop_entities()
         .iter()
-        .filter(|s| manifest.has_demand(**s))
-        .filter(|s| !is_covered(**s))
+        .filter(|s| manifest.has_demand(**s) && !is_covered(**s))
         .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
         .collect()
 }
