@@ -54,8 +54,11 @@ function scaleFor(width: number): Scale {
     padTop: lerp(22, 30),
     // Just enough bottom breathing room below the lowest floor slab.
     padBottom: lerp(10, 14),
-    // Fits "Floor 12" at 12px without the truncate() ellipsis kicking in.
-    labelW: lerp(44, 68),
+    // Sized for the widest skyscraper label ("Mechanical" at 10 chars)
+    // at desktop, down to "Lobby"/"Floor N" on the narrowest phones.
+    // `truncate()` still clips anything that spills over on ultra-long
+    // custom stop names.
+    labelW: lerp(52, 82),
     // Preferred gutter for stick figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.
     figureGutterW: lerp(40, 70),
