@@ -1,31 +1,45 @@
-import type { Car, CarBubble, Snapshot, Stop } from "./types";
+import type { Car, CarBubble, Snapshot } from "./types";
 
-// 2-D renderer. Each stop is a horizontal rung with two direction columns
-// (▲ up / ▼ down) showing waiting riders partitioned by route direction.
-// Cars are rectangles travelling vertically; each line gets a lane, and
-// when multiple cars share a line the lane splits into sub-columns so every
-// car is individually visible. Cars carry a target-marker on their planned
-// destination stop and a brief motion trail while moving. Board/alight
-// flying-dot animations tween between the queue column and the car at
-// loading time. A muted avg-wait sparkline absorbs into the bottom of the
-// canvas below the lowest stop.
+// 2-D renderer — SimTower-inspired building cross-section. Each floor is
+// a thin horizontal slab spanning the pane, cut by a door opening where
+// each shaft intersects. Shafts are vertical channels drawn as framed
+// columns; every car has its own shaft drawn side by side. Waiting
+// riders stand on the floor as tiny stick figures in the left gutter
+// (up-bound) and right gutter (down-bound). Cars carry a target marker
+// on their destination floor and a brief motion trail while moving.
+// Board/alight flying-dot animations tween between the figure gutter
+// and the car at loading time.
 
 interface Scale {
   padX: number;
   padTop: number;
   padBottom: number;
-  sparkH: number;
   labelW: number;
-  upColW: number;
-  dnColW: number;
+  /** Preferred gutter width per side for stick figures. Actual gutter
+   *  grows if shafts hit their `maxShaftInnerW` cap and leave slack. */
+  figureGutterW: number;
+  /** Small gap between the figure gutter and the nearest shaft rail. */
   gutterGap: number;
+  /** Width of a single shaft's inner channel (the car slides inside
+   *  this). Computed per-frame in `draw()` from canvas width and shaft
+   *  count; `minShaftInnerW`/`maxShaftInnerW` bound the result. */
+  shaftInnerW: number;
+  /** Lower bound for the computed shaft inner width on narrow canvases. */
+  minShaftInnerW: number;
+  /** Upper bound so single-shaft scenarios (space elevator) don't
+   *  balloon into a tank-slot too wide to read as an elevator. */
+  maxShaftInnerW: number;
+  /** Horizontal gap between adjacent shafts in a multi-shaft bank. */
+  shaftSpacing: number;
   carW: number;
   carH: number;
   fontMain: number;
   fontSmall: number;
-  stopDotR: number;
   carDotR: number;
-  dirDotR: number;
+  /** Stick figure head radius. */
+  figureHeadR: number;
+  /** Horizontal stride between adjacent stick figures in a gutter. */
+  figureStride: number;
 }
 
 // Smoothly interpolate render constants across canvas widths so the diagram
@@ -34,23 +48,41 @@ function scaleFor(width: number): Scale {
   const t = Math.max(0, Math.min(1, (width - 320) / (900 - 320)));
   const lerp = (a: number, b: number): number => a + (b - a) * t;
   return {
-    padX: lerp(8, 18),
-    padTop: lerp(20, 26),
-    padBottom: lerp(30, 38),
-    sparkH: lerp(18, 22),
-    // Fits "Floor 12" at 12px font without the truncate() ellipsis kicking in,
-    // plus breathing room in compare mode where the pane is narrower.
+    padX: lerp(6, 14),
+    // Extra top padding reserves room for the "▲ UP" / "DOWN ▼"
+    // direction headers above the first floor slab.
+    padTop: lerp(22, 30),
+    // Just enough bottom breathing room below the lowest floor slab.
+    padBottom: lerp(10, 14),
+    // Fits "Floor 12" at 12px without the truncate() ellipsis kicking in.
     labelW: lerp(44, 68),
-    upColW: lerp(20, 28),
-    dnColW: lerp(20, 28),
-    gutterGap: 4,
-    carW: lerp(26, 40),
-    carH: lerp(20, 30),
+    // Preferred gutter for stick figures. The gutter grows further
+    // only when shafts hit their max; otherwise shafts claim slack.
+    figureGutterW: lerp(40, 70),
+    gutterGap: lerp(3, 5),
+    // Shaft sizing bounds — actual inner width derived per frame.
+    // Min floors the value on tiny canvases; max keeps single-shaft
+    // scenarios from widening to the point they look like a column
+    // instead of an elevator shaft.
+    shaftInnerW: lerp(28, 52), // initial hint; overwritten in draw()
+    minShaftInnerW: lerp(22, 28),
+    maxShaftInnerW: 88,
+    shaftSpacing: lerp(3, 6),
+    carW: lerp(22, 44), // initial hint; overwritten in draw()
+    // Taller cars read as proper elevator cabins rather than tiles —
+    // the car often visibly straddles the floor slab above and below
+    // the current floor, which is fine because the slab is
+    // door-gapped at the shaft and the car is drawn on top of the
+    // shaft's dark channel fill.
+    carH: lerp(32, 56),
     fontMain: lerp(10, 12),
     fontSmall: lerp(9, 10),
-    stopDotR: lerp(2.2, 2.6),
-    carDotR: lerp(1.8, 2.3),
-    dirDotR: lerp(2.2, 2.6),
+    carDotR: lerp(1.6, 2.2),
+    // Head radius for the SimTower-style rider silhouette. Total
+    // figure height ≈ headR × 8.2 (see `drawStickFigure`): small head
+    // over a tapered body, matching the classic tiny-sim silhouette.
+    figureHeadR: lerp(2, 2.8),
+    figureStride: lerp(5.6, 8),
   };
 }
 
@@ -68,19 +100,75 @@ const PHASE_COLORS: Record<Car["phase"], string> = {
   unknown: "#6b6b75",       // --text-disabled
 };
 
-const STOP_LINE = "#2a2a35";   // --border-subtle
-const STOP_LABEL = "#a1a1aa";  // --text-secondary
+const FLOOR_LINE = "#2a2a35";   // --border-subtle — floor-slab stroke
+const STOP_LABEL = "#a1a1aa";   // --text-secondary
+// Shaft channel fill + rail colours. Indexed by the line's position in
+// the scenario's sorted line list so banks get distinct colour
+// identities: the main banks share a quiet neutral grey, while
+// specialty banks (Executive and Service, positions 2 and 3 in the
+// skyscraper scenario) pick up brand-accent and water-utility hues
+// so a viewer reads at a glance "this shaft is different."
+//
+// Index 0 and 1 fall back to the same quiet grey pair — most
+// scenarios only have one or two banks and the extra colours only
+// kick in when the scenario author added specialty lines.
+const SHAFT_FILL_BY_INDEX: readonly string[] = [
+  "rgba(8, 10, 14, 0.55)",      // main bank (grey, same as before)
+  "rgba(8, 10, 14, 0.55)",      // second main bank (same)
+  "rgba(58, 34, 4, 0.55)",      // executive — warm amber tint
+  "rgba(6, 30, 42, 0.55)",      // service — cool cyan tint
+];
+const SHAFT_FRAME_BY_INDEX: readonly string[] = [
+  "#3a3a45",                     // --border-default
+  "#3a3a45",
+  "#8a5a1a",                     // exec — warm amber rail
+  "#2d5f70",                     // service — cool cyan rail
+];
+const SHAFT_FILL_FALLBACK = "rgba(8, 10, 14, 0.55)";
+const SHAFT_FRAME_FALLBACK = "#3a3a45";
+// Per-line width multiplier. Specialty banks (VIP, service) are
+// small single-cab elevators holding <5 passengers — visually about
+// half the main-bank width so the silhouette row only fits 2–3
+// figures before overflowing to "+N". Cars, car trails, and target
+// rings all scale down proportionally for lines with a <1 multiplier.
+const SHAFT_WIDTH_MUL_BY_INDEX: readonly number[] = [1, 1, 0.5, 0.42];
+// Per-line short-name labels for the shaft top strip. Position-
+// based — so scenarios that set up their lines in the standard
+// order (main banks first, exec, service) get correct labels
+// without extra metadata. A scenario with different line semantics
+// could eventually supply its own labels through metadata.
+const SHAFT_NAME_BY_INDEX: readonly string[] = ["LOW", "HIGH", "VIP", "SERVICE"];
+// Rider accent color used inside the VIP cabin. Warm gold to match
+// the VIP shaft's amber identity, and distinct from the cyan/rose
+// up/down pairing used for general passengers.
+const VIP_RIDER_COLOR = "#e6c56b";
+// Rider accent color used inside the Service cabin. Slightly warmer
+// teal than the service shaft label — reads as "utility / ops staff"
+// and stays out of the up/down cyan-rose pairing.
+const SERVICE_RIDER_COLOR = "#9bd4c4";
+// Label colour tracks the shaft fill's accent tint so the name
+// picks up the same "this is specialty" cue as the shaft itself.
+const SHAFT_LABEL_BY_INDEX: readonly string[] = [
+  "#a1a1aa", // main — secondary text grey
+  "#a1a1aa",
+  "#d8a24a", // exec — warm amber
+  "#7cbdd8", // service — cool cyan
+];
+const SHAFT_LABEL_FALLBACK = "#a1a1aa";
+// Door marks — muted at rest, brighter when a car is actively loading
+// at that floor. The active state reuses the amber brand accent.
+const DOOR_INACTIVE = "#4a4a55"; // --border-strong
+const DOOR_ACTIVE = "#f59e0b";   // --accent
 // Up and down use distinct hue families so direction is legible at small
-// dot sizes. Cool blue reads as "up" (sky / lift), rose as "down" (gravity).
-// Rose chosen over amber since amber now owns the brand accent.
+// figure sizes. Cool blue reads as "up" (sky / lift), rose as "down" (gravity).
 const UP_COLOR = "#7dd3fc";    // --pane-a
 const DOWN_COLOR = "#fda4af";  // --pane-b
 const CAR_DOT_COLOR = "#fafafa"; // --text-primary
 const OVERFLOW_COLOR = "#8b8c92"; // --text-tertiary
-const SPARK_LINE = "#3a3a45";   // --border-default
-const SPARK_TEXT = "#8b8c92";   // --text-tertiary
-const TARGET_RING = "rgba(245, 158, 11, 0.85)"; // --accent at α
-const TARGET_FILL = "rgba(245, 158, 11, 0.95)"; // --accent at α
+// Target marker — white, not amber. Amber reads as "doors / loading"
+// elsewhere in the diagram (door marks, load-overlay accents), so
+// using it for the target dot added false semantic overlap.
+const TARGET_FILL = "rgba(250, 250, 250, 0.95)"; // --text-primary at α
 
 // Board/alight animation baseline. Effective duration is divided by the sim
 // speed multiplier so fast-forwarded runs don't queue stale tweens.
@@ -90,10 +178,6 @@ const TWEEN_BASE_MS = 260;
 // velocity is visible at a glance without a text indicator.
 const TRAIL_STEPS = 3;
 const TRAIL_DT = 0.05; // seconds of motion per ghost step
-
-// Per-shaft width is capped so single-car scenarios don't stretch one tiny
-// car across the whole canvas. The lane region centers when the cap binds.
-const SHAFT_CAP = 160;
 
 /** One-shot animation tween — board into a car, alight out, or abandon the queue. */
 interface Tween {
@@ -181,15 +265,13 @@ export class CanvasRenderer {
   #carStates: Map<number, CarState> = new Map();
   #stopStates: Map<number, StopState> = new Map();
   #tweens: Tween[] = [];
-  #sparkLabel: string;
 
-  constructor(canvas: HTMLCanvasElement, accent: string, sparkLabel = "Avg wait (s)") {
+  constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D context unavailable");
     this.#ctx = ctx;
     this.#accent = accent;
-    this.#sparkLabel = sparkLabel;
     this.#resize();
     this.#onResize = (): void => this.#resize();
     window.addEventListener("resize", this.#onResize);
@@ -216,7 +298,6 @@ export class CanvasRenderer {
 
   draw(
     snap: Snapshot,
-    waitHistory: number[],
     speedMultiplier: number,
     bubbles?: Map<number, CarBubble>,
   ): void {
@@ -231,8 +312,20 @@ export class CanvasRenderer {
     }
     const s = this.#cachedScale!;
 
-    // Vertical axis — reserve sparkline strip at the bottom so stops never
-    // overlap the sparkline, regardless of scenario.
+    // Tether scenarios (2 stops, e.g. the space elevator) want point-
+    // labeled platforms at each end of a long cable, not the
+    // building-cross-section framing that assumes a "story above each
+    // slab." Detect up front so axis, shaft width, slab style, and
+    // label placement can all specialise.
+    const isTether = snap.stops.length === 2;
+
+    // Vertical axis. For buildings the top margin matches the gap
+    // between the top two floors so the penthouse story has the same
+    // visual height as every other story. For tethers the top and
+    // bottom padding grow in pixel-space (via `endpointPad`) so the
+    // platform labels sit next to their slabs with air above and
+    // below, while the axis margin itself stays minimal so the cable
+    // fills as much of the pane as possible.
     let minY = snap.stops[0].y;
     let maxY = snap.stops[0].y;
     for (let i = 1; i < snap.stops.length; i++) {
@@ -240,15 +333,53 @@ export class CanvasRenderer {
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
     }
-    const axisMin = minY - 1;
-    const axisMax = maxY + 1;
+    const sortedYs = snap.stops.map((st) => st.y).sort((a, b) => a - b);
+    const topGap =
+      sortedYs.length >= 3 ? sortedYs[sortedYs.length - 1] - sortedYs[sortedYs.length - 2] : 1;
+    const bottomPadding = 1;
+    const axisMin = minY - bottomPadding;
+    const axisMax = maxY + topGap;
     const yRange = Math.max(axisMax - axisMin, 0.0001);
-    const stopsBottom = h - s.padBottom;
-    const stopsTop = s.padTop;
+    // Vertical sizing. For buildings we pin a *maximum* pixels-per-
+    // meter so stories stay a consistent visual height regardless of
+    // browser height — tall canvases gain empty sky above the
+    // penthouse rather than stretching floors. Short canvases fall
+    // back to filling the available height. Tethers keep filling the
+    // canvas because their "story" is the whole cable.
+    const endpointPad = isTether ? 18 : 0;
+    let stopsTop: number;
+    let stopsBottom: number;
+    if (isTether) {
+      stopsTop = s.padTop + endpointPad;
+      stopsBottom = h - s.padBottom - endpointPad;
+    } else {
+      // Reference inter-floor spacing = smallest gap in the scenario
+      // (matches `minStoryPx` further down). A 4 m gap reading as a
+      // 48 px story is the target — roomy enough for a cabin to
+      // clearly fill one story without visually dominating adjacent
+      // floors on tall browsers.
+      const gaps: number[] = [];
+      for (let i = 1; i < sortedYs.length; i++) {
+        const g = sortedYs[i] - sortedYs[i - 1];
+        if (g > 0) gaps.push(g);
+      }
+      const refGap = gaps.length > 0 ? Math.min(...gaps) : 1;
+      const maxStoryPx = 48;
+      const maxPxPerM = maxStoryPx / refGap;
+      const availableShaftPx = Math.max(0, h - s.padTop - s.padBottom);
+      const naturalPxPerM = availableShaftPx / yRange;
+      const effectivePxPerM = Math.min(naturalPxPerM, maxPxPerM);
+      const shaftPx = yRange * effectivePxPerM;
+      // Bottom-anchor so the lobby stays near the canvas floor; any
+      // surplus room piles up above the top floor as headroom/sky.
+      stopsBottom = h - s.padBottom;
+      stopsTop = stopsBottom - shaftPx;
+    }
     const toScreenY = (y: number): number =>
       stopsBottom - ((y - axisMin) / yRange) * (stopsBottom - stopsTop);
 
-    // Group cars by line; lanes are shared sub-columns within a line.
+    // Group cars by line (shared shaft rows). Within a line, multiple cars
+    // each get their own adjacent shaft — just like a bank of elevators.
     const byLine = this.#byLine;
     byLine.forEach((arr) => (arr.length = 0));
     for (const car of snap.cars) {
@@ -257,28 +388,98 @@ export class CanvasRenderer {
       else byLine.set(car.line, [car]);
     }
     const lineIds = [...byLine.keys()].sort((a, b) => a - b);
-
-    const gutter = s.padX + s.labelW + s.upColW + s.dnColW + s.gutterGap;
-    const lanesRegionW = Math.max(0, w - gutter - s.padX);
     const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 1), 0);
-    // Cap per-shaft width so sparse scenarios (1-2 cars on a wide canvas)
-    // don't bury tiny cars in a seas of empty shaft. When the cap binds,
-    // center the used region inside the available room.
-    const naturalShaftW = lanesRegionW / Math.max(totalShafts, 1);
-    const shaftW = Math.min(naturalShaftW, SHAFT_CAP);
-    const lanesUsedW = shaftW * totalShafts;
-    const laneOffset = Math.max(0, (lanesRegionW - lanesUsedW) / 2);
-    const lanesLeft = gutter + laneOffset;
-    const lanesRight = lanesLeft + lanesUsedW;
 
-    // Resolve each car's screen x once so every pass (shaft/car/target/trail)
+    // Layout: [padX | label | leftGutter | shaft-bank | rightGutter | padX].
+    // Shafts claim as much horizontal room as they can — preferred
+    // gutters are a floor, not a budget. When shafts hit their
+    // `maxShaftInnerW` cap (single-shaft scenarios on wide canvases),
+    // surplus spills back into the gutters so the bank stays centered.
+    const innerW = Math.max(0, w - 2 * s.padX - s.labelW);
+    const shaftBankBudget =
+      innerW - 2 * s.figureGutterW - 2 * s.gutterGap;
+    const perShaftRoom =
+      (shaftBankBudget - s.shaftSpacing * Math.max(totalShafts - 1, 0)) /
+      Math.max(totalShafts, 1);
+    // Tethers cap shaft width much tighter than a building shaft so
+    // the cable reads as a narrow structural line spanning a huge
+    // distance, not a squat column. Everything else (car width,
+    // frame) scales off the capped shaft width automatically.
+    const effectiveMaxShaftInnerW = isTether ? 34 : s.maxShaftInnerW;
+    const shaftInnerW = Math.max(
+      s.minShaftInnerW,
+      Math.min(effectiveMaxShaftInnerW, perShaftRoom),
+    );
+    const shaftBankW =
+      shaftInnerW * totalShafts + s.shaftSpacing * Math.max(totalShafts - 1, 0);
+    // Gutters split the remaining width equally. `figureGutterW` is
+    // the floor; any surplus expands both gutters in lockstep.
+    const remainingForGutters = Math.max(0, innerW - shaftBankW - 2 * s.gutterGap);
+    const gutterEach = Math.max(s.figureGutterW, remainingForGutters / 2);
+    // Car fills its shaft with ~3 px air on each side so the gradient
+    // still reads as a car inside a channel, not flush with the rails.
+    const carW = Math.max(14, shaftInnerW - 6);
+    // Cabin height — SimTower-style, the cabin exactly fills the
+    // story when at rest so the floor-to-ceiling shape reads as a
+    // real elevator cabin. For buildings we take the smallest
+    // inter-floor distance (so no story gets a too-big cabin); for
+    // tethers we fall back to the scale hint since "story height"
+    // doesn't apply the same way.
+    let minStoryPx = Infinity;
+    if (snap.stops.length >= 2) {
+      for (let i = 1; i < sortedYs.length; i++) {
+        const dy = toScreenY(sortedYs[i - 1]) - toScreenY(sortedYs[i]);
+        if (dy > 0 && dy < minStoryPx) minStoryPx = dy;
+      }
+    }
+    // Top-slab room — final safety clamp so the topmost cabin can't
+    // clip the canvas top when it lands at the highest floor.
+    const topSlabRoom = toScreenY(maxY) - 2;
+    const storyFillCarH = Number.isFinite(minStoryPx) ? minStoryPx : s.carH;
+    const targetCarH = isTether ? s.carH : storyFillCarH;
+    const carH = Math.max(14, Math.min(targetCarH, topSlabRoom));
+    // Figure height tracks story height (not canvas width). Without
+    // this the waiting-rider silhouettes stay ~20 px no matter how
+    // tall the browser is, so on a 1200 px browser with 65 px
+    // stories the figures look lost in empty vertical space, and on
+    // a 500 px browser with 20 px stories they overflow into the
+    // floor above. Target ~70 % of the smallest story, floored so
+    // they stay recognisable and capped so they don't balloon on
+    // very spread-out scenarios. The `0.067` coefficient budgets
+    // for the *tallest* rider variant (tall + hat ≈ headR × 10.5)
+    // so even that extreme silhouette fits inside a story; smaller
+    // variants just have more headroom. Tethers opt out — their
+    // "story" is the whole cable, and we want platform-scale
+    // figures there.
+    if (!isTether && Number.isFinite(minStoryPx)) {
+      const target = Math.max(1.5, Math.min(minStoryPx * 0.067, 4));
+      const strideRatio = target / s.figureHeadR;
+      s.figureHeadR = target;
+      s.figureStride = s.figureStride * strideRatio;
+    }
+    // Overwrite the cached hints with per-frame geometry; downstream
+    // draw passes read these. Safe because the scale cache is
+    // per-renderer and a car-count change rebuilds the renderer.
+    s.shaftInnerW = shaftInnerW;
+    s.carW = carW;
+    s.carH = carH;
+    const labelRight = s.padX + s.labelW;
+    const leftGutter = { start: labelRight, end: labelRight + gutterEach };
+    const shaftsLeft = leftGutter.end + s.gutterGap;
+    const shaftsRight = shaftsLeft + shaftBankW;
+    const rightGutter = { start: shaftsRight + s.gutterGap, end: w - s.padX };
+
+    // Resolve each shaft's center x once so every pass (frame/car/target/trail)
     // reads from the same column assignment.
+    const shaftCenters: number[] = [];
     const carX = new Map<number, number>();
     let shaftIdx = 0;
     for (const lineId of lineIds) {
       const cars = byLine.get(lineId) ?? [];
       for (const car of cars) {
-        carX.set(car.id, lanesLeft + shaftW * (shaftIdx + 0.5));
+        const cx = shaftsLeft + s.shaftInnerW / 2 + shaftIdx * (s.shaftInnerW + s.shaftSpacing);
+        shaftCenters.push(cx);
+        carX.set(car.id, cx);
         shaftIdx++;
       }
     }
@@ -287,41 +488,162 @@ export class CanvasRenderer {
     const stopIdxById = new Map<number, number>();
     snap.stops.forEach((st, i) => stopIdxById.set(st.entity_id, i));
 
-    this.#drawDirectionHeaders(s);
-    this.#drawStops(snap, toScreenY, s, lanesLeft, lanesRight);
-    this.#drawTargetMarkers(snap, carX, toScreenY, s, stopIdxById);
+    // Pre-compute which floors have a car mid-load at each shaft, so
+    // the corresponding door marks read as "open" instead of muted.
+    // Keys use the stop's `entity_id` so sort order in `drawFloors`
+    // doesn't break the lookup.
+    const loadingAtFloor = new Set<string>(); // "shaftIdx:stopEntityId"
+    {
+      let idx = 0;
+      for (const lineId of lineIds) {
+        const cars = byLine.get(lineId) ?? [];
+        for (const car of cars) {
+          if (
+            car.phase === "loading" ||
+            car.phase === "door-opening" ||
+            car.phase === "door-closing"
+          ) {
+            let nearest = -1;
+            let best = Infinity;
+            for (let i = 0; i < snap.stops.length; i++) {
+              const d = Math.abs(snap.stops[i].y - car.y);
+              if (d < best) {
+                best = d;
+                nearest = i;
+              }
+            }
+            if (nearest >= 0 && best < 0.5) {
+              loadingAtFloor.add(`${idx}:${snap.stops[nearest].entity_id}`);
+            }
+          }
+          idx++;
+        }
+      }
+    }
 
-    // Shafts behind cars so trails/cars sit on top.
+    // Build per-shaft extents so each elevator bank's channel spans
+    // only the floors it actually reaches — express / exec / service
+    // banks that skip most floors get visibly shorter shafts. Cars
+    // whose `min_served_y` / `max_served_y` are NaN (stale wasm build
+    // or a pre-range scenario) fall back to the full canvas height.
+    //
+    // Colour picks use the line's position in the sorted `lineIds`
+    // list, not the entity id — that way colour assignment is stable
+    // for a scenario regardless of which entity ids the sim happened
+    // to allocate at construction time.
+    // Per-car geometry + rider-color overrides, keyed by car id.
+    // Specialty banks (VIP, Service) get narrower shafts, narrower
+    // and shorter cabins (so they read as more square), and — for
+    // VIP — a gold rider silhouette that visibly distinguishes
+    // executive passengers from general traffic. Falls back to the
+    // global `s.carW` / `s.carH` / `CAR_DOT_COLOR` for the main banks.
+    const shaftInnerPerCar = new Map<number, number>();
+    const carWPerCar = new Map<number, number>();
+    const carHPerCar = new Map<number, number>();
+    const riderColorPerCar = new Map<number, string>();
+    const shaftExtents: Array<{
+      cx: number;
+      top: number;
+      bottom: number;
+      fill: string;
+      frame: string;
+      width: number;
+    }> = [];
+    // One label per line (not per car) — all cars on the same line
+    // share a label drawn once, centered over the line's shaft group.
+    const shaftLabels: Array<{ cx: number; top: number; text: string; color: string }> = [];
+    let shaftExtIdx = 0;
+    for (let lineIdx = 0; lineIdx < lineIds.length; lineIdx++) {
+      const lineId = lineIds[lineIdx];
+      const cars = byLine.get(lineId) ?? [];
+      const fill = SHAFT_FILL_BY_INDEX[lineIdx] ?? SHAFT_FILL_FALLBACK;
+      const frame = SHAFT_FRAME_BY_INDEX[lineIdx] ?? SHAFT_FRAME_FALLBACK;
+      const widthMul = SHAFT_WIDTH_MUL_BY_INDEX[lineIdx] ?? 1;
+      const labelColor = SHAFT_LABEL_BY_INDEX[lineIdx] ?? SHAFT_LABEL_FALLBACK;
+      const thisShaftInner = Math.max(14, shaftInnerW * widthMul);
+      const thisCarW = Math.max(10, carW * widthMul);
+      const thisCarH = Math.max(10, s.carH);
+      // Per-line rider palette: VIP riders are gold, Service (ops /
+      // maintenance) riders are teal, everything else uses off-white.
+      // Passed to `drawRidersInCar` so the silhouette palette switches
+      // per cabin. The corresponding waiting-rider palette still uses
+      // UP/DOWN direction colours — service/VIP identity only shows
+      // inside the cabin.
+      const riderColor =
+        lineIdx === 2 ? VIP_RIDER_COLOR : lineIdx === 3 ? SERVICE_RIDER_COLOR : CAR_DOT_COLOR;
+      let firstCx = Infinity;
+      let lastCx = -Infinity;
+      let groupTop = Infinity;
+      for (const car of cars) {
+        shaftInnerPerCar.set(car.id, thisShaftInner);
+        carWPerCar.set(car.id, thisCarW);
+        carHPerCar.set(car.id, thisCarH);
+        riderColorPerCar.set(car.id, riderColor);
+        const cx = shaftCenters[shaftExtIdx];
+        const hasRange =
+          Number.isFinite(car.min_served_y) && Number.isFinite(car.max_served_y);
+        const top = hasRange
+          ? Math.max(stopsTop, toScreenY(car.max_served_y) - s.carH - 2)
+          : stopsTop;
+        const bottom = hasRange
+          ? Math.min(stopsBottom, toScreenY(car.min_served_y) + 2)
+          : stopsBottom;
+        shaftExtents.push({ cx, top, bottom, fill, frame, width: thisShaftInner });
+        if (cx < firstCx) firstCx = cx;
+        if (cx > lastCx) lastCx = cx;
+        if (top < groupTop) groupTop = top;
+        shaftExtIdx++;
+      }
+      if (Number.isFinite(firstCx) && Number.isFinite(groupTop)) {
+        shaftLabels.push({
+          cx: (firstCx + lastCx) / 2,
+          top: groupTop,
+          text: SHAFT_NAME_BY_INDEX[lineIdx] ?? `Line ${lineIdx + 1}`,
+          color: labelColor,
+        });
+      }
+    }
+
+    this.#drawShaftChannels(shaftExtents);
+    this.#drawShaftLabels(shaftLabels, s);
+    this.#drawFloors(snap, toScreenY, s, shaftCenters, w, loadingAtFloor, stopsTop, isTether);
+    this.#drawGutterHeaders(s, leftGutter, rightGutter);
+    this.#drawWaitingFigures(snap, toScreenY, s, leftGutter, rightGutter);
+    this.#drawTargetMarkers(snap, carX, shaftInnerPerCar, toScreenY, s, stopIdxById);
+
     for (const [carId, cx] of carX) {
-      this.#drawShaft(cx, stopsTop, stopsBottom, s);
       const car = snap.cars.find((c) => c.id === carId);
       if (!car) continue;
-      this.#drawCarTrail(car, cx, toScreenY, s);
-      this.#drawCar(car, cx, toScreenY, s);
+      const thisCarW = carWPerCar.get(carId) ?? s.carW;
+      const thisCarH = carHPerCar.get(carId) ?? s.carH;
+      const thisRiderColor = riderColorPerCar.get(carId) ?? CAR_DOT_COLOR;
+      this.#drawCarTrail(car, cx, thisCarW, thisCarH, toScreenY);
+      this.#drawCar(car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s);
     }
 
     // Detect board/alight transitions and queue tweens before drawing them so
     // the first frame of motion is visible instead of a one-frame lag.
-    this.#computeTweens(snap, carX, toScreenY, s, speedMultiplier);
+    this.#computeTweens(snap, carX, shaftInnerPerCar, toScreenY, s, speedMultiplier);
     this.#drawTweens(s);
 
     if (bubbles && bubbles.size > 0) {
       this.#drawBubbles(snap, carX, toScreenY, s, bubbles, w);
     }
-
-    this.#drawSparkline(waitHistory, w, h, s);
   }
 
   /**
-   * Draw a small rounded speech-bubble with a tail pointing to each
-   * car that has a fresh action. Bubbles render on top of cars and
-   * tweens so narration stays legible.
+   * Draw a small rounded speech-bubble with a tail pointing down (or
+   * up) to each car with a fresh action. Bubbles render on top of
+   * cars and tweens so narration stays legible.
    *
-   * Placement rules:
-   * - Prefer the right side of the car; flip to the left when the
-   *   bubble would clip the canvas edge (common in compare mode).
-   * - Vertically center on the car; no jitter even when the car
-   *   moves, so the bubble reads steadily during motion.
+   * Placement rules (tuned for the SimTower-style multi-shaft bank
+   * where horizontal room between shafts is only a few pixels):
+   * - Default position: *above* the car, tail pointing down. Avoids
+   *   horizontal collisions with adjacent shafts entirely.
+   * - Flip to *below* the car when the above-car position would clip
+   *   the canvas top (cars near the penthouse).
+   * - Horizontally centered on the car's shaft, then clamped to the
+   *   canvas edges so the bubble never gets cut off.
    */
   #drawBubbles(
     snap: Snapshot,
@@ -334,9 +656,10 @@ export class CanvasRenderer {
     const ctx = this.#ctx;
     const padX = 7;
     const padY = 4;
-    const tailW = 5;
-    const tailH = 4;
+    const tailW = 5; // tail base width
+    const tailH = 4; // tail depth (distance from bubble edge to tip)
     const radius = 6;
+    const gap = 2; // gap between car edge and bubble edge
     const font = `600 ${s.fontSmall + 0.5}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     ctx.font = font;
     ctx.textBaseline = "middle";
@@ -352,7 +675,10 @@ export class CanvasRenderer {
       if (!bubble) continue;
       const cx = carX.get(car.id);
       if (cx === undefined) continue;
-      const cy = toScreenY(car.y);
+      // `car.y` is the cabin's bottom (see #drawCar). Derive the
+      // cabin's top from carH and anchor the bubble off those edges.
+      const carBottom = toScreenY(car.y);
+      const carTop = carBottom - s.carH;
 
       const ttl = Math.max(1, bubble.expiresAt - bubble.bornAt);
       const remaining = bubble.expiresAt - now;
@@ -364,16 +690,30 @@ export class CanvasRenderer {
       const bubbleW = textW + padX * 2;
       const bubbleH = s.fontSmall + padY * 2 + 2;
 
-      // Tail side: prefer right; flip when the bubble would overflow
-      // the canvas. In compare mode the right pane's canvas is
-      // narrow enough that the right-side default would clip.
-      const halfCar = s.carW / 2;
-      const rightEdge = cx + halfCar + tailW + bubbleW + 2;
-      const side: "left" | "right" = rightEdge > canvasWidth - 2 ? "left" : "right";
+      // Vertical placement: above car by default, below when above
+      // would clip the top edge. Tail points from bubble toward car.
+      const aboveTop = carTop - gap - tailH - bubbleH;
+      const side: "above" | "below" = aboveTop < 2 ? "below" : "above";
+      const by =
+        side === "above" ? carTop - gap - tailH - bubbleH : carBottom + gap + tailH;
 
-      const bx =
-        side === "right" ? cx + halfCar + tailW : cx - halfCar - tailW - bubbleW;
-      const by = cy - bubbleH / 2;
+      // Horizontal: centered on the shaft, then clamped to canvas.
+      let bx = cx - bubbleW / 2;
+      const minX = 2;
+      const maxX = canvasWidth - bubbleW - 2;
+      if (bx < minX) bx = minX;
+      if (bx > maxX) bx = maxX;
+
+      // Tail tip sits on the car's nearest edge; base centered on cx
+      // but clamped into the bubble's horizontal span so it stays
+      // attached even when the bubble itself was clamped to the canvas
+      // edge (e.g., leftmost / rightmost shaft in compare mode).
+      const tipY = side === "above" ? carTop - gap : carBottom + gap;
+      const baseY = side === "above" ? by + bubbleH : by;
+      const tailCenter = Math.min(
+        Math.max(cx, bx + radius + tailW / 2),
+        bx + bubbleW - radius - tailW / 2,
+      );
 
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -393,123 +733,284 @@ export class CanvasRenderer {
       roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
       ctx.stroke();
 
-      // Tail — small triangle pointing at the car.
+      // Tail triangle. Points down when bubble is above, up when below.
       ctx.beginPath();
-      if (side === "right") {
-        ctx.moveTo(bx, cy - tailH / 2);
-        ctx.lineTo(bx - tailW, cy);
-        ctx.lineTo(bx, cy + tailH / 2);
-      } else {
-        ctx.moveTo(bx + bubbleW, cy - tailH / 2);
-        ctx.lineTo(bx + bubbleW + tailW, cy);
-        ctx.lineTo(bx + bubbleW, cy + tailH / 2);
-      }
+      ctx.moveTo(tailCenter - tailW / 2, baseY);
+      ctx.lineTo(tailCenter + tailW / 2, baseY);
+      ctx.lineTo(tailCenter, tipY);
       ctx.closePath();
       ctx.fillStyle = "rgba(16, 19, 26, 0.94)";
       ctx.fill();
       ctx.stroke();
 
-      // Text.
+      // Text — centered horizontally in the bubble.
       ctx.fillStyle = "#f0f3fb";
-      ctx.fillText(bubble.text, bx + padX, cy);
+      ctx.textAlign = "center";
+      ctx.fillText(bubble.text, bx + bubbleW / 2, by + bubbleH / 2);
 
       ctx.restore();
     }
   }
 
-  // ── Stops, labels, direction queues ───────────────────────────────
+  // ── Shaft channels, floors, waiting figures ───────────────────────
 
-  #drawDirectionHeaders(s: Scale): void {
+  /**
+   * Paint each shaft column as a recessed channel with two vertical
+   * rails. Drawn before floors so the horizontal slab's door-gaps
+   * visibly "cut" through this channel rather than sitting on top.
+   */
+  /**
+   * Short name strip above each shaft group (e.g., `LOW`, `HIGH`,
+   * `EXEC`, `SVC`). Lets users tell the banks apart at a glance —
+   * the shaft colour tells them "something's different," the label
+   * tells them *which* bank it is. Positioned just above the shaft
+   * top so it doesn't interfere with the topmost floor slab or the
+   * direction-header gutter.
+   */
+  #drawShaftLabels(
+    labels: Array<{ cx: number; top: number; text: string; color: string }>,
+    s: Scale,
+  ): void {
+    if (labels.length === 0) return;
     const ctx = this.#ctx;
-    const upX = s.padX + s.labelW + s.upColW / 2;
-    const dnX = s.padX + s.labelW + s.upColW + s.dnColW / 2;
-    const y = s.padTop / 2 + 1;
-    ctx.font = `${s.fontSmall.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.textBaseline = "middle";
+    ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textBaseline = "alphabetic";
     ctx.textAlign = "center";
-    ctx.fillStyle = UP_COLOR;
-    ctx.fillText("\u25b2", upX, y);
-    ctx.fillStyle = DOWN_COLOR;
-    ctx.fillText("\u25bc", dnX, y);
+    for (const l of labels) {
+      // Place the text just above the shaft channel's top edge.
+      // 3 px padding keeps it off the rail corner pixel.
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.text, l.cx, l.top - 3);
+    }
   }
 
-  #drawStops(
+  #drawShaftChannels(
+    extents: Array<{
+      cx: number;
+      top: number;
+      bottom: number;
+      fill: string;
+      frame: string;
+      width: number;
+    }>,
+  ): void {
+    const ctx = this.#ctx;
+    // Per-shaft fill — line index determines the palette slot AND
+    // the shaft's inner width (specialty banks render narrower).
+    for (const ex of extents) {
+      const half = ex.width / 2;
+      ctx.fillStyle = ex.fill;
+      ctx.fillRect(ex.cx - half, ex.top, ex.width, ex.bottom - ex.top);
+    }
+    ctx.lineWidth = 1;
+    for (const ex of extents) {
+      const half = ex.width / 2;
+      ctx.strokeStyle = ex.frame;
+      const l = ex.cx - half + 0.5;
+      const r = ex.cx + half - 0.5;
+      ctx.beginPath();
+      ctx.moveTo(l, ex.top);
+      ctx.lineTo(l, ex.bottom);
+      ctx.moveTo(r, ex.top);
+      ctx.lineTo(r, ex.bottom);
+      ctx.stroke();
+    }
+  }
+
+  /**
+   * Draw each floor as a thin slab (the story divider) with door-gap
+   * breaks where shafts intersect. Labels live *inside* the story —
+   * between this slab and the next slab above — mirroring SimTower's
+   * per-story naming. The topmost floor uses the canvas top as its
+   * ceiling so its label still has a vertical band to sit in.
+   *
+   * Tether mode (2-stop scenarios like the space elevator) overrides
+   * the slab into a short platform bar centered on each shaft and
+   * pins labels to the slab itself — the "story between" framing
+   * doesn't apply when the shaft is a cable, not a building.
+   *
+   * Door marks at each shaft intersection brighten when the matching
+   * car is loading or cycling doors there (`loadingAtFloor` uses the
+   * stop's `entity_id` so this lookup survives the world-y sort).
+   */
+  #drawFloors(
     snap: Snapshot,
     toScreenY: (y: number) => number,
     s: Scale,
-    lanesLeft: number,
-    lanesRight: number,
+    shaftCenters: number[],
+    w: number,
+    loadingAtFloor: Set<string>,
+    stopsTop: number,
+    isTether: boolean,
   ): void {
     const ctx = this.#ctx;
     ctx.font = `${s.fontMain.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textBaseline = "middle";
-
     const labelX = s.padX;
-    const upX = s.padX + s.labelW;
-    const dnX = upX + s.upColW;
+    const slabLeft = s.padX + s.labelW;
+    const slabRight = w - s.padX;
+    const half = s.shaftInnerW / 2;
+    // Tether-mode platform bar: a short, thicker horizontal line
+    // straddling the shaft rather than the full-width building slab.
+    const platformHalfW = Math.min(s.shaftInnerW * 1.8, (slabRight - slabLeft) / 2);
 
-    for (const stop of snap.stops) {
-      const y = toScreenY(stop.y);
+    // Sort stops by world y ascending so `sorted[i+1]` is always the
+    // floor directly above `sorted[i]`. Without this, a RON with stops
+    // declared out of world-y order would pair labels with the wrong
+    // ceiling.
+    const sorted = [...snap.stops].sort((a, b) => a.y - b.y);
 
-      ctx.strokeStyle = STOP_LINE;
-      ctx.lineWidth = 1;
+    for (let i = 0; i < sorted.length; i++) {
+      const stop = sorted[i];
+      const slabY = toScreenY(stop.y);
+      // Story ceiling: the slab directly above, or the canvas top for
+      // the highest floor (which has no story above it).
+      const ceilingY = i < sorted.length - 1 ? toScreenY(sorted[i + 1].y) : stopsTop;
+
+      // Slab rendering — full-width segmented line for buildings,
+      // short platform bars for tether endpoints.
+      ctx.strokeStyle = FLOOR_LINE;
+      ctx.lineWidth = isTether ? 2 : 1;
       ctx.beginPath();
-      ctx.moveTo(lanesLeft, y);
-      ctx.lineTo(lanesRight, y);
+      if (isTether) {
+        for (const cx of shaftCenters) {
+          ctx.moveTo(cx - platformHalfW, slabY + 0.5);
+          ctx.lineTo(cx + platformHalfW, slabY + 0.5);
+        }
+      } else {
+        let cursor = slabLeft;
+        for (const cx of shaftCenters) {
+          const gapL = cx - half;
+          const gapR = cx + half;
+          if (gapL > cursor) {
+            ctx.moveTo(cursor, slabY + 0.5);
+            ctx.lineTo(gapL, slabY + 0.5);
+          }
+          cursor = gapR;
+        }
+        if (cursor < slabRight) {
+          ctx.moveTo(cursor, slabY + 0.5);
+          ctx.lineTo(slabRight, slabY + 0.5);
+        }
+      }
       ctx.stroke();
 
-      ctx.fillStyle = STOP_LABEL;
-      ctx.textAlign = "left";
-      ctx.fillText(truncate(ctx, stop.name, s.labelW - 2), labelX, y);
+      // Door marks — tiny horizontal ticks on the outside of each shaft
+      // rail at this floor. When a car is loading here, brighten the
+      // marks on that specific shaft.
+      for (let j = 0; j < shaftCenters.length; j++) {
+        const cx = shaftCenters[j];
+        const active = loadingAtFloor.has(`${j}:${stop.entity_id}`);
+        ctx.strokeStyle = active ? DOOR_ACTIVE : DOOR_INACTIVE;
+        ctx.lineWidth = active ? 1.4 : 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - half - 2, slabY + 0.5);
+        ctx.lineTo(cx - half, slabY + 0.5);
+        ctx.moveTo(cx + half, slabY + 0.5);
+        ctx.lineTo(cx + half + 2, slabY + 0.5);
+        ctx.stroke();
+      }
 
+      // Label placement. Buildings: mid-story (between this slab and
+      // the ceiling). Tethers: on the platform itself, since there's
+      // no story-above framing — "Orbital Platform" labels a point,
+      // not a band of vertical space.
+      const labelY = isTether ? slabY : (slabY + ceilingY) / 2;
+      ctx.fillStyle = STOP_LABEL;
+      ctx.textAlign = "right";
+      ctx.fillText(truncate(ctx, stop.name, s.labelW - 4), labelX + s.labelW - 4, labelY);
+    }
+  }
+
+  /**
+   * Label each gutter with its direction (`▲ UP` / `DOWN ▼`) in the
+   * top padding region above the first floor. Reinforces the color
+   * coding of the stick figures below — up-bound riders live on the
+   * left in cool blue, down-bound on the right in rose.
+   */
+  #drawGutterHeaders(
+    s: Scale,
+    leftGutter: { start: number; end: number },
+    rightGutter: { start: number; end: number },
+  ): void {
+    const ctx = this.#ctx;
+    // Vertically center in the top padding strip. `padTop` sized to
+    // leave clear room for this strip above the first floor slab.
+    const y = s.padTop / 2 + 1;
+    ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.textBaseline = "middle";
+
+    // Left gutter — anchored toward the shaft (its right edge) so the
+    // label reads as heading the column of figures below it.
+    ctx.textAlign = "right";
+    ctx.fillStyle = UP_COLOR;
+    ctx.fillText("\u25b2 UP", leftGutter.end - 2, y);
+
+    // Right gutter — anchored toward the shaft (its left edge).
+    ctx.textAlign = "left";
+    ctx.fillStyle = DOWN_COLOR;
+    ctx.fillText("DOWN \u25bc", rightGutter.start + 2, y);
+  }
+
+  /**
+   * Draw waiting riders as tiny stick figures standing on each floor.
+   * Up-bound riders fill the left gutter (closest shaft rail first);
+   * down-bound riders fill the right gutter. Figures overflow into a
+   * "+N" text label when the row runs out of space.
+   */
+  #drawWaitingFigures(
+    snap: Snapshot,
+    toScreenY: (y: number) => number,
+    s: Scale,
+    leftGutter: { start: number; end: number },
+    rightGutter: { start: number; end: number },
+  ): void {
+    const ctx = this.#ctx;
+    for (const stop of snap.stops) {
+      const y = toScreenY(stop.y);
       if (stop.waiting_up > 0) {
-        drawDirectionDots(ctx, upX, y, s.upColW, s.dirDotR, stop.waiting_up, UP_COLOR, s.fontSmall);
+        drawFigureRow(
+          ctx,
+          leftGutter.end,
+          y,
+          -1,
+          leftGutter.end - leftGutter.start,
+          stop.waiting_up,
+          UP_COLOR,
+          s,
+          stop.entity_id,
+        );
       }
       if (stop.waiting_down > 0) {
-        drawDirectionDots(
+        drawFigureRow(
           ctx,
-          dnX,
+          rightGutter.start,
           y,
-          s.dnColW,
-          s.dirDotR,
+          +1,
+          rightGutter.end - rightGutter.start,
           stop.waiting_down,
           DOWN_COLOR,
-          s.fontSmall,
+          s,
+          stop.entity_id,
         );
       }
     }
   }
 
-  // ── Shafts, cars, trails, target markers ──────────────────────────
-
-  #drawShaft(cx: number, top: number, bottom: number, _s: Scale): void {
-    const ctx = this.#ctx;
-    const grad = ctx.createLinearGradient(cx, top, cx, bottom);
-    grad.addColorStop(0, "rgba(39, 45, 58, 0)");
-    grad.addColorStop(0.5, "rgba(39, 45, 58, 0.9)");
-    grad.addColorStop(1, "rgba(39, 45, 58, 0)");
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, top);
-    ctx.lineTo(cx, bottom);
-    ctx.stroke();
-  }
-
   #drawTargetMarkers(
     snap: Snapshot,
     carX: Map<number, number>,
+    shaftInnerPerCar: Map<number, number>,
     toScreenY: (y: number) => number,
     s: Scale,
     stopIdxById: Map<number, number>,
   ): void {
     const ctx = this.#ctx;
-    // Gentle 1Hz pulse on the outer ring so the marker catches the eye
-    // without strobing. Alpha wobbles in a narrow band so the marker
-    // remains crisp even at the pulse's trough.
-    const pulse = 0.75 + 0.2 * Math.sin(performance.now() * 0.005);
-    const outerR = s.carDotR * 5.2;
-    const midR = s.carDotR * 3.4;
+    // Minimal marker: a thin amber line from the cabin to a solid
+    // dot at the target landing position. Line shrinks as the cabin
+    // approaches; on arrival the marker collapses and is hidden.
+    void shaftInnerPerCar; // reserved for future per-car dot sizing
+    const dotR = Math.max(2, s.figureHeadR * 0.9);
     for (const car of snap.cars) {
       if (car.target == null) continue;
       const idx = stopIdxById.get(car.target);
@@ -517,23 +1018,28 @@ export class CanvasRenderer {
       const stop = snap.stops[idx];
       const cx = carX.get(car.id);
       if (cx == null) continue;
-      const cy = toScreenY(stop.y);
-      // Outer pulsing ring + inner dot. The ring reads "this car is
-      // committed to going there"; the inner dot anchors the mark on
-      // the rung even when the ring is subtle.
-      ctx.strokeStyle = `rgba(245, 158, 11, ${pulse})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = TARGET_RING;
+      // Target y = cabin's landing *center* (half a cab above the
+      // destination slab). Connecting line starts at the cabin's
+      // current center and ends at that landing point.
+      const targetY = toScreenY(stop.y) - s.carH / 2;
+      const cabinCenterY = toScreenY(car.y) - s.carH / 2;
+      // Skip when the cabin is already at its target — zero-length
+      // line + the dot would just sit behind the arrived cab.
+      if (Math.abs(cabinCenterY - targetY) < 0.5) continue;
+      // Thin connector line. Semi-transparent white reads as "going
+      // here" without competing with the cabin or dot visually; also
+      // keeps amber reserved for door/loading accents elsewhere in
+      // the diagram.
+      ctx.strokeStyle = "rgba(250, 250, 250, 0.5)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(cx, cy, midR, 0, Math.PI * 2);
+      ctx.moveTo(cx, cabinCenterY);
+      ctx.lineTo(cx, targetY);
       ctx.stroke();
+      // Target dot — solid amber, the "going here" marker.
       ctx.fillStyle = TARGET_FILL;
       ctx.beginPath();
-      ctx.arc(cx, cy, s.carDotR * 1.1, 0, Math.PI * 2);
+      ctx.arc(cx, targetY, dotR, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -541,48 +1047,48 @@ export class CanvasRenderer {
   #drawCarTrail(
     car: Car,
     cx: number,
+    carW: number,
+    carH: number,
     toScreenY: (y: number) => number,
-    s: Scale,
   ): void {
     if (car.phase !== "moving" || Math.abs(car.v) < 0.1) return;
     const ctx = this.#ctx;
     const base = PHASE_COLORS[car.phase];
-    const halfW = s.carW / 2;
-    const halfH = s.carH / 2;
+    const halfW = carW / 2;
     for (let i = 1; i <= TRAIL_STEPS; i++) {
-      // Ghost position trails behind the car in the direction of motion.
-      const behindY = toScreenY(car.y - car.v * TRAIL_DT * i);
+      const behindBottom = toScreenY(car.y - car.v * TRAIL_DT * i);
       const alpha = 0.18 * (1 - (i - 1) / TRAIL_STEPS);
       ctx.fillStyle = hexWithAlpha(base, alpha);
-      ctx.fillRect(cx - halfW, behindY - halfH, s.carW, s.carH);
+      ctx.fillRect(cx - halfW, behindBottom - carH, carW, carH);
     }
   }
 
-  #drawCar(car: Car, cx: number, toScreenY: (y: number) => number, s: Scale): void {
+  #drawCar(
+    car: Car,
+    cx: number,
+    carW: number,
+    carH: number,
+    riderColor: string,
+    toScreenY: (y: number) => number,
+    s: Scale,
+  ): void {
     const ctx = this.#ctx;
-    const cy = toScreenY(car.y);
-    const halfW = s.carW / 2;
-    const halfH = s.carH / 2;
+    const bottom = toScreenY(car.y);
+    const top = bottom - carH;
+    const halfW = carW / 2;
     const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
 
-    const grad = ctx.createLinearGradient(cx, cy - halfH, cx, cy + halfH);
+    const grad = ctx.createLinearGradient(cx, top, cx, bottom);
     grad.addColorStop(0, shade(base, 0.14));
     grad.addColorStop(1, shade(base, -0.18));
     ctx.fillStyle = grad;
-    ctx.fillRect(cx - halfW, cy - halfH, s.carW, s.carH);
+    ctx.fillRect(cx - halfW, top, carW, carH);
     ctx.strokeStyle = "rgba(10, 12, 16, 0.9)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(cx - halfW + 0.5, cy - halfH + 0.5, s.carW - 1, s.carH - 1);
-
-    const frac = car.capacity > 0 ? Math.min(car.load / car.capacity, 1) : 0;
-    if (frac > 0) {
-      const innerH = (s.carH - 4) * frac;
-      ctx.fillStyle = "rgba(10, 12, 16, 0.35)";
-      ctx.fillRect(cx - halfW + 2, cy + halfH - 2 - innerH, s.carW - 4, innerH);
-    }
+    ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
 
     if (car.riders > 0) {
-      drawRiderDotsInCar(ctx, cx, cy, s.carW, s.carH, s.carDotR, car.riders, s.fontSmall);
+      drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, car.id, s);
     }
   }
 
@@ -591,6 +1097,7 @@ export class CanvasRenderer {
   #computeTweens(
     snap: Snapshot,
     carX: Map<number, number>,
+    shaftInnerPerCar: Map<number, number>,
     toScreenY: (y: number) => number,
     s: Scale,
     speedMultiplier: number,
@@ -601,8 +1108,10 @@ export class CanvasRenderer {
     // Stagger spacing shrinks with speed so 16× runs don't pile up decades-long
     // tween tails that outlive the phase they came from.
     const stagger = 30 / scale;
-    const upX = s.padX + s.labelW;
-    const dnX = upX + s.upColW;
+    // Board tweens originate just outside the shaft rail (where the
+    // nearest stick figure in the gutter stands). Each car's rail
+    // offset uses its own `shaftInnerW` lookup so specialty banks
+    // (narrow shafts) get tighter tween origins.
 
     // First pass: compute per-car rider deltas and accumulate per-stop
     // board totals. Boards must be known *before* the stop pass so a
@@ -640,11 +1149,18 @@ export class CanvasRenderer {
         if (delta !== 0) {
           const stop = snap.stops[stopIdx];
           const stopY = toScreenY(stop.y);
-          const carY = toScreenY(car.y);
+          // Cabin's vertical center — since the cabin anchors at its
+          // bottom and extends up by `carH`, its center sits one half
+          // above the slab. Riders fly in/out at the middle so the
+          // tween lands visibly inside the cabin rectangle.
+          const cabinCenterY = toScreenY(car.y) - s.carH / 2;
           const count = Math.min(Math.abs(delta), 6);
           if (delta > 0) {
             const useUp = stop.waiting_up >= stop.waiting_down;
-            const originX = useUp ? upX + s.upColW / 2 : dnX + s.dnColW / 2;
+            const shaftHalfForCar =
+              (shaftInnerPerCar.get(car.id) ?? s.shaftInnerW) / 2;
+            const gutterOffset = shaftHalfForCar + 6;
+            const originX = useUp ? cx - gutterOffset : cx + gutterOffset;
             const color = useUp ? UP_COLOR : DOWN_COLOR;
             for (let k = 0; k < count; k++) {
               carTweens.push(() =>
@@ -655,7 +1171,7 @@ export class CanvasRenderer {
                   startX: originX,
                   startY: stopY,
                   endX: cx,
-                  endY: carY,
+                  endY: cabinCenterY,
                   color,
                 }),
               );
@@ -668,9 +1184,9 @@ export class CanvasRenderer {
                   bornAt: now + k * stagger,
                   duration,
                   startX: cx,
-                  startY: carY,
+                  startY: cabinCenterY,
                   endX: cx + 18,
-                  endY: carY + 10,
+                  endY: cabinCenterY + 10,
                   color: CAR_DOT_COLOR,
                 }),
               );
@@ -696,11 +1212,13 @@ export class CanvasRenderer {
         const abandons = Math.max(0, dropped - boards);
         if (abandons > 0) {
           const stopY = toScreenY(stop.y);
-          // Drift leftward past the stop label — reads as "walked off
+          // Drift leftward past the floor label — reads as "walked off
           // to find the stairs / another car." The outward direction
           // visually disambiguates abandons from alights (which drift
-          // right, toward the shaft, i.e. "got delivered").
-          const startX = upX + s.upColW / 2;
+          // right, toward the shaft, i.e. "got delivered"). Anchor the
+          // origin midway through the left gutter so the rider reads as
+          // stepping out of the queue rather than leaving the shaft.
+          const startX = s.padX + s.labelW + s.figureGutterW / 2;
           const count = Math.min(abandons, 4);
           for (let k = 0; k < count; k++) {
             this.#tweens.push({
@@ -783,139 +1301,319 @@ export class CanvasRenderer {
     }
   }
 
-  // ── Sparkline overlay ─────────────────────────────────────────────
-
-  #drawSparkline(series: number[], w: number, h: number, s: Scale): void {
-    const ctx = this.#ctx;
-    const top = h - s.padBottom + (s.padBottom - s.sparkH) / 2;
-    const bottom = top + s.sparkH;
-    const left = s.padX;
-    const right = w - s.padX;
-    const innerW = Math.max(right - left, 1);
-
-    // Label on the left; current value on the right, tabular.
-    ctx.font = `${s.fontSmall.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.textBaseline = "top";
-    ctx.fillStyle = SPARK_TEXT;
-    ctx.textAlign = "left";
-    ctx.fillText(this.#sparkLabel, left, top - 1);
-
-    if (series.length === 0) return;
-
-    const latest = series[series.length - 1];
-    ctx.fillStyle = STOP_LABEL;
-    ctx.textAlign = "right";
-    ctx.fillText(latest.toFixed(1), right, top - 1);
-
-    if (series.length < 2) return;
-
-    const max = Math.max(1, ...series);
-    const xStep = innerW / Math.max(series.length - 1, 1);
-    const toY = (v: number): number => bottom - (v / max) * (bottom - top);
-
-    // Baseline so the sparkline remains legible against the shaft gradient
-    // even when values are zero.
-    ctx.strokeStyle = SPARK_LINE;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(left, bottom);
-    ctx.lineTo(right, bottom);
-    ctx.stroke();
-
-    ctx.strokeStyle = this.#accent;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    for (let i = 0; i < series.length; i++) {
-      const x = left + i * xStep;
-      const y = toY(series[i]);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
   get canvas(): HTMLCanvasElement {
     return this.#canvas;
   }
 }
 
-/** Draw a single-direction queue column; vertically centered on `y`, max `maxW` wide. */
-function drawDirectionDots(
+/**
+ * Draw a row of tiny stick figures standing on a floor. Figures are
+ * placed starting at `anchorX` and stepping horizontally by
+ * `dir * s.figureStride` — so passing `dir = -1` fills leftward (for
+ * up-bound riders in the left gutter, nearest figure closest to the
+ * shaft) and `dir = +1` fills rightward. Overflow is rendered as a
+ * "+N" label at the far end so the viewer always sees the exact count.
+ */
+function drawFigureRow(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
+  anchorX: number,
+  floorY: number,
+  dir: -1 | 1,
   maxW: number,
-  r: number,
   count: number,
   color: string,
-  fontSize: number,
+  s: Scale,
+  variantSeed: number,
 ): void {
-  const stride = r * 2 + 1.2;
-  const capN = Math.max(1, Math.floor((maxW - 10) / stride));
+  // Reserve room at the far end for the "+N" label so it never overlaps
+  // a figure — ~14 px fits 3-digit overflow at the small font.
+  const labelRoom = 14;
+  const capN = Math.max(1, Math.floor((maxW - labelRoom) / s.figureStride));
   const visible = Math.min(count, capN);
-  ctx.fillStyle = color;
+  // First figure's near edge sits ~2 px from the shaft rail so the
+  // bodies don't merge with the rail line.
+  const firstOffset = dir === -1 ? -2 : 2;
   for (let i = 0; i < visible; i++) {
-    const cx = x + r + i * stride;
-    ctx.beginPath();
-    ctx.arc(cx, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    const x = anchorX + firstOffset + dir * i * s.figureStride;
+    // Encode direction into the variant seed's high bits so the
+    // up-gutter and down-gutter figure at slot i pick different
+    // variants — otherwise both sides would mirror each other's
+    // pattern and feel artificially uniform across the floor.
+    const slotSeed = i + (dir === -1 ? 0 : 10_000);
+    const variant = pickRiderVariant(variantSeed, slotSeed);
+    drawStickFigure(ctx, x, floorY, s.figureHeadR, color, variant);
   }
   if (count > visible) {
     ctx.fillStyle = OVERFLOW_COLOR;
-    ctx.font = `${fontSize.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`+${count - visible}`, x + r + visible * stride, y);
+    ctx.font = `${s.fontSmall.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = dir === -1 ? "right" : "left";
+    ctx.textBaseline = "alphabetic";
+    const labelX = anchorX + firstOffset + dir * visible * s.figureStride;
+    ctx.fillText(`+${count - visible}`, labelX, floorY - 1);
   }
 }
 
-/** Render rider dots inside the car in a small grid, with +N overflow. */
-function drawRiderDotsInCar(
+/**
+ * Silhouette archetypes for rider variation. Picked deterministically
+ * per (stop, slot-index) or (car, slot-index) via `pickRiderVariant`
+ * so each slot stays stable across frames but the crowd as a whole
+ * reads as a mix of individuals rather than a row of clones.
+ *
+ * - `standard` — the default humanoid (baseline sims).
+ * - `briefcase` — standard + small rectangular case at right hip.
+ * - `bag` — standard + rounded shoulder-bag blob at left shoulder.
+ * - `short` — smaller all around (reads as a child or shorter adult).
+ * - `tall` — taller and slimmer (reads as a longer-built adult).
+ */
+type RiderVariant = "standard" | "briefcase" | "bag" | "short" | "tall";
+const RIDER_VARIANTS: readonly RiderVariant[] = [
+  "standard",
+  "briefcase",
+  "bag",
+  "short",
+  "tall",
+];
+
+/**
+ * Hash `(seedA, seedB)` to a silhouette variant deterministically.
+ * Uses the same `Math.imul` FNV-style mix the seed word hasher uses
+ * so the result is stable across browsers and machines. Caller
+ * supplies `seedA` as the parent entity id (stop or car) and `seedB`
+ * as the slot index within that container — same combination → same
+ * variant on every frame.
+ */
+function pickRiderVariant(seedA: number, seedB: number): RiderVariant {
+  let h = (seedA ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ seedB, 0x85ebca6b) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  return RIDER_VARIANTS[h % RIDER_VARIANTS.length];
+}
+
+/**
+ * Draw a SimTower-style rider silhouette: small filled head over a
+ * tapered humanoid body (wider shoulders narrowing toward the feet,
+ * with a softly rounded top and slightly flared base). Five variants
+ * pick different proportions and optional accessory marks so a queue
+ * of riders reads as a mix of people rather than a row of clones.
+ *
+ * Feet rest on `floorY`. Total height ≈ headR × 8.2 for `standard`,
+ * a bit less for `short` and a bit more for `tall`.
+ */
+function drawStickFigure(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  floorY: number,
+  headR: number,
+  color: string,
+  variant: RiderVariant = "standard",
+): void {
+  // Per-variant proportions. Kept as a single tuple of multipliers
+  // so a designer tweaking the look can scan one source of truth
+  // without hunting across five code paths.
+  const p = variantProps(variant, headR);
+  const feetY = floorY - 0.5;
+  const bodyBottom = feetY;
+  const bodyTop = bodyBottom - p.bodyH;
+  const headCenterY = bodyTop - p.neckGap - p.headR;
+  const shoulderRound = p.bodyH * 0.08;
+  const waistBendY = bodyBottom - p.headR * 0.8;
+
+  ctx.fillStyle = color;
+  // Body silhouette — six-point polygon with a gently sloped taper
+  // from shoulders to waist and a slight flare at the feet.
+  ctx.beginPath();
+  ctx.moveTo(x - p.shoulderW / 2, bodyTop + shoulderRound);
+  ctx.lineTo(x - p.shoulderW / 2 + shoulderRound, bodyTop);
+  ctx.lineTo(x + p.shoulderW / 2 - shoulderRound, bodyTop);
+  ctx.lineTo(x + p.shoulderW / 2, bodyTop + shoulderRound);
+  ctx.lineTo(x + p.waistW / 2, waistBendY);
+  ctx.lineTo(x + p.footW / 2, bodyBottom);
+  ctx.lineTo(x - p.footW / 2, bodyBottom);
+  ctx.lineTo(x - p.waistW / 2, waistBendY);
+  ctx.closePath();
+  ctx.fill();
+  // Head — filled circle. Anti-aliasing handles the merge into the
+  // neck gap cleanly at these sizes.
+  ctx.beginPath();
+  ctx.arc(x, headCenterY, p.headR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Variant-specific flourishes. All drawn in the same fill color
+  // so accessories read as part of the silhouette (the sim holds
+  // the briefcase / wears the bag) rather than a separate object.
+  if (variant === "briefcase") {
+    // Square case carried low at the right hand — knee / thigh
+    // height on a standing adult. A tiny 1-px handle strip on top
+    // reads as "carried" rather than "glued on." Bottom sits just
+    // above the feet so the case doesn't clip through the shoes.
+    const caseSize = Math.max(1.6, p.headR * 0.9);
+    const caseX = x + p.waistW / 2 + caseSize * 0.1;
+    const caseY = bodyBottom - caseSize - 0.5;
+    ctx.fillRect(caseX, caseY, caseSize, caseSize);
+    const handleW = caseSize * 0.55;
+    ctx.fillRect(caseX + (caseSize - handleW) / 2, caseY - 1, handleW, 1);
+  } else if (variant === "bag") {
+    // Shoulder bag — rounded blob hanging from the left shoulder
+    // with a visible strap line arcing up to the opposite shoulder.
+    // The strap sells the "slung over shoulder" geometry.
+    const bagR = Math.max(1.3, p.headR * 0.9);
+    const bagX = x - p.shoulderW / 2 - bagR * 0.35;
+    const bagY = bodyTop + p.bodyH * 0.35;
+    ctx.beginPath();
+    ctx.arc(bagX, bagY, bagR, 0, Math.PI * 2);
+    ctx.fill();
+    // Strap: thin line from top of bag up to the right shoulder.
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(bagX + bagR * 0.2, bagY - bagR * 0.8);
+    ctx.lineTo(x + p.shoulderW / 2 - shoulderRound, bodyTop + 0.5);
+    ctx.stroke();
+  } else if (variant === "tall") {
+    // Tall figures get a subtle cap/hat — a short horizontal bar
+    // just above the head, wider than the head itself. Reads as
+    // "tall + distinctive silhouette" at a glance. Kept to a
+    // single short strip so it doesn't enlarge the footprint
+    // visually; only adds character.
+    const hatW = p.headR * 2.1;
+    const hatH = Math.max(1, p.headR * 0.45);
+    ctx.fillRect(x - hatW / 2, headCenterY - p.headR - hatH + 0.4, hatW, hatH);
+  }
+  // `short` has no extra mark — its ~82 % scale vs the other
+  // variants is enough to read as a distinct silhouette without a
+  // confusing nub (an earlier "ponytail / backpack" circle to the
+  // rear of the head was mis-read as "a person with a circle on
+  // their back" and removed).
+}
+
+/**
+ * Per-variant body proportions. Factored out of `drawStickFigure`
+ * so the polygon-drawing code reads the same for all five variants;
+ * only the inputs differ.
+ */
+function variantProps(
+  variant: RiderVariant,
+  baseHeadR: number,
+): {
+  headR: number;
+  shoulderW: number;
+  waistW: number;
+  footW: number;
+  bodyH: number;
+  neckGap: number;
+} {
+  switch (variant) {
+    case "short": {
+      // ~78 % of standard across the board — reads as a child or
+      // shorter adult without needing a different silhouette shape.
+      const r = baseHeadR * 0.82;
+      return {
+        headR: r,
+        shoulderW: r * 2.3,
+        waistW: r * 1.6,
+        footW: r * 1.9,
+        bodyH: r * 5.2,
+        neckGap: r * 0.2,
+      };
+    }
+    case "tall": {
+      // Slightly larger head + slimmer body + taller torso. Total
+      // height ≈ 11 × baseHeadR so a `tall` figure stands a bit above
+      // the other variants at the same head radius.
+      return {
+        headR: baseHeadR * 1.05,
+        shoulderW: baseHeadR * 2.2,
+        waistW: baseHeadR * 1.5,
+        footW: baseHeadR * 1.9,
+        bodyH: baseHeadR * 7.5,
+        neckGap: baseHeadR * 0.2,
+      };
+    }
+    case "standard":
+    case "briefcase":
+    case "bag":
+    default:
+      return {
+        headR: baseHeadR,
+        shoulderW: baseHeadR * 2.5,
+        waistW: baseHeadR * 1.7,
+        footW: baseHeadR * 2,
+        bodyH: baseHeadR * 6,
+        neckGap: baseHeadR * 0.2,
+      };
+  }
+}
+
+/**
+ * Render the riders inside a cabin as a row of SimTower-style
+ * silhouettes standing on the cabin floor. Head radius scales down
+ * from the gutter figure so the row fits inside the cabin's
+ * interior; if more riders load than fit horizontally, the tail of
+ * the row is replaced with a "+N" overflow label so the exact count
+ * is never obscured.
+ *
+ * Uses `CAR_DOT_COLOR` (the same off-white that the old rider-dots
+ * used) so silhouettes read clearly against the cabin's phase-
+ * coloured gradient regardless of phase.
+ */
+function drawRidersInCar(
   ctx: CanvasRenderingContext2D,
   cx: number,
-  cy: number,
+  carBottom: number,
   carW: number,
   carH: number,
-  r: number,
   count: number,
-  fontSize: number,
+  riderColor: string,
+  variantSeed: number,
+  s: Scale,
 ): void {
+  // Default to the gutter figure size so waiting riders and riding
+  // riders read at the same scale — a key SimTower cue. Only shrink
+  // when the cabin is narrower than the figure's shoulders (w) or
+  // shorter than the figure's body (h), so the silhouette still fits.
+  // Height divisor is `10.5` (not 8.2) because that's the approximate
+  // total-height factor for the *tallest* variant (`tall` with hat);
+  // sizing to the tallest guarantees no rider ever pokes above the
+  // cabin ceiling, no matter which variant the hash picks for a slot.
+  const fitByW = carW * 0.22;
+  const fitByH = (carH - 4) / 10.5;
+  const headR = Math.max(1.2, Math.min(s.figureHeadR, fitByW, fitByH));
+  // Stride scales with head size — if the cabin forced us to shrink
+  // `headR`, shrink the stride in the same ratio so figures still
+  // read as a row of people rather than a single pile.
+  const stride = s.figureStride * (headR / s.figureHeadR);
   const padX = 3;
-  const padY = 3;
+  const padY = 2;
   const innerW = carW - padX * 2;
-  const innerH = carH - padY * 2;
-  const stride = r * 2 + 1.2;
-  const cols = Math.max(1, Math.floor(innerW / stride));
-  const rows = Math.max(1, Math.floor(innerH / stride));
-  const capN = cols * rows;
-  const visible = Math.min(count, capN);
-  const overflow = count - visible;
+  // Reserve "+N" label room at the right of the row so overflow
+  // never overlaps a silhouette.
+  const labelRoom = 14;
+  const maxVisible = Math.max(1, Math.floor((innerW - labelRoom) / stride));
+  const visible = Math.min(count, maxVisible);
 
-  const startX = cx - carW / 2 + padX + r;
-  const startY = cy - carH / 2 + padY + r;
+  // Centre the row of silhouettes inside the cabin.
+  const totalRowW = visible * stride;
+  const startX = cx - totalRowW / 2 + stride / 2;
+  // Feet rest just above the cabin interior bottom.
+  const floorY = carBottom - padY;
 
-  ctx.fillStyle = CAR_DOT_COLOR;
-  const drawable = overflow > 0 ? visible - 1 : visible;
-  for (let i = 0; i < drawable; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = startX + col * stride;
-    const y = startY + row * stride;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+  for (let i = 0; i < visible; i++) {
+    const variant = pickRiderVariant(variantSeed, i);
+    drawStickFigure(ctx, startX + i * stride, floorY, headR, riderColor, variant);
   }
-  if (overflow > 0) {
+
+  if (count > visible) {
     ctx.fillStyle = OVERFLOW_COLOR;
-    ctx.font = `${fontSize.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.textAlign = "center";
+    ctx.font = `${s.fontSmall.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const slot = drawable;
-    const col = slot % cols;
-    const row = Math.floor(slot / cols);
-    const x = startX + col * stride;
-    const y = startY + row * stride;
-    ctx.fillText(`+${count - drawable}`, x, y);
+    // Overflow label sits past the last silhouette, vertically
+    // centred around the figure's head height so it reads as part of
+    // the row rather than floating above or below.
+    const labelX = cx + totalRowW / 2 + 2;
+    const labelY = floorY - headR * 4;
+    ctx.fillText(`+${count - visible}`, labelX, labelY);
   }
 }
 
@@ -1006,6 +1704,3 @@ function roundedRect(
   ctx.closePath();
 }
 
-// Internal re-export so TS doesn't mark `Stop` as unused if the module is
-// imported for type completion elsewhere.
-export type { Stop };

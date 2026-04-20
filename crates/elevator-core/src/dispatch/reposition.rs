@@ -12,12 +12,71 @@
 //!     .unwrap();
 //! ```
 
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
 use crate::arrival_log::{ArrivalLog, CurrentTick, DEFAULT_ARRIVAL_WINDOW_TICKS};
 use crate::entity::EntityId;
 use crate::tagged_metrics::{MetricTags, TaggedMetric};
 use crate::world::World;
 
 use super::{ElevatorGroup, RepositionStrategy};
+
+/// Default reposition cooldown in ticks (~4 s at 60 Hz).
+///
+/// Long enough to suppress immediate back-to-back reposition commands
+/// when the arrival-rate ranking shifts, short enough that a
+/// freshly-parked car is responsive to genuinely changed demand.
+/// Tuned from playground observation: shorter windows (60–120 ticks)
+/// still let the lobby car flicker under `InterFloor` mode switches;
+/// longer windows (480+) start to feel stuck even when demand moved.
+pub const DEFAULT_REPOSITION_COOLDOWN_TICKS: u64 = 240;
+
+/// World resource: per-car tick-when-next-eligible for reposition.
+///
+/// Set by the movement phase when a repositioning car arrives at its
+/// target (via `phase = Idle` with `repositioning = true`). Consumed
+/// by the reposition phase's idle-pool filter — cars still in
+/// cooldown stay out of the pool and are skipped for that pass.
+///
+/// Prevents `AdaptiveParking` / `PredictiveParking` from sending the
+/// same car on repeated short hops as the hot-stop ranking shifts
+/// mid-rush. Energy cost + visual noise both drop.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RepositionCooldowns {
+    /// Tick counter when each car becomes eligible again. Cars not
+    /// present in the map have no cooldown (fresh state).
+    pub eligible_at: HashMap<EntityId, u64>,
+}
+
+impl RepositionCooldowns {
+    /// Whether `car` is currently under cooldown at `tick`.
+    #[must_use]
+    pub fn is_cooling_down(&self, car: EntityId, tick: u64) -> bool {
+        self.eligible_at
+            .get(&car)
+            .is_some_and(|eligible| tick < *eligible)
+    }
+
+    /// Record a reposition arrival. Sets eligibility to
+    /// `arrival_tick + DEFAULT_REPOSITION_COOLDOWN_TICKS`.
+    pub fn record_arrival(&mut self, car: EntityId, arrival_tick: u64) {
+        self.eligible_at
+            .insert(car, arrival_tick + DEFAULT_REPOSITION_COOLDOWN_TICKS);
+    }
+
+    /// Rewrite every entry's car `EntityId` through `id_remap`, dropping
+    /// any entries whose car wasn't re-allocated during snapshot
+    /// restore. Mirrors `ArrivalLog::remap_entity_ids`.
+    pub fn remap_entity_ids(&mut self, id_remap: &HashMap<EntityId, EntityId>) {
+        let remapped: HashMap<EntityId, u64> = std::mem::take(&mut self.eligible_at)
+            .into_iter()
+            .filter_map(|(old, eligible)| id_remap.get(&old).map(|&new| (new, eligible)))
+            .collect();
+        self.eligible_at = remapped;
+    }
+}
 
 /// Distribute idle elevators evenly across the group's stops.
 ///
@@ -39,7 +98,12 @@ impl RepositionStrategy for SpreadEvenly {
             return;
         }
 
-        // Collect positions of all non-idle elevators in this group.
+        // Collect the *intended resting positions* of all non-idle
+        // elevators in this group — the target stop a car is
+        // committed to, not its transient current position. Without
+        // this, a car already en route to stop X gets counted as
+        // "occupying" wherever it happens to be mid-trip, and the
+        // strategy may spread an idle car straight to the same X.
         let mut occupied: Vec<f64> = group
             .elevator_entities()
             .iter()
@@ -47,7 +111,7 @@ impl RepositionStrategy for SpreadEvenly {
                 if idle_elevators.iter().any(|(ie, _)| *ie == eid) {
                     return None;
                 }
-                world.position(eid).map(|p| p.value)
+                intended_position(eid, world)
             })
             .collect();
 
@@ -403,8 +467,12 @@ fn assign_greedy_by_score<S>(
     world: &World,
     out: &mut Vec<(EntityId, EntityId)>,
 ) {
-    // Positions of non-idle elevators — avoid parking on top of cars
-    // already in service.
+    // Intended resting positions of all non-idle elevators — avoid
+    // parking on top of cars already committed to a stop, whether
+    // currently at that stop or still travelling there. Using
+    // `world.position` alone would miss the second case and allow an
+    // idle car to be assigned to a target another car is already
+    // en route to.
     let mut occupied: Vec<f64> = group
         .elevator_entities()
         .iter()
@@ -412,7 +480,7 @@ fn assign_greedy_by_score<S>(
             if idle_elevators.iter().any(|(ie, _)| *ie == eid) {
                 return None;
             }
-            world.position(eid).map(|p| p.value)
+            intended_position(eid, world)
         })
         .collect();
 
@@ -439,6 +507,22 @@ fn assign_greedy_by_score<S>(
             break;
         }
     }
+}
+
+/// Where a non-idle elevator is headed — its target-stop position
+/// when one is set, else its current position. Reposition strategies
+/// use this to build the "occupied" list so a car already en route
+/// to stop X is counted as occupying X (not its transient mid-trip
+/// position). Without this, a second car could be sent to the same
+/// X because the first car doesn't yet appear to be "there."
+fn intended_position(eid: EntityId, world: &World) -> Option<f64> {
+    if let Some(car) = world.elevator(eid)
+        && let Some(target) = car.target_stop()
+        && let Some(target_pos) = world.stop_position(target)
+    {
+        return Some(target_pos);
+    }
+    world.position(eid).map(|p| p.value)
 }
 
 /// Minimum distance from `pos` to any value in `others`.
