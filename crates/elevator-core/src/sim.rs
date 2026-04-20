@@ -307,15 +307,18 @@ impl RiderBuilder<'_> {
                 // threading a group pick all the way up.
                 match self.sim.auto_detect_group(self.origin, self.destination) {
                     Ok(group) => Route::direct(self.origin, self.destination, group),
-                    Err(SimError::NoRoute { .. } | SimError::AmbiguousRoute { .. }) => self
-                        .sim
-                        .shortest_route(self.origin, self.destination)
-                        .ok_or(SimError::NoRoute {
-                            origin: self.origin,
-                            destination: self.destination,
-                            origin_groups: Vec::new(),
-                            destination_groups: Vec::new(),
-                        })?,
+                    Err(
+                        original @ (SimError::NoRoute { .. } | SimError::AmbiguousRoute { .. }),
+                    ) => {
+                        match self.sim.shortest_route(self.origin, self.destination) {
+                            Some(route) => route,
+                            // Preserve the original diagnostic context (which
+                            // groups serve origin / destination) so callers
+                            // still see the misconfiguration, not just a
+                            // bare "no route" from the fallback.
+                            None => return Err(original),
+                        }
+                    }
                     Err(other) => return Err(other),
                 }
             }

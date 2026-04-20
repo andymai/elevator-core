@@ -453,9 +453,14 @@ export class CanvasRenderer {
     // figures there.
     if (!isTether && Number.isFinite(minStoryPx)) {
       const target = Math.max(1.5, Math.min(minStoryPx * 0.067, 4));
-      const strideRatio = target / s.figureHeadR;
+      // Derive the new stride *before* mutating `figureHeadR`, or
+      // the ratio on subsequent frames would be computed against
+      // the already-updated head radius and quietly drift if
+      // `minStoryPx` ever changed between frames (a future hot-
+      // swap of stops inside the same renderer lifetime).
+      const derivedStride = s.figureStride * (target / s.figureHeadR);
       s.figureHeadR = target;
-      s.figureStride = s.figureStride * strideRatio;
+      s.figureStride = derivedStride;
     }
     // Overwrite the cached hints with per-frame geometry; downstream
     // draw passes read these. Safe because the scale cache is

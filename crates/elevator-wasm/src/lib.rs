@@ -38,6 +38,11 @@ fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
 /// variant. Mirrors `strategy_id` — five named strategies + the usual
 /// fallback of `None` for unknown inputs so the UI can round-trip an
 /// unfamiliar permalink value without panicking.
+///
+/// Note: `"none"` maps to `NearestIdle` because `NearestIdle`'s impl
+/// is an empty function body — it's the engine's "do nothing" strategy
+/// despite the historical name. Idle cars stay where they parked after
+/// their last delivery, matching the UI label ("Stay") and description.
 fn reposition_id(name: &str) -> Option<BuiltinReposition> {
     match name {
         "adaptive" => Some(BuiltinReposition::Adaptive),
