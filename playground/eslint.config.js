@@ -1,6 +1,7 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import globals from "globals";
+import boundaries from "eslint-plugin-boundaries";
 
 // ─── Shared rules (DRY across src/ and tests/) ─────────────────────
 
@@ -80,6 +81,41 @@ export default tseslint.config(
     rules: {
       ...sharedRules,
       "no-restricted-syntax": ["error", noMutableExport],
+    },
+  },
+  // ─── Module boundaries ──────────────────────────────────────────
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/__tests__/**", "src/**/*.test.ts", "src/ambient.d.ts"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        { type: "types", pattern: ["src/types/*"], mode: "folder" },
+        { type: "sim", pattern: ["src/sim/*"], mode: "folder" },
+        { type: "domain", pattern: ["src/domain/*"], mode: "folder" },
+        { type: "render", pattern: ["src/render/*"], mode: "folder" },
+        { type: "platform", pattern: ["src/platform/*"], mode: "folder" },
+        { type: "feature", pattern: ["src/features/*"], mode: "folder", capture: ["featureName"] },
+        { type: "shell", pattern: ["src/shell/*"], mode: "folder" },
+        { type: "entry", pattern: ["src/main.ts"], mode: "file" },
+      ],
+      "boundaries/dependency-nodes": ["import", "dynamic-import"],
+    },
+    rules: {
+      "boundaries/element-types": ["error", {
+        default: "disallow",
+        rules: [
+          { from: ["types"], allow: [] },
+          { from: ["sim"], allow: ["types"] },
+          { from: ["domain"], allow: ["types", "domain"] },
+          { from: ["render"], allow: ["types", "domain"] },
+          { from: ["platform"], allow: ["types"] },
+          { from: ["feature"], allow: ["types", "domain", "sim", "render", "platform", "feature"] },
+          { from: [["feature"]], allow: [["feature", { featureName: "${from.featureName}" }]] },
+          { from: ["shell"], allow: ["types", "domain", "sim", "render", "platform", "feature", "shell"] },
+          { from: ["entry"], allow: ["shell"] },
+        ],
+      }],
     },
   },
   // ─── Tests ──────────────────────────────────────────────────────
