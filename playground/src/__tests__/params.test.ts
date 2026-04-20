@@ -10,8 +10,8 @@ import {
   pickStartingStops,
   resolveParam,
   type Overrides,
-} from "../params";
-import { SCENARIOS, scenarioById } from "../scenarios";
+} from "../domain/params";
+import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("params: defaults extraction", () => {
   it("structured defaults match the RON-literal physics", () => {

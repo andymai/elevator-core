@@ -1,46 +1,77 @@
 #!/usr/bin/env bash
 # Pre-commit: fmt check, clippy (core), core tests, doc tests, doc lint,
 # workspace check, Cargo.lock drift guard.
+# Playground (TS): lint-staged, typecheck, vitest when playground/ is staged.
 set -euo pipefail
 
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# Cargo.lock drift guard: staging Cargo.toml without Cargo.lock is almost
-# always a mistake — the lockfile will be out of sync with deps.
-if grep -qE '(^|/)Cargo\.toml$' <<<"$staged" \
-    && ! grep -qE '(^|/)Cargo\.lock$' <<<"$staged"; then
-    if ! git diff --quiet Cargo.lock 2>/dev/null; then
-        echo "pre-commit: Cargo.toml is staged but Cargo.lock has unstaged changes." >&2
-        echo "  Stage Cargo.lock too, or revert the Cargo.toml change." >&2
-        exit 1
+# ─── Rust ────────────────────────────────────────────────────────────
+# Only run when non-playground files are staged.
+has_rust=false
+if echo "$staged" | grep -qvE '^playground/'; then
+    has_rust=true
+fi
+
+if [ "$has_rust" = true ]; then
+    # Cargo.lock drift guard: staging Cargo.toml without Cargo.lock is almost
+    # always a mistake — the lockfile will be out of sync with deps.
+    if grep -qE '(^|/)Cargo\.toml$' <<<"$staged" \
+        && ! grep -qE '(^|/)Cargo\.lock$' <<<"$staged"; then
+        if ! git diff --quiet Cargo.lock 2>/dev/null; then
+            echo "pre-commit: Cargo.toml is staged but Cargo.lock has unstaged changes." >&2
+            echo "  Stage Cargo.lock too, or revert the Cargo.toml change." >&2
+            exit 1
+        fi
+    fi
+
+    echo "pre-commit: checking formatting..."
+    cargo fmt --check
+
+    echo "pre-commit: running clippy..."
+    cargo clippy -p elevator-core --all-features -- -D warnings
+
+    echo "pre-commit: running core tests..."
+    cargo test -p elevator-core --all-features --quiet
+
+    echo "pre-commit: running doc tests..."
+    cargo test -p elevator-core --all-features --doc --quiet
+    # elevator-bevy has its own doc tests (bevy-integration chapter). They are
+    # fast once bevy is cached; catch drift here instead of waiting for CI.
+    cargo test -p elevator-bevy --doc --quiet
+
+    echo "pre-commit: checking workspace..."
+    # --all-targets catches benches / examples / integration-test drift. The
+    # nightly bench workflow compiles these, but silent drift here would only
+    # surface there — too late and out-of-band.
+    cargo check --workspace --all-features --all-targets --quiet
+
+    # Lint docs if any docs/ files or the README are staged. README.md is
+    # pulled into the doctest harness, so it is under the same ignore-fence
+    # policy as the mdBook chapters.
+    if grep -qE '^(docs/|README\.md$)' <<<"$staged"; then
+        echo "pre-commit: linting docs..."
+        scripts/lint-docs.sh --quick
     fi
 fi
 
-echo "pre-commit: checking formatting..."
-cargo fmt --check
+# ─── Playground (TypeScript) ─────────────────────────────────────────
+# Only runs when playground/** is touched. Skippable via
+# SKIP_PLAYGROUND_HOOKS=1 for emergencies; CI re-runs the full suite.
+if grep -qE '^playground/' <<<"$staged" && [ "${SKIP_PLAYGROUND_HOOKS:-0}" != "1" ]; then
+    if [ ! -d playground/node_modules ]; then
+        echo "pre-commit: playground/ is staged but node_modules is missing." >&2
+        echo "  Run 'pnpm --dir playground install' (or set" >&2
+        echo "  SKIP_PLAYGROUND_HOOKS=1 to bypass)." >&2
+        exit 1
+    fi
 
-echo "pre-commit: running clippy..."
-cargo clippy -p elevator-core --all-features -- -D warnings
+    echo "pre-commit: running lint-staged on playground/..."
+    ( cd playground && pnpm exec lint-staged )
 
-echo "pre-commit: running core tests..."
-cargo test -p elevator-core --all-features --quiet
+    echo "pre-commit: typechecking playground..."
+    pnpm --dir playground run typecheck
 
-echo "pre-commit: running doc tests..."
-cargo test -p elevator-core --all-features --doc --quiet
-# elevator-bevy has its own doc tests (bevy-integration chapter). They are
-# fast once bevy is cached; catch drift here instead of waiting for CI.
-cargo test -p elevator-bevy --doc --quiet
-
-echo "pre-commit: checking workspace..."
-# --all-targets catches benches / examples / integration-test drift. The
-# nightly bench workflow compiles these, but silent drift here would only
-# surface there — too late and out-of-band.
-cargo check --workspace --all-features --all-targets --quiet
-
-# Lint docs if any docs/ files or the README are staged. README.md is
-# pulled into the doctest harness, so it is under the same ignore-fence
-# policy as the mdBook chapters.
-if grep -qE '^(docs/|README\.md$)' <<<"$staged"; then
-    echo "pre-commit: linting docs..."
-    scripts/lint-docs.sh --quick
+    echo "pre-commit: running playground tests..."
+    pnpm --dir playground exec vitest run --reporter=dot
 fi

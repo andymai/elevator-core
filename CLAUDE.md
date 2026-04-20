@@ -21,7 +21,7 @@ System deps (Ubuntu): `libudev-dev libasound2-dev`
 
 ## Pre-commit Hook
 
-Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features on core), core tests, doc tests, `cargo check --workspace` (catches FFI/bevy drift), a Cargo.lock drift guard, and doc lint (when `docs/` files are staged). After cloning:
+Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features on core), core tests, doc tests, `cargo check --workspace` (catches FFI/bevy drift), a Cargo.lock drift guard, and doc lint (when `docs/` files are staged). Rust checks are skipped when only `playground/` files are staged. When `playground/` files are staged, runs lint-staged, typecheck, and vitest (bypass with `SKIP_PLAYGROUND_HOOKS=1`). Conventional-commit check at `.githooks/commit-msg` via commitlint. After cloning:
 
 ```bash
 git config core.hooksPath .githooks

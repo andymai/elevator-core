@@ -79,13 +79,13 @@
   /* Typography scale — gridfinity-aligned. `text-base` is 14px so UI
    * density matches gridfinity-layout-tool. `text-xxs` is new for tiny
    * metric-strip labels; `text-sm` at 13px is the tight-label standard. */
-  --text-xxs: 0.625rem;  /* 10px */
-  --text-xs: 0.75rem;    /* 12px */
-  --text-sm: 0.8125rem;  /* 13px */
+  --text-xxs: 0.625rem; /* 10px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
   --text-base: 0.875rem; /* 14px */
-  --text-lg: 1rem;       /* 16px */
-  --text-xl: 1.125rem;   /* 18px */
-  --text-2xl: 1.5rem;    /* 24px */
+  --text-lg: 1rem; /* 16px */
+  --text-xl: 1.125rem; /* 18px */
+  --text-2xl: 1.5rem; /* 24px */
 }
 
 :root {
@@ -156,11 +156,25 @@
     margin: 0;
     padding: 0;
     background:
-      radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%),
-      radial-gradient(1000px 500px at -10% 100%, color-mix(in srgb, var(--pane-a) 5%, transparent), transparent 55%),
+      radial-gradient(
+        1200px 600px at 80% -10%,
+        color-mix(in srgb, var(--accent) 6%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        1000px 500px at -10% 100%,
+        color-mix(in srgb, var(--pane-a) 5%, transparent),
+        transparent 55%
+      ),
       var(--bg-primary);
     color: var(--text-primary);
-    font: 13.5px / 1.45 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font:
+      13.5px / 1.45 system-ui,
+      -apple-system,
+      "Segoe UI",
+      Helvetica,
+      Arial,
+      sans-serif;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -210,402 +224,416 @@
     @apply max-md:basis-[calc(50%-10px)];
   }
 
-/* ── Header ─────────────────────────────────────────────────────────── */
+  /* ── Header ─────────────────────────────────────────────────────────── */
 
-/* The top bar's accent underglow isn't expressible as a Tailwind utility
+  /* The top bar's accent underglow isn't expressible as a Tailwind utility
  * (complex 90deg transparent→accent→transparent gradient) so the pseudo-
  * element stays here. Box-model + color properties moved to utilities. */
-.top::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--accent) 30%, transparent) 20%,
-    color-mix(in srgb, var(--accent) 30%, transparent) 80%,
-    transparent
-  );
-  opacity: 0.4;
-}
+  .top::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 30%, transparent) 20%,
+      color-mix(in srgb, var(--accent) 30%, transparent) 80%,
+      transparent
+    );
+    opacity: 0.4;
+  }
 
-/* Controls and phase strip base styling moved to Tailwind utilities on the
+  /* Controls and phase strip base styling moved to Tailwind utilities on the
  * respective HTML elements. See index.html `<section class="controls ...">`
  * and `<section class="phase-strip ...">`. */
 
-/* ── Tweak panel ───────────────────────────────────────────────────── */
+  /* ── Tweak panel ───────────────────────────────────────────────────── */
 
-.tweak-panel {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-  gap: 10px 18px;
-  padding: 12px 20px 14px;
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  border-bottom: 1px solid var(--border-subtle);
-  font-variant-numeric: tabular-nums;
-  animation: tweak-slide var(--transition-normal) ease-out;
-}
-.tweak-panel[hidden] {
-  display: none;
-}
-@keyframes tweak-slide {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
+  .tweak-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 18px;
+    padding: 12px 20px 14px;
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border-bottom: 1px solid var(--border-subtle);
+    font-variant-numeric: tabular-nums;
+    animation: tweak-slide var(--transition-normal) ease-out;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .tweak-panel[hidden] {
+    display: none;
   }
-}
+  @keyframes tweak-slide {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
-.tweak-row {
-  display: grid;
-  grid-template-columns: minmax(110px, 1fr) auto minmax(90px, 140px) auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  transition:
-    border-color var(--transition-normal),
-    background var(--transition-normal),
-    box-shadow var(--transition-normal);
-  outline: none;
-}
-.tweak-row:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
-}
-.tweak-row[data-overridden="true"] {
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-elevated) 100%);
-}
+  .tweak-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) auto minmax(90px, 140px) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    transition:
+      border-color var(--transition-normal),
+      background var(--transition-normal),
+      box-shadow var(--transition-normal);
+    outline: none;
+  }
+  .tweak-row:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .tweak-row[data-overridden="true"] {
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-elevated) 100%);
+  }
 
-.tweak-label {
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.005em;
-}
-.tweak-unit {
-  color: var(--text-disabled);
-  font-size: 10.5px;
-  margin-left: 4px;
-}
+  .tweak-label {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.005em;
+  }
+  .tweak-unit {
+    color: var(--text-disabled);
+    font-size: 10.5px;
+    margin-left: 4px;
+  }
 
-/* Segmented stepper mirroring gridfinity-layout-tool's Stepper: three
+  /* Segmented stepper mirroring gridfinity-layout-tool's Stepper: three
  * independently-styled segments (minus button, value, plus button)
  * sharing internal strokes. No wrapper border — each segment carries
  * its own, which lets the buttons show hover / focus rings cleanly. */
-.tweak-stepper {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-}
-.tweak-stepper button {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 100%;
-  padding: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  box-shadow: none;
-  transition:
-    background var(--transition-fast),
-    color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-.tweak-stepper button.tweak-dec {
-  border-top-left-radius: var(--radius-md);
-  border-bottom-left-radius: var(--radius-md);
-  border-right: 0;
-}
-.tweak-stepper button.tweak-inc {
-  border-top-right-radius: var(--radius-md);
-  border-bottom-right-radius: var(--radius-md);
-  border-left: 0;
-}
-.tweak-stepper button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  transform: none;
-  box-shadow: none;
-}
-.tweak-stepper button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  z-index: 1;
-}
-.tweak-stepper button:active {
-  background: var(--bg-active);
-}
-.tweak-stepper button:disabled {
-  color: var(--text-disabled);
-  cursor: not-allowed;
-  background: var(--bg-elevated);
-  opacity: 0.5;
-}
-.tweak-value {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 56px;
-  height: 100%;
-  padding: 0 10px;
-  color: var(--text-primary);
-  font-size: 12.5px;
-  font-weight: 500;
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-  font-variant-numeric: tabular-nums;
-  user-select: none;
-}
-.tweak-row[data-overridden="true"] .tweak-value {
-  color: var(--accent);
-}
+  .tweak-stepper {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+  }
+  .tweak-stepper button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 100%;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    box-shadow: none;
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+  .tweak-stepper button.tweak-dec {
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+    border-right: 0;
+  }
+  .tweak-stepper button.tweak-inc {
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+    border-left: 0;
+  }
+  .tweak-stepper button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    transform: none;
+    box-shadow: none;
+  }
+  .tweak-stepper button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    z-index: 1;
+  }
+  .tweak-stepper button:active {
+    background: var(--bg-active);
+  }
+  .tweak-stepper button:disabled {
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    background: var(--bg-elevated);
+    opacity: 0.5;
+  }
+  .tweak-value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    height: 100%;
+    padding: 0 10px;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 500;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+  .tweak-row[data-overridden="true"] .tweak-value {
+    color: var(--accent);
+  }
 
-.tweak-default {
-  font-size: 10.5px;
-  color: var(--text-disabled);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.tweak-default-v {
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
+  .tweak-default {
+    font-size: 10.5px;
+    color: var(--text-disabled);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .tweak-default-v {
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
 
-.tweak-reset {
-  appearance: none;
-  background: transparent;
-  border: 1px solid var(--border-default);
-  color: var(--text-tertiary);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition:
-    color var(--transition-fast),
-    border-color var(--transition-fast),
-    background var(--transition-fast);
-  box-shadow: none;
-}
-.tweak-reset:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-  background: var(--bg-hover);
-  transform: none;
-  box-shadow: none;
-}
+  .tweak-reset {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast),
+      background var(--transition-fast);
+    box-shadow: none;
+  }
+  .tweak-reset:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background: var(--bg-hover);
+    transform: none;
+    box-shadow: none;
+  }
 
-.tweak-foot {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 4px;
-  font-size: 11px;
-  color: var(--text-disabled);
-}
-.tweak-foot-hint {
-  flex: 1;
-}
-#tweak-reset-all {
-  font-size: 11px;
-  padding: 5px 10px;
-  background: transparent;
-  border: 1px solid var(--border-default);
-  color: var(--text-tertiary);
-  letter-spacing: 0.01em;
-}
-#tweak-reset-all:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-  box-shadow: none;
-  transform: none;
-}
+  .tweak-foot {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 4px;
+    font-size: 11px;
+    color: var(--text-disabled);
+  }
+  .tweak-foot-hint {
+    flex: 1;
+  }
+  #tweak-reset-all {
+    font-size: 11px;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
+    letter-spacing: 0.01em;
+  }
+  #tweak-reset-all:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    box-shadow: none;
+    transform: none;
+  }
 
-/* The "Tweak parameters" trigger echoes the play button's accent
+  /* The "Tweak parameters" trigger echoes the play button's accent
  * treatment when the panel is open so it's visually clear the panel
  * is the active surface. */
-#tweak[aria-expanded="true"] {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
-}
+  #tweak[aria-expanded="true"] {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 4%, transparent) 100%
+    );
+  }
 
-/* .ctl, .ctl-k, .ctl-v, .ctl-check base layout moved to Tailwind utilities
+  /* .ctl, .ctl-k, .ctl-v, .ctl-check base layout moved to Tailwind utilities
  * on the HTML labels. Only the custom checkbox rendering below remains. */
-.ctl-check input[type="checkbox"] {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-secondary);
-  cursor: pointer;
-  position: relative;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-  margin: 0;
-}
-.ctl-check input[type="checkbox"]:checked {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.ctl-check input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 4.5px;
-  top: 1.5px;
-  width: 4px;
-  height: 8px;
-  border: 2px solid var(--bg-primary);
-  border-top: 0;
-  border-left: 0;
-  transform: rotate(45deg);
-}
+  .ctl-check input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+    margin: 0;
+  }
+  .ctl-check input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .ctl-check input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 4.5px;
+    top: 1.5px;
+    width: 4px;
+    height: 8px;
+    border: 2px solid var(--bg-primary);
+    border-top: 0;
+    border-left: 0;
+    transform: rotate(45deg);
+  }
 
-/* Input / select base style. Mirrors gridfinity-layout-tool's Input
+  /* Input / select base style. Mirrors gridfinity-layout-tool's Input
  * wrapper: surface bg, `border-stroke` rounded-md, hover bumps the
  * border, focus swaps it for `border-accent` with a matching ring. */
-select,
-input[type="number"],
-input[type="text"] {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 7px 10px;
-  font: inherit;
-  font-size: 12.5px;
-  outline: none;
-  transition:
-    border-color var(--transition-fast),
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-select:hover,
-input[type="number"]:hover,
-input[type="text"]:hover {
-  border-color: var(--border-default);
-  background: var(--bg-elevated);
-}
-select:focus,
-input[type="number"]:focus,
-input[type="text"]:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-select {
-  appearance: none;
-  padding-right: 28px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238b90a0' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
+  select,
+  input[type="number"],
+  input[type="text"] {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 12.5px;
+    outline: none;
+    transition:
+      border-color var(--transition-fast),
+      background var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+  select:hover,
+  input[type="number"]:hover,
+  input[type="text"]:hover {
+    border-color: var(--border-default);
+    background: var(--bg-elevated);
+  }
+  select:focus,
+  input[type="number"]:focus,
+  input[type="text"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  select {
+    appearance: none;
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238b90a0' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
 
-input[type="range"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 150px;
-  height: 4px;
-  background: var(--bg-hover);
-  border-radius: 2px;
-  cursor: pointer;
-  padding: 0;
-  margin: 10px 0;
-}
-input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, var(--text-primary) 0%, var(--text-secondary) 100%);
-  border: 0;
-  cursor: grab;
-  box-shadow: var(--shadow-sm);
-  transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.12);
-  background: linear-gradient(180deg, var(--accent-up) 0%, var(--accent) 100%);
-  box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-sm);
-}
-input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  border: 0;
-  cursor: grab;
-}
+  input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 150px;
+    height: 4px;
+    background: var(--bg-hover);
+    border-radius: 2px;
+    cursor: pointer;
+    padding: 0;
+    margin: 10px 0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    border: 0;
+    cursor: grab;
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.12);
+    background: linear-gradient(180deg, var(--accent-up) 0%, var(--accent) 100%);
+    box-shadow:
+      0 0 0 4px var(--accent-soft),
+      var(--shadow-sm);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    border: 0;
+    cursor: grab;
+  }
 
-/* .actions flex moved to Tailwind utilities on the wrapping div. */
+  /* .actions flex moved to Tailwind utilities on the wrapping div. */
 
-button {
-  background: linear-gradient(180deg, var(--bg-hover) 0%, var(--bg-elevated) 100%);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 7px 14px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.005em;
-  box-shadow: var(--shadow-sm);
-  transition:
-    transform var(--transition-fast),
-    background var(--transition-fast),
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-button:hover {
-  background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-button:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-#play {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
-}
-#play:hover {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 20%, transparent) 0%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
+  button {
+    background: linear-gradient(180deg, var(--bg-hover) 0%, var(--bg-elevated) 100%);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 7px 14px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+  button:hover {
+    background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+  #play {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 4%, transparent) 100%
+    );
+  }
+  #play:hover {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 8%, transparent) 100%
+    );
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  }
 
-/* ── Layout ─────────────────────────────────────────────────────────── */
+  /* ── Layout ─────────────────────────────────────────────────────────── */
 
-/* .layout, .pane, .pane-header, .pane-badge, .pane-name, .pane-mode (base)
+  /* .layout, .pane, .pane-header, .pane-badge, .pane-name, .pane-mode (base)
  * moved to Tailwind utilities on the HTML elements. Pane-mode state
  * variants below remain as custom CSS — the 3-way color-mix across
  * success/accent/error hues is awkward as utility chains.
@@ -615,401 +643,422 @@ button:active {
  * the utilities layer, and layer order lets any utility beat a rule in
  * @layer components regardless of selector specificity. */
 
-/* .shaft-wrap, .metric-strip, .metric-row (base), .metric-k, .metric-v (base)
+  /* .shaft-wrap, .metric-strip, .metric-row (base), .metric-k, .metric-v (base)
  * moved to Tailwind utilities. State variants (pane-mode[data-mode=X],
  * metric-row[data-verdict=X]) live in @layer utilities at the end of this
  * file so they override the utility base classes on these elements. */
 
-/* Mobile: floor scrunch guard. A 42-floor skyscraper squeezed into a
+  /* Mobile: floor scrunch guard. A 42-floor skyscraper squeezed into a
  * flex-1 shaft-wrap on a phone ends up with ~6 px per story — labels
  * overlap, cabins disappear. Let the shaft-wrap grow to a scenario-
  * aware minimum so the surrounding page scrolls vertically instead of
  * the floors stacking on top of each other. The renderer publishes
  * `--shaft-min-h` on each shaft-wrap when a scenario loads, scaled to
  * stop count; fallback keeps the old 200 px floor for small scenarios. */
-@media (max-width: 767px) {
-  .shaft-wrap {
-    min-height: var(--shaft-min-h, 200px);
+  @media (max-width: 767px) {
+    .shaft-wrap {
+      min-height: var(--shaft-min-h, 200px);
+    }
   }
-}
 
-/* Loader, toast styling moved to Tailwind utilities on the HTML elements.
+  /* Loader, toast styling moved to Tailwind utilities on the HTML elements.
  * Tailwind provides `animate-spin` as a default so no custom spin
  * keyframe is needed. */
 
-/* ── Scenario cards ─────────────────────────────────────────────────── */
+  /* ── Scenario cards ─────────────────────────────────────────────────── */
 
-/* .scenario-cards container background is a two-layer radial+solid
+  /* .scenario-cards container background is a two-layer radial+solid
  * gradient that's awkward as a Tailwind arbitrary value; keep it here.
  * Layout (grid + mobile pill strip) moved to utilities on the HTML. */
-.scenario-cards {
-  background:
-    radial-gradient(700px 200px at 50% -40%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
-    var(--bg-primary);
-}
-/* Scenario card hover/active/pressed base moved to Tailwind utilities in
+  .scenario-cards {
+    background:
+      radial-gradient(
+        700px 200px at 50% -40%,
+        color-mix(in srgb, var(--accent) 6%, transparent),
+        transparent 70%
+      ),
+      var(--bg-primary);
+  }
+  /* Scenario card hover/active/pressed base moved to Tailwind utilities in
  * `renderScenarioCards()` (src/main.ts). The old bottom accent bar
  * pseudo was tied to full-size cards and felt heavy on compact
  * pills — the `aria-pressed:bg-accent-muted` + accent border already
  * carry the selection signal. */
-/* ── Seed shuffle button (inside the seed input) ───────────────────── */
+  /* ── Seed shuffle button (inside the seed input) ───────────────────── */
 
-/* Global `button` styling (gradient + border + padding + hover
+  /* Global `button` styling (gradient + border + padding + hover
  * lift) would make the in-input randomize affordance look like a
  * second button glued on. Strip all of that so the icon reads as an
  * inline input ornament — just a bare glyph that darkens on hover. */
-.seed-shuffle {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  box-shadow: none;
-  border-radius: var(--radius-sm);
-}
-.seed-shuffle:hover {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  transform: none;
-}
-.seed-shuffle:active {
-  transform: none;
-  box-shadow: none;
-}
+  .seed-shuffle {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: var(--radius-sm);
+  }
+  .seed-shuffle:hover {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+  .seed-shuffle:active {
+    transform: none;
+    box-shadow: none;
+  }
 
-/* ── Nav button (?) ─────────────────────────────────────────────────── */
+  /* ── Nav button (?) ─────────────────────────────────────────────────── */
 
-.nav-btn {
-  margin-left: 16px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  color: var(--text-tertiary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  letter-spacing: 0;
-  box-shadow: none;
-}
-.nav-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-  background: var(--bg-elevated);
-  transform: none;
-  box-shadow: none;
-}
+  .nav-btn {
+    margin-left: 16px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    letter-spacing: 0;
+    box-shadow: none;
+  }
+  .nav-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background: var(--bg-elevated);
+    transform: none;
+    box-shadow: none;
+  }
 
-/* ── Tweak row — slider track ───────────────────────────────────────── */
+  /* ── Tweak row — slider track ───────────────────────────────────────── */
 
-.tweak-track {
-  position: relative;
-  height: 6px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  align-self: center;
-  overflow: hidden;
-}
-.tweak-track-default {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
-  background: var(--text-disabled);
-  opacity: 0.75;
-  transform: translateX(-1px);
-}
-.tweak-track-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0%;
-  background: linear-gradient(90deg, var(--accent-soft) 0%, color-mix(in srgb, var(--accent) 25%, transparent) 100%);
-  transition: width var(--transition-normal);
-}
-.tweak-track-thumb {
-  position: absolute;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: linear-gradient(180deg, var(--text-primary) 0%, var(--text-secondary) 100%);
-  box-shadow: var(--shadow-sm);
-  transform: translate(-50%, -50%);
-  transition: left var(--transition-normal);
-}
-.tweak-row[data-overridden="true"] .tweak-track {
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-}
-.tweak-row[data-overridden="true"] .tweak-track-fill {
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-up) 100%);
-  opacity: 0.65;
-}
-.tweak-row[data-overridden="true"] .tweak-track-thumb {
-  background: linear-gradient(180deg, var(--accent-up) 0%, var(--accent) 100%);
-  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm);
-}
+  .tweak-track {
+    position: relative;
+    height: 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    align-self: center;
+    overflow: hidden;
+  }
+  .tweak-track-default {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--text-disabled);
+    opacity: 0.75;
+    transform: translateX(-1px);
+  }
+  .tweak-track-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: linear-gradient(
+      90deg,
+      var(--accent-soft) 0%,
+      color-mix(in srgb, var(--accent) 25%, transparent) 100%
+    );
+    transition: width var(--transition-normal);
+  }
+  .tweak-track-thumb {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    box-shadow: var(--shadow-sm);
+    transform: translate(-50%, -50%);
+    transition: left var(--transition-normal);
+  }
+  .tweak-row[data-overridden="true"] .tweak-track {
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .tweak-row[data-overridden="true"] .tweak-track-fill {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-up) 100%);
+    opacity: 0.65;
+  }
+  .tweak-row[data-overridden="true"] .tweak-track-thumb {
+    background: linear-gradient(180deg, var(--accent-up) 0%, var(--accent) 100%);
+    box-shadow:
+      0 0 0 3px var(--accent-soft),
+      var(--shadow-sm);
+  }
 
-/* ── Pane title + decision narration ────────────────────────────────── */
+  /* ── Pane title + decision narration ────────────────────────────────── */
 
-/* .pane-title layout (flex / min-w-0 / flex-1) moved to utilities inline on
+  /* .pane-title layout (flex / min-w-0 / flex-1) moved to utilities inline on
  * the `<div class="pane-title ...">` — only the state-driven .pane-decision
  * color cascade below remains. */
-.pane-strategy-desc {
-  /* Wrap to two lines when the card is narrow (compare mode, mobile). */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.35;
-  min-height: 1.35em;
-}
-.pane-decision {
-  font-size: 10.5px;
-  color: var(--text-disabled);
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 1.2em;
-  opacity: 0;
-  transition: opacity var(--transition-normal), color var(--transition-normal);
-}
-.pane-decision[data-active="true"] {
-  opacity: 1;
-  color: var(--pane-accent);
-}
-.pane-decision::before {
-  content: "\2022";
-  display: inline-block;
-  margin-right: 6px;
-  color: var(--pane-accent);
-  font-size: 10px;
-  transform: translateY(-1px);
-  text-shadow: 0 0 6px currentColor;
-}
-.pane-decision[data-pulse="true"]::before {
-  animation: decision-pulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes decision-pulse {
-  0% {
-    transform: translateY(-1px) scale(1);
-    opacity: 1;
+  .pane-strategy-desc {
+    /* Wrap to two lines when the card is narrow (compare mode, mobile). */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    min-height: 1.35em;
   }
-  40% {
-    transform: translateY(-1px) scale(1.8);
-    opacity: 1;
+  .pane-decision {
+    font-size: 10.5px;
+    color: var(--text-disabled);
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1.2em;
+    opacity: 0;
+    transition:
+      opacity var(--transition-normal),
+      color var(--transition-normal);
   }
-  100% {
-    transform: translateY(-1px) scale(1);
+  .pane-decision[data-active="true"] {
     opacity: 1;
+    color: var(--pane-accent);
   }
-}
+  .pane-decision::before {
+    content: "\2022";
+    display: inline-block;
+    margin-right: 6px;
+    color: var(--pane-accent);
+    font-size: 10px;
+    transform: translateY(-1px);
+    text-shadow: 0 0 6px currentColor;
+  }
+  .pane-decision[data-pulse="true"]::before {
+    animation: decision-pulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes decision-pulse {
+    0% {
+      transform: translateY(-1px) scale(1);
+      opacity: 1;
+    }
+    40% {
+      transform: translateY(-1px) scale(1.8);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-1px) scale(1);
+      opacity: 1;
+    }
+  }
 
-/* ── Metric sparkline ───────────────────────────────────────────────── */
+  /* ── Metric sparkline ───────────────────────────────────────────────── */
 
-.metric-row {
-  position: relative;
-}
-.metric-spark {
-  margin-top: 2px;
-  width: 100%;
-  height: 14px;
-  display: block;
-  opacity: 0.85;
-}
-.metric-spark path {
-  fill: none;
-  stroke: var(--text-tertiary);
-  stroke-width: 1.1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.metric-row[data-verdict="win"] .metric-spark path {
-  stroke: var(--ok);
-}
-.metric-row[data-verdict="lose"] .metric-spark path {
-  stroke: var(--bad);
-}
+  .metric-row {
+    position: relative;
+  }
+  .metric-spark {
+    margin-top: 2px;
+    width: 100%;
+    height: 14px;
+    display: block;
+    opacity: 0.85;
+  }
+  .metric-spark path {
+    fill: none;
+    stroke: var(--text-tertiary);
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .metric-row[data-verdict="win"] .metric-spark path {
+    stroke: var(--ok);
+  }
+  .metric-row[data-verdict="lose"] .metric-spark path {
+    stroke: var(--bad);
+  }
 
-/* ── Verdict ribbon (compare mode) ──────────────────────────────────── */
+  /* ── Verdict ribbon (compare mode) ──────────────────────────────────── */
 
-/* Verdict ribbon container + title + cell base moved to Tailwind utilities
+  /* Verdict ribbon container + title + cell base moved to Tailwind utilities
  * on the HTML `<section id="verdict-ribbon">` and in `renderVerdictRibbon()`
  * (src/main.ts). The data-winner cascade that colors .verdict-cell-winner
  * through its .verdict-cell parent remains here since utilities can't
  * easily express a parent-attribute→child-color pattern cleanly. */
-/* Verdict-cell data-winner→child color cascade moved to @layer utilities. */
+  /* Verdict-cell data-winner→child color cascade moved to @layer utilities. */
 
-/* ── Shortcut sheet overlay ─────────────────────────────────────────── */
+  /* ── Shortcut sheet overlay ─────────────────────────────────────────── */
 
-/* Modal backdrop, panel layout, and dl grid moved to Tailwind utilities on
+  /* Modal backdrop, panel layout, and dl grid moved to Tailwind utilities on
  * the HTML elements. Only the custom <kbd> rendering (below) remains. */
-.shortcut-sheet-inner kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  padding: 1px 6px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-default);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 10.5px;
-  font-weight: 500;
-}
+  .shortcut-sheet-inner kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 1px 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+  }
 
-/* ── Strategy chip + popover ────────────────────────────────────────── */
+  /* ── Strategy chip + popover ────────────────────────────────────────── */
 
-/* The chip lives inside the pane-header (`position: relative`) so its
+  /* The chip lives inside the pane-header (`position: relative`) so its
  * popover can anchor via absolute positioning. On mobile the popover
  * detaches into a fixed bottom-sheet — see the `@media` block below. */
-.strategy-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: min(320px, calc(100vw - 24px));
-  max-height: 60vh;
-  overflow-y: auto;
-  z-index: 30;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  /* Flat elevated surface + subtle stroke, mirroring the
+  .strategy-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: min(320px, calc(100vw - 24px));
+    max-height: 60vh;
+    overflow-y: auto;
+    z-index: 30;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    /* Flat elevated surface + subtle stroke, mirroring the
    * `bg-surface-elevated border-stroke-subtle rounded-xl shadow-xl`
    * pattern used by gridfinity-layout-tool's Popover. Drops the old
    * gradient so the panel reads as a single layer, not a mini-sheet. */
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  transform-origin: top left;
-  animation: strategy-popover-in var(--transition-normal) var(--ease-fast);
-}
-.strategy-popover[hidden] {
-  display: none;
-}
-@keyframes strategy-popover-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.strategy-option {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: var(--text-secondary);
-  letter-spacing: 0.005em;
-  transition:
-    background var(--transition-fast),
-    border-color var(--transition-fast);
-}
-.strategy-option:hover,
-.strategy-option:focus-visible {
-  background: var(--bg-hover);
-  border-color: var(--border-subtle);
-  outline: none;
-}
-.strategy-option[aria-checked="true"] {
-  background: color-mix(in srgb, var(--pane-accent, var(--accent)) 12%, transparent);
-  border-color: color-mix(in srgb, var(--pane-accent, var(--accent)) 40%, transparent);
-}
-.strategy-option-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-primary);
-}
-.strategy-option[aria-checked="true"] .strategy-option-label::before {
-  content: "\2713\00a0";
-  color: var(--pane-accent, var(--accent));
-  font-weight: 700;
-}
-.strategy-option-sibling {
-  margin-left: auto;
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-disabled);
-  padding: 2px 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  white-space: nowrap;
-}
-.strategy-option-desc {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-tertiary);
-}
-
-/* Mobile: bottom-sheet variant. `z-index: 95` beats the sheet drawer's
- * `z-40` so the popover sits above the mobile controls tray when that
- * tray is open. Full-width, rounded top corners, safe-area padding. */
-@media (max-width: 767px) {
-  .strategy-popover {
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 100%;
-    max-height: 75dvh;
-    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border-bottom: 0;
-    box-shadow: var(--shadow-sheet);
-    z-index: 95;
-    animation: strategy-popover-sheet-in var(--transition-slow) var(--ease-spring);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    transform-origin: top left;
+    animation: strategy-popover-in var(--transition-normal) var(--ease-fast);
   }
-  @keyframes strategy-popover-sheet-in {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+  .strategy-popover[hidden] {
+    display: none;
   }
+  @keyframes strategy-popover-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   .strategy-option {
-    padding: 12px 12px;
-    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: var(--text-secondary);
+    letter-spacing: 0.005em;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+  .strategy-option:hover,
+  .strategy-option:focus-visible {
+    background: var(--bg-hover);
+    border-color: var(--border-subtle);
+    outline: none;
+  }
+  .strategy-option[aria-checked="true"] {
+    background: color-mix(in srgb, var(--pane-accent, var(--accent)) 12%, transparent);
+    border-color: color-mix(in srgb, var(--pane-accent, var(--accent)) 40%, transparent);
   }
   .strategy-option-name {
-    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+  }
+  .strategy-option[aria-checked="true"] .strategy-option-label::before {
+    content: "\2713\00a0";
+    color: var(--pane-accent, var(--accent));
+    font-weight: 700;
+  }
+  .strategy-option-sibling {
+    margin-left: auto;
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    padding: 2px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    white-space: nowrap;
   }
   .strategy-option-desc {
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-tertiary);
   }
-}
 
-/* ── Mobile ─────────────────────────────────────────────────────────── */
+  /* Mobile: bottom-sheet variant. `z-index: 95` beats the sheet drawer's
+ * `z-40` so the popover sits above the mobile controls tray when that
+ * tray is open. Full-width, rounded top corners, safe-area padding. */
+  @media (max-width: 767px) {
+    .strategy-popover {
+      position: fixed;
+      top: auto;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 100%;
+      max-height: 75dvh;
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-bottom: 0;
+      box-shadow: var(--shadow-sheet);
+      z-index: 95;
+      animation: strategy-popover-sheet-in var(--transition-slow) var(--ease-spring);
+    }
+    @keyframes strategy-popover-sheet-in {
+      from {
+        transform: translateY(100%);
+      }
+      to {
+        transform: translateY(0);
+      }
+    }
+    .strategy-option {
+      padding: 12px 12px;
+      min-height: 56px;
+    }
+    .strategy-option-name {
+      font-size: 13.5px;
+    }
+    .strategy-option-desc {
+      font-size: 12px;
+    }
+  }
 
-/* Mobile-specific styling was previously concentrated here in a
+  /* ── Mobile ─────────────────────────────────────────────────────────── */
+
+  /* Mobile-specific styling was previously concentrated here in a
  * `@media (max-width: 767px)` block. Every rule has migrated to Tailwind
  * `max-md:` variants on the HTML elements (or in `renderScenarioCards()`
  * for generated content). See `index.html` — the sheet drawer, sticky
  * top, pill-scroll scenario cards, 2-col control grid, stacked
  * compare-mode panes, and landscape-flip `@media (orientation: landscape)`
  * compare layout are all expressed as utility variants. */
-
 } /* end @layer components */
 
 /* Utilities layer: safe-area helpers plus the state-variant overrides
@@ -1041,10 +1090,7 @@ button:active {
     padding-left: env(safe-area-inset-left);
   }
   .safe-inset {
-    padding:
-      env(safe-area-inset-top)
-      env(safe-area-inset-right)
-      env(safe-area-inset-bottom)
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
       env(safe-area-inset-left);
   }
 

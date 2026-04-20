@@ -1,5 +1,5 @@
-import { PARAM_KEYS, type Overrides, type ParamKey } from "./params";
-import type { RepositionStrategyName, StrategyName } from "./types";
+import { PARAM_KEYS, type Overrides, type ParamKey } from "../params";
+import type { RepositionStrategyName, StrategyName } from "../../types";
 
 // URL state encoding. Keeps the sim reproducible: sharing the URL replays
 // exactly what the sender saw. Only knobs that affect behavior go here.

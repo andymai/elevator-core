@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Commit-message lint via commitlint from playground/. Non-fatal if
+# playground/node_modules isn't installed (e.g., Rust-only contributor
+# who hasn't done `pnpm install` yet) — CI catches non-conventional
+# messages before merge.
+set -euo pipefail
+
+msg_file="$1"
+
+if [ ! -d playground/node_modules/@commitlint ]; then
+    exit 0
+fi
+
+pnpm --dir playground exec commitlint --edit "$msg_file"

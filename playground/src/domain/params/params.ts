@@ -1,4 +1,4 @@
-import type { ElevatorPhysics, ScenarioMeta } from "./types";
+import type { ElevatorPhysics, ScenarioMeta } from "../../types";
 
 // Owner of the "Tweak parameters" drawer's domain logic. Independent of
 // the DOM and the wasm sim — both `main.ts` (drawer wiring) and
@@ -32,11 +32,7 @@ export type Overrides = Partial<Record<ParamKey, number>>;
  * defensive clamping. Used by `applyOverrides()` and by the drawer to
  * compute what to display.
  */
-export function resolveParam(
-  scenario: ScenarioMeta,
-  key: ParamKey,
-  overrides: Overrides,
-): number {
+export function resolveParam(scenario: ScenarioMeta, key: ParamKey, overrides: Overrides): number {
   const def = defaultFor(scenario, key);
   const raw = overrides[key];
   if (raw === undefined || !Number.isFinite(raw)) return def;
@@ -120,10 +116,7 @@ export function doorCycleSecToTicks(
 }
 
 /** Inverse of {@link doorCycleSecToTicks} for displaying the current value. */
-export function doorCycleSecFromTicks(
-  openTicks: number,
-  transitionTicks: number,
-): number {
+export function doorCycleSecFromTicks(openTicks: number, transitionTicks: number): number {
   return (openTicks + 2 * transitionTicks) / TICKS_PER_SEC;
 }
 
@@ -190,7 +183,10 @@ export function buildScenarioRon(scenario: ScenarioMeta, overrides: Overrides): 
   const startingStops = pickStartingStops(scenario.stops.length, cars);
 
   const stopsBlock = scenario.stops
-    .map((s, i) => `        StopConfig(id: StopId(${i}), name: ${ronString(s.name)}, position: ${ronFloat(s.positionM)}),`)
+    .map(
+      (s, i) =>
+        `        StopConfig(id: StopId(${i}), name: ${ronString(s.name)}, position: ${ronFloat(s.positionM)}),`,
+    )
     .join("\n");
 
   const elevatorsBlock = startingStops
@@ -241,9 +237,13 @@ function buildElevatorRon(
   name: string,
 ): string {
   const bypassUp =
-    p.bypassLoadUpPct !== undefined ? `\n            bypass_load_up_pct: Some(${ronFloat(p.bypassLoadUpPct)}),` : "";
+    p.bypassLoadUpPct !== undefined
+      ? `\n            bypass_load_up_pct: Some(${ronFloat(p.bypassLoadUpPct)}),`
+      : "";
   const bypassDown =
-    p.bypassLoadDownPct !== undefined ? `\n            bypass_load_down_pct: Some(${ronFloat(p.bypassLoadDownPct)}),` : "";
+    p.bypassLoadDownPct !== undefined
+      ? `\n            bypass_load_down_pct: Some(${ronFloat(p.bypassLoadDownPct)}),`
+      : "";
   return `        ElevatorConfig(
             id: ${id}, name: ${ronString(name)},
             max_speed: ${ronFloat(p.maxSpeed)}, acceleration: ${ronFloat(p.acceleration)}, deceleration: ${ronFloat(p.deceleration)},

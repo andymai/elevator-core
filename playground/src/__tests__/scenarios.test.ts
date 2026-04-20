@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SCENARIOS, scenarioById } from "../scenarios";
+import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
   it("ships exactly 3 scenarios", () => {
@@ -13,7 +13,7 @@ describe("scenarios metadata", () => {
 
   it("every scenario declares a default strategy", () => {
     for (const s of SCENARIOS) {
-      expect(s.defaultStrategy, `${s.id}`).toMatch(/^(scan|look|nearest|etd|destination|rsr)$/);
+      expect(s.defaultStrategy, s.id).toMatch(/^(scan|look|nearest|etd|destination|rsr)$/);
     }
   });
 
@@ -21,10 +21,7 @@ describe("scenarios metadata", () => {
     for (const s of SCENARIOS) {
       const phased = s.phases.length > 0;
       const seeded = s.seedSpawns > 0;
-      expect(
-        phased || seeded,
-        `${s.id} has neither phases nor seedSpawns`,
-      ).toBe(true);
+      expect(phased || seeded, `${s.id} has neither phases nor seedSpawns`).toBe(true);
     }
   });
 
@@ -61,8 +58,8 @@ describe("scenarios metadata", () => {
       if (s.phases.length === 0) continue;
       const totalSimSec = s.phases.reduce((acc, p) => acc + p.durationSec, 0);
       const realMin = totalSimSec / 2 / 60;
-      expect(realMin, `${s.id}`).toBeGreaterThanOrEqual(1);
-      expect(realMin, `${s.id}`).toBeLessThanOrEqual(10);
+      expect(realMin, s.id).toBeGreaterThanOrEqual(1);
+      expect(realMin, s.id).toBeLessThanOrEqual(10);
     }
   });
 
@@ -72,8 +69,8 @@ describe("scenarios metadata", () => {
 
   it("labels are non-empty", () => {
     for (const s of SCENARIOS) {
-      expect(s.label.length, `${s.id}`).toBeGreaterThan(0);
-      expect(s.description.length, `${s.id}`).toBeGreaterThan(0);
+      expect(s.label.length, s.id).toBeGreaterThan(0);
+      expect(s.description.length, s.id).toBeGreaterThan(0);
     }
   });
 });
