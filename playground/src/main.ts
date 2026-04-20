@@ -214,6 +214,11 @@ interface UiHandles {
   shortcutsBtn: HTMLButtonElement;
   shortcutSheet: HTMLElement;
   shortcutSheetClose: HTMLButtonElement;
+  sheet: HTMLElement;
+  sheetToggle: HTMLButtonElement;
+  sheetScenario: HTMLElement;
+  sheetStrategy: HTMLElement;
+  sheetPlay: HTMLElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
 }
@@ -348,6 +353,11 @@ function wireUi(): UiHandles {
     shortcutsBtn: q<HTMLButtonElement>("shortcuts"),
     shortcutSheet: q("shortcut-sheet"),
     shortcutSheetClose: q<HTMLButtonElement>("shortcut-sheet-close"),
+    sheet: q("controls-sheet"),
+    sheetToggle: q<HTMLButtonElement>("sheet-toggle"),
+    sheetScenario: q("sheet-scenario"),
+    sheetStrategy: q("sheet-strategy"),
+    sheetPlay: q("sheet-play"),
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
   };
@@ -380,6 +390,7 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   syncScenarioCards(ui, p.scenario);
   const scenario = scenarioById(p.scenario);
   if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
+  syncSheetCompact(ui, scenario.label, p.strategyA);
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
   // click. A clean URL leaves the drawer closed so first-time
@@ -609,6 +620,7 @@ function attachListeners(state: State, ui: UiHandles): void {
     const strategyA = ui.strategyASelect.value as StrategyName;
     state.permalink = { ...state.permalink, strategyA };
     renderStrategyDesc(ui, strategyA);
+    syncSheetCompact(ui, scenarioById(state.permalink.scenario).label, strategyA);
     await resetAll(state, ui);
     toast(ui, `A: ${STRATEGY_LABELS[state.permalink.strategyA]}`);
   });
@@ -650,6 +662,21 @@ function attachListeners(state: State, ui: UiHandles): void {
   ui.playBtn.addEventListener("click", () => {
     state.running = !state.running;
     ui.playBtn.textContent = state.running ? "Pause" : "Play";
+    // Pause glyph when running (offering "pause"), play glyph when paused.
+    ui.sheetPlay.textContent = state.running ? "\u23F8" : "\u25B6";
+  });
+
+  // ── Bottom sheet (mobile drawer) ─────────────────────────────────
+  ui.sheetToggle.addEventListener("click", () => {
+    const open = ui.sheet.dataset.open !== "true";
+    ui.sheet.dataset.open = String(open);
+    ui.sheetToggle.setAttribute("aria-expanded", String(open));
+  });
+  // The play glyph lives inside the sheet handle; stop propagation so
+  // tapping it doesn't also open/close the sheet.
+  ui.sheetPlay.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    ui.playBtn.click();
   });
   ui.resetBtn.addEventListener("click", () => {
     void resetAll(state, ui);
@@ -1097,7 +1124,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function initMetricRows(root: HTMLElement): void {
   const frag = document.createDocumentFragment();
   for (const [label] of METRIC_DEFS) {
-    const row = el("div", "metric-row");
+    const row = el(
+      "div",
+      "metric-row flex flex-col gap-[3px] px-2.5 py-[7px] bg-surface-elevated border border-stroke-subtle rounded-md transition-colors duration-normal",
+    );
     // SVG sparkline lives in the metric row and is mutated in place each
     // frame. Using SVG (not another canvas) keeps it crisp at any DPR
     // and lets CSS drive the stroke color via `currentColor` / the
@@ -1107,7 +1137,18 @@ function initMetricRows(root: HTMLElement): void {
     spark.setAttribute("viewBox", "0 0 100 14");
     spark.setAttribute("preserveAspectRatio", "none");
     spark.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path"));
-    row.append(el("span", "metric-k", label), el("span", "metric-v"), spark);
+    row.append(
+      el(
+        "span",
+        "text-[9.5px] uppercase tracking-[0.08em] text-content-disabled font-medium",
+        label,
+      ),
+      el(
+        "span",
+        "metric-v text-[15px] text-content font-medium [font-feature-settings:'tnum'_1]",
+      ),
+      spark,
+    );
     frag.appendChild(row);
   }
   root.replaceChildren(frag);
@@ -1345,23 +1386,45 @@ function drainSeedBatch(state: State): void {
 
 // ─── Scenario cards ──────────────────────────────────────────────────
 
+// Hoisted so the utility chain isn't reassembled on every render, and so a
+// designer scanning the card markup sees one source of truth per subpart.
+// The `.scenario-card` marker stays live — the CSS `::before` accent
+// indicator (style.css) keys off `[aria-pressed="true"]` on this class.
+const SCENARIO_CARD_CLS =
+  "scenario-card relative flex flex-col gap-[3px] px-3 py-2 " +
+  "bg-gradient-to-b from-surface-elevated to-surface-secondary " +
+  "border border-stroke-subtle rounded-md text-content-secondary text-left " +
+  "shadow-sm cursor-pointer " +
+  "transition-[border-color,transform,box-shadow,background] duration-normal " +
+  "hover:-translate-y-px hover:border-stroke-strong hover:shadow-md " +
+  "hover:from-surface-hover hover:to-surface-elevated " +
+  "active:translate-y-0 " +
+  "aria-pressed:border-[color-mix(in_srgb,var(--accent)_55%,transparent)] " +
+  "aria-pressed:from-accent-muted aria-pressed:to-surface-elevated " +
+  "aria-pressed:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_25%,transparent),var(--shadow-md)] " +
+  "max-md:flex-none max-md:min-w-[140px] max-md:snap-start";
+const SCENARIO_LABEL_CLS =
+  "flex items-center gap-2 text-[13px] font-semibold text-content tracking-[0.005em]";
+const SCENARIO_KBD_CLS =
+  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] " +
+  "text-[10px] font-semibold text-content-disabled bg-surface border border-stroke " +
+  "rounded-sm ml-auto tabular-nums";
+const SCENARIO_DESC_CLS =
+  "text-[11.5px] text-content-tertiary leading-[1.35] max-md:hidden";
+
 function renderScenarioCards(ui: UiHandles): void {
   const frag = document.createDocumentFragment();
   SCENARIOS.forEach((s, i) => {
-    const card = el("button", "scenario-card");
+    const card = el("button", SCENARIO_CARD_CLS);
     card.type = "button";
     card.dataset.scenarioId = s.id;
     card.setAttribute("aria-pressed", "false");
-    const label = el("span", "scenario-card-label");
+    const label = el("span", SCENARIO_LABEL_CLS);
     label.append(
       el("span", "", s.label),
-      el("span", "scenario-card-kbd", String(i + 1)),
+      el("span", SCENARIO_KBD_CLS, String(i + 1)),
     );
-    card.append(
-      label,
-      el("span", "scenario-card-desc", s.description),
-      el("span", "scenario-card-hint", s.featureHint),
-    );
+    card.append(label, el("span", SCENARIO_DESC_CLS, s.description));
     frag.appendChild(card);
   });
   ui.scenarioCards.replaceChildren(frag);
@@ -1387,6 +1450,15 @@ function syncScenarioCards(ui: UiHandles, scenarioId: string): void {
  * cross-scenario carry-over surprised more than it helped during
  * early prototyping.
  */
+function syncSheetCompact(
+  ui: UiHandles,
+  scenarioLabel: string,
+  strategyA: StrategyName,
+): void {
+  ui.sheetScenario.textContent = scenarioLabel;
+  ui.sheetStrategy.textContent = STRATEGY_LABELS[strategyA];
+}
+
 async function switchScenario(
   state: State,
   ui: UiHandles,
@@ -1408,6 +1480,7 @@ async function switchScenario(
   ui.strategyASelect.value = nextStrategyA;
   renderStrategyDesc(ui, nextStrategyA);
   syncScenarioCards(ui, scenario.id);
+  syncSheetCompact(ui, scenario.label, nextStrategyA);
   await resetAll(state, ui);
   renderTweakPanel(scenario, state.permalink.overrides, ui);
   toast(ui, `${scenario.label} · ${STRATEGY_LABELS[nextStrategyA]}`);
@@ -1423,12 +1496,31 @@ function renderStrategyDesc(ui: UiHandles, strategy: StrategyName): void {
 
 function renderVerdictRibbon(root: HTMLElement, verdictsA: MetricVerdicts): void {
   if (root.childElementCount === 0) {
-    root.appendChild(el("span", "verdict-ribbon-title", "Who's winning?"));
+    root.appendChild(
+      el(
+        "span",
+        "text-[10.5px] uppercase tracking-[0.08em] text-content-disabled font-medium whitespace-nowrap max-md:col-span-full",
+        "Who's winning?",
+      ),
+    );
     for (const [label] of METRIC_DEFS) {
-      const cell = el("div", "verdict-cell");
+      // `.verdict-cell` stays — CSS keys the winner-color cascade off its
+      // `[data-winner]` attribute. `.verdict-cell-winner` also stays — it's
+      // the child that cascade colors.
+      const cell = el(
+        "div",
+        "verdict-cell flex items-center gap-1.5 px-2 py-1 rounded-sm bg-surface-elevated border border-stroke-subtle tabular-nums overflow-hidden",
+      );
       cell.append(
-        el("span", "verdict-cell-k", label),
-        el("span", "verdict-cell-winner"),
+        el(
+          "span",
+          "text-[10.5px] uppercase tracking-[0.06em] text-content-disabled",
+          label,
+        ),
+        el(
+          "span",
+          "verdict-cell-winner font-semibold text-content tracking-[0.02em]",
+        ),
       );
       root.appendChild(cell);
     }

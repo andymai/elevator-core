@@ -54,30 +54,33 @@ function scaleFor(width: number): Scale {
   };
 }
 
+// Palette mirrors style.css primitives. Canvas rendering can't read CSS
+// custom properties cheaply in a hot loop, so these are JS constants that
+// track the CSS tokens. Keep in sync with `:root` in src/style.css.
 const PHASE_COLORS: Record<Car["phase"], string> = {
-  idle: "#5d6271",
-  moving: "#06c2b5",
-  repositioning: "#a78bfa",
-  "door-opening": "#fbbf24",
-  loading: "#7dd3fc",
-  "door-closing": "#fbbf24",
-  stopped: "#8b90a0",
-  unknown: "#5d6271",
+  idle: "#6b6b75",          // --text-disabled
+  moving: "#f59e0b",        // --accent
+  repositioning: "#a78bfa", // violet — no CSS token; phase-specific hue
+  "door-opening": "#fbbf24", // --accent-up
+  loading: "#7dd3fc",       // --pane-a
+  "door-closing": "#fbbf24", // --accent-up
+  stopped: "#8b8c92",       // --text-tertiary
+  unknown: "#6b6b75",       // --text-disabled
 };
 
-const STOP_LINE = "#1f2431";
-const STOP_LABEL = "#c8ccd6";
-// Up and down use distinct hue families so the direction is legible at
-// small dot sizes. Cool blue reads as "up" (sky), warm amber as "down"
-// (gravity / descent).
-const UP_COLOR = "#7dd3fc";
-const DOWN_COLOR = "#fbbf24";
-const CAR_DOT_COLOR = "#f5f6f9";
-const OVERFLOW_COLOR = "#8b90a0";
-const SPARK_LINE = "#2e3445";
-const SPARK_TEXT = "#8b90a0";
-const TARGET_RING = "rgba(6, 194, 181, 0.85)";
-const TARGET_FILL = "rgba(6, 194, 181, 0.95)";
+const STOP_LINE = "#2a2a35";   // --border-subtle
+const STOP_LABEL = "#a1a1aa";  // --text-secondary
+// Up and down use distinct hue families so direction is legible at small
+// dot sizes. Cool blue reads as "up" (sky / lift), rose as "down" (gravity).
+// Rose chosen over amber since amber now owns the brand accent.
+const UP_COLOR = "#7dd3fc";    // --pane-a
+const DOWN_COLOR = "#fda4af";  // --pane-b
+const CAR_DOT_COLOR = "#fafafa"; // --text-primary
+const OVERFLOW_COLOR = "#8b8c92"; // --text-tertiary
+const SPARK_LINE = "#3a3a45";   // --border-default
+const SPARK_TEXT = "#8b8c92";   // --text-tertiary
+const TARGET_RING = "rgba(245, 158, 11, 0.85)"; // --accent at α
+const TARGET_FILL = "rgba(245, 158, 11, 0.95)"; // --accent at α
 
 // Board/alight animation baseline. Effective duration is divided by the sim
 // speed multiplier so fast-forwarded runs don't queue stale tweens.
@@ -168,7 +171,7 @@ function easeOutNorm(tx: number): number {
 export class CanvasRenderer {
   #canvas: HTMLCanvasElement;
   #ctx: CanvasRenderingContext2D;
-  #dpr: number;
+  #dpr: number = window.devicePixelRatio || 1;
   #onResize: () => void;
   #cachedScale: Scale | null = null;
   #cachedScaleWidth = -1;
@@ -185,7 +188,6 @@ export class CanvasRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D context unavailable");
     this.#ctx = ctx;
-    this.#dpr = window.devicePixelRatio || 1;
     this.#accent = accent;
     this.#sparkLabel = sparkLabel;
     this.#resize();
@@ -198,6 +200,9 @@ export class CanvasRenderer {
   }
 
   #resize(): void {
+    // Re-read DPR each resize so browser zoom / moving to a different-density
+    // display updates the backing-store scale. `resize` fires on both.
+    this.#dpr = window.devicePixelRatio || 1;
     const { clientWidth, clientHeight } = this.#canvas;
     if (clientWidth === 0 || clientHeight === 0) return;
     const targetW = clientWidth * this.#dpr;
@@ -516,7 +521,7 @@ export class CanvasRenderer {
       // Outer pulsing ring + inner dot. The ring reads "this car is
       // committed to going there"; the inner dot anchors the mark on
       // the rung even when the ring is subtle.
-      ctx.strokeStyle = `rgba(6, 194, 181, ${pulse})`;
+      ctx.strokeStyle = `rgba(245, 158, 11, ${pulse})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
@@ -558,7 +563,7 @@ export class CanvasRenderer {
     const cy = toScreenY(car.y);
     const halfW = s.carW / 2;
     const halfH = s.carH / 2;
-    const base = PHASE_COLORS[car.phase] ?? "#5d6271";
+    const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
 
     const grad = ctx.createLinearGradient(cx, cy - halfH, cx, cy + halfH);
     grad.addColorStop(0, shade(base, 0.14));
@@ -952,13 +957,19 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lo === 0 ? ellipsis : text.slice(0, lo) + ellipsis;
 }
 
-/** Apply `alpha` (0..1) to a 6-digit hex color. Used for pane-tinted
+/** Apply `alpha` (0..1) to a `#RRGGBB` hex color. Used for pane-tinted
  *  canvas strokes where we have a base hex and want a translucent
- *  variant without adding a CSS variable lookup on every frame. */
+ *  variant without adding a CSS variable lookup on every frame.
+ *
+ *  Falls back to `hexWithAlpha` (rgba() form) for anything that isn't
+ *  strictly `#RRGGBB` — cheap safety net so a future caller passing
+ *  shorthand or a CSS variable doesn't silently drop alpha. */
 function withAlpha(hex: string, alpha: number): string {
-  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
-  const suffix = a.toString(16).padStart(2, "0");
-  return hex.length === 7 ? `${hex}${suffix}` : hex;
+  if (/^#[0-9a-f]{6}$/i.test(hex)) {
+    const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+    return `${hex}${a.toString(16).padStart(2, "0")}`;
+  }
+  return hexWithAlpha(hex, alpha);
 }
 
 /**
