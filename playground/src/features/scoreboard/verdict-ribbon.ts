@@ -1,7 +1,7 @@
 import { el } from "../../platform";
 import { METRIC_DEFS, type MetricVerdicts, type Verdict } from "./metric-rows";
 
-function verdictToWinner(v: Verdict): { winner: "A" | "B" | "tie"; text: string } {
+export function verdictToWinner(v: Verdict): { winner: "A" | "B" | "tie"; text: string } {
   switch (v) {
     case "win":
       return { winner: "A", text: "A" };

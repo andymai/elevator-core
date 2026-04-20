@@ -13,7 +13,7 @@ export const METRIC_DEFS: Array<[string, MetricKey]> = [
   ["Utilization", "utilization"],
 ];
 
-function metricValue(m: Metrics, key: MetricKey): string {
+export function metricValue(m: Metrics, key: MetricKey): string {
   switch (key) {
     case "avg_wait_s":
       return `${m.avg_wait_s.toFixed(1)} s`;
