@@ -620,6 +620,19 @@ button:active {
  * metric-row[data-verdict=X]) live in @layer utilities at the end of this
  * file so they override the utility base classes on these elements. */
 
+/* Mobile: floor scrunch guard. A 42-floor skyscraper squeezed into a
+ * flex-1 shaft-wrap on a phone ends up with ~6 px per story — labels
+ * overlap, cabins disappear. Let the shaft-wrap grow to a scenario-
+ * aware minimum so the surrounding page scrolls vertically instead of
+ * the floors stacking on top of each other. The renderer publishes
+ * `--shaft-min-h` on each shaft-wrap when a scenario loads, scaled to
+ * stop count; fallback keeps the old 200 px floor for small scenarios. */
+@media (max-width: 767px) {
+  .shaft-wrap {
+    min-height: var(--shaft-min-h, 200px);
+  }
+}
+
 /* Loader, toast styling moved to Tailwind utilities on the HTML elements.
  * Tailwind provides `animate-spin` as a default so no custom spin
  * keyframe is needed. */

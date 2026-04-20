@@ -557,6 +557,18 @@ async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
+  // Scenarios with a lot of floors need a taller shaft on mobile, or
+  // the 42-floor skyscraper crushes into a 6-px-per-story smear. The
+  // CSS rule reads `--shaft-min-h` inside a `max-width: 767px` media
+  // query; floor here means the mobile layout will stretch to fit and
+  // the main column scrolls. Desktop ignores the variable.
+  const wrap = handles.canvas.parentElement;
+  if (wrap) {
+    const stopCount = scenario.stops.length;
+    const perStoryPx = 16;
+    const minShaftPx = Math.max(200, stopCount * perStoryPx);
+    wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
+  }
   renderPaneStrategyInfo(handles, strategy);
   renderPaneRepositionInfo(handles, reposition);
   initMetricRows(handles.metrics);
