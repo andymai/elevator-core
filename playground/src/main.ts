@@ -1,16 +1,7 @@
 import { generate as generateRandomWords } from "random-words";
-import { CanvasRenderer } from "./canvas";
 import { updatePhaseIndicator, updatePhaseProgress } from "./features/phase-strip";
 import { setShortcutSheetOpen } from "./features/keyboard-shortcuts";
-import {
-  type MetricKey,
-  METRIC_KEYS,
-  METRIC_HISTORY_LEN,
-  diffMetrics,
-  initMetricRows,
-  renderMetricRows,
-  renderVerdictRibbon,
-} from "./features/scoreboard";
+import { diffMetrics, renderMetricRows, renderVerdictRibbon } from "./features/scoreboard";
 import {
   renderPaneStrategyInfo,
   renderPaneRepositionInfo,
@@ -38,32 +29,36 @@ import {
   resetParam,
   resetAllOverrides,
 } from "./features/tweak-drawer";
+import {
+  type Pane,
+  type PaneHandles,
+  COLOR_A,
+  COLOR_B,
+  makePane,
+  disposePane,
+  forEachPane,
+  renderPane,
+  updateBubbles,
+  resolveStopName,
+  pushDecision,
+  updateModeBadge,
+} from "./features/compare-pane";
 import { attachHoldToRepeat, toast } from "./platform";
 import {
   DEFAULT_STATE,
   PARAM_KEYS,
   SCENARIOS,
-  buildScenarioRon,
   compactOverrides,
   decodePermalink,
   encodePermalink,
   hashSeedWord,
   scenarioById,
-  type Overrides,
   type ParamKey,
   type PermalinkState,
 } from "./domain";
-import { Sim, loadWasm } from "./sim";
+import { loadWasm } from "./sim";
 import { TrafficDriver } from "./sim";
-import type {
-  BubbleEvent,
-  CarBubble,
-  Metrics,
-  RepositionStrategyName,
-  ScenarioMeta,
-  Snapshot,
-  StrategyName,
-} from "./types";
+import type { ScenarioMeta } from "./types";
 
 // The playground is a side-by-side comparator: up to two sims run the same
 // rider stream under different dispatch strategies. In single mode only
@@ -83,66 +78,8 @@ function randomSeedWord(): string {
   return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
 
-const COLOR_A = "#7dd3fc";
-const COLOR_B = "#fda4af";
-
-/**
- * How long a pane's decision-narration line stays at full opacity
- * after a fresh `elevator-assigned` event. After this window the line
- * dims but stays readable — users can still see the most recent
- * decision after a lull, just with lower visual priority.
- */
-const DECISION_TTL_MS = 1800;
-
 const speedLabel = (v: number): string => `${v}\u00d7`;
 const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
-
-interface Pane {
-  strategy: StrategyName;
-  sim: Sim;
-  renderer: CanvasRenderer;
-  metricsEl: HTMLElement;
-  modeEl: HTMLElement;
-  decisionEl: HTMLElement;
-  /**
-   * Rolling per-metric history for the inline sparklines that live in
-   * each metric row. Capped at `METRIC_HISTORY_LEN` samples; keys
-   * mirror `MetricVerdicts` and we keep raw numbers, doing the chart
-   * math at render time.
-   */
-  metricHistory: Record<MetricKey, number[]>;
-  latestMetrics: Metrics | null;
-  /**
-   * Per-car speech bubbles. Keyed by car entity id. Each entry fades
-   * per its event-kind TTL; stale entries are evicted lazily in
-   * [`updateBubbles`] so the map never grows past `cars × 1`.
-   */
-  bubbles: Map<number, CarBubble>;
-  /**
-   * Wall-clock ms after which the pane's decision line (the
-   * `Car X → <stop>` readout) should fade out. We keep the text
-   * visible after fade-out so the last known decision is still there
-   * on the next pulse, just at reduced opacity — makes compare mode
-   * read as "here's the story" rather than flashing on/off.
-   */
-  decisionExpiresAt: number;
-}
-
-/**
- * Per-event speech-bubble lifetimes in wall-clock milliseconds. Events
- * that carry more information (destination, dropoff) linger; transient
- * events (door open) dismiss quickly so the per-car bubble cycles
- * through the action it describes without feeling stale at 16×.
- */
-const BUBBLE_TTL_BY_KIND: Record<string, number> = {
-  "elevator-assigned": 1400,
-  "elevator-arrived": 1200,
-  "elevator-repositioning": 1600,
-  "door-opened": 550,
-  "rider-boarded": 850,
-  "rider-exited": 1600,
-};
-const BUBBLE_TTL_DEFAULT_MS = 1000;
 
 interface State {
   running: boolean;
@@ -177,25 +114,6 @@ interface State {
  * (~80 ms wall-clock) without ever blocking the loader.
  */
 const SEED_CALLS_PER_FRAME = 200;
-
-interface PaneHandles {
-  root: HTMLElement;
-  canvas: HTMLCanvasElement;
-  name: HTMLElement;
-  mode: HTMLElement;
-  decision: HTMLElement;
-  desc: HTMLElement;
-  metrics: HTMLElement;
-  trigger: HTMLButtonElement;
-  popover: HTMLElement;
-  /** Reposition-strategy chip — the second ("Park: …") chip in the pane header. */
-  repoTrigger: HTMLButtonElement;
-  repoName: HTMLElement;
-  repoPopover: HTMLElement;
-  accent: string;
-  /** "a" or "b" — used by the popover wiring to route picks back. */
-  which: "a" | "b";
-}
 
 interface UiHandles {
   scenarioCards: HTMLElement;
@@ -399,71 +317,6 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
     setTweakOpen(ui, true);
   }
   renderTweakPanel(scenario, p.overrides, ui);
-}
-
-/** Run `fn` against each active pane. Lets call sites fan out without null-checks. */
-function forEachPane(state: State, fn: (pane: Pane) => void): void {
-  if (state.paneA) fn(state.paneA);
-  if (state.paneB) fn(state.paneB);
-}
-
-function disposePane(pane: Pane | null): void {
-  pane?.sim.dispose();
-  pane?.renderer.dispose();
-}
-
-async function makePane(
-  handles: PaneHandles,
-  strategy: StrategyName,
-  reposition: RepositionStrategyName,
-  scenario: ScenarioMeta,
-  overrides: Overrides,
-): Promise<Pane> {
-  // Always regenerate RON so user overrides (including non-default
-  // car count) are baked into the initial sim. Hot-swappable knobs
-  // could in principle apply post-construction via `applyPhysicsLive`,
-  // but baking them in keeps the sim's initial state identical to
-  // a recipient who loads the same permalink — no transient first-
-  // tick using defaults followed by a setter call.
-  const ron = buildScenarioRon(scenario, overrides);
-  const sim = await Sim.create(ron, strategy, reposition);
-  const renderer = new CanvasRenderer(handles.canvas, handles.accent);
-  // Scenarios with a lot of floors need a taller shaft on mobile, or
-  // the 42-floor skyscraper crushes into a 6-px-per-story smear. The
-  // CSS rule reads `--shaft-min-h` inside a `max-width: 767px` media
-  // query; floor here means the mobile layout will stretch to fit and
-  // the main column scrolls. Desktop ignores the variable.
-  const wrap = handles.canvas.parentElement;
-  if (wrap) {
-    const stopCount = scenario.stops.length;
-    const perStoryPx = 16;
-    const minShaftPx = Math.max(200, stopCount * perStoryPx);
-    wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
-  }
-  renderPaneStrategyInfo(handles, strategy);
-  renderPaneRepositionInfo(handles, reposition);
-  initMetricRows(handles.metrics);
-  handles.decision.textContent = "";
-  handles.decision.dataset["active"] = "false";
-  handles.decision.dataset["pulse"] = "false";
-  return {
-    strategy,
-    sim,
-    renderer,
-    metricsEl: handles.metrics,
-    modeEl: handles.mode,
-    decisionEl: handles.decision,
-    metricHistory: {
-      avg_wait_s: [],
-      max_wait_s: [],
-      delivered: [],
-      abandoned: [],
-      utilization: [],
-    },
-    latestMetrics: null,
-    bubbles: new Map(),
-    decisionExpiresAt: 0,
-  };
 }
 
 /**
@@ -869,88 +722,6 @@ function loop(state: State, ui: UiHandles): void {
   requestAnimationFrame(frame);
 }
 
-function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
-  const metrics = pane.sim.metrics();
-  pane.latestMetrics = metrics;
-  for (const key of METRIC_KEYS) {
-    const arr = pane.metricHistory[key];
-    arr.push(metrics[key]);
-    if (arr.length > METRIC_HISTORY_LEN) arr.shift();
-  }
-  // Evict stale bubbles lazily before handing the map to the renderer.
-  const now = performance.now();
-  for (const [carId, bubble] of pane.bubbles) {
-    if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
-  }
-  pane.renderer.draw(snap, speed, pane.bubbles);
-  // Decay the decision line: past TTL we dim the text instead of
-  // clearing it, so compare-mode users can still see the last known
-  // assignment while knowing it's stale.
-  if (pane.decisionEl.dataset["active"] === "true" && now > pane.decisionExpiresAt) {
-    pane.decisionEl.dataset["active"] = "false";
-  }
-}
-
-/**
- * Translate this frame's raw events into per-car speech-bubble state.
- * Latest event wins — at high speed multipliers a single frame can
- * contain many events per car, and keeping just the last keeps the
- * UI readable without pathologically long message queues.
- *
- * Uses stop name/id lookups from the pane's latest snapshot via
- * [`resolveStopName`]; unresolved stop ids fall back to the numeric
- * id rather than dropping the bubble.
- */
-function updateBubbles(pane: Pane, events: BubbleEvent[], snap: Snapshot): void {
-  const bornAt = performance.now();
-  const stopName = (id: number): string => resolveStopName(snap, id);
-  for (const ev of events) {
-    const text = bubbleTextFor(ev, stopName);
-    if (text === null) continue;
-    // Some events are rider-scoped rather than car-scoped (spawn,
-    // abandon). bubbleTextFor returns `null` for those, so we only
-    // get here when `ev` carries an `elevator` field.
-    const carId = (ev as { elevator?: number }).elevator;
-    if (carId === undefined) continue;
-    const ttl = BUBBLE_TTL_BY_KIND[ev.kind] ?? BUBBLE_TTL_DEFAULT_MS;
-    pane.bubbles.set(carId, { text, bornAt, expiresAt: bornAt + ttl });
-  }
-}
-
-/** Map an event to a short bubble string (icon glyph + phrase), or
- *  `null` when the event has no car to attach to, or when emitting a
- *  bubble for it would add more noise than signal. `elevator-departed`
- *  and `door-closed` are intentionally suppressed because the prior
- *  bubble ("Arrived at X", "Doors open") already narrates the context
- *  and re-firing on closure makes the car feel chatty without adding
- *  information. */
-function bubbleTextFor(ev: BubbleEvent, stopName: (id: number) => string): string | null {
-  switch (ev.kind) {
-    case "elevator-assigned":
-      return `\u203a To ${stopName(ev.stop)}`;
-    case "elevator-repositioning":
-      return `\u21BB Reposition to ${stopName(ev.stop)}`;
-    case "elevator-arrived":
-      return `\u25cf At ${stopName(ev.stop)}`;
-    case "door-opened":
-      return "\u25cc Doors open";
-    case "rider-boarded":
-      return "\u002b Boarding";
-    case "rider-exited":
-      return `\u2193 Off at ${stopName(ev.stop)}`;
-    default:
-      return null;
-  }
-}
-
-/** Look up a stop's human-readable name by `entity_id` from a snapshot,
- *  falling back to the numeric id when the stop isn't in this frame's
- *  snapshot (can happen briefly after a config reset). */
-function resolveStopName(snap: Snapshot, stopEntityId: number): string {
-  const stop = snap.stops.find((s) => s.entity_id === stopEntityId);
-  return stop?.name ?? `stop #${stopEntityId}`;
-}
-
 function updateScoreboard(state: State, ui: UiHandles): void {
   const paneA = state.paneA;
   if (!paneA?.latestMetrics) return;
@@ -966,21 +737,6 @@ function updateScoreboard(state: State, ui: UiHandles): void {
   }
   updateModeBadge(paneA);
   if (paneB) updateModeBadge(paneB);
-}
-
-/**
- * Reflect the pane's current `TrafficMode` onto its header badge. The
- * `data-mode` attribute drives per-mode colour in CSS; textContent is
- * only rewritten when it actually changed so the DOM stays quiet for
- * steady-state frames (keeps devtools' "attribute changed" traces
- * readable during debugging).
- */
-function updateModeBadge(pane: Pane): void {
-  const mode = pane.sim.trafficMode();
-  if (pane.modeEl.dataset["mode"] !== mode) {
-    pane.modeEl.dataset["mode"] = mode;
-    pane.modeEl.textContent = mode;
-  }
 }
 
 // ─── Progressive pre-seed ────────────────────────────────────────────
@@ -1015,24 +771,6 @@ function drainSeedBatch(state: State): void {
     configureTraffic(state, scenarioById(state.permalink.scenario));
     state.seeding = null;
   }
-}
-
-// ─── Decision narration ──────────────────────────────────────────────
-
-function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => string): void {
-  if (ev.kind !== "elevator-assigned") return;
-  const el = pane.decisionEl;
-  const text = `Car ${ev.elevator} \u2192 ${stopName(ev.stop)}`;
-  if (el.textContent !== text) el.textContent = text;
-  el.dataset["active"] = "true";
-  pane.decisionExpiresAt = performance.now() + DECISION_TTL_MS;
-  // Retrigger the pulse keyframes by flipping data-pulse in the next
-  // frame — clearing synchronously has no effect because the same
-  // animation name stays active.
-  el.dataset["pulse"] = "false";
-  requestAnimationFrame(() => {
-    el.dataset["pulse"] = "true";
-  });
 }
 
 void boot();
