@@ -54,11 +54,11 @@ function scaleFor(width: number): Scale {
     padTop: lerp(22, 30),
     // Just enough bottom breathing room below the lowest floor slab.
     padBottom: lerp(10, 14),
-    // Sized for the widest skyscraper label ("Mechanical" at 10 chars)
-    // at desktop, down to "Lobby"/"Floor N" on the narrowest phones.
-    // `truncate()` still clips anything that spills over on ultra-long
-    // custom stop names.
-    labelW: lerp(52, 82),
+    // Sized for the widest scenario labels ("Keynote Hall" /
+    // "Exhibit Hall" at 12 chars) on desktop, down to "Lobby" /
+    // "Floor N" on the narrowest phones. `truncate()` still clips
+    // anything that spills over on ultra-long custom stop names.
+    labelW: lerp(52, 92),
     // Preferred gutter for stick figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.
     figureGutterW: lerp(40, 70),
@@ -688,13 +688,29 @@ export class CanvasRenderer {
     const now = performance.now();
     const strokeBase = this.#accent;
 
+    // Two-pass draw so we can resolve bubble overlaps before committing
+    // ink. A narrow compare pane with adjacent shafts routinely has two
+    // cars arrive in the same frame; default placement is "above the
+    // cabin, centred on the shaft", which collides when the horizontal
+    // spacing between adjacent shafts is tighter than a bubble width.
+    interface Placement {
+      bubble: CarBubble;
+      alpha: number;
+      cx: number;
+      carTop: number;
+      carBottom: number;
+      bubbleW: number;
+      bubbleH: number;
+      side: "above" | "below";
+      bx: number;
+      by: number;
+    }
+    const placements: Placement[] = [];
     for (const car of snap.cars) {
       const bubble = bubbles.get(car.id);
       if (!bubble) continue;
       const cx = carX.get(car.id);
       if (cx === undefined) continue;
-      // `car.y` is the cabin's bottom (see #drawCar). Derive the
-      // cabin's top from carH and anchor the bubble off those edges.
       const carBottom = toScreenY(car.y);
       const carTop = carBottom - s.carH;
 
@@ -708,24 +724,80 @@ export class CanvasRenderer {
       const bubbleW = textW + padX * 2;
       const bubbleH = s.fontSmall + padY * 2 + 2;
 
-      // Vertical placement: above car by default, below when above
-      // would clip the top edge. Tail points from bubble toward car.
+      // Default vertical placement: above car when the canvas has room,
+      // below otherwise. Horizontal: centred on the shaft, clamped to
+      // the canvas edges.
       const aboveTop = carTop - gap - tailH - bubbleH;
-      const side: "above" | "below" = aboveTop < 2 ? "below" : "above";
+      const belowOverflow = carBottom + gap + tailH + bubbleH > canvasWidth; // safety fallback
+      const initialSide: "above" | "below" =
+        aboveTop < 2 && !belowOverflow ? "below" : "above";
       const by =
-        side === "above" ? carTop - gap - tailH - bubbleH : carBottom + gap + tailH;
-
-      // Horizontal: centered on the shaft, then clamped to canvas.
+        initialSide === "above"
+          ? carTop - gap - tailH - bubbleH
+          : carBottom + gap + tailH;
       let bx = cx - bubbleW / 2;
       const minX = 2;
       const maxX = canvasWidth - bubbleW - 2;
       if (bx < minX) bx = minX;
       if (bx > maxX) bx = maxX;
+      placements.push({
+        bubble,
+        alpha,
+        cx,
+        carTop,
+        carBottom,
+        bubbleW,
+        bubbleH,
+        side: initialSide,
+        bx,
+        by,
+      });
+    }
 
-      // Tail tip sits on the car's nearest edge; base centered on cx
-      // but clamped into the bubble's horizontal span so it stays
-      // attached even when the bubble itself was clamped to the canvas
-      // edge (e.g., leftmost / rightmost shaft in compare mode).
+    // Collision pass: if a bubble's rect intersects a previously placed
+    // one, flip it to the other side of its cabin. We only try the
+    // flip once — in the rare third-collision case we let the newer
+    // bubble sit on top; it's still legible because it's drawn last.
+    const rectsIntersect = (a: Placement, b: Placement): boolean =>
+      !(
+        a.bx + a.bubbleW <= b.bx ||
+        b.bx + b.bubbleW <= a.bx ||
+        a.by + a.bubbleH <= b.by ||
+        b.by + b.bubbleH <= a.by
+      );
+    for (let i = 1; i < placements.length; i++) {
+      const p = placements[i];
+      let collides = false;
+      for (let j = 0; j < i; j++) {
+        if (rectsIntersect(p, placements[j])) {
+          collides = true;
+          break;
+        }
+      }
+      if (!collides) continue;
+      const flipSide: "above" | "below" = p.side === "above" ? "below" : "above";
+      const flipBy =
+        flipSide === "above"
+          ? p.carTop - gap - tailH - p.bubbleH
+          : p.carBottom + gap + tailH;
+      // Only accept the flip if it actually clears; otherwise keep the
+      // original placement so we don't make things worse.
+      const flipped: Placement = { ...p, side: flipSide, by: flipBy };
+      let flipClears = true;
+      for (let j = 0; j < i; j++) {
+        if (rectsIntersect(flipped, placements[j])) {
+          flipClears = false;
+          break;
+        }
+      }
+      if (flipClears) {
+        placements[i] = flipped;
+      }
+    }
+
+    for (const p of placements) {
+      const { bubble, alpha, cx, carTop, carBottom, bubbleW, bubbleH, side, bx, by } =
+        p;
       const tipY = side === "above" ? carTop - gap : carBottom + gap;
       const baseY = side === "above" ? by + bubbleH : by;
       const tailCenter = Math.min(
