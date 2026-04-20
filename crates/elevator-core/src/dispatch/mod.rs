@@ -904,6 +904,7 @@ fn pending_stops_minus_covered(
     group: &ElevatorGroup,
     manifest: &DispatchManifest,
     world: &World,
+    idle_cars: &[(EntityId, f64)],
 ) -> Vec<(EntityId, f64)> {
     // Vec + linear scan is fine: groups have O(few) elevators and
     // this runs once per dispatch tick.
@@ -979,15 +980,18 @@ fn pending_stops_minus_covered(
             if !manifest.has_demand(**s) {
                 return false;
             }
-            // A stop with aboard-rider demand (`riding_to_stop`) must
-            // never be filtered out: those riders are on idle-pool cars
-            // that need to deliver them. Another car heading to the same
-            // stop cannot absorb demand that consists of passengers on a
-            // *different* car. Without this guard, a burst scenario
-            // (multiple cars heading to the same popular floor) causes
-            // `is_covered` to suppress the destination, `fallback()`
-            // returns Idle, and riders are stranded.
-            if manifest.riding_count_to(**s) > 0 {
+            // A stop must not be filtered if an idle-pool car has
+            // riders needing to exit there. Only check cars in the idle
+            // pool — riders on committed `MovingToStop` cars are already
+            // en route and don't need a redundant dispatch.
+            let idle_car_needs_stop = idle_cars.iter().any(|&(car_eid, _)| {
+                world.elevator(car_eid).is_some_and(|car| {
+                    car.riders().iter().any(|&rid| {
+                        world.route(rid).and_then(Route::current_destination) == Some(**s)
+                    })
+                })
+            });
+            if idle_car_needs_stop {
                 return true;
             }
             !is_covered(**s)
@@ -1011,7 +1015,7 @@ pub(crate) fn assign(
     // Collect stops with active demand and known positions, excluding
     // any whose demand is already being absorbed by a car mid door
     // cycle (see `pending_stops_minus_covered` for the why).
-    let pending_stops = pending_stops_minus_covered(group, manifest, world);
+    let pending_stops = pending_stops_minus_covered(group, manifest, world, idle_cars);
 
     let n = idle_cars.len();
     let m = pending_stops.len();

@@ -176,10 +176,22 @@ pub fn run(
                     if let Some(car) = world.elevator(eid)
                         && !car.riders.is_empty()
                     {
+                        let car_pos = world.position(eid).map_or(0.0, |p| p.value);
                         let dest = car
                             .riders()
                             .iter()
-                            .find_map(|&rid| world.route(rid).and_then(Route::current_destination));
+                            .filter_map(|&rid| {
+                                world.route(rid).and_then(Route::current_destination)
+                            })
+                            .min_by(|&a, &b| {
+                                let da = world
+                                    .stop_position(a)
+                                    .map_or(f64::MAX, |p| (p - car_pos).abs());
+                                let db = world
+                                    .stop_position(b)
+                                    .map_or(f64::MAX, |p| (p - car_pos).abs());
+                                da.total_cmp(&db)
+                            });
                         if let Some(stop) = dest {
                             commit_go_to_stop(world, events, ctx, eid, stop);
                             continue;
