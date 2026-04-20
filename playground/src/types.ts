@@ -89,13 +89,15 @@ export type BubbleEvent =
   | { kind: "other"; tick: number; label: string };
 
 /**
- * Per-car speech-bubble state, keyed by car entity id. `expiresAt`
- * uses `performance.now()` wall-clock ms — not a sim tick — so the
- * bubble fades predictably even when the sim races ahead or the tab
- * backgrounds and `requestAnimationFrame` stalls.
+ * Per-car speech-bubble state, keyed by car entity id. All three
+ * timestamps use `performance.now()` wall-clock ms — not sim ticks — so
+ * the bubble fades predictably even when the sim races ahead or the tab
+ * backgrounds and `requestAnimationFrame` stalls. `bornAt` exists so
+ * the renderer can fade the last ~30 % of lifetime for a soft exit.
  */
 export interface CarBubble {
   text: string;
+  bornAt: number;
   expiresAt: number;
 }
 
@@ -126,21 +128,6 @@ export interface Phase {
    */
   destWeights?: number[];
 }
-
-/**
- * Optional scenario feature hooks. Applied once on scenario load so
- * the scenario's signature behavior is visible without the user
- * having to hunt for the right tunable.
- */
-export type ScenarioHook =
-  | { kind: "none" }
-  | { kind: "etd_group_time"; waitSquaredWeight: number }
-  | { kind: "deferred_dcs"; commitmentWindowTicks: number }
-  | { kind: "predictive_parking"; windowTicks: number }
-  | { kind: "arrival_log" }
-  // bypass is already wired via the RON ElevatorConfig fields — this
-  // marker is purely for UI narration (label + description).
-  | { kind: "bypass_narration" };
 
 /**
  * Per-elevator physics defaults applied uniformly when the playground
@@ -208,9 +195,7 @@ export interface ScenarioMeta {
    * for day-cycle scenarios.
    */
   seedSpawns: number;
-  /** Commercial-feature hook applied once on scenario load. */
-  hook: ScenarioHook;
-  /** One-line narrative shown alongside the feature hook to frame what to watch for. */
+  /** One-line narrative shown alongside the scenario to frame what to watch for. */
   featureHint: string;
   /**
    * Building name as it appears in the RON `BuildingConfig.name` field.
@@ -241,19 +226,13 @@ export interface ScenarioMeta {
   passengerWeightRange: [number, number];
   /**
    * Time a rider will wait before abandoning the queue, in simulated
-   * seconds. Prevents scenarios whose peak phases run above the
-   * building's cruise capacity from accumulating an unbounded wait
-   * line — old waiters leave, new ones arrive, queue reaches a
-   * bounded steady state matching the demand/supply gap.
+   * seconds. 90–180 s matches realistic human patience for commercial
+   * elevators; with it set, peak phases above cruise capacity reach a
+   * bounded steady state (old waiters leave as new ones arrive).
    *
-   * Pre-fix, office-lunchtime under two cars at 65 riders/min vs.
-   * ~54/min cruise grew the queue forever; 90–120 s is a realistic
-   * human patience budget for commercial elevators (shorter during
-   * bursty peaks, longer during midday lulls — we use one value per
-   * scenario for simplicity).
-   *
-   * Omit to disable abandonment (convention burst leaves it off so
-   * the full 170-riders/min stress test actually applies pressure).
+   * Omit to disable abandonment — the convention burst leaves it off
+   * so its deliberate post-keynote stress test actually applies
+   * pressure instead of auto-draining.
    */
   abandonAfterSec?: number;
 }

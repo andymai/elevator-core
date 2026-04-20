@@ -15,21 +15,23 @@
     <header class="top">
       <h1>elevator-core playground</h1>
       <nav>
+        <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">?</button>
         <a href="https://github.com/andymai/elevator-core">repo</a>
         <a href="https://docs.rs/elevator-core">docs</a>
         <a href="../">guide</a>
       </nav>
     </header>
 
+    <section class="scenario-cards" id="scenario-cards" aria-label="Scenario picker"></section>
+
     <section class="controls">
-      <label class="ctl">
-        <span class="ctl-k">Scenario</span>
-        <select id="scenario"></select>
-      </label>
-      <label class="ctl">
-        <span class="ctl-k">Strategy</span>
-        <select id="strategy-a"></select>
-      </label>
+      <div class="ctl ctl-strategy">
+        <label class="ctl-inline" for="strategy-a">
+          <span class="ctl-k">Strategy</span>
+          <select id="strategy-a"></select>
+        </label>
+        <p id="strategy-desc" class="ctl-desc"></p>
+      </div>
       <label class="ctl hidden" id="strategy-b-wrap">
         <span class="ctl-k">vs</span>
         <select id="strategy-b"></select>
@@ -45,9 +47,9 @@
       <label class="ctl">
         <span class="ctl-k">
           <span>Speed</span>
-          <span id="speed-label" class="ctl-v">4&times;</span>
+          <span id="speed-label" class="ctl-v">2&times;</span>
         </span>
-        <input id="speed" type="range" min="1" max="16" step="1" value="4" />
+        <input id="speed" type="range" min="1" max="16" step="1" value="2" />
       </label>
       <label class="ctl">
         <span class="ctl-k">
@@ -67,42 +69,62 @@
     </section>
 
     <section class="tweak-panel" id="tweak-panel" hidden aria-label="Building physics parameters">
-      <div class="tweak-row" data-key="cars">
+      <div class="tweak-row" data-key="cars" tabindex="0">
         <span class="tweak-label">Cars</span>
         <div class="tweak-stepper">
           <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
           <span class="tweak-value">2</span>
           <button type="button" class="tweak-inc" aria-label="Increase">+</button>
         </div>
+        <div class="tweak-track" aria-hidden="true">
+          <div class="tweak-track-default"></div>
+          <div class="tweak-track-fill"></div>
+          <div class="tweak-track-thumb"></div>
+        </div>
         <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
         <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
       </div>
-      <div class="tweak-row" data-key="maxSpeed">
+      <div class="tweak-row" data-key="maxSpeed" tabindex="0">
         <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
         <div class="tweak-stepper">
           <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
           <span class="tweak-value">2.5</span>
           <button type="button" class="tweak-inc" aria-label="Increase">+</button>
         </div>
+        <div class="tweak-track" aria-hidden="true">
+          <div class="tweak-track-default"></div>
+          <div class="tweak-track-fill"></div>
+          <div class="tweak-track-thumb"></div>
+        </div>
         <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
         <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
       </div>
-      <div class="tweak-row" data-key="weightCapacity">
+      <div class="tweak-row" data-key="weightCapacity" tabindex="0">
         <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
         <div class="tweak-stepper">
           <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
           <span class="tweak-value">800</span>
           <button type="button" class="tweak-inc" aria-label="Increase">+</button>
         </div>
+        <div class="tweak-track" aria-hidden="true">
+          <div class="tweak-track-default"></div>
+          <div class="tweak-track-fill"></div>
+          <div class="tweak-track-thumb"></div>
+        </div>
         <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
         <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
       </div>
-      <div class="tweak-row" data-key="doorCycleSec">
+      <div class="tweak-row" data-key="doorCycleSec" tabindex="0">
         <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
         <div class="tweak-stepper">
           <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
           <span class="tweak-value">5.5</span>
           <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+        </div>
+        <div class="tweak-track" aria-hidden="true">
+          <div class="tweak-track-default"></div>
+          <div class="tweak-track-fill"></div>
+          <div class="tweak-track-thumb"></div>
         </div>
         <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
         <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
@@ -110,23 +132,34 @@
       <div class="tweak-foot">
         <span class="tweak-foot-hint">
           Speed, capacity, and door cycle hot-swap live. Changing the
-          car count rebuilds the sim.
+          car count rebuilds the sim. Focus a row and use arrow keys
+          to nudge.
         </span>
         <button type="button" id="tweak-reset-all" hidden>Reset all</button>
       </div>
     </section>
 
     <section class="phase-strip" id="phase-strip">
-      <span class="phase-k">Phase</span>
-      <span id="phase-label" class="phase-v">&mdash;</span>
-      <span id="feature-hint" class="phase-hint"></span>
+      <div class="phase-row">
+        <span class="phase-k">Phase</span>
+        <span id="phase-label" class="phase-v">&mdash;</span>
+        <span id="feature-hint" class="phase-hint"></span>
+      </div>
+      <div class="phase-progress" aria-hidden="true">
+        <div class="phase-progress-fill" id="phase-progress-fill"></div>
+      </div>
     </section>
+
+    <section class="verdict-ribbon" id="verdict-ribbon" hidden aria-label="Comparison scoreboard"></section>
 
     <main id="layout" class="layout" data-mode="single">
       <section id="pane-a" class="pane pane-a">
         <header class="pane-header">
           <span class="pane-badge">A</span>
-          <span id="name-a" class="pane-name">LOOK</span>
+          <div class="pane-title">
+            <span id="name-a" class="pane-name">LOOK</span>
+            <span id="decision-a" class="pane-decision" aria-live="polite"></span>
+          </div>
           <span id="mode-a" class="pane-mode" data-mode="Idle" title="Traffic mode from TrafficDetector">Idle</span>
         </header>
         <div class="shaft-wrap">
@@ -138,7 +171,10 @@
       <section id="pane-b" class="pane pane-b">
         <header class="pane-header">
           <span class="pane-badge">B</span>
-          <span id="name-b" class="pane-name">ETD</span>
+          <div class="pane-title">
+            <span id="name-b" class="pane-name">ETD</span>
+            <span id="decision-b" class="pane-decision" aria-live="polite"></span>
+          </div>
           <span id="mode-b" class="pane-mode" data-mode="Idle" title="Traffic mode from TrafficDetector">Idle</span>
         </header>
         <div class="shaft-wrap">
@@ -153,6 +189,25 @@
       <div class="loader-text">Loading simulation&hellip;</div>
     </div>
     <div id="toast" class="toast" role="status"></div>
+
+    <div id="shortcut-sheet" class="shortcut-sheet" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcut-sheet-inner">
+        <header>
+          <span>Keyboard shortcuts</span>
+          <button type="button" id="shortcut-sheet-close" aria-label="Close">&times;</button>
+        </header>
+        <dl>
+          <dt><kbd>Space</kbd></dt><dd>Pause / play</dd>
+          <dt><kbd>R</kbd></dt><dd>Reset the sim</dd>
+          <dt><kbd>C</kbd></dt><dd>Toggle compare mode</dd>
+          <dt><kbd>S</kbd></dt><dd>Copy permalink</dd>
+          <dt><kbd>T</kbd></dt><dd>Open / close the tweak panel</dd>
+          <dt><kbd>1</kbd>&nbsp;<kbd>2</kbd>&nbsp;<kbd>3</kbd></dt><dd>Jump to scenario card</dd>
+          <dt><kbd>&uarr;</kbd>&nbsp;<kbd>&darr;</kbd></dt><dd>Nudge focused tweak row</dd>
+          <dt><kbd>?</kbd></dt><dd>Toggle this sheet</dd>
+        </dl>
+      </div>
+    </div>
 
     <script type="module" src="./src/main.ts"></script>
   </body>

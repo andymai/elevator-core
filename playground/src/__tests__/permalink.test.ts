@@ -6,7 +6,8 @@ describe("permalink: core knobs", () => {
     const qs = encodePermalink(DEFAULT_STATE);
     expect(qs).toMatch(/s=skyscraper-sky-lobby/);
     expect(qs).toMatch(/a=etd/);
-    expect(qs).toMatch(/c=1/);
+    // Compare defaults to off — the `c` key is only emitted when true.
+    expect(qs).not.toMatch(/(^|&|\?)c=/);
     expect(qs).toMatch(/k=42/);
   });
 
@@ -20,7 +21,7 @@ describe("permalink: core knobs", () => {
   it("round-trips through encode/decode without drift", () => {
     const state = {
       ...DEFAULT_STATE,
-      scenario: "office-mid-rise",
+      scenario: "convention-burst",
       strategyA: "look" as const,
       seed: 7,
       intensity: 1.4,

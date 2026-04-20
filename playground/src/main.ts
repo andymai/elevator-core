@@ -12,7 +12,7 @@ import {
 } from "./params";
 import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } from "./permalink";
 import { SCENARIOS, scenarioById } from "./scenarios";
-import { Sim } from "./sim";
+import { Sim, loadWasm } from "./sim";
 import { TrafficDriver } from "./traffic";
 import type {
   BubbleEvent,
@@ -37,9 +37,47 @@ const STRATEGY_LABELS: Record<StrategyName, string> = {
   destination: "DCS",
   rsr: "RSR",
 };
+
+/**
+ * One-liners shown under the strategy selector. Tuned to be readable
+ * at a glance without jargon while still being specific enough to
+ * differentiate the six strategies. The phrasing leads with behavior,
+ * not mechanism — a reader new to vertical-transport theory should
+ * still come away with a sense of what each controller does.
+ */
+const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
+  scan: "Sweeps end-to-end like a disk head — simple, predictable, ignores who's waiting longest.",
+  look: "Like SCAN but reverses early when nothing's queued further — a practical baseline.",
+  nearest: "Grabs whichever call is closest right now. Fast under light load, thrashes under rush.",
+  etd: "Estimated time of dispatch — assigns calls to whichever car can finish fastest.",
+  destination: "Destination-control: riders pick their floor at the lobby; the group optimises assignments.",
+  rsr: "Relative System Response — a wait-aware variant of ETD that penalises long queues.",
+};
 const WAIT_HISTORY_LEN = 120;
 const COLOR_A = "#7dd3fc";
 const COLOR_B = "#fda4af";
+
+/**
+ * Keys for the metric strip rows. Kept as a string literal union so
+ * `MetricVerdicts` and `Pane.metricHistory` both index the same set
+ * and a typo in one spot surfaces at the other.
+ */
+type MetricKey = "avg_wait_s" | "max_wait_s" | "delivered" | "abandoned" | "utilization";
+const METRIC_KEYS: MetricKey[] = [
+  "avg_wait_s",
+  "max_wait_s",
+  "delivered",
+  "abandoned",
+  "utilization",
+];
+
+/**
+ * How long a pane's decision-narration line stays at full opacity
+ * after a fresh `elevator-assigned` event. After this window the line
+ * dims but stays readable — users can still see the most recent
+ * decision after a lull, just with lower visual priority.
+ */
+const DECISION_TTL_MS = 1800;
 
 const speedLabel = (v: number): string => `${v}\u00d7`;
 const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
@@ -50,24 +88,46 @@ interface Pane {
   renderer: CanvasRenderer;
   metricsEl: HTMLElement;
   modeEl: HTMLElement;
+  decisionEl: HTMLElement;
   waitHistory: number[];
+  /**
+   * Rolling per-metric history for inline sparklines. Matches the
+   * wait-history length so every row's trace covers the same window.
+   * Keys mirror `MetricVerdicts`; we keep raw numbers and do the chart
+   * math at render time.
+   */
+  metricHistory: Record<MetricKey, number[]>;
   latestMetrics: Metrics | null;
   /**
    * Per-car speech bubbles. Keyed by car entity id. Each entry fades
-   * after [`BUBBLE_TTL_MS`] wall-clock milliseconds; stale entries are
-   * evicted lazily in [`updateBubbles`] so the map never grows past
-   * `cars × 1`.
+   * per its event-kind TTL; stale entries are evicted lazily in
+   * [`updateBubbles`] so the map never grows past `cars × 1`.
    */
   bubbles: Map<number, CarBubble>;
+  /**
+   * Wall-clock ms after which the pane's decision line (the
+   * `Car X → <stop>` readout) should fade out. We keep the text
+   * visible after fade-out so the last known decision is still there
+   * on the next pulse, just at reduced opacity — makes compare mode
+   * read as "here's the story" rather than flashing on/off.
+   */
+  decisionExpiresAt: number;
 }
 
 /**
- * How long a speech bubble lingers after its triggering event, in
- * wall-clock milliseconds. Chosen so that under 1× playback the bubble
- * reads comfortably; at 16× it's short enough that stale events don't
- * linger past the action they describe.
+ * Per-event speech-bubble lifetimes in wall-clock milliseconds. Events
+ * that carry more information (destination, dropoff) linger; transient
+ * events (door open) dismiss quickly so the per-car bubble cycles
+ * through the action it describes without feeling stale at 16×.
  */
-const BUBBLE_TTL_MS = 1400;
+const BUBBLE_TTL_BY_KIND: Record<string, number> = {
+  "elevator-assigned": 1400,
+  "elevator-arrived": 1200,
+  "door-opened": 550,
+  "rider-boarded": 850,
+  "rider-exited": 1600,
+};
+const BUBBLE_TTL_DEFAULT_MS = 1000;
 
 interface State {
   running: boolean;
@@ -84,13 +144,31 @@ interface State {
    * stays referenced (and gets `step()`-ed on freed wasm memory next frame).
    */
   initToken: number;
+  /**
+   * Progressive pre-seed state for scenarios with `seedSpawns > 0`.
+   * Instead of blocking the loader on hundreds of synchronous
+   * `spawnRider` calls, we hand the quota to the render loop and
+   * inject a per-frame batch until `remaining` hits zero. `null`
+   * when not seeding (the common case for day-cycle scenarios).
+   */
+  seeding: { remaining: number } | null;
 }
+
+/**
+ * Per-frame cap on `drainSpawns` calls during progressive seeding.
+ * At convention-burst's keynote rate (110 riders/min, 4/60-s dt) the
+ * driver's accumulator grows ~0.12 per call, so this yields ~24
+ * riders per frame — the full 120-rider seed drains in ~5 frames
+ * (~80 ms wall-clock) without ever blocking the loader.
+ */
+const SEED_CALLS_PER_FRAME = 200;
 
 interface PaneHandles {
   root: HTMLElement;
   canvas: HTMLCanvasElement;
   name: HTMLElement;
   mode: HTMLElement;
+  decision: HTMLElement;
   metrics: HTMLElement;
   accent: string;
 }
@@ -102,12 +180,16 @@ interface TweakRowHandles {
   dec: HTMLButtonElement;
   inc: HTMLButtonElement;
   reset: HTMLButtonElement;
+  trackFill: HTMLElement | null;
+  trackDefault: HTMLElement | null;
+  trackThumb: HTMLElement | null;
 }
 
 interface UiHandles {
-  scenarioSelect: HTMLSelectElement;
+  scenarioCards: HTMLElement;
   strategyASelect: HTMLSelectElement;
   strategyBSelect: HTMLSelectElement;
+  strategyDesc: HTMLElement;
   compareToggle: HTMLInputElement;
   strategyBWrap: HTMLElement;
   seedInput: HTMLInputElement;
@@ -127,11 +209,26 @@ interface UiHandles {
   toast: HTMLElement;
   phaseLabel: HTMLElement | null;
   featureHint: HTMLElement | null;
+  phaseProgress: HTMLElement | null;
+  verdictRibbon: HTMLElement;
+  shortcutsBtn: HTMLButtonElement;
+  shortcutSheet: HTMLElement;
+  shortcutSheetClose: HTMLButtonElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
 }
 
 async function boot(): Promise<void> {
+  // Kick off the wasm fetch + compile *before* DOM wiring so the
+  // ~hundreds-of-ms WebAssembly.instantiate overlaps with synchronous
+  // JS work (scenario-card rendering, handle lookups, permalink
+  // decode). `loadWasm` memoises via an internal promise, so the
+  // subsequent `Sim.create` calls in `makePane` await the same
+  // module without re-fetching.
+  const wasmReady = loadWasm();
+  // Swallow rejections here; `makePane` will re-await the same
+  // promise and surface the error through the Init-failed toast.
+  wasmReady.catch(() => {});
   const ui = wireUi();
   const permalink = { ...DEFAULT_STATE, ...decodePermalink(window.location.search) };
   // If the permalink points at a scenario we don't have, fall back to the
@@ -157,19 +254,20 @@ async function boot(): Promise<void> {
     traffic: new TrafficDriver(permalink.seed),
     lastFrameTime: performance.now(),
     initToken: 0,
+    seeding: null,
   };
   attachListeners(state, ui);
   await resetAll(state, ui);
   state.ready = true;
-  loop(state);
+  loop(state, ui);
 }
 
 /**
- * Canonicalise legacy scenario ids (e.g. `"office-5"`) through the
- * `scenarioById` fallback so the rest of boot operates on the current
- * canonical id. Strategy is intentionally left alone: on first load
- * we honour whatever the permalink encoded — the snap-to-scenario-default
- * behavior only fires on an interactive scenario change, not on boot.
+ * Canonicalise legacy scenario ids through the `scenarioById` fallback
+ * so the rest of boot operates on the current canonical id. Strategy is
+ * intentionally left alone: on first load we honour whatever the
+ * permalink encoded — the snap-to-scenario-default behaviour only
+ * fires on an interactive scenario change, not on boot.
  */
 function reconcileStrategyWithScenario(p: PermalinkState): void {
   const scenario = scenarioById(p.scenario);
@@ -189,6 +287,7 @@ function wireUi(): UiHandles {
     canvas: q<HTMLCanvasElement>(`shaft-${suffix}`),
     name: q(`name-${suffix}`),
     mode: q(`mode-${suffix}`),
+    decision: q(`decision-${suffix}`),
     metrics: q(`metrics-${suffix}`),
     accent,
   });
@@ -200,6 +299,8 @@ function wireUi(): UiHandles {
       if (!el) throw new Error(`missing ${sel} in tweak row ${key}`);
       return el;
     };
+    const getOpt = <T extends HTMLElement>(sel: string): T | null =>
+      root.querySelector<T>(sel) ?? null;
     return {
       root,
       value: get<HTMLElement>(".tweak-value"),
@@ -207,6 +308,9 @@ function wireUi(): UiHandles {
       dec: get<HTMLButtonElement>(".tweak-dec"),
       inc: get<HTMLButtonElement>(".tweak-inc"),
       reset: get<HTMLButtonElement>(".tweak-reset"),
+      trackFill: getOpt<HTMLElement>(".tweak-track-fill"),
+      trackDefault: getOpt<HTMLElement>(".tweak-track-default"),
+      trackThumb: getOpt<HTMLElement>(".tweak-track-thumb"),
     };
   };
   const tweakRows: Record<ParamKey, TweakRowHandles> = {
@@ -216,9 +320,10 @@ function wireUi(): UiHandles {
     doorCycleSec: tweakRow("doorCycleSec"),
   };
   const ui: UiHandles = {
-    scenarioSelect: q<HTMLSelectElement>("scenario"),
+    scenarioCards: q("scenario-cards"),
     strategyASelect: q<HTMLSelectElement>("strategy-a"),
     strategyBSelect: q<HTMLSelectElement>("strategy-b"),
+    strategyDesc: q("strategy-desc"),
     compareToggle: q<HTMLInputElement>("compare"),
     strategyBWrap: q("strategy-b-wrap"),
     seedInput: q<HTMLInputElement>("seed"),
@@ -238,17 +343,16 @@ function wireUi(): UiHandles {
     toast: q("toast"),
     phaseLabel: qOpt("phase-label"),
     featureHint: qOpt("feature-hint"),
+    phaseProgress: qOpt("phase-progress-fill"),
+    verdictRibbon: q("verdict-ribbon"),
+    shortcutsBtn: q<HTMLButtonElement>("shortcuts"),
+    shortcutSheet: q("shortcut-sheet"),
+    shortcutSheetClose: q<HTMLButtonElement>("shortcut-sheet-close"),
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
   };
 
-  for (const s of SCENARIOS) {
-    const opt = document.createElement("option");
-    opt.value = s.id;
-    opt.textContent = s.label;
-    opt.title = s.description;
-    ui.scenarioSelect.appendChild(opt);
-  }
+  renderScenarioCards(ui);
   for (const name of UI_STRATEGIES) {
     for (const select of [ui.strategyASelect, ui.strategyBSelect]) {
       const opt = document.createElement("option");
@@ -258,19 +362,10 @@ function wireUi(): UiHandles {
     }
   }
 
-  // Rewire the intensity slider now that the semantics changed from
-  // "absolute riders/min" to "0.5x–2x multiplier". Driven here rather
-  // than in HTML so permalinks with stale `t=` values still land in
-  // the new range.
-  ui.intensityInput.min = "0.5";
-  ui.intensityInput.max = "2";
-  ui.intensityInput.step = "0.1";
-
   return ui;
 }
 
 function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
-  ui.scenarioSelect.value = p.scenario;
   ui.strategyASelect.value = p.strategyA;
   ui.strategyBSelect.value = p.strategyB;
   ui.compareToggle.checked = p.compare;
@@ -281,6 +376,8 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   ui.speedLabel.textContent = speedLabel(p.speed);
   ui.intensityInput.value = String(p.intensity);
   ui.intensityLabel.textContent = intensityLabel(p.intensity);
+  renderStrategyDesc(ui, p.strategyA);
+  syncScenarioCards(ui, p.scenario);
   const scenario = scenarioById(p.scenario);
   if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
   // Auto-open the drawer when the permalink carries any override —
@@ -341,6 +438,18 @@ function renderTweakPanel(
     row.inc.disabled = value >= range.max - 1e-9;
     row.root.dataset.overridden = String(overridden);
     row.reset.hidden = !overridden;
+    // Sync the slider track: fill reflects progress to current value,
+    // default mark pins the scenario default, thumb sits on current.
+    // Clamped span and guarded against degenerate single-value ranges
+    // (e.g. space elevator cars locked at 1..1) so the computed ratios
+    // stay finite.
+    const span = Math.max(range.max - range.min, 1e-9);
+    const pct = Math.max(0, Math.min(1, (value - range.min) / span));
+    const defPct = Math.max(0, Math.min(1, (def - range.min) / span));
+    if (row.trackFill) row.trackFill.style.width = `${(pct * 100).toFixed(1)}%`;
+    if (row.trackThumb) row.trackThumb.style.left = `${(pct * 100).toFixed(1)}%`;
+    if (row.trackDefault)
+      row.trackDefault.style.left = `${(defPct * 100).toFixed(1)}%`;
   }
   ui.tweakResetAllBtn.hidden = !anyOverridden;
 }
@@ -375,23 +484,50 @@ async function makePane(
   // tick using defaults followed by a setter call.
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy);
-  // Apply the scenario's commercial-feature hook once on load. The
-  // user can still swap strategies afterwards; the hook's effects
-  // stick only as long as the strategy it tuned remains active.
-  sim.applyHook(scenario.hook);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
   handles.name.textContent = STRATEGY_LABELS[strategy];
   initMetricRows(handles.metrics);
+  handles.decision.textContent = "";
+  handles.decision.dataset.active = "false";
+  handles.decision.dataset.pulse = "false";
   return {
     strategy,
     sim,
     renderer,
     metricsEl: handles.metrics,
     modeEl: handles.mode,
+    decisionEl: handles.decision,
     waitHistory: [],
+    metricHistory: {
+      avg_wait_s: [],
+      max_wait_s: [],
+      delivered: [],
+      abandoned: [],
+      utilization: [],
+    },
     latestMetrics: null,
     bubbles: new Map(),
+    decisionExpiresAt: 0,
   };
+}
+
+/**
+ * Re-apply a scenario's traffic configuration to the current driver.
+ * Called once after constructing a fresh driver, and again after
+ * seed-spawn pumping has advanced its internal cycle clock — re-seating
+ * the phase schedule puts the cycle back at t=0 so the first real frame
+ * opens on the scenario's first phase.
+ */
+function configureTraffic(state: State, scenario: ScenarioMeta): void {
+  state.traffic.setPhases(scenario.phases);
+  state.traffic.setIntensity(state.permalink.intensity);
+  // Scenario-level abandonment — converted from seconds to ticks using
+  // the sim's 60 Hz canonical rate. Scenarios omitting `abandonAfterSec`
+  // (convention burst) keep "wait forever" so their stress tests stay
+  // punishing.
+  state.traffic.setPatienceTicks(
+    scenario.abandonAfterSec ? Math.round(scenario.abandonAfterSec * 60) : 0,
+  );
 }
 
 async function resetAll(state: State, ui: UiHandles): Promise<void> {
@@ -402,15 +538,7 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
   // construction throws after paneA was installed, the surviving paneA
   // must see the reset seed — not the previous driver's accumulator.
   state.traffic = new TrafficDriver(state.permalink.seed);
-  state.traffic.setPhases(scenario.phases);
-  state.traffic.setIntensity(state.permalink.intensity);
-  // Scenario-level abandonment — converted from seconds to ticks using
-  // the sim's 60 Hz canonical rate. Scenarios omitting `abandonAfterSec`
-  // (convention burst) keep the pre-patience "wait forever" behavior
-  // so their stress tests stay punishing.
-  state.traffic.setPatienceTicks(
-    scenario.abandonAfterSec ? Math.round(scenario.abandonAfterSec * 60) : 0,
-  );
+  configureTraffic(state, scenario);
   // Tear the old panes down *before* building new ones so the freed wasm
   // memory is released before we allocate the replacements.
   disposePane(state.paneA);
@@ -442,31 +570,13 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
       }
       state.paneB = paneB;
     }
-    // Seed pre-loaded spawns (convention scenario) once both panes are
-    // live so the injection is apples-to-apples across compared sims.
-    if (scenario.seedSpawns > 0) {
-      const snapForSeed = state.paneA.sim.snapshot();
-      for (let i = 0; i < scenario.seedSpawns; i += 1) {
-        // Abuse drainSpawns by feeding a full minute's worth of
-        // elapsed time at 300 riders/min so the driver emits the
-        // seed count from the first phase's distribution.
-        const specs = state.traffic.drainSpawns(snapForSeed, 1 / 300);
-        for (const spec of specs) {
-          forEachPane(state, (pane) =>
-            pane.sim.spawnRider(
-              spec.originStopId,
-              spec.destStopId,
-              spec.weight,
-              spec.patienceTicks,
-            ),
-          );
-        }
-        // Break once we've seeded enough — drainSpawns caps per-frame
-        // output at its internal accumulator, so we just loop until
-        // cumulative emission >= the target.
-        if (specs.length === 0) break;
-      }
-    }
+    // Progressive pre-seed: instead of pumping hundreds of spawns
+    // synchronously (which blocked the loader for ~50 ms even warm),
+    // hand the quota to the render loop. It injects per-frame
+    // batches starting the next rAF and re-seats the driver via
+    // `configureTraffic` once the quota drains, so the scenario's
+    // day-cycle clock still starts from t=0.
+    state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
     if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
@@ -483,38 +593,22 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
 }
 
 function attachListeners(state: State, ui: UiHandles): void {
-  ui.scenarioSelect.addEventListener("change", async () => {
-    const scenario = scenarioById(ui.scenarioSelect.value);
-    // Snap pane A (and pane B when in single-pane mode) to the
-    // scenario's recommended strategy. In compare mode we leave both
-    // panes alone so the user's comparison setup survives.
-    const nextStrategyA = state.permalink.compare
-      ? state.permalink.strategyA
-      : scenario.defaultStrategy;
-    // Clear all parameter overrides on scenario switch — every
-    // scenario has its own physics envelope (a 0.5 m/s slider value
-    // makes sense for residential, makes no sense for the space
-    // elevator) so cross-scenario carry-over surprised more than it
-    // helped during early prototyping.
-    state.permalink = {
-      ...state.permalink,
-      scenario: scenario.id,
-      strategyA: nextStrategyA,
-      overrides: {},
-    };
-    ui.strategyASelect.value = nextStrategyA;
-    await resetAll(state, ui);
-    renderTweakPanel(scenario, state.permalink.overrides, ui);
-    toast(ui, `${scenario.label} · ${STRATEGY_LABELS[nextStrategyA]}`);
+  ui.scenarioCards.addEventListener("click", async (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLElement)) return;
+    const card = target.closest<HTMLElement>(".scenario-card");
+    if (!card) return;
+    const id = card.dataset.scenarioId;
+    if (!id || id === state.permalink.scenario) return;
+    await switchScenario(state, ui, id);
   });
   // Strategy changes reset the whole comparator so both panes stay aligned
   // on the same rider stream from t=0 — mixing pre- and post-change metrics
   // would make the scoreboard misleading.
   ui.strategyASelect.addEventListener("change", async () => {
-    state.permalink = {
-      ...state.permalink,
-      strategyA: ui.strategyASelect.value as StrategyName,
-    };
+    const strategyA = ui.strategyASelect.value as StrategyName;
+    state.permalink = { ...state.permalink, strategyA };
+    renderStrategyDesc(ui, strategyA);
     await resetAll(state, ui);
     toast(ui, `A: ${STRATEGY_LABELS[state.permalink.strategyA]}`);
   });
@@ -569,9 +663,21 @@ function attachListeners(state: State, ui: UiHandles): void {
   });
   for (const key of PARAM_KEYS) {
     const row = ui.tweakRows[key];
-    row.dec.addEventListener("click", () => bumpParam(state, ui, key, -1));
-    row.inc.addEventListener("click", () => bumpParam(state, ui, key, +1));
+    attachHoldToRepeat(row.dec, () => bumpParam(state, ui, key, -1));
+    attachHoldToRepeat(row.inc, () => bumpParam(state, ui, key, +1));
     row.reset.addEventListener("click", () => resetParam(state, ui, key));
+    // Arrow keys on the focused row nudge the value just like clicking
+    // +/-. We gate on exact key so Page/Home/End still reach the
+    // scroll-to-section defaults the browser provides.
+    row.root.addEventListener("keydown", (ev) => {
+      if (ev.key === "ArrowUp" || ev.key === "ArrowRight") {
+        ev.preventDefault();
+        bumpParam(state, ui, key, +1);
+      } else if (ev.key === "ArrowDown" || ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        bumpParam(state, ui, key, -1);
+      }
+    });
   }
   ui.tweakResetAllBtn.addEventListener("click", () => {
     void resetAllOverrides(state, ui);
@@ -583,9 +689,146 @@ function attachListeners(state: State, ui: UiHandles): void {
     await navigator.clipboard.writeText(url).catch(() => {});
     toast(ui, "Permalink copied");
   });
+
+  // ── Shortcut sheet + global keys ─────────────────────────────────
+  ui.shortcutsBtn.addEventListener("click", () =>
+    setShortcutSheetOpen(ui, ui.shortcutSheet.hidden),
+  );
+  ui.shortcutSheetClose.addEventListener("click", () => setShortcutSheetOpen(ui, false));
+  ui.shortcutSheet.addEventListener("click", (ev) => {
+    // Click on the dim backdrop closes the sheet; clicks inside
+    // `.shortcut-sheet-inner` bubble through unless stopped.
+    if (ev.target === ui.shortcutSheet) setShortcutSheetOpen(ui, false);
+  });
+  attachKeyboardShortcuts(state, ui);
 }
 
-function loop(state: State): void {
+/**
+ * Install a pointer+repeat binding on a stepper button. First press
+ * fires immediately; holding past `initialDelay` starts a steady
+ * `interval` repeat. We stop on any `pointerup`/`pointerleave`/blur so
+ * the repeat can't outlive the press. The original click handler is
+ * *not* registered — this function replaces it.
+ */
+function attachHoldToRepeat(btn: HTMLButtonElement, fn: () => void): void {
+  const initialDelay = 380;
+  const interval = 70;
+  let timer = 0;
+  let repeat = 0;
+  const stop = (): void => {
+    if (timer) window.clearTimeout(timer);
+    if (repeat) window.clearInterval(repeat);
+    timer = 0;
+    repeat = 0;
+  };
+  btn.addEventListener("pointerdown", (ev) => {
+    if (btn.disabled) return;
+    ev.preventDefault();
+    fn();
+    timer = window.setTimeout(() => {
+      repeat = window.setInterval(() => {
+        if (btn.disabled) {
+          stop();
+          return;
+        }
+        fn();
+      }, interval);
+    }, initialDelay);
+  });
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointerleave", stop);
+  btn.addEventListener("pointercancel", stop);
+  btn.addEventListener("blur", stop);
+  // Keyboard activation (Enter / Space) still fires a normal click;
+  // register a click listener so that path works too. Using pointer-
+  // based press detection means the click event would otherwise fire
+  // a second time after pointerup — guarded by checking whether the
+  // pointer sequence already fired.
+  btn.addEventListener("click", (ev) => {
+    if ((ev as PointerEvent).pointerType) return;
+    fn();
+  });
+}
+
+/**
+ * Global keyboard shortcuts. Gated on focused element — typing into a
+ * number input (seed) or a select shouldn't steal Space/R/C for the
+ * app. The tweak row's arrow-key nudge is registered separately so it
+ * still fires when the row itself is focused.
+ */
+function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
+  window.addEventListener("keydown", (ev) => {
+    const target = ev.target as HTMLElement | null;
+    if (target) {
+      const tag = target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+    }
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    switch (ev.key) {
+      case " ": {
+        ev.preventDefault();
+        ui.playBtn.click();
+        return;
+      }
+      case "r":
+      case "R": {
+        ev.preventDefault();
+        ui.resetBtn.click();
+        return;
+      }
+      case "c":
+      case "C": {
+        ev.preventDefault();
+        ui.compareToggle.click();
+        return;
+      }
+      case "s":
+      case "S": {
+        ev.preventDefault();
+        ui.shareBtn.click();
+        return;
+      }
+      case "t":
+      case "T": {
+        ev.preventDefault();
+        ui.tweakBtn.click();
+        return;
+      }
+      case "?":
+      case "/": {
+        ev.preventDefault();
+        setShortcutSheetOpen(ui, ui.shortcutSheet.hidden);
+        return;
+      }
+      case "Escape": {
+        if (!ui.shortcutSheet.hidden) {
+          ev.preventDefault();
+          setShortcutSheetOpen(ui, false);
+        }
+        return;
+      }
+    }
+    // 1..N → scenario cards. Guarded to the SCENARIOS array length so
+    // extra digits are inert rather than reaching an undefined slot.
+    const n = Number(ev.key);
+    if (Number.isInteger(n) && n >= 1 && n <= SCENARIOS.length) {
+      const scenario = SCENARIOS[n - 1];
+      if (scenario.id !== state.permalink.scenario) {
+        ev.preventDefault();
+        void switchScenario(state, ui, scenario.id);
+      }
+    }
+  });
+}
+
+function loop(state: State, ui: UiHandles): void {
   let uiFrame = 0;
   const frame = (): void => {
     const now = performance.now();
@@ -598,18 +841,38 @@ function loop(state: State): void {
         pane.sim.step(ticks);
         // Drain events every frame so the wasm `EventBus` can't grow
         // unbounded during long sessions, and feed the speech-bubble
-        // layer the freshest per-car action.
+        // layer the freshest per-car action. The decision narration
+        // piggybacks on the same event stream — `pushDecision` only
+        // reacts to `elevator-assigned`, which is strategy-level
+        // dispatch output rather than the per-car action bubbles.
         const events = pane.sim.drainEvents();
-        updateBubbles(pane, events);
+        if (events.length > 0) {
+          const snap = pane.sim.snapshot();
+          const stopName = (id: number): string => resolveStopName(snap, id);
+          updateBubbles(pane, events, snap);
+          for (const ev of events) pushDecision(pane, ev, stopName);
+        }
       });
+
+      // Progressive pre-seed: drain the remaining quota in per-frame
+      // batches. While seeding is active we suppress the normal
+      // wall-clock drain below so the driver's accumulator — which
+      // also advances here — stays dedicated to the initial crowd.
+      // When the last rider lands we re-seat the driver so the
+      // scenario's day cycle starts from t=0.
+      if (state.seeding) {
+        drainSeedBatch(state);
+      }
 
       const snapA = state.paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
       // `elapsed` is wall-clock; scaling by `ticks` keeps the sim-time
       // budget the driver operates on in lockstep with the actual
-      // simulation advance.
+      // simulation advance. Skipped while we're still seeding.
       const simElapsed = elapsed * ticks;
-      const specs = state.traffic.drainSpawns(snapA, simElapsed);
+      const specs = state.seeding
+        ? []
+        : state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
         forEachPane(state, (pane) =>
           pane.sim.spawnRider(
@@ -628,10 +891,13 @@ function loop(state: State): void {
         renderPane(state.paneB, state.paneB.sim.snapshot(), speed);
       }
 
-      updateScoreboard(state);
+      updateScoreboard(state, ui);
       // Phase indicator updates at ~15 Hz so it stays readable even
       // when the sim is racing ahead.
-      if ((uiFrame += 1) % 4 === 0) updatePhaseIndicatorFromState(state);
+      if ((uiFrame += 1) % 4 === 0) {
+        updatePhaseIndicator(state, ui);
+        updatePhaseProgress(state, ui);
+      }
     }
 
     requestAnimationFrame(frame);
@@ -644,12 +910,23 @@ function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   pane.latestMetrics = metrics;
   pane.waitHistory.push(metrics.avg_wait_s);
   if (pane.waitHistory.length > WAIT_HISTORY_LEN) pane.waitHistory.shift();
+  for (const key of METRIC_KEYS) {
+    const arr = pane.metricHistory[key];
+    arr.push(metrics[key]);
+    if (arr.length > WAIT_HISTORY_LEN) arr.shift();
+  }
   // Evict stale bubbles lazily before handing the map to the renderer.
   const now = performance.now();
   for (const [carId, bubble] of pane.bubbles) {
     if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
   }
   pane.renderer.draw(snap, pane.waitHistory, speed, pane.bubbles);
+  // Decay the decision line: past TTL we dim the text instead of
+  // clearing it, so compare-mode users can still see the last known
+  // assignment while knowing it's stale.
+  if (pane.decisionEl.dataset.active === "true" && now > pane.decisionExpiresAt) {
+    pane.decisionEl.dataset.active = "false";
+  }
 }
 
 /**
@@ -662,10 +939,8 @@ function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
  * [`resolveStopName`]; unresolved stop ids fall back to the numeric
  * id rather than dropping the bubble.
  */
-function updateBubbles(pane: Pane, events: BubbleEvent[]): void {
-  if (events.length === 0) return;
-  const expiresAt = performance.now() + BUBBLE_TTL_MS;
-  const snap = pane.sim.snapshot();
+function updateBubbles(pane: Pane, events: BubbleEvent[], snap: Snapshot): void {
+  const bornAt = performance.now();
   const stopName = (id: number): string => resolveStopName(snap, id);
   for (const ev of events) {
     const text = bubbleTextFor(ev, stopName);
@@ -675,28 +950,30 @@ function updateBubbles(pane: Pane, events: BubbleEvent[]): void {
     // get here when `ev` carries an `elevator` field.
     const carId = (ev as { elevator?: number }).elevator;
     if (carId === undefined) continue;
-    pane.bubbles.set(carId, { text, expiresAt });
+    const ttl = BUBBLE_TTL_BY_KIND[ev.kind] ?? BUBBLE_TTL_DEFAULT_MS;
+    pane.bubbles.set(carId, { text, bornAt, expiresAt: bornAt + ttl });
   }
 }
 
-/** Map an event to a short human-readable bubble text, or `null` for
- *  events that have no car to attach to (rider-spawned, rider-abandoned). */
+/** Map an event to a short bubble string (icon glyph + phrase), or
+ *  `null` when the event has no car to attach to, or when emitting a
+ *  bubble for it would add more noise than signal. `elevator-departed`
+ *  and `door-closed` are intentionally suppressed because the prior
+ *  bubble ("Arrived at X", "Doors open") already narrates the context
+ *  and re-firing on closure makes the car feel chatty without adding
+ *  information. */
 function bubbleTextFor(ev: BubbleEvent, stopName: (id: number) => string): string | null {
   switch (ev.kind) {
     case "elevator-assigned":
-      return `Heading to ${stopName(ev.stop)}`;
-    case "elevator-departed":
-      return `Leaving ${stopName(ev.stop)}`;
+      return `\u203a To ${stopName(ev.stop)}`;
     case "elevator-arrived":
-      return `Arrived at ${stopName(ev.stop)}`;
+      return `\u25cf At ${stopName(ev.stop)}`;
     case "door-opened":
-      return "Doors open";
-    case "door-closed":
-      return "Doors closed";
+      return "\u25cc Doors open";
     case "rider-boarded":
-      return "Boarding";
+      return "\u002b Boarding";
     case "rider-exited":
-      return `Dropping off at ${stopName(ev.stop)}`;
+      return `\u2193 Off at ${stopName(ev.stop)}`;
     default:
       return null;
   }
@@ -711,28 +988,24 @@ function resolveStopName(snap: Snapshot, stopEntityId: number): string {
 }
 
 function updatePhaseIndicator(state: State, ui: UiHandles): void {
-  if (!ui.phaseLabel) return;
-  const label = state.traffic.currentPhaseLabel();
-  ui.phaseLabel.textContent = label || "—";
-}
-
-function updatePhaseIndicatorFromState(state: State): void {
-  const el = document.getElementById("phase-label");
+  const el = ui.phaseLabel;
   if (!el) return;
-  const label = state.traffic.currentPhaseLabel();
-  if (el.textContent !== label) el.textContent = label || "—";
+  const next = state.traffic.currentPhaseLabel() || "—";
+  if (el.textContent !== next) el.textContent = next;
 }
 
-function updateScoreboard(state: State): void {
+function updateScoreboard(state: State, ui: UiHandles): void {
   const paneA = state.paneA;
   if (!paneA?.latestMetrics) return;
   const paneB = state.paneB;
   if (paneB?.latestMetrics) {
     const compare = diffMetrics(paneA.latestMetrics, paneB.latestMetrics);
-    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, compare.a);
-    renderMetricRows(paneB.metricsEl, paneB.latestMetrics, compare.b);
+    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, compare.a, paneA.metricHistory);
+    renderMetricRows(paneB.metricsEl, paneB.latestMetrics, compare.b, paneB.metricHistory);
+    renderVerdictRibbon(ui.verdictRibbon, compare.a);
   } else {
-    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null);
+    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null, paneA.metricHistory);
+    ui.verdictRibbon.hidden = true;
   }
   updateModeBadge(paneA);
   if (paneB) updateModeBadge(paneB);
@@ -754,13 +1027,7 @@ function updateModeBadge(pane: Pane): void {
 }
 
 type Verdict = "win" | "lose" | "tie";
-interface MetricVerdicts {
-  avg_wait_s: Verdict;
-  max_wait_s: Verdict;
-  delivered: Verdict;
-  abandoned: Verdict;
-  utilization: Verdict;
-}
+type MetricVerdicts = Record<MetricKey, Verdict>;
 /**
  * Epsilon-based verdict so two panes that render identical values in the
  * metric strip (e.g. `0.0 s` vs `0.04 s` both display as `0.0 s`) don't
@@ -790,8 +1057,9 @@ function diffMetrics(a: Metrics, b: Metrics): { a: MetricVerdicts; b: MetricVerd
 }
 
 // Metric row layout: 5 fixed rows, always the same keys in the same order.
-// We build the DOM once and mutate text + verdict in place every frame.
-const METRIC_DEFS: Array<[string, keyof MetricVerdicts]> = [
+// We build the DOM once and mutate text + verdict + sparkline in place
+// every frame.
+const METRIC_DEFS: Array<[string, MetricKey]> = [
   ["Avg wait", "avg_wait_s"],
   ["Max wait", "max_wait_s"],
   ["Delivered", "delivered"],
@@ -799,7 +1067,7 @@ const METRIC_DEFS: Array<[string, keyof MetricVerdicts]> = [
   ["Utilization", "utilization"],
 ];
 
-function metricValue(m: Metrics, key: keyof MetricVerdicts): string {
+function metricValue(m: Metrics, key: MetricKey): string {
   switch (key) {
     case "avg_wait_s":
       return `${m.avg_wait_s.toFixed(1)} s`;
@@ -814,17 +1082,32 @@ function metricValue(m: Metrics, key: keyof MetricVerdicts): string {
   }
 }
 
+/** Build an HTML element with a className and optional text in one call. */
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
 function initMetricRows(root: HTMLElement): void {
   const frag = document.createDocumentFragment();
   for (const [label] of METRIC_DEFS) {
-    const row = document.createElement("div");
-    row.className = "metric-row";
-    const ks = document.createElement("span");
-    ks.className = "metric-k";
-    ks.textContent = label;
-    const vs = document.createElement("span");
-    vs.className = "metric-v";
-    row.append(ks, vs);
+    const row = el("div", "metric-row");
+    // SVG sparkline lives in the metric row and is mutated in place each
+    // frame. Using SVG (not another canvas) keeps it crisp at any DPR
+    // and lets CSS drive the stroke color via `currentColor` / the
+    // `data-verdict` attribute on the row.
+    const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    spark.classList.add("metric-spark");
+    spark.setAttribute("viewBox", "0 0 100 14");
+    spark.setAttribute("preserveAspectRatio", "none");
+    spark.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path"));
+    row.append(el("span", "metric-k", label), el("span", "metric-v"), spark);
     frag.appendChild(row);
   }
   root.replaceChildren(frag);
@@ -834,6 +1117,7 @@ function renderMetricRows(
   root: HTMLElement,
   m: Metrics,
   verdicts: MetricVerdicts | null,
+  history: Record<MetricKey, number[]>,
 ): void {
   const rows = root.children;
   for (let i = 0; i < METRIC_DEFS.length; i++) {
@@ -841,10 +1125,42 @@ function renderMetricRows(
     const key = METRIC_DEFS[i][1];
     const verdict = verdicts ? verdicts[key] : "";
     if (row.dataset.verdict !== verdict) row.dataset.verdict = verdict;
-    const vs = row.lastElementChild as HTMLElement;
+    const vs = row.children[1] as HTMLElement;
     const val = metricValue(m, key);
     if (vs.textContent !== val) vs.textContent = val;
+    const spark = row.children[2] as SVGSVGElement;
+    const path = spark.firstElementChild as SVGPathElement;
+    const d = buildSparklinePath(history[key]);
+    if (path.getAttribute("d") !== d) path.setAttribute("d", d);
   }
+}
+
+/**
+ * Build an SVG path `d` string sampling `values` across a 100×14
+ * viewBox. The path uses the last up-to-`WAIT_HISTORY_LEN` samples
+ * and auto-scales to the min/max within that window so the trace
+ * always fills the vertical range regardless of absolute magnitude.
+ * An empty or single-sample window draws a flat baseline.
+ */
+function buildSparklinePath(values: number[]): string {
+  if (values.length < 2) return "M 0 13 L 100 13";
+  let min = values[0];
+  let max = values[0];
+  for (let i = 1; i < values.length; i++) {
+    const v = values[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const span = max - min;
+  const n = values.length;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 100;
+    // Inverted y-axis so higher values sit higher on the chart.
+    const y = span > 0 ? 13 - ((values[i] - min) / span) * 12 : 7;
+    d += `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  return d.trim();
 }
 
 let toastTimer = 0;
@@ -985,6 +1301,201 @@ function labelForKey(key: ParamKey): string {
       return "Capacity";
     case "doorCycleSec":
       return "Door cycle";
+  }
+}
+
+// ─── Progressive pre-seed ────────────────────────────────────────────
+
+/**
+ * Inject a per-frame batch of pre-seed riders. Pumps `drainSpawns`
+ * up to `SEED_CALLS_PER_FRAME` times at the driver's 4/60-s dt cap,
+ * stopping early when the scenario's quota is met. When the quota
+ * drains we re-seat the driver via `configureTraffic` so the
+ * scenario's day-cycle clock starts from t=0 on the next frame.
+ *
+ * Callers must check `state.seeding` before invoking; this function
+ * assumes it's non-null. The rider-count check inside the inner loop
+ * lets a single `drainSpawns` call emitting multiple specs stop
+ * exactly at the quota rather than overshooting.
+ */
+function drainSeedBatch(state: State): void {
+  if (!state.seeding || !state.paneA) return;
+  const snap = state.paneA.sim.snapshot();
+  const dt = 4 / 60;
+  for (let c = 0; c < SEED_CALLS_PER_FRAME && state.seeding.remaining > 0; c++) {
+    const specs = state.traffic.drainSpawns(snap, dt);
+    for (const spec of specs) {
+      forEachPane(state, (pane) =>
+        pane.sim.spawnRider(
+          spec.originStopId,
+          spec.destStopId,
+          spec.weight,
+          spec.patienceTicks,
+        ),
+      );
+      state.seeding.remaining -= 1;
+      if (state.seeding.remaining <= 0) break;
+    }
+  }
+  if (state.seeding.remaining <= 0) {
+    configureTraffic(state, scenarioById(state.permalink.scenario));
+    state.seeding = null;
+  }
+}
+
+// ─── Scenario cards ──────────────────────────────────────────────────
+
+function renderScenarioCards(ui: UiHandles): void {
+  const frag = document.createDocumentFragment();
+  SCENARIOS.forEach((s, i) => {
+    const card = el("button", "scenario-card");
+    card.type = "button";
+    card.dataset.scenarioId = s.id;
+    card.setAttribute("aria-pressed", "false");
+    const label = el("span", "scenario-card-label");
+    label.append(
+      el("span", "", s.label),
+      el("span", "scenario-card-kbd", String(i + 1)),
+    );
+    card.append(
+      label,
+      el("span", "scenario-card-desc", s.description),
+      el("span", "scenario-card-hint", s.featureHint),
+    );
+    frag.appendChild(card);
+  });
+  ui.scenarioCards.replaceChildren(frag);
+}
+
+function syncScenarioCards(ui: UiHandles, scenarioId: string): void {
+  for (const card of ui.scenarioCards.children) {
+    const el = card as HTMLElement;
+    el.setAttribute(
+      "aria-pressed",
+      el.dataset.scenarioId === scenarioId ? "true" : "false",
+    );
+  }
+}
+
+/**
+ * Shared by keyboard shortcuts and scenario-card clicks so both paths
+ * dispatch the same transition.
+ *
+ * Overrides are cleared on scenario switch — every scenario has a
+ * distinct physics envelope (a 0.5 m/s slider makes sense for a
+ * residential tower, not for a 50 m/s climber on a tether) so
+ * cross-scenario carry-over surprised more than it helped during
+ * early prototyping.
+ */
+async function switchScenario(
+  state: State,
+  ui: UiHandles,
+  scenarioId: string,
+): Promise<void> {
+  const scenario = scenarioById(scenarioId);
+  // Snap pane A (and pane B when in single-pane mode) to the
+  // scenario's recommended strategy. In compare mode we leave both
+  // panes alone so the user's comparison setup survives.
+  const nextStrategyA = state.permalink.compare
+    ? state.permalink.strategyA
+    : scenario.defaultStrategy;
+  state.permalink = {
+    ...state.permalink,
+    scenario: scenario.id,
+    strategyA: nextStrategyA,
+    overrides: {},
+  };
+  ui.strategyASelect.value = nextStrategyA;
+  renderStrategyDesc(ui, nextStrategyA);
+  syncScenarioCards(ui, scenario.id);
+  await resetAll(state, ui);
+  renderTweakPanel(scenario, state.permalink.overrides, ui);
+  toast(ui, `${scenario.label} · ${STRATEGY_LABELS[nextStrategyA]}`);
+}
+
+// ─── Strategy description ────────────────────────────────────────────
+
+function renderStrategyDesc(ui: UiHandles, strategy: StrategyName): void {
+  ui.strategyDesc.textContent = STRATEGY_DESCRIPTIONS[strategy];
+}
+
+// ─── Verdict ribbon ──────────────────────────────────────────────────
+
+function renderVerdictRibbon(root: HTMLElement, verdictsA: MetricVerdicts): void {
+  if (root.childElementCount === 0) {
+    root.appendChild(el("span", "verdict-ribbon-title", "Who's winning?"));
+    for (const [label] of METRIC_DEFS) {
+      const cell = el("div", "verdict-cell");
+      cell.append(
+        el("span", "verdict-cell-k", label),
+        el("span", "verdict-cell-winner"),
+      );
+      root.appendChild(cell);
+    }
+  }
+  root.hidden = false;
+  for (let i = 0; i < METRIC_DEFS.length; i++) {
+    const cell = root.children[i + 1] as HTMLElement;
+    const key = METRIC_DEFS[i][1];
+    const { winner, text } = verdictToWinner(verdictsA[key]);
+    if (cell.dataset.winner !== winner) cell.dataset.winner = winner;
+    const winnerEl = cell.lastElementChild as HTMLElement;
+    if (winnerEl.textContent !== text) winnerEl.textContent = text;
+  }
+}
+
+function verdictToWinner(v: Verdict): { winner: "A" | "B" | "tie"; text: string } {
+  switch (v) {
+    case "win":
+      return { winner: "A", text: "A" };
+    case "lose":
+      return { winner: "B", text: "B" };
+    case "tie":
+      return { winner: "tie", text: "Tie" };
+  }
+}
+
+// ─── Phase progress ──────────────────────────────────────────────────
+
+function updatePhaseProgress(state: State, ui: UiHandles): void {
+  if (!ui.phaseProgress) return;
+  const pct = Math.round(state.traffic.progressInPhase() * 1000) / 10;
+  const next = `${pct}%`;
+  if (ui.phaseProgress.style.width !== next) ui.phaseProgress.style.width = next;
+}
+
+// ─── Decision narration ──────────────────────────────────────────────
+
+function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => string): void {
+  if (ev.kind !== "elevator-assigned") return;
+  const el = pane.decisionEl;
+  const text = `Car ${ev.elevator} \u2192 ${stopName(ev.stop)}`;
+  if (el.textContent !== text) el.textContent = text;
+  el.dataset.active = "true";
+  pane.decisionExpiresAt = performance.now() + DECISION_TTL_MS;
+  // Retrigger the pulse keyframes by flipping data-pulse in the next
+  // frame — clearing synchronously has no effect because the same
+  // animation name stays active.
+  el.dataset.pulse = "false";
+  requestAnimationFrame(() => {
+    el.dataset.pulse = "true";
+  });
+}
+
+// ─── Shortcut sheet ──────────────────────────────────────────────────
+
+function setShortcutSheetOpen(ui: UiHandles, open: boolean): void {
+  const wasOpen = !ui.shortcutSheet.hidden;
+  if (open === wasOpen) return;
+  ui.shortcutSheet.hidden = !open;
+  // Focus management — the sheet is modal-like but not a real <dialog>,
+  // so we shuttle focus manually. Opening moves focus into the sheet
+  // (so Escape / Tab land predictably); closing returns focus to the
+  // trigger so keyboard flow doesn't snap back to <body>.
+  if (open) {
+    ui.shortcutSheetClose.focus();
+  } else {
+    ui.shortcutsBtn.focus();
   }
 }
 
