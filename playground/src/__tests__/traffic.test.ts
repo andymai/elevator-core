@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TrafficDriver } from "../traffic";
+import { TrafficDriver } from "../sim/traffic-driver";
 import type { Phase, Snapshot } from "../types";
 
 // Minimal stub with just the shape `TrafficDriver` consumes. Stops need

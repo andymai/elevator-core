@@ -1,4 +1,4 @@
-import type { Phase, Snapshot } from "./types";
+import type { Phase, Snapshot } from "../types";
 
 // Deterministic traffic driver. The wasm sim itself stays pure — we generate
 // spawns out here so:
@@ -94,6 +94,7 @@ export class TrafficDriver {
     // scaling by the sim-speed multiplier.
     const dt = Math.min(Math.max(0, elapsedSeconds), 1);
     const phase = this.#phases[this.currentPhaseIndex()];
+    if (!phase) return [];
     this.#accumulator += ((phase.ridersPerMin * this.#intensity) / 60) * dt;
     this.#elapsedInCycleSec = (this.#elapsedInCycleSec + dt) % (this.#totalDurationSec || 1);
     const out: RiderSpec[] = [];
@@ -112,8 +113,8 @@ export class TrafficDriver {
   currentPhaseIndex(): number {
     if (this.#phases.length === 0) return 0;
     let t = this.#elapsedInCycleSec;
-    for (let i = 0; i < this.#phases.length; i += 1) {
-      t -= this.#phases[i].durationSec;
+    for (const [i, p] of this.#phases.entries()) {
+      t -= p.durationSec;
       if (t < 0) return i;
     }
     return this.#phases.length - 1;
@@ -137,8 +138,8 @@ export class TrafficDriver {
   progressInPhase(): number {
     if (this.#phases.length === 0) return 0;
     let t = this.#elapsedInCycleSec;
-    for (let i = 0; i < this.#phases.length; i += 1) {
-      const d = this.#phases[i].durationSec;
+    for (const p of this.#phases) {
+      const d = p.durationSec;
       if (t < d) return d > 0 ? Math.min(1, t / d) : 0;
       t -= d;
     }
@@ -157,12 +158,15 @@ export class TrafficDriver {
     // in the destination vector. Rotate forward to the next index so
     // we never emit a degenerate same-origin-and-destination spec.
     if (destIdx === originIdx) destIdx = (destIdx + 1) % stops.length;
+    const origin = stops[originIdx];
+    const dest = stops[destIdx];
+    if (!origin || !dest) throw new Error("stop index out of bounds");
     const weight = 50 + this.#nextFloat() * 50;
     return {
-      originStopId: stops[originIdx].stop_id,
-      destStopId: stops[destIdx].stop_id,
+      originStopId: origin.stop_id,
+      destStopId: dest.stop_id,
       weight,
-      patienceTicks: this.#patienceTicks > 0 ? this.#patienceTicks : undefined,
+      ...(this.#patienceTicks > 0 ? { patienceTicks: this.#patienceTicks } : {}),
     };
   }
 
@@ -177,11 +181,11 @@ export class TrafficDriver {
       return this.#nextInt(n);
     }
     let total = 0;
-    for (let i = 0; i < n; i += 1) total += Math.max(0, weights[i]);
+    for (const w of weights) total += Math.max(0, w);
     if (total <= 0) return this.#nextInt(n);
     let r = this.#nextFloat() * total;
-    for (let i = 0; i < n; i += 1) {
-      r -= Math.max(0, weights[i]);
+    for (const [i, w] of weights.entries()) {
+      r -= Math.max(0, w);
       if (r < 0) return i;
     }
     return n - 1;

@@ -1,0 +1,7 @@
+dist/
+node_modules/
+public/pkg/
+.screenshots/
+coverage/
+pnpm-lock.yaml
+*.min.js
