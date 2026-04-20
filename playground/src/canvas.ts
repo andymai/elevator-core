@@ -599,7 +599,17 @@ export class CanvasRenderer {
         if (top < groupTop) groupTop = top;
         shaftExtIdx++;
       }
-      if (Number.isFinite(firstCx) && Number.isFinite(groupTop)) {
+      // Shaft labels only make sense when the building has multiple
+      // banks to distinguish. A single-line scenario (convention,
+      // space elevator) has exactly one shaft group — slapping
+      // "LOW" on it is misleading because the label's semantics
+      // ("main passenger bank, low-zone") only hold against a
+      // skyscraper-style multi-line layout.
+      if (
+        lineIds.length > 1 &&
+        Number.isFinite(firstCx) &&
+        Number.isFinite(groupTop)
+      ) {
         shaftLabels.push({
           cx: (firstCx + lastCx) / 2,
           top: groupTop,
