@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.17.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.0...elevator-core-v15.17.1) (2026-04-20)
+
+
+### Bug Fixes
+
+* **playground:** phase clock clamp + misc cleanup ([#387](https://github.com/andymai/elevator-core/issues/387)) ([cf3e22a](https://github.com/andymai/elevator-core/commit/cf3e22ae92adb9a627e3583fce6a0c27d5466c55))
+
 ## [15.17.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.16.0...elevator-core-v15.17.0) (2026-04-20)
 
 
