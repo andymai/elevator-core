@@ -11,20 +11,43 @@ import {
   renderMetricRows,
   renderVerdictRibbon,
 } from "./features/scoreboard";
-import { attachHoldToRepeat, el, toast } from "./platform";
+import {
+  renderPaneStrategyInfo,
+  renderPaneRepositionInfo,
+  refreshStrategyPopovers,
+  refreshRepositionPopovers,
+  isAnyStrategyPopoverOpen,
+  isAnyRepositionPopoverOpen,
+  closeAllPopovers,
+  attachStrategyPopover,
+  attachRepositionPopover,
+  attachOutsideClickForPopovers,
+} from "./features/strategy-picker";
+import {
+  renderScenarioCards,
+  syncScenarioCards,
+  syncSheetCompact,
+  switchScenario,
+  reconcileStrategyWithScenario,
+} from "./features/scenario-picker";
+import {
+  type TweakRowHandles,
+  renderTweakPanel,
+  setTweakOpen,
+  bumpParam,
+  resetParam,
+  resetAllOverrides,
+} from "./features/tweak-drawer";
+import { attachHoldToRepeat, toast } from "./platform";
 import {
   DEFAULT_STATE,
   PARAM_KEYS,
   SCENARIOS,
-  applyPhysicsOverrides,
   buildScenarioRon,
   compactOverrides,
   decodePermalink,
-  defaultFor,
   encodePermalink,
   hashSeedWord,
-  isOverridden,
-  resolveParam,
   scenarioById,
   type Overrides,
   type ParamKey,
@@ -60,60 +83,6 @@ function randomSeedWord(): string {
   return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
 
-const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd", "destination", "rsr"];
-const STRATEGY_LABELS: Record<StrategyName, string> = {
-  scan: "SCAN",
-  look: "LOOK",
-  nearest: "NEAREST",
-  etd: "ETD",
-  destination: "DCS",
-  rsr: "RSR",
-};
-
-/**
- * One-liners shown under the strategy selector. Tuned to be readable
- * at a glance without jargon while still being specific enough to
- * differentiate the six strategies. The phrasing leads with behavior,
- * not mechanism — a reader new to vertical-transport theory should
- * still come away with a sense of what each controller does.
- */
-const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
-  scan: "Sweeps end-to-end like a disk head — simple, predictable, ignores who's waiting longest.",
-  look: "Like SCAN but reverses early when nothing's queued further — a practical baseline.",
-  nearest: "Grabs whichever call is closest right now. Fast under light load, thrashes under rush.",
-  etd: "Estimated time of dispatch — assigns calls to whichever car can finish fastest.",
-  destination:
-    "Destination-control: riders pick their floor at the lobby; the group optimises assignments.",
-  rsr: "Relative System Response — a wait-aware variant of ETD that penalises long queues.",
-};
-
-const UI_REPOSITION_STRATEGIES: RepositionStrategyName[] = [
-  "adaptive",
-  "predictive",
-  "lobby",
-  "spread",
-  "none",
-];
-const REPOSITION_LABELS: Record<RepositionStrategyName, string> = {
-  adaptive: "Adaptive",
-  predictive: "Predictive",
-  lobby: "Lobby",
-  spread: "Spread",
-  none: "Stay",
-};
-/**
- * One-liners surfaced in the reposition-strategy popover. Each names
- * *what* an idle car does, not the mechanism — users pick by
- * observable behaviour rather than implementation detail.
- */
-const REPOSITION_DESCRIPTIONS: Record<RepositionStrategyName, string> = {
-  adaptive:
-    "Switches based on traffic — returns to lobby during up-peak, predicts hot floors otherwise. The default.",
-  predictive: "Always parks idle cars near whichever floor has seen the most recent arrivals.",
-  lobby: "Sends every idle car back to the ground floor to prime the morning-rush pickup.",
-  spread: "Keeps idle cars fanned out across the shaft so any floor has a nearby option.",
-  none: "Leaves idle cars wherever they finished their last delivery.",
-};
 const COLOR_A = "#7dd3fc";
 const COLOR_B = "#fda4af";
 
@@ -228,18 +197,6 @@ interface PaneHandles {
   which: "a" | "b";
 }
 
-interface TweakRowHandles {
-  root: HTMLElement;
-  value: HTMLElement;
-  defaultV: HTMLElement;
-  dec: HTMLButtonElement;
-  inc: HTMLButtonElement;
-  reset: HTMLButtonElement;
-  trackFill: HTMLElement | null;
-  trackDefault: HTMLElement | null;
-  trackThumb: HTMLElement | null;
-}
-
 interface UiHandles {
   scenarioCards: HTMLElement;
   compareToggle: HTMLInputElement;
@@ -328,18 +285,6 @@ async function boot(): Promise<void> {
   await resetAll(state, ui);
   state.ready = true;
   loop(state, ui);
-}
-
-/**
- * Canonicalise legacy scenario ids through the `scenarioById` fallback
- * so the rest of boot operates on the current canonical id. Strategy is
- * intentionally left alone: on first load we honour whatever the
- * permalink encoded — the snap-to-scenario-default behaviour only
- * fires on an interactive scenario change, not on boot.
- */
-function reconcileStrategyWithScenario(p: PermalinkState): void {
-  const scenario = scenarioById(p.scenario);
-  p.scenario = scenario.id;
 }
 
 function wireUi(): UiHandles {
@@ -454,70 +399,6 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
     setTweakOpen(ui, true);
   }
   renderTweakPanel(scenario, p.overrides, ui);
-}
-
-/**
- * Format a tweak value for the readout. `cars` and `weightCapacity`
- * step in whole units so they read as integers; speed and door cycle
- * use one decimal to match their step sizes.
- */
-function formatTweakValue(key: ParamKey, value: number): string {
-  switch (key) {
-    case "cars":
-      return String(Math.round(value));
-    case "weightCapacity":
-      return String(Math.round(value));
-    case "maxSpeed":
-    case "doorCycleSec":
-      return value.toFixed(1);
-  }
-}
-
-/**
- * Refresh every drawer row to reflect the current scenario + overrides.
- * Called on boot, on scenario switch, and after each stepper click.
- *
- * Side effects beyond the displayed values:
- *  - Disables `+`/`-` at the slider's bounds so users can't push the
- *    value out of range (defensive — `resolveParam` clamps anyway).
- *  - Toggles the per-row "Reset" button visibility based on whether
- *    the row's value differs from the scenario default.
- *  - Toggles the "Reset all" button visibility based on whether *any*
- *    row is overridden.
- */
-function renderTweakPanel(scenario: ScenarioMeta, overrides: Overrides, ui: UiHandles): void {
-  let anyOverridden = false;
-  for (const key of PARAM_KEYS) {
-    const row = ui.tweakRows[key];
-    const range = scenario.tweakRanges[key];
-    const value = resolveParam(scenario, key, overrides);
-    const def = defaultFor(scenario, key);
-    const overridden = isOverridden(scenario, key, value);
-    if (overridden) anyOverridden = true;
-    row.value.textContent = formatTweakValue(key, value);
-    row.defaultV.textContent = formatTweakValue(key, def);
-    row.dec.disabled = value <= range.min + 1e-9;
-    row.inc.disabled = value >= range.max - 1e-9;
-    row.root.dataset["overridden"] = String(overridden);
-    row.reset.hidden = !overridden;
-    // Sync the slider track: fill reflects progress to current value,
-    // default mark pins the scenario default, thumb sits on current.
-    // Clamped span and guarded against degenerate single-value ranges
-    // (e.g. space elevator cars locked at 1..1) so the computed ratios
-    // stay finite.
-    const span = Math.max(range.max - range.min, 1e-9);
-    const pct = Math.max(0, Math.min(1, (value - range.min) / span));
-    const defPct = Math.max(0, Math.min(1, (def - range.min) / span));
-    if (row.trackFill) row.trackFill.style.width = `${(pct * 100).toFixed(1)}%`;
-    if (row.trackThumb) row.trackThumb.style.left = `${(pct * 100).toFixed(1)}%`;
-    if (row.trackDefault) row.trackDefault.style.left = `${(defPct * 100).toFixed(1)}%`;
-  }
-  ui.tweakResetAllBtn.hidden = !anyOverridden;
-}
-
-function setTweakOpen(ui: UiHandles, open: boolean): void {
-  ui.tweakBtn.setAttribute("aria-expanded", open ? "true" : "false");
-  ui.tweakPanel.hidden = !open;
 }
 
 /** Run `fn` against each active pane. Lets call sites fan out without null-checks. */
@@ -680,6 +561,8 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
 }
 
 function attachListeners(state: State, ui: UiHandles): void {
+  const doResetAll = (): Promise<void> => resetAll(state, ui);
+
   ui.scenarioCards.addEventListener("click", (ev) => {
     const target = ev.target;
     if (!(target instanceof HTMLElement)) return;
@@ -687,24 +570,24 @@ function attachListeners(state: State, ui: UiHandles): void {
     if (!card) return;
     const id = card.dataset["scenarioId"];
     if (!id || id === state.permalink.scenario) return;
-    void switchScenario(state, ui, id);
+    void switchScenario(state, ui, id, doResetAll);
   });
   // Strategy picks reset the whole comparator so both panes stay aligned
   // on the same rider stream from t=0 — mixing pre- and post-change metrics
   // would make the scoreboard misleading.
-  attachStrategyPopover(state, ui, ui.paneA);
-  attachStrategyPopover(state, ui, ui.paneB);
-  attachRepositionPopover(state, ui, ui.paneA);
-  attachRepositionPopover(state, ui, ui.paneB);
-  refreshStrategyPopovers(state, ui);
-  refreshRepositionPopovers(state, ui);
+  attachStrategyPopover(state, ui, ui.paneA, doResetAll);
+  attachStrategyPopover(state, ui, ui.paneB, doResetAll);
+  attachRepositionPopover(state, ui, ui.paneA, doResetAll);
+  attachRepositionPopover(state, ui, ui.paneB, doResetAll);
+  refreshStrategyPopovers(state, ui, doResetAll);
+  refreshRepositionPopovers(state, ui, doResetAll);
   ui.compareToggle.addEventListener("change", () => {
     state.permalink = { ...state.permalink, compare: ui.compareToggle.checked };
     ui.layout.dataset["mode"] = state.permalink.compare ? "compare" : "single";
     // `also in …` badges depend on compare state, so re-render both
     // dispatch and reposition popovers when the toggle flips.
-    refreshStrategyPopovers(state, ui);
-    refreshRepositionPopovers(state, ui);
+    refreshStrategyPopovers(state, ui, doResetAll);
+    refreshRepositionPopovers(state, ui, doResetAll);
     void resetAll(state, ui).then(() => {
       toast(ui.toast, state.permalink.compare ? "Compare on" : "Compare off");
     });
@@ -768,13 +651,13 @@ function attachListeners(state: State, ui: UiHandles): void {
   for (const key of PARAM_KEYS) {
     const row = ui.tweakRows[key];
     attachHoldToRepeat(row.dec, () => {
-      bumpParam(state, ui, key, -1);
+      bumpParam(state, ui, key, -1, doResetAll);
     });
     attachHoldToRepeat(row.inc, () => {
-      bumpParam(state, ui, key, 1);
+      bumpParam(state, ui, key, 1, doResetAll);
     });
     row.reset.addEventListener("click", () => {
-      resetParam(state, ui, key);
+      resetParam(state, ui, key, doResetAll);
     });
     // Arrow keys on the focused row nudge the value just like clicking
     // +/-. We gate on exact key so Page/Home/End still reach the
@@ -782,15 +665,15 @@ function attachListeners(state: State, ui: UiHandles): void {
     row.root.addEventListener("keydown", (ev) => {
       if (ev.key === "ArrowUp" || ev.key === "ArrowRight") {
         ev.preventDefault();
-        bumpParam(state, ui, key, 1);
+        bumpParam(state, ui, key, 1, doResetAll);
       } else if (ev.key === "ArrowDown" || ev.key === "ArrowLeft") {
         ev.preventDefault();
-        bumpParam(state, ui, key, -1);
+        bumpParam(state, ui, key, -1, doResetAll);
       }
     });
   }
   ui.tweakResetAllBtn.addEventListener("click", () => {
-    void resetAllOverrides(state, ui);
+    void resetAllOverrides(state, ui, doResetAll);
   });
   ui.shareBtn.addEventListener("click", () => {
     const qs = encodePermalink(state.permalink);
@@ -897,7 +780,7 @@ function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
       if (!scenario) return;
       if (scenario.id !== state.permalink.scenario) {
         ev.preventDefault();
-        void switchScenario(state, ui, scenario.id);
+        void switchScenario(state, ui, scenario.id, () => resetAll(state, ui));
       }
     }
   });
@@ -1100,133 +983,6 @@ function updateModeBadge(pane: Pane): void {
   }
 }
 
-// ─── Tweak panel: state mutation ─────────────────────────────────────
-
-/**
- * Step a single param up or down by its scenario-defined step size,
- * then apply the change. Quietly clamps to the param's range so a
- * disabled +/- button can't be activated via keyboard repeat.
- */
-function bumpParam(state: State, ui: UiHandles, key: ParamKey, dir: number): void {
-  const scenario = scenarioById(state.permalink.scenario);
-  const range = scenario.tweakRanges[key];
-  const current = resolveParam(scenario, key, state.permalink.overrides);
-  const next = clampToRange(current + dir * range.step, range.min, range.max);
-  // Round to a multiple of `step` so the steppers always land on a
-  // canonical lattice point — protects against floating-point drift
-  // accumulating over repeated clicks.
-  const snapped = snapToStep(next, range.min, range.step);
-  setOverride(state, ui, scenario, key, snapped);
-}
-
-function resetParam(state: State, ui: UiHandles, key: ParamKey): void {
-  const scenario = scenarioById(state.permalink.scenario);
-  const next = { ...state.permalink.overrides };
-  Reflect.deleteProperty(next, key);
-  state.permalink = { ...state.permalink, overrides: next };
-  // Per-key reset of the live-mutated knobs goes through the same
-  // hot-swap path so metrics don't reset; cars-count reset rebuilds.
-  if (key === "cars") {
-    void resetAll(state, ui);
-    toast(ui.toast, "Cars reset");
-  } else {
-    applyHotSwapAndRender(state, ui, scenario);
-    toast(ui.toast, `${labelForKey(key)} reset`);
-  }
-}
-
-async function resetAllOverrides(state: State, ui: UiHandles): Promise<void> {
-  const scenario = scenarioById(state.permalink.scenario);
-  const hadCarsOverride = isOverridden(
-    scenario,
-    "cars",
-    resolveParam(scenario, "cars", state.permalink.overrides),
-  );
-  state.permalink = { ...state.permalink, overrides: {} };
-  if (hadCarsOverride) {
-    await resetAll(state, ui);
-  } else {
-    applyHotSwapAndRender(state, ui, scenario);
-  }
-  toast(ui.toast, "Parameters reset");
-}
-
-/**
- * Update one override and apply it: hot-swap for live-mutated keys,
- * full sim rebuild for `cars`. Keeps the in-memory permalink in sync
- * and re-renders the drawer.
- */
-function setOverride(
-  state: State,
-  ui: UiHandles,
-  scenario: ScenarioMeta,
-  key: ParamKey,
-  value: number,
-): void {
-  const next: Overrides = { ...state.permalink.overrides, [key]: value };
-  state.permalink = {
-    ...state.permalink,
-    overrides: compactOverrides(scenario, next),
-  };
-  if (key === "cars") {
-    void resetAll(state, ui);
-  } else {
-    applyHotSwapAndRender(state, ui, scenario);
-  }
-}
-
-/**
- * Push max-speed / capacity / door-cycle into the live sim via the
- * uniform setters and refresh the drawer's display values. Used for
- * every override change *except* cars-count, which needs a full
- * `resetAll`.
- *
- * If the wasm build predates the setters (`applyPhysicsLive` returns
- * `false`), fall back to a sim rebuild — same observable result, just
- * with a metrics reset. This keeps local dev usable when the
- * playground reloads ahead of a fresh `wasm-pack build`.
- */
-function applyHotSwapAndRender(state: State, ui: UiHandles, scenario: ScenarioMeta): void {
-  const physics = applyPhysicsOverrides(scenario, state.permalink.overrides);
-  const params = {
-    maxSpeed: physics.maxSpeed,
-    weightCapacityKg: physics.weightCapacity,
-    doorOpenTicks: physics.doorOpenTicks,
-    doorTransitionTicks: physics.doorTransitionTicks,
-  };
-  const panes = [state.paneA, state.paneB].filter((p): p is Pane => p !== null);
-  const allLive = panes.every((pane) => pane.sim.applyPhysicsLive(params));
-  renderTweakPanel(scenario, state.permalink.overrides, ui);
-  if (!allLive) void resetAll(state, ui);
-}
-
-function clampToRange(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v));
-}
-
-/**
- * Round `v` to the nearest multiple of `step` measured from `min`.
- * Used by `bumpParam` so successive +/- clicks always land on
- * canonical grid values regardless of the starting point.
- */
-function snapToStep(v: number, min: number, step: number): number {
-  const stepsFromMin = Math.round((v - min) / step);
-  return min + stepsFromMin * step;
-}
-
-function labelForKey(key: ParamKey): string {
-  switch (key) {
-    case "cars":
-      return "Cars";
-    case "maxSpeed":
-      return "Max speed";
-    case "weightCapacity":
-      return "Capacity";
-    case "doorCycleSec":
-      return "Door cycle";
-  }
-}
-
 // ─── Progressive pre-seed ────────────────────────────────────────────
 
 /**
@@ -1259,395 +1015,6 @@ function drainSeedBatch(state: State): void {
     configureTraffic(state, scenarioById(state.permalink.scenario));
     state.seeding = null;
   }
-}
-
-// ─── Scenario cards ──────────────────────────────────────────────────
-
-// Compact pill tabs — used to be full-sized cards with a description
-// block; that was ~55 px of vertical chrome. Now a single row of
-// short buttons that show the scenario name and a numeric shortcut
-// badge. Description is accessible via the `title` tooltip so
-// nothing is lost, just de-weighted.
-const SCENARIO_CARD_CLS =
-  "scenario-card inline-flex items-center gap-1.5 px-2.5 py-1 " +
-  "bg-surface-elevated border border-stroke-subtle rounded-md " +
-  "text-content-secondary text-[12px] font-medium cursor-pointer " +
-  "transition-colors duration-fast select-none whitespace-nowrap " +
-  "hover:bg-surface-hover hover:border-stroke " +
-  "aria-pressed:bg-accent-muted aria-pressed:text-content " +
-  "aria-pressed:border-[color-mix(in_srgb,var(--accent)_55%,transparent)] " +
-  "max-md:flex-none max-md:snap-start";
-const SCENARIO_KBD_CLS =
-  "inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 " +
-  "text-[9.5px] font-semibold text-content-disabled bg-surface border border-stroke " +
-  "rounded-sm tabular-nums";
-
-function renderScenarioCards(ui: UiHandles): void {
-  const frag = document.createDocumentFragment();
-  SCENARIOS.forEach((s, i) => {
-    const card = el("button", SCENARIO_CARD_CLS);
-    card.type = "button";
-    card.dataset["scenarioId"] = s.id;
-    card.setAttribute("aria-pressed", "false");
-    // Description dropped to the native tooltip — compact tabs keep
-    // just the label + shortcut key. Users hover (desktop) or long-
-    // press (touch) to see the longer description if they want it.
-    card.title = s.description;
-    card.append(el("span", "", s.label), el("span", SCENARIO_KBD_CLS, String(i + 1)));
-    frag.appendChild(card);
-  });
-  ui.scenarioCards.replaceChildren(frag);
-}
-
-function syncScenarioCards(ui: UiHandles, scenarioId: string): void {
-  for (const card of ui.scenarioCards.children) {
-    const el = card as HTMLElement;
-    el.setAttribute("aria-pressed", el.dataset["scenarioId"] === scenarioId ? "true" : "false");
-  }
-}
-
-/**
- * Shared by keyboard shortcuts and scenario-card clicks so both paths
- * dispatch the same transition.
- *
- * Overrides are cleared on scenario switch — every scenario has a
- * distinct physics envelope (a 0.5 m/s slider makes sense for a
- * residential tower, not for a 50 m/s climber on a tether) so
- * cross-scenario carry-over surprised more than it helped during
- * early prototyping.
- */
-function syncSheetCompact(ui: UiHandles, scenarioLabel: string, strategyA: StrategyName): void {
-  ui.sheetScenario.textContent = scenarioLabel;
-  ui.sheetStrategy.textContent = STRATEGY_LABELS[strategyA];
-}
-
-async function switchScenario(state: State, ui: UiHandles, scenarioId: string): Promise<void> {
-  const scenario = scenarioById(scenarioId);
-  // Snap pane A (and pane B when in single-pane mode) to the
-  // scenario's recommended strategy. In compare mode we leave both
-  // panes alone so the user's comparison setup survives.
-  const nextStrategyA = state.permalink.compare
-    ? state.permalink.strategyA
-    : scenario.defaultStrategy;
-  state.permalink = {
-    ...state.permalink,
-    scenario: scenario.id,
-    strategyA: nextStrategyA,
-    overrides: {},
-  };
-  renderPaneStrategyInfo(ui.paneA, nextStrategyA);
-  refreshStrategyPopovers(state, ui);
-  syncScenarioCards(ui, scenario.id);
-  syncSheetCompact(ui, scenario.label, nextStrategyA);
-  await resetAll(state, ui);
-  renderTweakPanel(scenario, state.permalink.overrides, ui);
-  toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
-}
-
-// ─── Strategy chip + popover ─────────────────────────────────────────
-
-/**
- * Sync a pane's header chip + description subtitle to the given
- * strategy. Used on boot, on scenario switch (pane A), and on each
- * popover pick. The chip's label lives in a nested `#name-*` span so
- * the caret glyph next to it stays untouched.
- */
-function renderPaneStrategyInfo(pane: PaneHandles, strategy: StrategyName): void {
-  const label = STRATEGY_LABELS[strategy];
-  const desc = STRATEGY_DESCRIPTIONS[strategy];
-  if (pane.name.textContent !== label) pane.name.textContent = label;
-  if (pane.desc.textContent !== desc) pane.desc.textContent = desc;
-  pane.trigger.setAttribute("aria-label", `Change dispatch strategy (currently ${label})`);
-  pane.trigger.title = desc;
-}
-
-/**
- * Sync the reposition chip for a pane. Mirrors
- * `renderPaneStrategyInfo` but writes to the `repo-*` handles so the
- * same chip/popover interaction pattern reuses across both.
- */
-function renderPaneRepositionInfo(pane: PaneHandles, reposition: RepositionStrategyName): void {
-  const label = REPOSITION_LABELS[reposition];
-  const desc = REPOSITION_DESCRIPTIONS[reposition];
-  const chipText = `Park: ${label}`;
-  if (pane.repoName.textContent !== chipText) pane.repoName.textContent = chipText;
-  pane.repoTrigger.setAttribute("aria-label", `Change idle-parking strategy (currently ${label})`);
-  pane.repoTrigger.title = desc;
-}
-
-/**
- * Build the popover's option list for a pane. Each row renders the
- * strategy label, a one-liner description, and — when compare mode is
- * on — a muted "also in A"/"also in B" tag whenever that strategy is
- * already active on the sibling pane. Shared by both the dispatch and
- * reposition popover renderers via `renderStrategyPopover` /
- * `renderRepositionPopover`.
- */
-function renderPopoverOptions<T extends string>(
-  container: HTMLElement,
-  options: readonly T[],
-  labels: Record<T, string>,
-  descriptions: Record<T, string>,
-  dataKey: string,
-  current: T,
-  sibling: T | null,
-  siblingLabel: "A" | "B",
-  onPick: (v: T) => void,
-): void {
-  const frag = document.createDocumentFragment();
-  for (const opt of options) {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "strategy-option";
-    row.setAttribute("role", "menuitemradio");
-    row.setAttribute("aria-checked", opt === current ? "true" : "false");
-    row.dataset[dataKey] = opt;
-
-    const header = document.createElement("span");
-    header.className = "strategy-option-name";
-    const labelSpan = document.createElement("span");
-    labelSpan.className = "strategy-option-label";
-    labelSpan.textContent = labels[opt];
-    header.appendChild(labelSpan);
-
-    if (sibling && opt === sibling) {
-      const badge = document.createElement("span");
-      badge.className = "strategy-option-sibling";
-      badge.textContent = `also in ${siblingLabel}`;
-      header.appendChild(badge);
-    }
-
-    const desc = document.createElement("span");
-    desc.className = "strategy-option-desc";
-    desc.textContent = descriptions[opt];
-
-    row.append(header, desc);
-    row.addEventListener("click", () => {
-      onPick(opt);
-    });
-    frag.appendChild(row);
-  }
-  container.replaceChildren(frag);
-}
-
-function renderStrategyPopover(
-  pane: PaneHandles,
-  currentStrategy: StrategyName,
-  siblingStrategy: StrategyName | null,
-  siblingLabel: "A" | "B",
-  onPick: (s: StrategyName) => void,
-): void {
-  renderPopoverOptions(
-    pane.popover,
-    UI_STRATEGIES,
-    STRATEGY_LABELS,
-    STRATEGY_DESCRIPTIONS,
-    "strategy",
-    currentStrategy,
-    siblingStrategy,
-    siblingLabel,
-    onPick,
-  );
-}
-
-/** Re-render both pane popovers from current state. Cheap (12 rows). */
-function refreshStrategyPopovers(state: State, ui: UiHandles): void {
-  const { strategyA, strategyB, compare } = state.permalink;
-  renderStrategyPopover(
-    ui.paneA,
-    strategyA,
-    compare ? strategyB : null,
-    "B",
-    (s) => void pickStrategy(state, ui, "a", s),
-  );
-  renderStrategyPopover(
-    ui.paneB,
-    strategyB,
-    compare ? strategyA : null,
-    "A",
-    (s) => void pickStrategy(state, ui, "b", s),
-  );
-}
-
-function setStrategyPopoverOpen(pane: PaneHandles, open: boolean): void {
-  pane.popover.hidden = !open;
-  pane.trigger.setAttribute("aria-expanded", String(open));
-}
-
-function isAnyStrategyPopoverOpen(ui: UiHandles): boolean {
-  return !ui.paneA.popover.hidden || !ui.paneB.popover.hidden;
-}
-
-function closeAllStrategyPopovers(ui: UiHandles): void {
-  setStrategyPopoverOpen(ui.paneA, false);
-  setStrategyPopoverOpen(ui.paneB, false);
-}
-
-/**
- * Wire a pane's chip trigger to toggle its popover. Closing the
- * sibling popover on open keeps only one panel visible at a time.
- */
-function attachStrategyPopover(state: State, ui: UiHandles, pane: PaneHandles): void {
-  pane.trigger.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    const willOpen = pane.popover.hidden;
-    closeAllPopovers(ui);
-    if (willOpen) {
-      // Refresh just before opening so (also in A/B) badges reflect
-      // the current state even if the sibling just changed strategy.
-      refreshStrategyPopovers(state, ui);
-      setStrategyPopoverOpen(pane, true);
-    }
-  });
-}
-
-/**
- * Global outside-click listener that dismisses any open strategy
- * popover when the click lands outside both a popover and its
- * trigger. Registered once; both panes share the handler so we
- * don't accidentally leak an open popover when the DOM is rebuilt.
- */
-function attachOutsideClickForPopovers(ui: UiHandles): void {
-  document.addEventListener("click", (ev) => {
-    if (!isAnyStrategyPopoverOpen(ui) && !isAnyRepositionPopoverOpen(ui)) return;
-    const target = ev.target;
-    if (!(target instanceof Node)) return;
-    for (const pane of [ui.paneA, ui.paneB] as const) {
-      if (pane.popover.contains(target)) return;
-      if (pane.trigger.contains(target)) return;
-      if (pane.repoPopover.contains(target)) return;
-      if (pane.repoTrigger.contains(target)) return;
-    }
-    closeAllPopovers(ui);
-  });
-}
-
-/**
- * Apply a strategy choice from a popover. Noop when the user picks
- * the already-active strategy. Otherwise updates the permalink,
- * refreshes both popovers (so (also in …) badges stay accurate), and
- * triggers `resetAll` so both panes restart on the same rider stream
- * — which is the only way the scoreboard stays apples-to-apples.
- */
-async function pickStrategy(
-  state: State,
-  ui: UiHandles,
-  which: "a" | "b",
-  strategy: StrategyName,
-): Promise<void> {
-  const current = which === "a" ? state.permalink.strategyA : state.permalink.strategyB;
-  if (current === strategy) {
-    closeAllStrategyPopovers(ui);
-    return;
-  }
-  if (which === "a") {
-    state.permalink = { ...state.permalink, strategyA: strategy };
-    renderPaneStrategyInfo(ui.paneA, strategy);
-    syncSheetCompact(ui, scenarioById(state.permalink.scenario).label, strategy);
-  } else {
-    state.permalink = { ...state.permalink, strategyB: strategy };
-    renderPaneStrategyInfo(ui.paneB, strategy);
-  }
-  refreshStrategyPopovers(state, ui);
-  closeAllStrategyPopovers(ui);
-  await resetAll(state, ui);
-  toast(ui.toast, `${which === "a" ? "A" : "B"}: ${STRATEGY_LABELS[strategy]}`);
-}
-
-// ─── Reposition chip + popover ──────────────────────────────────────
-
-function renderRepositionPopover(
-  pane: PaneHandles,
-  currentReposition: RepositionStrategyName,
-  siblingReposition: RepositionStrategyName | null,
-  siblingLabel: "A" | "B",
-  onPick: (r: RepositionStrategyName) => void,
-): void {
-  renderPopoverOptions(
-    pane.repoPopover,
-    UI_REPOSITION_STRATEGIES,
-    REPOSITION_LABELS,
-    REPOSITION_DESCRIPTIONS,
-    "reposition",
-    currentReposition,
-    siblingReposition,
-    siblingLabel,
-    onPick,
-  );
-}
-
-function refreshRepositionPopovers(state: State, ui: UiHandles): void {
-  const { repositionA, repositionB, compare } = state.permalink;
-  renderRepositionPopover(
-    ui.paneA,
-    repositionA,
-    compare ? repositionB : null,
-    "B",
-    (r) => void pickReposition(state, ui, "a", r),
-  );
-  renderRepositionPopover(
-    ui.paneB,
-    repositionB,
-    compare ? repositionA : null,
-    "A",
-    (r) => void pickReposition(state, ui, "b", r),
-  );
-}
-
-function setRepositionPopoverOpen(pane: PaneHandles, open: boolean): void {
-  pane.repoPopover.hidden = !open;
-  pane.repoTrigger.setAttribute("aria-expanded", String(open));
-}
-
-function isAnyRepositionPopoverOpen(ui: UiHandles): boolean {
-  return !ui.paneA.repoPopover.hidden || !ui.paneB.repoPopover.hidden;
-}
-
-function closeAllRepositionPopovers(ui: UiHandles): void {
-  setRepositionPopoverOpen(ui.paneA, false);
-  setRepositionPopoverOpen(ui.paneB, false);
-}
-
-/** Close any popover (dispatch or reposition) on any pane. */
-function closeAllPopovers(ui: UiHandles): void {
-  closeAllStrategyPopovers(ui);
-  closeAllRepositionPopovers(ui);
-}
-
-function attachRepositionPopover(state: State, ui: UiHandles, pane: PaneHandles): void {
-  pane.repoTrigger.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    const willOpen = pane.repoPopover.hidden;
-    closeAllPopovers(ui);
-    if (willOpen) {
-      refreshRepositionPopovers(state, ui);
-      setRepositionPopoverOpen(pane, true);
-    }
-  });
-}
-
-async function pickReposition(
-  state: State,
-  ui: UiHandles,
-  which: "a" | "b",
-  reposition: RepositionStrategyName,
-): Promise<void> {
-  const current = which === "a" ? state.permalink.repositionA : state.permalink.repositionB;
-  if (current === reposition) {
-    closeAllRepositionPopovers(ui);
-    return;
-  }
-  if (which === "a") {
-    state.permalink = { ...state.permalink, repositionA: reposition };
-    renderPaneRepositionInfo(ui.paneA, reposition);
-  } else {
-    state.permalink = { ...state.permalink, repositionB: reposition };
-    renderPaneRepositionInfo(ui.paneB, reposition);
-  }
-  refreshRepositionPopovers(state, ui);
-  closeAllRepositionPopovers(ui);
-  await resetAll(state, ui);
-  toast(ui.toast, `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`);
 }
 
 // ─── Decision narration ──────────────────────────────────────────────
