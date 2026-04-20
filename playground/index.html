@@ -12,13 +12,13 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <header class="top flex items-center justify-between px-5 py-3 bg-gradient-to-b from-surface-secondary to-surface border-b border-stroke-subtle relative">
-      <h1 class="m-0 text-[14px] font-semibold tracking-[-0.005em] text-content inline-flex items-center gap-2.5 before:content-[''] before:inline-block before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]">elevator-core playground</h1>
-      <nav class="flex items-center">
+    <header class="top flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-b from-surface-secondary to-surface border-b border-stroke-subtle relative max-md:px-3.5 max-md:py-2.5 max-md:gap-2">
+      <h1 class="m-0 text-[14px] font-semibold tracking-[-0.005em] text-content inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)] max-md:text-[12.5px] max-md:gap-2 max-md:tracking-[-0.01em]"><span class="truncate"><span class="max-md:hidden">elevator-core </span>playground</span></h1>
+      <nav class="flex items-center gap-4 max-md:gap-3 shrink-0">
         <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">?</button>
-        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://github.com/andymai/elevator-core">repo</a>
-        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://docs.rs/elevator-core">docs</a>
-        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="../">guide</a>
+        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://github.com/andymai/elevator-core">repo</a>
+        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden" href="https://docs.rs/elevator-core">docs</a>
+        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden" href="../">guide</a>
       </nav>
     </header>
 
@@ -193,13 +193,12 @@
       <div class="flex items-center gap-2.5 flex-wrap max-md:gap-2">
         <span class="ctl-k">Phase</span>
         <span id="phase-label" class="text-content-secondary tabular-nums font-medium">&mdash;</span>
-        <!-- `feature-hint` element kept for the code that still writes
-             to it, but hidden — it was taking a full row's width and
-             competing with the legend for attention. -->
-        <span id="feature-hint" hidden></span>
-        <!-- Color legend merged into the phase strip's right side. -->
-        <div class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-2">
-          <span class="ctl-k">Cabin</span>
+        <!-- Color legend merged into the phase strip's right side.
+             On mobile the "CABIN" label drops and gaps tighten so the
+             legend can ride on the same row as the phase name instead
+             of wrapping to its own line. -->
+        <div class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-1.5 max-md:gap-y-0.5">
+          <span class="ctl-k max-md:hidden">Cabin</span>
           <span class="inline-flex items-center gap-1 whitespace-nowrap">
             <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #6b6b75"></span>Idle
           </span>
@@ -291,7 +290,7 @@
             hidden
           ></div>
         </header>
-        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
         <div id="metrics-a" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
@@ -351,7 +350,7 @@
             hidden
           ></div>
         </header>
-        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
         <div id="metrics-b" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>

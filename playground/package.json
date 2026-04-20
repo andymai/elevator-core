@@ -9,9 +9,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "snap": "vite build && vite preview --port 4173 & sleep 2 && node scripts/snap.mjs ; kill %1 2>/dev/null || true"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22.0.0",
     "tailwindcss": "^4.2.2",

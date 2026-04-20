@@ -1,26 +1,24 @@
-//! Headless audit of the playground scenarios.
+//! Headless dispatch-strategy regression harness.
 //!
-//! Mirrors the playground's six scenarios (RON configs + phase tables +
-//! `abandonAfterSec` budgets) against a deterministic rider driver,
-//! then reports the metrics a human would be squinting at in the
-//! browser: delivered, abandoned, abandonment rate, avg/max wait, peak
-//! waiting-queue length across the whole run.
+//! Runs two fixed scenarios (mid-rise office, single-line sky-lobby
+//! skyscraper) against every built-in dispatch strategy with a
+//! deterministic rider driver, then reports the metrics a human would
+//! be squinting at in the browser: delivered, abandoned, abandonment
+//! rate, avg/max wait, peak waiting-queue length across the whole run.
 //!
-//! Purpose: verify that playground-level tuning changes (demand rates,
-//! elevator counts, abandonment budgets) produce bounded queues and
-//! realistic abandonment rates *without* needing to spin up a browser
-//! and watch the UI for minutes at a time. If the office's abandonment
-//! fix landed correctly, its peak-queue figure here should be finite
-//! and its `abandoned > 0` should reflect the demand/supply gap.
+//! Purpose: catch dispatch regressions across the `ScanDispatch`,
+//! `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, and
+//! `DestinationDispatch` strategies at a glance — a scan that reports
+//! 100% delivery and 0% abandonment that suddenly starts abandoning
+//! riders is an obvious regression.
 //!
-//! This intentionally **duplicates** the scenario data from
-//! `playground/src/scenarios.ts` — one RON string and phase table per
-//! scenario, copied verbatim. A single-source-of-truth refactor would
-//! require a JSON pivot that both TS and Rust consume; not worth the
-//! scope cost right now. If the scenarios.ts numbers change, this file
-//! needs a mirror edit. Comments at the top of each scenario anchor to
-//! the TS side's cruise-capacity docstring so divergence is easy to
-//! spot in review.
+//! Scope note: this example used to mirror the playground's scenario
+//! set, but the playground now runs a 42-stop multi-line skyscraper
+//! (Low / High / Executive / Service banks sharing a sky lobby
+//! transfer), and the audit's single-line 13-stop skyscraper is a
+//! deliberately simpler stand-in — both for faster iteration and
+//! because the audit's driver doesn't exercise the multi-leg route
+//! auto-solver. Keep the two intentionally decoupled.
 //!
 //! Run with:
 //! ```sh

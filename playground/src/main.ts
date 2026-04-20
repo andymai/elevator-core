@@ -263,7 +263,6 @@ interface UiHandles {
   loader: HTMLElement;
   toast: HTMLElement;
   phaseLabel: HTMLElement | null;
-  featureHint: HTMLElement | null;
   phaseProgress: HTMLElement | null;
   verdictRibbon: HTMLElement;
   shortcutsBtn: HTMLButtonElement;
@@ -418,7 +417,6 @@ function wireUi(): UiHandles {
     loader: q("loader"),
     toast: q("toast"),
     phaseLabel: qOpt("phase-label"),
-    featureHint: qOpt("feature-hint"),
     phaseProgress: qOpt("phase-progress-fill"),
     verdictRibbon: q("verdict-ribbon"),
     shortcutsBtn: q<HTMLButtonElement>("shortcuts"),
@@ -452,7 +450,6 @@ function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   renderPaneRepositionInfo(ui.paneB, p.repositionB);
   syncScenarioCards(ui, p.scenario);
   const scenario = scenarioById(p.scenario);
-  if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
   syncSheetCompact(ui, scenario.label, p.strategyA);
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
@@ -560,6 +557,18 @@ async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
+  // Scenarios with a lot of floors need a taller shaft on mobile, or
+  // the 42-floor skyscraper crushes into a 6-px-per-story smear. The
+  // CSS rule reads `--shaft-min-h` inside a `max-width: 767px` media
+  // query; floor here means the mobile layout will stretch to fit and
+  // the main column scrolls. Desktop ignores the variable.
+  const wrap = handles.canvas.parentElement;
+  if (wrap) {
+    const stopCount = scenario.stops.length;
+    const perStoryPx = 16;
+    const minShaftPx = Math.max(200, stopCount * perStoryPx);
+    wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
+  }
   renderPaneStrategyInfo(handles, strategy);
   renderPaneRepositionInfo(handles, reposition);
   initMetricRows(handles.metrics);
@@ -666,7 +675,6 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // `configureTraffic` once the quota drains, so the scenario's
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
-    if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
   } catch (err) {
@@ -986,10 +994,14 @@ function loop(state: State, ui: UiHandles): void {
 
       const snapA = paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
-      // `elapsed` is wall-clock; scaling by `ticks` keeps the sim-time
-      // budget the driver operates on in lockstep with the actual
-      // simulation advance. Skipped while we're still seeding.
-      const simElapsed = elapsed * ticks;
+      // Clamp wall-clock first (to guard against tab-switch catch-up, which
+      // restores rAF with a multi-second delta), *then* scale by speed so
+      // the phase clock and spawn cadence track the sim's actual rate.
+      // At 8× the raw sim-time delta is ~0.128 s per 16 ms frame, which
+      // would exceed the driver's internal 4/60 sec clamp every frame
+      // and silently throttle phases to half speed. Skipped while seeding.
+      const clampedWall = Math.min(elapsed, 4 / 60);
+      const simElapsed = clampedWall * ticks;
       const specs = state.seeding
         ? []
         : state.traffic.drainSpawns(snapA, simElapsed);

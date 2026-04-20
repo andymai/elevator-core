@@ -41,7 +41,7 @@ describe("TrafficDriver — phase schedule", () => {
     const d = new TrafficDriver(42);
     d.setPhases([FLAT(300, 60)]); // one phase, 5 min, 60 riders/min = 1/s
     const snap = snapshotWithStops(3);
-    // Advance 10 sim-seconds in small slices (respects the per-call 4/60s cap).
+    // Advance 10 sim-seconds in small per-frame slices.
     let spawns = 0;
     for (let i = 0; i < 10 * 60; i += 1) spawns += d.drainSpawns(snap, 1 / 60).length;
     // At 1 rider/sec for 10 sec we expect ~10 spawns ± accumulator remainder.

@@ -86,11 +86,13 @@ export class TrafficDriver {
     // snapshot with &lt;2 addressable stops produces no specs at all.
     const addressable = snapshot.stops.filter((s) => s.stop_id !== 0xffffffff);
     if (addressable.length < 2) return [];
-    // Clamp to ~4 frames at 60 Hz. When the browser tab is hidden
-    // requestAnimationFrame pauses entirely, so on restore the first
-    // `elapsedSeconds` is the full hidden duration — which at 120 riders/min
-    // would dump ~20 spawns in a single frame and visibly jolt the sim.
-    const dt = Math.min(elapsedSeconds, 4 / 60);
+    // Defensive safety net: even if a caller forgets to clamp wall-clock
+    // before passing sim-time in, cap a single drain to ~1 sim-second of
+    // spawns so a tab-hidden restore can't dump an entire minute of
+    // traffic into one frame. Callers are expected to apply a tighter
+    // wall-clock clamp (the playground uses 4 frames at 60 Hz) before
+    // scaling by the sim-speed multiplier.
+    const dt = Math.min(Math.max(0, elapsedSeconds), 1);
     const phase = this.#phases[this.currentPhaseIndex()];
     this.#accumulator += ((phase.ridersPerMin * this.#intensity) / 60) * dt;
     this.#elapsedInCycleSec = (this.#elapsedInCycleSec + dt) % (this.#totalDurationSec || 1);
