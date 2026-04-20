@@ -19,6 +19,16 @@ export interface Car {
   load: number;
   capacity: number;
   riders: number;
+  /**
+   * Min and max world-y of stops the car's line serves. Renderers
+   * use these to draw a shaft channel that only spans the range the
+   * car can reach — express banks and service elevators get visibly
+   * shorter shafts than the full-building banks. `NaN` when the
+   * wasm couldn't resolve a range (stale build or mis-configured
+   * line); renderers fall back to the full canvas height in that case.
+   */
+  min_served_y: number;
+  max_served_y: number;
 }
 
 export interface Stop {
@@ -60,6 +70,20 @@ export interface Metrics {
 export type StrategyName = "scan" | "look" | "nearest" | "etd" | "destination" | "rsr";
 
 /**
+ * Per-pane reposition (idle-parking) strategy. Mirrors the five
+ * built-ins exposed by the wasm crate's `builtinRepositionStrategies`;
+ * kept as a string literal union so typos surface at the compiler.
+ *
+ * - `adaptive` — mode-gated: ReturnToLobby in up-peak, PredictiveParking
+ *   otherwise. The playground's default.
+ * - `predictive` — always park near the hottest recent-arrival stop.
+ * - `lobby` — always return to stop 0.
+ * - `spread` — maximise inter-car spacing across the shaft.
+ * - `none` — stay where the car stopped.
+ */
+export type RepositionStrategyName = "adaptive" | "predictive" | "lobby" | "spread" | "none";
+
+/**
  * Traffic-mode readout from the core `TrafficDetector`, surfaced by
  * `Sim.trafficMode()`. Mirrors the Rust `TrafficMode` enum 1:1.
  * `AdaptiveParking` reads this each reposition pass to pick between
@@ -86,6 +110,7 @@ export type BubbleEvent =
   | { kind: "door-opened"; tick: number; elevator: number }
   | { kind: "door-closed"; tick: number; elevator: number }
   | { kind: "elevator-assigned"; tick: number; elevator: number; stop: number }
+  | { kind: "elevator-repositioning"; tick: number; elevator: number; stop: number }
   | { kind: "other"; tick: number; label: string };
 
 /**

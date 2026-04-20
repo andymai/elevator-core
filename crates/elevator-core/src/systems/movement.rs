@@ -204,6 +204,9 @@ pub fn run(
             {
                 q.pop_front();
             }
+            // Tracked and applied after the `&mut car` block ends —
+            // `world.resource_mut` can't coexist with the car borrow.
+            let mut reposition_arrived = false;
             let Some(car) = world.elevator_mut(eid) else {
                 continue;
             };
@@ -215,9 +218,20 @@ pub fn run(
             metrics.total_moves += 1;
             if is_repositioning {
                 // Repositioned elevators go directly to Idle — no door cycle.
+                // A reposition trip sets the indicators to its travel
+                // direction (via `indicators_for_travel` in dispatch /
+                // advance_queue), but once the car is parked with no
+                // committed work the lamps should read "both" — otherwise
+                // the next dispatch tick rejects opposite-direction hall
+                // calls at this stop via `pair_can_do_work`, and the
+                // Hungarian picks a different, farther car to serve
+                // them while this one sits there.
+                let indicators_dirty = !(car.going_up && car.going_down);
                 car.phase = ElevatorPhase::Idle;
                 car.target_stop = None;
                 car.repositioning = false;
+                car.going_up = true;
+                car.going_down = true;
                 events.emit(Event::ElevatorRepositioned {
                     elevator: eid,
                     at_stop: target_stop_eid,
@@ -228,6 +242,18 @@ pub fn run(
                     at_stop: Some(target_stop_eid),
                     tick: ctx.tick,
                 });
+                if indicators_dirty {
+                    events.emit(Event::DirectionIndicatorChanged {
+                        elevator: eid,
+                        going_up: true,
+                        going_down: true,
+                        tick: ctx.tick,
+                    });
+                }
+                // Arm the reposition cooldown below, once the
+                // `&mut car` borrow ends — `world.resource_mut`
+                // needs `&mut world` and can't coexist with it.
+                reposition_arrived = true;
             } else {
                 car.phase = ElevatorPhase::DoorOpening;
                 car.door = DoorState::request_open(door_transition_ticks, door_open_ticks);
@@ -243,6 +269,12 @@ pub fn run(
                 // direction — the penthouse down-rider bug.
                 let (new_up, new_down) = direction_from_remaining_work(world, eid, target_pos);
                 update_indicators(world, events, eid, new_up, new_down, ctx.tick);
+            }
+            if reposition_arrived
+                && let Some(cooldowns) =
+                    world.resource_mut::<crate::dispatch::reposition::RepositionCooldowns>()
+            {
+                cooldowns.record_arrival(eid, ctx.tick);
             }
         }
     }

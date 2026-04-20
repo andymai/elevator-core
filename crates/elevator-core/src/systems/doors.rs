@@ -62,12 +62,32 @@ pub fn run(
                 car.phase = ElevatorPhase::DoorClosing;
             }
             DoorTransition::FinishedClosing => {
+                // Transition to Stopped with no committed target — the
+                // car is at a stop and free for reassignment. Also
+                // reset direction lamps so any stale state from the
+                // just-finished leg (e.g., `going_up=false` after a
+                // down-trip) doesn't make `pair_can_do_work` reject
+                // opposite-direction pickup in the next dispatch tick.
+                // Without this, a car that dropped a down-bound rider
+                // at the lobby sits idle while an up-bound rider
+                // waits there — another car gets sent to serve them.
+                let indicators_dirty = !(car.going_up && car.going_down);
                 car.phase = ElevatorPhase::Stopped;
                 car.target_stop = None;
+                car.going_up = true;
+                car.going_down = true;
                 events.emit(Event::DoorClosed {
                     elevator: eid,
                     tick: ctx.tick,
                 });
+                if indicators_dirty {
+                    events.emit(Event::DirectionIndicatorChanged {
+                        elevator: eid,
+                        going_up: true,
+                        going_down: true,
+                        tick: ctx.tick,
+                    });
+                }
             }
             DoorTransition::None => {}
         }

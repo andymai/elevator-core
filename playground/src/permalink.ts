@@ -1,5 +1,5 @@
 import { PARAM_KEYS, type Overrides, type ParamKey } from "./params";
-import type { StrategyName } from "./types";
+import type { RepositionStrategyName, StrategyName } from "./types";
 
 // URL state encoding. Keeps the sim reproducible: sharing the URL replays
 // exactly what the sender saw. Only knobs that affect behavior go here.
@@ -8,8 +8,18 @@ export interface PermalinkState {
   scenario: string;
   strategyA: StrategyName;
   strategyB: StrategyName;
+  /** Per-pane reposition (idle-parking) strategy. Defaults to
+   *  `"adaptive"` — the scenario's baseline — so pre-existing
+   *  permalinks without these keys behave identically. */
+  repositionA: RepositionStrategyName;
+  repositionB: RepositionStrategyName;
   compare: boolean;
-  seed: number;
+  /** Word seed (RimWorld-style). Hashed to a numeric RNG seed by
+   *  `hashSeedWord` when building the TrafficDriver. Kept as text so
+   *  users can type memorable words like "otis" or "lobby" and share
+   *  them in permalinks. Pre-existing numeric seeds (e.g. "42") round-
+   *  trip unchanged — a digit string is just another valid word. */
+  seed: string;
   /**
    * Multiplier applied on top of each phase's baseline `ridersPerMin`.
    * A stand-in for the old `trafficRate` slider: replacing the absolute
@@ -49,14 +59,25 @@ export const DEFAULT_STATE: PermalinkState = {
   // rush). Unknown scenario ids still resolve through
   // `scenarioById`'s fallback so stale permalinks keep loading cleanly.
   scenario: "skyscraper-sky-lobby",
-  strategyA: "etd",
-  strategyB: "scan",
-  // Compare mode off by default: turning it on doubles the cold-boot
-  // time because `resetAll` serialises both `WasmSim` constructions.
-  // Single-pane first-paint is cheaper; users flip compare via the
-  // checkbox or the `C` shortcut once the first sim is visible.
-  compare: false,
-  seed: 42,
+  // Cold-boot pairing: SCAN as the baseline primitive vs RSR as the
+  // composite cost-stack. Makes the first-impression compare mode
+  // showcase the full spread between the simplest and most
+  // full-featured built-in dispatchers.
+  strategyA: "scan",
+  strategyB: "rsr",
+  // Default compare: SCAN + lobby-return vs RSR + adaptive. Gives
+  // users an immediate "simple-and-predictable" baseline next to the
+  // "modern and mode-aware" comparison — the delta in wait times
+  // during morning rush lands right away.
+  repositionA: "lobby",
+  repositionB: "adaptive",
+  // Compare mode on by default: the playground's whole pitch is
+  // side-by-side strategy comparison, so the cold-boot view should
+  // already show two panes rather than hide the feature behind a
+  // toggle. Users who want single-pane still flip via the checkbox
+  // or the `C` shortcut.
+  compare: true,
+  seed: "otis",
   intensity: 1.0,
   // 2× default (was 4×): after door times moved to realistic
   // commercial values (3–5 s dwell), 4× playback made the whole
@@ -76,9 +97,26 @@ const STRATEGIES: readonly StrategyName[] = [
   "rsr",
 ];
 
+const REPOSITION_STRATEGIES: readonly RepositionStrategyName[] = [
+  "adaptive",
+  "predictive",
+  "lobby",
+  "spread",
+  "none",
+];
+
 function parseStrategy(raw: string | null, fallback: StrategyName): StrategyName {
   return raw !== null && (STRATEGIES as readonly string[]).includes(raw)
     ? (raw as StrategyName)
+    : fallback;
+}
+
+function parseReposition(
+  raw: string | null,
+  fallback: RepositionStrategyName,
+): RepositionStrategyName {
+  return raw !== null && (REPOSITION_STRATEGIES as readonly string[]).includes(raw)
+    ? (raw as RepositionStrategyName)
     : fallback;
 }
 
@@ -90,8 +128,18 @@ export function encodePermalink(state: PermalinkState): string {
   // strategy when the recipient toggles compare on. Only the compare flag
   // itself is conditional.
   p.set("b", state.strategyB);
-  if (state.compare) p.set("c", "1");
-  p.set("k", String(state.seed));
+  // Reposition picks — omit when set to the baseline so bare URLs
+  // stay short. Any non-default pick is emitted explicitly, mirroring
+  // the `c` key contract (explicit wins, missing = default).
+  if (state.repositionA !== DEFAULT_STATE.repositionA) p.set("pa", state.repositionA);
+  if (state.repositionB !== DEFAULT_STATE.repositionB) p.set("pb", state.repositionB);
+  // Always emit `c` explicitly so the URL round-trips identically
+  // regardless of whether the sender's value matches the current
+  // default. Missing `c` in the URL falls back to `DEFAULT_STATE.compare`
+  // via `decodePermalink` — that fallback is what makes bare-URL boot
+  // honor the default (e.g. compare-on for first-time visitors).
+  p.set("c", state.compare ? "1" : "0");
+  p.set("k", state.seed);
   p.set("i", String(state.intensity));
   p.set("x", String(state.speed));
   // Overrides: only emit keys the user has actually moved away from
@@ -120,8 +168,10 @@ export function decodePermalink(search: string): PermalinkState {
     scenario: p.get("s") ?? DEFAULT_STATE.scenario,
     strategyA: parseStrategy(p.get("a") ?? p.get("d"), DEFAULT_STATE.strategyA),
     strategyB: parseStrategy(p.get("b"), DEFAULT_STATE.strategyB),
-    compare: p.get("c") === "1",
-    seed: parseNum(p.get("k"), DEFAULT_STATE.seed),
+    repositionA: parseReposition(p.get("pa"), DEFAULT_STATE.repositionA),
+    repositionB: parseReposition(p.get("pb"), DEFAULT_STATE.repositionB),
+    compare: p.has("c") ? p.get("c") === "1" : DEFAULT_STATE.compare,
+    seed: (p.get("k") ?? "").trim() || DEFAULT_STATE.seed,
     // `t` was the old absolute riders-per-minute; if we see it we
     // silently drop it and fall back to the default multiplier rather
     // than try to re-interpret the value against an unknown scenario.
@@ -146,4 +196,29 @@ function parseNum(raw: string | null, fallback: number): number {
 function formatOverride(n: number): string {
   if (Number.isInteger(n)) return String(n);
   return Number(n.toFixed(2)).toString();
+}
+
+/**
+ * Hash a word seed to a 32-bit unsigned integer using FNV-1a. Callers
+ * feed the result into `TrafficDriver` to initialise its RNG stream.
+ *
+ * FNV-1a was chosen for three reasons:
+ *   - Fully deterministic (same word → same RNG stream on every
+ *     machine, so permalinks are reproducible across browsers).
+ *   - Good avalanche at tiny key sizes — `"a"` vs `"b"` vs `"c"` all
+ *     produce wildly different streams, so typing a new seed feels
+ *     like starting fresh.
+ *   - ~10 lines, no deps. We're not hashing adversarial input.
+ *
+ * Empty string hashes to a non-zero sentinel (FNV-1a's offset basis)
+ * so the driver never starts from a degenerate all-zeros state.
+ */
+export function hashSeedWord(word: string): number {
+  let hash = 0x811c9dc5;
+  const trimmed = word.trim();
+  for (let i = 0; i < trimmed.length; i++) {
+    hash ^= trimmed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }

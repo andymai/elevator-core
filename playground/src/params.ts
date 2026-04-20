@@ -175,6 +175,16 @@ export function pickStartingStops(numStops: number, cars: number): number[] {
  * honored before any setter call lands.
  */
 export function buildScenarioRon(scenario: ScenarioMeta, overrides: Overrides): string {
+  // Multi-line scenarios (the 40-floor skyscraper is the first) lock
+  // the cars range to a fixed count because their RON structure
+  // (lines + groups + per-line serves) can't be regenerated from
+  // `scenario.stops` alone. When cars isn't tweakable, use the
+  // scenario's pre-built RON verbatim. Physics overrides still apply
+  // via `applyPhysicsLive` — that path doesn't touch the RON.
+  const carsRange = scenario.tweakRanges.cars;
+  if (carsRange.min === carsRange.max) {
+    return scenario.ron;
+  }
   const cars = Math.round(resolveParam(scenario, "cars", overrides));
   const physics = applyPhysicsOverrides(scenario, overrides);
   const startingStops = pickStartingStops(scenario.stops.length, cars);

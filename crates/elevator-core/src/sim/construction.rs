@@ -192,6 +192,12 @@ impl Simulation {
         // from the same rolling window; strategies read the current
         // mode via `World::resource::<TrafficDetector>()`.
         world.insert_resource(crate::traffic_detector::TrafficDetector::default());
+        // Per-car reposition cooldown. Populated by the movement
+        // phase when a repositioning car arrives; consulted by the
+        // reposition phase to skip cars that just parked so the
+        // hot-stop ranking can't flip them around again the next
+        // tick.
+        world.insert_resource(crate::dispatch::reposition::RepositionCooldowns::default());
         // Expose tick rate to strategies that need to unit-convert
         // tick-denominated elevator fields (door cycle, ack latency)
         // into the second-denominated terms of their cost functions.

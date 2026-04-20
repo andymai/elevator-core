@@ -145,6 +145,12 @@ pub struct WorldSnapshot {
     /// the metrics phase hasn't run yet.
     #[serde(default)]
     pub traffic_detector: crate::traffic_detector::TrafficDetector,
+    /// Per-car reposition cooldown eligibility. Entries map to the
+    /// tick when each car next becomes eligible for reposition. Empty
+    /// in legacy snapshots; on restore the map is remapped through
+    /// `id_remap` to match newly-allocated entity IDs.
+    #[serde(default)]
+    pub reposition_cooldowns: crate::dispatch::reposition::RepositionCooldowns,
 }
 
 /// Per-line snapshot info within a group.
@@ -210,6 +216,7 @@ impl WorldSnapshot {
     /// To restore extension components, call
     /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
     /// on the returned simulation.
+    #[allow(clippy::too_many_lines)]
     pub fn restore(
         self,
         custom_strategy_factory: CustomStrategyFactory<'_>,
@@ -325,6 +332,11 @@ impl WorldSnapshot {
         // the *classified* state forward — refresh_traffic_detector
         // will update on the next metrics phase with fresh counts.
         world.insert_resource(self.traffic_detector);
+        // Reposition cooldowns remap through fresh IDs so a mid-
+        // cooldown car stays grounded across snapshot round-trips.
+        let mut reposition_cooldowns = self.reposition_cooldowns;
+        reposition_cooldowns.remap_entity_ids(&id_remap);
+        world.insert_resource(reposition_cooldowns);
 
         let mut sim = crate::sim::Simulation::from_parts(
             world,
@@ -918,6 +930,10 @@ impl crate::sim::Simulation {
                 .unwrap_or_default(),
             traffic_detector: world
                 .resource::<crate::traffic_detector::TrafficDetector>()
+                .cloned()
+                .unwrap_or_default(),
+            reposition_cooldowns: world
+                .resource::<crate::dispatch::reposition::RepositionCooldowns>()
                 .cloned()
                 .unwrap_or_default(),
         }

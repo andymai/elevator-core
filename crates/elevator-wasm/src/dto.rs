@@ -34,6 +34,15 @@ pub struct CarDto {
     pub capacity: f64,
     /// Number of riders currently aboard.
     pub riders: u32,
+    /// Minimum y-position of a stop the car's line serves. Renderers
+    /// use this (with `max_served_y`) to draw the shaft channel only
+    /// over the range the car can actually reach — an express elevator
+    /// that skips mid floors gets a short visible shaft, while a
+    /// service elevator spanning the basement to the mechanical room
+    /// gets a long one.
+    pub min_served_y: f64,
+    /// Maximum y-position of a stop the car's line serves.
+    pub max_served_y: f64,
 }
 
 /// Per-stop rendering snapshot.
@@ -78,12 +87,45 @@ pub struct Snapshot {
 impl Snapshot {
     /// Build a snapshot from the simulation state. Runs in O(elevators + stops).
     pub fn build(sim: &Simulation) -> Self {
+        // Precompute per-line (min_y, max_y) over the stops each line
+        // serves. Used below to populate `CarDto.min_served_y` /
+        // `max_served_y` so renderers can draw zone-limited shafts.
+        // Empty or ill-configured lines fall back to `(NaN, NaN)`;
+        // the TS renderer treats NaN as "draw full shaft" to stay
+        // forward-compatible with future scenarios.
+        let mut line_range: std::collections::HashMap<EntityId, (f64, f64)> =
+            std::collections::HashMap::new();
+        for group in sim.groups() {
+            for line in group.lines() {
+                let mut min_y = f64::INFINITY;
+                let mut max_y = f64::NEG_INFINITY;
+                for &stop_eid in line.serves() {
+                    if let Some(stop) = sim.world().stop(stop_eid) {
+                        let y = stop.position();
+                        if y < min_y {
+                            min_y = y;
+                        }
+                        if y > max_y {
+                            max_y = y;
+                        }
+                    }
+                }
+                if min_y.is_finite() && max_y.is_finite() {
+                    line_range.insert(line.entity(), (min_y, max_y));
+                }
+            }
+        }
+
         let cars = sim
             .world()
             .iter_elevators()
             .map(|(id, pos, car)| {
                 let v = sim.velocity(id).unwrap_or(0.0);
                 let target = car.target_stop().map(entity_to_u32);
+                let (min_served_y, max_served_y) = line_range
+                    .get(&car.line())
+                    .copied()
+                    .unwrap_or((f64::NAN, f64::NAN));
                 CarDto {
                     id: entity_to_u32(id),
                     line: entity_to_u32(car.line()),
@@ -94,6 +136,8 @@ impl Snapshot {
                     load: car.current_load().value(),
                     capacity: car.weight_capacity().value(),
                     riders: u32::try_from(car.riders().len()).unwrap_or(u32::MAX),
+                    min_served_y,
+                    max_served_y,
                 }
             })
             .collect();
@@ -226,6 +270,15 @@ pub enum EventDto {
         elevator: u32,
         stop: u32,
     },
+    /// Idle elevator has been sent to a new parking position by the
+    /// group's reposition strategy. Distinguished from `ElevatorAssigned`
+    /// so UIs can narrate "repositioning" as its own state rather than
+    /// conflating it with a passenger-servicing dispatch.
+    ElevatorRepositioning {
+        tick: u64,
+        elevator: u32,
+        stop: u32,
+    },
     Other {
         tick: u64,
         label: String,
@@ -305,6 +358,15 @@ impl From<Event> for EventDto {
                 tick,
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
+            },
+            Event::ElevatorRepositioning {
+                tick,
+                elevator,
+                to_stop,
+            } => Self::ElevatorRepositioning {
+                tick,
+                elevator: entity_to_u32(elevator),
+                stop: entity_to_u32(to_stop),
             },
             other => Self::Other {
                 tick: event_tick(&other),

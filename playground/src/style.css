@@ -574,10 +574,12 @@ button:active {
 /* .layout, .pane, .pane-header, .pane-badge, .pane-name, .pane-mode (base)
  * moved to Tailwind utilities on the HTML elements. Pane-mode state
  * variants below remain as custom CSS — the 3-way color-mix across
- * success/accent/error hues is awkward as utility chains. */
-.layout[data-mode="single"] #pane-b {
-  display: none;
-}
+ * success/accent/error hues is awkward as utility chains.
+ *
+ * The single-mode pane-b hide rule moved to @layer utilities at the
+ * bottom of this file — pane-b carries a `grid` utility which lives in
+ * the utilities layer, and layer order lets any utility beat a rule in
+ * @layer components regardless of selector specificity. */
 
 /* .shaft-wrap, .metric-strip, .metric-row (base), .metric-k, .metric-v (base)
  * moved to Tailwind utilities. State variants (pane-mode[data-mode=X],
@@ -599,31 +601,34 @@ button:active {
     var(--bg-primary);
 }
 /* Scenario card hover/active/pressed base moved to Tailwind utilities in
- * `renderScenarioCards()` (src/main.ts). The ::before accent indicator
- * below is kept as a pseudo since utilities can't inline a pseudo
- * directly with a complex gradient + glow. */
-.scenario-card[aria-pressed="true"]::before {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-up) 100%);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+ * `renderScenarioCards()` (src/main.ts). The old bottom accent bar
+ * pseudo was tied to full-size cards and felt heavy on compact
+ * pills — the `aria-pressed:bg-accent-muted` + accent border already
+ * carry the selection signal. */
+/* ── Seed shuffle button (inside the seed input) ───────────────────── */
+
+/* Global `button` styling (gradient + border + padding + hover
+ * lift) would make the in-input randomize affordance look like a
+ * second button glued on. Strip all of that so the icon reads as an
+ * inline input ornament — just a bare glyph that darkens on hover. */
+.seed-shuffle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  border-radius: var(--radius-sm);
 }
-/* Description line under the strategy select — constrained width and
- * min-height that are awkward as utility variants. The `.ctl-strategy`
- * marker is kept on its parent for CSS query scope but carries no rule:
- * `min-w-0` inline on that element would have overridden any
- * `.ctl-strategy { min-width: ... }` rule anyway. */
-.ctl-desc {
-  margin: 4px 0 0;
-  font-size: 11px;
-  color: var(--text-disabled);
-  line-height: 1.4;
-  max-width: 380px;
-  min-height: 1.4em;
+.seed-shuffle:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
 }
+.seed-shuffle:active {
+  transform: none;
+  box-shadow: none;
+}
+
 /* ── Nav button (?) ─────────────────────────────────────────────────── */
 
 .nav-btn {
@@ -708,6 +713,15 @@ button:active {
 /* .pane-title layout (flex / min-w-0 / flex-1) moved to utilities inline on
  * the `<div class="pane-title ...">` — only the state-driven .pane-decision
  * color cascade below remains. */
+.pane-strategy-desc {
+  /* Wrap to two lines when the card is narrow (compare mode, mobile). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+  min-height: 1.35em;
+}
 .pane-decision {
   font-size: 10.5px;
   color: var(--text-disabled);
@@ -807,6 +821,133 @@ button:active {
   font-weight: 500;
 }
 
+/* ── Strategy chip + popover ────────────────────────────────────────── */
+
+/* The chip lives inside the pane-header (`position: relative`) so its
+ * popover can anchor via absolute positioning. On mobile the popover
+ * detaches into a fixed bottom-sheet — see the `@media` block below. */
+.strategy-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(320px, calc(100vw - 24px));
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 30;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: strategy-popover-in var(--transition-normal) ease-out;
+}
+.strategy-popover[hidden] {
+  display: none;
+}
+@keyframes strategy-popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.strategy-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text-secondary);
+  letter-spacing: 0.005em;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+.strategy-option:hover,
+.strategy-option:focus-visible {
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+  outline: none;
+}
+.strategy-option[aria-checked="true"] {
+  background: color-mix(in srgb, var(--pane-accent, var(--accent)) 12%, transparent);
+  border-color: color-mix(in srgb, var(--pane-accent, var(--accent)) 40%, transparent);
+}
+.strategy-option-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.strategy-option[aria-checked="true"] .strategy-option-label::before {
+  content: "\2713\00a0";
+  color: var(--pane-accent, var(--accent));
+  font-weight: 700;
+}
+.strategy-option-sibling {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-disabled);
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  white-space: nowrap;
+}
+.strategy-option-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+/* Mobile: bottom-sheet variant. `z-index: 95` beats the sheet drawer's
+ * `z-40` so the popover sits above the mobile controls tray when that
+ * tray is open. Full-width, rounded top corners, safe-area padding. */
+@media (max-width: 767px) {
+  .strategy-popover {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 75dvh;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: 0;
+    box-shadow: var(--shadow-sheet);
+    z-index: 95;
+    animation: strategy-popover-sheet-in var(--transition-slow) var(--ease-spring);
+  }
+  @keyframes strategy-popover-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .strategy-option {
+    padding: 12px 12px;
+    min-height: 56px;
+  }
+  .strategy-option-name {
+    font-size: 13.5px;
+  }
+  .strategy-option-desc {
+    font-size: 12px;
+  }
+}
+
 /* ── Mobile ─────────────────────────────────────────────────────────── */
 
 /* Mobile-specific styling was previously concentrated here in a
@@ -825,6 +966,16 @@ button:active {
  * @layer components) guarantees the correct cascade regardless of which
  * Tailwind utilities the element also carries. */
 @layer utilities {
+  /* Hide pane B when the layout is in single mode. Lives in @layer
+   * utilities because pane-b carries a `grid` utility (display: grid)
+   * and CSS Cascade Level 5 gives later layers priority over earlier
+   * ones regardless of selector specificity — the components-layer
+   * version of this rule silently lost to `grid` on the utilities
+   * layer, so the pane stayed visible even with data-mode=single. */
+  .layout[data-mode="single"] #pane-b {
+    display: none;
+  }
+
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }

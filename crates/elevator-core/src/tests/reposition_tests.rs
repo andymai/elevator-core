@@ -277,6 +277,110 @@ fn predictive_parking_targets_highest_arrival_rate_stop() {
     );
 }
 
+/// Regression: a car already en route to the hottest stop must not
+/// be "double-booked" by an idle sibling getting assigned to the same
+/// stop. Pre-fix, `assign_greedy_by_score` built its `occupied` list
+/// from *current* positions of non-idle cars — so a car halfway to
+/// the hot stop looked free at the hot stop, and the idle car sailed
+/// in behind it.
+#[test]
+fn predictive_parking_skips_stop_already_targeted_by_moving_car() {
+    let (mut world, stops) = test_world_n(4);
+    let idle_car = spawn_elevator(&mut world, 0.0);
+    // `moving_car` sits halfway between stops[0] and stops[2], already
+    // committed to stops[2] via `Repositioning`. Its current position
+    // (5.0) is *not* on stops[2] (20.0), which is exactly the gap the
+    // old `occupied = [current position]` logic failed to cover.
+    let moving_car = spawn_elevator(&mut world, 5.0);
+    if let Some(car) = world.elevator_mut(moving_car) {
+        car.phase = ElevatorPhase::Repositioning(stops[2]);
+        car.target_stop = Some(stops[2]);
+        car.repositioning = true;
+    }
+    let group = test_group(&stops, vec![idle_car, moving_car]);
+
+    // Seed arrivals so stops[2] is hottest (10), stops[3] next (3).
+    // With the fix, idle_car should head to stops[3] because stops[2]
+    // is already covered by moving_car's target.
+    let mut log = ArrivalLog::default();
+    for _ in 0..10 {
+        log.record(50, stops[2]);
+    }
+    for _ in 0..3 {
+        log.record(80, stops[3]);
+    }
+    world.insert_resource(log);
+    world.insert_resource(CurrentTick(100));
+
+    // Only idle_car is in `idle_elevators` — matches how
+    // `systems::reposition` filters input.
+    let idle = vec![(idle_car, 0.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    assert_eq!(
+        result.len(),
+        1,
+        "idle car should still park — just not at the already-targeted stop"
+    );
+    assert_ne!(
+        result[0].1, stops[2],
+        "must not double-book stops[2]: moving_car is already en route there"
+    );
+    assert_eq!(
+        result[0],
+        (idle_car, stops[3]),
+        "idle car should fall through to the next-hottest unoccupied stop"
+    );
+}
+
+/// Same regression applied to `SpreadEvenly`: a car already heading
+/// to an end-of-shaft stop must "occupy" that destination for spread
+/// purposes, so the idle car spreads to the *other* extreme.
+#[test]
+fn spread_evenly_respects_target_of_moving_car() {
+    let (mut world, stops) = test_world_n(5);
+    let idle_car = spawn_elevator(&mut world, 20.0); // middle
+    let moving_car = spawn_elevator(&mut world, 10.0); // mid-low
+    if let Some(car) = world.elevator_mut(moving_car) {
+        // Heading to stops[4] (the top). Its current position (10.0)
+        // is actually at stops[1], but spread should treat stops[4]
+        // as occupied.
+        car.phase = ElevatorPhase::MovingToStop(stops[4]);
+        car.target_stop = Some(stops[4]);
+    }
+    let group = test_group(&stops, vec![idle_car, moving_car]);
+
+    let idle = vec![(idle_car, 20.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = SpreadEvenly;
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    // With moving_car's *target* (stops[4], pos 40.0) in the occupied
+    // list, the farthest-from-occupied stop from idle_car's position
+    // (20.0) is stops[0] (pos 0.0, distance 40). Pre-fix the occupied
+    // list would have had moving_car's current position (10.0), and
+    // stops[4] would have looked like the best spread target for the
+    // idle car — directly colliding with moving_car's destination.
+    assert_eq!(result.len(), 1, "expected one spread move");
+    assert_eq!(
+        result[0],
+        (idle_car, stops[0]),
+        "idle car should spread to the opposite end from the already-targeted stops[4]"
+    );
+}
+
 #[test]
 fn predictive_parking_no_movement_when_log_empty() {
     let (mut world, stops) = test_world_n(4);
