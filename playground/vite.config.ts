@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 // The playground loads the wasm-pack bundle from `public/pkg/` at runtime.
 // That directory is populated by CI (`wasm-pack build --target web --out-dir
@@ -9,6 +10,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   base: "./",
+  plugins: [tailwindcss()],
   build: {
     outDir: "dist",
     emptyOutDir: true,
