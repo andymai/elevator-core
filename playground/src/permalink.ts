@@ -46,10 +46,8 @@ const OVERRIDE_KEYS: Record<ParamKey, string> = {
 export const DEFAULT_STATE: PermalinkState = {
   // First-impression tuning: skyscraper is the visually richest
   // scenario (3 cars, 12 floors, bypass feature firing during morning
-  // rush) — office would have a visitor watching idle cars during
-  // "Overnight" for 45 sim-seconds before anything happens. The
-  // legacy `office-5` id still resolves through `scenarioById`
-  // fallback so stale permalinks keep loading cleanly.
+  // rush). Unknown scenario ids still resolve through
+  // `scenarioById`'s fallback so stale permalinks keep loading cleanly.
   scenario: "skyscraper-sky-lobby",
   strategyA: "etd",
   strategyB: "scan",
@@ -70,7 +68,14 @@ export const DEFAULT_STATE: PermalinkState = {
   overrides: {},
 };
 
-const STRATEGIES: readonly StrategyName[] = ["scan", "look", "nearest", "etd", "destination"];
+const STRATEGIES: readonly StrategyName[] = [
+  "scan",
+  "look",
+  "nearest",
+  "etd",
+  "destination",
+  "rsr",
+];
 
 function parseStrategy(raw: string | null, fallback: StrategyName): StrategyName {
   return raw !== null && (STRATEGIES as readonly string[]).includes(raw)

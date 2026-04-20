@@ -20,7 +20,7 @@ describe("permalink: core knobs", () => {
   it("round-trips through encode/decode without drift", () => {
     const state = {
       ...DEFAULT_STATE,
-      scenario: "office-mid-rise",
+      scenario: "convention-burst",
       strategyA: "look" as const,
       seed: 7,
       intensity: 1.4,
