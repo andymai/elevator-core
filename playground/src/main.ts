@@ -1,5 +1,16 @@
 import { generate as generateRandomWords } from "random-words";
 import { CanvasRenderer } from "./canvas";
+import { updatePhaseIndicator, updatePhaseProgress } from "./features/phase-strip";
+import { setShortcutSheetOpen } from "./features/keyboard-shortcuts";
+import {
+  type MetricKey,
+  METRIC_KEYS,
+  METRIC_HISTORY_LEN,
+  diffMetrics,
+  initMetricRows,
+  renderMetricRows,
+  renderVerdictRibbon,
+} from "./features/scoreboard";
 import { attachHoldToRepeat, el, toast } from "./platform";
 import {
   DEFAULT_STATE,
@@ -103,23 +114,8 @@ const REPOSITION_DESCRIPTIONS: Record<RepositionStrategyName, string> = {
   spread: "Keeps idle cars fanned out across the shaft so any floor has a nearby option.",
   none: "Leaves idle cars wherever they finished their last delivery.",
 };
-const METRIC_HISTORY_LEN = 120;
 const COLOR_A = "#7dd3fc";
 const COLOR_B = "#fda4af";
-
-/**
- * Keys for the metric strip rows. Kept as a string literal union so
- * `MetricVerdicts` and `Pane.metricHistory` both index the same set
- * and a typo in one spot surfaces at the other.
- */
-type MetricKey = "avg_wait_s" | "max_wait_s" | "delivered" | "abandoned" | "utilization";
-const METRIC_KEYS: MetricKey[] = [
-  "avg_wait_s",
-  "max_wait_s",
-  "delivered",
-  "abandoned",
-  "utilization",
-];
 
 /**
  * How long a pane's decision-narration line stays at full opacity
@@ -1072,13 +1068,6 @@ function resolveStopName(snap: Snapshot, stopEntityId: number): string {
   return stop?.name ?? `stop #${stopEntityId}`;
 }
 
-function updatePhaseIndicator(state: State, ui: UiHandles): void {
-  const el = ui.phaseLabel;
-  if (!el) return;
-  const next = state.traffic.currentPhaseLabel() || "—";
-  if (el.textContent !== next) el.textContent = next;
-}
-
 function updateScoreboard(state: State, ui: UiHandles): void {
   const paneA = state.paneA;
   if (!paneA?.latestMetrics) return;
@@ -1109,146 +1098,6 @@ function updateModeBadge(pane: Pane): void {
     pane.modeEl.dataset["mode"] = mode;
     pane.modeEl.textContent = mode;
   }
-}
-
-type Verdict = "win" | "lose" | "tie";
-type MetricVerdicts = Record<MetricKey, Verdict>;
-/**
- * Epsilon-based verdict so two panes that render identical values in the
- * metric strip (e.g. `0.0 s` vs `0.04 s` both display as `0.0 s`) don't
- * flicker between win/lose on floating-point noise. Epsilons match the UI's
- * display precision (`toFixed(1)` for times, `toFixed(0)` on the percent).
- */
-function diffMetrics(a: Metrics, b: Metrics): { a: MetricVerdicts; b: MetricVerdicts } {
-  const cmp = (
-    x: number,
-    y: number,
-    epsilon: number,
-    higherBetter: boolean,
-  ): [Verdict, Verdict] => {
-    if (Math.abs(x - y) < epsilon) return ["tie", "tie"];
-    const aWins = higherBetter ? x > y : x < y;
-    return aWins ? ["win", "lose"] : ["lose", "win"];
-  };
-  const [aw, bw] = cmp(a.avg_wait_s, b.avg_wait_s, 0.05, false);
-  const [amx, bmx] = cmp(a.max_wait_s, b.max_wait_s, 0.05, false);
-  const [ad, bd] = cmp(a.delivered, b.delivered, 0.5, true);
-  const [aab, bab] = cmp(a.abandoned, b.abandoned, 0.5, false);
-  const [au, bu] = cmp(a.utilization, b.utilization, 0.005, true);
-  return {
-    a: { avg_wait_s: aw, max_wait_s: amx, delivered: ad, abandoned: aab, utilization: au },
-    b: { avg_wait_s: bw, max_wait_s: bmx, delivered: bd, abandoned: bab, utilization: bu },
-  };
-}
-
-// Metric row layout: 5 fixed rows, always the same keys in the same order.
-// We build the DOM once and mutate text + verdict + sparkline in place
-// every frame.
-const METRIC_DEFS: Array<[string, MetricKey]> = [
-  ["Avg wait", "avg_wait_s"],
-  ["Max wait", "max_wait_s"],
-  ["Delivered", "delivered"],
-  ["Abandoned", "abandoned"],
-  ["Utilization", "utilization"],
-];
-
-function metricValue(m: Metrics, key: MetricKey): string {
-  switch (key) {
-    case "avg_wait_s":
-      return `${m.avg_wait_s.toFixed(1)} s`;
-    case "max_wait_s":
-      return `${m.max_wait_s.toFixed(1)} s`;
-    case "delivered":
-      return String(m.delivered);
-    case "abandoned":
-      return String(m.abandoned);
-    case "utilization":
-      return `${(m.utilization * 100).toFixed(0)}%`;
-  }
-}
-
-function initMetricRows(root: HTMLElement): void {
-  const frag = document.createDocumentFragment();
-  for (const [label] of METRIC_DEFS) {
-    const row = el(
-      "div",
-      "metric-row flex flex-col gap-[3px] px-2.5 py-[7px] bg-surface-elevated border border-stroke-subtle rounded-md transition-colors duration-normal",
-    );
-    // SVG sparkline lives in the metric row and is mutated in place each
-    // frame. Using SVG (not another canvas) keeps it crisp at any DPR
-    // and lets CSS drive the stroke color via `currentColor` / the
-    // `data-verdict` attribute on the row.
-    const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    spark.classList.add("metric-spark");
-    spark.setAttribute("viewBox", "0 0 100 14");
-    spark.setAttribute("preserveAspectRatio", "none");
-    spark.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path"));
-    row.append(
-      el(
-        "span",
-        "text-[9.5px] uppercase tracking-[0.08em] text-content-disabled font-medium",
-        label,
-      ),
-      el("span", "metric-v text-[15px] text-content font-medium [font-feature-settings:'tnum'_1]"),
-      spark,
-    );
-    frag.appendChild(row);
-  }
-  root.replaceChildren(frag);
-}
-
-function renderMetricRows(
-  root: HTMLElement,
-  m: Metrics,
-  verdicts: MetricVerdicts | null,
-  history: Record<MetricKey, number[]>,
-): void {
-  const rows = root.children;
-  for (let i = 0; i < METRIC_DEFS.length; i++) {
-    const row = rows[i] as HTMLElement | undefined;
-    if (!row) continue;
-    const def = METRIC_DEFS[i];
-    if (!def) continue;
-    const key = def[1];
-    const verdict = verdicts ? verdicts[key] : "";
-    if (row.dataset["verdict"] !== verdict) row.dataset["verdict"] = verdict;
-    const vs = row.children[1] as HTMLElement;
-    const val = metricValue(m, key);
-    if (vs.textContent !== val) vs.textContent = val;
-    const spark = row.children[2] as SVGSVGElement;
-    const path = spark.firstElementChild as SVGPathElement;
-    const d = buildSparklinePath(history[key]);
-    if (path.getAttribute("d") !== d) path.setAttribute("d", d);
-  }
-}
-
-/**
- * Build an SVG path `d` string sampling `values` across a 100×14
- * viewBox. The path uses the last up-to-`METRIC_HISTORY_LEN` samples
- * and auto-scales to the min/max within that window so the trace
- * always fills the vertical range regardless of absolute magnitude.
- * An empty or single-sample window draws a flat baseline.
- */
-function buildSparklinePath(values: number[]): string {
-  if (values.length < 2) return "M 0 13 L 100 13";
-  let min = values[0] ?? 0;
-  let max = values[0] ?? 0;
-  for (let i = 1; i < values.length; i++) {
-    const v = values[i];
-    if (v === undefined) continue;
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  const span = max - min;
-  const n = values.length;
-  let d = "";
-  for (let i = 0; i < n; i++) {
-    const x = (i / (n - 1)) * 100;
-    // Inverted y-axis so higher values sit higher on the chart.
-    const y = span > 0 ? 13 - (((values[i] ?? 0) - min) / span) * 12 : 7;
-    d += `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)} `;
-  }
-  return d.trim();
 }
 
 // ─── Tweak panel: state mutation ─────────────────────────────────────
@@ -1801,66 +1650,6 @@ async function pickReposition(
   toast(ui.toast, `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`);
 }
 
-// ─── Verdict ribbon ──────────────────────────────────────────────────
-
-function renderVerdictRibbon(root: HTMLElement, verdictsA: MetricVerdicts): void {
-  if (root.childElementCount === 0) {
-    root.appendChild(
-      el(
-        "span",
-        "text-[10.5px] uppercase tracking-[0.08em] text-content-disabled font-medium whitespace-nowrap max-md:col-span-full",
-        "Who's winning?",
-      ),
-    );
-    for (const [label] of METRIC_DEFS) {
-      // `.verdict-cell` stays — CSS keys the winner-color cascade off its
-      // `[data-winner]` attribute. `.verdict-cell-winner` also stays — it's
-      // the child that cascade colors.
-      const cell = el(
-        "div",
-        "verdict-cell flex items-center gap-1.5 px-2 py-1 rounded-sm bg-surface-elevated border border-stroke-subtle tabular-nums overflow-hidden",
-      );
-      cell.append(
-        el("span", "text-[10.5px] uppercase tracking-[0.06em] text-content-disabled", label),
-        el("span", "verdict-cell-winner font-semibold text-content tracking-[0.02em]"),
-      );
-      root.appendChild(cell);
-    }
-  }
-  root.hidden = false;
-  for (let i = 0; i < METRIC_DEFS.length; i++) {
-    const cell = root.children[i + 1] as HTMLElement | undefined;
-    if (!cell) continue;
-    const def = METRIC_DEFS[i];
-    if (!def) continue;
-    const key = def[1];
-    const { winner, text } = verdictToWinner(verdictsA[key]);
-    if (cell.dataset["winner"] !== winner) cell.dataset["winner"] = winner;
-    const winnerEl = cell.lastElementChild as HTMLElement;
-    if (winnerEl.textContent !== text) winnerEl.textContent = text;
-  }
-}
-
-function verdictToWinner(v: Verdict): { winner: "A" | "B" | "tie"; text: string } {
-  switch (v) {
-    case "win":
-      return { winner: "A", text: "A" };
-    case "lose":
-      return { winner: "B", text: "B" };
-    case "tie":
-      return { winner: "tie", text: "Tie" };
-  }
-}
-
-// ─── Phase progress ──────────────────────────────────────────────────
-
-function updatePhaseProgress(state: State, ui: UiHandles): void {
-  if (!ui.phaseProgress) return;
-  const pct = Math.round(state.traffic.progressInPhase() * 1000) / 10;
-  const next = `${pct}%`;
-  if (ui.phaseProgress.style.width !== next) ui.phaseProgress.style.width = next;
-}
-
 // ─── Decision narration ──────────────────────────────────────────────
 
 function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => string): void {
@@ -1877,23 +1666,6 @@ function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => str
   requestAnimationFrame(() => {
     el.dataset["pulse"] = "true";
   });
-}
-
-// ─── Shortcut sheet ──────────────────────────────────────────────────
-
-function setShortcutSheetOpen(ui: UiHandles, open: boolean): void {
-  const wasOpen = !ui.shortcutSheet.hidden;
-  if (open === wasOpen) return;
-  ui.shortcutSheet.hidden = !open;
-  // Focus management — the sheet is modal-like but not a real <dialog>,
-  // so we shuttle focus manually. Opening moves focus into the sheet
-  // (so Escape / Tab land predictably); closing returns focus to the
-  // trigger so keyboard flow doesn't snap back to <body>.
-  if (open) {
-    ui.shortcutSheetClose.focus();
-  } else {
-    ui.shortcutsBtn.focus();
-  }
 }
 
 void boot();
