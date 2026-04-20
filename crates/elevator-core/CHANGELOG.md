@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.17.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.16.0...elevator-core-v15.17.0) (2026-04-20)
+
+
+### Features
+
+* **playground:** skyscraper multi-zone + SimTower canvas + reposition cooldown ([#385](https://github.com/andymai/elevator-core/issues/385)) ([cab6a07](https://github.com/andymai/elevator-core/commit/cab6a07d534982a46dd21b77875f44e21900d15e))
+
 ## [15.16.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.15.2...elevator-core-v15.16.0) (2026-04-19)
 
 
