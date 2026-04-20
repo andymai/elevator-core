@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SCENARIOS, scenarioById } from "../scenarios";
+import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
   it("ships exactly 3 scenarios", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodePermalink, encodePermalink, DEFAULT_STATE, hashSeedWord } from "../permalink";
+import { decodePermalink, encodePermalink, DEFAULT_STATE, hashSeedWord } from "../domain/permalink";
 
 describe("permalink: core knobs", () => {
   it("default state encodes to the expected canonical form", () => {

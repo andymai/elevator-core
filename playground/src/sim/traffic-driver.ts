@@ -1,4 +1,4 @@
-import type { Phase, Snapshot } from "./types";
+import type { Phase, Snapshot } from "../types";
 
 // Deterministic traffic driver. The wasm sim itself stays pure — we generate
 // spawns out here so:

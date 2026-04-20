@@ -1,4 +1,4 @@
-import type { Phase, ScenarioMeta, TweakRanges } from "./types";
+import type { Phase, ScenarioMeta, TweakRanges } from "../../types";
 
 // ─── Default tweak bounds ───────────────────────────────────────────
 //

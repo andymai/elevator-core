@@ -1,26 +1,25 @@
 import { generate as generateRandomWords } from "random-words";
 import { CanvasRenderer } from "./canvas";
 import {
+  DEFAULT_STATE,
   PARAM_KEYS,
+  SCENARIOS,
   applyPhysicsOverrides,
   buildScenarioRon,
   compactOverrides,
-  defaultFor,
-  isOverridden,
-  resolveParam,
-  type Overrides,
-  type ParamKey,
-} from "./params";
-import {
-  DEFAULT_STATE,
   decodePermalink,
+  defaultFor,
   encodePermalink,
   hashSeedWord,
+  isOverridden,
+  resolveParam,
+  scenarioById,
+  type Overrides,
+  type ParamKey,
   type PermalinkState,
-} from "./permalink";
-import { SCENARIOS, scenarioById } from "./scenarios";
+} from "./domain";
 import { Sim, loadWasm } from "./sim";
-import { TrafficDriver } from "./traffic";
+import { TrafficDriver } from "./sim";
 import type {
   BubbleEvent,
   CarBubble,

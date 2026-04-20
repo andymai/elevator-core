@@ -1,4 +1,4 @@
-import type { ElevatorPhysics, ScenarioMeta } from "./types";
+import type { ElevatorPhysics, ScenarioMeta } from "../../types";
 
 // Owner of the "Tweak parameters" drawer's domain logic. Independent of
 // the DOM and the wasm sim — both `main.ts` (drawer wiring) and

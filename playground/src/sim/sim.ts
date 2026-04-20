@@ -5,7 +5,7 @@ import type {
   Snapshot,
   StrategyName,
   TrafficMode,
-} from "./types";
+} from "../types";
 
 // Thin TS wrapper around `WasmSim` that narrows JS values returned by
 // serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
