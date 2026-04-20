@@ -61,6 +61,7 @@ mod etd_age_weight_tests;
 mod etd_mutant_tests;
 mod event_payload_tests;
 mod hall_call_tests;
+mod idle_with_riders_tests;
 mod manual_mode_tests;
 mod move_count_tests;
 mod movement_boundary_tests;

@@ -904,6 +904,7 @@ fn pending_stops_minus_covered(
     group: &ElevatorGroup,
     manifest: &DispatchManifest,
     world: &World,
+    idle_cars: &[(EntityId, f64)],
 ) -> Vec<(EntityId, f64)> {
     // Vec + linear scan is fine: groups have O(few) elevators and
     // this runs once per dispatch tick.
@@ -975,7 +976,26 @@ fn pending_stops_minus_covered(
     group
         .stop_entities()
         .iter()
-        .filter(|s| manifest.has_demand(**s) && !is_covered(**s))
+        .filter(|s| {
+            if !manifest.has_demand(**s) {
+                return false;
+            }
+            // A stop must not be filtered if an idle-pool car has
+            // riders needing to exit there. Only check cars in the idle
+            // pool — riders on committed `MovingToStop` cars are already
+            // en route and don't need a redundant dispatch.
+            let idle_car_needs_stop = idle_cars.iter().any(|&(car_eid, _)| {
+                world.elevator(car_eid).is_some_and(|car| {
+                    car.riders().iter().any(|&rid| {
+                        world.route(rid).and_then(Route::current_destination) == Some(**s)
+                    })
+                })
+            });
+            if idle_car_needs_stop {
+                return true;
+            }
+            !is_covered(**s)
+        })
         .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
         .collect()
 }
@@ -995,7 +1015,7 @@ pub(crate) fn assign(
     // Collect stops with active demand and known positions, excluding
     // any whose demand is already being absorbed by a car mid door
     // cycle (see `pending_stops_minus_covered` for the why).
-    let pending_stops = pending_stops_minus_covered(group, manifest, world);
+    let pending_stops = pending_stops_minus_covered(group, manifest, world, idle_cars);
 
     let n = idle_cars.len();
     let m = pending_stops.len();
