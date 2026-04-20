@@ -1,4 +1,4 @@
-import { CanvasRenderer } from "../../canvas";
+import { CanvasRenderer } from "../../render";
 import { buildScenarioRon, type Overrides } from "../../domain";
 import { Sim } from "../../sim";
 import type {
