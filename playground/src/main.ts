@@ -800,12 +800,16 @@ function attachListeners(state: State, ui: UiHandles): void {
     const qs = encodePermalink(state.permalink);
     const url = `${window.location.origin}${window.location.pathname}${qs}`;
     window.history.replaceState(null, "", qs);
-    void navigator.clipboard
-      .writeText(url)
-      .catch(() => {})
-      .then(() => {
+    void navigator.clipboard.writeText(url).then(
+      () => {
         toast(ui, "Permalink copied");
-      });
+      },
+      () => {
+        // Clipboard unavailable (insecure context) — still show feedback
+        // since the URL was pushed to the address bar.
+        toast(ui, "Permalink copied");
+      },
+    );
   });
 
   // ── Shortcut sheet + global keys ─────────────────────────────────
@@ -1410,10 +1414,8 @@ function applyHotSwapAndRender(state: State, ui: UiHandles, scenario: ScenarioMe
     doorOpenTicks: physics.doorOpenTicks,
     doorTransitionTicks: physics.doorTransitionTicks,
   };
-  let allLive = true as boolean;
-  forEachPane(state, (pane) => {
-    if (!pane.sim.applyPhysicsLive(params)) allLive = false;
-  });
+  const panes = [state.paneA, state.paneB].filter((p): p is Pane => p !== null);
+  const allLive = panes.every((pane) => pane.sim.applyPhysicsLive(params));
   renderTweakPanel(scenario, state.permalink.overrides, ui);
   if (!allLive) void resetAll(state, ui);
 }

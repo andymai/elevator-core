@@ -113,9 +113,7 @@ export class TrafficDriver {
   currentPhaseIndex(): number {
     if (this.#phases.length === 0) return 0;
     let t = this.#elapsedInCycleSec;
-    for (let i = 0; i < this.#phases.length; i += 1) {
-      const p = this.#phases[i];
-      if (!p) break;
+    for (const [i, p] of this.#phases.entries()) {
       t -= p.durationSec;
       if (t < 0) return i;
     }
@@ -140,8 +138,8 @@ export class TrafficDriver {
   progressInPhase(): number {
     if (this.#phases.length === 0) return 0;
     let t = this.#elapsedInCycleSec;
-    for (let i = 0; i < this.#phases.length; i += 1) {
-      const d = this.#phases[i]?.durationSec ?? 0;
+    for (const p of this.#phases) {
+      const d = p.durationSec;
       if (t < d) return d > 0 ? Math.min(1, t / d) : 0;
       t -= d;
     }
@@ -183,11 +181,11 @@ export class TrafficDriver {
       return this.#nextInt(n);
     }
     let total = 0;
-    for (let i = 0; i < n; i += 1) total += Math.max(0, weights[i] ?? 0);
+    for (const w of weights) total += Math.max(0, w);
     if (total <= 0) return this.#nextInt(n);
     let r = this.#nextFloat() * total;
-    for (let i = 0; i < n; i += 1) {
-      r -= Math.max(0, weights[i] ?? 0);
+    for (const [i, w] of weights.entries()) {
+      r -= Math.max(0, w);
       if (r < 0) return i;
     }
     return n - 1;

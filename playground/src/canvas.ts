@@ -92,6 +92,7 @@ function scaleFor(width: number): Scale {
 // Palette mirrors style.css primitives. Canvas rendering can't read CSS
 // custom properties cheaply in a hot loop, so these are JS constants that
 // track the CSS tokens. Keep in sync with `:root` in src/style.css.
+//
 const PHASE_COLORS: Record<Car["phase"], string> = {
   idle: "#6b6b75", // --text-disabled
   moving: "#f59e0b", // --accent
@@ -203,6 +204,26 @@ interface CarState {
  *  the stop's waiting count *not* explained by a board at that stop. */
 interface StopState {
   waiting: number;
+}
+
+/**
+ * Find the stop nearest to world-y `y`. Returns the stop and the
+ * distance, or `undefined` when the stops array is empty.
+ */
+function findNearestStop(
+  stops: Snapshot["stops"],
+  y: number,
+): { stop: Snapshot["stops"][number]; dist: number } | undefined {
+  let best: Snapshot["stops"][number] | undefined;
+  let bestDist = Infinity;
+  for (const stp of stops) {
+    const d = Math.abs(stp.y - y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = stp;
+    }
+  }
+  return best !== undefined ? { stop: best, dist: bestDist } : undefined;
 }
 
 /**
@@ -343,10 +364,7 @@ export class CanvasRenderer {
       if (y > maxY) maxY = y;
     }
     const sortedYs = snap.stops.map((st) => st.y).sort((a, b) => a - b);
-    const topGap =
-      sortedYs.length >= 3
-        ? (sortedYs[sortedYs.length - 1] ?? 0) - (sortedYs[sortedYs.length - 2] ?? 0)
-        : 1;
+    const topGap = sortedYs.length >= 3 ? (sortedYs.at(-1) ?? 0) - (sortedYs.at(-2) ?? 0) : 1;
     const bottomPadding = 1;
     const axisMin = minY - bottomPadding;
     const axisMax = maxY + topGap;
@@ -519,22 +537,9 @@ export class CanvasRenderer {
             car.phase === "door-opening" ||
             car.phase === "door-closing"
           ) {
-            let nearest = -1;
-            let best = Infinity;
-            for (let i = 0; i < snap.stops.length; i++) {
-              const stp = snap.stops[i];
-              if (stp === undefined) continue;
-              const d = Math.abs(stp.y - car.y);
-              if (d < best) {
-                best = d;
-                nearest = i;
-              }
-            }
-            if (nearest >= 0 && best < 0.5) {
-              const nearestStop = snap.stops[nearest];
-              if (nearestStop !== undefined) {
-                loadingAtFloor.add(`${idx}:${nearestStop.entity_id}`);
-              }
+            const nearest = findNearestStop(snap.stops, car.y);
+            if (nearest !== undefined && nearest.dist < 0.5) {
+              loadingAtFloor.add(`${idx}:${nearest.stop.entity_id}`);
             }
           }
           idx++;
@@ -1154,7 +1159,8 @@ export class CanvasRenderer {
   ): void {
     if (car.phase !== "moving" || Math.abs(car.v) < 0.1) return;
     const ctx = this.#ctx;
-    const base = PHASE_COLORS[car.phase];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wasm boundary: phase may hold a variant the TS union hasn't caught up with
+    const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
     const halfW = carW / 2;
     for (let i = 1; i <= TRAIL_STEPS; i++) {
       const behindBottom = toScreenY(car.y - car.v * TRAIL_DT * i);
@@ -1177,7 +1183,8 @@ export class CanvasRenderer {
     const bottom = toScreenY(car.y);
     const top = bottom - carH;
     const halfW = carW / 2;
-    const base = PHASE_COLORS[car.phase];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wasm boundary: phase may hold a variant the TS union hasn't caught up with
+    const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
 
     const grad = ctx.createLinearGradient(cx, top, cx, bottom);
     grad.addColorStop(0, shade(base, 0.14));
@@ -1227,23 +1234,14 @@ export class CanvasRenderer {
       const riders = car.riders;
       const cx = carX.get(car.id);
 
-      let nearestIdx: number | null = null;
-      let nearestDist = Infinity;
-      for (let i = 0; i < snap.stops.length; i++) {
-        const stp = snap.stops[i];
-        if (stp === undefined) continue;
-        const d = Math.abs(stp.y - car.y);
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestIdx = i;
-        }
-      }
-      const stopIdx = car.phase === "loading" && nearestDist < 0.5 ? nearestIdx : null;
+      const nearest = findNearestStop(snap.stops, car.y);
+      const loadStop =
+        car.phase === "loading" && nearest !== undefined && nearest.dist < 0.5
+          ? nearest.stop
+          : undefined;
 
-      if (prev && cx !== undefined && stopIdx !== null) {
+      if (prev && cx !== undefined && loadStop !== undefined) {
         const delta = riders - prev.riders;
-        const loadStop = snap.stops[stopIdx];
-        if (loadStop === undefined) continue;
         if (delta > 0) {
           boardsAtStop.set(loadStop.entity_id, (boardsAtStop.get(loadStop.entity_id) ?? 0) + delta);
         }
