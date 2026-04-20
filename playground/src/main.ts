@@ -553,13 +553,16 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
       const snapForSeed = state.paneA.sim.snapshot();
       const dtPerCall = 4 / 60;
       let emitted = 0;
-      // Hard cap on iterations — if the scenario has a zero-rate
-      // current phase or no addressable stops, drainSpawns will
-      // return empty forever and we must bail instead of spinning.
+      // Hard cap on iterations — with dtPerCall = 4/60 s and the
+      // per-phase accumulator only growing ~0.12 riders per call at
+      // 110 riders/min, we need ~9 calls before the first emission.
+      // Earlier code had an early `specs.length === 0` break that
+      // fired on call 1 and seeded zero riders; maxCalls is the only
+      // guard we need against a truly zero-rate phase (it caps the
+      // spin at a few ms even in that degenerate case).
       const maxCalls = 10000;
       for (let i = 0; i < maxCalls && emitted < scenario.seedSpawns; i += 1) {
         const specs = state.traffic.drainSpawns(snapForSeed, dtPerCall);
-        if (specs.length === 0) break;
         for (const spec of specs) {
           forEachPane(state, (pane) =>
             pane.sim.spawnRider(
