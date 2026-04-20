@@ -360,7 +360,18 @@ export class CanvasRenderer {
         remaining > ttl * FADE_FRAC ? 1 : Math.max(0, remaining / (ttl * FADE_FRAC));
       if (alpha <= 0) continue;
 
-      const textW = ctx.measureText(bubble.text).width;
+      // Use the ink bounding box when it's wider than the advance width.
+      // Bubble text contains Unicode symbols (›●◌+↓) that aren't in
+      // system-ui on every platform — the font stack falls back to a
+      // symbol font with different metrics, so `measureText().width` (the
+      // advance in the primary font) under-reports the actual rendered
+      // width and the glyph tail clips outside the bubble. The
+      // `actualBoundingBox*` pair reports the real ink extent across the
+      // fallback chain. Ceil to avoid sub-pixel clipping on HiDPI.
+      const metrics = ctx.measureText(bubble.text);
+      const inkW =
+        (metrics.actualBoundingBoxLeft ?? 0) + (metrics.actualBoundingBoxRight ?? 0);
+      const textW = Math.ceil(Math.max(metrics.width, inkW));
       const bubbleW = textW + padX * 2;
       const bubbleH = s.fontSmall + padY * 2 + 2;
 

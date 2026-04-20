@@ -1402,7 +1402,10 @@ const SCENARIO_CARD_CLS =
   "aria-pressed:border-[color-mix(in_srgb,var(--accent)_55%,transparent)] " +
   "aria-pressed:from-accent-muted aria-pressed:to-surface-elevated " +
   "aria-pressed:shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_25%,transparent),var(--shadow-md)] " +
-  "max-md:flex-none max-md:min-w-[140px] max-md:snap-start";
+  // Mobile pill form — description is hidden (SCENARIO_DESC_CLS) so the
+  // card collapses to a label+kbd row. Tighter padding + narrower min-w
+  // lets three cards fit on a 375px screen without horizontal scrolling.
+  "max-md:flex-none max-md:min-w-[120px] max-md:px-2.5 max-md:py-1 max-md:snap-start";
 const SCENARIO_LABEL_CLS =
   "flex items-center gap-2 text-[13px] font-semibold text-content tracking-[0.005em]";
 const SCENARIO_KBD_CLS =
