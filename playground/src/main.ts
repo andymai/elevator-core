@@ -1,5 +1,6 @@
 import { generate as generateRandomWords } from "random-words";
 import { CanvasRenderer } from "./canvas";
+import { attachHoldToRepeat, el, toast } from "./platform";
 import {
   DEFAULT_STATE,
   PARAM_KEYS,
@@ -672,7 +673,7 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
     renderTweakPanel(scenario, state.permalink.overrides, ui);
   } catch (err) {
     if (token === state.initToken) {
-      toast(ui, `Init failed: ${(err as Error).message}`);
+      toast(ui.toast, `Init failed: ${(err as Error).message}`);
     }
     throw err;
   } finally {
@@ -709,7 +710,7 @@ function attachListeners(state: State, ui: UiHandles): void {
     refreshStrategyPopovers(state, ui);
     refreshRepositionPopovers(state, ui);
     void resetAll(state, ui).then(() => {
-      toast(ui, state.permalink.compare ? "Compare on" : "Compare off");
+      toast(ui.toast, state.permalink.compare ? "Compare on" : "Compare off");
     });
   });
   ui.seedInput.addEventListener("change", () => {
@@ -724,7 +725,7 @@ function attachListeners(state: State, ui: UiHandles): void {
     ui.seedInput.value = next;
     state.permalink = { ...state.permalink, seed: next };
     void resetAll(state, ui).then(() => {
-      toast(ui, `Seed: ${next}`);
+      toast(ui.toast, `Seed: ${next}`);
     });
   });
   ui.speedInput.addEventListener("input", () => {
@@ -760,7 +761,7 @@ function attachListeners(state: State, ui: UiHandles): void {
   });
   ui.resetBtn.addEventListener("click", () => {
     void resetAll(state, ui);
-    toast(ui, "Reset");
+    toast(ui.toast, "Reset");
   });
 
   // ── Tweak panel ──────────────────────────────────────────────────
@@ -801,12 +802,12 @@ function attachListeners(state: State, ui: UiHandles): void {
     window.history.replaceState(null, "", qs);
     void navigator.clipboard.writeText(url).then(
       () => {
-        toast(ui, "Permalink copied");
+        toast(ui.toast, "Permalink copied");
       },
       () => {
         // Clipboard unavailable (insecure context) — still show feedback
         // since the URL was pushed to the address bar.
-        toast(ui, "Permalink copied");
+        toast(ui.toast, "Permalink copied");
       },
     );
   });
@@ -825,53 +826,6 @@ function attachListeners(state: State, ui: UiHandles): void {
   });
   attachKeyboardShortcuts(state, ui);
   attachOutsideClickForPopovers(ui);
-}
-
-/**
- * Install a pointer+repeat binding on a stepper button. First press
- * fires immediately; holding past `initialDelay` starts a steady
- * `interval` repeat. We stop on any `pointerup`/`pointerleave`/blur so
- * the repeat can't outlive the press. The original click handler is
- * *not* registered — this function replaces it.
- */
-function attachHoldToRepeat(btn: HTMLButtonElement, fn: () => void): void {
-  const initialDelay = 380;
-  const interval = 70;
-  let timer = 0;
-  let repeat = 0;
-  const stop = (): void => {
-    if (timer) window.clearTimeout(timer);
-    if (repeat) window.clearInterval(repeat);
-    timer = 0;
-    repeat = 0;
-  };
-  btn.addEventListener("pointerdown", (ev) => {
-    if (btn.disabled) return;
-    ev.preventDefault();
-    fn();
-    timer = window.setTimeout(() => {
-      repeat = window.setInterval(() => {
-        if (btn.disabled) {
-          stop();
-          return;
-        }
-        fn();
-      }, interval);
-    }, initialDelay);
-  });
-  btn.addEventListener("pointerup", stop);
-  btn.addEventListener("pointerleave", stop);
-  btn.addEventListener("pointercancel", stop);
-  btn.addEventListener("blur", stop);
-  // Keyboard activation (Enter / Space) still fires a normal click;
-  // register a click listener so that path works too. Using pointer-
-  // based press detection means the click event would otherwise fire
-  // a second time after pointerup — guarded by checking whether the
-  // pointer sequence already fired.
-  btn.addEventListener("click", (ev) => {
-    if (ev.pointerType) return;
-    fn();
-  });
 }
 
 /**
@@ -1213,18 +1167,6 @@ function metricValue(m: Metrics, key: MetricKey): string {
   }
 }
 
-/** Build an HTML element with a className and optional text in one call. */
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  text?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
 function initMetricRows(root: HTMLElement): void {
   const frag = document.createDocumentFragment();
   for (const [label] of METRIC_DEFS) {
@@ -1309,16 +1251,6 @@ function buildSparklinePath(values: number[]): string {
   return d.trim();
 }
 
-let toastTimer = 0;
-function toast(ui: UiHandles, msg: string): void {
-  ui.toast.textContent = msg;
-  ui.toast.classList.add("show");
-  window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => {
-    ui.toast.classList.remove("show");
-  }, 1600);
-}
-
 // ─── Tweak panel: state mutation ─────────────────────────────────────
 
 /**
@@ -1347,10 +1279,10 @@ function resetParam(state: State, ui: UiHandles, key: ParamKey): void {
   // hot-swap path so metrics don't reset; cars-count reset rebuilds.
   if (key === "cars") {
     void resetAll(state, ui);
-    toast(ui, "Cars reset");
+    toast(ui.toast, "Cars reset");
   } else {
     applyHotSwapAndRender(state, ui, scenario);
-    toast(ui, `${labelForKey(key)} reset`);
+    toast(ui.toast, `${labelForKey(key)} reset`);
   }
 }
 
@@ -1367,7 +1299,7 @@ async function resetAllOverrides(state: State, ui: UiHandles): Promise<void> {
   } else {
     applyHotSwapAndRender(state, ui, scenario);
   }
-  toast(ui, "Parameters reset");
+  toast(ui.toast, "Parameters reset");
 }
 
 /**
@@ -1560,7 +1492,7 @@ async function switchScenario(state: State, ui: UiHandles, scenarioId: string): 
   syncSheetCompact(ui, scenario.label, nextStrategyA);
   await resetAll(state, ui);
   renderTweakPanel(scenario, state.permalink.overrides, ui);
-  toast(ui, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
+  toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
 }
 
 // ─── Strategy chip + popover ─────────────────────────────────────────
@@ -1770,7 +1702,7 @@ async function pickStrategy(
   refreshStrategyPopovers(state, ui);
   closeAllStrategyPopovers(ui);
   await resetAll(state, ui);
-  toast(ui, `${which === "a" ? "A" : "B"}: ${STRATEGY_LABELS[strategy]}`);
+  toast(ui.toast, `${which === "a" ? "A" : "B"}: ${STRATEGY_LABELS[strategy]}`);
 }
 
 // ─── Reposition chip + popover ──────────────────────────────────────
@@ -1866,7 +1798,7 @@ async function pickReposition(
   refreshRepositionPopovers(state, ui);
   closeAllRepositionPopovers(ui);
   await resetAll(state, ui);
-  toast(ui, `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`);
+  toast(ui.toast, `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`);
 }
 
 // ─── Verdict ribbon ──────────────────────────────────────────────────
