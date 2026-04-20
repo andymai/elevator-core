@@ -171,6 +171,20 @@ pub fn run(
                     record_hall_assignment(world, stop_eid, eid);
                 }
                 DispatchDecision::Idle => {
+                    // Safety: never idle a car with riders aboard — route
+                    // it to the nearest aboard rider's destination instead.
+                    if let Some(car) = world.elevator(eid)
+                        && !car.riders.is_empty()
+                    {
+                        let dest = car
+                            .riders()
+                            .iter()
+                            .find_map(|&rid| world.route(rid).and_then(Route::current_destination));
+                        if let Some(stop) = dest {
+                            commit_go_to_stop(world, events, ctx, eid, stop);
+                            continue;
+                        }
+                    }
                     // Check if elevator was already idle before setting phase.
                     let was_idle = world
                         .elevator(eid)

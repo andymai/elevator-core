@@ -975,7 +975,23 @@ fn pending_stops_minus_covered(
     group
         .stop_entities()
         .iter()
-        .filter(|s| manifest.has_demand(**s) && !is_covered(**s))
+        .filter(|s| {
+            if !manifest.has_demand(**s) {
+                return false;
+            }
+            // A stop with aboard-rider demand (`riding_to_stop`) must
+            // never be filtered out: those riders are on idle-pool cars
+            // that need to deliver them. Another car heading to the same
+            // stop cannot absorb demand that consists of passengers on a
+            // *different* car. Without this guard, a burst scenario
+            // (multiple cars heading to the same popular floor) causes
+            // `is_covered` to suppress the destination, `fallback()`
+            // returns Idle, and riders are stranded.
+            if manifest.riding_count_to(**s) > 0 {
+                return true;
+            }
+            !is_covered(**s)
+        })
         .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
         .collect()
 }
