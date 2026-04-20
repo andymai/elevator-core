@@ -69,19 +69,40 @@ export class WasmSim {
      * validation, or `strategy` is not a recognised built-in.
      * @param {string} config_ron
      * @param {string} strategy
+     * @param {string | null} [reposition]
      */
-    constructor(config_ron, strategy) {
+    constructor(config_ron, strategy, reposition) {
         const ptr0 = passStringToWasm0(config_ron, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(strategy, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsim_new(ptr0, len0, ptr1, len1);
+        var ptr2 = isLikeNone(reposition) ? 0 : passStringToWasm0(reposition, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_new(ptr0, len0, ptr1, len1, ptr2, len2);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
         this.__wbg_ptr = ret[0] >>> 0;
         WasmSimFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Active reposition strategy name (one of `adaptive | predictive
+     * | lobby | spread | none`). Used by the playground to label the
+     * second chip in each pane header.
+     * @returns {string}
+     */
+    repositionStrategyName() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmsim_repositionStrategyName(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * Swap every group's dispatcher to a DCS instance with the given
@@ -166,6 +187,25 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Swap the reposition strategy by name. Returns `true` on success.
+     * State is preserved — only the idle-parking policy changes.
+     * Unknown names return `false` so the UI can round-trip arbitrary
+     * dropdown values without panicking.
+     *
+     * Applies to every group unconditionally — the constructor path
+     * is the only place scenario-declared reposition strategies get
+     * preserved. A live swap signals "user wants this strategy now"
+     * for all groups.
+     * @param {string} name
+     * @returns {boolean}
+     */
+    setReposition(name) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_setReposition(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
     }
     /**
      * Install `PredictiveParking` as the reposition strategy for every
@@ -334,6 +374,18 @@ export class WasmSim {
     }
 }
 if (Symbol.dispose) WasmSim.prototype[Symbol.dispose] = WasmSim.prototype.free;
+
+/**
+ * List of built-in reposition-strategy names in a stable order (for
+ * populating the "Park:" popover in the playground).
+ * @returns {any[]}
+ */
+export function builtinRepositionStrategies() {
+    const ret = wasm.builtinRepositionStrategies();
+    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v1;
+}
 
 /**
  * List of built-in strategy names in a stable order (for populating dropdowns).
