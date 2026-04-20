@@ -34,6 +34,26 @@ fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
     }
 }
 
+/// Map a JS-facing reposition strategy name to its `BuiltinReposition`
+/// variant. Mirrors `strategy_id` — five named strategies + the usual
+/// fallback of `None` for unknown inputs so the UI can round-trip an
+/// unfamiliar permalink value without panicking.
+///
+/// Note: `"none"` maps to `NearestIdle` because `NearestIdle`'s impl
+/// is an empty function body — it's the engine's "do nothing" strategy
+/// despite the historical name. Idle cars stay where they parked after
+/// their last delivery, matching the UI label ("Stay") and description.
+fn reposition_id(name: &str) -> Option<BuiltinReposition> {
+    match name {
+        "adaptive" => Some(BuiltinReposition::Adaptive),
+        "predictive" => Some(BuiltinReposition::PredictiveParking),
+        "lobby" => Some(BuiltinReposition::ReturnToLobby),
+        "spread" => Some(BuiltinReposition::SpreadEvenly),
+        "none" => Some(BuiltinReposition::NearestIdle),
+        _ => None,
+    }
+}
+
 /// Construct a `Simulation` with a concrete dispatcher selected by name. We
 /// instantiate the concrete strategy at the call site (instead of boxing first)
 /// because `Simulation::new` takes `impl DispatchStrategy + 'static` — a trait
@@ -62,6 +82,7 @@ fn make_sim(
 pub struct WasmSim {
     inner: Simulation,
     strategy_name: String,
+    reposition_name: String,
     traffic_rate: f64,
 }
 
@@ -75,25 +96,33 @@ impl WasmSim {
     /// Returns a JS error if the RON fails to parse, the config fails
     /// validation, or `strategy` is not a recognised built-in.
     #[wasm_bindgen(constructor)]
-    pub fn new(config_ron: &str, strategy: &str) -> Result<Self, JsError> {
+    pub fn new(
+        config_ron: &str,
+        strategy: &str,
+        reposition: Option<String>,
+    ) -> Result<Self, JsError> {
         let config: SimConfig =
             ron::from_str(config_ron).map_err(|e| JsError::new(&format!("config parse: {e}")))?;
         let mut inner = make_sim(&config, strategy)
             .ok_or_else(|| JsError::new(&format!("unknown strategy: {strategy}")))?
             .map_err(|e| JsError::new(&format!("sim build: {e}")))?;
-        // Default to AdaptiveParking reposition *only* when the config
-        // didn't pick one. The history:
-        //   SpreadEvenly (pre-#358) — position-only, pushed cars away
-        //     from demand during up-peak.
-        //   PredictiveParking (#358) — demand-aware, great under up-peak
-        //     but can still churn under mixed traffic where every
-        //     delivery triggers a "go back to the hottest stop" move.
-        //   AdaptiveParking (this PR) — mode-gated: ReturnToLobby in
-        //     up-peak, PredictiveParking when demand is diffuse, no-op
-        //     when the building is idle. Reads TrafficDetector, which
-        //     is auto-installed.
-        // An explicit RON choice still wins so downstream consumers
-        // can opt out.
+        // Resolve the caller-supplied reposition name (if any) to a
+        // `BuiltinReposition` variant; fall back to `Adaptive` when
+        // absent or unrecognised so old permalinks and undecorated
+        // callers keep the prior behaviour. The playground's compare-
+        // reposition feature passes one of `adaptive | predictive |
+        // lobby | spread | none`.
+        let requested_name = reposition
+            .as_deref()
+            .map_or("adaptive", |s| if s.is_empty() { "adaptive" } else { s });
+        let resolved = reposition_id(requested_name).unwrap_or(BuiltinReposition::Adaptive);
+        // Apply the resolved strategy to groups that didn't set one
+        // themselves in the RON. A scenario-declared reposition (e.g.
+        // a Service group that uses `NearestIdle` because a zoned
+        // bouncing between its two endpoints every idle cycle would
+        // burn cycles and look silly) wins. The user-picked strategy
+        // only populates the unset groups, which is every group in
+        // the default flat-scenario case.
         let groups_needing_default: Vec<_> = inner
             .groups()
             .iter()
@@ -101,13 +130,14 @@ impl WasmSim {
             .filter(|gid| inner.reposition_id(*gid).is_none())
             .collect();
         for gid in groups_needing_default {
-            if let Some(strategy) = BuiltinReposition::Adaptive.instantiate() {
-                inner.set_reposition(gid, strategy, BuiltinReposition::Adaptive);
+            if let Some(strategy) = resolved.instantiate() {
+                inner.set_reposition(gid, strategy, resolved.clone());
             }
         }
         Ok(Self {
             inner,
             strategy_name: strategy.to_string(),
+            reposition_name: requested_name.to_string(),
             traffic_rate: 0.0,
         })
     }
@@ -162,6 +192,43 @@ impl WasmSim {
             // unstyled defaults, keeping the TS union closed.
             TrafficMode::Idle | _ => "Idle".into(),
         }
+    }
+
+    /// Active reposition strategy name (one of `adaptive | predictive
+    /// | lobby | spread | none`). Used by the playground to label the
+    /// second chip in each pane header.
+    #[wasm_bindgen(js_name = repositionStrategyName)]
+    pub fn reposition_strategy_name(&self) -> String {
+        self.reposition_name.clone()
+    }
+
+    /// Swap the reposition strategy by name. Returns `true` on success.
+    /// State is preserved — only the idle-parking policy changes.
+    /// Unknown names return `false` so the UI can round-trip arbitrary
+    /// dropdown values without panicking.
+    ///
+    /// Applies to every group unconditionally — the constructor path
+    /// is the only place scenario-declared reposition strategies get
+    /// preserved. A live swap signals "user wants this strategy now"
+    /// for all groups.
+    #[wasm_bindgen(js_name = setReposition)]
+    pub fn set_reposition_strategy(&mut self, name: &str) -> bool {
+        let Some(id) = reposition_id(name) else {
+            return false;
+        };
+        let group_ids: Vec<_> = self
+            .inner
+            .groups()
+            .iter()
+            .map(elevator_core::dispatch::ElevatorGroup::id)
+            .collect();
+        for gid in group_ids {
+            if let Some(strategy) = id.instantiate() {
+                self.inner.set_reposition(gid, strategy, id.clone());
+            }
+        }
+        self.reposition_name = name.to_string();
+        true
     }
 
     /// Swap the dispatch strategy by name. Returns `true` on success.
@@ -482,6 +549,17 @@ impl WasmSim {
 #[must_use]
 pub fn builtin_strategies() -> Vec<JsValue> {
     ["scan", "look", "nearest", "etd", "destination", "rsr"]
+        .iter()
+        .map(|s| JsValue::from_str(s))
+        .collect()
+}
+
+/// List of built-in reposition-strategy names in a stable order (for
+/// populating the "Park:" popover in the playground).
+#[wasm_bindgen(js_name = builtinRepositionStrategies)]
+#[must_use]
+pub fn builtin_reposition_strategies() -> Vec<JsValue> {
+    ["adaptive", "predictive", "lobby", "spread", "none"]
         .iter()
         .map(|s| JsValue::from_str(s))
         .collect()

@@ -55,37 +55,48 @@
     <section
       id="scenario-cards"
       aria-label="Scenario picker"
-      class="scenario-cards grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2 px-5 py-2.5 border-b border-stroke-subtle max-md:flex max-md:flex-row max-md:gap-2 max-md:px-3.5 max-md:py-2.5 max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+      class="scenario-cards flex flex-row flex-wrap items-center gap-1.5 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-1.5 max-md:px-3.5 max-md:py-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
     ></section>
 
-    <section class="controls flex flex-wrap gap-3.5 items-end px-5 py-3 bg-surface border-b border-stroke-subtle max-md:px-3.5 max-md:gap-2.5">
-      <div class="ctl-strategy flex flex-col gap-1 min-w-0 max-md:basis-full">
-        <label for="strategy-a">
-          <span class="ctl-k">Strategy</span>
-          <select id="strategy-a"></select>
-        </label>
-        <p id="strategy-desc" class="ctl-desc"></p>
-      </div>
-      <label class="hidden flex flex-col gap-1 min-w-0 ctl-half" id="strategy-b-wrap">
-        <span class="ctl-k">vs</span>
-        <select id="strategy-b"></select>
-      </label>
-      <label class="ctl-check flex flex-row items-center gap-2 px-2.5 py-2 bg-surface-elevated border border-stroke-subtle rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke max-md:basis-full">
+    <section class="controls flex flex-wrap gap-2.5 items-end px-5 py-2 bg-surface border-b border-stroke-subtle max-md:px-3.5 max-md:gap-2">
+      <!-- Strategy pickers moved into each pane header; controls bar now
+           starts with compare/seed/speed/intensity. Tweak button is
+           hidden for now but kept in DOM so the keyboard shortcut (`T`)
+           and wiring in main.ts keep working. -->
+      <label class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-surface-elevated border border-stroke-subtle rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke max-md:basis-full">
         <input id="compare" type="checkbox" />
         <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase">Compare</span>
       </label>
-      <label class="flex flex-col gap-1 min-w-0 ctl-half">
+      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
         <span class="ctl-k">Seed</span>
-        <input id="seed" type="number" value="42" min="0" class="max-md:min-h-10 max-md:w-full" />
+        <div class="seed-field relative">
+          <input
+            id="seed"
+            type="text"
+            value="otis"
+            maxlength="24"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            class="w-full min-w-0 pr-7 max-md:min-h-10"
+          />
+          <button
+            id="seed-shuffle"
+            type="button"
+            aria-label="Randomize seed"
+            title="Randomize seed"
+            class="seed-shuffle absolute inset-y-0 right-0 w-6 flex items-center justify-center text-content-tertiary hover:text-content text-[12px] leading-none"
+          >&#x21BB;</button>
+        </div>
       </label>
-      <label class="flex flex-col gap-1 min-w-0 ctl-half">
+      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
         <span class="ctl-k">
           <span>Speed</span>
           <span id="speed-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">2&times;</span>
         </span>
         <input id="speed" type="range" min="1" max="16" step="1" value="2" class="max-md:w-full" />
       </label>
-      <label class="flex flex-col gap-1 min-w-0 ctl-half">
+      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
         <span class="ctl-k">
           <span>Intensity</span>
           <span id="traffic-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">1.0&times;</span>
@@ -93,7 +104,7 @@
         <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="max-md:w-full" />
       </label>
       <div class="actions flex gap-2 ml-auto max-md:basis-full max-md:ml-0 max-md:flex-wrap">
-        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">
+        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" hidden class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">
           Tweak parameters
         </button>
         <button id="play" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Pause</button>
@@ -177,17 +188,39 @@
 
     <section
       id="phase-strip"
-      class="phase-strip flex flex-col gap-1.5 px-5 pt-2 pb-2.5 bg-surface border-b border-stroke-subtle text-[11.5px] text-content-tertiary max-md:px-3.5 max-md:py-1.5 max-md:pb-2 max-md:text-[11px]"
+      class="phase-strip flex flex-col gap-1 px-5 py-1.5 bg-surface border-b border-stroke-subtle text-[11px] text-content-tertiary max-md:px-3.5 max-md:py-1 max-md:text-[10.5px]"
     >
-      <div class="flex items-baseline gap-2.5">
+      <div class="flex items-center gap-2.5 flex-wrap max-md:gap-2">
         <span class="ctl-k">Phase</span>
         <span id="phase-label" class="text-content-secondary tabular-nums font-medium">&mdash;</span>
-        <span id="feature-hint" class="text-content-disabled text-[11px] flex-1 overflow-hidden text-ellipsis whitespace-nowrap"></span>
+        <!-- `feature-hint` element kept for the code that still writes
+             to it, but hidden — it was taking a full row's width and
+             competing with the legend for attention. -->
+        <span id="feature-hint" hidden></span>
+        <!-- Color legend merged into the phase strip's right side. -->
+        <div class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-2">
+          <span class="ctl-k">Cabin</span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #6b6b75"></span>Idle
+          </span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #f59e0b"></span>Moving
+          </span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #a78bfa"></span>Reposition
+          </span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #fbbf24"></span>Doors
+          </span>
+          <span class="inline-flex items-center gap-1 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #7dd3fc"></span>Loading
+          </span>
+        </div>
       </div>
-      <div class="relative h-[3px] bg-surface-elevated rounded-[2px] overflow-hidden" aria-hidden="true">
+      <div class="relative h-[2px] bg-surface-elevated rounded-[2px] overflow-hidden" aria-hidden="true">
         <div
           id="phase-progress-fill"
-          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_45%,transparent)] transition-[width] duration-normal ease-normal"
+          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_45%,transparent)] transition-[width] duration-normal ease-normal"
         ></div>
       </div>
     </section>
@@ -209,21 +242,57 @@
         class="pane pane-a grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-a)"
       >
-        <header class="pane-header flex items-center gap-2.5 px-0 py-0.5">
-          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm">A</span>
-          <div class="pane-title flex flex-col gap-px min-w-0 flex-1">
-            <span id="name-a" class="pane-name text-[13.5px] font-semibold tracking-[0.01em] text-content">LOOK</span>
+        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
+          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5">A</span>
+          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
+            <button
+              type="button"
+              id="strategy-trigger-a"
+              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="strategy-popover-a"
+            >
+              <span id="name-a" class="pane-name">LOOK</span>
+              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
+            </button>
+            <button
+              type="button"
+              id="repo-trigger-a"
+              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="repo-popover-a"
+            >
+              <span id="repo-name-a">Park: Adaptive</span>
+              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
+            </button>
+            <span id="desc-a" class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"></span>
             <span id="decision-a" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
           </div>
           <span
             id="mode-a"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
             data-mode="Idle"
             title="Traffic mode from TrafficDetector"
           >Idle</span>
+          <div
+            id="strategy-popover-a"
+            class="strategy-popover"
+            role="menu"
+            aria-labelledby="strategy-trigger-a"
+            hidden
+          ></div>
+          <div
+            id="repo-popover-a"
+            class="strategy-popover"
+            role="menu"
+            aria-labelledby="repo-trigger-a"
+            hidden
+          ></div>
         </header>
-        <div class="shaft-wrap bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
-          <canvas id="shaft-a" class="w-full h-full block"></canvas>
+        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+          <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
         <div id="metrics-a" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>
@@ -233,21 +302,57 @@
         class="pane pane-b grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-b)"
       >
-        <header class="pane-header flex items-center gap-2.5 px-0 py-0.5">
-          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm">B</span>
-          <div class="pane-title flex flex-col gap-px min-w-0 flex-1">
-            <span id="name-b" class="pane-name text-[13.5px] font-semibold tracking-[0.01em] text-content">ETD</span>
+        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
+          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5">B</span>
+          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
+            <button
+              type="button"
+              id="strategy-trigger-b"
+              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="strategy-popover-b"
+            >
+              <span id="name-b" class="pane-name">ETD</span>
+              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
+            </button>
+            <button
+              type="button"
+              id="repo-trigger-b"
+              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="repo-popover-b"
+            >
+              <span id="repo-name-b">Park: Adaptive</span>
+              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
+            </button>
+            <span id="desc-b" class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"></span>
             <span id="decision-b" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
           </div>
           <span
             id="mode-b"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
             data-mode="Idle"
             title="Traffic mode from TrafficDetector"
           >Idle</span>
+          <div
+            id="strategy-popover-b"
+            class="strategy-popover"
+            role="menu"
+            aria-labelledby="strategy-trigger-b"
+            hidden
+          ></div>
+          <div
+            id="repo-popover-b"
+            class="strategy-popover"
+            role="menu"
+            aria-labelledby="repo-trigger-b"
+            hidden
+          ></div>
         </header>
-        <div class="shaft-wrap bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
-          <canvas id="shaft-b" class="w-full h-full block"></canvas>
+        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+          <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
         <div id="metrics-b" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>

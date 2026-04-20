@@ -71,6 +71,54 @@ fn dispatch_downward_sets_going_down_only() {
     assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
 
+/// Regression: a car that just delivered a down-bound rider and
+/// closed its doors must have both indicators lit *before* the next
+/// dispatch tick runs. Without this, `pair_can_do_work` rejects a
+/// fresh up-bound rider at that same stop on direction mismatch, and
+/// Hungarian picks a farther car to serve them while the just-
+/// delivered car sits idle (the lobby-idle bug).
+#[test]
+fn indicators_reset_at_door_close_not_at_next_dispatch() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
+
+    let elev = first_elevator(&sim);
+
+    // Run until the car's doors have closed after delivery.
+    // `DoorClosed` is the tick right after FinishedClosing, so grab
+    // the indicators on that same tick.
+    let mut saw_door_closed_tick = false;
+    for _ in 0..10_000 {
+        sim.step();
+        for e in sim.drain_events() {
+            if let Event::DoorClosed { elevator, .. } = e
+                && elevator == elev.entity()
+                && sim
+                    .world()
+                    .elevator(elev.entity())
+                    .is_some_and(|c| c.phase() == ElevatorPhase::Stopped)
+            {
+                saw_door_closed_tick = true;
+            }
+        }
+        if saw_door_closed_tick {
+            break;
+        }
+    }
+    assert!(
+        saw_door_closed_tick,
+        "expected DoorClosed event within delivery window"
+    );
+
+    // On the very tick the doors closed, indicators must read both-lit.
+    // Without the fix, `going_up` would still be `false` from the
+    // delivery trip and a subsequent up-bound rider at this stop would
+    // be rejected by `pair_can_do_work`.
+    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+}
+
 #[test]
 fn becoming_idle_resets_both_true() {
     let config = default_config();

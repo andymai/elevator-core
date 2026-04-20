@@ -5,6 +5,7 @@
 //! [`RepositionStrategy`] decides where to send idle cars.
 
 use crate::components::ElevatorPhase;
+use crate::dispatch::reposition::RepositionCooldowns;
 use crate::dispatch::{ElevatorGroup, RepositionStrategy};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
@@ -23,6 +24,12 @@ pub fn run(
     repositioners: &mut BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
     decisions: &mut Vec<(EntityId, EntityId)>,
 ) {
+    // Snapshot cooldown eligibility into an owned map so the filter
+    // closure below doesn't hold a borrow of `world` that conflicts
+    // with the per-car `world.elevator(eid)` look-ups.
+    let cooldowns_snapshot: Option<RepositionCooldowns> =
+        world.resource::<RepositionCooldowns>().cloned();
+
     for group in groups {
         let Some(strategy) = repositioners.get_mut(&group.id()) else {
             continue;
@@ -38,6 +45,16 @@ pub fn run(
                 if world
                     .service_mode(eid)
                     .is_some_and(|m| m.is_dispatch_excluded())
+                {
+                    return None;
+                }
+                // Recently-arrived reposition targets stay out of the
+                // pool until their cooldown elapses. Otherwise the
+                // next pass can immediately send the same car somewhere
+                // new as the hot-stop ranking shifts — churn we want
+                // to avoid.
+                if let Some(cd) = &cooldowns_snapshot
+                    && cd.is_cooling_down(eid, ctx.tick)
                 {
                     return None;
                 }
