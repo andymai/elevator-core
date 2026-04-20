@@ -19,7 +19,7 @@ use super::helpers::{default_config, multi_floor_config};
 fn assert_no_idle_with_riders(sim: &Simulation, tick: u64) {
     for (eid, _pos, car) in sim.world().iter_elevators() {
         assert!(
-            !(car.phase() == ElevatorPhase::Idle && !car.riders().is_empty()),
+            car.phase() != ElevatorPhase::Idle || car.riders().is_empty(),
             "BUG: car {eid:?} went Idle with {} riders aboard at tick {tick}",
             car.riders().len()
         );
