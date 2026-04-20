@@ -46,7 +46,7 @@ function randomSeedWord(): string {
   const word = generateRandomWords({ exactly: 1, minLength: 3, maxLength: 8 });
   // `generate` can return a single string or a string array depending
   // on options; normalise to the first element.
-  return Array.isArray(word) ? word[0] : word;
+  return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
 
 const UI_STRATEGIES: StrategyName[] = ["scan", "look", "nearest", "etd", "destination", "rsr"];
@@ -71,7 +71,8 @@ const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
   look: "Like SCAN but reverses early when nothing's queued further — a practical baseline.",
   nearest: "Grabs whichever call is closest right now. Fast under light load, thrashes under rush.",
   etd: "Estimated time of dispatch — assigns calls to whichever car can finish fastest.",
-  destination: "Destination-control: riders pick their floor at the lobby; the group optimises assignments.",
+  destination:
+    "Destination-control: riders pick their floor at the lobby; the group optimises assignments.",
   rsr: "Relative System Response — a wait-aware variant of ETD that penalises long queues.",
 };
 
@@ -346,24 +347,23 @@ function reconcileStrategyWithScenario(p: PermalinkState): void {
 }
 
 function wireUi(): UiHandles {
-  const q = <T extends HTMLElement>(id: string): T => {
+  const q = (id: string): HTMLElement => {
     const el = document.getElementById(id);
     if (!el) throw new Error(`missing element #${id}`);
-    return el as T;
+    return el;
   };
-  const qOpt = <T extends HTMLElement>(id: string): T | null =>
-    (document.getElementById(id) as T | null) ?? null;
+  const qOpt = (id: string): HTMLElement | null => document.getElementById(id);
   const paneHandles = (suffix: "a" | "b", accent: string): PaneHandles => ({
     root: q(`pane-${suffix}`),
-    canvas: q<HTMLCanvasElement>(`shaft-${suffix}`),
+    canvas: q(`shaft-${suffix}`) as HTMLCanvasElement,
     name: q(`name-${suffix}`),
     mode: q(`mode-${suffix}`),
     decision: q(`decision-${suffix}`),
     desc: q(`desc-${suffix}`),
     metrics: q(`metrics-${suffix}`),
-    trigger: q<HTMLButtonElement>(`strategy-trigger-${suffix}`),
+    trigger: q(`strategy-trigger-${suffix}`) as HTMLButtonElement,
     popover: q(`strategy-popover-${suffix}`),
-    repoTrigger: q<HTMLButtonElement>(`repo-trigger-${suffix}`),
+    repoTrigger: q(`repo-trigger-${suffix}`) as HTMLButtonElement,
     repoName: q(`repo-name-${suffix}`),
     repoPopover: q(`repo-popover-${suffix}`),
     accent,
@@ -372,23 +372,22 @@ function wireUi(): UiHandles {
   const tweakRow = (key: ParamKey): TweakRowHandles => {
     const root = document.querySelector<HTMLElement>(`.tweak-row[data-key="${key}"]`);
     if (!root) throw new Error(`missing tweak row for ${key}`);
-    const get = <T extends HTMLElement>(sel: string): T => {
-      const el = root.querySelector<T>(sel);
+    const get = (sel: string): HTMLElement => {
+      const el = root.querySelector<HTMLElement>(sel);
       if (!el) throw new Error(`missing ${sel} in tweak row ${key}`);
       return el;
     };
-    const getOpt = <T extends HTMLElement>(sel: string): T | null =>
-      root.querySelector<T>(sel) ?? null;
+    const getOpt = (sel: string): HTMLElement | null => root.querySelector<HTMLElement>(sel);
     return {
       root,
-      value: get<HTMLElement>(".tweak-value"),
-      defaultV: get<HTMLElement>(".tweak-default-v"),
-      dec: get<HTMLButtonElement>(".tweak-dec"),
-      inc: get<HTMLButtonElement>(".tweak-inc"),
-      reset: get<HTMLButtonElement>(".tweak-reset"),
-      trackFill: getOpt<HTMLElement>(".tweak-track-fill"),
-      trackDefault: getOpt<HTMLElement>(".tweak-track-default"),
-      trackThumb: getOpt<HTMLElement>(".tweak-track-thumb"),
+      value: get(".tweak-value"),
+      defaultV: get(".tweak-default-v"),
+      dec: get(".tweak-dec") as HTMLButtonElement,
+      inc: get(".tweak-inc") as HTMLButtonElement,
+      reset: get(".tweak-reset") as HTMLButtonElement,
+      trackFill: getOpt(".tweak-track-fill"),
+      trackDefault: getOpt(".tweak-track-default"),
+      trackThumb: getOpt(".tweak-track-thumb"),
     };
   };
   const tweakRows: Record<ParamKey, TweakRowHandles> = {
@@ -399,19 +398,19 @@ function wireUi(): UiHandles {
   };
   const ui: UiHandles = {
     scenarioCards: q("scenario-cards"),
-    compareToggle: q<HTMLInputElement>("compare"),
-    seedInput: q<HTMLInputElement>("seed"),
-    seedShuffleBtn: q<HTMLButtonElement>("seed-shuffle"),
-    speedInput: q<HTMLInputElement>("speed"),
+    compareToggle: q("compare") as HTMLInputElement,
+    seedInput: q("seed") as HTMLInputElement,
+    seedShuffleBtn: q("seed-shuffle") as HTMLButtonElement,
+    speedInput: q("speed") as HTMLInputElement,
     speedLabel: q("speed-label"),
-    intensityInput: q<HTMLInputElement>("traffic"),
+    intensityInput: q("traffic") as HTMLInputElement,
     intensityLabel: q("traffic-label"),
-    playBtn: q<HTMLButtonElement>("play"),
-    resetBtn: q<HTMLButtonElement>("reset"),
-    shareBtn: q<HTMLButtonElement>("share"),
-    tweakBtn: q<HTMLButtonElement>("tweak"),
+    playBtn: q("play") as HTMLButtonElement,
+    resetBtn: q("reset") as HTMLButtonElement,
+    shareBtn: q("share") as HTMLButtonElement,
+    tweakBtn: q("tweak") as HTMLButtonElement,
     tweakPanel: q("tweak-panel"),
-    tweakResetAllBtn: q<HTMLButtonElement>("tweak-reset-all"),
+    tweakResetAllBtn: q("tweak-reset-all") as HTMLButtonElement,
     tweakRows,
     layout: q("layout"),
     loader: q("loader"),
@@ -419,11 +418,11 @@ function wireUi(): UiHandles {
     phaseLabel: qOpt("phase-label"),
     phaseProgress: qOpt("phase-progress-fill"),
     verdictRibbon: q("verdict-ribbon"),
-    shortcutsBtn: q<HTMLButtonElement>("shortcuts"),
+    shortcutsBtn: q("shortcuts") as HTMLButtonElement,
     shortcutSheet: q("shortcut-sheet"),
-    shortcutSheetClose: q<HTMLButtonElement>("shortcut-sheet-close"),
+    shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
     sheet: q("controls-sheet"),
-    sheetToggle: q<HTMLButtonElement>("sheet-toggle"),
+    sheetToggle: q("sheet-toggle") as HTMLButtonElement,
     sheetScenario: q("sheet-scenario"),
     sheetStrategy: q("sheet-strategy"),
     sheetPlay: q("sheet-play"),
@@ -438,7 +437,7 @@ function wireUi(): UiHandles {
 
 function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   ui.compareToggle.checked = p.compare;
-  ui.layout.dataset.mode = p.compare ? "compare" : "single";
+  ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
   ui.seedInput.value = p.seed;
   ui.speedInput.value = String(p.speed);
   ui.speedLabel.textContent = speedLabel(p.speed);
@@ -490,11 +489,7 @@ function formatTweakValue(key: ParamKey, value: number): string {
  *  - Toggles the "Reset all" button visibility based on whether *any*
  *    row is overridden.
  */
-function renderTweakPanel(
-  scenario: ScenarioMeta,
-  overrides: Overrides,
-  ui: UiHandles,
-): void {
+function renderTweakPanel(scenario: ScenarioMeta, overrides: Overrides, ui: UiHandles): void {
   let anyOverridden = false;
   for (const key of PARAM_KEYS) {
     const row = ui.tweakRows[key];
@@ -507,7 +502,7 @@ function renderTweakPanel(
     row.defaultV.textContent = formatTweakValue(key, def);
     row.dec.disabled = value <= range.min + 1e-9;
     row.inc.disabled = value >= range.max - 1e-9;
-    row.root.dataset.overridden = String(overridden);
+    row.root.dataset["overridden"] = String(overridden);
     row.reset.hidden = !overridden;
     // Sync the slider track: fill reflects progress to current value,
     // default mark pins the scenario default, thumb sits on current.
@@ -519,8 +514,7 @@ function renderTweakPanel(
     const defPct = Math.max(0, Math.min(1, (def - range.min) / span));
     if (row.trackFill) row.trackFill.style.width = `${(pct * 100).toFixed(1)}%`;
     if (row.trackThumb) row.trackThumb.style.left = `${(pct * 100).toFixed(1)}%`;
-    if (row.trackDefault)
-      row.trackDefault.style.left = `${(defPct * 100).toFixed(1)}%`;
+    if (row.trackDefault) row.trackDefault.style.left = `${(defPct * 100).toFixed(1)}%`;
   }
   ui.tweakResetAllBtn.hidden = !anyOverridden;
 }
@@ -573,8 +567,8 @@ async function makePane(
   renderPaneRepositionInfo(handles, reposition);
   initMetricRows(handles.metrics);
   handles.decision.textContent = "";
-  handles.decision.dataset.active = "false";
-  handles.decision.dataset.pulse = "false";
+  handles.decision.dataset["active"] = "false";
+  handles.decision.dataset["pulse"] = "false";
   return {
     strategy,
     sim,
@@ -690,14 +684,14 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
 }
 
 function attachListeners(state: State, ui: UiHandles): void {
-  ui.scenarioCards.addEventListener("click", async (ev) => {
+  ui.scenarioCards.addEventListener("click", (ev) => {
     const target = ev.target;
     if (!(target instanceof HTMLElement)) return;
     const card = target.closest<HTMLElement>(".scenario-card");
     if (!card) return;
-    const id = card.dataset.scenarioId;
+    const id = card.dataset["scenarioId"];
     if (!id || id === state.permalink.scenario) return;
-    await switchScenario(state, ui, id);
+    void switchScenario(state, ui, id);
   });
   // Strategy picks reset the whole comparator so both panes stay aligned
   // on the same rider stream from t=0 — mixing pre- and post-change metrics
@@ -708,29 +702,31 @@ function attachListeners(state: State, ui: UiHandles): void {
   attachRepositionPopover(state, ui, ui.paneB);
   refreshStrategyPopovers(state, ui);
   refreshRepositionPopovers(state, ui);
-  ui.compareToggle.addEventListener("change", async () => {
+  ui.compareToggle.addEventListener("change", () => {
     state.permalink = { ...state.permalink, compare: ui.compareToggle.checked };
-    ui.layout.dataset.mode = state.permalink.compare ? "compare" : "single";
+    ui.layout.dataset["mode"] = state.permalink.compare ? "compare" : "single";
     // `also in …` badges depend on compare state, so re-render both
     // dispatch and reposition popovers when the toggle flips.
     refreshStrategyPopovers(state, ui);
     refreshRepositionPopovers(state, ui);
-    await resetAll(state, ui);
-    toast(ui, state.permalink.compare ? "Compare on" : "Compare off");
+    void resetAll(state, ui).then(() => {
+      toast(ui, state.permalink.compare ? "Compare on" : "Compare off");
+    });
   });
-  ui.seedInput.addEventListener("change", async () => {
+  ui.seedInput.addEventListener("change", () => {
     const seed = ui.seedInput.value.trim() || DEFAULT_STATE.seed;
     ui.seedInput.value = seed;
     if (seed === state.permalink.seed) return;
     state.permalink = { ...state.permalink, seed };
-    await resetAll(state, ui);
+    void resetAll(state, ui);
   });
-  ui.seedShuffleBtn.addEventListener("click", async () => {
+  ui.seedShuffleBtn.addEventListener("click", () => {
     const next = randomSeedWord();
     ui.seedInput.value = next;
     state.permalink = { ...state.permalink, seed: next };
-    await resetAll(state, ui);
-    toast(ui, `Seed: ${next}`);
+    void resetAll(state, ui).then(() => {
+      toast(ui, `Seed: ${next}`);
+    });
   });
   ui.speedInput.addEventListener("input", () => {
     const v = Number(ui.speedInput.value);
@@ -753,8 +749,8 @@ function attachListeners(state: State, ui: UiHandles): void {
 
   // ── Bottom sheet (mobile drawer) ─────────────────────────────────
   ui.sheetToggle.addEventListener("click", () => {
-    const open = ui.sheet.dataset.open !== "true";
-    ui.sheet.dataset.open = String(open);
+    const open = ui.sheet.dataset["open"] !== "true";
+    ui.sheet.dataset["open"] = String(open);
     ui.sheetToggle.setAttribute("aria-expanded", String(open));
   });
   // The play glyph lives inside the sheet handle; stop propagation so
@@ -775,16 +771,22 @@ function attachListeners(state: State, ui: UiHandles): void {
   });
   for (const key of PARAM_KEYS) {
     const row = ui.tweakRows[key];
-    attachHoldToRepeat(row.dec, () => bumpParam(state, ui, key, -1));
-    attachHoldToRepeat(row.inc, () => bumpParam(state, ui, key, +1));
-    row.reset.addEventListener("click", () => resetParam(state, ui, key));
+    attachHoldToRepeat(row.dec, () => {
+      bumpParam(state, ui, key, -1);
+    });
+    attachHoldToRepeat(row.inc, () => {
+      bumpParam(state, ui, key, 1);
+    });
+    row.reset.addEventListener("click", () => {
+      resetParam(state, ui, key);
+    });
     // Arrow keys on the focused row nudge the value just like clicking
     // +/-. We gate on exact key so Page/Home/End still reach the
     // scroll-to-section defaults the browser provides.
     row.root.addEventListener("keydown", (ev) => {
       if (ev.key === "ArrowUp" || ev.key === "ArrowRight") {
         ev.preventDefault();
-        bumpParam(state, ui, key, +1);
+        bumpParam(state, ui, key, 1);
       } else if (ev.key === "ArrowDown" || ev.key === "ArrowLeft") {
         ev.preventDefault();
         bumpParam(state, ui, key, -1);
@@ -794,19 +796,25 @@ function attachListeners(state: State, ui: UiHandles): void {
   ui.tweakResetAllBtn.addEventListener("click", () => {
     void resetAllOverrides(state, ui);
   });
-  ui.shareBtn.addEventListener("click", async () => {
+  ui.shareBtn.addEventListener("click", () => {
     const qs = encodePermalink(state.permalink);
     const url = `${window.location.origin}${window.location.pathname}${qs}`;
     window.history.replaceState(null, "", qs);
-    await navigator.clipboard.writeText(url).catch(() => {});
-    toast(ui, "Permalink copied");
+    void navigator.clipboard
+      .writeText(url)
+      .catch(() => {})
+      .then(() => {
+        toast(ui, "Permalink copied");
+      });
   });
 
   // ── Shortcut sheet + global keys ─────────────────────────────────
-  ui.shortcutsBtn.addEventListener("click", () =>
-    setShortcutSheetOpen(ui, ui.shortcutSheet.hidden),
-  );
-  ui.shortcutSheetClose.addEventListener("click", () => setShortcutSheetOpen(ui, false));
+  ui.shortcutsBtn.addEventListener("click", () => {
+    setShortcutSheetOpen(ui, ui.shortcutSheet.hidden);
+  });
+  ui.shortcutSheetClose.addEventListener("click", () => {
+    setShortcutSheetOpen(ui, false);
+  });
   ui.shortcutSheet.addEventListener("click", (ev) => {
     // Click on the dim backdrop closes the sheet; clicks inside
     // `.shortcut-sheet-inner` bubble through unless stopped.
@@ -858,7 +866,7 @@ function attachHoldToRepeat(btn: HTMLButtonElement, fn: () => void): void {
   // a second time after pointerup — guarded by checking whether the
   // pointer sequence already fired.
   btn.addEventListener("click", (ev) => {
-    if ((ev as PointerEvent).pointerType) return;
+    if (ev.pointerType) return;
     fn();
   });
 }
@@ -874,12 +882,7 @@ function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
     const target = ev.target as HTMLElement | null;
     if (target) {
       const tag = target.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target.isContentEditable
-      ) {
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) {
         return;
       }
     }
@@ -938,6 +941,7 @@ function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
     const n = Number(ev.key);
     if (Number.isInteger(n) && n >= 1 && n <= SCENARIOS.length) {
       const scenario = SCENARIOS[n - 1];
+      if (!scenario) return;
       if (scenario.id !== state.permalink.scenario) {
         ev.preventDefault();
         void switchScenario(state, ui, scenario.id);
@@ -961,9 +965,8 @@ function loop(state: State, ui: UiHandles): void {
     // awaited pane-B construction) would let pane A race ahead.
     const paneA = state.paneA;
     const paneB = state.paneB;
-    const panesReady =
-      paneA !== null && (!state.permalink.compare || paneB !== null);
-    if (state.running && state.ready && panesReady && paneA) {
+    const panesReady = paneA !== null && (!state.permalink.compare || paneB !== null);
+    if (state.running && state.ready && panesReady) {
       const ticks = state.permalink.speed;
       forEachPane(state, (pane) => {
         pane.sim.step(ticks);
@@ -1002,18 +1005,11 @@ function loop(state: State, ui: UiHandles): void {
       // and silently throttle phases to half speed. Skipped while seeding.
       const clampedWall = Math.min(elapsed, 4 / 60);
       const simElapsed = clampedWall * ticks;
-      const specs = state.seeding
-        ? []
-        : state.traffic.drainSpawns(snapA, simElapsed);
+      const specs = state.seeding ? [] : state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
-        forEachPane(state, (pane) =>
-          pane.sim.spawnRider(
-            spec.originStopId,
-            spec.destStopId,
-            spec.weight,
-            spec.patienceTicks,
-          ),
-        );
+        forEachPane(state, (pane) => {
+          pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight, spec.patienceTicks);
+        });
       }
 
       // Re-snapshot each pane post-spawn so waiting dots reflect the new riders.
@@ -1054,8 +1050,8 @@ function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   // Decay the decision line: past TTL we dim the text instead of
   // clearing it, so compare-mode users can still see the last known
   // assignment while knowing it's stale.
-  if (pane.decisionEl.dataset.active === "true" && now > pane.decisionExpiresAt) {
-    pane.decisionEl.dataset.active = "false";
+  if (pane.decisionEl.dataset["active"] === "true" && now > pane.decisionExpiresAt) {
+    pane.decisionEl.dataset["active"] = "false";
   }
 }
 
@@ -1152,8 +1148,8 @@ function updateScoreboard(state: State, ui: UiHandles): void {
  */
 function updateModeBadge(pane: Pane): void {
   const mode = pane.sim.trafficMode();
-  if (pane.modeEl.dataset.mode !== mode) {
-    pane.modeEl.dataset.mode = mode;
+  if (pane.modeEl.dataset["mode"] !== mode) {
+    pane.modeEl.dataset["mode"] = mode;
     pane.modeEl.textContent = mode;
   }
 }
@@ -1248,10 +1244,7 @@ function initMetricRows(root: HTMLElement): void {
         "text-[9.5px] uppercase tracking-[0.08em] text-content-disabled font-medium",
         label,
       ),
-      el(
-        "span",
-        "metric-v text-[15px] text-content font-medium [font-feature-settings:'tnum'_1]",
-      ),
+      el("span", "metric-v text-[15px] text-content font-medium [font-feature-settings:'tnum'_1]"),
       spark,
     );
     frag.appendChild(row);
@@ -1267,10 +1260,13 @@ function renderMetricRows(
 ): void {
   const rows = root.children;
   for (let i = 0; i < METRIC_DEFS.length; i++) {
-    const row = rows[i] as HTMLElement;
-    const key = METRIC_DEFS[i][1];
+    const row = rows[i] as HTMLElement | undefined;
+    if (!row) continue;
+    const def = METRIC_DEFS[i];
+    if (!def) continue;
+    const key = def[1];
     const verdict = verdicts ? verdicts[key] : "";
-    if (row.dataset.verdict !== verdict) row.dataset.verdict = verdict;
+    if (row.dataset["verdict"] !== verdict) row.dataset["verdict"] = verdict;
     const vs = row.children[1] as HTMLElement;
     const val = metricValue(m, key);
     if (vs.textContent !== val) vs.textContent = val;
@@ -1290,10 +1286,11 @@ function renderMetricRows(
  */
 function buildSparklinePath(values: number[]): string {
   if (values.length < 2) return "M 0 13 L 100 13";
-  let min = values[0];
-  let max = values[0];
+  let min = values[0] ?? 0;
+  let max = values[0] ?? 0;
   for (let i = 1; i < values.length; i++) {
     const v = values[i];
+    if (v === undefined) continue;
     if (v < min) min = v;
     if (v > max) max = v;
   }
@@ -1303,7 +1300,7 @@ function buildSparklinePath(values: number[]): string {
   for (let i = 0; i < n; i++) {
     const x = (i / (n - 1)) * 100;
     // Inverted y-axis so higher values sit higher on the chart.
-    const y = span > 0 ? 13 - ((values[i] - min) / span) * 12 : 7;
+    const y = span > 0 ? 13 - (((values[i] ?? 0) - min) / span) * 12 : 7;
     d += `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)} `;
   }
   return d.trim();
@@ -1314,7 +1311,9 @@ function toast(ui: UiHandles, msg: string): void {
   ui.toast.textContent = msg;
   ui.toast.classList.add("show");
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => ui.toast.classList.remove("show"), 1600);
+  toastTimer = window.setTimeout(() => {
+    ui.toast.classList.remove("show");
+  }, 1600);
 }
 
 // ─── Tweak panel: state mutation ─────────────────────────────────────
@@ -1339,7 +1338,7 @@ function bumpParam(state: State, ui: UiHandles, key: ParamKey, dir: number): voi
 function resetParam(state: State, ui: UiHandles, key: ParamKey): void {
   const scenario = scenarioById(state.permalink.scenario);
   const next = { ...state.permalink.overrides };
-  delete next[key];
+  Reflect.deleteProperty(next, key);
   state.permalink = { ...state.permalink, overrides: next };
   // Per-key reset of the live-mutated knobs goes through the same
   // hot-swap path so metrics don't reset; cars-count reset rebuilds.
@@ -1403,11 +1402,7 @@ function setOverride(
  * with a metrics reset. This keeps local dev usable when the
  * playground reloads ahead of a fresh `wasm-pack build`.
  */
-function applyHotSwapAndRender(
-  state: State,
-  ui: UiHandles,
-  scenario: ScenarioMeta,
-): void {
+function applyHotSwapAndRender(state: State, ui: UiHandles, scenario: ScenarioMeta): void {
   const physics = applyPhysicsOverrides(scenario, state.permalink.overrides);
   const params = {
     maxSpeed: physics.maxSpeed,
@@ -1415,7 +1410,7 @@ function applyHotSwapAndRender(
     doorOpenTicks: physics.doorOpenTicks,
     doorTransitionTicks: physics.doorTransitionTicks,
   };
-  let allLive = true;
+  let allLive = true as boolean;
   forEachPane(state, (pane) => {
     if (!pane.sim.applyPhysicsLive(params)) allLive = false;
   });
@@ -1471,14 +1466,9 @@ function drainSeedBatch(state: State): void {
   for (let c = 0; c < SEED_CALLS_PER_FRAME && state.seeding.remaining > 0; c++) {
     const specs = state.traffic.drainSpawns(snap, dt);
     for (const spec of specs) {
-      forEachPane(state, (pane) =>
-        pane.sim.spawnRider(
-          spec.originStopId,
-          spec.destStopId,
-          spec.weight,
-          spec.patienceTicks,
-        ),
-      );
+      forEachPane(state, (pane) => {
+        pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight, spec.patienceTicks);
+      });
       state.seeding.remaining -= 1;
       if (state.seeding.remaining <= 0) break;
     }
@@ -1515,16 +1505,13 @@ function renderScenarioCards(ui: UiHandles): void {
   SCENARIOS.forEach((s, i) => {
     const card = el("button", SCENARIO_CARD_CLS);
     card.type = "button";
-    card.dataset.scenarioId = s.id;
+    card.dataset["scenarioId"] = s.id;
     card.setAttribute("aria-pressed", "false");
     // Description dropped to the native tooltip — compact tabs keep
     // just the label + shortcut key. Users hover (desktop) or long-
     // press (touch) to see the longer description if they want it.
     card.title = s.description;
-    card.append(
-      el("span", "", s.label),
-      el("span", SCENARIO_KBD_CLS, String(i + 1)),
-    );
+    card.append(el("span", "", s.label), el("span", SCENARIO_KBD_CLS, String(i + 1)));
     frag.appendChild(card);
   });
   ui.scenarioCards.replaceChildren(frag);
@@ -1533,10 +1520,7 @@ function renderScenarioCards(ui: UiHandles): void {
 function syncScenarioCards(ui: UiHandles, scenarioId: string): void {
   for (const card of ui.scenarioCards.children) {
     const el = card as HTMLElement;
-    el.setAttribute(
-      "aria-pressed",
-      el.dataset.scenarioId === scenarioId ? "true" : "false",
-    );
+    el.setAttribute("aria-pressed", el.dataset["scenarioId"] === scenarioId ? "true" : "false");
   }
 }
 
@@ -1550,20 +1534,12 @@ function syncScenarioCards(ui: UiHandles, scenarioId: string): void {
  * cross-scenario carry-over surprised more than it helped during
  * early prototyping.
  */
-function syncSheetCompact(
-  ui: UiHandles,
-  scenarioLabel: string,
-  strategyA: StrategyName,
-): void {
+function syncSheetCompact(ui: UiHandles, scenarioLabel: string, strategyA: StrategyName): void {
   ui.sheetScenario.textContent = scenarioLabel;
   ui.sheetStrategy.textContent = STRATEGY_LABELS[strategyA];
 }
 
-async function switchScenario(
-  state: State,
-  ui: UiHandles,
-  scenarioId: string,
-): Promise<void> {
+async function switchScenario(state: State, ui: UiHandles, scenarioId: string): Promise<void> {
   const scenario = scenarioById(scenarioId);
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
@@ -1599,10 +1575,7 @@ function renderPaneStrategyInfo(pane: PaneHandles, strategy: StrategyName): void
   const desc = STRATEGY_DESCRIPTIONS[strategy];
   if (pane.name.textContent !== label) pane.name.textContent = label;
   if (pane.desc.textContent !== desc) pane.desc.textContent = desc;
-  pane.trigger.setAttribute(
-    "aria-label",
-    `Change dispatch strategy (currently ${label})`,
-  );
+  pane.trigger.setAttribute("aria-label", `Change dispatch strategy (currently ${label})`);
   pane.trigger.title = desc;
 }
 
@@ -1616,10 +1589,7 @@ function renderPaneRepositionInfo(pane: PaneHandles, reposition: RepositionStrat
   const desc = REPOSITION_DESCRIPTIONS[reposition];
   const chipText = `Park: ${label}`;
   if (pane.repoName.textContent !== chipText) pane.repoName.textContent = chipText;
-  pane.repoTrigger.setAttribute(
-    "aria-label",
-    `Change idle-parking strategy (currently ${label})`,
-  );
+  pane.repoTrigger.setAttribute("aria-label", `Change idle-parking strategy (currently ${label})`);
   pane.repoTrigger.title = desc;
 }
 
@@ -1670,7 +1640,9 @@ function renderPopoverOptions<T extends string>(
     desc.textContent = descriptions[opt];
 
     row.append(header, desc);
-    row.addEventListener("click", () => onPick(opt));
+    row.addEventListener("click", () => {
+      onPick(opt);
+    });
     frag.appendChild(row);
   }
   container.replaceChildren(frag);
@@ -1878,8 +1850,7 @@ async function pickReposition(
   which: "a" | "b",
   reposition: RepositionStrategyName,
 ): Promise<void> {
-  const current =
-    which === "a" ? state.permalink.repositionA : state.permalink.repositionB;
+  const current = which === "a" ? state.permalink.repositionA : state.permalink.repositionB;
   if (current === reposition) {
     closeAllRepositionPopovers(ui);
     return;
@@ -1894,10 +1865,7 @@ async function pickReposition(
   refreshRepositionPopovers(state, ui);
   closeAllRepositionPopovers(ui);
   await resetAll(state, ui);
-  toast(
-    ui,
-    `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`,
-  );
+  toast(ui, `${which === "a" ? "A" : "B"} park: ${REPOSITION_LABELS[reposition]}`);
 }
 
 // ─── Verdict ribbon ──────────────────────────────────────────────────
@@ -1920,25 +1888,21 @@ function renderVerdictRibbon(root: HTMLElement, verdictsA: MetricVerdicts): void
         "verdict-cell flex items-center gap-1.5 px-2 py-1 rounded-sm bg-surface-elevated border border-stroke-subtle tabular-nums overflow-hidden",
       );
       cell.append(
-        el(
-          "span",
-          "text-[10.5px] uppercase tracking-[0.06em] text-content-disabled",
-          label,
-        ),
-        el(
-          "span",
-          "verdict-cell-winner font-semibold text-content tracking-[0.02em]",
-        ),
+        el("span", "text-[10.5px] uppercase tracking-[0.06em] text-content-disabled", label),
+        el("span", "verdict-cell-winner font-semibold text-content tracking-[0.02em]"),
       );
       root.appendChild(cell);
     }
   }
   root.hidden = false;
   for (let i = 0; i < METRIC_DEFS.length; i++) {
-    const cell = root.children[i + 1] as HTMLElement;
-    const key = METRIC_DEFS[i][1];
+    const cell = root.children[i + 1] as HTMLElement | undefined;
+    if (!cell) continue;
+    const def = METRIC_DEFS[i];
+    if (!def) continue;
+    const key = def[1];
     const { winner, text } = verdictToWinner(verdictsA[key]);
-    if (cell.dataset.winner !== winner) cell.dataset.winner = winner;
+    if (cell.dataset["winner"] !== winner) cell.dataset["winner"] = winner;
     const winnerEl = cell.lastElementChild as HTMLElement;
     if (winnerEl.textContent !== text) winnerEl.textContent = text;
   }
@@ -1971,14 +1935,14 @@ function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => str
   const el = pane.decisionEl;
   const text = `Car ${ev.elevator} \u2192 ${stopName(ev.stop)}`;
   if (el.textContent !== text) el.textContent = text;
-  el.dataset.active = "true";
+  el.dataset["active"] = "true";
   pane.decisionExpiresAt = performance.now() + DECISION_TTL_MS;
   // Retrigger the pulse keyframes by flipping data-pulse in the next
   // frame — clearing synchronously has no effect because the same
   // animation name stays active.
-  el.dataset.pulse = "false";
+  el.dataset["pulse"] = "false";
   requestAnimationFrame(() => {
-    el.dataset.pulse = "true";
+    el.dataset["pulse"] = "true";
   });
 }
 

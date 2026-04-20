@@ -93,18 +93,18 @@ function scaleFor(width: number): Scale {
 // custom properties cheaply in a hot loop, so these are JS constants that
 // track the CSS tokens. Keep in sync with `:root` in src/style.css.
 const PHASE_COLORS: Record<Car["phase"], string> = {
-  idle: "#6b6b75",          // --text-disabled
-  moving: "#f59e0b",        // --accent
+  idle: "#6b6b75", // --text-disabled
+  moving: "#f59e0b", // --accent
   repositioning: "#a78bfa", // violet — no CSS token; phase-specific hue
   "door-opening": "#fbbf24", // --accent-up
-  loading: "#7dd3fc",       // --pane-a
+  loading: "#7dd3fc", // --pane-a
   "door-closing": "#fbbf24", // --accent-up
-  stopped: "#8b8c92",       // --text-tertiary
-  unknown: "#6b6b75",       // --text-disabled
+  stopped: "#8b8c92", // --text-tertiary
+  unknown: "#6b6b75", // --text-disabled
 };
 
-const FLOOR_LINE = "#2a2a35";   // --border-subtle — floor-slab stroke
-const STOP_LABEL = "#a1a1aa";   // --text-secondary
+const FLOOR_LINE = "#2a2a35"; // --border-subtle — floor-slab stroke
+const STOP_LABEL = "#a1a1aa"; // --text-secondary
 // Shaft channel fill + rail colours. Indexed by the line's position in
 // the scenario's sorted line list so banks get distinct colour
 // identities: the main banks share a quiet neutral grey, while
@@ -116,16 +116,16 @@ const STOP_LABEL = "#a1a1aa";   // --text-secondary
 // scenarios only have one or two banks and the extra colours only
 // kick in when the scenario author added specialty lines.
 const SHAFT_FILL_BY_INDEX: readonly string[] = [
-  "rgba(8, 10, 14, 0.55)",      // main bank (grey, same as before)
-  "rgba(8, 10, 14, 0.55)",      // second main bank (same)
-  "rgba(58, 34, 4, 0.55)",      // executive — warm amber tint
-  "rgba(6, 30, 42, 0.55)",      // service — cool cyan tint
+  "rgba(8, 10, 14, 0.55)", // main bank (grey, same as before)
+  "rgba(8, 10, 14, 0.55)", // second main bank (same)
+  "rgba(58, 34, 4, 0.55)", // executive — warm amber tint
+  "rgba(6, 30, 42, 0.55)", // service — cool cyan tint
 ];
 const SHAFT_FRAME_BY_INDEX: readonly string[] = [
-  "#3a3a45",                     // --border-default
+  "#3a3a45", // --border-default
   "#3a3a45",
-  "#8a5a1a",                     // exec — warm amber rail
-  "#2d5f70",                     // service — cool cyan rail
+  "#8a5a1a", // exec — warm amber rail
+  "#2d5f70", // service — cool cyan rail
 ];
 const SHAFT_FILL_FALLBACK = "rgba(8, 10, 14, 0.55)";
 const SHAFT_FRAME_FALLBACK = "#3a3a45";
@@ -161,11 +161,11 @@ const SHAFT_LABEL_FALLBACK = "#a1a1aa";
 // Door marks — muted at rest, brighter when a car is actively loading
 // at that floor. The active state reuses the amber brand accent.
 const DOOR_INACTIVE = "#4a4a55"; // --border-strong
-const DOOR_ACTIVE = "#f59e0b";   // --accent
+const DOOR_ACTIVE = "#f59e0b"; // --accent
 // Up and down use distinct hue families so direction is legible at small
 // figure sizes. Cool blue reads as "up" (sky / lift), rose as "down" (gravity).
-const UP_COLOR = "#7dd3fc";    // --pane-a
-const DOWN_COLOR = "#fda4af";  // --pane-b
+const UP_COLOR = "#7dd3fc"; // --pane-a
+const DOWN_COLOR = "#fda4af"; // --pane-b
 const CAR_DOT_COLOR = "#fafafa"; // --text-primary
 const OVERFLOW_COLOR = "#8b8c92"; // --text-tertiary
 // Target marker — white, not amber. Amber reads as "doors / loading"
@@ -231,7 +231,10 @@ function arcPoint(
   const cy = my + perpY * arc;
   // Quadratic bezier at `t`.
   const u = 1 - t;
-  return [u * u * startX + 2 * u * t * cx + t * t * endX, u * u * startY + 2 * u * t * cy + t * t * endY];
+  return [
+    u * u * startX + 2 * u * t * cx + t * t * endX,
+    u * u * startY + 2 * u * t * cy + t * t * endY,
+  ];
 }
 
 /** Cubic-bezier(0.2, 0.6, 0.2, 1) evaluated at x → y, good-enough via Newton. */
@@ -256,18 +259,18 @@ function easeOutNorm(tx: number): number {
 }
 
 export class CanvasRenderer {
-  #canvas: HTMLCanvasElement;
-  #ctx: CanvasRenderingContext2D;
+  readonly #canvas: HTMLCanvasElement;
+  readonly #ctx: CanvasRenderingContext2D;
   #dpr: number = window.devicePixelRatio || 1;
-  #onResize: () => void;
+  readonly #onResize: () => void;
   #cachedScale: Scale | null = null;
   #cachedScaleWidth = -1;
-  #byLine: Map<number, Car[]> = new Map();
+  readonly #byLine: Map<number, Car[]> = new Map();
 
-  #accent: string;
-  #carStates: Map<number, CarState> = new Map();
-  #stopStates: Map<number, StopState> = new Map();
-  #tweens: Tween[] = [];
+  readonly #accent: string;
+  readonly #carStates: Map<number, CarState> = new Map();
+  readonly #stopStates: Map<number, StopState> = new Map();
+  readonly #tweens: Tween[] = [];
 
   constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
@@ -276,7 +279,9 @@ export class CanvasRenderer {
     this.#ctx = ctx;
     this.#accent = accent;
     this.#resize();
-    this.#onResize = (): void => this.#resize();
+    this.#onResize = (): void => {
+      this.#resize();
+    };
     window.addEventListener("resize", this.#onResize);
   }
 
@@ -299,11 +304,7 @@ export class CanvasRenderer {
     this.#ctx.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
   }
 
-  draw(
-    snap: Snapshot,
-    speedMultiplier: number,
-    bubbles?: Map<number, CarBubble>,
-  ): void {
+  draw(snap: Snapshot, speedMultiplier: number, bubbles?: Map<number, CarBubble>): void {
     this.#resize();
     const { clientWidth: w, clientHeight: h } = this.#canvas;
     this.#ctx.clearRect(0, 0, w, h);
@@ -313,7 +314,8 @@ export class CanvasRenderer {
       this.#cachedScale = scaleFor(w);
       this.#cachedScaleWidth = w;
     }
-    const s = this.#cachedScale!;
+    const s = this.#cachedScale;
+    if (s === null) return;
 
     // Tether scenarios (2 stops, e.g. the space elevator) want point-
     // labeled platforms at each end of a long cable, not the
@@ -329,16 +331,22 @@ export class CanvasRenderer {
     // platform labels sit next to their slabs with air above and
     // below, while the axis margin itself stays minimal so the cable
     // fills as much of the pane as possible.
-    let minY = snap.stops[0].y;
-    let maxY = snap.stops[0].y;
+    const firstStop = snap.stops[0];
+    if (firstStop === undefined) return;
+    let minY = firstStop.y;
+    let maxY = firstStop.y;
     for (let i = 1; i < snap.stops.length; i++) {
-      const y = snap.stops[i].y;
+      const st = snap.stops[i];
+      if (st === undefined) continue;
+      const y = st.y;
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
     }
     const sortedYs = snap.stops.map((st) => st.y).sort((a, b) => a - b);
     const topGap =
-      sortedYs.length >= 3 ? sortedYs[sortedYs.length - 1] - sortedYs[sortedYs.length - 2] : 1;
+      sortedYs.length >= 3
+        ? (sortedYs[sortedYs.length - 1] ?? 0) - (sortedYs[sortedYs.length - 2] ?? 0)
+        : 1;
     const bottomPadding = 1;
     const axisMin = minY - bottomPadding;
     const axisMax = maxY + topGap;
@@ -363,7 +371,10 @@ export class CanvasRenderer {
       // floors on tall browsers.
       const gaps: number[] = [];
       for (let i = 1; i < sortedYs.length; i++) {
-        const g = sortedYs[i] - sortedYs[i - 1];
+        const cur = sortedYs[i];
+        const prev = sortedYs[i - 1];
+        if (cur === undefined || prev === undefined) continue;
+        const g = cur - prev;
         if (g > 0) gaps.push(g);
       }
       const refGap = gaps.length > 0 ? Math.min(...gaps) : 1;
@@ -399,22 +410,16 @@ export class CanvasRenderer {
     // `maxShaftInnerW` cap (single-shaft scenarios on wide canvases),
     // surplus spills back into the gutters so the bank stays centered.
     const innerW = Math.max(0, w - 2 * s.padX - s.labelW);
-    const shaftBankBudget =
-      innerW - 2 * s.figureGutterW - 2 * s.gutterGap;
+    const shaftBankBudget = innerW - 2 * s.figureGutterW - 2 * s.gutterGap;
     const perShaftRoom =
-      (shaftBankBudget - s.shaftSpacing * Math.max(totalShafts - 1, 0)) /
-      Math.max(totalShafts, 1);
+      (shaftBankBudget - s.shaftSpacing * Math.max(totalShafts - 1, 0)) / Math.max(totalShafts, 1);
     // Tethers cap shaft width much tighter than a building shaft so
     // the cable reads as a narrow structural line spanning a huge
     // distance, not a squat column. Everything else (car width,
     // frame) scales off the capped shaft width automatically.
     const effectiveMaxShaftInnerW = isTether ? 34 : s.maxShaftInnerW;
-    const shaftInnerW = Math.max(
-      s.minShaftInnerW,
-      Math.min(effectiveMaxShaftInnerW, perShaftRoom),
-    );
-    const shaftBankW =
-      shaftInnerW * totalShafts + s.shaftSpacing * Math.max(totalShafts - 1, 0);
+    const shaftInnerW = Math.max(s.minShaftInnerW, Math.min(effectiveMaxShaftInnerW, perShaftRoom));
+    const shaftBankW = shaftInnerW * totalShafts + s.shaftSpacing * Math.max(totalShafts - 1, 0);
     // Gutters split the remaining width equally. `figureGutterW` is
     // the floor; any surplus expands both gutters in lockstep.
     const remainingForGutters = Math.max(0, innerW - shaftBankW - 2 * s.gutterGap);
@@ -431,7 +436,10 @@ export class CanvasRenderer {
     let minStoryPx = Infinity;
     if (snap.stops.length >= 2) {
       for (let i = 1; i < sortedYs.length; i++) {
-        const dy = toScreenY(sortedYs[i - 1]) - toScreenY(sortedYs[i]);
+        const yA = sortedYs[i - 1];
+        const yB = sortedYs[i];
+        if (yA === undefined || yB === undefined) continue;
+        const dy = toScreenY(yA) - toScreenY(yB);
         if (dy > 0 && dy < minStoryPx) minStoryPx = dy;
       }
     }
@@ -514,14 +522,19 @@ export class CanvasRenderer {
             let nearest = -1;
             let best = Infinity;
             for (let i = 0; i < snap.stops.length; i++) {
-              const d = Math.abs(snap.stops[i].y - car.y);
+              const stp = snap.stops[i];
+              if (stp === undefined) continue;
+              const d = Math.abs(stp.y - car.y);
               if (d < best) {
                 best = d;
                 nearest = i;
               }
             }
             if (nearest >= 0 && best < 0.5) {
-              loadingAtFloor.add(`${idx}:${snap.stops[nearest].entity_id}`);
+              const nearestStop = snap.stops[nearest];
+              if (nearestStop !== undefined) {
+                loadingAtFloor.add(`${idx}:${nearestStop.entity_id}`);
+              }
             }
           }
           idx++;
@@ -563,6 +576,7 @@ export class CanvasRenderer {
     let shaftExtIdx = 0;
     for (let lineIdx = 0; lineIdx < lineIds.length; lineIdx++) {
       const lineId = lineIds[lineIdx];
+      if (lineId === undefined) continue;
       const cars = byLine.get(lineId) ?? [];
       const fill = SHAFT_FILL_BY_INDEX[lineIdx] ?? SHAFT_FILL_FALLBACK;
       const frame = SHAFT_FRAME_BY_INDEX[lineIdx] ?? SHAFT_FRAME_FALLBACK;
@@ -588,8 +602,8 @@ export class CanvasRenderer {
         carHPerCar.set(car.id, thisCarH);
         riderColorPerCar.set(car.id, riderColor);
         const cx = shaftCenters[shaftExtIdx];
-        const hasRange =
-          Number.isFinite(car.min_served_y) && Number.isFinite(car.max_served_y);
+        if (cx === undefined) continue;
+        const hasRange = Number.isFinite(car.min_served_y) && Number.isFinite(car.max_served_y);
         const top = hasRange
           ? Math.max(stopsTop, toScreenY(car.max_served_y) - s.carH - 2)
           : stopsTop;
@@ -608,11 +622,7 @@ export class CanvasRenderer {
       // "LOW" on it is misleading because the label's semantics
       // ("main passenger bank, low-zone") only hold against a
       // skyscraper-style multi-line layout.
-      if (
-        lineIds.length > 1 &&
-        Number.isFinite(firstCx) &&
-        Number.isFinite(groupTop)
-      ) {
+      if (lineIds.length > 1 && Number.isFinite(firstCx) && Number.isFinite(groupTop)) {
         shaftLabels.push({
           cx: (firstCx + lastCx) / 2,
           top: groupTop,
@@ -716,8 +726,7 @@ export class CanvasRenderer {
 
       const ttl = Math.max(1, bubble.expiresAt - bubble.bornAt);
       const remaining = bubble.expiresAt - now;
-      const alpha =
-        remaining > ttl * FADE_FRAC ? 1 : Math.max(0, remaining / (ttl * FADE_FRAC));
+      const alpha = remaining > ttl * FADE_FRAC ? 1 : Math.max(0, remaining / (ttl * FADE_FRAC));
       if (alpha <= 0) continue;
 
       const textW = ctx.measureText(bubble.text).width;
@@ -729,12 +738,8 @@ export class CanvasRenderer {
       // the canvas edges.
       const aboveTop = carTop - gap - tailH - bubbleH;
       const belowOverflow = carBottom + gap + tailH + bubbleH > canvasWidth; // safety fallback
-      const initialSide: "above" | "below" =
-        aboveTop < 2 && !belowOverflow ? "below" : "above";
-      const by =
-        initialSide === "above"
-          ? carTop - gap - tailH - bubbleH
-          : carBottom + gap + tailH;
+      const initialSide: "above" | "below" = aboveTop < 2 && !belowOverflow ? "below" : "above";
+      const by = initialSide === "above" ? carTop - gap - tailH - bubbleH : carBottom + gap + tailH;
       let bx = cx - bubbleW / 2;
       const minX = 2;
       const maxX = canvasWidth - bubbleW - 2;
@@ -767,9 +772,12 @@ export class CanvasRenderer {
       );
     for (let i = 1; i < placements.length; i++) {
       const p = placements[i];
+      if (p === undefined) continue;
       let collides = false;
       for (let j = 0; j < i; j++) {
-        if (rectsIntersect(p, placements[j])) {
+        const pj = placements[j];
+        if (pj === undefined) continue;
+        if (rectsIntersect(p, pj)) {
           collides = true;
           break;
         }
@@ -777,15 +785,15 @@ export class CanvasRenderer {
       if (!collides) continue;
       const flipSide: "above" | "below" = p.side === "above" ? "below" : "above";
       const flipBy =
-        flipSide === "above"
-          ? p.carTop - gap - tailH - p.bubbleH
-          : p.carBottom + gap + tailH;
+        flipSide === "above" ? p.carTop - gap - tailH - p.bubbleH : p.carBottom + gap + tailH;
       // Only accept the flip if it actually clears; otherwise keep the
       // original placement so we don't make things worse.
       const flipped: Placement = { ...p, side: flipSide, by: flipBy };
       let flipClears = true;
       for (let j = 0; j < i; j++) {
-        if (rectsIntersect(flipped, placements[j])) {
+        const pj = placements[j];
+        if (pj === undefined) continue;
+        if (rectsIntersect(flipped, pj)) {
           flipClears = false;
           break;
         }
@@ -796,8 +804,7 @@ export class CanvasRenderer {
     }
 
     for (const p of placements) {
-      const { bubble, alpha, cx, carTop, carBottom, bubbleW, bubbleH, side, bx, by } =
-        p;
+      const { bubble, alpha, cx, carTop, carBottom, bubbleW, bubbleH, side, bx, by } = p;
       const tipY = side === "above" ? carTop - gap : carBottom + gap;
       const baseY = side === "above" ? by + bubbleH : by;
       const tailCenter = Math.min(
@@ -952,10 +959,12 @@ export class CanvasRenderer {
 
     for (let i = 0; i < sorted.length; i++) {
       const stop = sorted[i];
+      if (stop === undefined) continue;
       const slabY = toScreenY(stop.y);
       // Story ceiling: the slab directly above, or the canvas top for
       // the highest floor (which has no story above it).
-      const ceilingY = i < sorted.length - 1 ? toScreenY(sorted[i + 1].y) : stopsTop;
+      const nextStop = sorted[i + 1];
+      const ceilingY = nextStop !== undefined ? toScreenY(nextStop.y) : stopsTop;
 
       // Slab rendering — full-width segmented line for buildings,
       // short platform bars for tether endpoints.
@@ -990,6 +999,7 @@ export class CanvasRenderer {
       // marks on that specific shaft.
       for (let j = 0; j < shaftCenters.length; j++) {
         const cx = shaftCenters[j];
+        if (cx === undefined) continue;
         const active = loadingAtFloor.has(`${j}:${stop.entity_id}`);
         ctx.strokeStyle = active ? DOOR_ACTIVE : DOOR_INACTIVE;
         ctx.lineWidth = active ? 1.4 : 1;
@@ -1076,7 +1086,7 @@ export class CanvasRenderer {
           ctx,
           rightGutter.start,
           y,
-          +1,
+          1,
           rightGutter.end - rightGutter.start,
           stop.waiting_down,
           DOWN_COLOR,
@@ -1102,12 +1112,13 @@ export class CanvasRenderer {
     void shaftInnerPerCar; // reserved for future per-car dot sizing
     const dotR = Math.max(2, s.figureHeadR * 0.9);
     for (const car of snap.cars) {
-      if (car.target == null) continue;
+      if (car.target === null) continue;
       const idx = stopIdxById.get(car.target);
-      if (idx == null) continue;
+      if (idx === undefined) continue;
       const stop = snap.stops[idx];
+      if (stop === undefined) continue;
       const cx = carX.get(car.id);
-      if (cx == null) continue;
+      if (cx === undefined) continue;
       // Target y = cabin's landing *center* (half a cab above the
       // destination slab). Connecting line starts at the cabin's
       // current center and ends at that landing point.
@@ -1166,7 +1177,7 @@ export class CanvasRenderer {
     const bottom = toScreenY(car.y);
     const top = bottom - carH;
     const halfW = carW / 2;
-    const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
+    const base = PHASE_COLORS[car.phase];
 
     const grad = ctx.createLinearGradient(cx, top, cx, bottom);
     grad.addColorStop(0, shade(base, 0.14));
@@ -1219,7 +1230,9 @@ export class CanvasRenderer {
       let nearestIdx: number | null = null;
       let nearestDist = Infinity;
       for (let i = 0; i < snap.stops.length; i++) {
-        const d = Math.abs(snap.stops[i].y - car.y);
+        const stp = snap.stops[i];
+        if (stp === undefined) continue;
+        const d = Math.abs(stp.y - car.y);
         if (d < nearestDist) {
           nearestDist = d;
           nearestIdx = i;
@@ -1227,18 +1240,15 @@ export class CanvasRenderer {
       }
       const stopIdx = car.phase === "loading" && nearestDist < 0.5 ? nearestIdx : null;
 
-      if (prev && cx != null && stopIdx != null) {
+      if (prev && cx !== undefined && stopIdx !== null) {
         const delta = riders - prev.riders;
+        const loadStop = snap.stops[stopIdx];
+        if (loadStop === undefined) continue;
         if (delta > 0) {
-          const stop = snap.stops[stopIdx];
-          boardsAtStop.set(
-            stop.entity_id,
-            (boardsAtStop.get(stop.entity_id) ?? 0) + delta,
-          );
+          boardsAtStop.set(loadStop.entity_id, (boardsAtStop.get(loadStop.entity_id) ?? 0) + delta);
         }
         if (delta !== 0) {
-          const stop = snap.stops[stopIdx];
-          const stopY = toScreenY(stop.y);
+          const stopY = toScreenY(loadStop.y);
           // Cabin's vertical center — since the cabin anchors at its
           // bottom and extends up by `carH`, its center sits one half
           // above the slab. Riders fly in/out at the middle so the
@@ -1246,9 +1256,8 @@ export class CanvasRenderer {
           const cabinCenterY = toScreenY(car.y) - s.carH / 2;
           const count = Math.min(Math.abs(delta), 6);
           if (delta > 0) {
-            const useUp = stop.waiting_up >= stop.waiting_down;
-            const shaftHalfForCar =
-              (shaftInnerPerCar.get(car.id) ?? s.shaftInnerW) / 2;
+            const useUp = loadStop.waiting_up >= loadStop.waiting_down;
+            const shaftHalfForCar = (shaftInnerPerCar.get(car.id) ?? s.shaftInnerW) / 2;
             const gutterOffset = shaftHalfForCar + 6;
             const originX = useUp ? cx - gutterOffset : cx + gutterOffset;
             const color = useUp ? UP_COLOR : DOWN_COLOR;
@@ -1337,6 +1346,7 @@ export class CanvasRenderer {
     // Reap completed tweens. Walk in reverse so splice indices stay valid.
     for (let i = this.#tweens.length - 1; i >= 0; i--) {
       const t = this.#tweens[i];
+      if (t === undefined) continue;
       if (now - t.bornAt > t.duration) this.#tweens.splice(i, 1);
     }
 
@@ -1370,10 +1380,7 @@ export class CanvasRenderer {
       const [x, y] =
         t.kind === "board"
           ? arcPoint(t.startX, t.startY, t.endX, t.endY, eased)
-          : [
-              t.startX + (t.endX - t.startX) * eased,
-              t.startY + (t.endY - t.startY) * eased,
-            ];
+          : [t.startX + (t.endX - t.startX) * eased, t.startY + (t.endY - t.startY) * eased];
       // Board is persistent (delivered into car), alight and abandon
       // fade out as the rider leaves the picture. Abandon gets a
       // slight extra fade curve so it reads as "fading away in
@@ -1456,13 +1463,7 @@ function drawFigureRow(
  * - `tall` — taller and slimmer (reads as a longer-built adult).
  */
 type RiderVariant = "standard" | "briefcase" | "bag" | "short" | "tall";
-const RIDER_VARIANTS: readonly RiderVariant[] = [
-  "standard",
-  "briefcase",
-  "bag",
-  "short",
-  "tall",
-];
+const RIDER_VARIANTS: readonly RiderVariant[] = ["standard", "briefcase", "bag", "short", "tall"];
 
 /**
  * Hash `(seedA, seedB)` to a silhouette variant deterministically.
@@ -1477,7 +1478,7 @@ function pickRiderVariant(seedA: number, seedB: number): RiderVariant {
   h = Math.imul(h ^ seedB, 0x85ebca6b) >>> 0;
   h = (h ^ (h >>> 13)) >>> 0;
   h = Math.imul(h, 0xc2b2ae35) >>> 0;
-  return RIDER_VARIANTS[h % RIDER_VARIANTS.length];
+  return RIDER_VARIANTS[h % RIDER_VARIANTS.length] ?? "standard";
 }
 
 /**
@@ -1710,7 +1711,7 @@ function drawRidersInCar(
 /** Lighten (`amount > 0`) or darken (`amount < 0`) a hex color by a fraction [-1, 1]. */
 function shade(hex: string, amount: number): string {
   const m = hex.match(/^#?([0-9a-f]{6})$/i);
-  if (!m) return hex;
+  if (!m || m[1] === undefined) return hex;
   const n = parseInt(m[1], 16);
   const r = (n >> 16) & 0xff;
   const g = (n >> 8) & 0xff;
@@ -1723,7 +1724,7 @@ function shade(hex: string, amount: number): string {
 /** `#rrggbb` → `rgba(r, g, b, a)`, no-op on other color forms. */
 function hexWithAlpha(color: string, alpha: number): string {
   const m = color.match(/^#?([0-9a-f]{6})$/i);
-  if (!m) return color;
+  if (!m || m[1] === undefined) return color;
   const n = parseInt(m[1], 16);
   const r = (n >> 16) & 0xff;
   const g = (n >> 8) & 0xff;
@@ -1793,4 +1794,3 @@ function roundedRect(
   ctx.quadraticCurveTo(x, y, x + rr, y);
   ctx.closePath();
 }
-

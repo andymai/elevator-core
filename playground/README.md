@@ -19,12 +19,12 @@ and hot-reload; Rust changes require a fresh `wasm-pack build`.
 
 ## Scripts
 
-| Script | What it does |
-|---|---|
-| `pnpm dev` | Vite dev server with HMR |
-| `pnpm build` | `tsc --noEmit && vite build` — output in `dist/` |
-| `pnpm preview` | Preview the production build locally |
-| `pnpm typecheck` | `tsc --noEmit` only |
+| Script           | What it does                                     |
+| ---------------- | ------------------------------------------------ |
+| `pnpm dev`       | Vite dev server with HMR                         |
+| `pnpm build`     | `tsc --noEmit && vite build` — output in `dist/` |
+| `pnpm preview`   | Preview the production build locally             |
+| `pnpm typecheck` | `tsc --noEmit` only                              |
 
 ## Deploy
 
@@ -34,12 +34,12 @@ copies `dist/` into the GitHub Pages site under `/playground/`.
 
 ## Architecture
 
-| File | Purpose |
-|---|---|
-| `src/main.ts` | Entry point, compare-mode wiring, requestAnimationFrame loop, scoreboard |
-| `src/sim.ts` | Typed TS wrapper around `WasmSim` |
-| `src/traffic.ts` | Seeded LCG rider spec generator; fan-out is the caller's job |
-| `src/canvas.ts` | Shaft + cars + stops renderer with direction-split queues, target markers, motion trails, flying-dot animations, and an inline sparkline |
-| `src/permalink.ts` | URL query-string state encoding |
-| `src/scenarios.ts` | Embedded RON scenarios |
-| `src/types.ts` | DTO mirrors of the wasm-bindgen surface |
+| File               | Purpose                                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.ts`      | Entry point, compare-mode wiring, requestAnimationFrame loop, scoreboard                                                                 |
+| `src/sim.ts`       | Typed TS wrapper around `WasmSim`                                                                                                        |
+| `src/traffic.ts`   | Seeded LCG rider spec generator; fan-out is the caller's job                                                                             |
+| `src/canvas.ts`    | Shaft + cars + stops renderer with direction-split queues, target markers, motion trails, flying-dot animations, and an inline sparkline |
+| `src/permalink.ts` | URL query-string state encoding                                                                                                          |
+| `src/scenarios.ts` | Embedded RON scenarios                                                                                                                   |
+| `src/types.ts`     | DTO mirrors of the wasm-bindgen surface                                                                                                  |

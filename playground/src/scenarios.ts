@@ -38,7 +38,6 @@ function uniform(n: number): number[] {
   return Array.from({ length: n }, () => 1);
 }
 
-
 // ─── Convention burst — acute post-keynote surge ────────────────────
 
 const CONV_STOPS = 5;
@@ -351,12 +350,7 @@ function buildSkyscraperRon(): string {
   // VIP and Service cabs hold <5 riders, so their weight_capacity
   // drops to 350 kg to match the visual narrowness. Bypass thresholds
   // stay identical — they're percentages of capacity, not absolutes.
-  const elevator = (
-    id: number,
-    name: string,
-    startStop: number,
-    capacity: number,
-  ): string =>
+  const elevator = (id: number, name: string, startStop: number, capacity: number): string =>
     `                ElevatorConfig(
                     id: ${id}, name: "${name}",
                     max_speed: 4.5, acceleration: 2.0, deceleration: 2.5,
@@ -554,5 +548,9 @@ const spaceElevator: ScenarioMeta = {
 export const SCENARIOS: ScenarioMeta[] = [convention, skyscraper, spaceElevator];
 
 export function scenarioById(id: string): ScenarioMeta {
-  return SCENARIOS.find((s) => s.id === id) ?? SCENARIOS[0];
+  const match = SCENARIOS.find((s) => s.id === id);
+  if (match) return match;
+  const fallback = SCENARIOS[0];
+  if (fallback) return fallback;
+  throw new Error(`unknown scenario "${id}" and empty registry`);
 }

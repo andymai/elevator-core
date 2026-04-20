@@ -28,12 +28,7 @@ interface WasmSimInstance {
   strategyName(): string;
   trafficMode?(): string;
   setStrategy(name: string): boolean;
-  spawnRider(
-    origin: number,
-    destination: number,
-    weight: number,
-    patienceTicks?: number,
-  ): void;
+  spawnRider(origin: number, destination: number, weight: number, patienceTicks?: number): void;
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): unknown;
@@ -76,8 +71,8 @@ export async function loadWasm(): Promise<WasmModule> {
 
 /** Typed, disposable wrapper around `WasmSim`. */
 export class Sim {
-  #inner: WasmSimInstance;
-  #dt: number;
+  readonly #inner: WasmSimInstance;
+  readonly #dt: number;
 
   constructor(inner: WasmSimInstance) {
     this.#inner = inner;
@@ -133,19 +128,14 @@ export class Sim {
    * build, keeping the UI robust across wasm rebuilds.
    */
   trafficMode(): TrafficMode {
-    return (this.#inner.trafficMode?.() as TrafficMode) ?? "Idle";
+    return (this.#inner.trafficMode?.() ?? "Idle") as TrafficMode;
   }
 
   setStrategy(name: StrategyName): boolean {
     return this.#inner.setStrategy(name);
   }
 
-  spawnRider(
-    origin: number,
-    destination: number,
-    weight: number,
-    patienceTicks?: number,
-  ): void {
+  spawnRider(origin: number, destination: number, weight: number, patienceTicks?: number): void {
     this.#inner.spawnRider(origin, destination, weight, patienceTicks);
   }
 
