@@ -2464,7 +2464,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-core"
-version = "15.16.0"
+version = "15.17.1"
 dependencies = [
  "criterion",
  "ordered-float",
