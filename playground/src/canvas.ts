@@ -54,30 +54,33 @@ function scaleFor(width: number): Scale {
   };
 }
 
+// Palette mirrors style.css primitives. Canvas rendering can't read CSS
+// custom properties cheaply in a hot loop, so these are JS constants that
+// track the CSS tokens. Keep in sync with `:root` in src/style.css.
 const PHASE_COLORS: Record<Car["phase"], string> = {
-  idle: "#5d6271",
-  moving: "#06c2b5",
-  repositioning: "#a78bfa",
-  "door-opening": "#fbbf24",
-  loading: "#7dd3fc",
-  "door-closing": "#fbbf24",
-  stopped: "#8b90a0",
-  unknown: "#5d6271",
+  idle: "#6b6b75",          // --text-disabled
+  moving: "#f59e0b",        // --accent
+  repositioning: "#a78bfa", // violet — no CSS token; phase-specific hue
+  "door-opening": "#fbbf24", // --accent-up
+  loading: "#7dd3fc",       // --pane-a
+  "door-closing": "#fbbf24", // --accent-up
+  stopped: "#8b8c92",       // --text-tertiary
+  unknown: "#6b6b75",       // --text-disabled
 };
 
-const STOP_LINE = "#1f2431";
-const STOP_LABEL = "#c8ccd6";
-// Up and down use distinct hue families so the direction is legible at
-// small dot sizes. Cool blue reads as "up" (sky), warm amber as "down"
-// (gravity / descent).
-const UP_COLOR = "#7dd3fc";
-const DOWN_COLOR = "#fbbf24";
-const CAR_DOT_COLOR = "#f5f6f9";
-const OVERFLOW_COLOR = "#8b90a0";
-const SPARK_LINE = "#2e3445";
-const SPARK_TEXT = "#8b90a0";
-const TARGET_RING = "rgba(6, 194, 181, 0.85)";
-const TARGET_FILL = "rgba(6, 194, 181, 0.95)";
+const STOP_LINE = "#2a2a35";   // --border-subtle
+const STOP_LABEL = "#a1a1aa";  // --text-secondary
+// Up and down use distinct hue families so direction is legible at small
+// dot sizes. Cool blue reads as "up" (sky / lift), rose as "down" (gravity).
+// Rose chosen over amber since amber now owns the brand accent.
+const UP_COLOR = "#7dd3fc";    // --pane-a
+const DOWN_COLOR = "#fda4af";  // --pane-b
+const CAR_DOT_COLOR = "#fafafa"; // --text-primary
+const OVERFLOW_COLOR = "#8b8c92"; // --text-tertiary
+const SPARK_LINE = "#3a3a45";   // --border-default
+const SPARK_TEXT = "#8b8c92";   // --text-tertiary
+const TARGET_RING = "rgba(245, 158, 11, 0.85)"; // --accent at α
+const TARGET_FILL = "rgba(245, 158, 11, 0.95)"; // --accent at α
 
 // Board/alight animation baseline. Effective duration is divided by the sim
 // speed multiplier so fast-forwarded runs don't queue stale tweens.
@@ -516,7 +519,7 @@ export class CanvasRenderer {
       // Outer pulsing ring + inner dot. The ring reads "this car is
       // committed to going there"; the inner dot anchors the mark on
       // the rung even when the ring is subtle.
-      ctx.strokeStyle = `rgba(6, 194, 181, ${pulse})`;
+      ctx.strokeStyle = `rgba(245, 158, 11, ${pulse})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
@@ -558,7 +561,7 @@ export class CanvasRenderer {
     const cy = toScreenY(car.y);
     const halfW = s.carW / 2;
     const halfH = s.carH / 2;
-    const base = PHASE_COLORS[car.phase] ?? "#5d6271";
+    const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
 
     const grad = ctx.createLinearGradient(cx, cy - halfH, cx, cy + halfH);
     grad.addColorStop(0, shade(base, 0.14));

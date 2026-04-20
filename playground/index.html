@@ -8,63 +8,97 @@
       name="description"
       content="Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic."
     />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%2306c2b5'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230a0c10'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <header class="top">
-      <h1>elevator-core playground</h1>
-      <nav>
+    <header class="top flex items-center justify-between px-5 py-3 bg-gradient-to-b from-surface-secondary to-surface border-b border-stroke-subtle relative">
+      <h1 class="m-0 text-[14px] font-semibold tracking-[-0.005em] text-content inline-flex items-center gap-2.5 before:content-[''] before:inline-block before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]">elevator-core playground</h1>
+      <nav class="flex items-center">
         <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">?</button>
-        <a href="https://github.com/andymai/elevator-core">repo</a>
-        <a href="https://docs.rs/elevator-core">docs</a>
-        <a href="../">guide</a>
+        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://github.com/andymai/elevator-core">repo</a>
+        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://docs.rs/elevator-core">docs</a>
+        <a class="ml-4 text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="../">guide</a>
       </nav>
     </header>
 
-    <section class="scenario-cards" id="scenario-cards" aria-label="Scenario picker"></section>
+    <aside
+      class="group md:contents max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:z-40 max-md:bg-surface-secondary max-md:border-t max-md:border-stroke max-md:rounded-t-lg max-md:shadow-sheet max-md:max-h-[85dvh] max-md:translate-y-[calc(100%-64px)] max-md:transition-transform max-md:duration-slow max-md:ease-spring max-md:will-change-transform max-md:pb-[env(safe-area-inset-bottom)] max-md:data-[open=true]:translate-y-0"
+      id="controls-sheet"
+      data-open="false"
+    >
+      <button
+        class="hidden max-md:flex max-md:items-center max-md:gap-3 max-md:w-full max-md:h-16 max-md:px-4 max-md:pt-3.5 max-md:pb-2.5 max-md:bg-transparent max-md:border-0 max-md:shadow-none max-md:text-content max-md:text-left max-md:relative max-md:cursor-pointer"
+        id="sheet-toggle"
+        type="button"
+        aria-label="Controls"
+        aria-expanded="false"
+        aria-controls="sheet-body"
+      >
+        <span
+          class="max-md:absolute max-md:top-1.5 max-md:left-1/2 max-md:-translate-x-1/2 max-md:w-9 max-md:h-1 max-md:rounded-[2px] max-md:bg-stroke-strong max-md:transition-colors max-md:duration-fast group-data-[open=true]:bg-accent group-data-[open=true]:opacity-60"
+          aria-hidden="true"
+        ></span>
+        <div class="max-md:flex max-md:flex-1 max-md:items-baseline max-md:gap-2 max-md:min-w-0 max-md:overflow-hidden max-md:whitespace-nowrap">
+          <span id="sheet-scenario" class="text-[13px] font-semibold text-content overflow-hidden text-ellipsis">Convention burst</span>
+          <span class="text-content-disabled" aria-hidden="true">&middot;</span>
+          <span id="sheet-strategy" class="text-xs text-content-tertiary tabular-nums tracking-[0.02em]">ETD</span>
+        </div>
+        <span
+          class="max-md:inline-flex max-md:items-center max-md:justify-center max-md:flex-none max-md:w-10 max-md:h-10 max-md:rounded-full max-md:bg-accent-muted max-md:text-accent-hover max-md:border max-md:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] max-md:text-sm max-md:leading-none max-md:shadow-sm max-md:transition-[transform,background] max-md:duration-fast max-md:active:scale-95 max-md:cursor-pointer"
+          id="sheet-play"
+          aria-hidden="true"
+        >&#9654;</span>
+      </button>
+      <div class="max-md:overflow-y-auto max-md:max-h-[calc(85dvh-64px)] max-md:pb-3 max-md:[-webkit-overflow-scrolling:touch]" id="sheet-body">
 
-    <section class="controls">
-      <div class="ctl ctl-strategy">
-        <label class="ctl-inline" for="strategy-a">
+    <section
+      id="scenario-cards"
+      aria-label="Scenario picker"
+      class="scenario-cards grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2 px-5 py-2.5 border-b border-stroke-subtle max-md:flex max-md:flex-row max-md:gap-2 max-md:px-3.5 max-md:py-2.5 max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+    ></section>
+
+    <section class="controls flex flex-wrap gap-3.5 items-end px-5 py-3 bg-surface border-b border-stroke-subtle max-md:px-3.5 max-md:gap-2.5">
+      <div class="ctl-strategy flex flex-col gap-1 min-w-0 max-md:basis-full">
+        <label for="strategy-a">
           <span class="ctl-k">Strategy</span>
           <select id="strategy-a"></select>
         </label>
         <p id="strategy-desc" class="ctl-desc"></p>
       </div>
-      <label class="ctl hidden" id="strategy-b-wrap">
+      <label class="hidden flex flex-col gap-1 min-w-0 ctl-half" id="strategy-b-wrap">
         <span class="ctl-k">vs</span>
         <select id="strategy-b"></select>
       </label>
-      <label class="ctl ctl-check">
+      <label class="ctl-check flex flex-row items-center gap-2 px-2.5 py-2 bg-surface-elevated border border-stroke-subtle rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke max-md:basis-full">
         <input id="compare" type="checkbox" />
-        <span class="ctl-k">Compare</span>
+        <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase">Compare</span>
       </label>
-      <label class="ctl">
+      <label class="flex flex-col gap-1 min-w-0 ctl-half">
         <span class="ctl-k">Seed</span>
-        <input id="seed" type="number" value="42" min="0" />
+        <input id="seed" type="number" value="42" min="0" class="max-md:min-h-10 max-md:w-full" />
       </label>
-      <label class="ctl">
+      <label class="flex flex-col gap-1 min-w-0 ctl-half">
         <span class="ctl-k">
           <span>Speed</span>
-          <span id="speed-label" class="ctl-v">2&times;</span>
+          <span id="speed-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">2&times;</span>
         </span>
-        <input id="speed" type="range" min="1" max="16" step="1" value="2" />
+        <input id="speed" type="range" min="1" max="16" step="1" value="2" class="max-md:w-full" />
       </label>
-      <label class="ctl">
+      <label class="flex flex-col gap-1 min-w-0 ctl-half">
         <span class="ctl-k">
           <span>Intensity</span>
-          <span id="traffic-label" class="ctl-v">1.0&times;</span>
+          <span id="traffic-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">1.0&times;</span>
         </span>
-        <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" />
+        <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="max-md:w-full" />
       </label>
-      <div class="actions">
-        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel">
+      <div class="actions flex gap-2 ml-auto max-md:basis-full max-md:ml-0 max-md:flex-wrap">
+        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">
           Tweak parameters
         </button>
-        <button id="play" type="button">Pause</button>
-        <button id="reset" type="button">Reset</button>
-        <button id="share" type="button">Share</button>
+        <button id="play" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Pause</button>
+        <button id="reset" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Reset</button>
+        <button id="share" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Share</button>
       </div>
     </section>
 
@@ -138,73 +172,124 @@
         <button type="button" id="tweak-reset-all" hidden>Reset all</button>
       </div>
     </section>
-
-    <section class="phase-strip" id="phase-strip">
-      <div class="phase-row">
-        <span class="phase-k">Phase</span>
-        <span id="phase-label" class="phase-v">&mdash;</span>
-        <span id="feature-hint" class="phase-hint"></span>
       </div>
-      <div class="phase-progress" aria-hidden="true">
-        <div class="phase-progress-fill" id="phase-progress-fill"></div>
+    </aside>
+
+    <section
+      id="phase-strip"
+      class="phase-strip flex flex-col gap-1.5 px-5 pt-2 pb-2.5 bg-surface border-b border-stroke-subtle text-[11.5px] text-content-tertiary max-md:px-3.5 max-md:py-1.5 max-md:pb-2 max-md:text-[11px]"
+    >
+      <div class="flex items-baseline gap-2.5">
+        <span class="ctl-k">Phase</span>
+        <span id="phase-label" class="text-content-secondary tabular-nums font-medium">&mdash;</span>
+        <span id="feature-hint" class="text-content-disabled text-[11px] flex-1 overflow-hidden text-ellipsis whitespace-nowrap"></span>
+      </div>
+      <div class="relative h-[3px] bg-surface-elevated rounded-[2px] overflow-hidden" aria-hidden="true">
+        <div
+          id="phase-progress-fill"
+          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_45%,transparent)] transition-[width] duration-normal ease-normal"
+        ></div>
       </div>
     </section>
 
-    <section class="verdict-ribbon" id="verdict-ribbon" hidden aria-label="Comparison scoreboard"></section>
+    <section
+      id="verdict-ribbon"
+      hidden
+      aria-label="Comparison scoreboard"
+      class="verdict-ribbon grid grid-cols-[auto_repeat(5,1fr)] gap-3 px-5 py-2.5 bg-surface-secondary border-b border-stroke-subtle text-[11px] tabular-nums max-md:grid-cols-2 max-md:px-3.5"
+    ></section>
 
-    <main id="layout" class="layout" data-mode="single">
-      <section id="pane-a" class="pane pane-a">
-        <header class="pane-header">
-          <span class="pane-badge">A</span>
-          <div class="pane-title">
-            <span id="name-a" class="pane-name">LOOK</span>
-            <span id="decision-a" class="pane-decision" aria-live="polite"></span>
+    <main
+      id="layout"
+      data-mode="single"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-5 h-[calc(100dvh-130px)] data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--sheet-peek,64px)+10px+env(safe-area-inset-bottom))] max-md:h-[calc(100dvh-44px)] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
+    >
+      <section
+        id="pane-a"
+        class="pane pane-a grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        style="--pane-accent: var(--pane-a)"
+      >
+        <header class="pane-header flex items-center gap-2.5 px-0 py-0.5">
+          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm">A</span>
+          <div class="pane-title flex flex-col gap-px min-w-0 flex-1">
+            <span id="name-a" class="pane-name text-[13.5px] font-semibold tracking-[0.01em] text-content">LOOK</span>
+            <span id="decision-a" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
           </div>
-          <span id="mode-a" class="pane-mode" data-mode="Idle" title="Traffic mode from TrafficDetector">Idle</span>
+          <span
+            id="mode-a"
+            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+            data-mode="Idle"
+            title="Traffic mode from TrafficDetector"
+          >Idle</span>
         </header>
-        <div class="shaft-wrap">
-          <canvas id="shaft-a"></canvas>
+        <div class="shaft-wrap bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+          <canvas id="shaft-a" class="w-full h-full block"></canvas>
         </div>
-        <div id="metrics-a" class="metric-strip"></div>
+        <div id="metrics-a" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>
 
-      <section id="pane-b" class="pane pane-b">
-        <header class="pane-header">
-          <span class="pane-badge">B</span>
-          <div class="pane-title">
-            <span id="name-b" class="pane-name">ETD</span>
-            <span id="decision-b" class="pane-decision" aria-live="polite"></span>
+      <section
+        id="pane-b"
+        class="pane pane-b grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        style="--pane-accent: var(--pane-b)"
+      >
+        <header class="pane-header flex items-center gap-2.5 px-0 py-0.5">
+          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm">B</span>
+          <div class="pane-title flex flex-col gap-px min-w-0 flex-1">
+            <span id="name-b" class="pane-name text-[13.5px] font-semibold tracking-[0.01em] text-content">ETD</span>
+            <span id="decision-b" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
           </div>
-          <span id="mode-b" class="pane-mode" data-mode="Idle" title="Traffic mode from TrafficDetector">Idle</span>
+          <span
+            id="mode-b"
+            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+            data-mode="Idle"
+            title="Traffic mode from TrafficDetector"
+          >Idle</span>
         </header>
-        <div class="shaft-wrap">
-          <canvas id="shaft-b"></canvas>
+        <div class="shaft-wrap bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] max-md:min-h-[200px]">
+          <canvas id="shaft-b" class="w-full h-full block"></canvas>
         </div>
-        <div id="metrics-b" class="metric-strip"></div>
+        <div id="metrics-b" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>
     </main>
 
-    <div id="loader" class="loader show" role="status" aria-live="polite">
-      <div class="loader-spinner" aria-hidden="true"></div>
-      <div class="loader-text">Loading simulation&hellip;</div>
+    <div
+      id="loader"
+      class="loader show fixed inset-0 grid place-items-center gap-3 bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-[2px] z-[60] opacity-0 pointer-events-none transition-opacity duration-slow [&.show]:opacity-100 [&.show]:pointer-events-auto"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="w-[34px] h-[34px] rounded-full border-[3px] border-stroke-subtle border-t-accent animate-[spin_720ms_linear_infinite]" aria-hidden="true"></div>
+      <div class="text-content-tertiary text-xs tracking-[0.02em]">Loading simulation&hellip;</div>
     </div>
-    <div id="toast" class="toast" role="status"></div>
+    <div
+      id="toast"
+      class="toast fixed bottom-7 left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
+      role="status"
+    ></div>
 
-    <div id="shortcut-sheet" class="shortcut-sheet" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
-      <div class="shortcut-sheet-inner">
-        <header>
+    <div
+      id="shortcut-sheet"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard shortcuts"
+      class="shortcut-sheet fixed inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg-primary)_70%,transparent)] backdrop-blur-[4px] backdrop-saturate-[120%] z-[95]"
+    >
+      <div class="shortcut-sheet-inner w-[min(480px,90vw)] bg-gradient-to-b from-surface-hover to-surface-secondary border border-stroke rounded-lg shadow-lg p-[18px_20px_20px] text-content-secondary">
+        <header class="flex items-center justify-between mb-4 pb-3 border-b border-stroke-subtle text-content font-semibold text-sm tracking-[0.01em]">
           <span>Keyboard shortcuts</span>
-          <button type="button" id="shortcut-sheet-close" aria-label="Close">&times;</button>
+          <button type="button" id="shortcut-sheet-close" aria-label="Close" class="w-6 h-6 p-0 flex items-center justify-center bg-transparent border-0 text-content-tertiary text-base leading-none hover:text-content hover:bg-surface-hover rounded-sm">&times;</button>
         </header>
-        <dl>
-          <dt><kbd>Space</kbd></dt><dd>Pause / play</dd>
-          <dt><kbd>R</kbd></dt><dd>Reset the sim</dd>
-          <dt><kbd>C</kbd></dt><dd>Toggle compare mode</dd>
-          <dt><kbd>S</kbd></dt><dd>Copy permalink</dd>
-          <dt><kbd>T</kbd></dt><dd>Open / close the tweak panel</dd>
-          <dt><kbd>1</kbd>&nbsp;<kbd>2</kbd>&nbsp;<kbd>3</kbd></dt><dd>Jump to scenario card</dd>
-          <dt><kbd>&uarr;</kbd>&nbsp;<kbd>&darr;</kbd></dt><dd>Nudge focused tweak row</dd>
-          <dt><kbd>?</kbd></dt><dd>Toggle this sheet</dd>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 m-0">
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>Space</kbd></dt><dd class="m-0 text-content-tertiary">Pause / play</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>R</kbd></dt><dd class="m-0 text-content-tertiary">Reset the sim</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>C</kbd></dt><dd class="m-0 text-content-tertiary">Toggle compare mode</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>S</kbd></dt><dd class="m-0 text-content-tertiary">Copy permalink</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>T</kbd></dt><dd class="m-0 text-content-tertiary">Open / close the tweak panel</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>1</kbd>&nbsp;<kbd>2</kbd>&nbsp;<kbd>3</kbd></dt><dd class="m-0 text-content-tertiary">Jump to scenario card</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>&uarr;</kbd>&nbsp;<kbd>&darr;</kbd></dt><dd class="m-0 text-content-tertiary">Nudge focused tweak row</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>?</kbd></dt><dd class="m-0 text-content-tertiary">Toggle this sheet</dd>
         </dl>
       </div>
     </div>
