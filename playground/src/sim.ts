@@ -28,8 +28,6 @@ interface WasmSimInstance {
   strategyName(): string;
   trafficMode?(): string;
   setStrategy(name: string): boolean;
-  repositionStrategyName?(): string;
-  setReposition?(name: string): boolean;
   spawnRider(
     origin: number,
     destination: number,
@@ -140,25 +138,6 @@ export class Sim {
 
   setStrategy(name: StrategyName): boolean {
     return this.#inner.setStrategy(name);
-  }
-
-  /**
-   * Current reposition strategy name. Falls back to `"adaptive"` when
-   * the wasm build predates the API (stale `public/pkg/` during local
-   * dev) so the UI reads a sensible default rather than `undefined`.
-   */
-  repositionStrategyName(): RepositionStrategyName {
-    return (this.#inner.repositionStrategyName?.() as RepositionStrategyName) ?? "adaptive";
-  }
-
-  /**
-   * Swap the reposition strategy live. Returns `true` when the wasm
-   * build supports the setter and the name was valid, `false` when
-   * the build is stale or the name is unrecognised — caller falls
-   * back to a full sim rebuild in that case.
-   */
-  setReposition(name: RepositionStrategyName): boolean {
-    return this.#inner.setReposition?.(name) ?? false;
   }
 
   spawnRider(

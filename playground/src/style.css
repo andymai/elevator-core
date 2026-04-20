@@ -298,32 +298,46 @@
   margin-left: 4px;
 }
 
+/* Segmented stepper mirroring gridfinity-layout-tool's Stepper: three
+ * independently-styled segments (minus button, value, plus button)
+ * sharing internal strokes. No wrapper border — each segment carries
+ * its own, which lets the buttons show hover / focus rings cleanly. */
 .tweak-stepper {
   display: inline-flex;
   align-items: center;
-  gap: 0;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  height: 28px;
 }
 .tweak-stepper button {
   appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--text-secondary);
-  width: 26px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 100%;
   padding: 0;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
   cursor: pointer;
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
   transition:
     background var(--transition-fast),
-    color var(--transition-fast);
-  box-shadow: none;
-  border-radius: 0;
-  letter-spacing: 0;
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+.tweak-stepper button.tweak-dec {
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  border-right: 0;
+}
+.tweak-stepper button.tweak-inc {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  border-left: 0;
 }
 .tweak-stepper button:hover {
   background: var(--bg-hover);
@@ -331,28 +345,35 @@
   transform: none;
   box-shadow: none;
 }
+.tweak-stepper button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
 .tweak-stepper button:active {
   background: var(--bg-active);
 }
 .tweak-stepper button:disabled {
   color: var(--text-disabled);
   cursor: not-allowed;
-  background: transparent;
+  background: var(--bg-elevated);
+  opacity: 0.5;
 }
 .tweak-value {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 56px;
-  height: 28px;
-  padding: 0 8px;
+  height: 100%;
+  padding: 0 10px;
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 500;
-  border-left: 1px solid var(--border-default);
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-elevated);
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 .tweak-row[data-overridden="true"] .tweak-value {
   color: var(--accent);
@@ -464,8 +485,12 @@
   transform: rotate(45deg);
 }
 
+/* Input / select base style. Mirrors gridfinity-layout-tool's Input
+ * wrapper: surface bg, `border-stroke` rounded-md, hover bumps the
+ * border, focus swaps it for `border-accent` with a matching ring. */
 select,
-input[type="number"] {
+input[type="number"],
+input[type="text"] {
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
@@ -473,14 +498,23 @@ input[type="number"] {
   padding: 7px 10px;
   font: inherit;
   font-size: 12.5px;
+  outline: none;
   transition:
     border-color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 select:hover,
-input[type="number"]:hover {
+input[type="number"]:hover,
+input[type="text"]:hover {
   border-color: var(--border-default);
   background: var(--bg-elevated);
+}
+select:focus,
+input[type="number"]:focus,
+input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 select {
   appearance: none;
@@ -585,6 +619,19 @@ button:active {
  * moved to Tailwind utilities. State variants (pane-mode[data-mode=X],
  * metric-row[data-verdict=X]) live in @layer utilities at the end of this
  * file so they override the utility base classes on these elements. */
+
+/* Mobile: floor scrunch guard. A 42-floor skyscraper squeezed into a
+ * flex-1 shaft-wrap on a phone ends up with ~6 px per story — labels
+ * overlap, cabins disappear. Let the shaft-wrap grow to a scenario-
+ * aware minimum so the surrounding page scrolls vertically instead of
+ * the floors stacking on top of each other. The renderer publishes
+ * `--shaft-min-h` on each shaft-wrap when a scenario loads, scaled to
+ * stop count; fallback keeps the old 200 px floor for small scenarios. */
+@media (max-width: 767px) {
+  .shaft-wrap {
+    min-height: var(--shaft-min-h, 200px);
+  }
+}
 
 /* Loader, toast styling moved to Tailwind utilities on the HTML elements.
  * Tailwind provides `animate-spin` as a default so no custom spin
@@ -838,18 +885,23 @@ button:active {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  /* Flat elevated surface + subtle stroke, mirroring the
+   * `bg-surface-elevated border-stroke-subtle rounded-xl shadow-xl`
+   * pattern used by gridfinity-layout-tool's Popover. Drops the old
+   * gradient so the panel reads as a single layer, not a mini-sheet. */
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  animation: strategy-popover-in var(--transition-normal) ease-out;
+  transform-origin: top left;
+  animation: strategy-popover-in var(--transition-normal) var(--ease-fast);
 }
 .strategy-popover[hidden] {
   display: none;
 }
 @keyframes strategy-popover-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .strategy-option {
