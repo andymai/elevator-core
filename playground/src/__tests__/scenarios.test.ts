@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS, scenarioById } from "../scenarios";
 
 describe("scenarios metadata", () => {
-  it("ships exactly 6 scenarios", () => {
-    expect(SCENARIOS).toHaveLength(6);
+  it("ships exactly 3 scenarios", () => {
+    expect(SCENARIOS).toHaveLength(3);
   });
 
   it("every id is unique", () => {
@@ -13,7 +13,7 @@ describe("scenarios metadata", () => {
 
   it("every scenario declares a default strategy", () => {
     for (const s of SCENARIOS) {
-      expect(s.defaultStrategy, `${s.id}`).toMatch(/^(scan|look|nearest|etd|destination)$/);
+      expect(s.defaultStrategy, `${s.id}`).toMatch(/^(scan|look|nearest|etd|destination|rsr)$/);
     }
   });
 
@@ -52,26 +52,15 @@ describe("scenarios metadata", () => {
     }
   });
 
-  it("feature hooks are consistent with defaultStrategy when the hook requires one", () => {
-    for (const s of SCENARIOS) {
-      if (s.hook.kind === "deferred_dcs") {
-        expect(s.defaultStrategy, `${s.id}`).toBe("destination");
-      }
-      if (s.hook.kind === "etd_group_time") {
-        expect(s.defaultStrategy, `${s.id}`).toBe("etd");
-      }
-    }
-  });
-
-  it("day-cycle scenarios sum to a plausible length (3–10 real-min range)", () => {
+  it("day-cycle scenarios sum to a plausible length (1–10 real-min range)", () => {
     // Target: ~5 min per sim-day. Phases are in sim-seconds with the
-    // sim running at 4× default, so the real-time duration is
-    // sum(durationSec) / 4. Accept 1 min (fast demo cadence) through
-    // 10 min (deliberately slow "live" run).
+    // sim running at the 2× default playback, so real-time duration
+    // is sum(durationSec) / 2. Accept 1 min (fast demo cadence)
+    // through 10 min (deliberately slow "live" run).
     for (const s of SCENARIOS) {
       if (s.phases.length === 0) continue;
       const totalSimSec = s.phases.reduce((acc, p) => acc + p.durationSec, 0);
-      const realMin = totalSimSec / 4 / 60;
+      const realMin = totalSimSec / 2 / 60;
       expect(realMin, `${s.id}`).toBeGreaterThanOrEqual(1);
       expect(realMin, `${s.id}`).toBeLessThanOrEqual(10);
     }

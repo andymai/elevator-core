@@ -327,14 +327,20 @@ export class CanvasRenderer {
     canvasWidth: number,
   ): void {
     const ctx = this.#ctx;
-    const padX = 6;
-    const padY = 3;
+    const padX = 7;
+    const padY = 4;
     const tailW = 5;
     const tailH = 4;
-    const radius = 5;
-    const font = `${s.fontSmall}px system-ui, sans-serif`;
+    const radius = 6;
+    const font = `600 ${s.fontSmall + 0.5}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     ctx.font = font;
     ctx.textBaseline = "middle";
+    // Fade the last FADE_FRAC of the bubble's lifetime so dismissal
+    // feels soft rather than binary. Kept at 30 % so the message still
+    // reads crisply for most of its dwell.
+    const FADE_FRAC = 0.3;
+    const now = performance.now();
+    const strokeBase = this.#accent;
 
     for (const car of snap.cars) {
       const bubble = bubbles.get(car.id);
@@ -342,6 +348,12 @@ export class CanvasRenderer {
       const cx = carX.get(car.id);
       if (cx === undefined) continue;
       const cy = toScreenY(car.y);
+
+      const ttl = Math.max(1, bubble.expiresAt - bubble.bornAt);
+      const remaining = bubble.expiresAt - now;
+      const alpha =
+        remaining > ttl * FADE_FRAC ? 1 : Math.max(0, remaining / (ttl * FADE_FRAC));
+      if (alpha <= 0) continue;
 
       const textW = ctx.measureText(bubble.text).width;
       const bubbleW = textW + padX * 2;
@@ -358,12 +370,22 @@ export class CanvasRenderer {
         side === "right" ? cx + halfCar + tailW : cx - halfCar - tailW - bubbleW;
       const by = cy - bubbleH / 2;
 
-      // Rounded-rect body.
-      ctx.fillStyle = "rgba(18, 22, 31, 0.92)";
-      ctx.strokeStyle = "rgba(125, 211, 252, 0.55)";
-      ctx.lineWidth = 1;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Soft pane-accent glow beneath the bubble, so the bubble reads
+      // as belonging to its pane even at a glance.
+      ctx.shadowColor = strokeBase;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "rgba(16, 19, 26, 0.94)";
       roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
       ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Pane-accent border.
+      ctx.strokeStyle = withAlpha(strokeBase, 0.65);
+      ctx.lineWidth = 1;
+      roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
       ctx.stroke();
 
       // Tail — small triangle pointing at the car.
@@ -378,12 +400,15 @@ export class CanvasRenderer {
         ctx.lineTo(bx + bubbleW, cy + tailH / 2);
       }
       ctx.closePath();
+      ctx.fillStyle = "rgba(16, 19, 26, 0.94)";
       ctx.fill();
       ctx.stroke();
 
       // Text.
-      ctx.fillStyle = "#e8ecf5";
+      ctx.fillStyle = "#f0f3fb";
       ctx.fillText(bubble.text, bx + padX, cy);
+
+      ctx.restore();
     }
   }
 
@@ -925,6 +950,15 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     else hi = mid - 1;
   }
   return lo === 0 ? ellipsis : text.slice(0, lo) + ellipsis;
+}
+
+/** Apply `alpha` (0..1) to a 6-digit hex color. Used for pane-tinted
+ *  canvas strokes where we have a base hex and want a translucent
+ *  variant without adding a CSS variable lookup on every frame. */
+function withAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+  const suffix = a.toString(16).padStart(2, "0");
+  return hex.length === 7 ? `${hex}${suffix}` : hex;
 }
 
 /**

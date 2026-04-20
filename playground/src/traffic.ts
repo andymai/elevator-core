@@ -127,6 +127,22 @@ export class TrafficDriver {
     return Math.min(1, this.#elapsedInCycleSec / this.#totalDurationSec);
   }
 
+  /**
+   * 0..1 progress *within* the current phase. Drives the slim progress
+   * bar under the phase label so users can feel the next phase coming.
+   * Returns 0 when the driver has no schedule installed.
+   */
+  progressInPhase(): number {
+    if (this.#phases.length === 0) return 0;
+    let t = this.#elapsedInCycleSec;
+    for (let i = 0; i < this.#phases.length; i += 1) {
+      const d = this.#phases[i].durationSec;
+      if (t < d) return d > 0 ? Math.min(1, t / d) : 0;
+      t -= d;
+    }
+    return 1;
+  }
+
   /** Read-only view of the installed phase schedule — the UI draws the strip from this. */
   phases(): readonly Phase[] {
     return this.#phases;
