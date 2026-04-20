@@ -171,7 +171,7 @@ function easeOutNorm(tx: number): number {
 export class CanvasRenderer {
   #canvas: HTMLCanvasElement;
   #ctx: CanvasRenderingContext2D;
-  #dpr: number;
+  #dpr: number = window.devicePixelRatio || 1;
   #onResize: () => void;
   #cachedScale: Scale | null = null;
   #cachedScaleWidth = -1;
@@ -188,7 +188,6 @@ export class CanvasRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D context unavailable");
     this.#ctx = ctx;
-    this.#dpr = window.devicePixelRatio || 1;
     this.#accent = accent;
     this.#sparkLabel = sparkLabel;
     this.#resize();
@@ -201,6 +200,9 @@ export class CanvasRenderer {
   }
 
   #resize(): void {
+    // Re-read DPR each resize so browser zoom / moving to a different-density
+    // display updates the backing-store scale. `resize` fires on both.
+    this.#dpr = window.devicePixelRatio || 1;
     const { clientWidth, clientHeight } = this.#canvas;
     if (clientWidth === 0 || clientHeight === 0) return;
     const targetW = clientWidth * this.#dpr;
@@ -955,13 +957,19 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lo === 0 ? ellipsis : text.slice(0, lo) + ellipsis;
 }
 
-/** Apply `alpha` (0..1) to a 6-digit hex color. Used for pane-tinted
+/** Apply `alpha` (0..1) to a `#RRGGBB` hex color. Used for pane-tinted
  *  canvas strokes where we have a base hex and want a translucent
- *  variant without adding a CSS variable lookup on every frame. */
+ *  variant without adding a CSS variable lookup on every frame.
+ *
+ *  Falls back to `hexWithAlpha` (rgba() form) for anything that isn't
+ *  strictly `#RRGGBB` — cheap safety net so a future caller passing
+ *  shorthand or a CSS variable doesn't silently drop alpha. */
 function withAlpha(hex: string, alpha: number): string {
-  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
-  const suffix = a.toString(16).padStart(2, "0");
-  return hex.length === 7 ? `${hex}${suffix}` : hex;
+  if (/^#[0-9a-f]{6}$/i.test(hex)) {
+    const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+    return `${hex}${a.toString(16).padStart(2, "0")}`;
+  }
+  return hexWithAlpha(hex, alpha);
 }
 
 /**

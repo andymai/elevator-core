@@ -155,7 +155,6 @@
   body {
     margin: 0;
     padding: 0;
-    min-height: 100%;
     background:
       radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%),
       radial-gradient(1000px 500px at -10% 100%, color-mix(in srgb, var(--pane-a) 5%, transparent), transparent 55%),
@@ -165,6 +164,16 @@
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  /* Body is a flex column so `<main id="layout">` can `flex-1` to fill
+   * whatever space is left after header + scenario strip + controls +
+   * phase strip + (optional) verdict ribbon + (optional) tweak panel.
+   * Avoids a hardcoded `calc(100dvh - 130px)` that would clip once
+   * any optional section opens. */
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
   }
 
   :focus-visible {
