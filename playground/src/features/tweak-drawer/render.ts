@@ -25,7 +25,6 @@ export interface TweakPanelUi {
 function formatTweakValue(key: ParamKey, value: number): string {
   switch (key) {
     case "cars":
-      return String(Math.round(value));
     case "weightCapacity":
       return String(Math.round(value));
     case "maxSpeed":

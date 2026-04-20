@@ -1,5 +1,6 @@
 import { setShortcutSheetOpen } from "../features/keyboard-shortcuts";
 import {
+  renderPaneStrategyInfo,
   refreshStrategyPopovers,
   refreshRepositionPopovers,
   isAnyStrategyPopoverOpen,
@@ -10,9 +11,16 @@ import {
   attachOutsideClickForPopovers,
 } from "../features/strategy-picker";
 import { switchScenario } from "../features/scenario-picker";
-import { setTweakOpen, bumpParam, resetParam, resetAllOverrides } from "../features/tweak-drawer";
+import type { ScenarioSwitchHooks } from "../features/scenario-picker";
+import {
+  setTweakOpen,
+  renderTweakPanel,
+  bumpParam,
+  resetParam,
+  resetAllOverrides,
+} from "../features/tweak-drawer";
 import { attachHoldToRepeat, toast } from "../platform";
-import { DEFAULT_STATE, PARAM_KEYS, SCENARIOS, encodePermalink } from "../domain";
+import { DEFAULT_STATE, PARAM_KEYS, SCENARIOS, scenarioById, encodePermalink } from "../domain";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { resetAll } from "./reset";
@@ -21,6 +29,17 @@ import { speedLabel, intensityLabel, randomSeedWord } from "./apply-permalink";
 export function attachListeners(state: State, ui: UiHandles): void {
   const doResetAll = (): Promise<void> => resetAll(state, ui);
 
+  const switchHooks: ScenarioSwitchHooks = {
+    renderPaneStrategyInfo,
+    refreshStrategyPopovers: () => {
+      refreshStrategyPopovers(state, ui, doResetAll);
+    },
+    renderTweakPanel: () => {
+      const scenario = scenarioById(state.permalink.scenario);
+      renderTweakPanel(scenario, state.permalink.overrides, ui);
+    },
+  };
+
   ui.scenarioCards.addEventListener("click", (ev) => {
     const target = ev.target;
     if (!(target instanceof HTMLElement)) return;
@@ -28,7 +47,7 @@ export function attachListeners(state: State, ui: UiHandles): void {
     if (!card) return;
     const id = card.dataset["scenarioId"];
     if (!id || id === state.permalink.scenario) return;
-    void switchScenario(state, ui, id, doResetAll);
+    void switchScenario(state, ui, id, doResetAll, switchHooks);
   });
   // Strategy picks reset the whole comparator so both panes stay aligned
   // on the same rider stream from t=0 — mixing pre- and post-change metrics
@@ -137,13 +156,14 @@ export function attachListeners(state: State, ui: UiHandles): void {
     const qs = encodePermalink(state.permalink);
     const url = `${window.location.origin}${window.location.pathname}${qs}`;
     window.history.replaceState(null, "", qs);
+    // Both success and failure show the same toast — the URL was
+    // already pushed to the address bar, so even if clipboard is
+    // unavailable (insecure context) the user still has the link.
     void navigator.clipboard.writeText(url).then(
       () => {
         toast(ui.toast, "Permalink copied");
       },
       () => {
-        // Clipboard unavailable (insecure context) — still show feedback
-        // since the URL was pushed to the address bar.
         toast(ui.toast, "Permalink copied");
       },
     );
@@ -161,7 +181,7 @@ export function attachListeners(state: State, ui: UiHandles): void {
     // `.shortcut-sheet-inner` bubble through unless stopped.
     if (ev.target === ui.shortcutSheet) setShortcutSheetOpen(ui, false);
   });
-  attachKeyboardShortcuts(state, ui);
+  attachKeyboardShortcuts(state, ui, switchHooks);
   attachOutsideClickForPopovers(ui);
 }
 
@@ -171,12 +191,20 @@ export function attachListeners(state: State, ui: UiHandles): void {
  * app. The tweak row's arrow-key nudge is registered separately so it
  * still fires when the row itself is focused.
  */
-function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
+function attachKeyboardShortcuts(
+  state: State,
+  ui: UiHandles,
+  switchHooks: ScenarioSwitchHooks,
+): void {
   window.addEventListener("keydown", (ev) => {
-    const target = ev.target as HTMLElement | null;
-    if (target) {
-      const tag = target.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) {
+    if (ev.target instanceof HTMLElement) {
+      const tag = ev.target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        ev.target.isContentEditable
+      ) {
         return;
       }
     }
@@ -238,7 +266,7 @@ function attachKeyboardShortcuts(state: State, ui: UiHandles): void {
       if (!scenario) return;
       if (scenario.id !== state.permalink.scenario) {
         ev.preventDefault();
-        void switchScenario(state, ui, scenario.id, () => resetAll(state, ui));
+        void switchScenario(state, ui, scenario.id, () => resetAll(state, ui), switchHooks);
       }
     }
   });

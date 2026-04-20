@@ -170,7 +170,7 @@ export class CanvasRenderer {
       else byLine.set(car.line, [car]);
     }
     const lineIds = [...byLine.keys()].sort((a, b) => a - b);
-    const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 1), 0);
+    const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 0), 0);
 
     // Layout.
     const innerW = Math.max(0, w - 2 * s.padX - s.labelW);

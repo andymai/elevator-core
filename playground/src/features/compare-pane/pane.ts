@@ -4,14 +4,12 @@ import { Sim } from "../../sim";
 import type {
   CarBubble,
   Metrics,
+  MetricKey,
   RepositionStrategyName,
   ScenarioMeta,
   StrategyName,
 } from "../../types";
-import { initMetricRows } from "../scoreboard";
-import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../strategy-picker";
 import type { PaneHandles } from "./handles";
-import type { MetricKey } from "../scoreboard";
 
 export const COLOR_A = "#7dd3fc";
 export const COLOR_B = "#fda4af";
@@ -86,9 +84,6 @@ export async function makePane(
     const minShaftPx = Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
-  renderPaneStrategyInfo(handles, strategy);
-  renderPaneRepositionInfo(handles, reposition);
-  initMetricRows(handles.metrics);
   handles.decision.textContent = "";
   handles.decision.dataset["active"] = "false";
   handles.decision.dataset["pulse"] = "false";

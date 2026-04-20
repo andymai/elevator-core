@@ -1,4 +1,3 @@
-export { STRATEGY_LABELS } from "./labels";
 export {
   renderPaneStrategyInfo,
   refreshStrategyPopovers,

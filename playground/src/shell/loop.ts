@@ -58,9 +58,8 @@ export function loop(state: State, ui: UiHandles): void {
         const events = pane.sim.drainEvents();
         if (events.length > 0) {
           const snap = pane.sim.snapshot();
-          const stopName = (id: number): string => resolveStopName(snap, id);
           updateBubbles(pane, events, snap);
-          for (const ev of events) pushDecision(pane, ev, stopName);
+          for (const ev of events) pushDecision(pane, ev, (id) => resolveStopName(snap, id));
         }
       });
 

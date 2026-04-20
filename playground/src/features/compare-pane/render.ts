@@ -1,4 +1,4 @@
-import { METRIC_KEYS, METRIC_HISTORY_LEN } from "../scoreboard";
+import { METRIC_KEYS, METRIC_HISTORY_LEN } from "../../types";
 import type { Snapshot } from "../../types";
 import type { Pane } from "./pane";
 

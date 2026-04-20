@@ -1,16 +1,8 @@
-import { scenarioById } from "../../domain";
-import type { PermalinkState } from "../../domain";
-import type { ParamKey } from "../../domain";
+import { scenarioById, STRATEGY_LABELS, type PermalinkState } from "../../domain";
 import { toast } from "../../platform";
-import {
-  STRATEGY_LABELS,
-  renderPaneStrategyInfo,
-  refreshStrategyPopovers,
-} from "../strategy-picker";
+import type { StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
 import { syncSheetCompact } from "./sheet-compact";
-import { renderTweakPanel, type TweakPanelUi } from "../tweak-drawer";
-import type { TweakRowHandles } from "../tweak-drawer";
 
 /** Narrow pane handles for scenario switching. */
 interface ScenarioPaneHandles {
@@ -30,15 +22,24 @@ export interface ScenarioSwitchState {
 }
 
 /** Narrow interface — only the fields scenario switching needs from UiHandles. */
-export interface ScenarioSwitchUi extends TweakPanelUi {
+export interface ScenarioSwitchUi {
   paneA: ScenarioPaneHandles;
   paneB: ScenarioPaneHandles;
   scenarioCards: HTMLElement;
   sheetScenario: HTMLElement;
   sheetStrategy: HTMLElement;
   toast: HTMLElement;
-  tweakRows: Record<ParamKey, TweakRowHandles>;
-  tweakResetAllBtn: HTMLButtonElement;
+}
+
+/**
+ * Callback the shell passes so scenario-picker can trigger cross-feature
+ * side-effects (strategy info, tweak panel, popovers) without importing
+ * those features directly.
+ */
+export interface ScenarioSwitchHooks {
+  renderPaneStrategyInfo: (pane: ScenarioPaneHandles, strategy: StrategyName) => void;
+  refreshStrategyPopovers: () => void;
+  renderTweakPanel: () => void;
 }
 
 /**
@@ -56,6 +57,7 @@ export async function switchScenario(
   ui: ScenarioSwitchUi,
   scenarioId: string,
   resetAll: () => Promise<void>,
+  hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
   // Snap pane A (and pane B when in single-pane mode) to the
@@ -70,12 +72,12 @@ export async function switchScenario(
     strategyA: nextStrategyA,
     overrides: {},
   };
-  renderPaneStrategyInfo(ui.paneA, nextStrategyA);
-  refreshStrategyPopovers(state, ui, resetAll);
+  hooks.renderPaneStrategyInfo(ui.paneA, nextStrategyA);
+  hooks.refreshStrategyPopovers();
   syncScenarioCards(ui, scenario.id);
-  syncSheetCompact(ui, scenario.label, nextStrategyA);
+  syncSheetCompact(ui, scenario.label, STRATEGY_LABELS[nextStrategyA]);
   await resetAll();
-  renderTweakPanel(scenario, state.permalink.overrides, ui);
+  hooks.renderTweakPanel();
   toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
 }
 

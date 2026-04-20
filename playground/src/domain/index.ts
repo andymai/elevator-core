@@ -17,3 +17,11 @@ export {
   type ParamKey,
 } from "./params";
 export { SCENARIOS, scenarioById } from "./scenarios";
+export {
+  UI_STRATEGIES,
+  STRATEGY_LABELS,
+  STRATEGY_DESCRIPTIONS,
+  UI_REPOSITION_STRATEGIES,
+  REPOSITION_LABELS,
+  REPOSITION_DESCRIPTIONS,
+} from "./strategy-labels";

@@ -1,14 +1,14 @@
+import { type Pane, makePane, disposePane, forEachPane } from "../features/compare-pane";
 import { updatePhaseIndicator } from "../features/phase-strip";
-import { type Pane, makePane, disposePane } from "../features/compare-pane";
+import { initMetricRows } from "../features/scoreboard";
+import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../features/strategy-picker";
 import { renderTweakPanel } from "../features/tweak-drawer";
+import { hashSeedWord, scenarioById } from "../domain";
 import { toast } from "../platform";
-import { scenarioById } from "../domain";
 import { TrafficDriver } from "../sim";
-import { hashSeedWord } from "../domain";
 import type { ScenarioMeta } from "../types";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
-import { forEachPane } from "../features/compare-pane";
 
 /**
  * Per-frame cap on `drainSpawns` calls during progressive seeding.
@@ -70,6 +70,9 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
       scenario,
       state.permalink.overrides,
     );
+    renderPaneStrategyInfo(ui.paneA, state.permalink.strategyA);
+    renderPaneRepositionInfo(ui.paneA, state.permalink.repositionA);
+    initMetricRows(ui.paneA.metrics);
     let paneB: Pane | null = null;
     if (state.permalink.compare) {
       try {
@@ -80,6 +83,9 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
           scenario,
           state.permalink.overrides,
         );
+        renderPaneStrategyInfo(ui.paneB, state.permalink.strategyB);
+        renderPaneRepositionInfo(ui.paneB, state.permalink.repositionB);
+        initMetricRows(ui.paneB.metrics);
       } catch (err) {
         disposePane(paneA);
         throw err;

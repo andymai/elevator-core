@@ -1,7 +1,8 @@
 import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../features/strategy-picker";
-import { syncScenarioCards, syncSheetCompact } from "../features/scenario-picker";
+import { syncScenarioCards } from "../features/scenario-picker";
 import { setTweakOpen, renderTweakPanel } from "../features/tweak-drawer";
-import { scenarioById, type PermalinkState } from "../domain";
+import { scenarioById, STRATEGY_LABELS, type PermalinkState } from "../domain";
+import { syncSheetCompact } from "../platform";
 import { generate as generateRandomWords } from "random-words";
 import type { UiHandles } from "./wire-ui";
 
@@ -35,7 +36,7 @@ export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   renderPaneRepositionInfo(ui.paneB, p.repositionB);
   syncScenarioCards(ui, p.scenario);
   const scenario = scenarioById(p.scenario);
-  syncSheetCompact(ui, scenario.label, p.strategyA);
+  syncSheetCompact(ui, scenario.label, STRATEGY_LABELS[p.strategyA]);
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
   // click. A clean URL leaves the drawer closed so first-time
