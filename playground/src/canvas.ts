@@ -54,11 +54,11 @@ function scaleFor(width: number): Scale {
     padTop: lerp(22, 30),
     // Just enough bottom breathing room below the lowest floor slab.
     padBottom: lerp(10, 14),
-    // Sized for the widest scenario labels ("Keynote Hall" /
-    // "Exhibit Hall" at 12 chars) on desktop, down to "Lobby" /
-    // "Floor N" on the narrowest phones. `truncate()` still clips
-    // anything that spills over on ultra-long custom stop names.
-    labelW: lerp(52, 92),
+    // Sized for the widest scenario labels ("Orbital Platform" at 16
+    // chars, space-elevator) on desktop, down to "Lobby" / "Floor N"
+    // on the narrowest phones. `truncate()` still clips anything that
+    // spills over on ultra-long custom stop names.
+    labelW: lerp(52, 120),
     // Preferred gutter for stick figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.
     figureGutterW: lerp(40, 70),
