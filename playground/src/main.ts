@@ -12,7 +12,7 @@ import {
 } from "./params";
 import { DEFAULT_STATE, decodePermalink, encodePermalink, type PermalinkState } from "./permalink";
 import { SCENARIOS, scenarioById } from "./scenarios";
-import { Sim } from "./sim";
+import { Sim, loadWasm } from "./sim";
 import { TrafficDriver } from "./traffic";
 import type {
   BubbleEvent,
@@ -144,7 +144,24 @@ interface State {
    * stays referenced (and gets `step()`-ed on freed wasm memory next frame).
    */
   initToken: number;
+  /**
+   * Progressive pre-seed state for scenarios with `seedSpawns > 0`.
+   * Instead of blocking the loader on hundreds of synchronous
+   * `spawnRider` calls, we hand the quota to the render loop and
+   * inject a per-frame batch until `remaining` hits zero. `null`
+   * when not seeding (the common case for day-cycle scenarios).
+   */
+  seeding: { remaining: number } | null;
 }
+
+/**
+ * Per-frame cap on `drainSpawns` calls during progressive seeding.
+ * At convention-burst's keynote rate (110 riders/min, 4/60-s dt) the
+ * driver's accumulator grows ~0.12 per call, so this yields ~24
+ * riders per frame — the full 120-rider seed drains in ~5 frames
+ * (~80 ms wall-clock) without ever blocking the loader.
+ */
+const SEED_CALLS_PER_FRAME = 200;
 
 interface PaneHandles {
   root: HTMLElement;
@@ -202,6 +219,16 @@ interface UiHandles {
 }
 
 async function boot(): Promise<void> {
+  // Kick off the wasm fetch + compile *before* DOM wiring so the
+  // ~hundreds-of-ms WebAssembly.instantiate overlaps with synchronous
+  // JS work (scenario-card rendering, handle lookups, permalink
+  // decode). `loadWasm` memoises via an internal promise, so the
+  // subsequent `Sim.create` calls in `makePane` await the same
+  // module without re-fetching.
+  const wasmReady = loadWasm();
+  // Swallow rejections here; `makePane` will re-await the same
+  // promise and surface the error through the Init-failed toast.
+  wasmReady.catch(() => {});
   const ui = wireUi();
   const permalink = { ...DEFAULT_STATE, ...decodePermalink(window.location.search) };
   // If the permalink points at a scenario we don't have, fall back to the
@@ -227,6 +254,7 @@ async function boot(): Promise<void> {
     traffic: new TrafficDriver(permalink.seed),
     lastFrameTime: performance.now(),
     initToken: 0,
+    seeding: null,
   };
   attachListeners(state, ui);
   await resetAll(state, ui);
@@ -542,42 +570,13 @@ async function resetAll(state: State, ui: UiHandles): Promise<void> {
       }
       state.paneB = paneB;
     }
-    // Seed pre-loaded spawns (convention scenario) once both panes are
-    // live so the injection is apples-to-apples across compared sims.
-    // `drainSpawns` internally caps dt to 4/60 s so we pump it at that
-    // cap until cumulative emission reaches the target. The driver
-    // advances its internal cycle clock while pumping, so we reconfigure
-    // it afterwards — otherwise a big seed would eat into the opening
-    // phase before the user sees a single real frame.
-    if (scenario.seedSpawns > 0) {
-      const snapForSeed = state.paneA.sim.snapshot();
-      const dtPerCall = 4 / 60;
-      let emitted = 0;
-      // Hard cap on iterations — with dtPerCall = 4/60 s and the
-      // per-phase accumulator only growing ~0.12 riders per call at
-      // 110 riders/min, we need ~9 calls before the first emission.
-      // Earlier code had an early `specs.length === 0` break that
-      // fired on call 1 and seeded zero riders; maxCalls is the only
-      // guard we need against a truly zero-rate phase (it caps the
-      // spin at a few ms even in that degenerate case).
-      const maxCalls = 10000;
-      for (let i = 0; i < maxCalls && emitted < scenario.seedSpawns; i += 1) {
-        const specs = state.traffic.drainSpawns(snapForSeed, dtPerCall);
-        for (const spec of specs) {
-          forEachPane(state, (pane) =>
-            pane.sim.spawnRider(
-              spec.originStopId,
-              spec.destStopId,
-              spec.weight,
-              spec.patienceTicks,
-            ),
-          );
-          emitted += 1;
-          if (emitted >= scenario.seedSpawns) break;
-        }
-      }
-      configureTraffic(state, scenario);
-    }
+    // Progressive pre-seed: instead of pumping hundreds of spawns
+    // synchronously (which blocked the loader for ~50 ms even warm),
+    // hand the quota to the render loop. It injects per-frame
+    // batches starting the next rAF and re-seats the driver via
+    // `configureTraffic` once the quota drains, so the scenario's
+    // day-cycle clock still starts from t=0.
+    state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
     if (ui.featureHint) ui.featureHint.textContent = scenario.featureHint;
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
@@ -855,13 +854,25 @@ function loop(state: State, ui: UiHandles): void {
         }
       });
 
+      // Progressive pre-seed: drain the remaining quota in per-frame
+      // batches. While seeding is active we suppress the normal
+      // wall-clock drain below so the driver's accumulator — which
+      // also advances here — stays dedicated to the initial crowd.
+      // When the last rider lands we re-seat the driver so the
+      // scenario's day cycle starts from t=0.
+      if (state.seeding) {
+        drainSeedBatch(state);
+      }
+
       const snapA = state.paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
       // `elapsed` is wall-clock; scaling by `ticks` keeps the sim-time
       // budget the driver operates on in lockstep with the actual
-      // simulation advance.
+      // simulation advance. Skipped while we're still seeding.
       const simElapsed = elapsed * ticks;
-      const specs = state.traffic.drainSpawns(snapA, simElapsed);
+      const specs = state.seeding
+        ? []
+        : state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
         forEachPane(state, (pane) =>
           pane.sim.spawnRider(
@@ -1290,6 +1301,45 @@ function labelForKey(key: ParamKey): string {
       return "Capacity";
     case "doorCycleSec":
       return "Door cycle";
+  }
+}
+
+// ─── Progressive pre-seed ────────────────────────────────────────────
+
+/**
+ * Inject a per-frame batch of pre-seed riders. Pumps `drainSpawns`
+ * up to `SEED_CALLS_PER_FRAME` times at the driver's 4/60-s dt cap,
+ * stopping early when the scenario's quota is met. When the quota
+ * drains we re-seat the driver via `configureTraffic` so the
+ * scenario's day-cycle clock starts from t=0 on the next frame.
+ *
+ * Callers must check `state.seeding` before invoking; this function
+ * assumes it's non-null. The rider-count check inside the inner loop
+ * lets a single `drainSpawns` call emitting multiple specs stop
+ * exactly at the quota rather than overshooting.
+ */
+function drainSeedBatch(state: State): void {
+  if (!state.seeding || !state.paneA) return;
+  const snap = state.paneA.sim.snapshot();
+  const dt = 4 / 60;
+  for (let c = 0; c < SEED_CALLS_PER_FRAME && state.seeding.remaining > 0; c++) {
+    const specs = state.traffic.drainSpawns(snap, dt);
+    for (const spec of specs) {
+      forEachPane(state, (pane) =>
+        pane.sim.spawnRider(
+          spec.originStopId,
+          spec.destStopId,
+          spec.weight,
+          spec.patienceTicks,
+        ),
+      );
+      state.seeding.remaining -= 1;
+      if (state.seeding.remaining <= 0) break;
+    }
+  }
+  if (state.seeding.remaining <= 0) {
+    configureTraffic(state, scenarioById(state.permalink.scenario));
+    state.seeding = null;
   }
 }
 

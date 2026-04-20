@@ -6,7 +6,8 @@ describe("permalink: core knobs", () => {
     const qs = encodePermalink(DEFAULT_STATE);
     expect(qs).toMatch(/s=skyscraper-sky-lobby/);
     expect(qs).toMatch(/a=etd/);
-    expect(qs).toMatch(/c=1/);
+    // Compare defaults to off — the `c` key is only emitted when true.
+    expect(qs).not.toMatch(/(^|&|\?)c=/);
     expect(qs).toMatch(/k=42/);
   });
 

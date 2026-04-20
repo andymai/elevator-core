@@ -51,12 +51,11 @@ export const DEFAULT_STATE: PermalinkState = {
   scenario: "skyscraper-sky-lobby",
   strategyA: "etd",
   strategyB: "scan",
-  // Compare mode on by default: the single most visceral "one strategy
-  // is clearly better" demonstration the playground offers is the live
-  // scoreboard. A cold visitor in single-pane mode would have to
-  // manually swap strategies to notice any difference and most won't —
-  // defaulting compare on makes the library's payoff immediate.
-  compare: true,
+  // Compare mode off by default: turning it on doubles the cold-boot
+  // time because `resetAll` serialises both `WasmSim` constructions.
+  // Single-pane first-paint is cheaper; users flip compare via the
+  // checkbox or the `C` shortcut once the first sim is visible.
+  compare: false,
   seed: 42,
   intensity: 1.0,
   // 2× default (was 4×): after door times moved to realistic
