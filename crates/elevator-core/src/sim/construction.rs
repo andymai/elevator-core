@@ -42,6 +42,25 @@ type TopologyResult = (
     BTreeMap<GroupId, BuiltinStrategy>,
 );
 
+/// Ensure DCS groups have `HallCallMode::Destination` at construction
+/// time. Non-DCS groups are left at whatever the config specified —
+/// forcing Classic here would clobber explicit config overrides (e.g. a
+/// Scan group that the author deliberately set to Destination mode).
+///
+/// Runtime swaps via [`Simulation::set_dispatch`] do a full bidirectional
+/// sync because a strategy change is an explicit user action where
+/// resetting the mode is expected.
+fn sync_hall_call_modes(
+    groups: &mut [ElevatorGroup],
+    strategy_ids: &BTreeMap<GroupId, BuiltinStrategy>,
+) {
+    for group in groups.iter_mut() {
+        if strategy_ids.get(&group.id()) == Some(&BuiltinStrategy::Destination) {
+            group.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+        }
+    }
+}
+
 /// Validate the physics fields shared by [`crate::config::ElevatorConfig`]
 /// and [`super::ElevatorParams`]. Both construction-time validation and
 /// the runtime `add_elevator` path call this so an invalid set of params
@@ -205,18 +224,19 @@ impl Simulation {
         // into a seconds expression and getting ~60× over-weighted.
         world.insert_resource(crate::time::TickRate(config.simulation.ticks_per_second));
 
-        let (groups, dispatchers, strategy_ids) = if let Some(line_configs) = &config.building.lines
-        {
-            Self::build_explicit_topology(
-                &mut world,
-                config,
-                line_configs,
-                &stop_lookup,
-                builder_dispatchers,
-            )
-        } else {
-            Self::build_legacy_topology(&mut world, config, &stop_lookup, builder_dispatchers)
-        };
+        let (mut groups, dispatchers, strategy_ids) =
+            if let Some(line_configs) = &config.building.lines {
+                Self::build_explicit_topology(
+                    &mut world,
+                    config,
+                    line_configs,
+                    &stop_lookup,
+                    builder_dispatchers,
+                )
+            } else {
+                Self::build_legacy_topology(&mut world, config, &stop_lookup, builder_dispatchers)
+            };
+        sync_hall_call_modes(&mut groups, &strategy_ids);
 
         let dt = 1.0 / config.simulation.ticks_per_second;
 
@@ -903,8 +923,8 @@ impl Simulation {
 
     /// Replace the dispatch strategy for a group.
     ///
-    /// The `id` parameter identifies the strategy for snapshot serialization.
-    /// Use `BuiltinStrategy::Custom("name")` for custom strategies.
+    /// Also synchronises `HallCallMode`: `Destination` for DCS, `Classic`
+    /// for other built-ins; `Custom` strategies leave the mode untouched.
     pub fn set_dispatch(
         &mut self,
         group: GroupId,
@@ -912,11 +932,13 @@ impl Simulation {
         id: crate::dispatch::BuiltinStrategy,
     ) {
         let mode = match &id {
-            crate::dispatch::BuiltinStrategy::Destination => {
-                Some(crate::dispatch::HallCallMode::Destination)
-            }
-            crate::dispatch::BuiltinStrategy::Custom(_) => None,
-            _ => Some(crate::dispatch::HallCallMode::Classic),
+            BuiltinStrategy::Destination => Some(crate::dispatch::HallCallMode::Destination),
+            BuiltinStrategy::Custom(_) => None,
+            BuiltinStrategy::Scan
+            | BuiltinStrategy::Look
+            | BuiltinStrategy::NearestCar
+            | BuiltinStrategy::Etd
+            | BuiltinStrategy::Rsr => Some(crate::dispatch::HallCallMode::Classic),
         };
         if let Some(mode) = mode
             && let Some(g) = self.groups.iter_mut().find(|g| g.id() == group)
