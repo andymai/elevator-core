@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.17.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.2...elevator-core-v15.17.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* **dispatch:** hoist idle-rider destination lookup out of per-stop loop ([#393](https://github.com/andymai/elevator-core/issues/393)) ([dbea270](https://github.com/andymai/elevator-core/commit/dbea2708282208ac7408bd4839a08c707b36bdf0)), closes [#340](https://github.com/andymai/elevator-core/issues/340)
+
 ## [15.17.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.1...elevator-core-v15.17.2) (2026-04-21)
 
 
