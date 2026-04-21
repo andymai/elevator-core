@@ -962,13 +962,23 @@ impl Simulation {
     ///
     /// Also synchronises `HallCallMode`: `Destination` for DCS, `Classic`
     /// for other built-ins; `Custom` strategies leave the mode untouched.
+    ///
+    /// The stored snapshot identity is taken from the strategy's own
+    /// [`DispatchStrategy::builtin_id`] when it returns `Some(..)`, so
+    /// built-in strategies always round-trip as themselves even if the
+    /// `id` argument drifts out of sync with the actual impl. Custom
+    /// strategies that don't override `builtin_id` fall back to the
+    /// caller-supplied `id`, preserving the prior API for registered
+    /// custom factories. Mirrors the pattern applied to
+    /// [`set_reposition`](Self::set_reposition) in #414.
     pub fn set_dispatch(
         &mut self,
         group: GroupId,
         strategy: Box<dyn DispatchStrategy>,
         id: crate::dispatch::BuiltinStrategy,
     ) {
-        let mode = match &id {
+        let resolved_id = strategy.builtin_id().unwrap_or(id);
+        let mode = match &resolved_id {
             BuiltinStrategy::Destination => Some(crate::dispatch::HallCallMode::Destination),
             BuiltinStrategy::Custom(_) => None,
             BuiltinStrategy::Scan
@@ -983,7 +993,7 @@ impl Simulation {
             g.set_hall_call_mode(mode);
         }
         self.dispatchers.insert(group, strategy);
-        self.strategy_ids.insert(group, id);
+        self.strategy_ids.insert(group, resolved_id);
     }
 
     // ── Reposition management ─────────────────────────────────────────
