@@ -1098,17 +1098,21 @@ pub(crate) fn assign(
     let mut data: Vec<i64> = vec![ASSIGNMENT_SENTINEL; n * cols];
     for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
         strategy.prepare_car(car_eid, car_pos, group, manifest, world);
-        // Cache the car's restricted-stops set for this row so each
+        // Borrow the car's restricted-stops set for this row so each
         // (car, stop) pair can short-circuit before calling rank().
         // Pre-fix only DCS consulted restricted_stops; SCAN/LOOK/NC/ETD
         // happily ranked restricted pairs and `commit_go_to_stop` later
         // silently dropped the assignment, starving the call. (#256)
+        //
+        // The row only reads through `world` (via `prepare_car` and
+        // `rank`), so holding an immutable borrow of the set instead
+        // of cloning it drops one HashSet allocation per car per
+        // dispatch pass — a win that scales with elevator count.
         let restricted = world
             .elevator(car_eid)
-            .map(|c| c.restricted_stops().clone())
-            .unwrap_or_default();
+            .map(crate::components::Elevator::restricted_stops);
         for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
-            if restricted.contains(&stop_eid) {
+            if restricted.is_some_and(|r| r.contains(&stop_eid)) {
                 continue; // leave SENTINEL — this pair is unavailable
             }
             let ctx = RankContext {
