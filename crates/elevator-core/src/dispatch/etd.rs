@@ -21,6 +21,7 @@ use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair
 /// for intervening stops, and a small bonus for cars already heading
 /// toward the stop. The dispatch system runs an optimal assignment
 /// across all pairs so the globally best matching is chosen.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct EtdDispatch {
     /// Weight for travel time to reach the calling stop.
     pub wait_weight: f64,
@@ -49,7 +50,10 @@ pub struct EtdDispatch {
     pub age_linear_weight: f64,
     /// Positions of every demanded stop in the group, cached by
     /// [`DispatchStrategy::pre_dispatch`] so `rank` avoids rebuilding the
-    /// list for every `(car, stop)` pair.
+    /// list for every `(car, stop)` pair. Per-pass scratch — excluded
+    /// from [`snapshot_config`](DispatchStrategy::snapshot_config) since
+    /// `pre_dispatch` rebuilds it on every pass.
+    #[serde(skip)]
     pending_positions: SmallVec<[f64; 16]>,
 }
 
@@ -195,6 +199,16 @@ impl DispatchStrategy for EtdDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Etd)
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
     }
 }
 

@@ -151,6 +151,18 @@ pub struct WorldSnapshot {
     /// `id_remap` to match newly-allocated entity IDs.
     #[serde(default)]
     pub reposition_cooldowns: crate::dispatch::reposition::RepositionCooldowns,
+    /// Per-group serialized dispatcher configuration produced by
+    /// [`crate::dispatch::DispatchStrategy::snapshot_config`] and
+    /// replayed via
+    /// [`crate::dispatch::DispatchStrategy::restore_config`] on
+    /// restore. Round-trips the tunable weights configured via
+    /// `with_*` builder methods (e.g. `EtdDispatch::with_delay_weight`)
+    /// that [`BuiltinStrategy::instantiate`](crate::dispatch::BuiltinStrategy::instantiate)
+    /// can't reconstruct because it always calls `::new()`. Absent /
+    /// empty in legacy snapshots — they restore to default weights,
+    /// matching pre-fix behaviour.
+    #[serde(default)]
+    pub dispatch_config: BTreeMap<GroupId, String>,
 }
 
 /// Per-line snapshot info within a group.
@@ -349,6 +361,26 @@ impl WorldSnapshot {
             self.metrics,
             self.ticks_per_second,
         );
+
+        // Replay any per-group dispatcher tuning captured in the
+        // snapshot. Each built-in with `with_*` builder methods
+        // overrides `snapshot_config`/`restore_config` to round-trip
+        // its weights; strategies that don't override silently skip
+        // (default `restore_config` is `Ok(())`), preserving pre-fix
+        // behaviour. A deserialization failure (e.g. snapshot from a
+        // future version with new fields) surfaces as an event rather
+        // than a hard error — the restored sim runs with defaults,
+        // same as a legacy snapshot with no dispatch_config at all.
+        for (gid, serialized) in &self.dispatch_config {
+            if let Some(dispatcher) = sim.dispatchers_mut().get_mut(gid)
+                && let Err(err) = dispatcher.restore_config(serialized)
+            {
+                sim.push_event(crate::events::Event::DispatchConfigNotRestored {
+                    group: *gid,
+                    reason: err,
+                });
+            }
+        }
 
         // Restore reposition strategies from group snapshots.
         for gs in &self.groups {
@@ -936,6 +968,15 @@ impl crate::sim::Simulation {
                 .resource::<crate::dispatch::reposition::RepositionCooldowns>()
                 .cloned()
                 .unwrap_or_default(),
+            // Per-group dispatcher configuration. Only strategies that
+            // override `snapshot_config` emit non-None here; the rest
+            // default to empty and restore to built-in defaults,
+            // preserving pre-fix behaviour for stateless strategies.
+            dispatch_config: self
+                .dispatchers()
+                .iter()
+                .filter_map(|(gid, d)| d.snapshot_config().map(|s| (*gid, s)))
+                .collect(),
         }
     }
 

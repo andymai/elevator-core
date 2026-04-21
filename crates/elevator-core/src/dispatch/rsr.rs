@@ -53,6 +53,7 @@ fn peak_scaling(ctx: &RankContext<'_>, multiplier: f64) -> f64 {
 /// chain and silently collapses every pair's cost to zero (Rust's
 /// `NaN.max(0.0) == 0.0`), producing an arbitrary but type-valid
 /// assignment from the Hungarian solver — a hard bug to diagnose.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct RsrDispatch {
     /// Weight on `travel_time = distance / max_speed` (seconds).
     /// Default `1.0`; raising it shifts the blend toward travel time.
@@ -264,5 +265,15 @@ impl DispatchStrategy for RsrDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Rsr)
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
     }
 }

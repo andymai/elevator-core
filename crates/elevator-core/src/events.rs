@@ -601,6 +601,18 @@ pub enum Event {
         /// The group whose strategy was lost.
         group: GroupId,
     },
+    /// A snapshot restore instantiated the dispatch strategy for a
+    /// group but couldn't replay its tunable configuration (the
+    /// serialized form in the snapshot didn't parse). The strategy
+    /// runs with its default weights — identical to a legacy snapshot
+    /// that never carried dispatch config at all.
+    DispatchConfigNotRestored {
+        /// The group whose dispatcher ran with defaults.
+        group: GroupId,
+        /// The parse error from
+        /// [`DispatchStrategy::restore_config`](crate::dispatch::DispatchStrategy::restore_config).
+        reason: String,
+    },
     /// A stop was removed while resident riders were present.
     /// The game must relocate or despawn these riders.
     ResidentsAtRemovedStop {
@@ -771,9 +783,9 @@ impl Event {
             | Self::HallCallCleared { .. }
             | Self::CarButtonPressed { .. } => EventCategory::Dispatch,
             Self::RiderSkipped { .. } => EventCategory::Rider,
-            Self::SnapshotDanglingReference { .. } | Self::RepositionStrategyNotRestored { .. } => {
-                EventCategory::Observability
-            }
+            Self::SnapshotDanglingReference { .. }
+            | Self::RepositionStrategyNotRestored { .. }
+            | Self::DispatchConfigNotRestored { .. } => EventCategory::Observability,
             Self::ResidentsAtRemovedStop { .. } => EventCategory::Topology,
         }
     }
