@@ -104,6 +104,7 @@ impl super::Simulation {
             &self.groups,
             &mut self.dispatchers,
             &self.rider_index,
+            &mut self.dispatch_scratch,
         );
         for group in &self.groups {
             self.hooks

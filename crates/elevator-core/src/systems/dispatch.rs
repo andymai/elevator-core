@@ -2,7 +2,8 @@
 
 use crate::components::{ElevatorPhase, Route};
 use crate::dispatch::{
-    self, DispatchDecision, DispatchManifest, DispatchStrategy, ElevatorGroup, RiderInfo,
+    self, DispatchDecision, DispatchManifest, DispatchScratch, DispatchStrategy, ElevatorGroup,
+    RiderInfo,
 };
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
@@ -23,8 +24,14 @@ pub fn run(
     groups: &[ElevatorGroup],
     dispatchers: &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     rider_index: &RiderIndex,
+    scratch: &mut DispatchScratch,
 ) {
     for group in groups {
+        // Fresh scratch for this group's dispatch pass. Buffers from
+        // the previous group (or previous tick) retain their capacity
+        // but are cleared of stale contents.
+        scratch.clear_all();
+
         let manifest = build_manifest(world, group, ctx.tick, rider_index);
 
         // Give strategies a chance to mutate world state (e.g. write rider
@@ -37,21 +44,17 @@ pub fn run(
         // committed straight to `GoToStop` and excluded from the normal
         // Hungarian matching so neither the car nor the stop can be
         // reassigned while the pin is in effect.
-        let pinned_pairs: Vec<(EntityId, EntityId)> = world
-            .iter_hall_calls()
-            .filter(|c| c.pinned)
-            .filter_map(|c| {
-                c.assigned_car.and_then(|car| {
-                    if group.stop_entities().contains(&c.stop)
-                        && group.elevator_entities().contains(&car)
-                    {
-                        Some((car, c.stop))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
+        for c in world.iter_hall_calls() {
+            if !c.pinned {
+                continue;
+            }
+            let Some(car) = c.assigned_car else {
+                continue;
+            };
+            if group.stop_entities().contains(&c.stop) && group.elevator_entities().contains(&car) {
+                scratch.pinned_pairs.push((car, c.stop));
+            }
+        }
 
         // Commitment set: cars mid-trip to a stop that still has
         // demand. Their (car, stop) pair is locked for this pass — the
@@ -74,72 +77,76 @@ pub fn run(
         // abandoned, call cleared by another car) is *not* committed
         // — it falls back through the normal pool so Hungarian can
         // redirect or idle it rather than waste the rest of the trip.
-        let committed_pairs: Vec<(EntityId, EntityId)> = group
-            .elevator_entities()
-            .iter()
-            .filter_map(|&eid| {
-                let car = world.elevator(eid)?;
-                if !matches!(car.phase, ElevatorPhase::MovingToStop(_)) {
-                    return None;
-                }
-                if !car.riders.is_empty() {
-                    return None;
-                }
-                if car.repositioning {
-                    return None;
-                }
-                let target = car.target_stop()?;
-                if !manifest.has_demand(target) {
-                    return None;
-                }
-                Some((eid, target))
-            })
-            .collect();
+        for &eid in group.elevator_entities() {
+            let Some(car) = world.elevator(eid) else {
+                continue;
+            };
+            if !matches!(car.phase, ElevatorPhase::MovingToStop(_)) {
+                continue;
+            }
+            if !car.riders.is_empty() {
+                continue;
+            }
+            if car.repositioning {
+                continue;
+            }
+            let Some(target) = car.target_stop() else {
+                continue;
+            };
+            if !manifest.has_demand(target) {
+                continue;
+            }
+            scratch.committed_pairs.push((eid, target));
+        }
 
         // Dispatch pool: idle/stopped cars, plus pre-pickup cars
         // whose in-flight trip has become useless (target lost all
         // demand) — those get a chance to be redirected. Committed
         // cars (target still has demand) stay out so their trips
         // run to completion without per-tick reassignment churn.
-        let idle_elevators: Vec<(EntityId, f64)> = group
-            .elevator_entities()
-            .iter()
-            .filter_map(|eid| {
-                if world.is_disabled(*eid) {
-                    return None;
-                }
-                if world
-                    .service_mode(*eid)
-                    .is_some_and(|m| m.is_dispatch_excluded())
-                {
-                    return None;
-                }
-                if pinned_pairs.iter().any(|(car, _)| car == eid) {
-                    return None;
-                }
-                if committed_pairs.iter().any(|(car, _)| car == eid) {
-                    return None;
-                }
-                let car = world.elevator(*eid)?;
-                let eligible = matches!(car.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
-                    || (matches!(car.phase, ElevatorPhase::MovingToStop(_))
-                        && car.riders.is_empty()
-                        && !car.repositioning);
-                if eligible {
-                    let pos = world.position(*eid)?.value;
-                    Some((*eid, pos))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        for eid in group.elevator_entities() {
+            if world.is_disabled(*eid) {
+                continue;
+            }
+            if world
+                .service_mode(*eid)
+                .is_some_and(|m| m.is_dispatch_excluded())
+            {
+                continue;
+            }
+            if scratch.pinned_pairs.iter().any(|(car, _)| car == eid) {
+                continue;
+            }
+            if scratch.committed_pairs.iter().any(|(car, _)| car == eid) {
+                continue;
+            }
+            let Some(car) = world.elevator(*eid) else {
+                continue;
+            };
+            let eligible = matches!(car.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
+                || (matches!(car.phase, ElevatorPhase::MovingToStop(_))
+                    && car.riders.is_empty()
+                    && !car.repositioning);
+            if !eligible {
+                continue;
+            }
+            let Some(pos) = world.position(*eid) else {
+                continue;
+            };
+            scratch.idle_elevators.push((*eid, pos.value));
+        }
 
         // Commit pinned pairs directly — they bypass the Hungarian
         // solver. Mirror the idle-pool eligibility gate so a pin can't
         // clobber a car mid-door-cycle. Cars in Loading / DoorOpening /
         // DoorClosing retain their current trip until doors are back to
         // closed; the pin is honored next tick.
-        for (car_eid, stop_eid) in pinned_pairs.iter().copied() {
+        //
+        // `scratch.pinned_pairs` is owned by `scratch` (not borrowed
+        // from world), so the inner `commit_go_to_stop(world, …)`
+        // can take its own `&mut world` without aliasing our slice.
+        for i in 0..scratch.pinned_pairs.len() {
+            let (car_eid, stop_eid) = scratch.pinned_pairs[i];
             let eligible = world.elevator(car_eid).is_some_and(|c| {
                 matches!(c.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
                     || (matches!(c.phase, ElevatorPhase::MovingToStop(_)) && c.riders.is_empty())
@@ -149,7 +156,7 @@ pub fn run(
             }
         }
 
-        if idle_elevators.is_empty() {
+        if scratch.idle_elevators.is_empty() {
             continue;
         }
 
@@ -157,7 +164,21 @@ pub fn run(
             continue;
         };
 
-        let result = dispatch::assign(dispatch.as_mut(), &idle_elevators, group, &manifest, world);
+        // `assign` needs `&mut scratch` too, so move the idle-elevator
+        // slice out first and pass it as a plain slice. The slice lives
+        // for the whole call; scratch can retain its buffer capacity.
+        // The next iteration's `clear_all()` will reset the restored
+        // buffer — no explicit clear needed here.
+        let idle_elevators = std::mem::take(&mut scratch.idle_elevators);
+        let result = dispatch::assign_with_scratch(
+            dispatch.as_mut(),
+            &idle_elevators,
+            group,
+            &manifest,
+            world,
+            scratch,
+        );
+        scratch.idle_elevators = idle_elevators;
 
         for (eid, decision) in result.decisions {
             match decision {

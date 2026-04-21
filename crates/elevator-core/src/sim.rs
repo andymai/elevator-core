@@ -383,6 +383,11 @@ pub struct Simulation {
     elevator_ids_buf: Vec<EntityId>,
     /// Reusable buffer for reposition decisions (avoids per-tick allocation).
     reposition_buf: Vec<(EntityId, EntityId)>,
+    /// Scratch buffers owned by the dispatch phase — the cost matrix,
+    /// pending-stops list, servicing slice, pinned / committed /
+    /// idle-elevator filters. Holding them on the sim means each
+    /// dispatch pass reuses capacity instead of re-allocating.
+    pub(crate) dispatch_scratch: crate::dispatch::DispatchScratch,
     /// Lazy-rebuilt connectivity graph for cross-line topology queries.
     topo_graph: Mutex<TopologyGraph>,
     /// Phase-partitioned reverse index for O(1) population queries.
