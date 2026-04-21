@@ -531,3 +531,52 @@ fn disable_stop_scrubs_destination_queues() {
     );
     assert_eq!(q.len(), 1, "only the non-disabled stop should remain");
 }
+
+/// Disabling a stop that a car is actively targeting resets the car to `Idle`.
+#[test]
+fn disable_stop_resets_inflight_car() {
+    let mut sim = build_sim();
+    let elev = first_elevator(&sim);
+
+    // Send car toward stop 2.
+    sim.push_destination(elev, StopId(2)).unwrap();
+
+    // Advance until the car is in flight (target popped from queue).
+    for _ in 0..10 {
+        sim.step();
+        if sim
+            .world()
+            .elevator(elev.entity())
+            .unwrap()
+            .phase()
+            .is_moving()
+        {
+            break;
+        }
+    }
+    assert!(
+        sim.world()
+            .elevator(elev.entity())
+            .unwrap()
+            .phase()
+            .is_moving(),
+        "car should be in flight"
+    );
+
+    // Disable the target stop while car is en route.
+    let stop2_entity = sim.stop_entity(StopId(2)).unwrap();
+    sim.disable(stop2_entity).unwrap();
+
+    // Car should be reset to Idle — no longer targeting the disabled stop.
+    let car = sim.world().elevator(elev.entity()).unwrap();
+    assert_eq!(
+        car.phase(),
+        ElevatorPhase::Idle,
+        "car targeting a disabled stop should be reset to Idle"
+    );
+    assert_eq!(
+        car.target_stop(),
+        None,
+        "target_stop should be cleared for the disabled stop"
+    );
+}

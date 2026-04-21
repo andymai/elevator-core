@@ -595,16 +595,10 @@ impl Simulation {
             vel.value = 0.0;
         }
 
-        // If this is a stop, scrub it from elevator destination queues,
+        // If this is a stop, scrub it from elevator targets/queues,
         // abandon resident riders, and invalidate routes.
         if self.world.stop(id).is_some() {
-            let elevator_ids: Vec<EntityId> =
-                self.world.iter_elevators().map(|(eid, _, _)| eid).collect();
-            for eid in elevator_ids {
-                if let Some(q) = self.world.destination_queue_mut(eid) {
-                    q.retain(|s| s != id);
-                }
-            }
+            self.scrub_stop_from_elevators(id);
             let resident_ids: Vec<EntityId> =
                 self.rider_index.residents_at(id).iter().copied().collect();
             for rid in resident_ids {
@@ -744,6 +738,23 @@ impl Simulation {
                     stop: abandon_stop,
                     tick: self.tick,
                 });
+            }
+        }
+    }
+
+    /// Remove a disabled stop from all elevator targets and queues.
+    fn scrub_stop_from_elevators(&mut self, stop: EntityId) {
+        let elevator_ids: Vec<EntityId> =
+            self.world.iter_elevators().map(|(eid, _, _)| eid).collect();
+        for eid in elevator_ids {
+            if let Some(car) = self.world.elevator_mut(eid)
+                && car.target_stop == Some(stop)
+            {
+                car.target_stop = None;
+                car.phase = ElevatorPhase::Idle;
+            }
+            if let Some(q) = self.world.destination_queue_mut(eid) {
+                q.retain(|s| s != stop);
             }
         }
     }
