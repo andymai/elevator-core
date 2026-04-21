@@ -277,6 +277,10 @@ impl DispatchStrategy for DestinationDispatch {
             None
         }
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
+        Some(super::BuiltinStrategy::Destination)
+    }
 }
 
 impl DestinationDispatch {

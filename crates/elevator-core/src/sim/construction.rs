@@ -423,6 +423,22 @@ impl Simulation {
         let user_dispatcher = builder_dispatchers
             .into_iter()
             .find_map(|(gid, d)| if gid == GroupId(0) { Some(d) } else { None });
+        // Infer the snapshot identity from the dispatcher itself via
+        // `DispatchStrategy::builtin_id`. Pre-fix this was hard-coded to
+        // `BuiltinStrategy::Scan` regardless of the impl actually passed,
+        // so `Simulation::new(config, NearestCarDispatch::new())` would
+        // record `Scan` as the group's identity — and a snapshot round-
+        // trip would silently swap the running strategy back to Scan,
+        // breaking determinism. Built-ins override `builtin_id` to
+        // return their own variant; custom strategies can override it
+        // to return `BuiltinStrategy::Custom(name)` for snapshot fidelity.
+        // Strategies that don't override (returning `None`) still fall
+        // back to Scan, matching the previous behaviour for callers that
+        // never cared about round-trip identity.
+        let inferred_id = user_dispatcher
+            .as_ref()
+            .and_then(|d| d.builtin_id())
+            .unwrap_or(BuiltinStrategy::Scan);
         if let Some(d) = user_dispatcher {
             dispatchers.insert(GroupId(0), d);
         } else {
@@ -431,12 +447,7 @@ impl Simulation {
                 Box::new(crate::dispatch::scan::ScanDispatch::new()) as Box<dyn DispatchStrategy>,
             );
         }
-        // strategy_ids defaults to Scan (the legacy-topology default and
-        // the type passed by every Simulation::new caller in practice).
-        // Builder users who install a non-Scan dispatcher should also
-        // call `.with_strategy_id(...)` if they need snapshot fidelity —
-        // we can't infer the BuiltinStrategy class from `Box<dyn>`.
-        strategy_ids.insert(GroupId(0), BuiltinStrategy::Scan);
+        strategy_ids.insert(GroupId(0), inferred_id);
 
         (vec![group], dispatchers, strategy_ids)
     }
@@ -580,19 +591,24 @@ impl Simulation {
         // Pre-fix this could mismatch `strategy_ids` against `dispatchers`
         // when both config and builder specified a strategy for the same
         // group (#287). The new precedence: builder wins for the dispatcher
-        // and we keep the config's strategy_id only when no builder
-        // override touched the group.
+        // and, for snapshot fidelity, we prefer the dispatcher's own
+        // `builtin_id()` over any stale config-supplied id. Falling back
+        // to the config id when the dispatcher is unidentified matches
+        // the pre-fix behaviour for custom strategies that don't override
+        // `builtin_id`.
         for (gid, d) in builder_dispatchers {
+            let inferred_id = d.builtin_id();
             dispatchers.insert(gid, d);
-            // Builder dispatchers don't carry a `BuiltinStrategy` discriminant.
-            // If there's no config strategy_id for this group, leave it absent
-            // (snapshot will fail to instantiate; caller must register a
-            // factory). If there IS one, keep it: in practice, the
-            // `Simulation::new(cfg, X)` direct path always passes an X that
-            // matches the config's declared strategy.
-            strategy_ids
-                .entry(gid)
-                .or_insert_with(|| BuiltinStrategy::Custom("user-supplied".into()));
+            match inferred_id {
+                Some(id) => {
+                    strategy_ids.insert(gid, id);
+                }
+                None => {
+                    strategy_ids
+                        .entry(gid)
+                        .or_insert_with(|| BuiltinStrategy::Custom("user-supplied".into()));
+                }
+            }
         }
 
         (groups, dispatchers, strategy_ids)
@@ -642,6 +658,27 @@ impl Simulation {
             .is_none()
         {
             world.insert_resource(crate::arrival_log::DestinationLog::default());
+        }
+        // Auto-register dispatch-internal extension types the sim itself
+        // owns, and immediately load their data from the pending
+        // resource. Without this, DCS sticky assignments
+        // (`AssignedCar`) evaporate across snapshot round-trip and
+        // `DestinationDispatch` re-computes every commitment from
+        // scratch — producing different decisions than the original
+        // sim and breaking tick-for-tick determinism.
+        //
+        // `deserialize_extensions` takes a `&` of the pending map and
+        // silently skips types that aren't registered, so the call is
+        // safe to make with user-owned extensions still in the map.
+        // The `PendingExtensions` resource stays in place for a later
+        // `load_extensions_with` call to materialize the caller's own
+        // types.
+        world.register_ext::<crate::dispatch::destination::AssignedCar>(
+            crate::dispatch::destination::ASSIGNED_CAR_KEY,
+        );
+        if let Some(pending) = world.resource::<crate::snapshot::PendingExtensions>() {
+            let data = pending.0.clone();
+            world.deserialize_extensions(&data);
         }
         Self {
             world,

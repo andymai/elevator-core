@@ -192,6 +192,10 @@ impl DispatchStrategy for EtdDispatch {
         }
         if cost.is_finite() { Some(cost) } else { None }
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
+        Some(super::BuiltinStrategy::Etd)
+    }
 }
 
 impl EtdDispatch {
