@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.17.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.1...elevator-core-v15.17.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **dispatch:** prevent cars from idling with riders aboard ([#390](https://github.com/andymai/elevator-core/issues/390)) ([5355273](https://github.com/andymai/elevator-core/commit/5355273a21ec74eb395f730613619a31e8facc57))
+
 ## [15.17.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.0...elevator-core-v15.17.1) (2026-04-20)
 
 
