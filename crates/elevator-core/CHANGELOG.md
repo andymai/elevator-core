@@ -1,5 +1,13 @@
 # Changelog
 
+## [15.20.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.2...elevator-core-v15.20.3) (2026-04-21)
+
+
+### Performance Improvements
+
+* **dispatch:** borrow restricted_stops in cost-matrix build + add RSR to bench ([#427](https://github.com/andymai/elevator-core/issues/427)) ([322f29e](https://github.com/andymai/elevator-core/commit/322f29e60335485c40d71665c2551450dfa8b08d))
+* **dispatch:** reuse cost matrix + working buffers across ticks ([#430](https://github.com/andymai/elevator-core/issues/430)) ([14f587c](https://github.com/andymai/elevator-core/commit/14f587cc1bcc918383d4eceec3b985db279106fc))
+
 ## [15.20.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.1...elevator-core-v15.20.2) (2026-04-21)
 
 
