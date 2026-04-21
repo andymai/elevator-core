@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-23079b6b.js";
+            window.path_to_searchindex_js = "searchindex-c0dc3e4f.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d2ca992d.js"></script>
@@ -365,46 +365,67 @@ impl DispatchStrategy for PriorityDispatch {
 }
 </code></pre>
 <h2 id="step-4--snapshot-support"><a class="header" href="#step-4--snapshot-support">Step 4 – Snapshot support</a></h2>
-<p>Simulations can be serialized via <code>Simulation::snapshot()</code> for save/load, replay, and deterministic testing. The snapshot records each group’s dispatch strategy by name. Built-in strategies serialize to specific variants (<code>BuiltinStrategy::Scan</code>, <code>::Look</code>, <code>::NearestCar</code>, <code>::Etd</code>); custom strategies serialize to <code>BuiltinStrategy::Custom(String)</code>.</p>
-<p>On restore, <code>WorldSnapshot::restore()</code> takes an optional factory function that maps the custom name back to a strategy instance. If you don’t provide one, custom strategies silently become <code>ScanDispatch</code> on restore – your save/load round trip will be wrong.</p>
-<p>The canonical pattern:</p>
+<p>Simulations can be serialized via <code>Simulation::snapshot()</code> for save/load, replay, and deterministic testing. The snapshot records each group’s dispatch strategy by name. Built-in strategies serialize to specific variants (<code>BuiltinStrategy::Scan</code>, <code>::Look</code>, <code>::NearestCar</code>, <code>::Etd</code>, <code>::Rsr</code>, <code>::Destination</code>); custom strategies serialize to <code>BuiltinStrategy::Custom(String)</code>.</p>
+<p>On restore, <code>WorldSnapshot::restore()</code> takes an optional factory function that maps the custom name back to a strategy instance. If your custom strategy doesn’t identify itself via <code>builtin_id</code> (see below), the sim silently records <code>BuiltinStrategy::Scan</code> instead – the snapshot name is wrong and the factory never gets called on restore.</p>
+<p>The canonical pattern uses two hooks on the <code>DispatchStrategy</code> trait:</p>
+<ul>
+<li><strong><code>builtin_id()</code></strong> advertises the snapshot name. Override it to return <code>BuiltinStrategy::Custom("name")</code> so <code>Simulation::new</code> / the builder / <code>set_dispatch</code> all record the right identity, regardless of which entry point the caller uses.</li>
+<li><strong><code>snapshot_config()</code> / <code>restore_config()</code></strong> (optional) round-trip any tunable configuration. Without overriding, the restored instance runs with whatever defaults the factory produces. Override them if your strategy has runtime-tunable weights or other state that should survive a save.</li>
+</ul>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy, RankContext};
-use elevator_core::ids::GroupId;
 use elevator_core::snapshot::WorldSnapshot;
-
-#[derive(Default)]
-struct PriorityDispatch;
-impl DispatchStrategy for PriorityDispatch {
-    // Real implementations score against `ctx`; see `BusyStopNearest` above.
-    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
-}
+use serde::{Deserialize, Serialize};
 
 const PRIORITY_NAME: &amp;str = "priority";
 
+#[derive(Default, Serialize, Deserialize)]
+struct PriorityDispatch {
+    urgency_boost: f64,
+}
+
+impl DispatchStrategy for PriorityDispatch {
+    // Real implementations score against `ctx`; see `BusyStopNearest` above.
+    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
+
+    fn builtin_id(&amp;self) -&gt; Option&lt;BuiltinStrategy&gt; {
+        // Identify the strategy to the snapshot layer. Keep this name
+        // stable across releases -- changing it breaks old saves.
+        Some(BuiltinStrategy::Custom(PRIORITY_NAME.into()))
+    }
+
+    fn snapshot_config(&amp;self) -&gt; Option&lt;String&gt; {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&amp;mut self, serialized: &amp;str) -&gt; Result&lt;(), String&gt; {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
+    }
+}
+
 fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
-    // When building the sim, install the strategy via `Simulation::set_dispatch`,
-    // which takes both the strategy and the `BuiltinStrategy` id used for
-    // snapshot serialization.
-    let mut sim = SimulationBuilder::new()
+    // `Simulation::new` and the builder consult `builtin_id` so you can
+    // drop the strategy in without a second id argument -- the snapshot
+    // records `BuiltinStrategy::Custom("priority")` automatically.
+    let _sim = SimulationBuilder::new()
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
+        .dispatch(PriorityDispatch::default())
         .build()?;
-    sim.set_dispatch(
-        GroupId(0),
-        Box::new(PriorityDispatch),
-        BuiltinStrategy::Custom(PRIORITY_NAME.into()),
-    );
 
     // When restoring, the factory maps names back to strategy instances.
+    // `restore_config` replays `urgency_boost` onto the new instance.
     let sim = snapshot.restore(Some(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
         match name {
-            PRIORITY_NAME =&gt; Some(Box::new(PriorityDispatch)),
-            // Return `None` for unknown names -- the restore falls back to
+            PRIORITY_NAME =&gt; Some(Box::new(PriorityDispatch::default())),
+            // Return `None` for unknown names -- the restore records a
+            // `SnapshotDanglingReference` event and falls back to
             // `ScanDispatch` rather than panicking.
             _ =&gt; None,
         }
