@@ -855,6 +855,46 @@ pub trait DispatchStrategy: Send + Sync {
     fn builtin_id(&self) -> Option<BuiltinStrategy> {
         None
     }
+
+    /// Serialize this strategy's tunable configuration to a string
+    /// that [`restore_config`](Self::restore_config) can apply to a
+    /// freshly-instantiated instance.
+    ///
+    /// Returning `Some(..)` makes the configuration survive snapshot
+    /// round-trip: without it, [`crate::snapshot::WorldSnapshot::restore`]
+    /// instantiates each built-in via [`BuiltinStrategy::instantiate`],
+    /// which calls `::new()` with default weights — silently dropping
+    /// any tuning applied via `with_*` builder methods (e.g.
+    /// `EtdDispatch::with_delay_weight(2.5)` degrades to the default
+    /// `1.0` on the restored sim).
+    ///
+    /// Default: `None` (no configuration to save). Built-ins with
+    /// tunable weights override to return a RON-serialized copy of
+    /// themselves; strategies with transient per-pass scratch should
+    /// use `#[serde(skip)]` on those fields so the snapshot stays
+    /// compact and deterministic.
+    #[must_use]
+    fn snapshot_config(&self) -> Option<String> {
+        None
+    }
+
+    /// Restore tunable configuration from a string previously produced
+    /// by [`snapshot_config`](Self::snapshot_config) on the same
+    /// strategy variant. Called by
+    /// [`crate::snapshot::WorldSnapshot::restore`] immediately after
+    /// [`BuiltinStrategy::instantiate`] builds the default instance,
+    /// so the restore writes over the defaults.
+    ///
+    /// # Errors
+    /// Returns the underlying parse error as a `String` when the
+    /// serialized form doesn't round-trip. Default implementation
+    /// ignores the argument and returns `Ok(())` — paired with the
+    /// `None` default of `snapshot_config`, this means strategies that
+    /// don't override either method skip configuration round-trip,
+    /// matching pre-fix behaviour.
+    fn restore_config(&mut self, _serialized: &str) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// Resolution of a single dispatch assignment pass for one group.

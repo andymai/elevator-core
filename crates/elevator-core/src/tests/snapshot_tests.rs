@@ -1,4 +1,5 @@
 use crate::components::RiderPhase;
+use crate::dispatch::DispatchStrategy;
 use crate::entity::ElevatorId;
 use crate::stop::StopId;
 use crate::tests::helpers;
@@ -679,5 +680,137 @@ fn snapshot_bytes_are_stable_in_process() {
     assert_eq!(
         bytes1, bytes2,
         "two snapshots of the same sim must be byte-identical"
+    );
+}
+
+// ── Dispatch-config round-trip (regression for silent weight reset) ──
+
+/// Pre-fix, `BuiltinStrategy::instantiate()` always called `::new()`
+/// with default weights, so any `with_*` tuning on a built-in
+/// dispatcher vanished silently through snapshot round-trip. With
+/// `snapshot_config`/`restore_config` wired up, the weights
+/// round-trip exactly. These tests parse the restored
+/// `snapshot_config` output back into the concrete strategy type
+/// and assert on typed fields — fragile-by-substring checks would
+/// break the moment RON's float formatting changes (`0.25` vs
+/// `0.2500`).
+#[test]
+fn etd_tuned_weights_survive_snapshot_round_trip() {
+    use crate::dispatch::etd::EtdDispatch;
+
+    let tuned = EtdDispatch::new()
+        .with_wait_squared_weight(0.25)
+        .with_age_linear_weight(0.10);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+
+    // Walk the sim for a few ticks so any lazy scratch is primed.
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+
+    let dispatcher = restored
+        .dispatchers()
+        .values()
+        .next()
+        .expect("one dispatcher after restore");
+    let serialized = dispatcher
+        .snapshot_config()
+        .expect("EtdDispatch overrides snapshot_config");
+    let parsed: EtdDispatch = ron::from_str(&serialized).expect("round-trip parse");
+    assert!(
+        (parsed.wait_squared_weight - 0.25).abs() < f64::EPSILON,
+        "wait_squared_weight drift: {}",
+        parsed.wait_squared_weight,
+    );
+    assert!(
+        (parsed.age_linear_weight - 0.10).abs() < f64::EPSILON,
+        "age_linear_weight drift: {}",
+        parsed.age_linear_weight,
+    );
+}
+
+/// Same regression, `RsrDispatch` flavour.
+#[test]
+fn rsr_tuned_weights_survive_snapshot_round_trip() {
+    use crate::dispatch::rsr::RsrDispatch;
+
+    let tuned = RsrDispatch::new()
+        .with_wrong_direction_penalty(15.0)
+        .with_load_penalty_coeff(2.5)
+        .with_peak_direction_multiplier(3.0);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+    let dispatcher = restored.dispatchers().values().next().unwrap();
+    let serialized = dispatcher.snapshot_config().unwrap();
+    let parsed: RsrDispatch = ron::from_str(&serialized).expect("round-trip parse");
+    assert!(
+        (parsed.wrong_direction_penalty - 15.0).abs() < f64::EPSILON,
+        "wrong_direction_penalty drift: {}",
+        parsed.wrong_direction_penalty,
+    );
+    assert!(
+        (parsed.load_penalty_coeff - 2.5).abs() < f64::EPSILON,
+        "load_penalty_coeff drift: {}",
+        parsed.load_penalty_coeff,
+    );
+    assert!(
+        (parsed.peak_direction_multiplier - 3.0).abs() < f64::EPSILON,
+        "peak_direction_multiplier drift: {}",
+        parsed.peak_direction_multiplier,
+    );
+}
+
+/// `DestinationDispatch` config survives too; `with_stop_penalty`
+/// drives the fresh-stop cost term.
+#[test]
+fn destination_tuned_config_survives_snapshot_round_trip() {
+    use crate::dispatch::destination::DestinationDispatch;
+
+    let tuned = DestinationDispatch::new()
+        .with_stop_penalty(12.5)
+        .with_commitment_window_ticks(240);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+    let dispatcher = restored.dispatchers().values().next().unwrap();
+    let serialized = dispatcher.snapshot_config().unwrap();
+    // DestinationDispatch's config fields are `pub(crate)`, so
+    // parsing back through its serde shape and reading via
+    // `snapshot_config` on the parsed instance gives us a stable
+    // typed round-trip assertion without exposing internal fields
+    // just for tests. If parsing the restored config and
+    // re-serializing produces the same string as the original's
+    // snapshot_config, every config field round-tripped.
+    let parsed: DestinationDispatch = ron::from_str(&serialized).expect("round-trip parse");
+    let re_serialized = parsed
+        .snapshot_config()
+        .expect("DestinationDispatch overrides snapshot_config");
+    assert_eq!(
+        serialized, re_serialized,
+        "DestinationDispatch config should parse-then-serialize to the same bytes",
+    );
+    // And the re-serialized form must differ from defaults — prove
+    // we didn't silently fall back to `DestinationDispatch::new()`.
+    let defaults = DestinationDispatch::new()
+        .snapshot_config()
+        .expect("defaults also serialize");
+    assert_ne!(
+        serialized, defaults,
+        "restored config matched defaults — tuning was lost: {serialized}",
     );
 }

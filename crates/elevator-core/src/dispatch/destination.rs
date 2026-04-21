@@ -55,6 +55,7 @@ pub const ASSIGNED_CAR_KEY: ExtKey<AssignedCar> = ExtKey::new("assigned_car");
 /// routes each car to its own queue front and returns `None` for every
 /// other stop, so the group-wide Hungarian assignment trivially pairs
 /// each car with the stop it has already committed to.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct DestinationDispatch {
     /// Weight for per-stop door overhead in the cost function. A positive
     /// value biases assignments toward cars whose route change adds no
@@ -280,6 +281,16 @@ impl DispatchStrategy for DestinationDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Destination)
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
     }
 }
 
