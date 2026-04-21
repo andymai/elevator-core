@@ -1177,6 +1177,23 @@ pub trait RepositionStrategy: Send + Sync {
         world: &World,
         out: &mut Vec<(EntityId, EntityId)>,
     );
+
+    /// If this strategy is a known built-in variant, return it so
+    /// [`Simulation::set_reposition`](crate::sim::Simulation::set_reposition)
+    /// callers don't have to pass a separate [`BuiltinReposition`] id
+    /// that might drift from the dispatcher's actual type.
+    ///
+    /// Mirrors the pattern introduced for [`DispatchStrategy::builtin_id`]
+    /// in #410: the runtime impl identifies itself so the snapshot
+    /// identity always matches the executing behaviour, instead of
+    /// depending on the caller to keep two parameters consistent.
+    /// Default `None` — custom strategies should override to return
+    /// [`BuiltinReposition::Custom`] with a stable name for snapshot
+    /// fidelity.
+    #[must_use]
+    fn builtin_id(&self) -> Option<BuiltinReposition> {
+        None
+    }
 }
 
 /// Serializable identifier for built-in repositioning strategies.

@@ -143,6 +143,10 @@ impl RepositionStrategy for SpreadEvenly {
             }
         }
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::SpreadEvenly)
+    }
 }
 
 /// Return idle elevators to a configured home stop (default: first stop).
@@ -197,6 +201,10 @@ impl RepositionStrategy for ReturnToLobby {
                 .map(|&(eid, _)| (eid, home_eid)),
         );
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::ReturnToLobby)
+    }
 }
 
 /// Position idle elevators near stops with historically high demand.
@@ -240,6 +248,10 @@ impl RepositionStrategy for DemandWeighted {
         scored.sort_by(|a, b| b.2.total_cmp(&a.2));
 
         assign_greedy_by_score(&scored, idle_elevators, group, world, out);
+    }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::DemandWeighted)
     }
 }
 
@@ -330,6 +342,10 @@ impl RepositionStrategy for PredictiveParking {
         scored.sort_by_key(|(_, _, count)| std::cmp::Reverse(*count));
 
         assign_greedy_by_score(&scored, idle_elevators, group, world, out);
+    }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::PredictiveParking)
     }
 }
 
@@ -430,6 +446,10 @@ impl RepositionStrategy for AdaptiveParking {
             }
         }
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::Adaptive)
+    }
 }
 
 /// No-op strategy: idle elevators stay where they stopped.
@@ -447,6 +467,10 @@ impl RepositionStrategy for NearestIdle {
         _world: &World,
         _out: &mut Vec<(EntityId, EntityId)>,
     ) {
+    }
+
+    fn builtin_id(&self) -> Option<super::BuiltinReposition> {
+        Some(super::BuiltinReposition::NearestIdle)
     }
 }
 
