@@ -1,13 +1,6 @@
 import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-strip";
 import { diffMetrics, renderMetricRows, renderVerdictRibbon } from "../features/scoreboard";
-import {
-  forEachPane,
-  renderPane,
-  resolveStopName,
-  updateBubbles,
-  pushDecision,
-  updateModeBadge,
-} from "../features/compare-pane";
+import { forEachPane, renderPane, updateBubbles, updateModeBadge } from "../features/compare-pane";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { drainSeedBatch } from "./reset";
@@ -49,17 +42,15 @@ export function loop(state: State, ui: UiHandles): void {
       const ticks = state.permalink.speed;
       forEachPane(state, (pane) => {
         pane.sim.step(ticks);
-        // Drain events every frame so the wasm `EventBus` can't grow
-        // unbounded during long sessions, and feed the speech-bubble
-        // layer the freshest per-car action. The decision narration
-        // piggybacks on the same event stream — `pushDecision` only
-        // reacts to `elevator-assigned`, which is strategy-level
-        // dispatch output rather than the per-car action bubbles.
         const events = pane.sim.drainEvents();
         if (events.length > 0) {
           const snap = pane.sim.snapshot();
           updateBubbles(pane, events, snap);
-          for (const ev of events) pushDecision(pane, ev, (id) => resolveStopName(snap, id));
+          for (const ev of events) {
+            if (ev.kind === "elevator-assigned") {
+              pane.renderer.pushAssignment(ev.stop, ev.elevator);
+            }
+          }
         }
       });
 

@@ -10,5 +10,4 @@ export {
 } from "./pane";
 export { renderPane } from "./render";
 export { updateBubbles, resolveStopName } from "./bubbles";
-export { pushDecision } from "./decision";
 export { updateModeBadge } from "./mode-badge";

@@ -16,10 +16,4 @@ export function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
     if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
   }
   pane.renderer.draw(snap, speed, pane.bubbles);
-  // Decay the decision line: past TTL we dim the text instead of
-  // clearing it, so compare-mode users can still see the last known
-  // assignment while knowing it's stale.
-  if (pane.decisionEl.dataset["active"] === "true" && now > pane.decisionExpiresAt) {
-    pane.decisionEl.dataset["active"] = "false";
-  }
 }

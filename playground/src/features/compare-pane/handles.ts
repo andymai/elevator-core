@@ -3,7 +3,6 @@ export interface PaneHandles {
   canvas: HTMLCanvasElement;
   name: HTMLElement;
   mode: HTMLElement;
-  decision: HTMLElement;
   desc: HTMLElement;
   metrics: HTMLElement;
   trigger: HTMLButtonElement;

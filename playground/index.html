@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,49 +8,43 @@
       name="description"
       content="Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic."
     />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
+    />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <header class="top flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-b from-surface-secondary to-surface border-b border-stroke-subtle relative max-md:px-3.5 max-md:py-2.5 max-md:gap-2">
-      <h1 class="m-0 text-[14px] font-semibold tracking-[-0.005em] text-content inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)] max-md:text-[12.5px] max-md:gap-2 max-md:tracking-[-0.01em]"><span class="truncate"><span class="max-md:hidden">elevator-core </span>playground</span></h1>
+    <header
+      class="top flex items-center justify-between gap-3 px-5 py-3 bg-gradient-to-b from-surface-secondary to-surface border-b border-stroke-subtle relative max-md:px-3.5 max-md:py-2.5 max-md:gap-2"
+    >
+      <h1
+        class="m-0 text-[14px] font-semibold tracking-[-0.005em] text-content inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)] max-md:text-[12.5px] max-md:gap-2 max-md:tracking-[-0.01em]"
+      >
+        <span class="truncate"><span class="max-md:hidden">elevator-core </span>playground</span>
+      </h1>
       <nav class="flex items-center gap-4 max-md:gap-3 shrink-0">
-        <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">?</button>
-        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content" href="https://github.com/andymai/elevator-core">repo</a>
-        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden" href="https://docs.rs/elevator-core">docs</a>
-        <a class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden" href="../">guide</a>
+        <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">
+          ?
+        </button>
+        <a
+          class="text-content-tertiary no-underline text-xs transition-colors hover:text-content"
+          href="https://github.com/andymai/elevator-core"
+          >repo</a
+        >
+        <a
+          class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden"
+          href="https://docs.rs/elevator-core"
+          >docs</a
+        >
+        <a
+          class="text-content-tertiary no-underline text-xs transition-colors hover:text-content max-md:hidden"
+          href="../"
+          >guide</a
+        >
       </nav>
     </header>
-
-    <aside
-      class="group md:contents max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:z-40 max-md:bg-surface-secondary max-md:border-t max-md:border-stroke max-md:rounded-t-lg max-md:shadow-sheet max-md:max-h-[85dvh] max-md:translate-y-[calc(100%-64px)] max-md:transition-transform max-md:duration-slow max-md:ease-spring max-md:will-change-transform max-md:pb-[env(safe-area-inset-bottom)] max-md:data-[open=true]:translate-y-0"
-      id="controls-sheet"
-      data-open="false"
-    >
-      <button
-        class="hidden max-md:flex max-md:items-center max-md:gap-3 max-md:w-full max-md:h-16 max-md:px-4 max-md:pt-3.5 max-md:pb-2.5 max-md:bg-transparent max-md:border-0 max-md:shadow-none max-md:text-content max-md:text-left max-md:relative max-md:cursor-pointer"
-        id="sheet-toggle"
-        type="button"
-        aria-label="Controls"
-        aria-expanded="false"
-        aria-controls="sheet-body"
-      >
-        <span
-          class="max-md:absolute max-md:top-1.5 max-md:left-1/2 max-md:-translate-x-1/2 max-md:w-9 max-md:h-1 max-md:rounded-[2px] max-md:bg-stroke-strong max-md:transition-colors max-md:duration-fast group-data-[open=true]:bg-accent group-data-[open=true]:opacity-60"
-          aria-hidden="true"
-        ></span>
-        <div class="max-md:flex max-md:flex-1 max-md:items-baseline max-md:gap-2 max-md:min-w-0 max-md:overflow-hidden max-md:whitespace-nowrap">
-          <span id="sheet-scenario" class="text-[13px] font-semibold text-content overflow-hidden text-ellipsis">Convention burst</span>
-          <span class="text-content-disabled" aria-hidden="true">&middot;</span>
-          <span id="sheet-strategy" class="text-xs text-content-tertiary tabular-nums tracking-[0.02em]">ETD</span>
-        </div>
-        <span
-          class="max-md:inline-flex max-md:items-center max-md:justify-center max-md:flex-none max-md:w-10 max-md:h-10 max-md:rounded-full max-md:bg-accent-muted max-md:text-accent-hover max-md:border max-md:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] max-md:text-sm max-md:leading-none max-md:shadow-sm max-md:transition-[transform,background] max-md:duration-fast max-md:active:scale-95 max-md:cursor-pointer"
-          id="sheet-play"
-          aria-hidden="true"
-        >&#9654;</span>
-      </button>
-      <div class="max-md:overflow-y-auto max-md:max-h-[calc(85dvh-64px)] max-md:pb-3 max-md:[-webkit-overflow-scrolling:touch]" id="sheet-body">
 
     <section
       id="scenario-cards"
@@ -58,146 +52,18 @@
       class="scenario-cards flex flex-row flex-wrap items-center gap-1.5 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-1.5 max-md:px-3.5 max-md:py-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
     ></section>
 
-    <section class="controls flex flex-wrap gap-2.5 items-end px-5 py-2 bg-surface border-b border-stroke-subtle max-md:px-3.5 max-md:gap-2">
-      <!-- Strategy pickers moved into each pane header; controls bar now
-           starts with compare/seed/speed/intensity. Tweak button is
-           hidden for now but kept in DOM so the keyboard shortcut (`T`)
-           and wiring in main.ts keep working. -->
-      <label class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-surface-elevated border border-stroke-subtle rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke max-md:basis-full">
-        <input id="compare" type="checkbox" />
-        <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase">Compare</span>
-      </label>
-      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-        <span class="ctl-k">Seed</span>
-        <div class="seed-field relative">
-          <input
-            id="seed"
-            type="text"
-            value="otis"
-            maxlength="24"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            class="w-full min-w-0 pr-7 max-md:min-h-10"
-          />
-          <button
-            id="seed-shuffle"
-            type="button"
-            aria-label="Randomize seed"
-            title="Randomize seed"
-            class="seed-shuffle absolute inset-y-0 right-0 w-6 flex items-center justify-center text-content-tertiary hover:text-content text-[12px] leading-none"
-          >&#x21BB;</button>
-        </div>
-      </label>
-      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-        <span class="ctl-k">
-          <span>Speed</span>
-          <span id="speed-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">2&times;</span>
-        </span>
-        <input id="speed" type="range" min="1" max="16" step="1" value="2" class="max-md:w-full" />
-      </label>
-      <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-        <span class="ctl-k">
-          <span>Intensity</span>
-          <span id="traffic-label" class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums">1.0&times;</span>
-        </span>
-        <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="max-md:w-full" />
-      </label>
-      <div class="actions flex gap-2 ml-auto max-md:basis-full max-md:ml-0 max-md:flex-wrap">
-        <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" hidden class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">
-          Tweak parameters
-        </button>
-        <button id="play" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Pause</button>
-        <button id="reset" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Reset</button>
-        <button id="share" type="button" class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10">Share</button>
-      </div>
-    </section>
-
-    <section class="tweak-panel" id="tweak-panel" hidden aria-label="Building physics parameters">
-      <div class="tweak-row" data-key="cars" tabindex="0">
-        <span class="tweak-label">Cars</span>
-        <div class="tweak-stepper">
-          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-          <span class="tweak-value">2</span>
-          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-        </div>
-        <div class="tweak-track" aria-hidden="true">
-          <div class="tweak-track-default"></div>
-          <div class="tweak-track-fill"></div>
-          <div class="tweak-track-thumb"></div>
-        </div>
-        <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
-        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
-      </div>
-      <div class="tweak-row" data-key="maxSpeed" tabindex="0">
-        <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
-        <div class="tweak-stepper">
-          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-          <span class="tweak-value">2.5</span>
-          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-        </div>
-        <div class="tweak-track" aria-hidden="true">
-          <div class="tweak-track-default"></div>
-          <div class="tweak-track-fill"></div>
-          <div class="tweak-track-thumb"></div>
-        </div>
-        <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
-        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
-      </div>
-      <div class="tweak-row" data-key="weightCapacity" tabindex="0">
-        <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
-        <div class="tweak-stepper">
-          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-          <span class="tweak-value">800</span>
-          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-        </div>
-        <div class="tweak-track" aria-hidden="true">
-          <div class="tweak-track-default"></div>
-          <div class="tweak-track-fill"></div>
-          <div class="tweak-track-thumb"></div>
-        </div>
-        <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
-        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
-      </div>
-      <div class="tweak-row" data-key="doorCycleSec" tabindex="0">
-        <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
-        <div class="tweak-stepper">
-          <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-          <span class="tweak-value">5.5</span>
-          <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-        </div>
-        <div class="tweak-track" aria-hidden="true">
-          <div class="tweak-track-default"></div>
-          <div class="tweak-track-fill"></div>
-          <div class="tweak-track-thumb"></div>
-        </div>
-        <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
-        <button type="button" class="tweak-reset" hidden aria-label="Reset to default">Reset</button>
-      </div>
-      <div class="tweak-foot">
-        <span class="tweak-foot-hint">
-          Speed, capacity, and door cycle hot-swap live. Changing the
-          car count rebuilds the sim. Focus a row and use arrow keys
-          to nudge.
-        </span>
-        <button type="button" id="tweak-reset-all" hidden>Reset all</button>
-      </div>
-    </section>
-      </div>
-    </aside>
-
     <section
       id="phase-strip"
       class="phase-strip flex flex-col gap-1 px-5 py-1.5 bg-surface border-b border-stroke-subtle text-[11px] text-content-tertiary max-md:px-3.5 max-md:py-1 max-md:text-[10.5px]"
     >
       <div class="flex items-center gap-2.5 flex-wrap max-md:gap-2">
         <span class="ctl-k">Phase</span>
-        <span id="phase-label" class="text-content-secondary tabular-nums font-medium">&mdash;</span>
-        <!-- Color legend merged into the phase strip's right side.
-             On mobile the "CABIN" label drops and gaps tighten so the
-             legend can ride on the same row as the phase name instead
-             of wrapping to its own line. -->
-        <div class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-1.5 max-md:gap-y-0.5">
+        <span id="phase-label" class="text-content-secondary tabular-nums font-medium"
+          >&mdash;</span
+        >
+        <div
+          class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-1.5 max-md:gap-y-0.5"
+        >
           <span class="ctl-k max-md:hidden">Cabin</span>
           <span class="inline-flex items-center gap-1 whitespace-nowrap">
             <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #6b6b75"></span>Idle
@@ -206,7 +72,8 @@
             <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #f59e0b"></span>Moving
           </span>
           <span class="inline-flex items-center gap-1 whitespace-nowrap">
-            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #a78bfa"></span>Reposition
+            <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #a78bfa"></span
+            >Reposition
           </span>
           <span class="inline-flex items-center gap-1 whitespace-nowrap">
             <span class="w-2 h-2 rounded-[2px] shrink-0" style="background: #fbbf24"></span>Doors
@@ -216,7 +83,10 @@
           </span>
         </div>
       </div>
-      <div class="relative h-[2px] bg-surface-elevated rounded-[2px] overflow-hidden" aria-hidden="true">
+      <div
+        class="relative h-[2px] bg-surface-elevated rounded-[2px] overflow-hidden"
+        aria-hidden="true"
+      >
         <div
           id="phase-progress-fill"
           class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_45%,transparent)] transition-[width] duration-normal ease-normal"
@@ -234,128 +104,334 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-5 flex-1 min-h-0 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--sheet-peek,64px)+10px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
     >
       <section
         id="pane-a"
-        class="pane pane-a grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-a grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-a)"
       >
-        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
-          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5">A</span>
-          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
-            <button
-              type="button"
-              id="strategy-trigger-a"
-              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="strategy-popover-a"
+        <header class="pane-header flex flex-col gap-1.5 px-0 py-0.5">
+          <div class="flex items-start gap-3 min-w-0">
+            <span
+              class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5 shrink-0"
+              >A</span
             >
-              <span id="name-a" class="pane-name">LOOK</span>
-              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
-            </button>
-            <button
-              type="button"
-              id="repo-trigger-a"
-              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="repo-popover-a"
-            >
-              <span id="repo-name-a">Park: Adaptive</span>
-              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
-            </button>
-            <span id="desc-a" class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"></span>
-            <span id="decision-a" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
+            <div class="pane-section relative flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Dispatch</span>
+              <button
+                type="button"
+                id="strategy-trigger-a"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="strategy-popover-a"
+              >
+                <span id="name-a" class="pane-name">LOOK</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+              <div
+                id="strategy-popover-a"
+                class="strategy-popover"
+                role="menu"
+                aria-labelledby="strategy-trigger-a"
+                hidden
+              ></div>
+            </div>
+            <div class="pane-section relative flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Parking</span>
+              <button
+                type="button"
+                id="repo-trigger-a"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="repo-popover-a"
+              >
+                <span id="repo-name-a">Adaptive</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+              <div
+                id="repo-popover-a"
+                class="strategy-popover"
+                role="menu"
+                aria-labelledby="repo-trigger-a"
+                hidden
+              ></div>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 ml-auto shrink-0">
+              <span class="ctl-k">Traffic</span>
+              <span
+                id="mode-a"
+                class="pane-mode text-[11px] font-semibold tracking-[0.02em] px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+                data-mode="Idle"
+                title="Idle"
+                >Quiet</span
+              >
+            </div>
           </div>
           <span
-            id="mode-a"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
-            data-mode="Idle"
-            title="Traffic mode from TrafficDetector"
-          >Idle</span>
-          <div
-            id="strategy-popover-a"
-            class="strategy-popover"
-            role="menu"
-            aria-labelledby="strategy-trigger-a"
-            hidden
-          ></div>
-          <div
-            id="repo-popover-a"
-            class="strategy-popover"
-            role="menu"
-            aria-labelledby="repo-trigger-a"
-            hidden
-          ></div>
+            id="desc-a"
+            class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px] pl-[34px]"
+          ></span>
         </header>
-        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <div
+          id="metrics-a"
+          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
+        ></div>
+        <div
+          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+        >
           <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
-        <div id="metrics-a" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>
 
       <section
         id="pane-b"
-        class="pane pane-b grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-b grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-b)"
       >
-        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
-          <span class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5">B</span>
-          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
-            <button
-              type="button"
-              id="strategy-trigger-b"
-              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="strategy-popover-b"
+        <header class="pane-header flex flex-col gap-1.5 px-0 py-0.5">
+          <div class="flex items-start gap-3 min-w-0">
+            <span
+              class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5 shrink-0"
+              >B</span
             >
-              <span id="name-b" class="pane-name">ETD</span>
-              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
-            </button>
-            <button
-              type="button"
-              id="repo-trigger-b"
-              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="repo-popover-b"
-            >
-              <span id="repo-name-b">Park: Adaptive</span>
-              <span class="strategy-caret text-content-tertiary text-[10px] leading-none" aria-hidden="true">&#9662;</span>
-            </button>
-            <span id="desc-b" class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"></span>
-            <span id="decision-b" class="pane-decision max-md:text-[10px]" aria-live="polite"></span>
+            <div class="pane-section relative flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Dispatch</span>
+              <button
+                type="button"
+                id="strategy-trigger-b"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="strategy-popover-b"
+              >
+                <span id="name-b" class="pane-name">ETD</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+              <div
+                id="strategy-popover-b"
+                class="strategy-popover"
+                role="menu"
+                aria-labelledby="strategy-trigger-b"
+                hidden
+              ></div>
+            </div>
+            <div class="pane-section relative flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Parking</span>
+              <button
+                type="button"
+                id="repo-trigger-b"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="repo-popover-b"
+              >
+                <span id="repo-name-b">Adaptive</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+              <div
+                id="repo-popover-b"
+                class="strategy-popover"
+                role="menu"
+                aria-labelledby="repo-trigger-b"
+                hidden
+              ></div>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 ml-auto shrink-0">
+              <span class="ctl-k">Traffic</span>
+              <span
+                id="mode-b"
+                class="pane-mode text-[11px] font-semibold tracking-[0.02em] px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+                data-mode="Idle"
+                title="Idle"
+                >Quiet</span
+              >
+            </div>
           </div>
           <span
-            id="mode-b"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
-            data-mode="Idle"
-            title="Traffic mode from TrafficDetector"
-          >Idle</span>
-          <div
-            id="strategy-popover-b"
-            class="strategy-popover"
-            role="menu"
-            aria-labelledby="strategy-trigger-b"
-            hidden
-          ></div>
-          <div
-            id="repo-popover-b"
-            class="strategy-popover"
-            role="menu"
-            aria-labelledby="repo-trigger-b"
-            hidden
-          ></div>
+            id="desc-b"
+            class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px] pl-[34px]"
+          ></span>
         </header>
-        <div class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <div
+          id="metrics-b"
+          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
+        ></div>
+        <div
+          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+        >
           <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
-        <div id="metrics-b" class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"></div>
       </section>
     </main>
+
+    <!-- Bottom controls bar — transparent when idle, full opacity on hover/focus -->
+    <div id="controls-bar" class="controls-bar">
+      <section
+        class="tweak-panel tweak-panel-popover"
+        id="tweak-panel"
+        hidden
+        aria-label="Building physics parameters"
+      >
+        <div class="tweak-row" data-key="cars" tabindex="0">
+          <span class="tweak-label">Cars</span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">2</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="maxSpeed" tabindex="0">
+          <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">2.5</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="weightCapacity" tabindex="0">
+          <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">800</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="doorCycleSec" tabindex="0">
+          <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">5.5</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-foot">
+          <span class="tweak-foot-hint">
+            Speed, capacity, and door cycle hot-swap live. Changing the car count rebuilds the sim.
+            Focus a row and use arrow keys to nudge.
+          </span>
+          <button type="button" id="tweak-reset-all" hidden>Reset all</button>
+        </div>
+      </section>
+      <div class="controls-bar-inner">
+        <label
+          class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-transparent border border-transparent rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke-subtle"
+        >
+          <input id="compare" type="checkbox" />
+          <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase"
+            >Compare</span
+          >
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">Seed</span>
+          <div class="seed-field relative">
+            <input
+              id="seed"
+              type="text"
+              value="otis"
+              maxlength="24"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              class="w-full min-w-0 pr-7"
+            />
+            <button
+              id="seed-shuffle"
+              type="button"
+              aria-label="Randomize seed"
+              title="Randomize seed"
+              class="seed-shuffle absolute inset-y-0 right-0 w-6 flex items-center justify-center text-content-tertiary hover:text-content text-[12px] leading-none"
+            >
+              &#x21BB;
+            </button>
+          </div>
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">
+            <span>Speed</span>
+            <span
+              id="speed-label"
+              class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
+              >2&times;</span
+            >
+          </span>
+          <input id="speed" type="range" min="1" max="16" step="1" value="2" class="w-full" />
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">
+            <span>Intensity</span>
+            <span
+              id="traffic-label"
+              class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
+              >1.0&times;</span
+            >
+          </span>
+          <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full" />
+        </label>
+        <div class="controls-bar-actions">
+          <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" hidden>
+            Tweak
+          </button>
+          <button id="play" type="button">Pause</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="share" type="button">Share</button>
+        </div>
+      </div>
+    </div>
 
     <div
       id="loader"
@@ -363,12 +439,15 @@
       role="status"
       aria-live="polite"
     >
-      <div class="w-[34px] h-[34px] rounded-full border-[3px] border-stroke-subtle border-t-accent animate-[spin_720ms_linear_infinite]" aria-hidden="true"></div>
+      <div
+        class="w-[34px] h-[34px] rounded-full border-[3px] border-stroke-subtle border-t-accent animate-[spin_720ms_linear_infinite]"
+        aria-hidden="true"
+      ></div>
       <div class="text-content-tertiary text-xs tracking-[0.02em]">Loading simulation&hellip;</div>
     </div>
     <div
       id="toast"
-      class="toast fixed bottom-7 left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
+      class="toast fixed bottom-[calc(var(--controls-bar-h,52px)+16px)] left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
       role="status"
     ></div>
 
@@ -380,20 +459,43 @@
       aria-label="Keyboard shortcuts"
       class="shortcut-sheet fixed inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg-primary)_70%,transparent)] backdrop-blur-[4px] backdrop-saturate-[120%] z-[95]"
     >
-      <div class="shortcut-sheet-inner w-[min(480px,90vw)] bg-gradient-to-b from-surface-hover to-surface-secondary border border-stroke rounded-lg shadow-lg p-[18px_20px_20px] text-content-secondary">
-        <header class="flex items-center justify-between mb-4 pb-3 border-b border-stroke-subtle text-content font-semibold text-sm tracking-[0.01em]">
+      <div
+        class="shortcut-sheet-inner w-[min(480px,90vw)] bg-gradient-to-b from-surface-hover to-surface-secondary border border-stroke rounded-lg shadow-lg p-[18px_20px_20px] text-content-secondary"
+      >
+        <header
+          class="flex items-center justify-between mb-4 pb-3 border-b border-stroke-subtle text-content font-semibold text-sm tracking-[0.01em]"
+        >
           <span>Keyboard shortcuts</span>
-          <button type="button" id="shortcut-sheet-close" aria-label="Close" class="w-6 h-6 p-0 flex items-center justify-center bg-transparent border-0 text-content-tertiary text-base leading-none hover:text-content hover:bg-surface-hover rounded-sm">&times;</button>
+          <button
+            type="button"
+            id="shortcut-sheet-close"
+            aria-label="Close"
+            class="w-6 h-6 p-0 flex items-center justify-center bg-transparent border-0 text-content-tertiary text-base leading-none hover:text-content hover:bg-surface-hover rounded-sm"
+          >
+            &times;
+          </button>
         </header>
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 m-0">
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>Space</kbd></dt><dd class="m-0 text-content-tertiary">Pause / play</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>R</kbd></dt><dd class="m-0 text-content-tertiary">Reset the sim</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>C</kbd></dt><dd class="m-0 text-content-tertiary">Toggle compare mode</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>S</kbd></dt><dd class="m-0 text-content-tertiary">Copy permalink</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>T</kbd></dt><dd class="m-0 text-content-tertiary">Open / close the tweak panel</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>1</kbd>&nbsp;<kbd>2</kbd>&nbsp;<kbd>3</kbd></dt><dd class="m-0 text-content-tertiary">Jump to scenario card</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>&uarr;</kbd>&nbsp;<kbd>&darr;</kbd></dt><dd class="m-0 text-content-tertiary">Nudge focused tweak row</dd>
-          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>?</kbd></dt><dd class="m-0 text-content-tertiary">Toggle this sheet</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>Space</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Pause / play</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>R</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Reset the sim</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>C</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Toggle compare mode</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>S</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Copy permalink</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>T</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Open / close the tweak panel</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap">
+            <kbd>1</kbd>&nbsp;<kbd>2</kbd>&nbsp;<kbd>3</kbd>
+          </dt>
+          <dd class="m-0 text-content-tertiary">Jump to scenario card</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap">
+            <kbd>&uarr;</kbd>&nbsp;<kbd>&darr;</kbd>
+          </dt>
+          <dd class="m-0 text-content-tertiary">Nudge focused tweak row</dd>
+          <dt class="flex items-center gap-1 whitespace-nowrap"><kbd>?</kbd></dt>
+          <dd class="m-0 text-content-tertiary">Toggle this sheet</dd>
         </dl>
       </div>
     </div>

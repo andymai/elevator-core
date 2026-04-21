@@ -99,22 +99,8 @@ export function attachListeners(state: State, ui: UiHandles): void {
   ui.playBtn.addEventListener("click", () => {
     state.running = !state.running;
     ui.playBtn.textContent = state.running ? "Pause" : "Play";
-    // Pause glyph when running (offering "pause"), play glyph when paused.
-    ui.sheetPlay.textContent = state.running ? "\u23F8" : "\u25B6";
   });
 
-  // ── Bottom sheet (mobile drawer) ─────────────────────────────────
-  ui.sheetToggle.addEventListener("click", () => {
-    const open = ui.sheet.dataset["open"] !== "true";
-    ui.sheet.dataset["open"] = String(open);
-    ui.sheetToggle.setAttribute("aria-expanded", String(open));
-  });
-  // The play glyph lives inside the sheet handle; stop propagation so
-  // tapping it doesn't also open/close the sheet.
-  ui.sheetPlay.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    ui.playBtn.click();
-  });
   ui.resetBtn.addEventListener("click", () => {
     void resetAll(state, ui);
     toast(ui.toast, "Reset");
