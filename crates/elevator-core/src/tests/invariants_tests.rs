@@ -38,6 +38,13 @@
 //!    never decrease tick-over-tick. `total_spawned` is asserted by
 //!    the conservation invariant instead — pre-spawning makes
 //!    tick-over-tick monotonicity trivial there.
+//! 5. **Liveness.** After [`TICK_BUDGET`] ticks every rider must be
+//!    in a terminal phase (`Arrived`, `Abandoned`, or `Resident`).
+//!    No rider is still `Waiting`, `Boarding`, `Riding`, `Exiting`,
+//!    or `Walking`. Catches stuck dispatchers, unserviceable demand,
+//!    and reroute loops — classes of bug the per-tick invariants
+//!    don't see because they only assert *consistency*, not
+//!    *progress*.
 
 use proptest::prelude::*;
 
@@ -277,9 +284,12 @@ impl MonotoneSnapshot {
 
 /// Budget on the number of ticks to drive each case. Scenarios with
 /// 30 riders across 6 stops and a single car routinely need 3–5k
-/// ticks; 8k gives headroom so cases don't spuriously trip a "stuck"
-/// check inside an invariant (there is no such check — we stop when
-/// the budget is exhausted regardless of delivery state).
+/// ticks; 8k gives headroom so the liveness invariant
+/// ([`all_riders_reach_terminal_phase_across_strategies`]) doesn't
+/// spuriously flag a case where dispatch just needed more time. If
+/// a strategy legitimately requires &gt; 8k ticks to drain a
+/// workload this generator produces, that's itself a bug worth
+/// surfacing.
 const TICK_BUDGET: u64 = 8_000;
 
 // ── Invariants ──────────────────────────────────────────────────────
@@ -478,6 +488,43 @@ proptest! {
             );
 
             prev = cur;
+        }
+    }
+}
+
+// Liveness: after TICK_BUDGET ticks every rider must be in a
+// terminal phase (Arrived, Abandoned, or Resident). A lingering
+// Waiting rider means the dispatcher stopped serving them; a
+// lingering Boarding/Riding/Exiting rider means the rider is
+// perpetually mid-transition; Walking means a transfer never
+// completed. All are stuck-dispatch signatures that the per-tick
+// invariants (consistency-only) would miss.
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(12))]
+
+    #[test]
+    fn all_riders_reach_terminal_phase_across_strategies(
+        kind in any_strategy(),
+        workload in any_workload(),
+    ) {
+        let (mut sim, _stops) = build_sim(kind, &workload);
+        let label = kind.label();
+
+        for _ in 0..TICK_BUDGET {
+            sim.step();
+            let _ = sim.drain_events();
+        }
+
+        for (id, rider) in sim.world().iter_riders() {
+            let terminal = matches!(
+                rider.phase,
+                RiderPhase::Arrived | RiderPhase::Abandoned | RiderPhase::Resident,
+            );
+            prop_assert!(
+                terminal,
+                "[{}] rider {:?} stuck in non-terminal phase {:?} after {} ticks",
+                label, id, rider.phase, TICK_BUDGET,
+            );
         }
     }
 }
