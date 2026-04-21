@@ -253,12 +253,16 @@ fn from_config_honours_config_group_dispatch() {
     );
 }
 
-/// `SimulationBuilder::from_config(...).dispatch(custom)` actually
-/// installs the custom dispatcher AND records the override in
-/// `strategy_ids` (so peek-and-restore consumers see Custom rather
-/// than the stale config strategy). Companion test for #287.
+/// `SimulationBuilder::from_config(...).dispatch(custom)` installs
+/// the override dispatcher AND records the matching identity in
+/// `strategy_ids` (so peek-and-restore consumers see the override's
+/// true `BuiltinStrategy` rather than the stale config value).
+/// Originally a companion test for #287 asserting a `Custom` marker;
+/// now asserts the exact built-in the dispatcher's `builtin_id`
+/// returns — which is the stronger snapshot-fidelity guarantee the
+/// identity is there for.
 #[test]
-fn from_config_dispatch_override_marks_strategy_as_custom() {
+fn from_config_dispatch_override_records_dispatcher_identity() {
     use crate::config::{GroupConfig, LineConfig};
     use crate::dispatch::BuiltinStrategy;
     use crate::ids::GroupId;
