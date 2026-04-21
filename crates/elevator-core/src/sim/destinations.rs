@@ -180,6 +180,57 @@ impl super::Simulation {
         Ok(())
     }
 
+    /// Recall an elevator to a specific stop.
+    ///
+    /// Clears the destination queue and replaces it with `stop` as the
+    /// sole target. Riders aboard stay aboard. The car proceeds to the
+    /// recall stop and opens doors on arrival (standard `MovingToStop`
+    /// semantics).
+    ///
+    /// If the car is already at the recall stop, doors open on the next
+    /// tick. If the car is mid-flight, it finishes its current leg's
+    /// deceleration (the movement system handles the redirect). If the
+    /// car is in a door cycle (opening/loading/closing), the cycle
+    /// completes, then the car departs.
+    ///
+    /// Works in any service mode — even dispatch-excluded cars can be
+    /// recalled. Emits [`Event::ElevatorRecalled`].
+    ///
+    /// # Service mode interaction
+    ///
+    /// Non-Normal modes suppress the loading phase (both boarding and
+    /// exiting). If you set `OutOfService` *before* the car arrives at
+    /// the recall stop, riders aboard will not auto-exit. For the
+    /// fire-service pattern, switch to `OutOfService` only *after*
+    /// observing `ElevatorArrived` and letting the loading phase drain.
+    ///
+    /// # Errors
+    ///
+    /// - [`SimError::NotAnElevator`] if `elev` is not an elevator.
+    /// - [`SimError::NotAStop`] if `stop` is not a stop.
+    pub fn recall_to(
+        &mut self,
+        elev: ElevatorId,
+        stop: impl Into<StopRef>,
+    ) -> Result<(), SimError> {
+        let eid = elev.entity();
+        let stop = self.resolve_stop(stop.into())?;
+        self.validate_push_targets(eid, stop)?;
+
+        if let Some(q) = self.world.destination_queue_mut(eid) {
+            q.clear();
+            q.push_back(stop);
+        }
+
+        self.events.emit(Event::ElevatorRecalled {
+            elevator: eid,
+            to_stop: stop,
+            tick: self.tick,
+        });
+
+        Ok(())
+    }
+
     /// Validate that `elev` is an elevator and `stop` is a stop.
     fn validate_push_targets(&self, elev: EntityId, stop: EntityId) -> Result<(), SimError> {
         if self.world.elevator(elev).is_none() {
