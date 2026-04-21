@@ -104,11 +104,11 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 min-h-0 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
     >
       <section
         id="pane-a"
-        class="pane pane-a grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-a grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-a)"
       >
         <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
@@ -179,7 +179,7 @@
           class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
         ></div>
         <div
-          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
           <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
@@ -187,7 +187,7 @@
 
       <section
         id="pane-b"
-        class="pane pane-b grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-b grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-b)"
       >
         <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
@@ -258,7 +258,7 @@
           class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
         ></div>
         <div
-          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+          class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
           <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
