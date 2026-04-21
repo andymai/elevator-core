@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.19.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.1...elevator-core-v15.19.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **reposition:** round-trip strategy identity via builtin_id ([#414](https://github.com/andymai/elevator-core/issues/414)) ([8aa3ec5](https://github.com/andymai/elevator-core/commit/8aa3ec5c08825193f83a7c2e37600ae8a6b9a77f))
+
 ## [15.19.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.0...elevator-core-v15.19.1) (2026-04-21)
 
 
