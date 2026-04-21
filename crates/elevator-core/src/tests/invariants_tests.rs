@@ -1,5 +1,5 @@
-//! Property-based invariants that hold for *any* built-in hall-call
-//! dispatch strategy under *any* random workload.
+//! Property-based invariants that hold for *any* built-in dispatch
+//! strategy under *any* random workload.
 //!
 //! Unit tests pin specific behaviours; these tests pin **class-level
 //! guarantees** — the kind of bugs that have repeatedly landed as
@@ -11,11 +11,15 @@
 //! those.
 //!
 //! Strategies covered: [`ScanDispatch`], [`LookDispatch`],
-//! [`NearestCarDispatch`], [`EtdDispatch`], [`RsrDispatch`].
-//! [`DestinationDispatch`] is excluded — it requires DCS hall-call
-//! pre-registration and doesn't service plain `spawn_rider` demand;
-//! covering it needs a workload generator that issues
-//! `press_hall_button`, which is a separate concern.
+//! [`NearestCarDispatch`], [`EtdDispatch`], [`RsrDispatch`],
+//! [`DestinationDispatch`]. For DCS the harness flips the group's
+//! [`HallCallMode`] to `Destination` before spawning, so
+//! [`spawn_rider`](Simulation::spawn_rider) registers each rider's
+//! destination on the hall call (see
+//! `sim::rider::register_hall_call_for_rider`) — which is what
+//! `DestinationDispatch` consumes during its
+//! [`pre_dispatch`](crate::dispatch::DispatchStrategy::pre_dispatch)
+//! pass.
 //!
 //! Invariants asserted every tick:
 //!
@@ -42,20 +46,22 @@ use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use crate::dispatch::{
-    etd::EtdDispatch, look::LookDispatch, nearest_car::NearestCarDispatch, rsr::RsrDispatch,
-    scan::ScanDispatch,
+    HallCallMode, destination::DestinationDispatch, etd::EtdDispatch, look::LookDispatch,
+    nearest_car::NearestCarDispatch, rsr::RsrDispatch, scan::ScanDispatch,
 };
 use crate::metrics::Metrics;
 use crate::rider_index::RiderIndex;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 
-/// Identifier for the five hall-call dispatch strategies this harness
+/// Identifier for the six built-in dispatch strategies this harness
 /// exercises. A plain `Copy` enum sidesteps the
 /// trait-object-in-proptest awkwardness: [`build_sim`] matches on
 /// the kind and constructs the concrete strategy at the top of each
 /// test case rather than carrying a boxed dispatcher through the
-/// proptest machinery.
+/// proptest machinery. [`Self::Destination`] additionally flips the
+/// group's [`HallCallMode`] to `Destination` so DCS can observe
+/// each rider's destination on the hall call.
 #[derive(Debug, Clone, Copy)]
 enum StrategyKind {
     Scan,
@@ -63,6 +69,7 @@ enum StrategyKind {
     NearestCar,
     Etd,
     Rsr,
+    Destination,
 }
 
 impl StrategyKind {
@@ -73,6 +80,7 @@ impl StrategyKind {
             Self::NearestCar => "NearestCar",
             Self::Etd => "Etd",
             Self::Rsr => "Rsr",
+            Self::Destination => "Destination",
         }
     }
 }
@@ -145,8 +153,8 @@ impl Workload {
     }
 }
 
-/// Proptest generator for a strategy kind, uniformly over the five
-/// covered built-ins.
+/// Proptest generator for a strategy kind, uniformly over all six
+/// built-ins.
 fn any_strategy() -> impl Strategy<Value = StrategyKind> {
     prop_oneof![
         Just(StrategyKind::Scan),
@@ -154,6 +162,7 @@ fn any_strategy() -> impl Strategy<Value = StrategyKind> {
         Just(StrategyKind::NearestCar),
         Just(StrategyKind::Etd),
         Just(StrategyKind::Rsr),
+        Just(StrategyKind::Destination),
     ]
 }
 
@@ -197,7 +206,9 @@ fn any_workload() -> impl Strategy<Value = Workload> {
 /// index-consistency queries. `Simulation::new` takes `impl
 /// DispatchStrategy + 'static` (not a trait object), so each arm
 /// constructs the concrete strategy type rather than routing through
-/// a boxed dispatcher.
+/// a boxed dispatcher. For [`StrategyKind::Destination`] the group's
+/// hall-call mode is flipped to `Destination` before any rider is
+/// spawned, so each hall call carries the rider's destination.
 fn build_sim(
     kind: StrategyKind,
     workload: &Workload,
@@ -209,8 +220,14 @@ fn build_sim(
         StrategyKind::NearestCar => Simulation::new(&config, NearestCarDispatch::new()),
         StrategyKind::Etd => Simulation::new(&config, EtdDispatch::new()),
         StrategyKind::Rsr => Simulation::new(&config, RsrDispatch::new()),
+        StrategyKind::Destination => Simulation::new(&config, DestinationDispatch::new()),
     }
     .expect("build sim");
+    if matches!(kind, StrategyKind::Destination) {
+        for group in sim.groups_mut() {
+            group.set_hall_call_mode(HallCallMode::Destination);
+        }
+    }
     for spawn in &workload.spawns {
         sim.spawn_rider(
             StopId(spawn.origin),
