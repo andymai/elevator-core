@@ -1,4 +1,5 @@
 import { hexWithAlpha, shade, withAlpha } from "./color-utils";
+import type { Facing, RiderVariant } from "./figures/rider";
 import { drawRidersInCar } from "./figures/riders-in-car";
 import type { Scale } from "./layout";
 import { PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
@@ -69,6 +70,8 @@ export function drawCar(
   riderColor: string,
   toScreenY: (y: number) => number,
   s: Scale,
+  roster?: RiderVariant[],
+  facing?: Facing,
 ): void {
   const bottom = toScreenY(car.y);
   const top = bottom - carH;
@@ -86,7 +89,7 @@ export function drawCar(
   ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
 
   if (car.riders > 0) {
-    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, car.id, s);
+    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster, facing);
   }
 }
 
