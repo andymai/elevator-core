@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.18.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.18.0...elevator-core-v15.18.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **core:** scrub disabled stops from queues, clear Manual door commands ([#404](https://github.com/andymai/elevator-core/issues/404)) ([8535e56](https://github.com/andymai/elevator-core/commit/8535e5641b558938ae0795dd5aed1902396e4f96))
+
 ## [15.18.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.4...elevator-core-v15.18.0) (2026-04-21)
 
 
