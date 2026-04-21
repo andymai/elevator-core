@@ -21,10 +21,19 @@ use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair
 /// reverse side. Direction and mode are resolved once per pass in
 /// [`DispatchStrategy::prepare_car`] so ranking is independent of the
 /// iteration order over stops.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct ScanDispatch {
-    /// Per-elevator sweep direction.
+    /// Per-elevator sweep direction. Persisted across dispatch passes
+    /// (reversed once a sweep exhausts demand ahead) and round-tripped
+    /// through [`DispatchStrategy::snapshot_config`] so a restored sim
+    /// continues the current sweep instead of defaulting to `Up` for
+    /// every car.
     direction: HashMap<EntityId, SweepDirection>,
     /// Per-elevator accept mode for the current dispatch pass.
+    /// Overwritten in full by `prepare_car` every pass, so no round-
+    /// trip is needed; `#[serde(skip)]` keeps snapshot bytes compact
+    /// and deterministic across process runs.
+    #[serde(skip)]
     mode: HashMap<EntityId, SweepMode>,
 }
 
@@ -101,5 +110,15 @@ impl DispatchStrategy for ScanDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Scan)
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
     }
 }
