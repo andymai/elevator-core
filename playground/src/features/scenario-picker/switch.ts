@@ -2,7 +2,6 @@ import { scenarioById, STRATEGY_LABELS, type PermalinkState } from "../../domain
 import { toast } from "../../platform";
 import type { StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
-import { syncSheetCompact } from "./sheet-compact";
 
 /** Narrow pane handles for scenario switching. */
 interface ScenarioPaneHandles {
@@ -26,8 +25,6 @@ export interface ScenarioSwitchUi {
   paneA: ScenarioPaneHandles;
   paneB: ScenarioPaneHandles;
   scenarioCards: HTMLElement;
-  sheetScenario: HTMLElement;
-  sheetStrategy: HTMLElement;
   toast: HTMLElement;
 }
 
@@ -75,7 +72,6 @@ export async function switchScenario(
   hooks.renderPaneStrategyInfo(ui.paneA, nextStrategyA);
   hooks.refreshStrategyPopovers();
   syncScenarioCards(ui, scenario.id);
-  syncSheetCompact(ui, scenario.label, STRATEGY_LABELS[nextStrategyA]);
   await resetAll();
   hooks.renderTweakPanel();
   toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);

@@ -1,10 +1,8 @@
 import type { RepositionStrategyName, StrategyName } from "../../types";
 import { toast } from "../../platform";
-import { scenarioById } from "../../domain";
 import { STRATEGY_DESCRIPTIONS, STRATEGY_LABELS, UI_STRATEGIES } from "./labels";
 import { renderPopoverOptions } from "./popover-options";
 import { closeAllPopovers } from "./reposition-popover";
-import { syncSheetCompact } from "../../platform";
 
 /** Narrow interface — only the fields strategy popovers need from a pane. */
 export interface StrategyPaneHandles {
@@ -20,8 +18,6 @@ export interface StrategyUiHandles {
   paneA: StrategyPaneHandles & RepositionPaneHandles;
   paneB: StrategyPaneHandles & RepositionPaneHandles;
   toast: HTMLElement;
-  sheetScenario: HTMLElement;
-  sheetStrategy: HTMLElement;
 }
 
 /** Fields needed from reposition pane handles for closeAllPopovers. */
@@ -160,7 +156,6 @@ async function pickStrategy(
   if (which === "a") {
     state.permalink = { ...state.permalink, strategyA: strategy };
     renderPaneStrategyInfo(ui.paneA, strategy);
-    syncSheetCompact(ui, scenarioById(state.permalink.scenario).label, STRATEGY_LABELS[strategy]);
   } else {
     state.permalink = { ...state.permalink, strategyB: strategy };
     renderPaneStrategyInfo(ui.paneB, strategy);

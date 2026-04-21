@@ -28,11 +28,6 @@ export interface UiHandles {
   shortcutsBtn: HTMLButtonElement;
   shortcutSheet: HTMLElement;
   shortcutSheetClose: HTMLButtonElement;
-  sheet: HTMLElement;
-  sheetToggle: HTMLButtonElement;
-  sheetScenario: HTMLElement;
-  sheetStrategy: HTMLElement;
-  sheetPlay: HTMLElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
 }
@@ -49,7 +44,6 @@ export function wireUi(): UiHandles {
     canvas: q(`shaft-${suffix}`) as HTMLCanvasElement,
     name: q(`name-${suffix}`),
     mode: q(`mode-${suffix}`),
-    decision: q(`decision-${suffix}`),
     desc: q(`desc-${suffix}`),
     metrics: q(`metrics-${suffix}`),
     trigger: q(`strategy-trigger-${suffix}`) as HTMLButtonElement,
@@ -110,16 +104,21 @@ export function wireUi(): UiHandles {
     shortcutsBtn: q("shortcuts") as HTMLButtonElement,
     shortcutSheet: q("shortcut-sheet"),
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
-    sheet: q("controls-sheet"),
-    sheetToggle: q("sheet-toggle") as HTMLButtonElement,
-    sheetScenario: q("sheet-scenario"),
-    sheetStrategy: q("sheet-strategy"),
-    sheetPlay: q("sheet-play"),
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
   };
 
   renderScenarioCards(ui);
+
+  const controlsBar = document.getElementById("controls-bar");
+  if (controlsBar) {
+    const ro = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const h = Math.ceil(entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height);
+      document.documentElement.style.setProperty("--controls-bar-h", `${h}px`);
+    });
+    ro.observe(controlsBar);
+  }
 
   return ui;
 }

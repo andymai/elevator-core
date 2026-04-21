@@ -20,7 +20,6 @@ export interface Pane {
   renderer: CanvasRenderer;
   metricsEl: HTMLElement;
   modeEl: HTMLElement;
-  decisionEl: HTMLElement;
   /**
    * Rolling per-metric history for the inline sparklines that live in
    * each metric row. Capped at `METRIC_HISTORY_LEN` samples; keys
@@ -35,14 +34,6 @@ export interface Pane {
    * [`updateBubbles`] so the map never grows past `cars x 1`.
    */
   bubbles: Map<number, CarBubble>;
-  /**
-   * Wall-clock ms after which the pane's decision line (the
-   * `Car X -> <stop>` readout) should fade out. We keep the text
-   * visible after fade-out so the last known decision is still there
-   * on the next pulse, just at reduced opacity — makes compare mode
-   * read as "here's the story" rather than flashing on/off.
-   */
-  decisionExpiresAt: number;
 }
 
 /**
@@ -72,11 +63,9 @@ export async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
-  // Scenarios with a lot of floors need a taller shaft on mobile, or
-  // the 42-floor skyscraper crushes into a 6-px-per-story smear. The
-  // CSS rule reads `--shaft-min-h` inside a `max-width: 767px` media
-  // query; floor here means the mobile layout will stretch to fit and
-  // the main column scrolls. Desktop ignores the variable.
+  // Scenarios with many floors need a taller shaft, or the 42-floor
+  // skyscraper crushes into a 6-px-per-story smear. The CSS applies
+  // `min-height: var(--shaft-min-h)` so the page scrolls instead.
   const wrap = handles.canvas.parentElement;
   if (wrap) {
     const stopCount = scenario.stops.length;
@@ -84,16 +73,12 @@ export async function makePane(
     const minShaftPx = Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
-  handles.decision.textContent = "";
-  handles.decision.dataset["active"] = "false";
-  handles.decision.dataset["pulse"] = "false";
   return {
     strategy,
     sim,
     renderer,
     metricsEl: handles.metrics,
     modeEl: handles.mode,
-    decisionEl: handles.decision,
     metricHistory: {
       avg_wait_s: [],
       max_wait_s: [],
@@ -103,7 +88,6 @@ export async function makePane(
     },
     latestMetrics: null,
     bubbles: new Map(),
-    decisionExpiresAt: 0,
   };
 }
 

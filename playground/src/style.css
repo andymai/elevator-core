@@ -135,6 +135,9 @@
   /* Mobile touch target (matches Apple HIG) */
   --touch-target: 44px;
 
+  /* Bottom controls bar height for layout calculations */
+  --controls-bar-h: 52px;
+
   /* Transition shorthand — combined duration + curve for custom CSS
    * convenience. Tailwind utilities consume the split tokens from @theme. */
   --transition-fast: var(--duration-fast) var(--ease-fast);
@@ -180,10 +183,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
   /* Body is a flex column so `<main id="layout">` can `flex-1` to fill
-   * whatever space is left after header + scenario strip + controls +
-   * phase strip + (optional) verdict ribbon + (optional) tweak panel.
-   * Avoids a hardcoded `calc(100dvh - 130px)` that would clip once
-   * any optional section opens. */
+   * whatever space is left after header + scenario strip + phase strip
+   * + (optional) verdict ribbon. Bottom controls bar is position:fixed
+   * and sits above the content via padding-bottom on main. */
   body {
     display: flex;
     flex-direction: column;
@@ -207,9 +209,6 @@
   .hidden {
     display: none !important;
   }
-
-  /* Sheet handle desktop hide + mobile show is now inlined via
-   * `hidden max-md:flex` on the `<button id="sheet-toggle">`. */
 
   /* Shared label pattern for the controls strip — used on Strategy, vs,
    * Seed, Speed, Intensity. Kept as a component class (vs inline utilities)
@@ -257,23 +256,10 @@
     grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
     gap: 10px 18px;
     padding: 12px 20px 14px;
-    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-    border-bottom: 1px solid var(--border-subtle);
     font-variant-numeric: tabular-nums;
-    animation: tweak-slide var(--transition-normal) ease-out;
   }
   .tweak-panel[hidden] {
     display: none;
-  }
-  @keyframes tweak-slide {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
   .tweak-row {
@@ -648,17 +634,14 @@
  * metric-row[data-verdict=X]) live in @layer utilities at the end of this
  * file so they override the utility base classes on these elements. */
 
-  /* Mobile: floor scrunch guard. A 42-floor skyscraper squeezed into a
- * flex-1 shaft-wrap on a phone ends up with ~6 px per story — labels
- * overlap, cabins disappear. Let the shaft-wrap grow to a scenario-
- * aware minimum so the surrounding page scrolls vertically instead of
- * the floors stacking on top of each other. The renderer publishes
- * `--shaft-min-h` on each shaft-wrap when a scenario loads, scaled to
- * stop count; fallback keeps the old 200 px floor for small scenarios. */
-  @media (max-width: 767px) {
-    .shaft-wrap {
-      min-height: var(--shaft-min-h, 200px);
-    }
+  /* Floor scrunch guard. A many-floor scenario squeezed into a flex-1
+ * shaft-wrap ends up with tiny per-story pixels — labels overlap,
+ * cabins disappear. Let the shaft-wrap grow to a scenario-aware
+ * minimum so the page scrolls instead. The renderer publishes
+ * `--shaft-min-h` on each shaft-wrap when a scenario loads, scaled
+ * to stop count; fallback keeps the old 200 px floor. */
+  .shaft-wrap {
+    min-height: var(--shaft-min-h, 200px);
   }
 
   /* Loader, toast styling moved to Tailwind utilities on the HTML elements.
@@ -706,6 +689,123 @@
   .seed-shuffle:active {
     transform: none;
     box-shadow: none;
+  }
+
+  /* ── Bottom controls bar ──────────────────────────────────────────────��� */
+
+  .controls-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px calc(8px + env(safe-area-inset-bottom));
+    pointer-events: none;
+    opacity: 0.25;
+    transition: opacity 300ms ease;
+  }
+  .controls-bar:hover,
+  .controls-bar:focus-within {
+    opacity: 1;
+  }
+  @media (pointer: coarse) {
+    .controls-bar {
+      opacity: 1;
+    }
+  }
+  .controls-bar-inner {
+    pointer-events: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 100%;
+  }
+  .controls-bar-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .controls-bar-field input[type="range"] {
+    width: 100px;
+    margin: 6px 0;
+  }
+  .controls-bar-field input[type="text"] {
+    width: 80px;
+    padding: 5px 24px 5px 8px;
+    font-size: 12px;
+  }
+  .controls-bar-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .controls-bar-actions button {
+    padding: 5px 10px;
+    font-size: 11.5px;
+  }
+
+  /* Tweak panel as popover above the bottom bar */
+  .tweak-panel-popover {
+    pointer-events: auto;
+    width: min(680px, calc(100vw - 32px));
+    margin-bottom: 6px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-lg);
+    background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    animation: tweak-popover-in var(--transition-normal) var(--ease-spring);
+  }
+  .tweak-panel-popover[hidden] {
+    display: none;
+  }
+  @keyframes tweak-popover-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .controls-bar {
+      padding: 0 8px calc(6px + env(safe-area-inset-bottom));
+    }
+    .controls-bar-inner {
+      width: 100%;
+      padding: 6px 10px;
+      gap: 6px;
+      border-radius: var(--radius-md);
+    }
+    .controls-bar-field input[type="range"] {
+      width: 80px;
+    }
+    .controls-bar-field input[type="text"] {
+      width: 70px;
+    }
+    .controls-bar-actions button {
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+    .tweak-panel-popover {
+      width: calc(100vw - 16px);
+    }
   }
 
   /* ── Nav button (?) ─────────────────────────────────────────────────── */
@@ -793,63 +893,15 @@
       var(--shadow-sm);
   }
 
-  /* ── Pane title + decision narration ────────────────────────────────── */
+  /* ── Pane title ─────────────────────────────────────────────────────── */
 
-  /* .pane-title layout (flex / min-w-0 / flex-1) moved to utilities inline on
- * the `<div class="pane-title ...">` — only the state-driven .pane-decision
- * color cascade below remains. */
   .pane-strategy-desc {
-    /* Wrap to two lines when the card is narrow (compare mode, mobile). */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.35;
     min-height: 1.35em;
-  }
-  .pane-decision {
-    font-size: 10.5px;
-    color: var(--text-disabled);
-    letter-spacing: 0.02em;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-height: 1.2em;
-    opacity: 0;
-    transition:
-      opacity var(--transition-normal),
-      color var(--transition-normal);
-  }
-  .pane-decision[data-active="true"] {
-    opacity: 1;
-    color: var(--pane-accent);
-  }
-  .pane-decision::before {
-    content: "\2022";
-    display: inline-block;
-    margin-right: 6px;
-    color: var(--pane-accent);
-    font-size: 10px;
-    transform: translateY(-1px);
-    text-shadow: 0 0 6px currentColor;
-  }
-  .pane-decision[data-pulse="true"]::before {
-    animation: decision-pulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes decision-pulse {
-    0% {
-      transform: translateY(-1px) scale(1);
-      opacity: 1;
-    }
-    40% {
-      transform: translateY(-1px) scale(1.8);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(-1px) scale(1);
-      opacity: 1;
-    }
   }
 
   /* ── Metric sparkline ───────────────────────────────────────────────── */
@@ -1052,13 +1104,10 @@
 
   /* ── Mobile ─────────────────────────────────────────────────────────── */
 
-  /* Mobile-specific styling was previously concentrated here in a
- * `@media (max-width: 767px)` block. Every rule has migrated to Tailwind
- * `max-md:` variants on the HTML elements (or in `renderScenarioCards()`
- * for generated content). See `index.html` — the sheet drawer, sticky
- * top, pill-scroll scenario cards, 2-col control grid, stacked
- * compare-mode panes, and landscape-flip `@media (orientation: landscape)`
- * compare layout are all expressed as utility variants. */
+  /* Mobile-specific styling uses Tailwind `max-md:` variants on the HTML
+ * elements (or in `renderScenarioCards()` for generated content). The
+ * pill-scroll scenario cards, stacked compare-mode panes, and
+ * landscape-flip compare layout are all expressed as utility variants. */
 } /* end @layer components */
 
 /* Utilities layer: safe-area helpers plus the state-variant overrides
