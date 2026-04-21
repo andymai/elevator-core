@@ -911,6 +911,18 @@ impl Simulation {
         strategy: Box<dyn DispatchStrategy>,
         id: crate::dispatch::BuiltinStrategy,
     ) {
+        let mode = match &id {
+            crate::dispatch::BuiltinStrategy::Destination => {
+                Some(crate::dispatch::HallCallMode::Destination)
+            }
+            crate::dispatch::BuiltinStrategy::Custom(_) => None,
+            _ => Some(crate::dispatch::HallCallMode::Classic),
+        };
+        if let Some(mode) = mode
+            && let Some(g) = self.groups.iter_mut().find(|g| g.id() == group)
+        {
+            g.set_hall_call_mode(mode);
+        }
         self.dispatchers.insert(group, strategy);
         self.strategy_ids.insert(group, id);
     }

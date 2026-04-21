@@ -77,20 +77,6 @@ fn make_sim(
     })
 }
 
-/// Flip every group's hall-call mode to match the active strategy.
-/// DCS requires `Destination` mode (riders announce their floor at the
-/// lobby kiosk); all other built-ins expect `Classic` (up/down buttons).
-fn sync_hall_call_mode(sim: &mut Simulation, strategy: &str) {
-    let mode = if strategy == "destination" {
-        HallCallMode::Destination
-    } else {
-        HallCallMode::Classic
-    };
-    for group in sim.groups_mut() {
-        group.set_hall_call_mode(mode);
-    }
-}
-
 /// Opaque simulation handle for JS.
 #[wasm_bindgen]
 pub struct WasmSim {
@@ -120,7 +106,13 @@ impl WasmSim {
         let mut inner = make_sim(&config, strategy)
             .ok_or_else(|| JsError::new(&format!("unknown strategy: {strategy}")))?
             .map_err(|e| JsError::new(&format!("sim build: {e}")))?;
-        sync_hall_call_mode(&mut inner, strategy);
+        // Simulation::new doesn't route through set_dispatch (which now
+        // auto-syncs the mode), so handle the initial-construction case.
+        if strategy == "destination" {
+            for group in inner.groups_mut() {
+                group.set_hall_call_mode(HallCallMode::Destination);
+            }
+        }
         // Resolve the caller-supplied reposition name (if any) to a
         // `BuiltinReposition` variant; fall back to `Adaptive` when
         // absent or unrecognised so old permalinks and undecorated
@@ -269,7 +261,6 @@ impl WasmSim {
                 self.inner.set_dispatch(gid, dispatcher, id.clone());
             }
         }
-        sync_hall_call_mode(&mut self.inner, name);
         self.strategy_name = name.to_string();
         true
     }
@@ -481,7 +472,6 @@ impl WasmSim {
     /// that want DCS (e.g. the hotel) call this once on load.
     #[wasm_bindgen(js_name = setHallCallModeDestination)]
     pub fn set_hall_call_mode_destination(&mut self) {
-        use elevator_core::dispatch::HallCallMode;
         for group in self.inner.groups_mut() {
             group.set_hall_call_mode(HallCallMode::Destination);
         }
@@ -513,7 +503,6 @@ impl WasmSim {
             self.inner
                 .set_dispatch(gid, Box::new(strategy), BuiltinStrategy::Destination);
         }
-        sync_hall_call_mode(&mut self.inner, "destination");
         self.strategy_name = "destination".to_string();
     }
 
