@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.19.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.0...elevator-core-v15.19.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **snapshot:** round-trip tunable dispatcher configuration ([#411](https://github.com/andymai/elevator-core/issues/411)) ([890215e](https://github.com/andymai/elevator-core/commit/890215e2e9fd5f1b45a666815f8e43ebb344e99e))
+
 ## [15.19.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.18.1...elevator-core-v15.19.0) (2026-04-21)
 
 
