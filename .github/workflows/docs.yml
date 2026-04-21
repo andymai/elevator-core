@@ -39,13 +39,10 @@ jobs:
       - name: Install mdbook-mermaid
         run: cargo install mdbook-mermaid --locked
 
-      - name: Install wasm-pack
-        # Use the prebuilt binary so runners don't need libbz2-dev / openssl-dev.
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
         with:
-          # Pinned: a new wasm-pack release with breaking CLI changes could
-          # otherwise silently break this job. Bump deliberately.
-          version: "v0.14.0"
+          tool: wasm-bindgen-cli@0.2.118
 
       - name: Lint docs
         run: scripts/lint-docs.sh --quick
@@ -54,14 +51,7 @@ jobs:
         run: mdbook build docs
 
       - name: Build elevator-wasm
-        # Populates playground/public/pkg/ so Vite serves the wasm at runtime.
-        # --no-typescript: TS types live hand-written in playground/src/types.ts.
-        run: |
-          wasm-pack build crates/elevator-wasm \
-            --target web \
-            --out-dir ../../playground/public/pkg \
-            --release \
-            --no-typescript
+        run: scripts/build-wasm.sh
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -82,20 +72,9 @@ jobs:
           pnpm build
 
       - name: Stage playground into mdBook output
-        # mdBook emits to target/book. Drop the playground bundle under
-        # /playground/ there so the deployed Pages site has both.
-        #
-        # wasm-pack emits a `.gitignore` containing `*` inside `public/pkg/`
-        # so the source tree never tracks generated artifacts. Vite copies
-        # publicDir verbatim, so that file rides into `dist/pkg/.gitignore`
-        # and then into the staged tree. `peaceiris/actions-gh-pages` uses
-        # `git add` under the hood, which honors the nested ignore and
-        # silently drops every pkg/ file from the publish — the deploy
-        # succeeds but the playground 404s on its wasm. Strip it here.
         run: |
           mkdir -p target/book/playground
           cp -r playground/dist/. target/book/playground/
-          rm -f target/book/playground/pkg/.gitignore
 
       # Publish to gh-pages branch (not the workflow Pages artifact) so the
       # nightly-bench dashboard at /bench/ — pushed by

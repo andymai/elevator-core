@@ -2,10 +2,11 @@
 
 ## Project Structure
 
-Cargo workspace with three crates:
+Cargo workspace with four crates:
 - `crates/elevator-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
 - `crates/elevator-bevy` — Bevy 0.18 game binary wrapping the core sim
 - `crates/elevator-ffi` — C ABI wrapper for Unity/.NET interop (not published to crates.io)
+- `crates/elevator-wasm` — wasm-bindgen surface for the browser playground
 
 ## Build
 
@@ -18,6 +19,15 @@ cargo run -- assets/config/space_elevator.ron
 ```
 
 System deps (Ubuntu): `libudev-dev libasound2-dev`
+
+## Playground (WASM)
+
+`scripts/build-wasm.sh` builds the wasm crate and generates TypeScript bindings via `wasm-bindgen-cli` (must match the `wasm-bindgen` crate version in Cargo.lock). DTO types (`CarDto`, `StopDto`, `Snapshot`, `MetricsDto`, `EventDto`) are auto-generated in `playground/public/pkg/elevator_wasm.d.ts` via `tsify-next` derives — do not hand-mirror them in the playground.
+
+```bash
+scripts/build-wasm.sh          # build wasm + generate TS bindings
+cd playground && pnpm dev       # auto-builds wasm if pkg/ missing, watches Rust sources
+```
 
 ## Pre-commit Hook
 

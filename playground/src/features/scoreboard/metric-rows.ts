@@ -1,5 +1,5 @@
 import { el } from "../../platform";
-import type { MetricKey, Metrics } from "../../types";
+import type { MetricKey, MetricsDto } from "../../types";
 import { buildSparklinePath } from "./sparkline";
 
 // Metric row layout: 5 fixed rows, always the same keys in the same order.
@@ -13,7 +13,7 @@ export const METRIC_DEFS: Array<[string, MetricKey]> = [
   ["Utilization", "utilization"],
 ];
 
-export function metricValue(m: Metrics, key: MetricKey): string {
+export function metricValue(m: MetricsDto, key: MetricKey): string {
   switch (key) {
     case "avg_wait_s":
       return `${m.avg_wait_s.toFixed(1)} s`;
@@ -37,7 +37,10 @@ export type MetricVerdicts = Record<MetricKey, Verdict>;
  * flicker between win/lose on floating-point noise. Epsilons match the UI's
  * display precision (`toFixed(1)` for times, `toFixed(0)` on the percent).
  */
-export function diffMetrics(a: Metrics, b: Metrics): { a: MetricVerdicts; b: MetricVerdicts } {
+export function diffMetrics(
+  a: MetricsDto,
+  b: MetricsDto,
+): { a: MetricVerdicts; b: MetricVerdicts } {
   const cmp = (
     x: number,
     y: number,
@@ -91,7 +94,7 @@ export function initMetricRows(root: HTMLElement): void {
 
 export function renderMetricRows(
   root: HTMLElement,
-  m: Metrics,
+  m: MetricsDto,
   verdicts: MetricVerdicts | null,
   history: Record<MetricKey, number[]>,
 ): void {

@@ -3,7 +3,7 @@ import { buildScenarioRon, type Overrides } from "../../domain";
 import { Sim } from "../../sim";
 import type {
   CarBubble,
-  Metrics,
+  MetricsDto,
   MetricKey,
   RepositionStrategyName,
   ScenarioMeta,
@@ -28,7 +28,7 @@ export interface Pane {
    * math at render time.
    */
   metricHistory: Record<MetricKey, number[]>;
-  latestMetrics: Metrics | null;
+  latestMetrics: MetricsDto | null;
   /**
    * Per-car speech bubbles. Keyed by car entity id. Each entry fades
    * per its event-kind TTL; stale entries are evicted lazily in
