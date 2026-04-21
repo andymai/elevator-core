@@ -18,6 +18,7 @@ use elevator_core::dispatch::destination::DestinationDispatch;
 use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::dispatch::look::LookDispatch;
 use elevator_core::dispatch::nearest_car::NearestCarDispatch;
+use elevator_core::dispatch::rsr::RsrDispatch;
 use elevator_core::dispatch::scan::ScanDispatch;
 use elevator_core::sim::Simulation;
 use elevator_core::stop::{StopConfig, StopId};
@@ -116,6 +117,7 @@ fn bench_dispatch_comparison(c: &mut Criterion) {
             NearestCarDispatch::new()
         );
         bench_strategy!(group, "etd", elevators, stops, riders, EtdDispatch::new());
+        bench_strategy!(group, "rsr", elevators, stops, riders, RsrDispatch::new());
         bench_strategy!(
             group,
             "destination",
