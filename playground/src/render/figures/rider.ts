@@ -256,6 +256,7 @@ export function drawRider(
     );
     ctx.stroke();
     ctx.lineCap = "butt";
+    ctx.lineWidth = 1;
   } else if (variant === "tall") {
     // Flat cap / hat brim extending forward from the head.
     const brimLen = p.headR * 1.6;
@@ -284,6 +285,7 @@ export function drawRider(
     ctx.moveTo(bpX + f * bpR * 0.3, bpY - bpR * 0.8);
     ctx.lineTo(torsoX + f * p.chestFwd * 0.4, bodyTop + 1);
     ctx.stroke();
+    ctx.lineWidth = 1;
   }
   // `child` and `standard` have no extra marks — their proportions
   // are enough to read as distinct variants.
