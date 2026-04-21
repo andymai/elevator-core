@@ -81,7 +81,7 @@ fn collect_actions(
             .service_mode(eid)
             .copied()
             .unwrap_or_default()
-            .allows_auto_boarding()
+            .allows_auto_loading()
         {
             continue;
         }

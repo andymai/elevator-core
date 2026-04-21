@@ -60,11 +60,11 @@ impl ServiceMode {
     /// `true` if the loading phase should automatically board and exit
     /// riders at open doors.
     ///
-    /// Only [`Normal`](Self::Normal) allows auto-boarding. All other
+    /// Only [`Normal`](Self::Normal) allows auto-loading. All other
     /// modes hand rider management to the consumer or are operationally
     /// unsuitable for passenger service.
     #[must_use]
-    pub const fn allows_auto_boarding(self) -> bool {
+    pub const fn allows_auto_loading(self) -> bool {
         matches!(self, Self::Normal)
     }
 }

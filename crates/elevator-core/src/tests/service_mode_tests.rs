@@ -298,17 +298,14 @@ fn non_normal_modes_skip_auto_boarding() {
         "rider should not be auto-boarded in Independent mode"
     );
     assert_eq!(
-        sim.world()
-            .elevator(elev)
-            .map(|c| c.riders().len())
-            .unwrap_or(0),
+        sim.world().elevator(elev).map_or(0, |c| c.riders().len()),
         0,
         "no riders should be aboard the Independent car"
     );
 }
 
-/// 9. OutOfService: excluded from dispatch, no auto-boarding, but entity
-/// stays visible and queries still work.
+/// 9. `OutOfService`: excluded from dispatch, no auto-boarding, but entity
+///    stays visible and queries still work.
 #[test]
 fn out_of_service_fully_inert() {
     let config = default_config();
@@ -345,7 +342,7 @@ fn out_of_service_fully_inert() {
     assert!(sim.metrics().total_delivered() > 0);
 }
 
-/// 10. OutOfService during motion: in-flight trip completes.
+/// 10. `OutOfService` during motion: in-flight trip completes.
 #[test]
 fn out_of_service_mid_flight_completes_trip() {
     use crate::entity::ElevatorId;

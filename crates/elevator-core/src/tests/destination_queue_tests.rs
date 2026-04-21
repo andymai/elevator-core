@@ -325,7 +325,7 @@ fn redirect_via_push_front_updates_direction_indicators() {
 
 // ── recall_to ──────────────────────────────────────────────────────
 
-/// recall_to clears the queue and sets a single target.
+/// `recall_to` clears the queue and sets a single target.
 #[test]
 fn recall_to_clears_queue_and_sets_target() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -340,7 +340,7 @@ fn recall_to_clears_queue_and_sets_target() {
     assert_eq!(q[0], sim.stop_entity(StopId(0)).unwrap());
 }
 
-/// recall_to emits an ElevatorRecalled event.
+/// `recall_to` emits an `ElevatorRecalled` event.
 #[test]
 fn recall_to_emits_event() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -364,7 +364,7 @@ fn recall_to_emits_event() {
     }
 }
 
-/// recall_to on an idle car at a different stop causes it to depart.
+/// `recall_to` on an idle car at a different stop causes it to depart.
 #[test]
 fn recall_idle_car_to_distant_stop() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -389,7 +389,7 @@ fn recall_idle_car_to_distant_stop() {
     assert!(arrived, "car should have arrived at the recall stop");
 }
 
-/// recall_to on a car already at the recall stop triggers a door cycle.
+/// `recall_to` on a car already at the recall stop triggers a door cycle.
 #[test]
 fn recall_to_current_stop_opens_doors() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -411,7 +411,7 @@ fn recall_to_current_stop_opens_doors() {
     assert!(saw_open, "doors should open when recalled to current stop");
 }
 
-/// recall_to works on dispatch-excluded (Independent) cars.
+/// `recall_to` works on dispatch-excluded (`Independent`) cars.
 #[test]
 fn recall_works_on_independent_car() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -439,7 +439,7 @@ fn recall_works_on_independent_car() {
     assert!(arrived, "Independent car should still respond to recall_to");
 }
 
-/// recall_to errors on invalid entities.
+/// `recall_to` errors on invalid entities.
 #[test]
 fn recall_to_validates_entities() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -456,7 +456,7 @@ fn recall_to_validates_entities() {
     assert!(sim.recall_to(elev, StopId(99)).is_err());
 }
 
-/// recall_to mid-flight redirects the car to the recall stop.
+/// `recall_to` mid-flight redirects the car to the recall stop.
 #[test]
 fn recall_mid_flight_redirects() {
     let mut sim = SimulationBuilder::demo().build().unwrap();

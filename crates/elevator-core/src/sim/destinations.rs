@@ -196,6 +196,14 @@ impl super::Simulation {
     /// Works in any service mode — even dispatch-excluded cars can be
     /// recalled. Emits [`Event::ElevatorRecalled`].
     ///
+    /// # Service mode interaction
+    ///
+    /// Non-Normal modes suppress the loading phase (both boarding and
+    /// exiting). If you set `OutOfService` *before* the car arrives at
+    /// the recall stop, riders aboard will not auto-exit. For the
+    /// fire-service pattern, switch to `OutOfService` only *after*
+    /// observing `ElevatorArrived` and letting the loading phase drain.
+    ///
     /// # Errors
     ///
     /// - [`SimError::NotAnElevator`] if `elev` is not an elevator.
