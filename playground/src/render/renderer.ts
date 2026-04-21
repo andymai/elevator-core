@@ -8,6 +8,8 @@ import {
   drawWaitingFigures,
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
+import type { Facing, RiderVariant } from "./figures/rider";
+import { pickRiderVariant } from "./figures/rider";
 import type { Scale } from "./layout";
 import { findNearestStop, scaleFor } from "./layout";
 import {
@@ -43,6 +45,8 @@ interface Tween {
 /** Per-car frame-to-frame memory used to detect board/alight transitions. */
 interface CarState {
   riders: number;
+  roster: RiderVariant[];
+  facing: Facing;
 }
 
 /** Per-stop frame-to-frame memory used to detect abandonment. */
@@ -328,8 +332,20 @@ export class CanvasRenderer {
       const thisCarW = carWPerCar.get(carId) ?? s.carW;
       const thisCarH = carHPerCar.get(carId) ?? s.carH;
       const thisRiderColor = riderColorPerCar.get(carId) ?? CAR_DOT_COLOR;
+      const state = this.#carStates.get(carId);
       drawCarTrail(ctx, car, cx, thisCarW, thisCarH, toScreenY);
-      drawCar(ctx, car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s);
+      drawCar(
+        ctx,
+        car,
+        cx,
+        thisCarW,
+        thisCarH,
+        thisRiderColor,
+        toScreenY,
+        s,
+        state?.roster,
+        state?.facing,
+      );
     }
 
     this.#computeTweens(snap, carX, shaftInnerPerCar, toScreenY, s, speedMultiplier);
@@ -416,7 +432,49 @@ export class CanvasRenderer {
         }
       }
 
-      this.#carStates.set(car.id, { riders });
+      // --- Roster + facing management ---
+      const prevRoster = prev?.roster ?? [];
+      let roster: RiderVariant[];
+      if (!prev) {
+        // First frame for this car — seed the roster from the car's own id.
+        roster = [];
+        for (let i = 0; i < riders; i++) {
+          roster.push(pickRiderVariant(car.id, i));
+        }
+      } else {
+        const delta = riders - prev.riders;
+        roster = prevRoster.slice();
+        if (delta > 0 && loadStop !== undefined) {
+          // Riders boarded from this stop. Replicate the gutter's variant
+          // picks so the silhouettes visually match who was waiting.
+          const isUp = loadStop.waiting_up >= loadStop.waiting_down;
+          const dirOffset = isUp ? 0 : 10_000;
+          // The gutter's nearest-shaft figures are at low slot indices —
+          // those are the ones who board first.
+          for (let k = 0; k < delta; k++) {
+            roster.push(pickRiderVariant(loadStop.entity_id, k + dirOffset));
+          }
+        } else if (delta > 0) {
+          // Riders appeared but no load stop (e.g., first snapshot or
+          // teleport). Fall back to car-id hashing.
+          for (let k = 0; k < delta; k++) {
+            roster.push(pickRiderVariant(car.id, roster.length + k));
+          }
+        } else if (delta < 0) {
+          // Riders alighted — remove from end (LIFO).
+          roster.splice(roster.length + delta, -delta);
+        }
+      }
+      // Correct any length drift from accumulated rounding.
+      while (roster.length > riders) roster.pop();
+      while (roster.length < riders) roster.push(pickRiderVariant(car.id, roster.length));
+
+      // Facing tracks the car's travel direction; persists when stopped.
+      let facing: Facing = prev?.facing ?? "right";
+      if (car.v > 0.01) facing = "right";
+      else if (car.v < -0.01) facing = "left";
+
+      this.#carStates.set(car.id, { riders, roster, facing });
     }
 
     for (const stop of snap.stops) {

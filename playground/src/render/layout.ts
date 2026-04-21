@@ -5,7 +5,7 @@ export interface Scale {
   padTop: number;
   padBottom: number;
   labelW: number;
-  /** Preferred gutter width per side for stick figures. Actual gutter
+  /** Preferred gutter width per side for rider figures. Actual gutter
    *  grows if shafts hit their `maxShaftInnerW` cap and leave slack. */
   figureGutterW: number;
   /** Small gap between the figure gutter and the nearest shaft rail. */
@@ -26,9 +26,9 @@ export interface Scale {
   fontMain: number;
   fontSmall: number;
   carDotR: number;
-  /** Stick figure head radius. */
+  /** Rider figure head radius. */
   figureHeadR: number;
-  /** Horizontal stride between adjacent stick figures in a gutter. */
+  /** Horizontal stride between adjacent rider figures in a gutter. */
   figureStride: number;
 }
 
@@ -49,7 +49,7 @@ export function scaleFor(width: number): Scale {
     // on the narrowest phones. `truncate()` still clips anything that
     // spills over on ultra-long custom stop names.
     labelW: lerp(52, 120),
-    // Preferred gutter for stick figures. The gutter grows further
+    // Preferred gutter for rider figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.
     figureGutterW: lerp(40, 70),
     gutterGap: lerp(3, 5),
@@ -72,7 +72,7 @@ export function scaleFor(width: number): Scale {
     fontSmall: lerp(9, 10),
     carDotR: lerp(1.6, 2.2),
     // Head radius for the SimTower-style rider silhouette. Total
-    // figure height ~= headR x 8.2 (see `drawStickFigure`): small head
+    // figure height ~= headR x 8.2 (see `drawRider`): small head
     // over a tapered body, matching the classic tiny-sim silhouette.
     figureHeadR: lerp(2, 2.8),
     figureStride: lerp(5.6, 8),
