@@ -474,9 +474,39 @@ fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
         return;
     };
     let car_pos = world.position(car_eid).map_or(0.0, |p| p.value);
-    let sweep_up = match car.direction() {
-        Direction::Up | Direction::Either => true,
-        Direction::Down => false,
+    // Derive the sweep direction primarily from aboard-rider destinations,
+    // not the car's indicator lamps. Under heavy load on a single-car group
+    // the lamp state is itself a consequence of the previous rebuild, so
+    // lamp-driven `sweep_up` creates a self-reinforcing loop: a rebuild
+    // ordered around "current direction" keeps fresh pickups ahead of
+    // deliveries, which keeps the direction pointed at the pickups, which
+    // keeps the rebuild ordering them first. Letting aboard riders' dests
+    // pick the sweep breaks the loop — the car finishes delivering before
+    // it chases new pickups. Falls back to lamp direction when the car is
+    // empty (no aboard demand to break the tie).
+    let sweep_up = {
+        let mut aboard_up = 0u32;
+        let mut aboard_down = 0u32;
+        for &rid in car.riders() {
+            if let Some(dest) = world
+                .route(rid)
+                .and_then(crate::components::Route::current_destination)
+                && let Some(dp) = world.stop_position(dest)
+            {
+                if dp > car_pos + 1e-9 {
+                    aboard_up += 1;
+                } else if dp < car_pos - 1e-9 {
+                    aboard_down += 1;
+                }
+            }
+        }
+        match aboard_up.cmp(&aboard_down) {
+            std::cmp::Ordering::Greater => true,
+            std::cmp::Ordering::Less => false,
+            std::cmp::Ordering::Equal => {
+                matches!(car.direction(), Direction::Up | Direction::Either)
+            }
+        }
     };
 
     // Skip inserting a stop the car is currently parked at and loading.

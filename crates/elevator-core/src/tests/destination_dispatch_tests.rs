@@ -728,3 +728,111 @@ fn construction_with_dcs_auto_sets_destination_mode() {
         "Simulation::new with DCS strategy must auto-set Destination mode",
     );
 }
+
+/// Regression: a single-car DCS group under heavy cross-line demand
+/// (20 riders, 4 stops, 600 kg car) used to oscillate indefinitely
+/// between two pickup stops without ever delivering the aboard riders.
+/// The queue rebuild derived `sweep_up` from the car's direction lamps,
+/// which were themselves an output of the previous rebuild — a
+/// self-reinforcing loop that kept fresh pickups ranked ahead of
+/// aboard destinations. The fix derives the sweep from aboard-rider
+/// destinations, so the car finishes delivering before chasing new
+/// pickups. This specific 20-rider workload is the one that kept
+/// re-tripping the cross-strategy liveness invariant on main CI.
+#[test]
+fn single_car_heavy_load_drains_within_tick_budget() {
+    // Seed-1 xorshift workload that stalled on main: 4 stops, 1 car,
+    // 600 kg cap, 20 riders with mixed cross-line destinations. Spawned
+    // up-front so the dispatcher sees the full workload at tick 0.
+    const TICK_BUDGET: u64 = 8_000;
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "DCS Heavy Load".into(),
+            stops: (0..4)
+                .map(|i| StopConfig {
+                    id: StopId(i),
+                    name: format!("Floor {i}"),
+                    position: f64::from(i) * 4.0,
+                })
+                .collect(),
+            lines: None,
+            groups: None,
+        },
+        elevators: vec![ElevatorConfig {
+            id: 0,
+            name: "Car 0".into(),
+            max_speed: Speed::from(3.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(600.0),
+            starting_stop: StopId(0),
+            door_open_ticks: 8,
+            door_transition_ticks: 4,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
+        }],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    // (origin, destination, weight) — verbatim from the xorshift(1) stall
+    // reproducer. Any tweak here invalidates the regression seed.
+    let spawns: [(u32, u32, f64); 20] = [
+        (1, 0, 61.0),
+        (1, 0, 78.0),
+        (1, 2, 100.0),
+        (2, 0, 62.0),
+        (2, 0, 95.0),
+        (3, 2, 66.0),
+        (3, 0, 70.0),
+        (1, 0, 79.0),
+        (2, 3, 80.0),
+        (3, 2, 72.0),
+        (0, 2, 77.0),
+        (0, 3, 79.0),
+        (2, 3, 72.0),
+        (3, 0, 86.0),
+        (3, 1, 62.0),
+        (2, 3, 89.0),
+        (3, 0, 79.0),
+        (2, 0, 81.0),
+        (0, 2, 83.0),
+        (1, 3, 95.0),
+    ];
+
+    let mut sim = Simulation::new(&config, DestinationDispatch::new()).unwrap();
+    for group in sim.groups_mut() {
+        group.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
+    }
+    for &(o, d, w) in &spawns {
+        sim.spawn_rider(StopId(o), StopId(d), w).unwrap();
+    }
+    for _ in 0..TICK_BUDGET {
+        sim.step();
+        let _ = sim.drain_events();
+    }
+    let stuck: Vec<_> = sim
+        .world()
+        .iter_riders()
+        .filter(|(_, r)| {
+            !matches!(
+                r.phase,
+                RiderPhase::Arrived | RiderPhase::Abandoned | RiderPhase::Resident,
+            )
+        })
+        .map(|(id, r)| (id, r.phase))
+        .collect();
+    assert!(
+        stuck.is_empty(),
+        "DCS single-car heavy load stalled within {TICK_BUDGET} ticks: {stuck:?}",
+    );
+}
