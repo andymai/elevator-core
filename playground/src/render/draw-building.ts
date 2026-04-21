@@ -140,83 +140,47 @@ export function drawCarHeaders(
   s: Scale,
   cars: readonly CarDto[],
   carX: Map<number, number>,
-  waitingGutter: { start: number; end: number },
 ): void {
   const y = s.padTop / 2 + 1;
   ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textBaseline = "middle";
-
   ctx.textAlign = "center";
-  ctx.fillStyle = "#8b8c92";
-  ctx.fillText("Waiting", (waitingGutter.start + waitingGutter.end) / 2, y);
 
   let carNum = 1;
   for (const car of cars) {
     const cx = carX.get(car.id);
     if (cx === undefined) continue;
     ctx.fillStyle = "#a1a1aa";
-    ctx.textAlign = "center";
     ctx.fillText(`Car ${carNum}`, cx, y);
     carNum++;
   }
 }
 
 /**
- * Draw waiting riders — unassigned in the shared gutter, assigned
- * in the queue area next to the elevator they've been assigned to.
+ * Draw waiting riders at the queue area of their assigned elevator.
+ * Unassigned riders are hidden until dispatch assigns them.
  */
 export function drawWaitingFigures(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
   toScreenY: (y: number) => number,
   s: Scale,
-  waitingGutter: { start: number; end: number },
   carQueueRegion: Map<number, { start: number; end: number }>,
   stopAssignments: Map<number, number>,
 ): void {
-  const gutterW = waitingGutter.end - waitingGutter.start;
-
   for (const stop of snap.stops) {
-    const y = toScreenY(stop.y);
     const totalWaiting = stop.waiting_up + stop.waiting_down;
     if (totalWaiting === 0) continue;
 
     const assignedCarId = stopAssignments.get(stop.entity_id);
-    const qr = assignedCarId !== undefined ? carQueueRegion.get(assignedCarId) : undefined;
+    if (assignedCarId === undefined) continue;
+    const qr = carQueueRegion.get(assignedCarId);
+    if (qr === undefined) continue;
+    const queueAvailW = qr.end - qr.start;
+    if (queueAvailW <= s.figureStride) continue;
 
-    if (qr && assignedCarId !== undefined) {
-      const queueAvailW = qr.end - qr.start;
-      if (queueAvailW > s.figureStride) {
-        const upColor = stop.waiting_up > 0 ? UP_COLOR : DOWN_COLOR;
-        drawFigureRow(
-          ctx,
-          qr.end - 2,
-          y,
-          -1,
-          queueAvailW,
-          totalWaiting,
-          upColor,
-          s,
-          stop.entity_id,
-        );
-      } else {
-        drawUnassigned(ctx, waitingGutter, y, stop, s, gutterW);
-      }
-    } else {
-      drawUnassigned(ctx, waitingGutter, y, stop, s, gutterW);
-    }
+    const y = toScreenY(stop.y);
+    const color = stop.waiting_up >= stop.waiting_down ? UP_COLOR : DOWN_COLOR;
+    drawFigureRow(ctx, qr.end - 2, y, -1, queueAvailW, totalWaiting, color, s, stop.entity_id);
   }
-}
-
-function drawUnassigned(
-  ctx: CanvasRenderingContext2D,
-  waitingGutter: { start: number; end: number },
-  y: number,
-  stop: Snapshot["stops"][number],
-  s: Scale,
-  gutterW: number,
-): void {
-  const total = stop.waiting_up + stop.waiting_down;
-  const color = stop.waiting_up >= stop.waiting_down ? UP_COLOR : DOWN_COLOR;
-  drawFigureRow(ctx, waitingGutter.end - 2, y, -1, gutterW, total, color, s, stop.entity_id);
 }

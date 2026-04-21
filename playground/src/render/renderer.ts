@@ -182,10 +182,9 @@ export class CanvasRenderer {
 
     // Layout — spread each car into its own column with a queue slot.
     const innerW = Math.max(0, w - 2 * s.padX - s.labelW);
-    const waitingGutterW = s.figureGutterW;
     const minQueueW = s.figureStride * 2;
-    const colGaps = s.gutterGap + s.shaftSpacing * Math.max(totalShafts - 1, 0);
-    const budgetForCols = innerW - waitingGutterW - s.gutterGap - colGaps;
+    const colGaps = s.shaftSpacing * Math.max(totalShafts - 1, 0);
+    const budgetForCols = innerW - colGaps;
     const perColBudget = budgetForCols / Math.max(totalShafts, 1);
     const effectiveMaxShaftInnerW = isTether ? 34 : s.maxShaftInnerW;
     const rawShaftW = Math.max(
@@ -225,8 +224,7 @@ export class CanvasRenderer {
     s.carH = carH;
 
     const labelRight = s.padX + s.labelW;
-    const waitingGutter = { start: labelRight, end: labelRight + waitingGutterW };
-    const columnsLeft = waitingGutter.end + s.gutterGap;
+    const columnsLeft = labelRight;
     const colW = shaftInnerW + queueW;
 
     // Resolve each shaft's center x and queue region.
@@ -337,16 +335,8 @@ export class CanvasRenderer {
     drawShaftChannels(ctx, shaftExtents);
     drawShaftLabels(ctx, shaftLabelList, s);
     drawFloors(ctx, snap, toScreenY, s, shaftCenters, w, loadingAtFloor, stopsTop, isTether);
-    drawCarHeaders(ctx, s, snap.cars, carX, waitingGutter);
-    drawWaitingFigures(
-      ctx,
-      snap,
-      toScreenY,
-      s,
-      waitingGutter,
-      carQueueRegion,
-      this.#stopAssignments,
-    );
+    drawCarHeaders(ctx, s, snap.cars, carX);
+    drawWaitingFigures(ctx, snap, toScreenY, s, carQueueRegion, this.#stopAssignments);
     drawTargetMarkers(ctx, snap, carX, shaftInnerPerCar, toScreenY, s, stopIdxById);
 
     for (const [carId, cx] of carX) {
@@ -360,7 +350,7 @@ export class CanvasRenderer {
       drawCar(ctx, car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s, state?.roster);
     }
 
-    this.#computeTweens(snap, carX, carQueueRegion, waitingGutterW, toScreenY, s, speedMultiplier);
+    this.#computeTweens(snap, carX, carQueueRegion, toScreenY, s, speedMultiplier);
     this.#drawTweens(s);
 
     if (bubbles && bubbles.size > 0) {
@@ -374,7 +364,6 @@ export class CanvasRenderer {
     snap: Snapshot,
     carX: Map<number, number>,
     carQueueRegion: Map<number, { start: number; end: number }>,
-    waitingGutterW: number,
     toScreenY: (y: number) => number,
     s: Scale,
     speedMultiplier: number,
@@ -499,7 +488,7 @@ export class CanvasRenderer {
         const abandons = Math.max(0, dropped - boards);
         if (abandons > 0) {
           const stopY = toScreenY(stop.y);
-          const startX = s.padX + s.labelW + waitingGutterW / 2;
+          const startX = s.padX + s.labelW + 20;
           const count = Math.min(abandons, 4);
           for (let k = 0; k < count; k++) {
             this.#tweens.push({
