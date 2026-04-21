@@ -1,0 +1,37 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_wasmsim_free: (a: number, b: number) => void;
+export const builtinRepositionStrategies: () => [number, number];
+export const builtinStrategies: () => [number, number];
+export const wasmsim_currentTick: (a: number) => bigint;
+export const wasmsim_drainEvents: (a: number) => [number, number];
+export const wasmsim_dt: (a: number) => number;
+export const wasmsim_metrics: (a: number) => any;
+export const wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+export const wasmsim_repositionStrategyName: (a: number) => [number, number];
+export const wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
+export const wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
+export const wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => [number, number];
+export const wasmsim_setEtdWithWaitSquaredWeight: (a: number, b: number) => void;
+export const wasmsim_setHallCallModeDestination: (a: number) => void;
+export const wasmsim_setMaxSpeedAll: (a: number, b: number) => [number, number];
+export const wasmsim_setReposition: (a: number, b: number, c: number) => number;
+export const wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
+export const wasmsim_setStrategy: (a: number, b: number, c: number) => number;
+export const wasmsim_setTrafficRate: (a: number, b: number) => void;
+export const wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
+export const wasmsim_snapshot: (a: number) => any;
+export const wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const wasmsim_stepMany: (a: number, b: number) => void;
+export const wasmsim_strategyName: (a: number) => [number, number];
+export const wasmsim_trafficMode: (a: number) => [number, number];
+export const wasmsim_trafficRate: (a: number) => number;
+export const wasmsim_waitingCountAt: (a: number, b: number) => number;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __externref_drop_slice: (a: number, b: number) => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;
