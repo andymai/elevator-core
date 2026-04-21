@@ -138,6 +138,64 @@ fn bench_spawn_pressure(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
+// D) World-record scale: Shanghai Tower
+//
+// Shanghai Tower (上海中心大厦) holds the working world record for
+// most elevators in a single skyscraper: **149 lifts** (Mitsubishi
+// Electric package) across **133 stops** (128 above ground + 5
+// below). The real building zones these into an observation
+// shuttle, a sky-lobby shuttle bank, and five local zones, but this
+// bench keeps a single group so the numbers are directly comparable
+// with the other `scaling_*` cases.
+//
+// Traffic grounding — Shanghai Tower has ~16 000 concurrent
+// occupants at peak (CTBUH), and commercial elevator-planning
+// practice sizes morning up-peak to handle 11–15 % of population in
+// a 5-minute window. That's ~6–8 lobby arrivals per second; in a
+// 100-tick (≈1.67 s at 60 Hz) slice, realistic queue depth is a
+// few hundred riders, not a few thousand. The two bench cases below
+// anchor both ends:
+//
+// - `realistic_up_peak_300r` — mid-peak queue depth (~300 riders
+//   waiting for service). Matches the arrival rate published
+//   traffic models predict for this building class.
+// - `stress_2000r` — worst-case queue (evacuation, major event let
+//   out). Not a typical operating state; included as a "don't
+//   regress under extreme load" ceiling.
+// ---------------------------------------------------------------------------
+
+fn bench_shanghai_tower(c: &mut Criterion) {
+    let mut group = c.benchmark_group("scaling_shanghai_tower");
+    group.sample_size(10);
+
+    group.bench_function("realistic_up_peak_300r_100ticks", |b| {
+        b.iter_batched(
+            || make_sim(133, 149, 300),
+            |mut sim| {
+                for _ in 0..100 {
+                    sim.step();
+                }
+            },
+            criterion::BatchSize::LargeInput,
+        );
+    });
+
+    group.bench_function("stress_2000r_100ticks", |b| {
+        b.iter_batched(
+            || make_sim(133, 149, 2_000),
+            |mut sim| {
+                for _ in 0..100 {
+                    sim.step();
+                }
+            },
+            criterion::BatchSize::LargeInput,
+        );
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
 // Criterion harness
 // ---------------------------------------------------------------------------
 
@@ -145,6 +203,7 @@ criterion_group!(
     benches,
     bench_realistic,
     bench_extreme,
-    bench_spawn_pressure
+    bench_spawn_pressure,
+    bench_shanghai_tower
 );
 criterion_main!(benches);
