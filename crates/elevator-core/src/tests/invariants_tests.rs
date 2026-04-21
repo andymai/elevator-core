@@ -284,9 +284,12 @@ impl MonotoneSnapshot {
 
 /// Budget on the number of ticks to drive each case. Scenarios with
 /// 30 riders across 6 stops and a single car routinely need 3–5k
-/// ticks; 8k gives headroom so cases don't spuriously trip a "stuck"
-/// check inside an invariant (there is no such check — we stop when
-/// the budget is exhausted regardless of delivery state).
+/// ticks; 8k gives headroom so the liveness invariant
+/// ([`all_riders_reach_terminal_phase_across_strategies`]) doesn't
+/// spuriously flag a case where dispatch just needed more time. If
+/// a strategy legitimately requires &gt; 8k ticks to drain a
+/// workload this generator produces, that's itself a bug worth
+/// surfacing.
 const TICK_BUDGET: u64 = 8_000;
 
 // ── Invariants ──────────────────────────────────────────────────────
