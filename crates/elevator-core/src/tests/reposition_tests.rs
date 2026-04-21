@@ -1130,3 +1130,34 @@ fn etd_zero_max_speed_infinite_cost() {
     let b_dec = decisions.iter().find(|(e, _)| *e == elev_b).unwrap();
     assert_eq!(b_dec.1, DispatchDecision::GoToStop(stops[1]));
 }
+
+// ── builtin_id round-trip identity (regression for #411-style drift) ──
+
+/// `set_reposition` now consults the strategy's own `builtin_id()` to
+/// fill in the snapshot identity, so a caller passing a mismatched
+/// `id` argument (or a stale config value) can't silently record the
+/// wrong type. The strategy's runtime type always wins for built-ins.
+#[test]
+fn set_reposition_prefers_strategy_builtin_id_over_arg() {
+    use crate::dispatch::BuiltinReposition;
+    use crate::dispatch::reposition::SpreadEvenly;
+    use crate::ids::GroupId;
+    use crate::sim::Simulation;
+    use crate::tests::helpers;
+
+    let mut sim = Simulation::new(&helpers::default_config(), helpers::scan()).unwrap();
+    // Caller claims ReturnToLobby while actually passing SpreadEvenly —
+    // pre-fix this silently recorded ReturnToLobby, so a snapshot
+    // round-trip would instantiate the wrong strategy on restore.
+    sim.set_reposition(
+        GroupId(0),
+        Box::new(SpreadEvenly),
+        BuiltinReposition::ReturnToLobby,
+    );
+    assert_eq!(
+        sim.reposition_id(GroupId(0)),
+        Some(&BuiltinReposition::SpreadEvenly),
+        "strategy.builtin_id() must override the caller-supplied id \
+         when the strategy identifies as a known built-in",
+    );
+}
