@@ -11,7 +11,7 @@ use elevator_core::events::Event;
 use elevator_core::prelude::{ElevatorPhase, Simulation};
 use serde::Serialize;
 use slotmap::Key;
-use tsify_next::Tsify;
+use tsify::Tsify;
 
 /// Per-elevator rendering snapshot.
 #[derive(Serialize, Tsify)]
