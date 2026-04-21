@@ -12,8 +12,8 @@
 
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
-    BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, LookDispatch,
-    NearestCarDispatch, RsrDispatch, ScanDispatch,
+    BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, HallCallMode,
+    LookDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
 };
 use elevator_core::prelude::{Simulation, StopId};
 use wasm_bindgen::prelude::*;
@@ -465,7 +465,6 @@ impl WasmSim {
     /// that want DCS (e.g. the hotel) call this once on load.
     #[wasm_bindgen(js_name = setHallCallModeDestination)]
     pub fn set_hall_call_mode_destination(&mut self) {
-        use elevator_core::dispatch::HallCallMode;
         for group in self.inner.groups_mut() {
             group.set_hall_call_mode(HallCallMode::Destination);
         }
