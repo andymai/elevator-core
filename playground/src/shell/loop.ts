@@ -46,6 +46,11 @@ export function loop(state: State, ui: UiHandles): void {
         if (events.length > 0) {
           const snap = pane.sim.snapshot();
           updateBubbles(pane, events, snap);
+          for (const ev of events) {
+            if (ev.kind === "elevator-assigned") {
+              pane.renderer.pushAssignment(ev.stop, ev.elevator);
+            }
+          }
         }
       });
 

@@ -9,13 +9,8 @@ import {
   UP_COLOR,
 } from "./palette";
 import { truncate } from "./primitives";
-import type { Snapshot } from "../types";
+import type { CarDto, Snapshot } from "../types";
 
-/**
- * Paint each shaft column as a recessed channel with two vertical
- * rails. Drawn before floors so the horizontal slab's door-gaps
- * visibly "cut" through this channel rather than sitting on top.
- */
 export function drawShaftChannels(
   ctx: CanvasRenderingContext2D,
   extents: Array<{
@@ -47,10 +42,6 @@ export function drawShaftChannels(
   }
 }
 
-/**
- * Short name strip above each shaft group (e.g., `LOW`, `HIGH`,
- * `EXEC`, `SVC`). Lets users tell the banks apart at a glance.
- */
 export function drawShaftLabels(
   ctx: CanvasRenderingContext2D,
   labels: Array<{ cx: number; top: number; text: string; color: string }>,
@@ -66,10 +57,6 @@ export function drawShaftLabels(
   }
 }
 
-/**
- * Draw each floor as a thin slab with door-gap breaks where shafts
- * intersect. Tether mode overrides the slab into a short platform bar.
- */
 export function drawFloors(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
@@ -124,7 +111,6 @@ export function drawFloors(
     }
     ctx.stroke();
 
-    // Door marks.
     for (let j = 0; j < shaftCenters.length; j++) {
       const cx = shaftCenters[j];
       if (cx === undefined) continue;
@@ -147,65 +133,90 @@ export function drawFloors(
 }
 
 /**
- * Label each gutter with its direction in the top padding region.
+ * Label the waiting gutter and each car column in the top padding.
  */
-export function drawGutterHeaders(
+export function drawCarHeaders(
   ctx: CanvasRenderingContext2D,
   s: Scale,
-  leftGutter: { start: number; end: number },
-  rightGutter: { start: number; end: number },
+  cars: readonly CarDto[],
+  carX: Map<number, number>,
+  waitingGutter: { start: number; end: number },
 ): void {
   const y = s.padTop / 2 + 1;
   ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textBaseline = "middle";
 
-  ctx.textAlign = "right";
-  ctx.fillStyle = UP_COLOR;
-  ctx.fillText("\u25b2 UP", leftGutter.end - 2, y);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#8b8c92";
+  ctx.fillText("Waiting", (waitingGutter.start + waitingGutter.end) / 2, y);
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = DOWN_COLOR;
-  ctx.fillText("DOWN \u25bc", rightGutter.start + 2, y);
+  let carNum = 1;
+  for (const car of cars) {
+    const cx = carX.get(car.id);
+    if (cx === undefined) continue;
+    ctx.fillStyle = "#a1a1aa";
+    ctx.textAlign = "center";
+    ctx.fillText(`Car ${carNum}`, cx, y);
+    carNum++;
+  }
 }
 
 /**
- * Draw waiting riders as side-profile silhouettes on each floor.
+ * Draw waiting riders — unassigned in the shared gutter, assigned
+ * in the queue area next to the elevator they've been assigned to.
  */
 export function drawWaitingFigures(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
   toScreenY: (y: number) => number,
   s: Scale,
-  leftGutter: { start: number; end: number },
-  rightGutter: { start: number; end: number },
+  waitingGutter: { start: number; end: number },
+  carQueueRegion: Map<number, { start: number; end: number }>,
+  stopAssignments: Map<number, number>,
 ): void {
+  const gutterW = waitingGutter.end - waitingGutter.start;
+
   for (const stop of snap.stops) {
     const y = toScreenY(stop.y);
-    if (stop.waiting_up > 0) {
-      drawFigureRow(
-        ctx,
-        leftGutter.end,
-        y,
-        -1,
-        leftGutter.end - leftGutter.start,
-        stop.waiting_up,
-        UP_COLOR,
-        s,
-        stop.entity_id,
-      );
-    }
-    if (stop.waiting_down > 0) {
-      drawFigureRow(
-        ctx,
-        rightGutter.start,
-        y,
-        1,
-        rightGutter.end - rightGutter.start,
-        stop.waiting_down,
-        DOWN_COLOR,
-        s,
-        stop.entity_id,
-      );
+    const totalWaiting = stop.waiting_up + stop.waiting_down;
+    if (totalWaiting === 0) continue;
+
+    const assignedCarId = stopAssignments.get(stop.entity_id);
+    const qr = assignedCarId !== undefined ? carQueueRegion.get(assignedCarId) : undefined;
+
+    if (qr && assignedCarId !== undefined) {
+      const queueAvailW = qr.end - qr.start;
+      if (queueAvailW > s.figureStride) {
+        const upColor = stop.waiting_up > 0 ? UP_COLOR : DOWN_COLOR;
+        drawFigureRow(
+          ctx,
+          qr.end - 2,
+          y,
+          -1,
+          queueAvailW,
+          totalWaiting,
+          upColor,
+          s,
+          stop.entity_id,
+        );
+      } else {
+        drawUnassigned(ctx, waitingGutter, y, stop, s, gutterW);
+      }
+    } else {
+      drawUnassigned(ctx, waitingGutter, y, stop, s, gutterW);
     }
   }
+}
+
+function drawUnassigned(
+  ctx: CanvasRenderingContext2D,
+  waitingGutter: { start: number; end: number },
+  y: number,
+  stop: Snapshot["stops"][number],
+  s: Scale,
+  gutterW: number,
+): void {
+  const total = stop.waiting_up + stop.waiting_down;
+  const color = stop.waiting_up >= stop.waiting_down ? UP_COLOR : DOWN_COLOR;
+  drawFigureRow(ctx, waitingGutter.end - 2, y, -1, gutterW, total, color, s, stop.entity_id);
 }

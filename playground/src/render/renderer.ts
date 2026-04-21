@@ -1,8 +1,8 @@
 import type { CarDto, CarBubble, Snapshot } from "../types";
 import { arcPoint, easeOutNorm, hexWithAlpha } from "./color-utils";
 import {
+  drawCarHeaders,
   drawFloors,
-  drawGutterHeaders,
   drawShaftChannels,
   drawShaftLabels,
   drawWaitingFigures,
@@ -66,6 +66,7 @@ export class CanvasRenderer {
   readonly #carStates: Map<number, CarState> = new Map();
   readonly #stopStates: Map<number, StopState> = new Map();
   readonly #tweens: Tween[] = [];
+  readonly #stopAssignments: Map<number, number> = new Map();
 
   constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
@@ -86,6 +87,10 @@ export class CanvasRenderer {
 
   get canvas(): HTMLCanvasElement {
     return this.#canvas;
+  }
+
+  pushAssignment(stopId: number, elevatorId: number): void {
+    this.#stopAssignments.set(stopId, elevatorId);
   }
 
   #resize(): void {
@@ -175,16 +180,23 @@ export class CanvasRenderer {
     const lineIds = [...byLine.keys()].sort((a, b) => a - b);
     const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 0), 0);
 
-    // Layout.
+    // Layout — spread each car into its own column with a queue slot.
     const innerW = Math.max(0, w - 2 * s.padX - s.labelW);
-    const shaftBankBudget = innerW - 2 * s.figureGutterW - 2 * s.gutterGap;
-    const perShaftRoom =
-      (shaftBankBudget - s.shaftSpacing * Math.max(totalShafts - 1, 0)) / Math.max(totalShafts, 1);
+    const waitingGutterW = s.figureGutterW;
+    const minQueueW = s.figureStride * 2;
+    const colGaps = s.gutterGap + s.shaftSpacing * Math.max(totalShafts - 1, 0);
+    const budgetForCols = innerW - waitingGutterW - s.gutterGap - colGaps;
+    const perColBudget = budgetForCols / Math.max(totalShafts, 1);
     const effectiveMaxShaftInnerW = isTether ? 34 : s.maxShaftInnerW;
-    const shaftInnerW = Math.max(s.minShaftInnerW, Math.min(effectiveMaxShaftInnerW, perShaftRoom));
-    const shaftBankW = shaftInnerW * totalShafts + s.shaftSpacing * Math.max(totalShafts - 1, 0);
-    const remainingForGutters = Math.max(0, innerW - shaftBankW - 2 * s.gutterGap);
-    const gutterEach = Math.max(s.figureGutterW, remainingForGutters / 2);
+    const rawShaftW = Math.max(
+      s.minShaftInnerW,
+      Math.min(effectiveMaxShaftInnerW, perColBudget * 0.55),
+    );
+    const shaftInnerW = rawShaftW;
+    const queueW = Math.max(
+      0,
+      Math.min(perColBudget - shaftInnerW, minQueueW + s.figureStride * 4),
+    );
     const carW = Math.max(14, shaftInnerW - 6);
 
     let minStoryPx = Infinity;
@@ -213,21 +225,25 @@ export class CanvasRenderer {
     s.carH = carH;
 
     const labelRight = s.padX + s.labelW;
-    const leftGutter = { start: labelRight, end: labelRight + gutterEach };
-    const shaftsLeft = leftGutter.end + s.gutterGap;
-    const shaftsRight = shaftsLeft + shaftBankW;
-    const rightGutter = { start: shaftsRight + s.gutterGap, end: w - s.padX };
+    const waitingGutter = { start: labelRight, end: labelRight + waitingGutterW };
+    const columnsLeft = waitingGutter.end + s.gutterGap;
+    const colW = shaftInnerW + queueW;
 
-    // Resolve each shaft's center x.
+    // Resolve each shaft's center x and queue region.
     const shaftCenters: number[] = [];
     const carX = new Map<number, number>();
+    const carQueueRegion = new Map<number, { start: number; end: number }>();
     let shaftIdx = 0;
     for (const lineId of lineIds) {
       const cars = byLine.get(lineId) ?? [];
       for (const car of cars) {
-        const cx = shaftsLeft + s.shaftInnerW / 2 + shaftIdx * (s.shaftInnerW + s.shaftSpacing);
+        const colLeft = columnsLeft + shaftIdx * (colW + s.shaftSpacing);
+        const qStart = colLeft;
+        const qEnd = colLeft + queueW;
+        const cx = qEnd + shaftInnerW / 2;
         shaftCenters.push(cx);
         carX.set(car.id, cx);
+        carQueueRegion.set(car.id, { start: qStart, end: qEnd });
         shaftIdx++;
       }
     }
@@ -321,8 +337,16 @@ export class CanvasRenderer {
     drawShaftChannels(ctx, shaftExtents);
     drawShaftLabels(ctx, shaftLabelList, s);
     drawFloors(ctx, snap, toScreenY, s, shaftCenters, w, loadingAtFloor, stopsTop, isTether);
-    drawGutterHeaders(ctx, s, leftGutter, rightGutter);
-    drawWaitingFigures(ctx, snap, toScreenY, s, leftGutter, rightGutter);
+    drawCarHeaders(ctx, s, snap.cars, carX, waitingGutter);
+    drawWaitingFigures(
+      ctx,
+      snap,
+      toScreenY,
+      s,
+      waitingGutter,
+      carQueueRegion,
+      this.#stopAssignments,
+    );
     drawTargetMarkers(ctx, snap, carX, shaftInnerPerCar, toScreenY, s, stopIdxById);
 
     for (const [carId, cx] of carX) {
@@ -336,7 +360,7 @@ export class CanvasRenderer {
       drawCar(ctx, car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s, state?.roster);
     }
 
-    this.#computeTweens(snap, carX, shaftInnerPerCar, toScreenY, s, speedMultiplier);
+    this.#computeTweens(snap, carX, carQueueRegion, waitingGutterW, toScreenY, s, speedMultiplier);
     this.#drawTweens(s);
 
     if (bubbles && bubbles.size > 0) {
@@ -349,7 +373,8 @@ export class CanvasRenderer {
   #computeTweens(
     snap: Snapshot,
     carX: Map<number, number>,
-    shaftInnerPerCar: Map<number, number>,
+    carQueueRegion: Map<number, { start: number; end: number }>,
+    waitingGutterW: number,
     toScreenY: (y: number) => number,
     s: Scale,
     speedMultiplier: number,
@@ -383,10 +408,15 @@ export class CanvasRenderer {
           const count = Math.min(Math.abs(delta), 6);
           if (delta > 0) {
             const useUp = loadStop.waiting_up >= loadStop.waiting_down;
-            const shaftHalfForCar = (shaftInnerPerCar.get(car.id) ?? s.shaftInnerW) / 2;
-            const gutterOffset = shaftHalfForCar + 6;
-            const originX = useUp ? cx - gutterOffset : cx + gutterOffset;
+            const qr = carQueueRegion.get(car.id);
+            let originX = cx - 20;
+            if (qr !== undefined) {
+              const qs: number = qr.start;
+              const qe: number = qr.end;
+              originX = (qs + qe) / 2;
+            }
             const color = useUp ? UP_COLOR : DOWN_COLOR;
+            this.#stopAssignments.delete(loadStop.entity_id);
             for (let k = 0; k < count; k++) {
               carTweens.push(() =>
                 this.#tweens.push({
@@ -469,7 +499,7 @@ export class CanvasRenderer {
         const abandons = Math.max(0, dropped - boards);
         if (abandons > 0) {
           const stopY = toScreenY(stop.y);
-          const startX = s.padX + s.labelW + s.figureGutterW / 2;
+          const startX = s.padX + s.labelW + waitingGutterW / 2;
           const count = Math.min(abandons, 4);
           for (let k = 0; k < count; k++) {
             this.#tweens.push({
