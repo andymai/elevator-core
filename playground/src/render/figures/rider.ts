@@ -1,37 +1,25 @@
 /**
- * Side-profile rider silhouettes inspired by SimTower. Each variant
- * is a distinct person shape drawn in profile — an asymmetric polygon
- * with a head, torso, and legs. `facing` flips the profile so riders
- * can look left or right.
+ * Silhouette archetypes for rider variation. Picked deterministically
+ * per (stop, slot-index) or (car, slot-index) via `pickRiderVariant`
+ * so each slot stays stable across frames but the crowd as a whole
+ * reads as a mix of individuals rather than a row of clones.
  *
- * Variants are picked deterministically per (container, slot-index)
- * via `pickRiderVariant` so each slot stays stable across frames but
- * the crowd reads as a mix of individuals.
+ * - `standard` -- the default humanoid (baseline sims).
+ * - `briefcase` -- standard + small rectangular case at right hip.
+ * - `bag` -- standard + rounded shoulder-bag blob at left shoulder.
+ * - `short` -- smaller all around (reads as a child or shorter adult).
+ * - `tall` -- taller and slimmer (reads as a longer-built adult).
  */
-
-export type RiderVariant =
-  | "standard"
-  | "briefcase"
-  | "ponytail"
-  | "stocky"
-  | "tall"
-  | "child"
-  | "backpack";
-
-const RIDER_VARIANTS: readonly RiderVariant[] = [
-  "standard",
-  "briefcase",
-  "ponytail",
-  "stocky",
-  "tall",
-  "child",
-  "backpack",
-];
-
-export type Facing = "left" | "right";
+export type RiderVariant = "standard" | "briefcase" | "bag" | "short" | "tall";
+const RIDER_VARIANTS: readonly RiderVariant[] = ["standard", "briefcase", "bag", "short", "tall"];
 
 /**
  * Hash `(seedA, seedB)` to a silhouette variant deterministically.
+ * Uses the same `Math.imul` FNV-style mix the seed word hasher uses
+ * so the result is stable across browsers and machines. Caller
+ * supplies `seedA` as the parent entity id (stop or car) and `seedB`
+ * as the slot index within that container -- same combination -> same
+ * variant on every frame.
  */
 export function pickRiderVariant(seedA: number, seedB: number): RiderVariant {
   let h = (seedA ^ 0x9e3779b9) >>> 0;
@@ -41,122 +29,63 @@ export function pickRiderVariant(seedA: number, seedB: number): RiderVariant {
   return RIDER_VARIANTS[h % RIDER_VARIANTS.length] ?? "standard";
 }
 
-interface ProfileProps {
+function variantProps(
+  variant: RiderVariant,
+  baseHeadR: number,
+): {
   headR: number;
-  /** Head center offset forward from body center (nose direction). */
-  headFwd: number;
-  bodyW: number;
-  /** Body height from shoulders to ankles (not including feet). */
+  shoulderW: number;
+  waistW: number;
+  footW: number;
   bodyH: number;
   neckGap: number;
-  /** Forward lean of the torso center relative to the feet. */
-  lean: number;
-  /** Chest protrusion forward from the body center line. */
-  chestFwd: number;
-  /** Back protrusion behind the body center line. */
-  backFwd: number;
-  /** Leg separation at the ankles (profile depth). */
-  legSep: number;
-  /** Height of the shoe/foot below the ankle. */
-  footH: number;
-  /** How far the shoe extends forward past the ankle. */
-  footFwd: number;
-  /** How far the shoe extends backward past the ankle. */
-  footBack: number;
-}
-
-function variantProps(variant: RiderVariant, baseR: number): ProfileProps {
+} {
   switch (variant) {
-    case "child":
+    case "short": {
+      const r = baseHeadR * 0.82;
       return {
-        headR: baseR * 0.9,
-        headFwd: baseR * 0.15,
-        bodyW: baseR * 1.6,
-        bodyH: baseR * 3.4,
-        neckGap: baseR * 0.15,
-        lean: baseR * 0.1,
-        chestFwd: baseR * 0.9,
-        backFwd: baseR * 0.7,
-        legSep: baseR * 0.3,
-        footH: Math.max(0.8, baseR * 0.35),
-        footFwd: baseR * 0.55,
-        footBack: baseR * 0.15,
+        headR: r,
+        shoulderW: r * 2.3,
+        waistW: r * 1.6,
+        footW: r * 1.9,
+        bodyH: r * 5.2,
+        neckGap: r * 0.2,
       };
-    case "tall":
+    }
+    case "tall": {
       return {
-        headR: baseR * 1.0,
-        headFwd: baseR * 0.2,
-        bodyW: baseR * 1.5,
-        bodyH: baseR * 6.5,
-        neckGap: baseR * 0.2,
-        lean: baseR * 0.15,
-        chestFwd: baseR * 0.8,
-        backFwd: baseR * 0.65,
-        legSep: baseR * 0.35,
-        footH: Math.max(1, baseR * 0.45),
-        footFwd: baseR * 0.7,
-        footBack: baseR * 0.2,
+        headR: baseHeadR * 1.05,
+        shoulderW: baseHeadR * 2.2,
+        waistW: baseHeadR * 1.5,
+        footW: baseHeadR * 1.9,
+        bodyH: baseHeadR * 7.5,
+        neckGap: baseHeadR * 0.2,
       };
-    case "stocky":
-      return {
-        headR: baseR * 1.05,
-        headFwd: baseR * 0.15,
-        bodyW: baseR * 2.2,
-        bodyH: baseR * 4.7,
-        neckGap: baseR * 0.15,
-        lean: baseR * 0.05,
-        chestFwd: baseR * 1.2,
-        backFwd: baseR * 1.0,
-        legSep: baseR * 0.4,
-        footH: Math.max(1, baseR * 0.45),
-        footFwd: baseR * 0.75,
-        footBack: baseR * 0.25,
-      };
-    case "ponytail":
-      return {
-        headR: baseR * 0.95,
-        headFwd: baseR * 0.2,
-        bodyW: baseR * 1.7,
-        bodyH: baseR * 5.1,
-        neckGap: baseR * 0.2,
-        lean: baseR * 0.15,
-        chestFwd: baseR * 0.9,
-        backFwd: baseR * 0.7,
-        legSep: baseR * 0.3,
-        footH: Math.max(1, baseR * 0.4),
-        footFwd: baseR * 0.6,
-        footBack: baseR * 0.15,
-      };
+    }
     case "standard":
     case "briefcase":
-    case "backpack":
+    case "bag":
     default:
       return {
-        headR: baseR,
-        headFwd: baseR * 0.2,
-        bodyW: baseR * 1.8,
-        bodyH: baseR * 5.1,
-        neckGap: baseR * 0.2,
-        lean: baseR * 0.1,
-        chestFwd: baseR * 0.9,
-        backFwd: baseR * 0.75,
-        legSep: baseR * 0.35,
-        footH: Math.max(1, baseR * 0.45),
-        footFwd: baseR * 0.65,
-        footBack: baseR * 0.2,
+        headR: baseHeadR,
+        shoulderW: baseHeadR * 2.5,
+        waistW: baseHeadR * 1.7,
+        footW: baseHeadR * 2,
+        bodyH: baseHeadR * 6,
+        neckGap: baseHeadR * 0.2,
       };
   }
 }
 
 /**
- * Draw a side-profile rider silhouette. `facing` controls which
- * direction the figure looks: "right" means the nose points toward
- * +x. The figure's feet rest on `floorY`.
+ * Draw a front-facing rider silhouette: small filled head over a
+ * tapered humanoid body (wider shoulders narrowing toward the feet,
+ * with a softly rounded top and slightly flared base). Five variants
+ * pick different proportions and optional accessory marks so a queue
+ * of riders reads as a mix of people rather than a row of clones.
  *
- * The profile is built from signed x-offsets relative to the figure's
- * center `x`. A `facing === "left"` figure uses negative offsets for
- * the "forward" direction; "right" uses positive. This avoids
- * ctx.save/scale/restore overhead in hot draw loops.
+ * Feet rest on `floorY`. Total height ~= headR x 8.2 for `standard`,
+ * a bit less for `short` and a bit more for `tall`.
  */
 export function drawRider(
   ctx: CanvasRenderingContext2D,
@@ -165,128 +94,55 @@ export function drawRider(
   headR: number,
   color: string,
   variant: RiderVariant = "standard",
-  facing: Facing = "right",
 ): void {
   const p = variantProps(variant, headR);
-  const f = facing === "right" ? 1 : -1;
-  const groundY = floorY - 0.5;
-  const ankleY = groundY - p.footH;
-  const bodyTop = ankleY - p.bodyH;
-  const headCY = bodyTop - p.neckGap - p.headR;
-  const headCX = x + f * p.headFwd;
-
-  const midY = bodyTop + p.bodyH * 0.45;
-  const torsoX = x + f * p.lean;
-
-  // Front and back ankle x-positions (where legs meet feet).
-  const frontAnkleX = torsoX + f * p.legSep + f * p.chestFwd * 0.2;
-  const backAnkleX = torsoX - f * p.legSep - f * p.backFwd * 0.1;
+  const feetY = floorY - 0.5;
+  const bodyBottom = feetY;
+  const bodyTop = bodyBottom - p.bodyH;
+  const headCenterY = bodyTop - p.neckGap - p.headR;
+  const shoulderRound = p.bodyH * 0.08;
+  const waistBendY = bodyBottom - p.headR * 0.8;
 
   ctx.fillStyle = color;
-
-  // --- Body silhouette (profile polygon, shoulders to ankles) ---
   ctx.beginPath();
-  ctx.moveTo(torsoX + f * p.chestFwd * 0.6, bodyTop);
-  ctx.lineTo(torsoX + f * p.chestFwd, midY - p.bodyH * 0.05);
-  ctx.lineTo(torsoX + f * p.chestFwd * 0.5, ankleY - p.bodyH * 0.25);
-  ctx.lineTo(frontAnkleX, ankleY);
-  ctx.lineTo(backAnkleX, ankleY);
-  ctx.lineTo(torsoX - f * p.backFwd * 0.45, ankleY - p.bodyH * 0.25);
-  ctx.lineTo(torsoX - f * p.backFwd, midY + p.bodyH * 0.05);
-  ctx.lineTo(torsoX - f * p.backFwd * 0.5, bodyTop);
+  ctx.moveTo(x - p.shoulderW / 2, bodyTop + shoulderRound);
+  ctx.lineTo(x - p.shoulderW / 2 + shoulderRound, bodyTop);
+  ctx.lineTo(x + p.shoulderW / 2 - shoulderRound, bodyTop);
+  ctx.lineTo(x + p.shoulderW / 2, bodyTop + shoulderRound);
+  ctx.lineTo(x + p.waistW / 2, waistBendY);
+  ctx.lineTo(x + p.footW / 2, bodyBottom);
+  ctx.lineTo(x - p.footW / 2, bodyBottom);
+  ctx.lineTo(x - p.waistW / 2, waistBendY);
   ctx.closePath();
   ctx.fill();
 
-  // --- Feet (two small shoes extending forward from each ankle) ---
-  // Front foot — shoe extends forward in the facing direction.
   ctx.beginPath();
-  ctx.rect(
-    facing === "right" ? frontAnkleX - p.footBack : frontAnkleX - p.footFwd,
-    ankleY,
-    p.footFwd + p.footBack,
-    p.footH,
-  );
-  ctx.fill();
-  // Back foot — slightly behind, same shoe shape.
-  ctx.beginPath();
-  ctx.rect(
-    facing === "right" ? backAnkleX - p.footBack : backAnkleX - p.footFwd,
-    ankleY,
-    p.footFwd + p.footBack,
-    p.footH,
-  );
+  ctx.arc(x, headCenterY, p.headR, 0, Math.PI * 2);
   ctx.fill();
 
-  // --- Head ---
-  ctx.beginPath();
-  ctx.arc(headCX, headCY, p.headR, 0, Math.PI * 2);
-  ctx.fill();
-
-  // --- Variant-specific accessories ---
   if (variant === "briefcase") {
-    // Rectangular case hanging from the forward hand at thigh height.
-    const caseW = Math.max(1.4, p.headR * 0.85);
-    const caseH = Math.max(1.2, p.headR * 0.7);
-    const caseX = torsoX + f * (p.chestFwd * 0.5 + caseW * 0.3);
-    const caseY = ankleY - p.bodyH * 0.22 - caseH;
-    ctx.fillRect(facing === "right" ? caseX : caseX - caseW, caseY, caseW, caseH);
-    // Handle
-    const handleW = caseW * 0.5;
-    const handleX =
-      facing === "right" ? caseX + (caseW - handleW) / 2 : caseX - caseW + (caseW - handleW) / 2;
-    ctx.fillRect(handleX, caseY - 1, handleW, 1);
-  } else if (variant === "ponytail") {
-    // Ponytail trailing behind the head.
-    const ptLen = p.headR * 1.4;
-    const ptW = Math.max(0.8, p.headR * 0.5);
-    const ptStartX = headCX - f * p.headR * 0.7;
-    const ptStartY = headCY - p.headR * 0.3;
-    const ptEndX = ptStartX - f * ptLen;
-    const ptEndY = headCY + p.headR * 0.6;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = ptW;
-    ctx.lineCap = "round";
+    const caseSize = Math.max(1.6, p.headR * 0.9);
+    const caseX = x + p.waistW / 2 + caseSize * 0.1;
+    const caseY = bodyBottom - caseSize - 0.5;
+    ctx.fillRect(caseX, caseY, caseSize, caseSize);
+    const handleW = caseSize * 0.55;
+    ctx.fillRect(caseX + (caseSize - handleW) / 2, caseY - 1, handleW, 1);
+  } else if (variant === "bag") {
+    const bagR = Math.max(1.3, p.headR * 0.9);
+    const bagX = x - p.shoulderW / 2 - bagR * 0.35;
+    const bagY = bodyTop + p.bodyH * 0.35;
     ctx.beginPath();
-    ctx.moveTo(ptStartX, ptStartY);
-    ctx.quadraticCurveTo(
-      ptStartX - f * ptLen * 0.5,
-      ptStartY + (ptEndY - ptStartY) * 0.2,
-      ptEndX,
-      ptEndY,
-    );
-    ctx.stroke();
-    ctx.lineCap = "butt";
-    ctx.lineWidth = 1;
-  } else if (variant === "tall") {
-    // Flat cap / hat brim extending forward from the head.
-    const brimLen = p.headR * 1.6;
-    const brimH = Math.max(0.8, p.headR * 0.35);
-    const brimY = headCY - p.headR - brimH + 0.3;
-    const brimBackX = headCX - f * p.headR * 0.4;
-    const brimFrontX = headCX + f * brimLen * 0.6;
-    ctx.fillRect(Math.min(brimBackX, brimFrontX), brimY, Math.abs(brimFrontX - brimBackX), brimH);
-  } else if (variant === "stocky") {
-    // Slight belly bump — no extra draw needed, the wider proportions
-    // handle it. But add a subtle collar/neck mark for character.
-    const collarW = p.bodyW * 0.35;
-    ctx.fillRect(torsoX - collarW / 2, bodyTop - 0.5, collarW, Math.max(0.8, p.headR * 0.25));
-  } else if (variant === "backpack") {
-    // Rounded backpack behind the torso.
-    const bpR = Math.max(1.2, p.headR * 0.95);
-    const bpX = torsoX - f * (p.backFwd + bpR * 0.4);
-    const bpY = bodyTop + p.bodyH * 0.3;
-    ctx.beginPath();
-    ctx.arc(bpX, bpY, bpR, 0, Math.PI * 2);
+    ctx.arc(bagX, bagY, bagR, 0, Math.PI * 2);
     ctx.fill();
-    // Strap line from top of backpack to the forward shoulder.
     ctx.strokeStyle = color;
-    ctx.lineWidth = 0.7;
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(bpX + f * bpR * 0.3, bpY - bpR * 0.8);
-    ctx.lineTo(torsoX + f * p.chestFwd * 0.4, bodyTop + 1);
+    ctx.moveTo(bagX + bagR * 0.2, bagY - bagR * 0.8);
+    ctx.lineTo(x + p.shoulderW / 2 - shoulderRound, bodyTop + 0.5);
     ctx.stroke();
-    ctx.lineWidth = 1;
+  } else if (variant === "tall") {
+    const hatW = p.headR * 2.1;
+    const hatH = Math.max(1, p.headR * 0.45);
+    ctx.fillRect(x - hatW / 2, headCenterY - p.headR - hatH + 0.4, hatW, hatH);
   }
-  // `child` and `standard` have no extra marks — their proportions
-  // are enough to read as distinct variants.
 }

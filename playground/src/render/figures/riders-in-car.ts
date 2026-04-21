@@ -1,14 +1,13 @@
 import type { Scale } from "../layout";
 import { OVERFLOW_COLOR } from "../palette";
-import type { Facing, RiderVariant } from "./rider";
+import type { RiderVariant } from "./rider";
 import { drawRider, pickRiderVariant } from "./rider";
 
 /**
- * Render riders inside a cabin as a row of side-profile silhouettes
- * standing on the cabin floor. When a `roster` is provided the
- * variants match the silhouettes that boarded from the gutter; when
- * absent it falls back to car-id hashing. All riders face the same
- * `facing` direction (derived from the car's travel direction).
+ * Render riders inside a cabin as a row of silhouettes standing on the
+ * cabin floor. When a `roster` is provided the variants match the
+ * silhouettes that boarded from the gutter; when absent it falls back
+ * to car-id hashing.
  */
 export function drawRidersInCar(
   ctx: CanvasRenderingContext2D,
@@ -20,7 +19,6 @@ export function drawRidersInCar(
   riderColor: string,
   s: Scale,
   roster?: RiderVariant[],
-  facing: Facing = "right",
 ): void {
   const fitByW = carW * 0.22;
   const fitByH = (carH - 4) / 10.5;
@@ -39,7 +37,7 @@ export function drawRidersInCar(
 
   for (let i = 0; i < visible; i++) {
     const variant = roster?.[i] ?? pickRiderVariant(0, i);
-    drawRider(ctx, startX + i * stride, floorY, headR, riderColor, variant, facing);
+    drawRider(ctx, startX + i * stride, floorY, headR, riderColor, variant);
   }
 
   if (count > visible) {
