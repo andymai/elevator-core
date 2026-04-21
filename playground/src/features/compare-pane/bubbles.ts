@@ -1,4 +1,4 @@
-import type { BubbleEvent, Snapshot } from "../../types";
+import type { EventDto, Snapshot } from "../../types";
 import type { Pane } from "./pane";
 
 /**
@@ -27,7 +27,7 @@ const BUBBLE_TTL_DEFAULT_MS = 1000;
  * [`resolveStopName`]; unresolved stop ids fall back to the numeric
  * id rather than dropping the bubble.
  */
-export function updateBubbles(pane: Pane, events: BubbleEvent[], snap: Snapshot): void {
+export function updateBubbles(pane: Pane, events: EventDto[], snap: Snapshot): void {
   const bornAt = performance.now();
   const stopName = (id: number): string => resolveStopName(snap, id);
   for (const ev of events) {
@@ -50,7 +50,7 @@ export function updateBubbles(pane: Pane, events: BubbleEvent[], snap: Snapshot)
  *  bubble ("Arrived at X", "Doors open") already narrates the context
  *  and re-firing on closure makes the car feel chatty without adding
  *  information. */
-function bubbleTextFor(ev: BubbleEvent, stopName: (id: number) => string): string | null {
+function bubbleTextFor(ev: EventDto, stopName: (id: number) => string): string | null {
   switch (ev.kind) {
     case "elevator-assigned":
       return `\u203a To ${stopName(ev.stop)}`;

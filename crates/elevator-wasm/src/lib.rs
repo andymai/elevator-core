@@ -316,46 +316,24 @@ impl WasmSim {
         self.traffic_rate
     }
 
-    /// Pull a cheap snapshot for rendering. Returns a plain JS object matching
-    /// the internal `dto::Snapshot` shape.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JS error only if serialization to `JsValue` fails, which
-    /// indicates a bug in the DTO layer rather than a runtime condition.
-    pub fn snapshot(&self) -> Result<JsValue, JsError> {
-        let snap = dto::Snapshot::build(&self.inner);
-        serde_wasm_bindgen::to_value(&snap)
-            .map_err(|e| JsError::new(&format!("snapshot encode: {e}")))
+    /// Pull a cheap snapshot for rendering.
+    pub fn snapshot(&self) -> dto::Snapshot {
+        dto::Snapshot::build(&self.inner)
     }
 
-    /// Drain all queued events since the last call. Returns an array of tagged
-    /// objects (matching the internal `dto::EventDto` shape).
-    ///
-    /// # Errors
-    ///
-    /// Returns a JS error only if serialization fails.
+    /// Drain all queued events since the last call.
     #[wasm_bindgen(js_name = drainEvents)]
-    pub fn drain_events(&mut self) -> Result<JsValue, JsError> {
-        let events: Vec<dto::EventDto> = self
-            .inner
+    pub fn drain_events(&mut self) -> Vec<dto::EventDto> {
+        self.inner
             .drain_events()
             .into_iter()
             .map(dto::EventDto::from)
-            .collect();
-        serde_wasm_bindgen::to_value(&events)
-            .map_err(|e| JsError::new(&format!("event encode: {e}")))
+            .collect()
     }
 
-    /// Current aggregate metrics. Returns a plain JS object.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JS error only if serialization fails.
-    pub fn metrics(&self) -> Result<JsValue, JsError> {
-        let out = dto::MetricsDto::build(&self.inner);
-        serde_wasm_bindgen::to_value(&out)
-            .map_err(|e| JsError::new(&format!("metrics encode: {e}")))
+    /// Current aggregate metrics.
+    pub fn metrics(&self) -> dto::MetricsDto {
+        dto::MetricsDto::build(&self.inner)
     }
 
     /// Convenience: waiting rider count at a specific stop id.

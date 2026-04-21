@@ -1,15 +1,16 @@
 import type {
-  BubbleEvent,
-  Metrics,
+  EventDto,
+  MetricsDto,
   RepositionStrategyName,
   Snapshot,
   StrategyName,
   TrafficMode,
 } from "../types";
 
-// Thin TS wrapper around `WasmSim` that narrows JS values returned by
-// serde-wasm-bindgen to our typed DTOs. Kept deliberately small — we don't
-// want a leaky abstraction over the bindgen surface.
+// Thin TS wrapper around `WasmSim`. The wasm-bindgen generated class
+// (in public/pkg/elevator_wasm.d.ts) carries full type info for DTOs,
+// but the dynamic import prevents static type-checking at the boundary.
+// These interfaces keep the wrapper self-describing.
 
 interface WasmModule {
   default: (input?: unknown) => Promise<unknown>;
@@ -26,24 +27,20 @@ interface WasmSimInstance {
   dt(): number;
   currentTick(): bigint;
   strategyName(): string;
-  trafficMode?(): string;
+  trafficMode(): string;
   setStrategy(name: string): boolean;
   spawnRider(origin: number, destination: number, weight: number, patienceTicks?: number): void;
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
-  snapshot(): unknown;
-  drainEvents(): unknown;
-  metrics(): unknown;
+  snapshot(): Snapshot;
+  drainEvents(): EventDto[];
+  metrics(): MetricsDto;
   waitingCountAt(stopId: number): number;
   free(): void;
-  // Live elevator-physics setters (uniform across every car). Optional
-  // until a fresh wasm-pack build ships them; the playground falls back
-  // to a sim rebuild when absent so a stale `public/pkg/` doesn't break
-  // local dev.
-  setMaxSpeedAll?(speed: number): void;
-  setWeightCapacityAll?(capacityKg: number): void;
-  setDoorOpenTicksAll?(ticks: number): void;
-  setDoorTransitionTicksAll?(ticks: number): void;
+  setMaxSpeedAll(speed: number): void;
+  setWeightCapacityAll(capacityKg: number): void;
+  setDoorOpenTicksAll(ticks: number): void;
+  setDoorTransitionTicksAll(ticks: number): void;
 }
 
 let modPromise: Promise<WasmModule> | null = null;
@@ -92,21 +89,8 @@ export class Sim {
     this.#inner.stepMany(n);
   }
 
-  /**
-   * Drain queued sim events into a typed array. Called once per frame
-   * by the playground's render pipeline to update per-car speech
-   * bubbles; also keeps the wasm `EventBus` from growing without bound
-   * during long sessions (previously the bus was drained-and-discarded
-   * inside `step` for exactly that reason).
-   */
-  drainEvents(): BubbleEvent[] {
-    const raw = this.#inner.drainEvents();
-    // The wasm bindgen surface returns `unknown` because the Rust side
-    // serialises via `serde-wasm-bindgen`. The DTO shape is authored in
-    // `crates/elevator-wasm/src/dto.rs` and mirrored by `BubbleEvent`;
-    // the tagged-union `kind: string` fallback absorbs any future variant
-    // the UI doesn't special-case.
-    return (raw as BubbleEvent[] | null | undefined) ?? [];
+  drainEvents(): EventDto[] {
+    return this.#inner.drainEvents();
   }
 
   get dt(): number {
@@ -122,13 +106,8 @@ export class Sim {
     return this.#inner.strategyName() as StrategyName;
   }
 
-  /**
-   * Current traffic mode from the core TrafficDetector. Returns
-   * `"Idle"` when the getter is missing from a stale `public/pkg/`
-   * build, keeping the UI robust across wasm rebuilds.
-   */
   trafficMode(): TrafficMode {
-    return (this.#inner.trafficMode?.() ?? "Idle") as TrafficMode;
+    return this.#inner.trafficMode() as TrafficMode;
   }
 
   setStrategy(name: StrategyName): boolean {
@@ -148,51 +127,28 @@ export class Sim {
   }
 
   snapshot(): Snapshot {
-    return this.#inner.snapshot() as Snapshot;
+    return this.#inner.snapshot();
   }
 
-  metrics(): Metrics {
-    return this.#inner.metrics() as Metrics;
+  metrics(): MetricsDto {
+    return this.#inner.metrics();
   }
 
   waitingCountAt(stopId: number): number {
     return this.#inner.waitingCountAt(stopId);
   }
 
-  /**
-   * Hot-swap building physics across every elevator. Returns `true`
-   * when the wasm setters were available and applied; `false` when
-   * the live build predates them (caller can fall back to a full
-   * sim rebuild). All four parameters are applied as a unit so a
-   * partial swap can't leave the sim in an inconsistent state.
-   */
   applyPhysicsLive(params: {
     maxSpeed: number;
     weightCapacityKg: number;
     doorOpenTicks: number;
     doorTransitionTicks: number;
   }): boolean {
-    const w = this.#inner;
-    if (
-      !w.setMaxSpeedAll ||
-      !w.setWeightCapacityAll ||
-      !w.setDoorOpenTicksAll ||
-      !w.setDoorTransitionTicksAll
-    ) {
-      return false;
-    }
-    // Each `setAll` is a `wasm_bindgen` function that throws on the
-    // underlying `SimError` (validation failures, non-finite inputs).
-    // Slider bounds plus `Math.max(1, ...)` in params.ts mean we
-    // shouldn't hit that path — but if we do, swallow the throw and
-    // report "not all live" so the caller falls back to a full
-    // `resetAll` rather than leaving the sim partially mutated (which
-    // in compare mode could desync the two panes).
     try {
-      w.setMaxSpeedAll(params.maxSpeed);
-      w.setWeightCapacityAll(params.weightCapacityKg);
-      w.setDoorOpenTicksAll(params.doorOpenTicks);
-      w.setDoorTransitionTicksAll(params.doorTransitionTicks);
+      this.#inner.setMaxSpeedAll(params.maxSpeed);
+      this.#inner.setWeightCapacityAll(params.weightCapacityKg);
+      this.#inner.setDoorOpenTicksAll(params.doorOpenTicks);
+      this.#inner.setDoorTransitionTicksAll(params.doorTransitionTicks);
       return true;
     } catch {
       return false;
