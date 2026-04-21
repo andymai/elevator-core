@@ -6,6 +6,7 @@ use crate::config::{
     SimulationParams,
 };
 use crate::dispatch::destination::{ASSIGNED_CAR_KEY, AssignedCar, DestinationDispatch};
+use crate::dispatch::scan::ScanDispatch;
 use crate::entity::ElevatorId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
@@ -664,5 +665,60 @@ fn commitment_window_locks_when_current_car_is_close() {
     assert_ne!(
         sim.world().ext::<AssignedCar>(rid.entity()),
         Some(AssignedCar(car_a)),
+    );
+}
+
+// ── HallCallMode auto-sync ──────────────────────────────────────────
+
+#[test]
+fn set_dispatch_to_destination_syncs_hall_call_mode() {
+    let mut sim = Simulation::new(&single_car_config(), ScanDispatch::new()).unwrap();
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Classic,
+    );
+
+    let gid = sim.groups()[0].id();
+    sim.set_dispatch(
+        gid,
+        Box::new(DestinationDispatch::new()),
+        crate::dispatch::BuiltinStrategy::Destination,
+    );
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Destination,
+        "set_dispatch(Destination) must flip hall call mode",
+    );
+}
+
+#[test]
+fn set_dispatch_away_from_destination_resets_hall_call_mode() {
+    let mut sim =
+        Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Destination,
+    );
+
+    let gid = sim.groups()[0].id();
+    sim.set_dispatch(
+        gid,
+        Box::new(ScanDispatch::new()),
+        crate::dispatch::BuiltinStrategy::Scan,
+    );
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Classic,
+        "set_dispatch(Scan) must reset hall call mode to Classic",
+    );
+}
+
+#[test]
+fn construction_with_dcs_auto_sets_destination_mode() {
+    let sim = Simulation::new(&two_cars_same_group_config(), DestinationDispatch::new()).unwrap();
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Destination,
+        "Simulation::new with DCS strategy must auto-set Destination mode",
     );
 }
