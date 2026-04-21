@@ -308,6 +308,22 @@ pub enum Event {
         tick: u64,
     },
 
+    /// An elevator was recalled to a specific stop via
+    /// [`Simulation::recall_to`](crate::sim::Simulation::recall_to).
+    ///
+    /// The car's destination queue has been replaced with the recall
+    /// target. If the car was mid-flight, it continues to its current
+    /// target, then proceeds to the recall stop. If idle, it departs
+    /// on the next tick.
+    ElevatorRecalled {
+        /// The elevator that was recalled.
+        elevator: EntityId,
+        /// The stop the elevator is being sent to.
+        to_stop: EntityId,
+        /// The tick when the recall was issued.
+        tick: u64,
+    },
+
     /// An elevator's service mode was changed.
     ServiceModeChanged {
         /// The elevator whose mode changed.
@@ -742,6 +758,7 @@ impl Event {
             Self::ElevatorRepositioning { .. } | Self::ElevatorRepositioned { .. } => {
                 EventCategory::Reposition
             }
+            Self::ElevatorRecalled { .. } => EventCategory::Elevator,
             Self::DirectionIndicatorChanged { .. } => EventCategory::Direction,
             Self::ServiceModeChanged { .. }
             | Self::CapacityChanged { .. }
