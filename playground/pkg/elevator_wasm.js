@@ -1,3 +1,5 @@
+/* @ts-self-types="./elevator_wasm.d.ts" */
+
 /**
  * Opaque simulation handle for JS.
  */
@@ -21,20 +23,14 @@ export class WasmSim {
         return BigInt.asUintN(64, ret);
     }
     /**
-     * Drain all queued events since the last call. Returns an array of tagged
-     * objects (matching the internal `dto::EventDto` shape).
-     *
-     * # Errors
-     *
-     * Returns a JS error only if serialization fails.
-     * @returns {any}
+     * Drain all queued events since the last call.
+     * @returns {EventDto[]}
      */
     drainEvents() {
         const ret = wasm.wasmsim_drainEvents(this.__wbg_ptr);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
     }
     /**
      * Tick duration in seconds.
@@ -45,19 +41,12 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Current aggregate metrics. Returns a plain JS object.
-     *
-     * # Errors
-     *
-     * Returns a JS error only if serialization fails.
-     * @returns {any}
+     * Current aggregate metrics.
+     * @returns {MetricsDto}
      */
     metrics() {
         const ret = wasm.wasmsim_metrics(this.__wbg_ptr);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
+        return ret;
     }
     /**
      * Construct a new simulation from a RON-encoded [`SimConfig`] and a
@@ -263,21 +252,12 @@ export class WasmSim {
         }
     }
     /**
-     * Pull a cheap snapshot for rendering. Returns a plain JS object matching
-     * the internal `dto::Snapshot` shape.
-     *
-     * # Errors
-     *
-     * Returns a JS error only if serialization to `JsValue` fails, which
-     * indicates a bug in the DTO layer rather than a runtime condition.
-     * @returns {any}
+     * Pull a cheap snapshot for rendering.
+     * @returns {Snapshot}
      */
     snapshot() {
         const ret = wasm.wasmsim_snapshot(this.__wbg_ptr);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
+        return ret;
     }
     /**
      * Spawn a single rider between two stop ids at the given weight.
