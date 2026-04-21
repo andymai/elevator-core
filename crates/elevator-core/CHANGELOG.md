@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.18.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.4...elevator-core-v15.18.0) (2026-04-21)
+
+
+### Features
+
+* **core:** add OutOfService mode, recall_to API, fix Inspection dispatch ([#402](https://github.com/andymai/elevator-core/issues/402)) ([efdc1a8](https://github.com/andymai/elevator-core/commit/efdc1a8b21fbf12e20aba0b6eed32fee4d0a441f))
+
 ## [15.17.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.3...elevator-core-v15.17.4) (2026-04-21)
 
 
