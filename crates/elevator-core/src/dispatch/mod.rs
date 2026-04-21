@@ -64,7 +64,7 @@ use crate::components::{
 use crate::entity::EntityId;
 use crate::ids::GroupId;
 use crate::world::World;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 /// Whether assigning `ctx.car` to `ctx.stop` can perform useful work.
 ///
@@ -973,6 +973,13 @@ fn pending_stops_minus_covered(
         total_weight <= capacity_here
     };
 
+    let idle_rider_destinations: HashSet<EntityId> = idle_cars
+        .iter()
+        .filter_map(|&(car_eid, _)| world.elevator(car_eid))
+        .flat_map(|car| car.riders().iter().copied())
+        .filter_map(|rid| world.route(rid).and_then(Route::current_destination))
+        .collect();
+
     group
         .stop_entities()
         .iter()
@@ -980,18 +987,7 @@ fn pending_stops_minus_covered(
             if !manifest.has_demand(**s) {
                 return false;
             }
-            // A stop must not be filtered if an idle-pool car has
-            // riders needing to exit there. Only check cars in the idle
-            // pool — riders on committed `MovingToStop` cars are already
-            // en route and don't need a redundant dispatch.
-            let idle_car_needs_stop = idle_cars.iter().any(|&(car_eid, _)| {
-                world.elevator(car_eid).is_some_and(|car| {
-                    car.riders().iter().any(|&rid| {
-                        world.route(rid).and_then(Route::current_destination) == Some(**s)
-                    })
-                })
-            });
-            if idle_car_needs_stop {
+            if idle_rider_destinations.contains(*s) {
                 return true;
             }
             !is_covered(**s)
