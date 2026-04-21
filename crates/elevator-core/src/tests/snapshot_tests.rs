@@ -681,3 +681,112 @@ fn snapshot_bytes_are_stable_in_process() {
         "two snapshots of the same sim must be byte-identical"
     );
 }
+
+// ── Dispatch-config round-trip (regression for silent weight reset) ──
+
+/// Pre-fix, `BuiltinStrategy::instantiate()` always called `::new()`
+/// with default weights, so any `with_*` tuning on a built-in
+/// dispatcher vanished silently through snapshot round-trip. With
+/// `snapshot_config`/`restore_config` wired up, the weights
+/// round-trip exactly.
+#[test]
+fn etd_tuned_weights_survive_snapshot_round_trip() {
+    use crate::dispatch::etd::EtdDispatch;
+
+    let tuned = EtdDispatch::new()
+        .with_wait_squared_weight(0.25)
+        .with_age_linear_weight(0.10);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+
+    // Walk the sim for a few ticks so any lazy scratch is primed.
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+
+    // Peek at the restored dispatcher's snapshot_config — if the
+    // weights round-tripped, a freshly-serialized copy equals the
+    // original's serialized form. This also confirms we didn't
+    // silently fall back to `EtdDispatch::new()` defaults.
+    let dispatcher = restored
+        .dispatchers()
+        .values()
+        .next()
+        .expect("one dispatcher after restore");
+    let restored_config = dispatcher
+        .snapshot_config()
+        .expect("EtdDispatch overrides snapshot_config");
+    assert!(
+        restored_config.contains("wait_squared_weight:0.25"),
+        "expected tuned wait_squared_weight=0.25 in restored config, got {restored_config}"
+    );
+    assert!(
+        restored_config.contains("age_linear_weight:0.1"),
+        "expected tuned age_linear_weight=0.1 in restored config, got {restored_config}"
+    );
+}
+
+/// Same regression, `RsrDispatch` flavour.
+#[test]
+fn rsr_tuned_weights_survive_snapshot_round_trip() {
+    use crate::dispatch::rsr::RsrDispatch;
+
+    let tuned = RsrDispatch::new()
+        .with_wrong_direction_penalty(15.0)
+        .with_load_penalty_coeff(2.5)
+        .with_peak_direction_multiplier(3.0);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+    let dispatcher = restored.dispatchers().values().next().unwrap();
+    let restored_config = dispatcher.snapshot_config().unwrap();
+    assert!(
+        restored_config.contains("wrong_direction_penalty:15"),
+        "{restored_config}",
+    );
+    assert!(
+        restored_config.contains("load_penalty_coeff:2.5"),
+        "{restored_config}",
+    );
+    assert!(
+        restored_config.contains("peak_direction_multiplier:3"),
+        "{restored_config}",
+    );
+}
+
+/// `DestinationDispatch` config survives too; `with_stop_penalty`
+/// drives the fresh-stop cost term.
+#[test]
+fn destination_tuned_config_survives_snapshot_round_trip() {
+    use crate::dispatch::destination::DestinationDispatch;
+
+    let tuned = DestinationDispatch::new()
+        .with_stop_penalty(12.5)
+        .with_commitment_window_ticks(240);
+    let mut sim =
+        crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
+    for _ in 0..10 {
+        sim.step();
+    }
+
+    let snap = sim.snapshot();
+    let restored = snap.restore(None).expect("restore");
+    let dispatcher = restored.dispatchers().values().next().unwrap();
+    let restored_config = dispatcher.snapshot_config().unwrap();
+    assert!(
+        restored_config.contains("Some(12.5)"),
+        "expected stop_penalty=Some(12.5) in restored config, got {restored_config}"
+    );
+    assert!(
+        restored_config.contains("Some(240)"),
+        "expected commitment_window_ticks=Some(240) in restored config, got {restored_config}"
+    );
+}
