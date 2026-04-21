@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.17.4](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.3...elevator-core-v15.17.4) (2026-04-21)
+
+
+### Bug Fixes
+
+* **wasm:** sync HallCallMode when switching to/from DCS dispatch ([#400](https://github.com/andymai/elevator-core/issues/400)) ([e904e5b](https://github.com/andymai/elevator-core/commit/e904e5b60b86390b9d43d803b82b8416f7b95223))
+
 ## [15.17.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.17.2...elevator-core-v15.17.3) (2026-04-21)
 
 
