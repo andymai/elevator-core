@@ -846,13 +846,11 @@ pub trait DispatchStrategy: Send + Sync {
     /// and produced different dispatch decisions post-restore
     /// (determinism regression).
     ///
-    /// Default: `None` (unidentified — callers using the builder API
-    /// should call [`SimulationBuilder::with_strategy_id`] for
-    /// snapshot fidelity; custom strategies should override this if
-    /// they want stable round-trip identity, typically by returning
-    /// [`BuiltinStrategy::Custom`] with a stable name).
-    ///
-    /// [`SimulationBuilder::with_strategy_id`]: crate::builder::SimulationBuilder::with_strategy_id
+    /// Default: `None` (unidentified — the constructor falls back to
+    /// recording [`BuiltinStrategy::Scan`], matching pre-fix behaviour
+    /// for callers that never cared about round-trip identity). Custom
+    /// strategies that DO care should override this to return
+    /// [`BuiltinStrategy::Custom`] with a stable name.
     #[must_use]
     fn builtin_id(&self) -> Option<BuiltinStrategy> {
         None
