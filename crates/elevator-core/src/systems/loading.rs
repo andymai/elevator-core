@@ -77,6 +77,14 @@ fn collect_actions(
         if world.is_disabled(eid) {
             continue;
         }
+        if !world
+            .service_mode(eid)
+            .copied()
+            .unwrap_or_default()
+            .allows_auto_boarding()
+        {
+            continue;
+        }
         let Some(car) = world.elevator(eid) else {
             continue;
         };

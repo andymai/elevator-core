@@ -322,3 +322,192 @@ fn redirect_via_push_front_updates_direction_indicators() {
     );
     assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
+
+// ── recall_to ──────────────────────────────────────────────────────
+
+/// recall_to clears the queue and sets a single target.
+#[test]
+fn recall_to_clears_queue_and_sets_target() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    // Queue a destination, then recall to the other stop.
+    sim.push_destination(elev, StopId(1)).unwrap();
+    sim.recall_to(elev, StopId(0)).unwrap();
+
+    let q = sim.destination_queue(elev).unwrap();
+    assert_eq!(q.len(), 1, "queue should contain only the recall target");
+    assert_eq!(q[0], sim.stop_entity(StopId(0)).unwrap());
+}
+
+/// recall_to emits an ElevatorRecalled event.
+#[test]
+fn recall_to_emits_event() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    sim.drain_events();
+
+    sim.recall_to(elev, StopId(1)).unwrap();
+
+    let recall_events: Vec<_> = sim
+        .drain_events()
+        .into_iter()
+        .filter(|e| matches!(e, Event::ElevatorRecalled { .. }))
+        .collect();
+    assert_eq!(recall_events.len(), 1);
+    if let Event::ElevatorRecalled {
+        elevator, to_stop, ..
+    } = &recall_events[0]
+    {
+        assert_eq!(*elevator, elev.entity());
+        assert_eq!(*to_stop, sim.stop_entity(StopId(1)).unwrap());
+    }
+}
+
+/// recall_to on an idle car at a different stop causes it to depart.
+#[test]
+fn recall_idle_car_to_distant_stop() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    sim.recall_to(elev, StopId(1)).unwrap();
+
+    let target_pos = sim
+        .world()
+        .stop(sim.stop_entity(StopId(1)).unwrap())
+        .unwrap()
+        .position();
+    let mut arrived = false;
+    for _ in 0..2000 {
+        sim.step();
+        let pos = sim.world().position(elev.entity()).unwrap().value;
+        if (pos - target_pos).abs() < 0.01 {
+            arrived = true;
+            break;
+        }
+    }
+    assert!(arrived, "car should have arrived at the recall stop");
+}
+
+/// recall_to on a car already at the recall stop triggers a door cycle.
+#[test]
+fn recall_to_current_stop_opens_doors() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    // Car starts at stop 0 (default). Recall to stop 0.
+    sim.recall_to(elev, StopId(0)).unwrap();
+
+    // Track whether doors opened during the cycle.
+    let mut saw_open = false;
+    for _ in 0..30 {
+        sim.step();
+        let car = sim.world().elevator(elev.entity()).unwrap();
+        if car.door().is_open() {
+            saw_open = true;
+            break;
+        }
+    }
+    assert!(saw_open, "doors should open when recalled to current stop");
+}
+
+/// recall_to works on dispatch-excluded (Independent) cars.
+#[test]
+fn recall_works_on_independent_car() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    sim.set_service_mode(elev.entity(), crate::components::ServiceMode::Independent)
+        .unwrap();
+
+    sim.recall_to(elev, StopId(1)).unwrap();
+
+    let target_pos = sim
+        .world()
+        .stop(sim.stop_entity(StopId(1)).unwrap())
+        .unwrap()
+        .position();
+    let mut arrived = false;
+    for _ in 0..2000 {
+        sim.step();
+        let pos = sim.world().position(elev.entity()).unwrap().value;
+        if (pos - target_pos).abs() < 0.01 {
+            arrived = true;
+            break;
+        }
+    }
+    assert!(arrived, "Independent car should still respond to recall_to");
+}
+
+/// recall_to errors on invalid entities.
+#[test]
+fn recall_to_validates_entities() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+    let stop_entity = sim.stop_entity(StopId(0)).unwrap();
+
+    // Not an elevator.
+    assert!(matches!(
+        sim.recall_to(ElevatorId::from(stop_entity), StopId(0)),
+        Err(SimError::NotAnElevator(_))
+    ));
+
+    // Not a stop.
+    assert!(sim.recall_to(elev, StopId(99)).is_err());
+}
+
+/// recall_to mid-flight redirects the car to the recall stop.
+#[test]
+fn recall_mid_flight_redirects() {
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+    let elev = ElevatorId::from(sim.world().elevator_ids()[0]);
+
+    // Send car toward stop 1.
+    sim.push_destination(elev, StopId(1)).unwrap();
+
+    // Wait until car is actually moving.
+    for _ in 0..10 {
+        sim.step();
+        if sim
+            .world()
+            .elevator(elev.entity())
+            .unwrap()
+            .phase()
+            .is_moving()
+        {
+            break;
+        }
+    }
+    assert!(
+        sim.world()
+            .elevator(elev.entity())
+            .unwrap()
+            .phase()
+            .is_moving(),
+        "car should be in flight"
+    );
+
+    // Recall back to stop 0 mid-flight.
+    sim.recall_to(elev, StopId(0)).unwrap();
+
+    // Car should eventually return to stop 0.
+    let stop0_pos = sim
+        .world()
+        .stop(sim.stop_entity(StopId(0)).unwrap())
+        .unwrap()
+        .position();
+    let mut returned = false;
+    for _ in 0..2000 {
+        sim.step();
+        let pos = sim.world().position(elev.entity()).unwrap().value;
+        let phase = sim.world().elevator(elev.entity()).unwrap().phase();
+        if (pos - stop0_pos).abs() < 0.01 && !phase.is_moving() {
+            returned = true;
+            break;
+        }
+    }
+    assert!(
+        returned,
+        "car should return to stop 0 after mid-flight recall"
+    );
+}

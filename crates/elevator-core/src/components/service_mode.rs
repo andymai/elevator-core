@@ -29,18 +29,43 @@ pub enum ServiceMode {
     /// door-control API. Can stop at any position — the elevator is not
     /// required to align with a configured stop.
     Manual,
+    /// Out of service: the elevator is shut down. Excluded from dispatch
+    /// and repositioning; auto-boarding is disabled. In-flight trips
+    /// complete and doors cycle normally, but no riders board or exit.
+    /// Once idle the car is fully inert.
+    ///
+    /// Unlike [`Simulation::disable`](crate::sim::Simulation::disable),
+    /// the entity remains visible in queries and is not skipped by
+    /// iteration — games can render an "out of order" indicator.
+    OutOfService,
 }
 
 impl ServiceMode {
     /// `true` if elevators in this mode are skipped by the automatic
     /// dispatch and repositioning phases.
     ///
-    /// Returns `true` for [`Independent`](Self::Independent) and
-    /// [`Manual`](Self::Manual), which both hand elevator movement over
-    /// to the consumer.
+    /// Returns `true` for [`Independent`](Self::Independent),
+    /// [`Manual`](Self::Manual), [`Inspection`](Self::Inspection), and
+    /// [`OutOfService`](Self::OutOfService). Independent and Manual hand
+    /// movement over to the consumer; Inspection is technician-controlled;
+    /// `OutOfService` is fully inert.
     #[must_use]
     pub const fn is_dispatch_excluded(self) -> bool {
-        matches!(self, Self::Independent | Self::Manual)
+        matches!(
+            self,
+            Self::Independent | Self::Manual | Self::Inspection | Self::OutOfService
+        )
+    }
+
+    /// `true` if the loading phase should automatically board and exit
+    /// riders at open doors.
+    ///
+    /// Only [`Normal`](Self::Normal) allows auto-boarding. All other
+    /// modes hand rider management to the consumer or are operationally
+    /// unsuitable for passenger service.
+    #[must_use]
+    pub const fn allows_auto_boarding(self) -> bool {
+        matches!(self, Self::Normal)
     }
 }
 
@@ -51,6 +76,7 @@ impl std::fmt::Display for ServiceMode {
             Self::Independent => write!(f, "Independent"),
             Self::Inspection => write!(f, "Inspection"),
             Self::Manual => write!(f, "Manual"),
+            Self::OutOfService => write!(f, "OutOfService"),
         }
     }
 }
