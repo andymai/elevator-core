@@ -6,6 +6,12 @@
 .cargo/config.toml
 mutants.out/
 mutants.out.old/
+# proptest writes shrunk failing seeds to this directory on failure.
+# Locally reproducing the same seed is useful during investigation,
+# but committing the file pins that specific workload into every
+# future CI run — one stale flake blocks every PR. Re-generate
+# locally with `PROPTEST_CASES=N` when a flake needs reproducing.
+crates/*/proptest-regressions/
 .claude/agent-memory-local/
 .claude/*.lock
 .claude/worktrees/
