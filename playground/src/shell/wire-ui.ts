@@ -110,5 +110,15 @@ export function wireUi(): UiHandles {
 
   renderScenarioCards(ui);
 
+  const controlsBar = document.getElementById("controls-bar");
+  if (controlsBar) {
+    const ro = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const h = Math.ceil(entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height);
+      document.documentElement.style.setProperty("--controls-bar-h", `${h}px`);
+    });
+    ro.observe(controlsBar);
+  }
+
   return ui;
 }
