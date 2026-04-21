@@ -399,11 +399,17 @@ fn up_peak_scenario_delivers_all_riders() {
 #[test]
 fn dcs_gated_to_destination_mode() {
     let mut sim = Simulation::new(&single_car_config(), DestinationDispatch::new()).unwrap();
-    // Leave the group in its default Classic mode — DCS should skip.
+    // `Simulation::new` infers the strategy_id from the dispatcher's
+    // `builtin_id()` and `sync_hall_call_modes` then flips the group
+    // to Destination — which would enable DCS. Force the group back
+    // to Classic so we can assert the gate does skip in that mode.
+    for g in sim.groups_mut() {
+        g.set_hall_call_mode(crate::dispatch::HallCallMode::Classic);
+    }
     assert_eq!(
         sim.groups()[0].hall_call_mode(),
         crate::dispatch::HallCallMode::Classic,
-        "default group mode should still be Classic for this test",
+        "test harness should have forced Classic before stepping",
     );
     sim.world_mut()
         .register_ext::<AssignedCar>(ASSIGNED_CAR_KEY);

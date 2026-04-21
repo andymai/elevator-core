@@ -98,4 +98,8 @@ impl DispatchStrategy for ScanDispatch {
         self.direction.remove(&elevator);
         self.mode.remove(&elevator);
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
+        Some(super::BuiltinStrategy::Scan)
+    }
 }

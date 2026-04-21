@@ -834,6 +834,29 @@ pub trait DispatchStrategy: Send + Sync {
     /// Implementations with per-elevator state (e.g. direction tracking)
     /// should clean up here to prevent unbounded memory growth.
     fn notify_removed(&mut self, _elevator: EntityId) {}
+
+    /// If this strategy is a known built-in variant, return it so
+    /// [`Simulation::new`](crate::sim::Simulation::new) can stamp the
+    /// correct [`BuiltinStrategy`] into the group's snapshot identity.
+    ///
+    /// Without this, legacy-topology sims constructed via
+    /// `Simulation::new(config, SomeNonScanStrategy::new())` silently
+    /// recorded `BuiltinStrategy::Scan` as their identity — so a
+    /// snapshot round-trip replaced the running strategy with Scan
+    /// and produced different dispatch decisions post-restore
+    /// (determinism regression).
+    ///
+    /// Default: `None` (unidentified — callers using the builder API
+    /// should call [`SimulationBuilder::with_strategy_id`] for
+    /// snapshot fidelity; custom strategies should override this if
+    /// they want stable round-trip identity, typically by returning
+    /// [`BuiltinStrategy::Custom`] with a stable name).
+    ///
+    /// [`SimulationBuilder::with_strategy_id`]: crate::builder::SimulationBuilder::with_strategy_id
+    #[must_use]
+    fn builtin_id(&self) -> Option<BuiltinStrategy> {
+        None
+    }
 }
 
 /// Resolution of a single dispatch assignment pass for one group.

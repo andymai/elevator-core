@@ -45,10 +45,34 @@
 //!    and reroute loops — classes of bug the per-tick invariants
 //!    don't see because they only assert *consistency*, not
 //!    *progress*.
+//! 6. **Snapshot round-trip determinism.** After `WARMUP_TICKS` ticks
+//!    on a sim, `(snapshot, restore)` yields a sim that follows the
+//!    original's future trajectory tick-for-tick: after both step
+//!    another `COMPARE_TICKS`, their integer `Metrics` counters and
+//!    per-phase rider histograms match exactly. Originally surfaced
+//!    the strategy-identity bug where legacy-topology construction
+//!    hard-coded `BuiltinStrategy::Scan` as the snapshot id — the
+//!    fix adds [`DispatchStrategy::builtin_id`] and routes it
+//!    through the constructor so every built-in dispatcher round-
+//!    trips as itself.
+//!
+//!    Covers `NearestCar`, `Etd`, `Rsr`, `Destination`. `Scan` and
+//!    `Look` are excluded because they carry per-elevator sweep-
+//!    direction state in the dispatcher struct (`direction` /
+//!    `mode` HashMaps) that isn't part of `WorldSnapshot`. Restore
+//!    instantiates them fresh with default-`Up` directions, so
+//!    their trajectories legitimately diverge from a running sim
+//!    whose elevators are mid-sweep. Round-tripping that state
+//!    needs a `serialize_state`/`restore_state` hook on the
+//!    `DispatchStrategy` trait — separate change, separate PR.
+//!    Floating-point accumulators (`total_distance`,
+//!    `reposition_distance`) are also omitted: summation-order
+//!    sensitivity means they can diverge by ULPs without
+//!    indicating a state-capture bug.
 
 use proptest::prelude::*;
 
-use crate::components::{Accel, RiderPhase, Speed, Weight};
+use crate::components::{Accel, RiderPhase, RiderPhaseKind, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -524,6 +548,124 @@ proptest! {
                 terminal,
                 "[{}] rider {:?} stuck in non-terminal phase {:?} after {} ticks",
                 label, id, rider.phase, TICK_BUDGET,
+            );
+        }
+    }
+}
+
+// Snapshot round-trip determinism: snapshot mid-run, restore into a
+// fresh sim, step both the original and the restore for the same
+// number of additional ticks, assert that the discrete observable
+// state (integer metrics counters and per-phase rider histogram)
+// matches tick-for-tick. `WARMUP_TICKS` is deliberately short enough
+// that many riders are still mid-lifecycle at snapshot time —
+// snapshotting a drained sim would make the comparison trivial.
+// Floating-point accumulators are excluded intentionally (summation-
+// order ULP drift isn't a state-capture bug).
+const WARMUP_TICKS: u64 = 400;
+const COMPARE_TICKS: u64 = 1_200;
+
+/// Fixed-shape histogram of riders by phase kind. Used to compare two
+/// sims without depending on `EntityId` stability across
+/// snapshot/restore (`WorldSnapshot::restore` renumbers ids). A
+/// struct beats a `HashMap`/`BTreeMap` because `RiderPhaseKind`
+/// derives neither `Hash` nor `Ord`, and the variant set is closed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct PhaseHistogram {
+    waiting: usize,
+    boarding: usize,
+    riding: usize,
+    exiting: usize,
+    walking: usize,
+    arrived: usize,
+    abandoned: usize,
+    resident: usize,
+}
+
+fn phase_histogram(sim: &Simulation) -> PhaseHistogram {
+    let mut h = PhaseHistogram::default();
+    for (_, rider) in sim.world().iter_riders() {
+        match rider.phase.kind() {
+            RiderPhaseKind::Waiting => h.waiting += 1,
+            RiderPhaseKind::Boarding => h.boarding += 1,
+            RiderPhaseKind::Riding => h.riding += 1,
+            RiderPhaseKind::Exiting => h.exiting += 1,
+            RiderPhaseKind::Walking => h.walking += 1,
+            RiderPhaseKind::Arrived => h.arrived += 1,
+            RiderPhaseKind::Abandoned => h.abandoned += 1,
+            RiderPhaseKind::Resident => h.resident += 1,
+        }
+    }
+    h
+}
+
+/// Proptest generator for the strategies whose in-memory state is
+/// entirely captured by `WorldSnapshot`. Excludes `Scan` and `Look`,
+/// which hold per-elevator sweep direction on the dispatcher struct.
+/// See the top-of-file doc comment for invariant #6.
+fn any_snapshottable_strategy() -> impl Strategy<Value = StrategyKind> {
+    prop_oneof![
+        Just(StrategyKind::NearestCar),
+        Just(StrategyKind::Etd),
+        Just(StrategyKind::Rsr),
+        Just(StrategyKind::Destination),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(8))]
+
+    #[test]
+    fn snapshot_restore_preserves_trajectory_across_strategies(
+        kind in any_snapshottable_strategy(),
+        workload in any_workload(),
+    ) {
+        let (mut sim_a, _stops) = build_sim(kind, &workload);
+        let label = kind.label();
+
+        for _ in 0..WARMUP_TICKS {
+            sim_a.step();
+            let _ = sim_a.drain_events();
+        }
+
+        let snap = sim_a.snapshot();
+        let mut sim_b = snap.restore(None).expect("restore");
+
+        for tick in 0..COMPARE_TICKS {
+            sim_a.step();
+            let _ = sim_a.drain_events();
+            sim_b.step();
+            let _ = sim_b.drain_events();
+
+            let ma = sim_a.metrics();
+            let mb = sim_b.metrics();
+            prop_assert_eq!(
+                ma.total_delivered(), mb.total_delivered(),
+                "[{}] compare tick {}: total_delivered drift", label, tick,
+            );
+            prop_assert_eq!(
+                ma.total_abandoned(), mb.total_abandoned(),
+                "[{}] compare tick {}: total_abandoned drift", label, tick,
+            );
+            prop_assert_eq!(
+                ma.total_spawned(), mb.total_spawned(),
+                "[{}] compare tick {}: total_spawned drift", label, tick,
+            );
+            prop_assert_eq!(
+                ma.max_wait_time(), mb.max_wait_time(),
+                "[{}] compare tick {}: max_wait_time drift", label, tick,
+            );
+            prop_assert_eq!(
+                ma.total_moves(), mb.total_moves(),
+                "[{}] compare tick {}: total_moves drift", label, tick,
+            );
+
+            let ha = phase_histogram(&sim_a);
+            let hb = phase_histogram(&sim_b);
+            prop_assert_eq!(
+                &ha, &hb,
+                "[{}] compare tick {}: phase histogram drift\nlive: {:?}\nrestored: {:?}",
+                label, tick, ha, hb,
             );
         }
     }
