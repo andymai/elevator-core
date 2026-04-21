@@ -907,6 +907,64 @@ pub struct AssignmentResult {
     pub decisions: Vec<(EntityId, DispatchDecision)>,
 }
 
+/// Per-simulation scratch buffers for the dispatch phase.
+///
+/// Every field is a `Vec`/`HashSet` whose allocations the hot path
+/// would otherwise re-take on every tick per group (cost matrix
+/// backing store, pending-stops list, servicing cars, pinned /
+/// committed / idle-elevator filters). Owning them on the
+/// simulation lets each dispatch pass `clear()` them in place and
+/// reuse the capacity — on a 50-car × 200-stop group the cost matrix
+/// alone is ~80 KB of heap churn per tick, and at the 500-car
+/// `scaling_extreme` scale it's ~20 MB.
+///
+/// The scratch is always cleared before use; consumers should not
+/// rely on any carry-over content between groups or ticks.
+#[derive(Default)]
+pub(crate) struct DispatchScratch {
+    /// Reusable `Matrix<i64>` the Hungarian consumes by reference. When
+    /// the dispatch pass can reuse the stored Matrix (`rows × cols`
+    /// match), this is `Some` and gets filled in-place via `Matrix::fill`;
+    /// when shapes change the slot is replaced with `Matrix::new`.
+    pub cost_matrix_mx: Option<pathfinding::matrix::Matrix<i64>>,
+    /// `(stop, line, remaining_capacity)` for door-cycling cars, used
+    /// by `pending_stops_minus_covered` to avoid double-dispatching
+    /// stops a car is already servicing.
+    pub servicing: Vec<(EntityId, EntityId, f64)>,
+    /// Stops with live demand, returned from `pending_stops_minus_covered`.
+    pub pending_stops: Vec<(EntityId, f64)>,
+    /// Aboard-rider destinations across idle cars — consulted so a
+    /// stop that a car aboard wants to reach stays pickup-eligible.
+    pub idle_rider_destinations: HashSet<EntityId>,
+    /// Per-stop linestamp buffer reused inside `is_covered`.
+    pub lines_here: Vec<EntityId>,
+    /// Pinned hall-call `(car, stop)` pairs for the current group.
+    pub pinned_pairs: Vec<(EntityId, EntityId)>,
+    /// Committed `(car, target)` pairs — mid-flight cars whose trip
+    /// still has demand; held out of the Hungarian idle pool.
+    pub committed_pairs: Vec<(EntityId, EntityId)>,
+    /// Idle elevator pool `(car, position)` for this group.
+    pub idle_elevators: Vec<(EntityId, f64)>,
+}
+
+impl DispatchScratch {
+    /// Clear every buffer without freeing its backing capacity.
+    ///
+    /// `cost_matrix_mx` is re-sized/re-filled lazily in
+    /// `assign_with_scratch`; leaving it alone here preserves its
+    /// capacity when the group's (rows, cols) match the last
+    /// dispatch pass.
+    pub fn clear_all(&mut self) {
+        self.servicing.clear();
+        self.pending_stops.clear();
+        self.idle_rider_destinations.clear();
+        self.lines_here.clear();
+        self.pinned_pairs.clear();
+        self.committed_pairs.clear();
+        self.idle_elevators.clear();
+    }
+}
+
 /// Sentinel weight used to pad unavailable `(car, stop)` pairs when
 /// building the cost matrix for the Hungarian solver. Chosen so that
 /// `n · SENTINEL` can't overflow `i64`: the Kuhn–Munkres implementation
@@ -966,28 +1024,42 @@ fn pending_stops_minus_covered(
     manifest: &DispatchManifest,
     world: &World,
     idle_cars: &[(EntityId, f64)],
-) -> Vec<(EntityId, f64)> {
-    // Vec + linear scan is fine: groups have O(few) elevators and
-    // this runs once per dispatch tick.
-    let servicing: Vec<(EntityId, EntityId, f64)> = group
-        .elevator_entities()
-        .iter()
-        .filter_map(|&eid| {
-            let car = world.elevator(eid)?;
-            let target = car.target_stop()?;
-            matches!(
-                car.phase(),
-                ElevatorPhase::MovingToStop(_)
-                    | ElevatorPhase::DoorOpening
-                    | ElevatorPhase::Loading
-                    | ElevatorPhase::DoorClosing
-            )
-            .then(|| {
-                let remaining = car.weight_capacity().value() - car.current_load().value();
-                (target, car.line(), remaining)
-            })
-        })
-        .collect();
+    scratch: &mut DispatchScratch,
+) {
+    // Refill `scratch.servicing` in place — the buffer survives across
+    // ticks so the hot path doesn't reallocate per group.
+    scratch.servicing.clear();
+    for &eid in group.elevator_entities() {
+        let Some(car) = world.elevator(eid) else {
+            continue;
+        };
+        let Some(target) = car.target_stop() else {
+            continue;
+        };
+        if !matches!(
+            car.phase(),
+            ElevatorPhase::MovingToStop(_)
+                | ElevatorPhase::DoorOpening
+                | ElevatorPhase::Loading
+                | ElevatorPhase::DoorClosing
+        ) {
+            continue;
+        }
+        let remaining = car.weight_capacity().value() - car.current_load().value();
+        scratch.servicing.push((target, car.line(), remaining));
+    }
+
+    // Aboard-rider destinations — reused buffer, same owned semantics.
+    scratch.idle_rider_destinations.clear();
+    for &(car_eid, _) in idle_cars {
+        if let Some(car) = world.elevator(car_eid) {
+            for &rid in car.riders() {
+                if let Some(dest) = world.route(rid).and_then(Route::current_destination) {
+                    scratch.idle_rider_destinations.insert(dest);
+                }
+            }
+        }
+    }
 
     // A stop is "covered" iff every waiting rider this group sees can
     // board at least one of the door-cycling cars here (line check)
@@ -997,21 +1069,20 @@ fn pending_stops_minus_covered(
     // Iterates `manifest.waiting_riders_at` rather than `world.iter_riders`
     // so `TransportMode::Walk` riders and cross-group-routed riders
     // (excluded by `build_manifest`) don't inflate the weight total.
-    let is_covered = |stop_eid: EntityId| {
-        // Single fold so readers see the "same cars, both attributes"
-        // invariant structurally — the two derived values can never
-        // disagree about which cars contributed.
-        let (lines_here, capacity_here): (Vec<EntityId>, f64) =
-            servicing
-                .iter()
-                .fold((Vec::new(), 0.0), |(mut lines, cap), &(stop, line, rem)| {
-                    if stop == stop_eid {
-                        lines.push(line);
-                        (lines, cap + rem)
-                    } else {
-                        (lines, cap)
-                    }
-                });
+    // `lines_here` is the same `scratch.lines_here` buffer each call —
+    // cleared then refilled — so coverage checks don't churn the
+    // allocator per stop.
+    let mut lines_here: Vec<EntityId> = std::mem::take(&mut scratch.lines_here);
+    let servicing = &scratch.servicing;
+    let is_covered = |stop_eid: EntityId, lines_here: &mut Vec<EntityId>| -> bool {
+        lines_here.clear();
+        let mut capacity_here = 0.0;
+        for &(stop, line, rem) in servicing {
+            if stop == stop_eid {
+                lines_here.push(line);
+                capacity_here += rem;
+            }
+        }
         if lines_here.is_empty() {
             return false;
         }
@@ -1034,27 +1105,22 @@ fn pending_stops_minus_covered(
         total_weight <= capacity_here
     };
 
-    let idle_rider_destinations: HashSet<EntityId> = idle_cars
-        .iter()
-        .filter_map(|&(car_eid, _)| world.elevator(car_eid))
-        .flat_map(|car| car.riders().iter().copied())
-        .filter_map(|rid| world.route(rid).and_then(Route::current_destination))
-        .collect();
-
-    group
-        .stop_entities()
-        .iter()
-        .filter(|s| {
-            if !manifest.has_demand(**s) {
-                return false;
-            }
-            if idle_rider_destinations.contains(*s) {
-                return true;
-            }
-            !is_covered(**s)
-        })
-        .filter_map(|s| world.stop_position(*s).map(|p| (*s, p)))
-        .collect()
+    scratch.pending_stops.clear();
+    for &stop in group.stop_entities() {
+        if !manifest.has_demand(stop) {
+            continue;
+        }
+        let keep =
+            scratch.idle_rider_destinations.contains(&stop) || !is_covered(stop, &mut lines_here);
+        if !keep {
+            continue;
+        }
+        if let Some(pos) = world.stop_position(stop) {
+            scratch.pending_stops.push((stop, pos));
+        }
+    }
+    // Return the lines_here buffer to scratch so its capacity survives.
+    scratch.lines_here = lines_here;
 }
 
 /// Run one group's assignment pass: build the cost matrix, solve the
@@ -1062,6 +1128,12 @@ fn pending_stops_minus_covered(
 /// [`DispatchStrategy::fallback`].
 ///
 /// Visible to the `systems` module; not part of the public API.
+/// Back-compat wrapper that allocates a throw-away scratch for
+/// tests and one-off callers. Production paths (in
+/// `crate::systems::dispatch::run`) must use
+/// [`assign_with_scratch`] so the scratch capacity amortises
+/// across ticks.
+#[cfg(test)]
 pub(crate) fn assign(
     strategy: &mut dyn DispatchStrategy,
     idle_cars: &[(EntityId, f64)],
@@ -1069,13 +1141,29 @@ pub(crate) fn assign(
     manifest: &DispatchManifest,
     world: &World,
 ) -> AssignmentResult {
-    // Collect stops with active demand and known positions, excluding
-    // any whose demand is already being absorbed by a car mid door
-    // cycle (see `pending_stops_minus_covered` for the why).
-    let pending_stops = pending_stops_minus_covered(group, manifest, world, idle_cars);
+    let mut scratch = DispatchScratch::default();
+    assign_with_scratch(strategy, idle_cars, group, manifest, world, &mut scratch)
+}
+
+/// Run one group's assignment pass: build the cost matrix, solve the
+/// optimal bipartite matching, then resolve unassigned cars via
+/// [`DispatchStrategy::fallback`]. Uses `scratch` so the per-tick
+/// allocations (cost matrix, pending stops, etc.) reuse capacity
+/// across invocations.
+pub(crate) fn assign_with_scratch(
+    strategy: &mut dyn DispatchStrategy,
+    idle_cars: &[(EntityId, f64)],
+    group: &ElevatorGroup,
+    manifest: &DispatchManifest,
+    world: &World,
+    scratch: &mut DispatchScratch,
+) -> AssignmentResult {
+    // Fill `scratch.pending_stops` in place. The buffer's capacity
+    // survives across ticks.
+    pending_stops_minus_covered(group, manifest, world, idle_cars, scratch);
 
     let n = idle_cars.len();
-    let m = pending_stops.len();
+    let m = scratch.pending_stops.len();
 
     if n == 0 {
         return AssignmentResult {
@@ -1093,60 +1181,70 @@ pub(crate) fn assign(
         return AssignmentResult { decisions };
     }
 
-    // Build cost matrix. Hungarian requires rows <= cols.
+    // Hungarian requires rows <= cols. Reuse the scratch `Matrix` when
+    // the shape matches the previous dispatch pass — on a realistic
+    // building the (rows, cols) tuple changes only when the car or
+    // stop count does, so steady-state dispatch avoids any heap
+    // traffic for the cost matrix at all. When the shape does change,
+    // a fresh Matrix replaces the stored one and becomes the new
+    // reusable buffer going forward.
     let cols = n.max(m);
-    let mut data: Vec<i64> = vec![ASSIGNMENT_SENTINEL; n * cols];
-    for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
-        strategy.prepare_car(car_eid, car_pos, group, manifest, world);
-        // Borrow the car's restricted-stops set for this row so each
-        // (car, stop) pair can short-circuit before calling rank().
-        // Pre-fix only DCS consulted restricted_stops; SCAN/LOOK/NC/ETD
-        // happily ranked restricted pairs and `commit_go_to_stop` later
-        // silently dropped the assignment, starving the call. (#256)
-        //
-        // The row only reads through `world` (via `prepare_car` and
-        // `rank`), so holding an immutable borrow of the set instead
-        // of cloning it drops one HashSet allocation per car per
-        // dispatch pass — a win that scales with elevator count.
-        let restricted = world
-            .elevator(car_eid)
-            .map(crate::components::Elevator::restricted_stops);
-        for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
-            if restricted.is_some_and(|r| r.contains(&stop_eid)) {
-                continue; // leave SENTINEL — this pair is unavailable
-            }
-            let ctx = RankContext {
-                car: car_eid,
-                car_position: car_pos,
-                stop: stop_eid,
-                stop_position: stop_pos,
-                group,
-                manifest,
-                world,
-            };
-            let scaled = strategy.rank(&ctx).map_or(ASSIGNMENT_SENTINEL, scale_cost);
-            data[i * cols + j] = scaled;
+    match &mut scratch.cost_matrix_mx {
+        Some(mx) if mx.rows == n && mx.columns == cols => {
+            mx.fill(ASSIGNMENT_SENTINEL);
+        }
+        slot => {
+            *slot = Some(pathfinding::matrix::Matrix::new(
+                n,
+                cols,
+                ASSIGNMENT_SENTINEL,
+            ));
         }
     }
-    // `from_vec` only fails if `n * cols != data.len()` — both derived
-    // from `n` and `cols` above, so the construction is infallible. Fall
-    // back to an empty-result shape in the unlikely event the invariant
-    // is violated in future refactors.
-    let Ok(matrix) = pathfinding::matrix::Matrix::from_vec(n, cols, data) else {
-        for &(car_eid, car_pos) in idle_cars {
-            let d = strategy.fallback(car_eid, car_pos, group, manifest, world);
-            decisions.push((car_eid, d));
+    let matrix_ref = scratch
+        .cost_matrix_mx
+        .as_mut()
+        .unwrap_or_else(|| unreachable!("cost_matrix_mx populated by match above"));
+
+    {
+        let pending_stops = &scratch.pending_stops;
+        for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
+            strategy.prepare_car(car_eid, car_pos, group, manifest, world);
+            // Borrow the car's restricted-stops set for this row so each
+            // (car, stop) pair can short-circuit before calling rank().
+            // Pre-fix only DCS consulted restricted_stops; SCAN/LOOK/NC/ETD
+            // happily ranked restricted pairs and `commit_go_to_stop` later
+            // silently dropped the assignment, starving the call. (#256)
+            let restricted = world
+                .elevator(car_eid)
+                .map(crate::components::Elevator::restricted_stops);
+            for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
+                if restricted.is_some_and(|r| r.contains(&stop_eid)) {
+                    continue; // leave SENTINEL — this pair is unavailable
+                }
+                let ctx = RankContext {
+                    car: car_eid,
+                    car_position: car_pos,
+                    stop: stop_eid,
+                    stop_position: stop_pos,
+                    group,
+                    manifest,
+                    world,
+                };
+                let scaled = strategy.rank(&ctx).map_or(ASSIGNMENT_SENTINEL, scale_cost);
+                matrix_ref[(i, j)] = scaled;
+            }
         }
-        return AssignmentResult { decisions };
-    };
-    let (_, assignments) = pathfinding::kuhn_munkres::kuhn_munkres_min(&matrix);
+    }
+    let matrix = &*matrix_ref;
+    let (_, assignments) = pathfinding::kuhn_munkres::kuhn_munkres_min(matrix);
 
     for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
         let col = assignments[i];
         // A real assignment is: col points to a real stop (col < m) AND
         // the cost isn't sentinel-padded (meaning rank() returned Some).
         if col < m && matrix[(i, col)] < ASSIGNMENT_SENTINEL {
-            let (stop_eid, _) = pending_stops[col];
+            let (stop_eid, _) = scratch.pending_stops[col];
             decisions.push((car_eid, DispatchDecision::GoToStop(stop_eid)));
         } else {
             let d = strategy.fallback(car_eid, car_pos, group, manifest, world);
