@@ -8,7 +8,7 @@ import {
   drawWaitingFigures,
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
-import type { Facing, RiderVariant } from "./figures/rider";
+import type { RiderVariant } from "./figures/rider";
 import { pickRiderVariant } from "./figures/rider";
 import type { Scale } from "./layout";
 import { findNearestStop, scaleFor } from "./layout";
@@ -46,7 +46,6 @@ interface Tween {
 interface CarState {
   riders: number;
   roster: RiderVariant[];
-  facing: Facing;
 }
 
 /** Per-stop frame-to-frame memory used to detect abandonment. */
@@ -334,18 +333,7 @@ export class CanvasRenderer {
       const thisRiderColor = riderColorPerCar.get(carId) ?? CAR_DOT_COLOR;
       const state = this.#carStates.get(carId);
       drawCarTrail(ctx, car, cx, thisCarW, thisCarH, toScreenY);
-      drawCar(
-        ctx,
-        car,
-        cx,
-        thisCarW,
-        thisCarH,
-        thisRiderColor,
-        toScreenY,
-        s,
-        state?.roster,
-        state?.facing,
-      );
+      drawCar(ctx, car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s, state?.roster);
     }
 
     this.#computeTweens(snap, carX, shaftInnerPerCar, toScreenY, s, speedMultiplier);
@@ -469,12 +457,7 @@ export class CanvasRenderer {
       while (roster.length > riders) roster.pop();
       while (roster.length < riders) roster.push(pickRiderVariant(car.id, roster.length));
 
-      // Facing tracks the car's travel direction; persists when stopped.
-      let facing: Facing = prev?.facing ?? "right";
-      if (car.v > 0.01) facing = "right";
-      else if (car.v < -0.01) facing = "left";
-
-      this.#carStates.set(car.id, { riders, roster, facing });
+      this.#carStates.set(car.id, { riders, roster });
     }
 
     for (const stop of snap.stops) {
