@@ -352,4 +352,58 @@ impl super::Simulation {
         self.run_metrics();
         self.advance_tick();
     }
+
+    /// Step the simulation until every rider reaches a terminal phase
+    /// (`Arrived`, `Abandoned`, or `Resident`), draining events each
+    /// tick so event-driven metrics stay up to date.
+    ///
+    /// Returns the number of ticks actually stepped, or `Err(max_ticks)`
+    /// if the budget was exhausted before the sim drained. The cap is a
+    /// safety net against a stuck dispatch or an unserviceable rider
+    /// holding the tick loop open forever — right-size it for your
+    /// workload and fail fast rather than spinning silently.
+    ///
+    /// A sim with zero riders returns `Ok(0)` immediately.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    /// use elevator_core::stop::StopId;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    /// let ticks = sim.run_until_quiet(2_000).expect("sim drained in time");
+    /// assert!(sim.metrics().total_delivered() >= 1);
+    /// assert!(ticks <= 2_000);
+    /// ```
+    ///
+    /// # Errors
+    /// Returns `Err(max_ticks)` when `max_ticks` elapse without every
+    /// rider reaching a terminal phase. Inspect `sim.world()`
+    /// iteration or `sim.metrics()` to diagnose stuck riders; the
+    /// sim is left in its partially-advanced state so you can
+    /// snapshot it for post-mortem.
+    pub fn run_until_quiet(&mut self, max_ticks: u64) -> Result<u64, u64> {
+        use crate::components::RiderPhase;
+
+        fn all_quiet(sim: &super::Simulation) -> bool {
+            sim.world().iter_riders().all(|(_, r)| {
+                matches!(
+                    r.phase(),
+                    RiderPhase::Arrived | RiderPhase::Abandoned | RiderPhase::Resident
+                )
+            })
+        }
+
+        if all_quiet(self) {
+            return Ok(0);
+        }
+        for tick in 1..=max_ticks {
+            self.step();
+            let _ = self.drain_events();
+            if all_quiet(self) {
+                return Ok(tick);
+            }
+        }
+        Err(max_ticks)
+    }
 }
