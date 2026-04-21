@@ -22,8 +22,7 @@ export function renderPaneRepositionInfo(
 ): void {
   const label = REPOSITION_LABELS[reposition];
   const desc = REPOSITION_DESCRIPTIONS[reposition];
-  const chipText = `Park: ${label}`;
-  if (pane.repoName.textContent !== chipText) pane.repoName.textContent = chipText;
+  if (pane.repoName.textContent !== label) pane.repoName.textContent = label;
   pane.repoTrigger.setAttribute("aria-label", `Change idle-parking strategy (currently ${label})`);
   pane.repoTrigger.title = desc;
 }

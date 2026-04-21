@@ -111,54 +111,63 @@
         class="pane pane-a grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-a)"
       >
-        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
-          <span
-            class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5"
-            >A</span
-          >
-          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
-            <button
-              type="button"
-              id="strategy-trigger-a"
-              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="strategy-popover-a"
-            >
-              <span id="name-a" class="pane-name">LOOK</span>
-              <span
-                class="strategy-caret text-content-tertiary text-[10px] leading-none"
-                aria-hidden="true"
-                >&#9662;</span
-              >
-            </button>
-            <button
-              type="button"
-              id="repo-trigger-a"
-              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="repo-popover-a"
-            >
-              <span id="repo-name-a">Park: Adaptive</span>
-              <span
-                class="strategy-caret text-content-tertiary text-[10px] leading-none"
-                aria-hidden="true"
-                >&#9662;</span
-              >
-            </button>
+        <header class="pane-header relative flex flex-col gap-1.5 px-0 py-0.5">
+          <div class="flex items-start gap-3 min-w-0">
             <span
-              id="desc-a"
-              class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"
-            ></span>
+              class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-a text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5 shrink-0"
+              >A</span
+            >
+            <div class="pane-section flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Dispatch</span>
+              <button
+                type="button"
+                id="strategy-trigger-a"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="strategy-popover-a"
+              >
+                <span id="name-a" class="pane-name">LOOK</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Parking</span>
+              <button
+                type="button"
+                id="repo-trigger-a"
+                class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="repo-popover-a"
+              >
+                <span id="repo-name-a">Adaptive</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 ml-auto shrink-0">
+              <span class="ctl-k">Traffic</span>
+              <span
+                id="mode-a"
+                class="pane-mode text-[11px] font-semibold tracking-[0.02em] px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+                data-mode="Idle"
+                title="Idle"
+                >Quiet</span
+              >
+            </div>
           </div>
           <span
-            id="mode-a"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
-            data-mode="Idle"
-            title="Traffic mode from TrafficDetector"
-            >Idle</span
-          >
+            id="desc-a"
+            class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px] pl-[34px]"
+          ></span>
           <div
             id="strategy-popover-a"
             class="strategy-popover"
@@ -190,54 +199,63 @@
         class="pane pane-b grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-b)"
       >
-        <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
-          <span
-            class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5"
-            >B</span
-          >
-          <div class="pane-title flex flex-col gap-0.5 min-w-0 flex-1">
-            <button
-              type="button"
-              id="strategy-trigger-b"
-              class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="strategy-popover-b"
-            >
-              <span id="name-b" class="pane-name">ETD</span>
-              <span
-                class="strategy-caret text-content-tertiary text-[10px] leading-none"
-                aria-hidden="true"
-                >&#9662;</span
-              >
-            </button>
-            <button
-              type="button"
-              id="repo-trigger-b"
-              class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[11px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="repo-popover-b"
-            >
-              <span id="repo-name-b">Park: Adaptive</span>
-              <span
-                class="strategy-caret text-content-tertiary text-[10px] leading-none"
-                aria-hidden="true"
-                >&#9662;</span
-              >
-            </button>
+        <header class="pane-header relative flex flex-col gap-1.5 px-0 py-0.5">
+          <div class="flex items-start gap-3 min-w-0">
             <span
-              id="desc-b"
-              class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px]"
-            ></span>
+              class="pane-badge inline-flex items-center justify-center w-[22px] h-[22px] rounded-sm bg-pane-b text-surface font-bold text-[11px] tracking-[0.04em] shadow-sm mt-0.5 shrink-0"
+              >B</span
+            >
+            <div class="pane-section flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Dispatch</span>
+              <button
+                type="button"
+                id="strategy-trigger-b"
+                class="strategy-chip inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[13.5px] font-semibold tracking-[0.01em] text-content cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="strategy-popover-b"
+              >
+                <span id="name-b" class="pane-name">ETD</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 min-w-0">
+              <span class="ctl-k">Parking</span>
+              <button
+                type="button"
+                id="repo-trigger-b"
+                class="strategy-chip strategy-chip-sub inline-flex items-center gap-1.5 self-start px-2 py-0.5 -ml-2 rounded-sm bg-transparent border border-transparent text-[12px] font-medium tracking-[0.01em] text-content-secondary cursor-pointer transition-colors duration-fast hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:bg-surface-hover focus-visible:border-stroke aria-expanded:bg-surface-hover aria-expanded:border-stroke"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="repo-popover-b"
+              >
+                <span id="repo-name-b">Adaptive</span>
+                <span
+                  class="strategy-caret text-content-tertiary text-[10px] leading-none"
+                  aria-hidden="true"
+                  >&#9662;</span
+                >
+              </button>
+            </div>
+            <div class="pane-section flex flex-col gap-0.5 ml-auto shrink-0">
+              <span class="ctl-k">Traffic</span>
+              <span
+                id="mode-b"
+                class="pane-mode text-[11px] font-semibold tracking-[0.02em] px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55"
+                data-mode="Idle"
+                title="Idle"
+                >Quiet</span
+              >
+            </div>
           </div>
           <span
-            id="mode-b"
-            class="pane-mode ml-auto text-[10.5px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-tertiary tabular-nums transition-colors data-[mode=Idle]:opacity-55 shrink-0 mt-0.5"
-            data-mode="Idle"
-            title="Traffic mode from TrafficDetector"
-            >Idle</span
-          >
+            id="desc-b"
+            class="pane-strategy-desc text-[11px] text-content-tertiary tracking-[0.01em] max-md:text-[10.5px] pl-[34px]"
+          ></span>
           <div
             id="strategy-popover-b"
             class="strategy-popover"
