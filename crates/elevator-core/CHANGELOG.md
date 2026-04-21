@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.19.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.2...elevator-core-v15.19.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* **snapshot:** round-trip Scan and Look sweep direction ([#416](https://github.com/andymai/elevator-core/issues/416)) ([b7120e3](https://github.com/andymai/elevator-core/commit/b7120e33bfe25e3b573f7983d82436945f20f259))
+
 ## [15.19.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.1...elevator-core-v15.19.2) (2026-04-21)
 
 
