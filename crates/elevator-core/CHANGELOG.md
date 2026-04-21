@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.19.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.18.1...elevator-core-v15.19.0) (2026-04-21)
+
+
+### Features
+
+* **tests:** extend invariant harness to DestinationDispatch ([#407](https://github.com/andymai/elevator-core/issues/407)) ([b72d05e](https://github.com/andymai/elevator-core/commit/b72d05e2eac0f73e0948298ba50d5dd2d6e77acd))
+
 ## [15.18.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.18.0...elevator-core-v15.18.1) (2026-04-21)
 
 
