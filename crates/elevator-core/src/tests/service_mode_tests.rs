@@ -392,3 +392,39 @@ fn out_of_service_mid_flight_completes_trip() {
         "OutOfService car should complete in-flight trip to stop 2"
     );
 }
+
+/// 11. Leaving Manual mode clears queued door commands.
+#[test]
+fn leaving_manual_clears_door_command_queue() {
+    use crate::entity::ElevatorId;
+
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let elev = sim.world().elevator_ids()[0];
+
+    sim.set_service_mode(elev, ServiceMode::Manual).unwrap();
+
+    // Queue a hold-open command while in Manual.
+    sim.hold_door(ElevatorId::from(elev), 999).unwrap();
+
+    assert!(
+        !sim.world()
+            .elevator(elev)
+            .unwrap()
+            .door_command_queue()
+            .is_empty(),
+        "door command queue should have a pending command"
+    );
+
+    // Switch back to Normal — queued commands should be cleared.
+    sim.set_service_mode(elev, ServiceMode::Normal).unwrap();
+
+    assert!(
+        sim.world()
+            .elevator(elev)
+            .unwrap()
+            .door_command_queue()
+            .is_empty(),
+        "door command queue should be cleared after leaving Manual"
+    );
+}

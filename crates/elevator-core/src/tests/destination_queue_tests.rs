@@ -511,3 +511,23 @@ fn recall_mid_flight_redirects() {
         "car should return to stop 0 after mid-flight recall"
     );
 }
+
+/// Disabling a stop scrubs it from all elevator destination queues.
+#[test]
+fn disable_stop_scrubs_destination_queues() {
+    let mut sim = build_sim();
+    let elev = first_elevator(&sim);
+
+    sim.push_destination(elev, StopId(1)).unwrap();
+    sim.push_destination(elev, StopId(2)).unwrap();
+
+    let stop1_entity = sim.stop_entity(StopId(1)).unwrap();
+    sim.disable(stop1_entity).unwrap();
+
+    let q = sim.destination_queue(elev).unwrap();
+    assert!(
+        !q.contains(&stop1_entity),
+        "disabled stop should be scrubbed from destination queue"
+    );
+    assert_eq!(q.len(), 1, "only the non-disabled stop should remain");
+}

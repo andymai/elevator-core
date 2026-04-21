@@ -595,8 +595,16 @@ impl Simulation {
             vel.value = 0.0;
         }
 
-        // If this is a stop, abandon resident riders and invalidate routes.
+        // If this is a stop, scrub it from elevator destination queues,
+        // abandon resident riders, and invalidate routes.
         if self.world.stop(id).is_some() {
+            let elevator_ids: Vec<EntityId> =
+                self.world.iter_elevators().map(|(eid, _, _)| eid).collect();
+            for eid in elevator_ids {
+                if let Some(q) = self.world.destination_queue_mut(eid) {
+                    q.retain(|s| s != id);
+                }
+            }
             let resident_ids: Vec<EntityId> =
                 self.rider_index.residents_at(id).iter().copied().collect();
             for rid in resident_ids {
@@ -928,6 +936,7 @@ impl Simulation {
         if old == crate::components::ServiceMode::Manual {
             if let Some(car) = self.world.elevator_mut(elevator) {
                 car.manual_target_velocity = None;
+                car.door_command_queue.clear();
             }
             if let Some(v) = self.world.velocity_mut(elevator) {
                 v.value = 0.0;
