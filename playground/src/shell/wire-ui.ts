@@ -49,7 +49,6 @@ export function wireUi(): UiHandles {
     canvas: q(`shaft-${suffix}`) as HTMLCanvasElement,
     name: q(`name-${suffix}`),
     mode: q(`mode-${suffix}`),
-    decision: q(`decision-${suffix}`),
     desc: q(`desc-${suffix}`),
     metrics: q(`metrics-${suffix}`),
     trigger: q(`strategy-trigger-${suffix}`) as HTMLButtonElement,
