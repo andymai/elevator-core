@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.20.2](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.1...elevator-core-v15.20.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **dispatch:** break self-reinforcing sweep loop in DCS queue rebuild ([#425](https://github.com/andymai/elevator-core/issues/425)) ([56953f8](https://github.com/andymai/elevator-core/commit/56953f871e94fcf0afdb11695d0d70d557d55b61))
+
 ## [15.20.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.0...elevator-core-v15.20.1) (2026-04-21)
 
 
