@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.20.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.0...elevator-core-v15.20.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **dispatch:** set_dispatch prefers strategy.builtin_id() over arg ([#423](https://github.com/andymai/elevator-core/issues/423)) ([3b8bd0d](https://github.com/andymai/elevator-core/commit/3b8bd0df8b4f6347ef677c4e729690179a52ba92))
+
 ## [15.20.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.3...elevator-core-v15.20.0) (2026-04-21)
 
 
