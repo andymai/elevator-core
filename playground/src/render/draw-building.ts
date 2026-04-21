@@ -169,7 +169,7 @@ export function drawGutterHeaders(
 }
 
 /**
- * Draw waiting riders as tiny stick figures standing on each floor.
+ * Draw waiting riders as side-profile silhouettes on each floor.
  */
 export function drawWaitingFigures(
   ctx: CanvasRenderingContext2D,
