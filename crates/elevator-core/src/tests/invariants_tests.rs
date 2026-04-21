@@ -59,7 +59,7 @@
 //!    Covers `NearestCar`, `Etd`, `Rsr`, `Destination`. `Scan` and
 //!    `Look` are excluded because they carry per-elevator sweep-
 //!    direction state in the dispatcher struct (`direction` /
-//!    `mode` HashMaps) that isn't part of `WorldSnapshot`. Restore
+//!    `mode` `HashMap`s) that isn't part of `WorldSnapshot`. Restore
 //!    instantiates them fresh with default-`Up` directions, so
 //!    their trajectories legitimately diverge from a running sim
 //!    whose elevators are mid-sweep. Round-tripping that state
