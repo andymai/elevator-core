@@ -28,11 +28,6 @@ export interface UiHandles {
   shortcutsBtn: HTMLButtonElement;
   shortcutSheet: HTMLElement;
   shortcutSheetClose: HTMLButtonElement;
-  sheet: HTMLElement;
-  sheetToggle: HTMLButtonElement;
-  sheetScenario: HTMLElement;
-  sheetStrategy: HTMLElement;
-  sheetPlay: HTMLElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
 }
@@ -109,11 +104,6 @@ export function wireUi(): UiHandles {
     shortcutsBtn: q("shortcuts") as HTMLButtonElement,
     shortcutSheet: q("shortcut-sheet"),
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
-    sheet: q("controls-sheet"),
-    sheetToggle: q("sheet-toggle") as HTMLButtonElement,
-    sheetScenario: q("sheet-scenario"),
-    sheetStrategy: q("sheet-strategy"),
-    sheetPlay: q("sheet-play"),
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
   };

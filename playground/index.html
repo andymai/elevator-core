@@ -46,251 +46,11 @@
       </nav>
     </header>
 
-    <aside
-      class="group md:contents max-md:fixed max-md:bottom-0 max-md:inset-x-0 max-md:z-40 max-md:bg-surface-secondary max-md:border-t max-md:border-stroke max-md:rounded-t-lg max-md:shadow-sheet max-md:max-h-[85dvh] max-md:translate-y-[calc(100%-64px)] max-md:transition-transform max-md:duration-slow max-md:ease-spring max-md:will-change-transform max-md:pb-[env(safe-area-inset-bottom)] max-md:data-[open=true]:translate-y-0"
-      id="controls-sheet"
-      data-open="false"
-    >
-      <button
-        class="hidden max-md:flex max-md:items-center max-md:gap-3 max-md:w-full max-md:h-16 max-md:px-4 max-md:pt-3.5 max-md:pb-2.5 max-md:bg-transparent max-md:border-0 max-md:shadow-none max-md:text-content max-md:text-left max-md:relative max-md:cursor-pointer"
-        id="sheet-toggle"
-        type="button"
-        aria-label="Controls"
-        aria-expanded="false"
-        aria-controls="sheet-body"
-      >
-        <span
-          class="max-md:absolute max-md:top-1.5 max-md:left-1/2 max-md:-translate-x-1/2 max-md:w-9 max-md:h-1 max-md:rounded-[2px] max-md:bg-stroke-strong max-md:transition-colors max-md:duration-fast group-data-[open=true]:bg-accent group-data-[open=true]:opacity-60"
-          aria-hidden="true"
-        ></span>
-        <div
-          class="max-md:flex max-md:flex-1 max-md:items-baseline max-md:gap-2 max-md:min-w-0 max-md:overflow-hidden max-md:whitespace-nowrap"
-        >
-          <span
-            id="sheet-scenario"
-            class="text-[13px] font-semibold text-content overflow-hidden text-ellipsis"
-            >Convention burst</span
-          >
-          <span class="text-content-disabled" aria-hidden="true">&middot;</span>
-          <span
-            id="sheet-strategy"
-            class="text-xs text-content-tertiary tabular-nums tracking-[0.02em]"
-            >ETD</span
-          >
-        </div>
-        <span
-          class="max-md:inline-flex max-md:items-center max-md:justify-center max-md:flex-none max-md:w-10 max-md:h-10 max-md:rounded-full max-md:bg-accent-muted max-md:text-accent-hover max-md:border max-md:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] max-md:text-sm max-md:leading-none max-md:shadow-sm max-md:transition-[transform,background] max-md:duration-fast max-md:active:scale-95 max-md:cursor-pointer"
-          id="sheet-play"
-          aria-hidden="true"
-          >&#9654;</span
-        >
-      </button>
-      <div
-        class="max-md:overflow-y-auto max-md:max-h-[calc(85dvh-64px)] max-md:pb-3 max-md:[-webkit-overflow-scrolling:touch]"
-        id="sheet-body"
-      >
-        <section
-          id="scenario-cards"
-          aria-label="Scenario picker"
-          class="scenario-cards flex flex-row flex-wrap items-center gap-1.5 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-1.5 max-md:px-3.5 max-md:py-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
-        ></section>
-
-        <section
-          class="controls flex flex-wrap gap-2.5 items-end px-5 py-2 bg-surface border-b border-stroke-subtle max-md:px-3.5 max-md:gap-2"
-        >
-          <!-- Strategy pickers moved into each pane header; controls bar now
-           starts with compare/seed/speed/intensity. Tweak button is
-           hidden for now but kept in DOM so the keyboard shortcut (`T`)
-           and wiring in main.ts keep working. -->
-          <label
-            class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-surface-elevated border border-stroke-subtle rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke max-md:basis-full"
-          >
-            <input id="compare" type="checkbox" />
-            <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase"
-              >Compare</span
-            >
-          </label>
-          <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-            <span class="ctl-k">Seed</span>
-            <div class="seed-field relative">
-              <input
-                id="seed"
-                type="text"
-                value="otis"
-                maxlength="24"
-                autocomplete="off"
-                autocapitalize="off"
-                spellcheck="false"
-                class="w-full min-w-0 pr-7 max-md:min-h-10"
-              />
-              <button
-                id="seed-shuffle"
-                type="button"
-                aria-label="Randomize seed"
-                title="Randomize seed"
-                class="seed-shuffle absolute inset-y-0 right-0 w-6 flex items-center justify-center text-content-tertiary hover:text-content text-[12px] leading-none"
-              >
-                &#x21BB;
-              </button>
-            </div>
-          </label>
-          <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-            <span class="ctl-k">
-              <span>Speed</span>
-              <span
-                id="speed-label"
-                class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
-                >2&times;</span
-              >
-            </span>
-            <input
-              id="speed"
-              type="range"
-              min="1"
-              max="16"
-              step="1"
-              value="2"
-              class="max-md:w-full"
-            />
-          </label>
-          <label class="flex flex-col gap-0.5 min-w-0 ctl-half">
-            <span class="ctl-k">
-              <span>Intensity</span>
-              <span
-                id="traffic-label"
-                class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
-                >1.0&times;</span
-              >
-            </span>
-            <input
-              id="traffic"
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value="1"
-              class="max-md:w-full"
-            />
-          </label>
-          <div class="actions flex gap-2 ml-auto max-md:basis-full max-md:ml-0 max-md:flex-wrap">
-            <button
-              id="tweak"
-              type="button"
-              aria-expanded="false"
-              aria-controls="tweak-panel"
-              hidden
-              class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10"
-            >
-              Tweak parameters
-            </button>
-            <button
-              id="play"
-              type="button"
-              class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10"
-            >
-              Pause
-            </button>
-            <button
-              id="reset"
-              type="button"
-              class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10"
-            >
-              Reset
-            </button>
-            <button
-              id="share"
-              type="button"
-              class="max-md:flex-1 max-md:basis-[calc(50%-4px)] max-md:min-h-10"
-            >
-              Share
-            </button>
-          </div>
-        </section>
-
-        <section
-          class="tweak-panel"
-          id="tweak-panel"
-          hidden
-          aria-label="Building physics parameters"
-        >
-          <div class="tweak-row" data-key="cars" tabindex="0">
-            <span class="tweak-label">Cars</span>
-            <div class="tweak-stepper">
-              <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-              <span class="tweak-value">2</span>
-              <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-            </div>
-            <div class="tweak-track" aria-hidden="true">
-              <div class="tweak-track-default"></div>
-              <div class="tweak-track-fill"></div>
-              <div class="tweak-track-thumb"></div>
-            </div>
-            <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
-            <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
-              Reset
-            </button>
-          </div>
-          <div class="tweak-row" data-key="maxSpeed" tabindex="0">
-            <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
-            <div class="tweak-stepper">
-              <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-              <span class="tweak-value">2.5</span>
-              <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-            </div>
-            <div class="tweak-track" aria-hidden="true">
-              <div class="tweak-track-default"></div>
-              <div class="tweak-track-fill"></div>
-              <div class="tweak-track-thumb"></div>
-            </div>
-            <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
-            <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
-              Reset
-            </button>
-          </div>
-          <div class="tweak-row" data-key="weightCapacity" tabindex="0">
-            <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
-            <div class="tweak-stepper">
-              <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-              <span class="tweak-value">800</span>
-              <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-            </div>
-            <div class="tweak-track" aria-hidden="true">
-              <div class="tweak-track-default"></div>
-              <div class="tweak-track-fill"></div>
-              <div class="tweak-track-thumb"></div>
-            </div>
-            <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
-            <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
-              Reset
-            </button>
-          </div>
-          <div class="tweak-row" data-key="doorCycleSec" tabindex="0">
-            <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
-            <div class="tweak-stepper">
-              <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
-              <span class="tweak-value">5.5</span>
-              <button type="button" class="tweak-inc" aria-label="Increase">+</button>
-            </div>
-            <div class="tweak-track" aria-hidden="true">
-              <div class="tweak-track-default"></div>
-              <div class="tweak-track-fill"></div>
-              <div class="tweak-track-thumb"></div>
-            </div>
-            <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
-            <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
-              Reset
-            </button>
-          </div>
-          <div class="tweak-foot">
-            <span class="tweak-foot-hint">
-              Speed, capacity, and door cycle hot-swap live. Changing the car count rebuilds the
-              sim. Focus a row and use arrow keys to nudge.
-            </span>
-            <button type="button" id="tweak-reset-all" hidden>Reset all</button>
-          </div>
-        </section>
-      </div>
-    </aside>
+    <section
+      id="scenario-cards"
+      aria-label="Scenario picker"
+      class="scenario-cards flex flex-row flex-wrap items-center gap-1.5 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-1.5 max-md:px-3.5 max-md:py-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+    ></section>
 
     <section
       id="phase-strip"
@@ -301,10 +61,6 @@
         <span id="phase-label" class="text-content-secondary tabular-nums font-medium"
           >&mdash;</span
         >
-        <!-- Color legend merged into the phase strip's right side.
-             On mobile the "CABIN" label drops and gaps tighten so the
-             legend can ride on the same row as the phase name instead
-             of wrapping to its own line. -->
         <div
           class="ml-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] max-md:gap-x-1.5 max-md:gap-y-0.5"
         >
@@ -348,11 +104,11 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-5 flex-1 min-h-0 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--sheet-peek,64px)+10px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 min-h-0 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
     >
       <section
         id="pane-a"
-        class="pane pane-a grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-a grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-a rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-a)"
       >
         <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
@@ -419,19 +175,19 @@
           ></div>
         </header>
         <div
+          id="metrics-a"
+          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
+        ></div>
+        <div
           class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
           <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
-        <div
-          id="metrics-a"
-          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
-        ></div>
       </section>
 
       <section
         id="pane-b"
-        class="pane pane-b grid grid-rows-[auto_1fr_auto] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
+        class="pane pane-b grid grid-rows-[auto_auto_1fr] gap-2.5 min-w-0 min-h-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle border-t-2 border-t-pane-b rounded-lg shadow-md relative max-md:p-2.5 max-md:gap-2"
         style="--pane-accent: var(--pane-b)"
       >
         <header class="pane-header relative flex items-start gap-2.5 px-0 py-0.5">
@@ -498,16 +254,166 @@
           ></div>
         </header>
         <div
+          id="metrics-b"
+          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
+        ></div>
+        <div
           class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden min-h-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
           <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
-        <div
-          id="metrics-b"
-          class="metric-strip grid grid-cols-5 gap-1.5 p-0.5 tabular-nums max-md:grid-cols-3"
-        ></div>
       </section>
     </main>
+
+    <!-- Bottom controls bar — transparent when idle, full opacity on hover/focus -->
+    <div id="controls-bar" class="controls-bar">
+      <section
+        class="tweak-panel tweak-panel-popover"
+        id="tweak-panel"
+        hidden
+        aria-label="Building physics parameters"
+      >
+        <div class="tweak-row" data-key="cars" tabindex="0">
+          <span class="tweak-label">Cars</span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">2</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">2</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="maxSpeed" tabindex="0">
+          <span class="tweak-label">Max speed <span class="tweak-unit">m/s</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">2.5</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">2.5</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="weightCapacity" tabindex="0">
+          <span class="tweak-label">Capacity <span class="tweak-unit">kg</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">800</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">800</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-row" data-key="doorCycleSec" tabindex="0">
+          <span class="tweak-label">Door cycle <span class="tweak-unit">s</span></span>
+          <div class="tweak-stepper">
+            <button type="button" class="tweak-dec" aria-label="Decrease">&minus;</button>
+            <span class="tweak-value">5.5</span>
+            <button type="button" class="tweak-inc" aria-label="Increase">+</button>
+          </div>
+          <div class="tweak-track" aria-hidden="true">
+            <div class="tweak-track-default"></div>
+            <div class="tweak-track-fill"></div>
+            <div class="tweak-track-thumb"></div>
+          </div>
+          <span class="tweak-default">default <span class="tweak-default-v">5.5</span></span>
+          <button type="button" class="tweak-reset" hidden aria-label="Reset to default">
+            Reset
+          </button>
+        </div>
+        <div class="tweak-foot">
+          <span class="tweak-foot-hint">
+            Speed, capacity, and door cycle hot-swap live. Changing the car count rebuilds the sim.
+            Focus a row and use arrow keys to nudge.
+          </span>
+          <button type="button" id="tweak-reset-all" hidden>Reset all</button>
+        </div>
+      </section>
+      <div class="controls-bar-inner">
+        <label
+          class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-transparent border border-transparent rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke-subtle"
+        >
+          <input id="compare" type="checkbox" />
+          <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase"
+            >Compare</span
+          >
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">Seed</span>
+          <div class="seed-field relative">
+            <input
+              id="seed"
+              type="text"
+              value="otis"
+              maxlength="24"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              class="w-full min-w-0 pr-7"
+            />
+            <button
+              id="seed-shuffle"
+              type="button"
+              aria-label="Randomize seed"
+              title="Randomize seed"
+              class="seed-shuffle absolute inset-y-0 right-0 w-6 flex items-center justify-center text-content-tertiary hover:text-content text-[12px] leading-none"
+            >
+              &#x21BB;
+            </button>
+          </div>
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">
+            <span>Speed</span>
+            <span
+              id="speed-label"
+              class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
+              >2&times;</span
+            >
+          </span>
+          <input id="speed" type="range" min="1" max="16" step="1" value="2" class="w-full" />
+        </label>
+        <label class="controls-bar-field">
+          <span class="ctl-k">
+            <span>Intensity</span>
+            <span
+              id="traffic-label"
+              class="normal-case tracking-normal text-content-secondary text-[11.5px] tabular-nums"
+              >1.0&times;</span
+            >
+          </span>
+          <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full" />
+        </label>
+        <div class="controls-bar-actions">
+          <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" hidden>
+            Tweak
+          </button>
+          <button id="play" type="button">Pause</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="share" type="button">Share</button>
+        </div>
+      </div>
+    </div>
 
     <div
       id="loader"
@@ -523,7 +429,7 @@
     </div>
     <div
       id="toast"
-      class="toast fixed bottom-7 left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
+      class="toast fixed bottom-[calc(var(--controls-bar-h,52px)+16px)] left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
       role="status"
     ></div>
 
