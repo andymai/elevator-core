@@ -207,48 +207,68 @@ impl DispatchStrategy for PriorityDispatch {
 
 ## Step 4 -- Snapshot support
 
-Simulations can be serialized via `Simulation::snapshot()` for save/load, replay, and deterministic testing. The snapshot records each group's dispatch strategy by name. Built-in strategies serialize to specific variants (`BuiltinStrategy::Scan`, `::Look`, `::NearestCar`, `::Etd`); custom strategies serialize to `BuiltinStrategy::Custom(String)`.
+Simulations can be serialized via `Simulation::snapshot()` for save/load, replay, and deterministic testing. The snapshot records each group's dispatch strategy by name. Built-in strategies serialize to specific variants (`BuiltinStrategy::Scan`, `::Look`, `::NearestCar`, `::Etd`, `::Rsr`, `::Destination`); custom strategies serialize to `BuiltinStrategy::Custom(String)`.
 
-On restore, `WorldSnapshot::restore()` takes an optional factory function that maps the custom name back to a strategy instance. If you don't provide one, custom strategies silently become `ScanDispatch` on restore -- your save/load round trip will be wrong.
+On restore, `WorldSnapshot::restore()` takes an optional factory function that maps the custom name back to a strategy instance. If your custom strategy doesn't identify itself via `builtin_id` (see below), the sim silently records `BuiltinStrategy::Scan` instead -- the snapshot name is wrong and the factory never gets called on restore.
 
-The canonical pattern:
+The canonical pattern uses two hooks on the `DispatchStrategy` trait:
+
+- **`builtin_id()`** advertises the snapshot name. Override it to return `BuiltinStrategy::Custom("name")` so `Simulation::new` / the builder / `set_dispatch` all record the right identity, regardless of which entry point the caller uses.
+- **`snapshot_config()` / `restore_config()`** (optional) round-trip any tunable configuration. Without overriding, the restored instance runs with whatever defaults the factory produces. Override them if your strategy has runtime-tunable weights or other state that should survive a save.
 
 ```rust,no_run
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy, RankContext};
-use elevator_core::ids::GroupId;
 use elevator_core::snapshot::WorldSnapshot;
-
-#[derive(Default)]
-struct PriorityDispatch;
-impl DispatchStrategy for PriorityDispatch {
-    // Real implementations score against `ctx`; see `BusyStopNearest` above.
-    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
-}
+use serde::{Deserialize, Serialize};
 
 const PRIORITY_NAME: &str = "priority";
 
+#[derive(Default, Serialize, Deserialize)]
+struct PriorityDispatch {
+    urgency_boost: f64,
+}
+
+impl DispatchStrategy for PriorityDispatch {
+    // Real implementations score against `ctx`; see `BusyStopNearest` above.
+    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+
+    fn builtin_id(&self) -> Option<BuiltinStrategy> {
+        // Identify the strategy to the snapshot layer. Keep this name
+        // stable across releases -- changing it breaks old saves.
+        Some(BuiltinStrategy::Custom(PRIORITY_NAME.into()))
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
+    }
+}
+
 fn run(snapshot: WorldSnapshot) -> Result<(), SimError> {
-    // When building the sim, install the strategy via `Simulation::set_dispatch`,
-    // which takes both the strategy and the `BuiltinStrategy` id used for
-    // snapshot serialization.
-    let mut sim = SimulationBuilder::new()
+    // `Simulation::new` and the builder consult `builtin_id` so you can
+    // drop the strategy in without a second id argument -- the snapshot
+    // records `BuiltinStrategy::Custom("priority")` automatically.
+    let _sim = SimulationBuilder::new()
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
+        .dispatch(PriorityDispatch::default())
         .build()?;
-    sim.set_dispatch(
-        GroupId(0),
-        Box::new(PriorityDispatch),
-        BuiltinStrategy::Custom(PRIORITY_NAME.into()),
-    );
 
     // When restoring, the factory maps names back to strategy instances.
+    // `restore_config` replays `urgency_boost` onto the new instance.
     let sim = snapshot.restore(Some(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
         match name {
-            PRIORITY_NAME => Some(Box::new(PriorityDispatch)),
-            // Return `None` for unknown names -- the restore falls back to
+            PRIORITY_NAME => Some(Box::new(PriorityDispatch::default())),
+            // Return `None` for unknown names -- the restore records a
+            // `SnapshotDanglingReference` event and falls back to
             // `ScanDispatch` rather than panicking.
             _ => None,
         }
