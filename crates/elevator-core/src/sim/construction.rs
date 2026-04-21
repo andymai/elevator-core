@@ -992,14 +992,23 @@ impl Simulation {
     ///
     /// Enables the reposition phase for this group. Idle elevators will
     /// be repositioned according to the strategy after each dispatch phase.
+    ///
+    /// The stored snapshot identity is taken from the strategy's own
+    /// [`RepositionStrategy::builtin_id`] when it returns `Some(..)`,
+    /// so built-in strategies always round-trip as themselves even if
+    /// the `id` argument drifts out of sync with the actual impl.
+    /// Custom strategies that don't override `builtin_id` fall back
+    /// to the caller-supplied `id`, preserving the prior API for
+    /// registered custom factories.
     pub fn set_reposition(
         &mut self,
         group: GroupId,
         strategy: Box<dyn RepositionStrategy>,
         id: BuiltinReposition,
     ) {
+        let resolved_id = strategy.builtin_id().unwrap_or(id);
         self.repositioners.insert(group, strategy);
-        self.reposition_ids.insert(group, id);
+        self.reposition_ids.insert(group, resolved_id);
     }
 
     /// Remove the reposition strategy for a group, disabling repositioning.
