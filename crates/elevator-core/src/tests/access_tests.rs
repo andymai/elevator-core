@@ -429,3 +429,44 @@ fn run_until_quiet_returns_err_on_budget_exhaustion() {
         "sim state must reflect the steps taken"
     );
 }
+
+// ── Simulation::set_dispatch identity resolution ──────────────────
+
+/// `set_dispatch` now consults the strategy's own `builtin_id()` to
+/// fill in the snapshot identity, so a caller passing a mismatched
+/// `id` argument (or a stale config value) can't silently record
+/// the wrong type. The strategy's runtime type always wins for
+/// built-ins — mirror of the fix #414 applied to `set_reposition`.
+#[test]
+fn set_dispatch_prefers_strategy_builtin_id_over_arg() {
+    use crate::dispatch::BuiltinStrategy;
+    use crate::dispatch::look::LookDispatch;
+    use crate::ids::GroupId;
+    use crate::sim::Simulation;
+    use crate::tests::helpers;
+
+    let mut sim = Simulation::new(&helpers::default_config(), helpers::scan()).unwrap();
+    // Caller claims Destination while actually passing LookDispatch.
+    // Pre-fix this silently recorded Destination as the snapshot id
+    // AND flipped the group's HallCallMode to Destination — the DCS
+    // path would then try to service a non-DCS strategy.
+    sim.set_dispatch(
+        GroupId(0),
+        Box::new(LookDispatch::new()),
+        BuiltinStrategy::Destination,
+    );
+    assert_eq!(
+        sim.strategy_id(GroupId(0)),
+        Some(&BuiltinStrategy::Look),
+        "strategy.builtin_id() must override the caller-supplied id \
+         when the strategy identifies as a known built-in",
+    );
+    // The HallCallMode sync keys off the resolved id — with the fix
+    // it stays Classic because Look (not Destination) is the real id.
+    assert_eq!(
+        sim.groups()[0].hall_call_mode(),
+        crate::dispatch::HallCallMode::Classic,
+        "HallCallMode must follow the resolved built-in, not the \
+         stale caller-supplied id",
+    );
+}
