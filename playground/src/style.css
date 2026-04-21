@@ -711,6 +711,11 @@
   .controls-bar:focus-within {
     opacity: 1;
   }
+  @media (pointer: coarse) {
+    .controls-bar {
+      opacity: 1;
+    }
+  }
   .controls-bar-inner {
     pointer-events: auto;
     display: flex;
