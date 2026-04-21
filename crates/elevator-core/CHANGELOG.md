@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.20.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.3...elevator-core-v15.20.0) (2026-04-21)
+
+
+### Features
+
+* **sim:** add Simulation::run_until_quiet helper ([#421](https://github.com/andymai/elevator-core/issues/421)) ([250c24c](https://github.com/andymai/elevator-core/commit/250c24cf5da3e03f96c4f5b73afe2a48108ca0d1))
+
 ## [15.19.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.19.2...elevator-core-v15.19.3) (2026-04-21)
 
 
