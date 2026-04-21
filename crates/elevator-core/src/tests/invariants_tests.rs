@@ -28,10 +28,12 @@
 //!    from-scratch rebuild from `World`. Generalises the
 //!    single-strategy test in [`super::rider_index_tests`].
 //! 4. **Metrics monotonicity.** Counters that are non-decreasing by
-//!    construction (`total_spawned`, `total_delivered`,
-//!    `total_abandoned`, `max_wait_time`, `total_distance`,
-//!    `total_moves`, `total_settled`, `total_rerouted`,
-//!    `reposition_distance`) never decrease tick-over-tick.
+//!    construction (`total_delivered`, `total_abandoned`,
+//!    `max_wait_time`, `total_distance`, `total_moves`,
+//!    `total_settled`, `total_rerouted`, `reposition_distance`)
+//!    never decrease tick-over-tick. `total_spawned` is asserted by
+//!    the conservation invariant instead — pre-spawning makes
+//!    tick-over-tick monotonicity trivial there.
 
 use proptest::prelude::*;
 
@@ -158,43 +160,33 @@ fn any_strategy() -> impl Strategy<Value = StrategyKind> {
 /// Proptest generator for a random workload: 3–6 stops, 1–3 cars,
 /// 600–1200 kg capacity, and 5–30 rider spawns with distinct
 /// origin/destination stops.
+///
+/// `destination` is sampled as `(origin + delta) % stop_count` with
+/// `delta ∈ 1..stop_count`, which gives a uniform distribution over
+/// the `stop_count - 1` non-origin stops for every `origin`. A naive
+/// "sample destination independently, then fix collisions by bumping
+/// to `origin + 1`" scheme would over-represent upward pairs in
+/// small buildings — at `stop_count = 3` a third of draws collide
+/// and all of them become `origin → origin + 1 (mod 3)`, leaving
+/// the `origin → origin - 1 (mod 3)` pair starved.
 fn any_workload() -> impl Strategy<Value = Workload> {
     (3u32..=6, 1u32..=3, 600.0..=1200.0_f64, 5usize..=30).prop_flat_map(
         |(stop_count, elevator_count, capacity, spawn_count)| {
             let spawns = prop::collection::vec(
-                (0..stop_count, 0..stop_count, 60.0..=100.0_f64).prop_map(
-                    |(origin, destination, weight)| RiderSpawn {
+                (0..stop_count, 1..stop_count, 60.0..=100.0_f64).prop_map(
+                    move |(origin, delta, weight)| RiderSpawn {
                         origin,
-                        destination,
+                        destination: (origin + delta) % stop_count,
                         weight,
                     },
                 ),
                 spawn_count,
             );
-            spawns.prop_map(move |spawns| {
-                // Force origin != destination by shifting collisions to the
-                // next stop modulo stop_count. Cheaper than filtering
-                // (which can starve the generator) and still uniform once
-                // collisions are rare at stop_count >= 3.
-                let fixed: Vec<RiderSpawn> = spawns
-                    .into_iter()
-                    .map(|s| {
-                        if s.origin == s.destination {
-                            RiderSpawn {
-                                destination: (s.origin + 1) % stop_count,
-                                ..s
-                            }
-                        } else {
-                            s
-                        }
-                    })
-                    .collect();
-                Workload {
-                    stop_count,
-                    elevator_count,
-                    capacity,
-                    spawns: fixed,
-                }
+            spawns.prop_map(move |spawns| Workload {
+                stop_count,
+                elevator_count,
+                capacity,
+                spawns,
             })
         },
     )
@@ -232,9 +224,15 @@ fn build_sim(
 }
 
 /// Snapshot of the monotone-metric subset captured each tick.
+///
+/// `total_spawned` is intentionally omitted: this harness pre-spawns
+/// every rider in [`build_sim`] and then only calls `step`, so the
+/// spawn counter is constant across the tick loop and a
+/// `>=` check would be trivially satisfied. The conservation
+/// invariant already asserts the stronger `== expected_spawned`
+/// property for that counter.
 #[derive(Debug, Clone, Copy)]
 struct MonotoneSnapshot {
-    total_spawned: u64,
     total_delivered: u64,
     total_abandoned: u64,
     total_settled: u64,
@@ -248,7 +246,6 @@ struct MonotoneSnapshot {
 impl MonotoneSnapshot {
     fn capture(m: &Metrics) -> Self {
         Self {
-            total_spawned: m.total_spawned(),
             total_delivered: m.total_delivered(),
             total_abandoned: m.total_abandoned(),
             total_settled: m.total_settled(),
@@ -422,11 +419,6 @@ proptest! {
             let _ = sim.drain_events();
             let cur = MonotoneSnapshot::capture(sim.metrics());
 
-            prop_assert!(
-                cur.total_spawned >= prev.total_spawned,
-                "[{}] tick {}: total_spawned decreased {} -> {}",
-                label, tick, prev.total_spawned, cur.total_spawned,
-            );
             prop_assert!(
                 cur.total_delivered >= prev.total_delivered,
                 "[{}] tick {}: total_delivered decreased {} -> {}",
