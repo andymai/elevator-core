@@ -63,11 +63,9 @@ export async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
-  // Scenarios with a lot of floors need a taller shaft on mobile, or
-  // the 42-floor skyscraper crushes into a 6-px-per-story smear. The
-  // CSS rule reads `--shaft-min-h` inside a `max-width: 767px` media
-  // query; floor here means the mobile layout will stretch to fit and
-  // the main column scrolls. Desktop ignores the variable.
+  // Scenarios with many floors need a taller shaft, or the 42-floor
+  // skyscraper crushes into a 6-px-per-story smear. The CSS applies
+  // `min-height: var(--shaft-min-h)` so the page scrolls instead.
   const wrap = handles.canvas.parentElement;
   if (wrap) {
     const stopCount = scenario.stops.length;
