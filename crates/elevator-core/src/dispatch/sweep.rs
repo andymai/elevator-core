@@ -12,7 +12,7 @@ use super::{DispatchManifest, ElevatorGroup};
 pub const EPSILON: f64 = 1e-9;
 
 /// Sweep direction for a single car.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SweepDirection {
     /// Traveling upward (increasing position).
     Up,
@@ -31,7 +31,7 @@ impl SweepDirection {
 }
 
 /// Per-car accept mode for one dispatch pass.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SweepMode {
     /// Demand exists strictly ahead — accept only strictly-ahead stops.
     Strict,

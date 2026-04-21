@@ -59,19 +59,16 @@
 //!    through the constructor so every built-in dispatcher round-
 //!    trips as itself.
 //!
-//!    Covers `NearestCar`, `Etd`, `Rsr`, `Destination`. `Scan` and
-//!    `Look` are excluded because they carry per-elevator sweep-
-//!    direction state in the dispatcher struct (`direction` /
-//!    `mode` `HashMap`s) that isn't part of `WorldSnapshot`. Restore
-//!    instantiates them fresh with default-`Up` directions, so
-//!    their trajectories legitimately diverge from a running sim
-//!    whose elevators are mid-sweep. Round-tripping that state
-//!    needs a `serialize_state`/`restore_state` hook on the
-//!    `DispatchStrategy` trait — separate change, separate PR.
-//!    Floating-point accumulators (`total_distance`,
-//!    `reposition_distance`) are also omitted: summation-order
-//!    sensitivity means they can diverge by ULPs without
-//!    indicating a state-capture bug.
+//!    Covers all six built-ins: `Scan`, `Look`, `NearestCar`, `Etd`,
+//!    `Rsr`, `Destination`. `Scan` and `Look` were historically
+//!    excluded — their per-elevator sweep-direction `HashMap` lived
+//!    on the dispatcher with no snapshot pathway — but after the
+//!    fix in this area they round-trip via
+//!    [`DispatchStrategy::snapshot_config`], same mechanism as the
+//!    tunable-weight strategies. Floating-point accumulators
+//!    (`total_distance`, `reposition_distance`) are omitted:
+//!    summation-order sensitivity means they can diverge by ULPs
+//!    without indicating a state-capture bug.
 
 use proptest::prelude::*;
 
@@ -624,16 +621,14 @@ fn phase_histogram(sim: &Simulation) -> PhaseHistogram {
 }
 
 /// Proptest generator for the strategies whose in-memory state is
-/// entirely captured by `WorldSnapshot`. Excludes `Scan` and `Look`,
-/// which hold per-elevator sweep direction on the dispatcher struct.
-/// See the top-of-file doc comment for invariant #6.
+/// entirely captured by `WorldSnapshot`. All six built-ins are now
+/// eligible: `Scan` and `Look` were historically excluded because
+/// their per-elevator sweep-direction state sat on the dispatcher
+/// struct with no snapshot pathway, but after moving them onto the
+/// `snapshot_config` round-trip introduced by #411 they round-trip
+/// as faithfully as the other four.
 fn any_snapshottable_strategy() -> impl Strategy<Value = StrategyKind> {
-    prop_oneof![
-        Just(StrategyKind::NearestCar),
-        Just(StrategyKind::Etd),
-        Just(StrategyKind::Rsr),
-        Just(StrategyKind::Destination),
-    ]
+    any_strategy()
 }
 
 proptest! {

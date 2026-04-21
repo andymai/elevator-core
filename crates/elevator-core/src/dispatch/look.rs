@@ -19,10 +19,18 @@ use super::sweep::{self, SweepDirection, SweepMode};
 use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
 
 /// Elevator dispatch using the LOOK algorithm. See module docs.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct LookDispatch {
-    /// Per-elevator sweep direction.
+    /// Per-elevator sweep direction. Persisted across dispatch passes
+    /// (reversed once a sweep exhausts demand ahead) and round-tripped
+    /// through [`DispatchStrategy::snapshot_config`] so a restored sim
+    /// continues the current sweep instead of defaulting to `Up` for
+    /// every car.
     direction: HashMap<EntityId, SweepDirection>,
     /// Per-elevator accept mode for the current dispatch pass.
+    /// Overwritten in full by `prepare_car` every pass, so no round-
+    /// trip is needed.
+    #[serde(skip)]
     mode: HashMap<EntityId, SweepMode>,
 }
 
@@ -96,5 +104,15 @@ impl DispatchStrategy for LookDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Look)
+    }
+
+    fn snapshot_config(&self) -> Option<String> {
+        ron::to_string(self).ok()
+    }
+
+    fn restore_config(&mut self, serialized: &str) -> Result<(), String> {
+        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
+        *self = restored;
+        Ok(())
     }
 }
