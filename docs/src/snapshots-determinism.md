@@ -8,9 +8,9 @@ The simulation is deterministic given:
 
 1. The same initial `SimConfig` (same stops, elevators, groups, lines, dispatch strategy).
 2. The same sequence of API calls (`spawn_rider`, `despawn_rider`, `tag_entity`, hook mutations, etc.).
-3. A deterministic dispatch strategy (the built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, `DestinationDispatch` -- are all deterministic).
+3. A deterministic dispatch strategy. All six built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, `RsrDispatch`, `DestinationDispatch` -- are deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through `WorldSnapshot` so `snapshot + restore` produces an indistinguishable simulation.
 
-Under those conditions two runs produce byte-identical snapshots and event streams.
+Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in `crates/elevator-core/src/tests/invariants_tests.rs` pins this tick-for-tick for all six built-ins.
 
 Sources of *non*-determinism to watch for:
 
@@ -65,7 +65,7 @@ On restore, fresh `EntityId` values are generated (SlotMap keys are not stable a
 
 ### Custom dispatch across restore
 
-Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`) are auto-restored by name. Custom strategies need a factory:
+Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`, `Rsr`, `Destination`) are auto-restored by name -- `BuiltinStrategy::instantiate()` rebuilds each with default weights, and any tunable configuration applied via `with_*` builder methods is replayed from `snapshot_config` / `restore_config` immediately after. Custom strategies need a factory:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -82,11 +82,11 @@ let sim = snapshot.restore(Some(&|name: &str| match name {
 # }
 ```
 
-Custom strategies are registered with `BuiltinStrategy::Custom("name")` via `sim.set_dispatch()`. That registered name is what the snapshot stores and what the factory closure receives on restore -- make sure the two match. See [Writing a Custom Dispatch -- Step 4](custom-dispatch.md#step-4----snapshot-support) for the full pattern.
+Custom strategies register their snapshot identity by overriding [`DispatchStrategy::builtin_id`](https://docs.rs/elevator-core/latest/elevator_core/dispatch/trait.DispatchStrategy.html#method.builtin_id) to return `BuiltinStrategy::Custom("name")`; that name is what the snapshot stores and what the factory closure receives on restore -- make sure the two match. Overriding [`snapshot_config`](https://docs.rs/elevator-core/latest/elevator_core/dispatch/trait.DispatchStrategy.html#method.snapshot_config) / [`restore_config`](https://docs.rs/elevator-core/latest/elevator_core/dispatch/trait.DispatchStrategy.html#method.restore_config) gives the same tuning-survival guarantee the built-ins get. See [Writing a Custom Dispatch -- Step 4](custom-dispatch.md#step-4----snapshot-support) for the full pattern.
 
 ### Extensions across restore
 
-Extensions are serialized by their registered name. To restore them, re-register on the restored simulation's world and then call `load_extensions`:
+Extensions are serialized by their registered name. Dispatch-internal extensions the sim itself owns (currently `AssignedCar` for `DestinationDispatch`) are auto-registered and auto-deserialized in `Simulation::from_parts`, so a DCS snapshot round-trip preserves sticky rider assignments without caller involvement. Game-owned extensions still need manual re-registration -- re-register on the restored simulation's world and call `load_extensions`:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
