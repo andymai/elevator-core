@@ -1,4 +1,4 @@
-import type { Car, CarBubble, Snapshot } from "../types";
+import type { CarDto, CarBubble, Snapshot } from "../types";
 import { arcPoint, easeOutNorm, hexWithAlpha } from "./color-utils";
 import {
   drawFloors,
@@ -61,7 +61,7 @@ export class CanvasRenderer {
   readonly #onResize: () => void;
   #cachedScale: Scale | null = null;
   #cachedScaleWidth = -1;
-  readonly #byLine: Map<number, Car[]> = new Map();
+  readonly #byLine: Map<number, CarDto[]> = new Map();
 
   readonly #accent: string;
   readonly #carStates: Map<number, CarState> = new Map();

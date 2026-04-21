@@ -1,4 +1,4 @@
-import type { BubbleEvent } from "../../types";
+import type { EventDto } from "../../types";
 import type { Pane } from "./pane";
 
 /**
@@ -9,7 +9,7 @@ import type { Pane } from "./pane";
  */
 const DECISION_TTL_MS = 1800;
 
-export function pushDecision(pane: Pane, ev: BubbleEvent, stopName: (id: number) => string): void {
+export function pushDecision(pane: Pane, ev: EventDto, stopName: (id: number) => string): void {
   if (ev.kind !== "elevator-assigned") return;
   const el = pane.decisionEl;
   const text = `Car ${ev.elevator} \u2192 ${stopName(ev.stop)}`;

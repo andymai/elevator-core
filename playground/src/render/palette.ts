@@ -1,10 +1,10 @@
-import type { Car } from "../types";
+import type { CarDto } from "../types";
 
 // Palette mirrors style.css primitives. Canvas rendering can't read CSS
 // custom properties cheaply in a hot loop, so these are JS constants that
 // track the CSS tokens. Keep in sync with `:root` in src/style.css.
 //
-export const PHASE_COLORS: Record<Car["phase"], string> = {
+export const PHASE_COLORS: Record<CarDto["phase"], string> = {
   idle: "#6b6b75", // --text-disabled
   moving: "#f59e0b", // --accent
   repositioning: "#a78bfa", // violet — no CSS token; phase-specific hue

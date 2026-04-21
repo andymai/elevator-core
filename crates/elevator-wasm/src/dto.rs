@@ -11,9 +11,11 @@ use elevator_core::events::Event;
 use elevator_core::prelude::{ElevatorPhase, Simulation};
 use serde::Serialize;
 use slotmap::Key;
+use tsify_next::Tsify;
 
 /// Per-elevator rendering snapshot.
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct CarDto {
     /// Stable entity id (hashable as a JS number).
     pub id: u32,
@@ -25,6 +27,9 @@ pub struct CarDto {
     pub v: f64,
     /// Short phase label (`idle`, `moving`, `repositioning`, `door-opening`,
     /// `loading`, `door-closing`, `stopped`).
+    #[tsify(
+        type = r#""idle" | "moving" | "repositioning" | "door-opening" | "loading" | "door-closing" | "stopped" | "unknown""#
+    )]
     pub phase: &'static str,
     /// Target stop entity id, if any.
     pub target: Option<u32>,
@@ -46,7 +51,8 @@ pub struct CarDto {
 }
 
 /// Per-stop rendering snapshot.
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct StopDto {
     /// Stable entity id (matches `CarDto.target` for rendering assignment lines).
     pub entity_id: u32,
@@ -72,7 +78,8 @@ pub struct StopDto {
 }
 
 /// Top-level snapshot returned by [`WasmSim::snapshot`](crate::WasmSim::snapshot).
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct Snapshot {
     /// Current tick counter.
     pub tick: u64,
@@ -178,7 +185,8 @@ impl Snapshot {
 
 /// Aggregate metrics DTO. Wait/ride times are converted to seconds using the
 /// sim's tick rate so the UI doesn't have to know about ticks.
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 pub struct MetricsDto {
     pub delivered: u64,
     pub abandoned: u64,
@@ -222,7 +230,8 @@ impl MetricsDto {
 /// engine tick at which it was emitted; the remaining fields vary by kind.
 /// Unknown variants (added to core later) fall back to `{ kind: "other" }` so
 /// the UI stays forward-compatible.
-#[derive(Serialize)]
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum EventDto {
     RiderSpawned {

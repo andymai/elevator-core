@@ -2,6 +2,6 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "ignoreDependencies": ["@commitlint/cli", "lint-staged", "tailwindcss"],
   "ignoreBinaries": ["sleep"],
-  "ignore": ["src/ambient.d.ts", "src/style.css", "public/pkg/**"],
+  "ignore": ["src/ambient.d.ts", "src/style.css"],
   "exclude": ["types"]
 }

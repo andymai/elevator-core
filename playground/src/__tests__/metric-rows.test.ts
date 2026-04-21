@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { diffMetrics, metricValue } from "../features/scoreboard/metric-rows";
-import type { Metrics } from "../types";
+import type { MetricsDto } from "../types";
 
-function makeMetrics(overrides: Partial<Metrics> = {}): Metrics {
+function makeMetrics(overrides: Partial<MetricsDto> = {}): MetricsDto {
   return {
     delivered: 100,
     abandoned: 5,

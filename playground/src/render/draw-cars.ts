@@ -4,7 +4,7 @@ import { drawRidersInCar } from "./figures/riders-in-car";
 import type { Scale } from "./layout";
 import { PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
 import { roundedRect } from "./primitives";
-import type { Car, CarBubble, Snapshot } from "../types";
+import type { CarDto, CarBubble, Snapshot } from "../types";
 
 export function drawTargetMarkers(
   ctx: CanvasRenderingContext2D,
@@ -18,7 +18,7 @@ export function drawTargetMarkers(
   void shaftInnerPerCar; // reserved for future per-car dot sizing
   const dotR = Math.max(2, s.figureHeadR * 0.9);
   for (const car of snap.cars) {
-    if (car.target === null) continue;
+    if (car.target === undefined) continue;
     const idx = stopIdxById.get(car.target);
     if (idx === undefined) continue;
     const stop = snap.stops[idx];
@@ -43,7 +43,7 @@ export function drawTargetMarkers(
 
 export function drawCarTrail(
   ctx: CanvasRenderingContext2D,
-  car: Car,
+  car: CarDto,
   cx: number,
   carW: number,
   carH: number,
@@ -63,7 +63,7 @@ export function drawCarTrail(
 
 export function drawCar(
   ctx: CanvasRenderingContext2D,
-  car: Car,
+  car: CarDto,
   cx: number,
   carW: number,
   carH: number,
