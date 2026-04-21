@@ -374,3 +374,58 @@ fn access_control_non_empty_is_an_allowlist() {
     // Negative case (a different EntityId rejected) is covered by the
     // existing `rider_rejected_by_rider_access_control` integration test.
 }
+
+// ── Simulation::run_until_quiet ────────────────────────────────────
+
+/// Returns 0 immediately when the sim has no riders — a fresh sim
+/// or one whose riders have all reached a terminal phase is already
+/// "quiet" and shouldn't burn ticks waiting.
+#[test]
+fn run_until_quiet_returns_zero_for_empty_sim() {
+    use crate::tests::helpers;
+
+    let mut sim = crate::sim::Simulation::new(&helpers::default_config(), helpers::scan()).unwrap();
+    let ticks = sim
+        .run_until_quiet(1_000)
+        .expect("empty sim is already quiet");
+    assert_eq!(ticks, 0);
+    assert_eq!(sim.current_tick(), 0);
+}
+
+/// Delivers a normal rider and reports how many ticks it took —
+/// less than the budget, and positive.
+#[test]
+fn run_until_quiet_delivers_rider_within_budget() {
+    use crate::stop::StopId;
+    use crate::tests::helpers;
+
+    let mut sim = crate::sim::Simulation::new(&helpers::default_config(), helpers::scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    let ticks = sim.run_until_quiet(5_000).expect("rider must deliver");
+    assert!(ticks > 0, "delivery took zero ticks?");
+    assert!(ticks <= 5_000);
+    assert_eq!(sim.metrics().total_delivered(), 1);
+}
+
+/// Returns `Err(max_ticks)` when the budget is exhausted before every
+/// rider reaches a terminal phase — guards against silent infinite
+/// loops when a dispatch stalls. The sim is left in its advanced
+/// state so the caller can snapshot it for diagnosis.
+#[test]
+fn run_until_quiet_returns_err_on_budget_exhaustion() {
+    use crate::stop::StopId;
+    use crate::tests::helpers;
+
+    let mut sim = crate::sim::Simulation::new(&helpers::default_config(), helpers::scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Two ticks isn't enough to cover a three-stop delivery.
+    let err = sim.run_until_quiet(2).unwrap_err();
+    assert_eq!(err, 2, "error should carry the exhausted budget");
+    assert_eq!(
+        sim.current_tick(),
+        2,
+        "sim state must reflect the steps taken"
+    );
+}
