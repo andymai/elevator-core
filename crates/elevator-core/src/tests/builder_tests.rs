@@ -253,12 +253,16 @@ fn from_config_honours_config_group_dispatch() {
     );
 }
 
-/// `SimulationBuilder::from_config(...).dispatch(custom)` actually
-/// installs the custom dispatcher AND records the override in
-/// `strategy_ids` (so peek-and-restore consumers see Custom rather
-/// than the stale config strategy). Companion test for #287.
+/// `SimulationBuilder::from_config(...).dispatch(custom)` installs
+/// the override dispatcher AND records the matching identity in
+/// `strategy_ids` (so peek-and-restore consumers see the override's
+/// true `BuiltinStrategy` rather than the stale config value).
+/// Originally a companion test for #287 asserting a `Custom` marker;
+/// now asserts the exact built-in the dispatcher's `builtin_id`
+/// returns — which is the stronger snapshot-fidelity guarantee the
+/// identity is there for.
 #[test]
-fn from_config_dispatch_override_marks_strategy_as_custom() {
+fn from_config_dispatch_override_records_dispatcher_identity() {
     use crate::config::{GroupConfig, LineConfig};
     use crate::dispatch::BuiltinStrategy;
     use crate::ids::GroupId;
@@ -333,11 +337,12 @@ fn from_config_dispatch_override_marks_strategy_as_custom() {
         .dispatch(LookDispatch::new())
         .build()
         .unwrap();
-    // strategy_id is preserved as the config's Scan because builder
-    // overrides only mark Custom when the group had no prior id; here
-    // the builder default applies via Simulation::new path which keeps
-    // the config's existing entry. The dispatcher itself is Look — but
-    // verifying that requires running the sim; the strategy_id check
-    // demonstrates the snapshot identifier did not get clobbered.
-    assert_eq!(sim.strategy_id(GroupId(0)), Some(&BuiltinStrategy::Scan));
+    // The builder override installs `LookDispatch` and, via the
+    // `DispatchStrategy::builtin_id` hook, stamps the matching
+    // `BuiltinStrategy::Look` into `strategy_ids` — which is exactly
+    // what a snapshot needs to instantiate the right strategy on
+    // restore. Pre-fix this kept the stale config-supplied `Scan`
+    // identifier, producing sims whose snapshot round-trip silently
+    // swapped the running strategy back to Scan.
+    assert_eq!(sim.strategy_id(GroupId(0)), Some(&BuiltinStrategy::Look));
 }

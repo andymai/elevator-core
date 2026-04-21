@@ -261,4 +261,8 @@ impl DispatchStrategy for RsrDispatch {
         let cost = cost.max(0.0);
         if cost.is_finite() { Some(cost) } else { None }
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
+        Some(super::BuiltinStrategy::Rsr)
+    }
 }

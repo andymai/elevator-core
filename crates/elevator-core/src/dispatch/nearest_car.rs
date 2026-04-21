@@ -44,6 +44,10 @@ impl DispatchStrategy for NearestCarDispatch {
         }
         Some((ctx.car_position - ctx.stop_position).abs())
     }
+
+    fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
+        Some(super::BuiltinStrategy::NearestCar)
+    }
 }
 
 /// Decide whether assigning `ctx.car` to `ctx.stop` is on the path to
