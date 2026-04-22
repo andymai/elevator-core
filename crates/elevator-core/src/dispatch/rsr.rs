@@ -101,6 +101,18 @@ pub struct RsrDispatch {
 impl RsrDispatch {
     /// Create a new `RsrDispatch` with the baseline weights
     /// (`eta_weight = 1.0`, all penalties/bonuses disabled).
+    ///
+    /// This is the **additive-composition baseline** — every penalty
+    /// and bonus is zero, so the rank reduces to
+    /// [`NearestCarDispatch`](super::NearestCarDispatch) on distance
+    /// alone. Useful for tests that want to measure a single term in
+    /// isolation (`RsrDispatch::new().with_wrong_direction_penalty(…)`).
+    ///
+    /// For the opinionated "out-of-the-box RSR" configuration used by
+    /// [`BuiltinStrategy::Rsr`](super::BuiltinStrategy::Rsr) and the
+    /// playground, use [`RsrDispatch::default`] instead. `Default` ships
+    /// with the full penalty stack turned on; `new()` is the empty
+    /// canvas you build on top of.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -109,6 +121,38 @@ impl RsrDispatch {
             coincident_car_call_bonus: 0.0,
             load_penalty_coeff: 0.0,
             peak_direction_multiplier: 1.0,
+        }
+    }
+
+    /// Return the opinionated tuned configuration — equivalent to
+    /// [`Default::default`] but usable in `const` contexts.
+    ///
+    /// See [`RsrDispatch::default`] for the rationale behind each
+    /// weight. The tuned stack ships with every penalty/bonus turned
+    /// on so picking RSR out of the box is strictly richer than
+    /// `NearestCar`, not identical to it.
+    #[must_use]
+    pub const fn tuned() -> Self {
+        Self {
+            eta_weight: 1.0,
+            // Chosen ≈ one shaft-length travel time on a typical 20-stop
+            // commercial bank (≈15s), so a backward pickup costs as much
+            // as the trip to serve it. Large enough to dominate the ETA
+            // term for a close-but-wrong-direction candidate; small
+            // enough that off-peak inter-floor reversals still flip when
+            // the demand strongly favours them.
+            wrong_direction_penalty: 15.0,
+            // Small merge bonus — prefer a car with a matching car-call
+            // over spawning a new trip, but not so large it overrides a
+            // much closer empty car.
+            coincident_car_call_bonus: 5.0,
+            // Light load-balancing — prefer empty cars for new work
+            // when cars are otherwise tied.
+            load_penalty_coeff: 3.0,
+            // Strong directional commitment during up-peak / down-peak
+            // (lobby-bound loads shouldn't reverse for new pickups).
+            // Off-peak stays unscaled for cheap inter-floor reversals.
+            peak_direction_multiplier: 2.0,
         }
     }
 
@@ -191,8 +235,20 @@ impl RsrDispatch {
 }
 
 impl Default for RsrDispatch {
+    /// The opinionated "pick RSR from the dropdown" configuration.
+    ///
+    /// Defaults to [`RsrDispatch::tuned`] — every penalty and bonus
+    /// turned on with values calibrated to a 20-stop commercial bank.
+    /// Before this default was tuned, `RsrDispatch::default()`
+    /// reduced to the raw [`NearestCarDispatch`](super::NearestCarDispatch)
+    /// baseline: picking "RSR" in the playground produced worse
+    /// behaviour than picking "Nearest Car" (no direction discipline,
+    /// no load balancing, no car-call merging). The tuned default
+    /// fixes that without making any term mandatory — consumers
+    /// wanting the zero baseline can still call
+    /// [`RsrDispatch::new`].
     fn default() -> Self {
-        Self::new()
+        Self::tuned()
     }
 }
 

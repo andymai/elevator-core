@@ -7,10 +7,15 @@
 //! rate, avg/max wait, peak waiting-queue length across the whole run.
 //!
 //! Purpose: catch dispatch regressions across the `ScanDispatch`,
-//! `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, and
-//! `DestinationDispatch` strategies at a glance — a scan that reports
-//! 100% delivery and 0% abandonment that suddenly starts abandoning
-//! riders is an obvious regression.
+//! `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, `RsrDispatch`,
+//! and `DestinationDispatch` strategies at a glance — a scan that
+//! reports 100% delivery and 0% abandonment that suddenly starts
+//! abandoning riders is an obvious regression.
+//!
+//! RSR runs under its tuned [`RsrDispatch::default`] weights (not the
+//! zero-baseline `new()`), matching what consumers get when they pick
+//! "RSR" from a dropdown. Running `new()` here would silently duplicate
+//! the `nearest` row.
 //!
 //! Scope note: this example used to mirror the playground's scenario
 //! set, but the playground now runs a 42-stop multi-line skyscraper
@@ -44,7 +49,7 @@
 
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
-    DestinationDispatch, EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch,
+    DestinationDispatch, EtdDispatch, LookDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
 };
 use elevator_core::sim::Simulation;
 use elevator_core::stop::StopId;
@@ -109,7 +114,7 @@ fn main() {
             "  {:<12} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
             "strategy", "delivered", "abandoned", "aband%", "avg_wait", "max_wait", "peak_q"
         );
-        for strategy in ["scan", "look", "nearest", "etd", "destination"] {
+        for strategy in ["scan", "look", "nearest", "etd", "rsr", "destination"] {
             let report = run_once(scenario, strategy, effective_budget);
             println!(
                 "  {:<12} {:>10} {:>10} {:>9.1}% {:>9.1}s {:>9.1}s {:>10}",
@@ -150,6 +155,10 @@ fn run_once(scenario: &Scenario, strategy_name: &str, abandon_override: Option<u
         "look" => Simulation::new(&config, LookDispatch::new()),
         "nearest" => Simulation::new(&config, NearestCarDispatch::new()),
         "etd" => Simulation::new(&config, EtdDispatch::new()),
+        // Use `Default` (tuned stack), not `new()` (zero baseline) —
+        // `new()` would reduce RSR to `NearestCarDispatch` and give
+        // the audit a misleadingly duplicated row.
+        "rsr" => Simulation::new(&config, RsrDispatch::default()),
         "destination" => Simulation::new(&config, DestinationDispatch::new()),
         _ => panic!("unknown strategy: {strategy_name}"),
     }

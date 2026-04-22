@@ -430,7 +430,12 @@ impl BuiltinStrategy {
             Self::NearestCar => Some(Box::new(nearest_car::NearestCarDispatch::new())),
             Self::Etd => Some(Box::new(etd::EtdDispatch::new())),
             Self::Destination => Some(Box::new(destination::DestinationDispatch::new())),
-            Self::Rsr => Some(Box::new(rsr::RsrDispatch::new())),
+            // `Default` ships with the tuned penalty stack; `new()` is
+            // the zero baseline for additive-composition tests. The
+            // playground's "RSR" dropdown entry should map to the
+            // actual strategy, not to NearestCar-in-disguise, so use
+            // `Default` here.
+            Self::Rsr => Some(Box::new(rsr::RsrDispatch::default())),
             Self::Custom(_) => None,
         }
     }
