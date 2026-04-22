@@ -18,7 +18,7 @@
 use crate::components::{CarCall, ElevatorPhase};
 use crate::traffic_detector::{TrafficDetector, TrafficMode};
 
-use super::{DispatchStrategy, RankContext, pair_can_do_work};
+use super::{DispatchStrategy, RankContext, pair_is_useful};
 
 /// Look up the current [`TrafficMode`] from `ctx.world` and return the
 /// scaling factor to apply to the wrong-direction penalty.
@@ -77,8 +77,8 @@ pub struct RsrDispatch {
     /// (`load_penalty_coeff · load_ratio`).
     ///
     /// Fires for partially loaded cars below the `bypass_load_*_pct`
-    /// threshold enforced by [`pair_can_do_work`]; lets you prefer
-    /// emptier cars for new pickups without an on/off cliff.
+    /// threshold enforced by [`pair_can_do_work`](super::pair_can_do_work);
+    /// lets you prefer emptier cars for new pickups without an on/off cliff.
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
     /// Multiplier applied to `wrong_direction_penalty` when the
@@ -254,7 +254,14 @@ impl Default for RsrDispatch {
 
 impl DispatchStrategy for RsrDispatch {
     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
-        if !pair_can_do_work(ctx) {
+        // `pair_is_useful` subsumes `pair_can_do_work` and adds the
+        // aboard-rider path guard. Without it, a loaded RSR car gets
+        // pulled off the path to its aboard riders' destinations by
+        // closer pickups — the same "never reaches the passenger's
+        // desired stop" loop that NearestCar specifically fixes. RSR's
+        // `wrong_direction_penalty` can mitigate this when configured,
+        // but the guard is a correctness floor independent of tuning.
+        if !pair_is_useful(ctx) {
             return None;
         }
         let car = ctx.world.elevator(ctx.car)?;
