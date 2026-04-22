@@ -77,8 +77,8 @@ pub struct RsrDispatch {
     /// (`load_penalty_coeff · load_ratio`).
     ///
     /// Fires for partially loaded cars below the `bypass_load_*_pct`
-    /// threshold enforced by [`pair_can_do_work`]; lets you prefer
-    /// emptier cars for new pickups without an on/off cliff.
+    /// threshold enforced by [`pair_can_do_work`](super::pair_can_do_work);
+    /// lets you prefer emptier cars for new pickups without an on/off cliff.
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
     /// Multiplier applied to `wrong_direction_penalty` when the

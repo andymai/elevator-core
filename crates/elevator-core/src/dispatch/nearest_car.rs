@@ -9,7 +9,7 @@ use super::{DispatchStrategy, RankContext, pair_is_useful};
 /// — no two cars can be sent to the same hall call.
 ///
 /// Two guards are applied on top of the raw distance, both via the
-/// shared [`pair_is_useful`](super::pair_is_useful) predicate:
+/// shared [`pair_is_useful`] predicate:
 ///
 /// 1. The `(car, stop)` pair must be serviceable — at least one aboard
 ///    rider can exit, or at least one waiting rider can fit. A full car
