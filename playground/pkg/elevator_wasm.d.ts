@@ -29,6 +29,20 @@ export interface MetricsDto {
 export type EventDto = { kind: "rider-spawned"; tick: number; rider: number; origin: number; destination: number } | { kind: "rider-boarded"; tick: number; rider: number; elevator: number } | { kind: "rider-exited"; tick: number; rider: number; elevator: number; stop: number } | { kind: "rider-abandoned"; tick: number; rider: number; stop: number } | { kind: "elevator-arrived"; tick: number; elevator: number; stop: number } | { kind: "elevator-departed"; tick: number; elevator: number; stop: number } | { kind: "door-opened"; tick: number; elevator: number } | { kind: "door-closed"; tick: number; elevator: number } | { kind: "elevator-assigned"; tick: number; elevator: number; stop: number } | { kind: "elevator-repositioning"; tick: number; elevator: number; stop: number } | { kind: "other"; tick: number; label: string };
 
 /**
+ * One line\'s share of a stop\'s waiting queue.
+ */
+export interface WaitingByLine {
+    /**
+     * Line entity id. Matches `CarDto.line` for cars running on this line.
+     */
+    line: number;
+    /**
+     * Waiting riders whose current route leg routes through this line.
+     */
+    count: number;
+}
+
+/**
  * Per-elevator rendering snapshot.
  */
 export interface CarDto {
@@ -121,6 +135,14 @@ export interface StopDto {
      * Waiting riders whose current route destination lies below this stop.
      */
     waiting_down: number;
+    /**
+     * Waiting riders partitioned by the line that will serve their
+     * current route leg. Sums to `waiting` minus any riders without a
+     * Route / with a Walk leg. Used by the renderer to split the
+     * waiting queue across multi-line stops (sky-lobby, street lobby
+     * with service bank, etc.).
+     */
+    waiting_by_line: WaitingByLine[];
     /**
      * Resident rider count (O(1)).
      */

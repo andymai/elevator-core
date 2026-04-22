@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c0dc3e4f.js";
+            window.path_to_searchindex_js = "searchindex-8fcfab4c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d2ca992d.js"></script>
@@ -1029,7 +1029,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <ol>
 <li><strong>Press</strong> – either implicit (via <code>sim.spawn_rider()</code>) or explicit (<code>sim.press_hall_button()</code>). The first press for a given <code>(stop, direction)</code> emits <code>HallButtonPressed</code>.</li>
 <li><strong>Acknowledge</strong> – after the group’s <code>ack_latency_ticks</code> have elapsed, the call becomes visible to dispatch and <code>HallCallAcknowledged</code> fires. This models real-world controller latency.</li>
-<li><strong>Assign</strong> – dispatch commits a car and writes it to <code>HallCall::assigned_car</code>. Games can read this via <code>sim.assigned_car(stop, direction)</code> for lobby displays (e.g., “your elevator will be car B”).</li>
+<li><strong>Assign</strong> – dispatch commits a car and writes it to <code>HallCall::assigned_cars_by_line</code>, keyed by the car’s line entity. Stops shared by multiple lines (e.g. a sky-lobby served by low, high, and express banks) carry one entry per line; within a single line the latest assignment replaces the previous one. Games can read a single representative car via <code>sim.assigned_car(stop, direction)</code> for lobby displays, or the full per-line set via <code>sim.assigned_cars_by_line(stop, direction)</code>.</li>
 <li><strong>Clear</strong> – when the assigned car opens doors at the stop with direction indicators matching the call direction, the <code>HallCall</code> is removed and <code>HallCallCleared</code> fires.</li>
 </ol>
 <p>Car calls follow the same pattern: <code>CarButtonPressed</code> fires on the first press per <code>(car, floor)</code>, and the loading phase removes a <code>CarCall</code> when the last pending rider for that floor exits.</p>
@@ -1075,7 +1075,9 @@ sim.abort_movement(villain_car)?;
 <tbody>
 <tr><td><code>sim.hall_calls()</code></td><td>Iterator over every active hall call – use for lobby lamp panels, per-floor button animation</td></tr>
 <tr><td><code>sim.car_calls(car)</code></td><td>Floor buttons currently pressed inside a car – use for cab button-panel rendering</td></tr>
-<tr><td><code>sim.assigned_car(stop, direction)</code></td><td>DCS-style “your elevator will be car B” indicator</td></tr>
+<tr><td><code>sim.assigned_car(stop, direction)</code></td><td>DCS-style “your elevator will be car B” indicator (first entry at multi-line stops)</td></tr>
+<tr><td><code>sim.assigned_cars_by_line(stop, direction)</code></td><td>Full <code>(line, car)</code> list at a stop; one entry per line with a committed car</td></tr>
+<tr><td><code>sim.waiting_counts_by_line_at(stop)</code></td><td>Waiting-rider count per line; splits the queue for multi-line rendering</td></tr>
 <tr><td><code>sim.eta_for_call(stop, direction)</code></td><td>Countdown timer for hall displays</td></tr>
 </tbody>
 </table>
@@ -1096,7 +1098,7 @@ sim.abort_movement(villain_car)?;
 </table>
 </div>
 <h2 id="ffi"><a class="header" href="#ffi">FFI</a></h2>
-<p>Unity and native consumers can drive the call layer through the <code>elevator-ffi</code> C ABI. See the FFI module for <code>ev_sim_press_hall_button</code>, <code>ev_sim_press_car_button</code>, <code>ev_sim_pin_assignment</code>, <code>ev_sim_unpin_assignment</code>, <code>ev_sim_assigned_car</code>, <code>ev_sim_eta_for_call</code>, and the <code>EvHallCall</code> snapshot record.</p>
+<p>Unity and native consumers can drive the call layer through the <code>elevator-ffi</code> C ABI. See the FFI module for <code>ev_sim_press_hall_button</code>, <code>ev_sim_press_car_button</code>, <code>ev_sim_pin_assignment</code>, <code>ev_sim_unpin_assignment</code>, <code>ev_sim_assigned_car</code>, <code>ev_sim_assigned_cars_by_line</code>, <code>ev_sim_eta_for_call</code>, and the <code>EvHallCall</code> snapshot record. <code>EvHallCall.assigned_car</code> keeps its historical single-value shape (returning whichever line has the numerically smallest entity id); use <code>ev_sim_assigned_cars_by_line</code> to iterate every line’s assignment at a shared stop.</p>
 <h2 id="next-steps-6"><a class="header" href="#next-steps-6">Next steps</a></h2>
 <ul>
 <li><a href="#dispatch-strategies">Dispatch Strategies</a> – how hall calls feed into elevator assignment</li>
