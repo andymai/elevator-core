@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.24.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.23.0...elevator-core-v15.24.0) (2026-04-22)
+
+
+### Features
+
+* **dispatch:** per-line hall-call assignment ([#438](https://github.com/andymai/elevator-core/issues/438)) ([aed059c](https://github.com/andymai/elevator-core/commit/aed059c962f60e799072f2ea85a15610017a3728))
+
 ## [15.23.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.22.0...elevator-core-v15.23.0) (2026-04-22)
 
 
