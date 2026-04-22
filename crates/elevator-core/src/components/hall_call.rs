@@ -14,11 +14,17 @@
 //!    `HallCall::press_tick` is set; `acknowledged_at` is `None`.
 //! 2. **Acknowledged** — after the group's `ack_latency_ticks` have elapsed,
 //!    `acknowledged_at` is set and the call becomes visible to dispatch.
-//! 3. **Assigned** — dispatch pairs the call with a car. `assigned_car`
-//!    records which one.
+//! 3. **Assigned** — dispatch pairs the call with a car. The assignment
+//!    is keyed per-line in [`HallCall::assigned_cars_by_line`] so a stop
+//!    shared by multiple lines (e.g. a sky-lobby served by low, high, and
+//!    express banks) can record every bank's choice independently. Within
+//!    a single line the latest assignment replaces the previous one; across
+//!    lines the map grows until the call is cleared or the car is removed.
 //! 4. **Cleared** — the assigned car arrives at this stop with its
 //!    indicator lamps matching `direction` and opens doors. The HallCall
 //!    is removed; an `Event::HallCallCleared` is emitted.
+
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -92,8 +98,19 @@ pub struct HallCall {
     /// [`HallCallMode::Destination`](crate::dispatch::HallCallMode) mode
     /// (lobby kiosk); `None` in Classic mode.
     pub destination: Option<EntityId>,
-    /// Car assigned to this call by dispatch, if any.
-    pub assigned_car: Option<EntityId>,
+    /// Cars assigned to this call by dispatch, keyed by the line entity
+    /// the car runs on. A stop served by multiple lines can hold one
+    /// entry per line simultaneously — the low-bank car, the express
+    /// car, and the service car can all be en route to the same lobby
+    /// without one overwriting another. Within a single line the latest
+    /// assignment replaces the previous one.
+    ///
+    /// Pre-15.24 snapshots stored a single `assigned_car: Option<EntityId>`
+    /// field. Those snapshots silently drop the transient assignment on
+    /// load (serde's default unknown-field handling); the next dispatch
+    /// pass repopulates this map.
+    #[serde(default)]
+    pub assigned_cars_by_line: BTreeMap<EntityId, EntityId>,
     /// When `true`, dispatch is forbidden from reassigning this call to
     /// a different car. Set by
     /// [`Simulation::pin_assignment`](crate::sim::Simulation::pin_assignment).
@@ -112,7 +129,7 @@ impl HallCall {
             ack_latency_ticks: 0,
             pending_riders: Vec::new(),
             destination: None,
-            assigned_car: None,
+            assigned_cars_by_line: BTreeMap::new(),
             pinned: false,
         }
     }
@@ -122,5 +139,18 @@ impl HallCall {
     #[must_use]
     pub const fn is_acknowledged(&self) -> bool {
         self.acknowledged_at.is_some()
+    }
+
+    /// Any car currently assigned to this call, preferring the entry
+    /// with the numerically smallest line-entity key (stable across
+    /// ticks because `BTreeMap` iteration is ordered). `None` when no
+    /// line has recorded an assignment yet.
+    ///
+    /// This matches the pre-per-line `assigned_car` semantics for
+    /// callers that just want "is anyone coming?" The richer shape is
+    /// available directly on [`assigned_cars_by_line`](Self::assigned_cars_by_line).
+    #[must_use]
+    pub fn any_assigned_car(&self) -> Option<EntityId> {
+        self.assigned_cars_by_line.values().next().copied()
     }
 }

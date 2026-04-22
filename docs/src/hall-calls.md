@@ -38,7 +38,7 @@ A hall call moves through four stages:
 
 1. **Press** -- either implicit (via `sim.spawn_rider()`) or explicit (`sim.press_hall_button()`). The first press for a given `(stop, direction)` emits `HallButtonPressed`.
 2. **Acknowledge** -- after the group's `ack_latency_ticks` have elapsed, the call becomes visible to dispatch and `HallCallAcknowledged` fires. This models real-world controller latency.
-3. **Assign** -- dispatch commits a car and writes it to `HallCall::assigned_car`. Games can read this via `sim.assigned_car(stop, direction)` for lobby displays (e.g., "your elevator will be car B").
+3. **Assign** -- dispatch commits a car and writes it to `HallCall::assigned_cars_by_line`, keyed by the car's line entity. Stops shared by multiple lines (e.g. a sky-lobby served by low, high, and express banks) carry one entry per line; within a single line the latest assignment replaces the previous one. Games can read a single representative car via `sim.assigned_car(stop, direction)` for lobby displays, or the full per-line set via `sim.assigned_cars_by_line(stop, direction)`.
 4. **Clear** -- when the assigned car opens doors at the stop with direction indicators matching the call direction, the `HallCall` is removed and `HallCallCleared` fires.
 
 Car calls follow the same pattern: `CarButtonPressed` fires on the first press per `(car, floor)`, and the loading phase removes a `CarCall` when the last pending rider for that floor exits.
@@ -87,7 +87,9 @@ Both knobs generate events (`RiderSkipped`, `RiderAbandoned`) so game UI can rea
 |--------|---------|
 | `sim.hall_calls()` | Iterator over every active hall call -- use for lobby lamp panels, per-floor button animation |
 | `sim.car_calls(car)` | Floor buttons currently pressed inside a car -- use for cab button-panel rendering |
-| `sim.assigned_car(stop, direction)` | DCS-style "your elevator will be car B" indicator |
+| `sim.assigned_car(stop, direction)` | DCS-style "your elevator will be car B" indicator (first entry at multi-line stops) |
+| `sim.assigned_cars_by_line(stop, direction)` | Full `(line, car)` list at a stop; one entry per line with a committed car |
+| `sim.waiting_counts_by_line_at(stop)` | Waiting-rider count per line; splits the queue for multi-line rendering |
 | `sim.eta_for_call(stop, direction)` | Countdown timer for hall displays |
 
 ## Events
@@ -102,7 +104,7 @@ Both knobs generate events (`RiderSkipped`, `RiderAbandoned`) so game UI can rea
 
 ## FFI
 
-Unity and native consumers can drive the call layer through the `elevator-ffi` C ABI. See the FFI module for `ev_sim_press_hall_button`, `ev_sim_press_car_button`, `ev_sim_pin_assignment`, `ev_sim_unpin_assignment`, `ev_sim_assigned_car`, `ev_sim_eta_for_call`, and the `EvHallCall` snapshot record.
+Unity and native consumers can drive the call layer through the `elevator-ffi` C ABI. See the FFI module for `ev_sim_press_hall_button`, `ev_sim_press_car_button`, `ev_sim_pin_assignment`, `ev_sim_unpin_assignment`, `ev_sim_assigned_car`, `ev_sim_assigned_cars_by_line`, `ev_sim_eta_for_call`, and the `EvHallCall` snapshot record. `EvHallCall.assigned_car` keeps its historical single-value shape (returning whichever line has the numerically smallest entity id); use `ev_sim_assigned_cars_by_line` to iterate every line's assignment at a shared stop.
 
 ## Next steps
 

@@ -15,6 +15,7 @@ function makeSnapshot(stops: { entity_id: number; name: string }[]): Snapshot {
       waiting: 0,
       waiting_up: 0,
       waiting_down: 0,
+      waiting_by_line: [],
       residents: 0,
     })),
   };

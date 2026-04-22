@@ -3246,3 +3246,106 @@ fn advance_queue_arrive_in_place_resets_direction_indicators() {
          dispatch.rs's arrive-in-place semantics"
     );
 }
+
+// ── Per-line hall-call assignment at a shared stop ───────────────────────────
+
+/// Two groups (each with one line) both serve Bottom and Top. Press
+/// the Up button at Bottom and pin one car from each group — both
+/// assignments must land in `assigned_cars_by_line` simultaneously,
+/// keyed by the respective line entities. Pre-refactor the second pin
+/// clobbered the first in a single `assigned_car` slot, so games
+/// querying the call saw only the latest writer — the symptom the
+/// playground surfaced as waiters jumping onto whichever specialty
+/// shaft was dispatched most recently.
+#[test]
+fn multi_line_stop_holds_one_assignment_per_line() {
+    use crate::components::CallDirection;
+
+    let config = overlapping_groups_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let bottom = sim.stop_entity(StopId(0)).unwrap();
+
+    let car_a = ElevatorId::from(
+        sim.world()
+            .elevator_ids()
+            .first()
+            .copied()
+            .expect("line A must have a car"),
+    );
+    let car_b = ElevatorId::from(
+        sim.world()
+            .elevator_ids()
+            .get(1)
+            .copied()
+            .expect("line B must have a car"),
+    );
+
+    let line_a = sim.world().elevator(car_a.entity()).unwrap().line();
+    let line_b = sim.world().elevator(car_b.entity()).unwrap().line();
+    assert_ne!(
+        line_a, line_b,
+        "precondition: cars must be on distinct lines"
+    );
+
+    sim.press_hall_button(bottom, CallDirection::Up).unwrap();
+    sim.pin_assignment(car_a, bottom, CallDirection::Up)
+        .unwrap();
+    sim.pin_assignment(car_b, bottom, CallDirection::Up)
+        .unwrap();
+
+    let assignments = sim.assigned_cars_by_line(bottom, CallDirection::Up);
+    let as_map: std::collections::BTreeMap<_, _> = assignments.into_iter().collect();
+    assert_eq!(
+        as_map.get(&line_a).copied(),
+        Some(car_a.entity()),
+        "line A's entry must reflect its pinned car"
+    );
+    assert_eq!(
+        as_map.get(&line_b).copied(),
+        Some(car_b.entity()),
+        "line B's entry must reflect its pinned car — pre-refactor this \
+         overwrote line A's slot"
+    );
+    assert_eq!(as_map.len(), 2, "one entry per line, no sharing");
+}
+
+/// `waiting_counts_by_line_at` splits waiters by their route leg's line.
+/// A rider routed via Group(A) and another via Group(B) — both at the
+/// same shared origin — produce two entries that sum to 2.
+#[test]
+fn waiting_counts_by_line_partitions_by_route_group() {
+    let config = overlapping_groups_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let bottom = sim.stop_entity(StopId(0)).unwrap();
+    let top = sim.stop_entity(StopId(1)).unwrap();
+
+    // Build two riders with explicit routes through different groups.
+    let mk_route = |g: GroupId| Route {
+        legs: vec![RouteLeg {
+            from: bottom,
+            to: top,
+            via: TransportMode::Group(g),
+        }],
+        current_leg: 0,
+    };
+    sim.build_rider(bottom, top)
+        .unwrap()
+        .weight(70.0)
+        .route(mk_route(GroupId(0)))
+        .spawn()
+        .unwrap();
+    sim.build_rider(bottom, top)
+        .unwrap()
+        .weight(70.0)
+        .route(mk_route(GroupId(1)))
+        .spawn()
+        .unwrap();
+
+    let counts = sim.waiting_counts_by_line_at(bottom);
+    let total: u32 = counts.iter().map(|(_, n)| n).sum();
+    assert_eq!(total, 2, "both waiting riders accounted for");
+    assert_eq!(counts.len(), 2, "one entry per distinct line");
+    for (_line, n) in &counts {
+        assert_eq!(*n, 1, "each line carries exactly one rider");
+    }
+}
