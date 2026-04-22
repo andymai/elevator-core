@@ -43,16 +43,20 @@ pub fn run(
         // Apply pinned hall-call assignments first. Pinned pairs are
         // committed straight to `GoToStop` and excluded from the normal
         // Hungarian matching so neither the car nor the stop can be
-        // reassigned while the pin is in effect.
+        // reassigned while the pin is in effect. A single pinned call
+        // can hold multiple per-line assignments at a multi-line stop;
+        // every car whose line this group contains pins independently.
         for c in world.iter_hall_calls() {
             if !c.pinned {
                 continue;
             }
-            let Some(car) = c.assigned_car else {
+            if !group.stop_entities().contains(&c.stop) {
                 continue;
-            };
-            if group.stop_entities().contains(&c.stop) && group.elevator_entities().contains(&car) {
-                scratch.pinned_pairs.push((car, c.stop));
+            }
+            for &car in c.assigned_cars_by_line.values() {
+                if group.elevator_entities().contains(&car) {
+                    scratch.pinned_pairs.push((car, c.stop));
+                }
             }
         }
 
@@ -372,17 +376,23 @@ fn record_hall_assignment(world: &mut World, stop: EntityId, car: EntityId) {
     }
 }
 
-/// Helper: set `assigned_car` on a hall call if it exists and is unpinned.
+/// Helper: record that `car` is assigned to the `(stop, direction)`
+/// call if it exists and is unpinned. Keyed by the car's line — a new
+/// assignment on a different line is *added*, not overwriting other
+/// lines' entries. Within the same line, the latest writer wins.
 fn update_assignment(
     world: &mut World,
     stop: EntityId,
     direction: crate::components::CallDirection,
     car: EntityId,
 ) {
+    let Some(line) = world.elevator(car).map(crate::components::Elevator::line) else {
+        return;
+    };
     if let Some(call) = world.hall_call_mut(stop, direction)
         && !call.pinned
     {
-        call.assigned_car = Some(car);
+        call.assigned_cars_by_line.insert(line, car);
     }
 }
 

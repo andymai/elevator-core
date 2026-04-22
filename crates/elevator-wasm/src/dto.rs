@@ -50,6 +50,16 @@ pub struct CarDto {
     pub max_served_y: f64,
 }
 
+/// One line's share of a stop's waiting queue.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct WaitingByLine {
+    /// Line entity id. Matches `CarDto.line` for cars running on this line.
+    pub line: u32,
+    /// Waiting riders whose current route leg routes through this line.
+    pub count: u32,
+}
+
 /// Per-stop rendering snapshot.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
@@ -73,6 +83,12 @@ pub struct StopDto {
     pub waiting_up: u32,
     /// Waiting riders whose current route destination lies below this stop.
     pub waiting_down: u32,
+    /// Waiting riders partitioned by the line that will serve their
+    /// current route leg. Sums to `waiting` minus any riders without a
+    /// Route / with a Walk leg. Used by the renderer to split the
+    /// waiting queue across multi-line stops (sky-lobby, street lobby
+    /// with service bank, etc.).
+    pub waiting_by_line: Vec<WaitingByLine>,
     /// Resident rider count (O(1)).
     pub residents: u32,
 }
@@ -161,6 +177,14 @@ impl Snapshot {
             .iter_stops()
             .map(|(id, stop)| {
                 let (up, down) = sim.waiting_direction_counts_at(id);
+                let waiting_by_line = sim
+                    .waiting_counts_by_line_at(id)
+                    .into_iter()
+                    .map(|(line, count)| WaitingByLine {
+                        line: entity_to_u32(line),
+                        count,
+                    })
+                    .collect();
                 StopDto {
                     entity_id: entity_to_u32(id),
                     stop_id: entity_to_stop_id.get(&id).copied().unwrap_or(u32::MAX),
@@ -169,6 +193,7 @@ impl Snapshot {
                     waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
                     waiting_up: u32::try_from(up).unwrap_or(u32::MAX),
                     waiting_down: u32::try_from(down).unwrap_or(u32::MAX),
+                    waiting_by_line,
                     residents: u32::try_from(sim.resident_count_at(id)).unwrap_or(u32::MAX),
                 }
             })

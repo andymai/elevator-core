@@ -66,7 +66,14 @@ export class CanvasRenderer {
   readonly #carStates: Map<number, CarState> = new Map();
   readonly #stopStates: Map<number, StopState> = new Map();
   readonly #tweens: Tween[] = [];
-  readonly #stopAssignments: Map<number, number> = new Map();
+  // Per-stop per-line assignment: `stopId -> (lineId -> carId)`. The
+  // previous `stopId -> carId` map was last-writer-wins: any car
+  // dispatched to a multi-line stop — even a specialty bank moving
+  // for its own sliver of demand — claimed the entire waiting gutter.
+  // Keying by line lets every bank record its car independently, and
+  // the renderer pairs each line's slice of `waiting_by_line` (from
+  // core) with that line's active car.
+  readonly #stopAssignments: Map<number, Map<number, number>> = new Map();
 
   constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
@@ -89,8 +96,13 @@ export class CanvasRenderer {
     return this.#canvas;
   }
 
-  pushAssignment(stopId: number, elevatorId: number): void {
-    this.#stopAssignments.set(stopId, elevatorId);
+  pushAssignment(stopId: number, elevatorId: number, lineId: number): void {
+    let byLine = this.#stopAssignments.get(stopId);
+    if (byLine === undefined) {
+      byLine = new Map();
+      this.#stopAssignments.set(stopId, byLine);
+    }
+    byLine.set(lineId, elevatorId);
   }
 
   #resize(): void {
@@ -405,7 +417,14 @@ export class CanvasRenderer {
               originX = (qs + qe) / 2;
             }
             const color = useUp ? UP_COLOR : DOWN_COLOR;
-            this.#stopAssignments.delete(loadStop.entity_id);
+            // Clear just this car's line entry; other lines at the same
+            // stop (e.g. a VIP still en route for an exec-only rider)
+            // keep their waiters visible at their own shafts.
+            const byLine = this.#stopAssignments.get(loadStop.entity_id);
+            if (byLine !== undefined) {
+              byLine.delete(car.line);
+              if (byLine.size === 0) this.#stopAssignments.delete(loadStop.entity_id);
+            }
             for (let k = 0; k < count; k++) {
               carTweens.push(() =>
                 this.#tweens.push({

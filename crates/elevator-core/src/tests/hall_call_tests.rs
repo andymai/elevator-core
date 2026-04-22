@@ -77,7 +77,7 @@ fn pin_assignment_pins_and_assigns() {
     sim.press_hall_button(stop, CallDirection::Up).unwrap();
     sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
     let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();
-    assert_eq!(call.assigned_car, Some(car.entity()));
+    assert_eq!(call.any_assigned_car(), Some(car.entity()));
     assert!(call.pinned);
     sim.unpin_assignment(stop, CallDirection::Up);
     let call = sim.world().hall_call(stop, CallDirection::Up).unwrap();

@@ -46,9 +46,17 @@ export function loop(state: State, ui: UiHandles): void {
         if (events.length > 0) {
           const snap = pane.sim.snapshot();
           updateBubbles(pane, events, snap);
+          // Resolve line at event time from the current snapshot so the
+          // renderer can key assignments per-(stop, line). Unknown cars
+          // (disabled, despawned) skip the map — they wouldn't draw anyway.
+          const carLine = new Map<number, number>();
+          for (const car of snap.cars) carLine.set(car.id, car.line);
           for (const ev of events) {
             if (ev.kind === "elevator-assigned") {
-              pane.renderer.pushAssignment(ev.stop, ev.elevator);
+              const line = carLine.get(ev.elevator);
+              if (line !== undefined) {
+                pane.renderer.pushAssignment(ev.stop, ev.elevator, line);
+              }
             }
           }
         }

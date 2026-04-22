@@ -158,7 +158,18 @@ export function drawCarHeaders(
 
 /**
  * Draw waiting riders at the queue area of their assigned elevator.
- * Unassigned riders are hidden until dispatch assigns them.
+ *
+ * Each line gets its own share of the queue (from `stop.waiting_by_line`,
+ * supplied by core) and is drawn next to that line's assigned car. A
+ * stop served by multiple lines — e.g. a sky-lobby shared by the low,
+ * express, and service banks — correctly splits its queue by which
+ * line each rider's route leg selects, instead of all waiters snapping
+ * to whichever shaft was dispatched last.
+ *
+ * Lines whose group has no car currently committed to this stop are
+ * hidden (those waiters aren't renderable without a shaft to queue at).
+ * Route-less riders don't appear in `waiting_by_line`; they never need
+ * a car, so hiding them from the gutter matches the current behavior.
  */
 export function drawWaitingFigures(
   ctx: CanvasRenderingContext2D,
@@ -166,21 +177,25 @@ export function drawWaitingFigures(
   toScreenY: (y: number) => number,
   s: Scale,
   carQueueRegion: Map<number, { start: number; end: number }>,
-  stopAssignments: Map<number, number>,
+  stopAssignments: Map<number, Map<number, number>>,
 ): void {
   for (const stop of snap.stops) {
-    const totalWaiting = stop.waiting_up + stop.waiting_down;
-    if (totalWaiting === 0) continue;
-
-    const assignedCarId = stopAssignments.get(stop.entity_id);
-    if (assignedCarId === undefined) continue;
-    const qr = carQueueRegion.get(assignedCarId);
-    if (qr === undefined) continue;
-    const queueAvailW = qr.end - qr.start;
-    if (queueAvailW <= s.figureStride) continue;
+    if (stop.waiting_by_line.length === 0) continue;
+    const byLine = stopAssignments.get(stop.entity_id);
+    if (byLine === undefined || byLine.size === 0) continue;
 
     const y = toScreenY(stop.y);
     const color = stop.waiting_up >= stop.waiting_down ? UP_COLOR : DOWN_COLOR;
-    drawFigureRow(ctx, qr.end - 2, y, -1, queueAvailW, totalWaiting, color, s, stop.entity_id);
+
+    for (const entry of stop.waiting_by_line) {
+      if (entry.count === 0) continue;
+      const carId = byLine.get(entry.line);
+      if (carId === undefined) continue;
+      const qr = carQueueRegion.get(carId);
+      if (qr === undefined) continue;
+      const queueAvailW = qr.end - qr.start;
+      if (queueAvailW <= s.figureStride) continue;
+      drawFigureRow(ctx, qr.end - 2, y, -1, queueAvailW, entry.count, color, s, stop.entity_id);
+    }
   }
 }

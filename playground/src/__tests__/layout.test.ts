@@ -13,6 +13,7 @@ function makeStop(entity_id: number, y: number, name = `Stop ${entity_id}`): Sto
     waiting: 0,
     waiting_up: 0,
     waiting_down: 0,
+    waiting_by_line: [],
     residents: 0,
   };
 }

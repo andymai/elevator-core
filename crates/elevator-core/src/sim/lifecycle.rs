@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use crate::components::{
-    CallDirection, Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route,
+    CallDirection, Elevator, ElevatorPhase, RiderPhase, RiderPhaseKind, Route, TransportMode,
 };
 use crate::dispatch::ElevatorGroup;
 use crate::entity::{ElevatorId, EntityId, RiderId};
@@ -459,6 +459,51 @@ impl Simulation {
         (up, down)
     }
 
+    /// Partition waiting riders at `stop` by the line that will serve
+    /// their current route leg. Each entry is `(line_entity, count)`.
+    ///
+    /// Attribution rules:
+    /// - `TransportMode::Line(l)` riders are attributed to `l` exactly.
+    /// - `TransportMode::Group(g)` riders are attributed to the first
+    ///   line in group `g` whose `serves` list contains `stop`. Groups
+    ///   with a single line (the common case) attribute unambiguously.
+    /// - `TransportMode::Walk` riders and route-less / same-position
+    ///   riders are excluded — they have no intrinsic line to summon.
+    ///
+    /// Runs in `O(waiting riders at stop · lines in their group)`.
+    /// Intended for per-frame rendering code that needs to split the
+    /// waiting queue across multi-line stops (e.g. a sky-lobby shared
+    /// by low-bank, express, and service lines).
+    #[must_use]
+    pub fn waiting_counts_by_line_at(&self, stop: EntityId) -> Vec<(EntityId, u32)> {
+        use std::collections::BTreeMap;
+        let mut by_line: BTreeMap<EntityId, u32> = BTreeMap::new();
+        for &rider in self.rider_index.waiting_at(stop) {
+            let Some(line) = self.resolve_line_for_waiting(rider, stop) else {
+                continue;
+            };
+            *by_line.entry(line).or_insert(0) += 1;
+        }
+        by_line.into_iter().collect()
+    }
+
+    /// Resolve the line entity that should "claim" `rider` for their
+    /// current leg starting at `stop`. Used by
+    /// [`waiting_counts_by_line_at`](Self::waiting_counts_by_line_at).
+    fn resolve_line_for_waiting(&self, rider: EntityId, stop: EntityId) -> Option<EntityId> {
+        let leg = self.world.route(rider).and_then(Route::current)?;
+        match leg.via {
+            TransportMode::Line(l) => Some(l),
+            TransportMode::Group(g) => self.groups.iter().find(|gr| gr.id() == g).and_then(|gr| {
+                gr.lines()
+                    .iter()
+                    .find(|li| li.serves().contains(&stop))
+                    .map(crate::dispatch::LineInfo::entity)
+            }),
+            TransportMode::Walk => None,
+        }
+    }
+
     /// Iterate over abandoned rider IDs at a stop (O(1) lookup).
     pub fn abandoned_at(&self, stop: EntityId) -> impl Iterator<Item = EntityId> + '_ {
         self.rider_index.abandoned_at(stop).iter().copied()
@@ -522,10 +567,15 @@ impl Simulation {
             // Same for hall-call assignments — pre-fix, a pinned hall
             // call to the disabled car was permanently stranded because
             // dispatch kept committing the disabled car as the assignee
-            // and other cars couldn't take the call. (#292)
+            // and other cars couldn't take the call. (#292) Now that
+            // assignments are per-line, drop only the line entries that
+            // reference the disabled car; other lines at the same stop
+            // keep their cars. The pin is lifted only when *every*
+            // remaining entry has been cleared, since a pin protects the
+            // whole call, not a single line's assignment.
             for hc in self.world.iter_hall_calls_mut() {
-                if hc.assigned_car == Some(id) {
-                    hc.assigned_car = None;
+                hc.assigned_cars_by_line.retain(|_, car| *car != id);
+                if hc.assigned_cars_by_line.is_empty() {
                     hc.pinned = false;
                 }
             }
