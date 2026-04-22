@@ -15,9 +15,12 @@ use crate::entity::EntityId;
 // ── Defaults ────────────────────────────────────────────────────────
 
 #[test]
-fn default_weights_match_nearest_car_baseline() {
+fn new_is_nearest_car_zero_baseline() {
     // eta_weight = 1.0, all penalties/bonuses disabled. With one car
     // and one stop, the car must go to the stop (no other options).
+    // This contract is load-bearing for additive-composition tests
+    // like `wrong_direction_penalty_steers_away_from_reversing_car`
+    // which set weights via `new().with_*`.
     let (mut world, stops) = test_world();
     let elev = spawn_elevator(&mut world, 0.0);
     let group = test_group(&stops, vec![elev]);
@@ -27,6 +30,84 @@ fn default_weights_match_nearest_car_baseline() {
     let mut rsr = RsrDispatch::new();
     let decision = decide_one(&mut rsr, elev, 0.0, &group, &manifest, &mut world);
     assert_eq!(decision, DispatchDecision::GoToStop(stops[2]));
+
+    // Field-level invariant: every penalty/bonus is off at `new()`.
+    let baseline = RsrDispatch::new();
+    assert_eq!(baseline.wrong_direction_penalty, 0.0);
+    assert_eq!(baseline.coincident_car_call_bonus, 0.0);
+    assert_eq!(baseline.load_penalty_coeff, 0.0);
+    assert!((baseline.peak_direction_multiplier - 1.0).abs() < 1e-12);
+}
+
+/// `tuned()` and `Default::default()` ship the opinionated stack — every
+/// term turned on with calibrated weights. This is what
+/// [`BuiltinStrategy::Rsr.instantiate`] returns, so picking RSR in the
+/// playground actually exercises RSR, not a `NearestCar` equivalent.
+#[test]
+fn tuned_turns_on_every_penalty_and_bonus() {
+    let t = RsrDispatch::tuned();
+    assert!(
+        t.wrong_direction_penalty > 0.0,
+        "wrong_direction_penalty must be active"
+    );
+    assert!(
+        t.coincident_car_call_bonus > 0.0,
+        "coincident_car_call_bonus must be active"
+    );
+    assert!(
+        t.load_penalty_coeff > 0.0,
+        "load_penalty_coeff must be active"
+    );
+    assert!(
+        t.peak_direction_multiplier > 1.0,
+        "peak_direction_multiplier must scale up during peaks"
+    );
+
+    // `Default::default()` must equal `tuned()` — this ties the
+    // Builtin-strategy dropdown to the tuned shape so nobody "fixes"
+    // `default()` back to `new()` by accident.
+    let d = RsrDispatch::default();
+    assert_eq!(d.eta_weight, t.eta_weight);
+    assert_eq!(d.wrong_direction_penalty, t.wrong_direction_penalty);
+    assert_eq!(d.coincident_car_call_bonus, t.coincident_car_call_bonus);
+    assert_eq!(d.load_penalty_coeff, t.load_penalty_coeff);
+    assert_eq!(d.peak_direction_multiplier, t.peak_direction_multiplier);
+}
+
+/// End-to-end effect of the tuned default: a committed-up car
+/// refuses a below pickup when there's an idle alternative, even
+/// without any manual `with_wrong_direction_penalty` call.
+/// Pre-tuning, `RsrDispatch::default()` reduced to pure ETA and would
+/// pick whichever car was closest — reproducing the "wrong direction
+/// is free" bug in the out-of-the-box configuration.
+#[test]
+fn tuned_default_deflects_committed_car_from_backtrack_pickup() {
+    let (mut world, stops) = test_world();
+    let committed_up = spawn_elevator(&mut world, 6.0);
+    let idle_far = spawn_elevator(&mut world, 16.0);
+    world.elevator_mut(committed_up).unwrap().phase = ElevatorPhase::MovingToStop(stops[3]);
+
+    let group = test_group(&stops, vec![committed_up, idle_far]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[0], 70.0);
+
+    // Using `default()`, NOT `new().with_*` — the tuned wrong-direction
+    // penalty must fire automatically.
+    let mut rsr = RsrDispatch::default();
+    let decisions = decide_all(
+        &mut rsr,
+        &[(committed_up, 6.0), (idle_far, 16.0)],
+        &group,
+        &manifest,
+        &mut world,
+    );
+    let idle_dec = decisions.iter().find(|(e, _)| *e == idle_far).unwrap();
+    assert_eq!(
+        idle_dec.1,
+        DispatchDecision::GoToStop(stops[0]),
+        "tuned default must route the idle car, not the committed-up one \
+         forced to backtrack — the whole point of shipping non-zero weights"
+    );
 }
 
 #[test]
