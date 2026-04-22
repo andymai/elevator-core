@@ -7,10 +7,11 @@
 use super::dispatch_tests::{
     add_demand, decide_all, decide_one, spawn_elevator, test_group, test_world,
 };
-use crate::components::{CarCall, ElevatorPhase};
+use crate::components::{CarCall, ElevatorPhase, Route, Weight};
 use crate::dispatch::rsr::RsrDispatch;
-use crate::dispatch::{BuiltinStrategy, DispatchDecision, DispatchManifest};
+use crate::dispatch::{BuiltinStrategy, DispatchDecision, DispatchManifest, RiderInfo};
 use crate::entity::EntityId;
+use crate::ids::GroupId;
 
 // ── Defaults ────────────────────────────────────────────────────────
 
@@ -527,6 +528,92 @@ fn peak_direction_multiplier_tolerates_missing_detector() {
     );
     let committed_dec = decisions.iter().find(|(e, _)| *e == committed_up).unwrap();
     assert_eq!(committed_dec.1, DispatchDecision::GoToStop(stops[0]));
+}
+
+// ── Aboard-rider path guard ─────────────────────────────────────────
+//
+// These two tests lock in the correctness fix routing RSR through
+// `pair_is_useful` (the shared NearestCar path guard). With only
+// `pair_can_do_work`, an unconfigured RSR (all weights at their
+// `new()` defaults — i.e. effectively NearestCar) would be pulled off
+// its aboard riders' path by closer pickups, indefinitely deferring
+// delivery. Tests mirror `nearest_car_*` regression tests so any
+// future drift shows up on both strategies simultaneously.
+
+/// Full-car self-pair: a saturated RSR car parked at a pickup stop
+/// whose only waiter it cannot board must still be dispatched to its
+/// aboard rider's destination, not re-selected to its own stop.
+#[test]
+fn rsr_full_car_at_pickup_stop_prefers_rider_destination() {
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0); // at stops[1]
+    {
+        let car = world.elevator_mut(elev).unwrap();
+        car.current_load = car.weight_capacity;
+    }
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(aboard, Route::direct(stops[0], stops[3], GroupId(0)));
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut rsr = RsrDispatch::new();
+    let decision = decide_one(&mut rsr, elev, 4.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "full car must be routed to its aboard rider's destination, not \
+         the un-serveable pickup at its current position"
+    );
+}
+
+/// Backward pickup with rider aboard: a car carrying a rider bound
+/// *up* must reject a closer-but-below pickup even on default RSR
+/// weights (where `wrong_direction_penalty = 0.0` means direction
+/// cost alone can't deflect the assignment).
+#[test]
+fn rsr_skips_backward_pickup_when_rider_aboard() {
+    let (mut world, stops) = test_world();
+    // Car at stops[2] (pos 8), rider aboard going *up* to stops[3] (pos 12).
+    let elev = spawn_elevator(&mut world, 8.0);
+    let aboard = world.spawn();
+    world.elevator_mut(elev).unwrap().riders.push(aboard);
+    world.set_route(aboard, Route::direct(stops[0], stops[3], GroupId(0)));
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Pickup below the car — closer in raw distance but opposite direction.
+    add_demand(&mut manifest, &mut world, stops[1], 70.0);
+    manifest
+        .riding_to_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: aboard,
+            destination: Some(stops[3]),
+            weight: Weight::from(70.0),
+            wait_ticks: 0,
+        });
+
+    let mut rsr = RsrDispatch::new();
+    let decision = decide_one(&mut rsr, elev, 8.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[3]),
+        "backward pickup must not preempt an aboard rider's forward destination"
+    );
 }
 
 // ── Sanity: _elev unused suppresses dead-code warning ──────────────

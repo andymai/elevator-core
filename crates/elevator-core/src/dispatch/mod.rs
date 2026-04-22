@@ -127,6 +127,71 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
         .is_some_and(|calls| calls.iter().any(|c| c.pending_riders.is_empty()))
 }
 
+/// Stronger servability predicate: [`pair_can_do_work`] *plus* a path
+/// check guaranteeing the pickup doesn't strand aboard riders.
+///
+/// A car carrying riders with committed destinations refuses pickups
+/// that would pull it off the path to every aboard rider's destination.
+/// Without this guard, a stream of closer-destination hall calls can
+/// indefinitely preempt a farther aboard rider's delivery — the
+/// "never reaches the passenger's desired stop" loop. `NearestCar` and
+/// `Rsr` both call this at the top of `rank`; strategies with their
+/// own direction discipline (SCAN/LOOK/ETD) use [`pair_can_do_work`]
+/// because their sweep/direction terms already rule out backtracks.
+///
+/// Aboard riders without a published route (game-managed manual
+/// riders) don't constrain the path — any pickup is trivially
+/// on-the-way for them, so the predicate falls back to the base
+/// [`pair_can_do_work`] check.
+#[must_use]
+pub fn pair_is_useful(ctx: &RankContext<'_>) -> bool {
+    if !pair_can_do_work(ctx) {
+        return false;
+    }
+
+    let Some(car) = ctx.world.elevator(ctx.car) else {
+        return false;
+    };
+    // Exiting an aboard rider is always on-the-way for that rider.
+    let can_exit_here = car
+        .riders()
+        .iter()
+        .any(|&rid| ctx.world.route(rid).and_then(Route::current_destination) == Some(ctx.stop));
+    if can_exit_here || car.riders().is_empty() {
+        return true;
+    }
+
+    // Route-less aboard riders (game-managed manual riders) don't
+    // publish a destination, so there's no committed path to protect.
+    // Any pickup is trivially on-the-way — fall back to the raw
+    // servability check. Otherwise we'd refuse every pickup the moment
+    // the car carried its first manually-managed passenger.
+    let has_routed_rider = car.riders().iter().any(|&rid| {
+        ctx.world
+            .route(rid)
+            .and_then(Route::current_destination)
+            .is_some()
+    });
+    if !has_routed_rider {
+        return true;
+    }
+
+    // Pickups allowed only on the path to an aboard rider's destination.
+    // Candidate at the car's position (to_cand = 0) trivially qualifies —
+    // useful for same-floor boards.
+    let to_cand = ctx.stop_position - ctx.car_position;
+    car.riders().iter().any(|&rid| {
+        let Some(dest) = ctx.world.route(rid).and_then(Route::current_destination) else {
+            return false;
+        };
+        let Some(dest_pos) = ctx.world.stop_position(dest) else {
+            return false;
+        };
+        let to_dest = dest_pos - ctx.car_position;
+        to_dest * to_cand >= 0.0 && to_cand.abs() <= to_dest.abs()
+    })
+}
+
 /// Whether a waiting rider could actually board this car, matching the
 /// same filters the loading phase applies. Prevents `pair_can_do_work`
 /// from approving a pickup whose only demand is direction-filtered or
