@@ -1,5 +1,17 @@
 # Changelog
 
+## [15.21.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.3...elevator-core-v15.21.0) (2026-04-22)
+
+
+### Features
+
+* **dispatch:** ship tuned RSR defaults so the dropdown entry actually does RSR ([#432](https://github.com/andymai/elevator-core/issues/432)) ([1b8d933](https://github.com/andymai/elevator-core/commit/1b8d933ea468bde375a0c512e72fc6530e491bb6))
+
+
+### Bug Fixes
+
+* **dispatch:** route RSR through pair_is_useful to guard aboard riders ([#431](https://github.com/andymai/elevator-core/issues/431)) ([bcf8690](https://github.com/andymai/elevator-core/commit/bcf869017f19b4583e6ca9531b1b5a315f721cb8))
+
 ## [15.20.3](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.2...elevator-core-v15.20.3) (2026-04-21)
 
 
