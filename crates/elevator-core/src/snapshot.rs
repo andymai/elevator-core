@@ -550,10 +550,10 @@ impl WorldSnapshot {
     ///
     /// `HallCall` cross-references stops, cars, riders, and optional
     /// destinations — all `EntityId`s must be remapped through `id_remap`.
-    /// Pre-per-line snapshots carry a single `assigned_car` field via the
-    /// `legacy_assigned_car` compat slot; we migrate it into the new
-    /// per-line map using the car's line as resolved from the restored
-    /// world.
+    /// Pre-15.23 snapshots stored a single `assigned_car` field, silently
+    /// dropped by `#[serde(default)]` on `assigned_cars_by_line`; the
+    /// next dispatch pass repopulates the empty map, so no explicit
+    /// migration is attempted here.
     fn attach_hall_calls(
         &self,
         world: &mut crate::world::World,

@@ -105,7 +105,7 @@ pub struct HallCall {
     /// without one overwriting another. Within a single line the latest
     /// assignment replaces the previous one.
     ///
-    /// Pre-15.24 snapshots stored a single `assigned_car: Option<EntityId>`
+    /// Pre-15.23 snapshots stored a single `assigned_car: Option<EntityId>`
     /// field. Those snapshots silently drop the transient assignment on
     /// load (serde's default unknown-field handling); the next dispatch
     /// pass repopulates this map.
