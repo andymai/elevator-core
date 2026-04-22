@@ -13,7 +13,6 @@ use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use elevator_core::dispatch::scan::ScanDispatch;
-use elevator_core::movement::tick_movement;
 use elevator_core::sim::Simulation;
 use elevator_core::stop::{StopConfig, StopId};
 
@@ -91,17 +90,7 @@ fn bench_step(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
-// B) tick_movement in isolation
-// ---------------------------------------------------------------------------
-
-fn bench_tick_movement(c: &mut Criterion) {
-    c.bench_function("tick_movement", |b| {
-        b.iter(|| tick_movement(0.0, 0.0, 100.0, 2.0, 1.0, 1.0, 1.0));
-    });
-}
-
-// ---------------------------------------------------------------------------
-// C) Dispatch decisions
+// B) Dispatch decisions
 // ---------------------------------------------------------------------------
 
 fn bench_dispatch(c: &mut Criterion) {
@@ -125,5 +114,5 @@ fn bench_dispatch(c: &mut Criterion) {
 // Criterion harness
 // ---------------------------------------------------------------------------
 
-criterion_group!(benches, bench_step, bench_tick_movement, bench_dispatch);
+criterion_group!(benches, bench_step, bench_dispatch);
 criterion_main!(benches);
