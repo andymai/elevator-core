@@ -741,7 +741,8 @@ fn rsr_tuned_weights_survive_snapshot_round_trip() {
     let tuned = RsrDispatch::new()
         .with_wrong_direction_penalty(15.0)
         .with_load_penalty_coeff(2.5)
-        .with_peak_direction_multiplier(3.0);
+        .with_peak_direction_multiplier(3.0)
+        .with_age_linear_weight(0.007);
     let mut sim =
         crate::sim::Simulation::new(&helpers::default_config(), tuned).expect("build sim");
     for _ in 0..10 {
@@ -768,6 +769,31 @@ fn rsr_tuned_weights_survive_snapshot_round_trip() {
         "peak_direction_multiplier drift: {}",
         parsed.peak_direction_multiplier,
     );
+    assert!(
+        (parsed.age_linear_weight - 0.007).abs() < f64::EPSILON,
+        "age_linear_weight drift: {}",
+        parsed.age_linear_weight,
+    );
+}
+
+/// Backward-compatibility: an old RON snapshot written before
+/// `age_linear_weight` existed must still deserialize — the new field
+/// has `#[serde(default)]` so missing values fall back to 0.0.
+#[test]
+fn rsr_old_snapshot_without_age_linear_weight_still_parses() {
+    use crate::dispatch::rsr::RsrDispatch;
+    // Pre-R4 RON shape — no `age_linear_weight` key.
+    let old = "(eta_weight: 1.0, wrong_direction_penalty: 15.0, \
+               coincident_car_call_bonus: 5.0, load_penalty_coeff: 3.0, \
+               peak_direction_multiplier: 2.0)";
+    let parsed: RsrDispatch = ron::from_str(old).expect("old snapshot must parse");
+    assert_eq!(
+        parsed.age_linear_weight, 0.0,
+        "missing age_linear_weight must default to 0.0 under serde(default)"
+    );
+    // Sanity: the other fields round-tripped untouched.
+    assert!((parsed.wrong_direction_penalty - 15.0).abs() < f64::EPSILON);
+    assert!((parsed.load_penalty_coeff - 3.0).abs() < f64::EPSILON);
 }
 
 /// `DestinationDispatch` config survives too; `with_stop_penalty`
