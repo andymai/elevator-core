@@ -493,7 +493,13 @@ impl BuiltinStrategy {
             Self::Scan => Some(Box::new(scan::ScanDispatch::new())),
             Self::Look => Some(Box::new(look::LookDispatch::new())),
             Self::NearestCar => Some(Box::new(nearest_car::NearestCarDispatch::new())),
-            Self::Etd => Some(Box::new(etd::EtdDispatch::new())),
+            // `Default` ships the tuned stack (age-linear fairness term
+            // active); `new()` is the zero baseline for mutant/unit
+            // tests that isolate single terms. The playground's "ETD"
+            // dropdown entry should map to the strategy with fairness
+            // protection, not the raw version that lets the max-wait
+            // tail drift unbounded.
+            Self::Etd => Some(Box::new(etd::EtdDispatch::default())),
             Self::Destination => Some(Box::new(destination::DestinationDispatch::new())),
             // `Default` ships with the tuned penalty stack; `new()` is
             // the zero baseline for additive-composition tests. The
