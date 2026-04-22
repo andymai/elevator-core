@@ -361,8 +361,8 @@ fn age_linear_weight_does_not_override_travel_time() {
             wait_ticks: 20,
         });
 
-    // Tuned default (age_linear_weight = 0.005). Per-stop age bonus at
-    // the older stop: 0.005 × 20 = 0.1s — far smaller than the ~4s ETA
+    // Tuned default (age_linear_weight = 0.002). Per-stop age bonus at
+    // the older stop: 0.002 × 20 = 0.04s — far smaller than the ~4s ETA
     // gap at max_speed = 2.0.
     let mut rsr = RsrDispatch::default();
     let decision = decide_one(&mut rsr, elev, 0.0, &group, &manifest, &mut world);

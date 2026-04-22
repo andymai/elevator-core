@@ -104,12 +104,12 @@ pub struct RsrDispatch {
     ///
     /// Default `0.0` at [`new`](Self::new) / serde round-trip (keeps
     /// single-term mutant tests valid and snapshots backward-compatible);
-    /// [`tuned`](Self::tuned) / [`default`](Self::default) ship `0.005`,
-    /// calibrated so three 30-second waiters at a stop pull roughly
-    /// one short-trip ETA off the rank — strong enough to break ties
-    /// toward older calls, not strong enough to override travel
-    /// dominance on fresh demand. Matches the ETD tuned default so the
-    /// two strategies' fairness protection lines up.
+    /// [`tuned`](Self::tuned) / [`default`](Self::default) ship `0.002`,
+    /// lighter than ETD's 0.005 because RSR's wrong-direction penalty
+    /// and `pair_is_useful` path guard already handle two starvation
+    /// patterns that ETD needed the full-strength term for. See the
+    /// inline comment at `tuned()` for the harness numbers behind the
+    /// calibration.
     ///
     /// Mirrors the Lim 1983 / Barney–dos Santos 1985 CGC lineage
     /// already used in `EtdDispatch::age_linear_weight`; composes
