@@ -321,6 +321,21 @@ typedef struct EvFrame {
 } EvFrame;
 
 /**
+ * One `(line, car)` assignment on a hall call. Read by
+ * [`ev_sim_assigned_cars_by_line`].
+ */
+typedef struct EvAssignment {
+    /**
+     * Line entity id the car runs on.
+     */
+    uint64_t line_entity_id;
+    /**
+     * Car entity id assigned to this line's share of the call.
+     */
+    uint64_t car_entity_id;
+} EvAssignment;
+
+/**
  * C-ABI-flat projection of a `HallCall` for FFI consumers.
  */
 typedef struct EvHallCall {
@@ -342,6 +357,12 @@ typedef struct EvHallCall {
     uint64_t acknowledged_at;
     /**
      * Car currently assigned to serve the call; `0` if none.
+     *
+     * At a stop served by multiple lines (e.g. a sky-lobby) a call can
+     * hold one assignment per line. This field mirrors the FFI's
+     * historical single-value shape and surfaces whichever entry has
+     * the numerically smallest line-entity id. Use
+     * [`ev_sim_assigned_cars_by_line`] to read every line's entry.
      */
     uint64_t assigned_car;
     /**
@@ -568,6 +589,31 @@ enum EvStatus ev_sim_assigned_car(struct EvSim *handle,
                                   uint64_t stop_entity_id,
                                   int8_t direction,
                                   uint64_t *out_elevator);
+
+/**
+ * Per-line car assignments at the hall call `(stop, direction)`.
+ *
+ * Writes up to `capacity` [`EvAssignment`] records to `out` and the
+ * number actually written to `out_written`. Lines with no assignment
+ * are omitted. Iteration order follows the `BTreeMap` keyed by line
+ * entity id — stable across ticks.
+ *
+ * Use [`ev_sim_assigned_car`] for the single-value convenience view;
+ * this call is for consumers that need every line's assignment at a
+ * multi-line stop (e.g. a sky-lobby served by low, high, and express
+ * banks).
+ *
+ * # Safety
+ *
+ * `handle`, `out`, and `out_written` must be valid pointers. `out`
+ * must point to a buffer of at least `capacity` [`EvAssignment`]s.
+ */
+enum EvStatus ev_sim_assigned_cars_by_line(struct EvSim *handle,
+                                           uint64_t stop_entity_id,
+                                           int8_t direction,
+                                           struct EvAssignment *out,
+                                           uint32_t capacity,
+                                           uint32_t *out_written);
 
 /**
  * Estimated ticks remaining before the assigned car reaches the call.

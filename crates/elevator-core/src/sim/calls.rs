@@ -103,7 +103,7 @@ impl super::Simulation {
         let Some(call) = self.world.hall_call_mut(stop, direction) else {
             return Err(SimError::HallCallNotFound { stop, direction });
         };
-        call.assigned_car = Some(car);
+        call.assigned_cars_by_line.insert(car_line, car);
         call.pinned = true;
         Ok(())
     }
@@ -134,11 +134,38 @@ impl super::Simulation {
 
     /// Car currently assigned to serve the call at `(stop, direction)`,
     /// if dispatch has made an assignment yet.
+    ///
+    /// At stops served by multiple lines a single call can hold one
+    /// assignment per line; this accessor returns the entry with the
+    /// numerically smallest line-entity key (stable across ticks). Use
+    /// [`assigned_cars_by_line`](Self::assigned_cars_by_line) when the
+    /// full per-line list matters.
     #[must_use]
     pub fn assigned_car(&self, stop: EntityId, direction: CallDirection) -> Option<EntityId> {
         self.world
             .hall_call(stop, direction)
-            .and_then(|c| c.assigned_car)
+            .and_then(HallCall::any_assigned_car)
+    }
+
+    /// Per-line cars assigned to the call at `(stop, direction)`.
+    /// Returns an empty slice when dispatch has no assignments yet; one
+    /// entry per line that has a car committed. Iteration order is
+    /// stable by line-entity id (`BTreeMap` ordering).
+    #[must_use]
+    pub fn assigned_cars_by_line(
+        &self,
+        stop: EntityId,
+        direction: CallDirection,
+    ) -> Vec<(EntityId, EntityId)> {
+        self.world
+            .hall_call(stop, direction)
+            .map(|c| {
+                c.assigned_cars_by_line
+                    .iter()
+                    .map(|(&line, &car)| (line, car))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Estimated ticks remaining before the assigned car reaches the
@@ -155,7 +182,9 @@ impl super::Simulation {
             .world
             .hall_call(stop, direction)
             .ok_or(EtaError::NotAStop(stop))?;
-        let car = call.assigned_car.ok_or(EtaError::NoCarAssigned(stop))?;
+        let car = call
+            .any_assigned_car()
+            .ok_or(EtaError::NoCarAssigned(stop))?;
         let car_pos = self
             .world
             .position(car)

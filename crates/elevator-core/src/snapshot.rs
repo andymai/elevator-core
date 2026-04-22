@@ -550,6 +550,10 @@ impl WorldSnapshot {
     ///
     /// `HallCall` cross-references stops, cars, riders, and optional
     /// destinations — all `EntityId`s must be remapped through `id_remap`.
+    /// Pre-15.23 snapshots stored a single `assigned_car` field, silently
+    /// dropped by `#[serde(default)]` on `assigned_cars_by_line`; the
+    /// next dispatch pass repopulates the empty map, so no explicit
+    /// migration is attempted here.
     fn attach_hall_calls(
         &self,
         world: &mut crate::world::World,
@@ -561,7 +565,11 @@ impl WorldSnapshot {
             let mut c = hc.clone();
             c.stop = remap(c.stop);
             c.destination = remap_opt(c.destination);
-            c.assigned_car = remap_opt(c.assigned_car);
+            c.assigned_cars_by_line = c
+                .assigned_cars_by_line
+                .iter()
+                .map(|(&line, &car)| (remap(line), remap(car)))
+                .collect();
             c.pending_riders = c.pending_riders.iter().map(|&r| remap(r)).collect();
             world.set_hall_call(c);
         }
@@ -704,7 +712,8 @@ impl WorldSnapshot {
         }
         for hc in hall_calls {
             check(hc.stop);
-            if let Some(car) = hc.assigned_car {
+            for (&line, &car) in &hc.assigned_cars_by_line {
+                check(line);
                 check(car);
             }
             if let Some(dest) = hc.destination {

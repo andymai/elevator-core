@@ -935,6 +935,70 @@ pub unsafe extern "C" fn ev_sim_assigned_car(
     })
 }
 
+/// Per-line car assignments at the hall call `(stop, direction)`.
+///
+/// Writes up to `capacity` [`EvAssignment`] records to `out` and the
+/// number actually written to `out_written`. Lines with no assignment
+/// are omitted. Iteration order follows the `BTreeMap` keyed by line
+/// entity id — stable across ticks.
+///
+/// Use [`ev_sim_assigned_car`] for the single-value convenience view;
+/// this call is for consumers that need every line's assignment at a
+/// multi-line stop (e.g. a sky-lobby served by low, high, and express
+/// banks).
+///
+/// # Safety
+///
+/// `handle`, `out`, and `out_written` must be valid pointers. `out`
+/// must point to a buffer of at least `capacity` [`EvAssignment`]s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_assigned_cars_by_line(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    direction: i8,
+    out: *mut EvAssignment,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out.is_null() || out_written.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(dir) = call_direction_from_i8(direction) else {
+            set_last_error("direction must be 1 (Up) or -1 (Down)");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("invalid stop_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        let mut written: u32 = 0;
+        for (line, car) in ev
+            .sim
+            .assigned_cars_by_line(stop, dir)
+            .into_iter()
+            .take(capacity as usize)
+        {
+            let record = EvAssignment {
+                line_entity_id: entity_to_u64(line),
+                car_entity_id: entity_to_u64(car),
+            };
+            // Safety: caller guarantees `out` has at least `capacity` entries
+            // and we wrote fewer than `capacity` before this increment.
+            unsafe {
+                std::ptr::write(out.add(written as usize), record);
+            }
+            written += 1;
+        }
+        // Safety: validated non-null above.
+        unsafe { std::ptr::write(out_written, written) };
+        EvStatus::Ok
+    })
+}
+
 /// Estimated ticks remaining before the assigned car reaches the call.
 ///
 /// Writes the tick count to `out_ticks`, or `u64::MAX` when no car is
@@ -1027,7 +1091,12 @@ pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
                 },
                 press_tick: call.press_tick,
                 acknowledged_at: call.acknowledged_at.unwrap_or(u64::MAX),
-                assigned_car: call.assigned_car.map_or(0, entity_to_u64),
+                // Pick the lexicographically-first line's entry as the
+                // single-value `assigned_car` view. A stop served by
+                // multiple lines can hold one assignment per line; C
+                // consumers that need the full set should call
+                // `ev_sim_assigned_cars_by_line`.
+                assigned_car: call.any_assigned_car().map_or(0, entity_to_u64),
                 destination_entity_id: call.destination.map_or(0, entity_to_u64),
                 pinned: u8::from(call.pinned),
                 pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
@@ -1058,6 +1127,12 @@ pub struct EvHallCall {
     /// Tick at which the call was acknowledged; `u64::MAX` if pending.
     pub acknowledged_at: u64,
     /// Car currently assigned to serve the call; `0` if none.
+    ///
+    /// At a stop served by multiple lines (e.g. a sky-lobby) a call can
+    /// hold one assignment per line. This field mirrors the FFI's
+    /// historical single-value shape and surfaces whichever entry has
+    /// the numerically smallest line-entity id. Use
+    /// [`ev_sim_assigned_cars_by_line`] to read every line's entry.
     pub assigned_car: u64,
     /// Destination stop entity id in DCS (`HallCallMode::Destination`)
     /// mode, or `0` when the call has no destination (Classic mode,
@@ -1067,6 +1142,17 @@ pub struct EvHallCall {
     pub pinned: u8,
     /// Number of riders aggregated onto this call.
     pub pending_rider_count: u32,
+}
+
+/// One `(line, car)` assignment on a hall call. Read by
+/// [`ev_sim_assigned_cars_by_line`].
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvAssignment {
+    /// Line entity id the car runs on.
+    pub line_entity_id: u64,
+    /// Car entity id assigned to this line's share of the call.
+    pub car_entity_id: u64,
 }
 
 /// Discriminator for [`EvEvent::kind`]. Kept as explicit integer
