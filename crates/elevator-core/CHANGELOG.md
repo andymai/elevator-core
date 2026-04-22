@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.22.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.21.0...elevator-core-v15.22.0) (2026-04-22)
+
+
+### Features
+
+* **dispatch:** ship tuned ETD default with age-linear fairness term active ([#433](https://github.com/andymai/elevator-core/issues/433)) ([a1566d8](https://github.com/andymai/elevator-core/commit/a1566d8abb9a2ad7a71d43871c20926b81fde0e2))
+
 ## [15.21.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.20.3...elevator-core-v15.21.0) (2026-04-22)
 
 
