@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.23.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.22.0...elevator-core-v15.23.0) (2026-04-22)
+
+
+### Features
+
+* **dispatch:** add linear waiting-age fairness term to RSR ([#436](https://github.com/andymai/elevator-core/issues/436)) ([f199022](https://github.com/andymai/elevator-core/commit/f1990228757fa8bbb046712bf968e5dea1e879d1))
+
 ## [15.22.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.21.0...elevator-core-v15.22.0) (2026-04-22)
 
 
