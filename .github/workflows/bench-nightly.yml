@@ -65,24 +65,20 @@ jobs:
           cargo bench -p elevator-core --bench multi_line_bench  -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench query_bench       -- --save-baseline nightly 2>&1 | tee -a bench-output.log
 
-      # Extract any line tagged by Criterion as a significant regression
-      # (`change: ... Performance has regressed.`) and flag them. `-B 3`
-      # captures the preceding bench-name, `time:`, and `change:` lines so
-      # the resulting issue body actually identifies *which* bench regressed
-      # and by how much, rather than a stack of bare "Performance has
-      # regressed." lines.
+      # Criterion's "Performance has regressed." line fires on any
+      # statistically significant change, irrespective of magnitude. On a
+      # shared CI runner that produces false positives from sub-percent
+      # drift and from micro-benches whose measurements are dominated by
+      # timer jitter. The filter below keeps only regressions whose median
+      # change exceeds MIN_CHANGE_PCT, which is the signal we actually want
+      # to page on.
       - name: Detect regressions
         id: detect
+        env:
+          MIN_CHANGE_PCT: '5.0'
         run: |
-          if grep -qE 'Performance has regressed' bench-output.log; then
-            echo "regressed=true"  >> "$GITHUB_OUTPUT"
-            grep -B 3 -E 'Performance has regressed' bench-output.log > regressions.txt
-            echo "== Regressions detected =="
-            cat regressions.txt
-          else
-            echo "regressed=false" >> "$GITHUB_OUTPUT"
-            echo "No regressions detected."
-          fi
+          python3 .github/scripts/filter-bench-regressions.py \
+            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT"
 
       - name: Upload bench output
         if: always()
