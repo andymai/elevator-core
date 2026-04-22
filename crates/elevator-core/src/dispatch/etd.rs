@@ -58,11 +58,23 @@ pub struct EtdDispatch {
 }
 
 impl EtdDispatch {
-    /// Create a new `EtdDispatch` with default weights.
+    /// Create a new `EtdDispatch` with the baseline weights.
     ///
     /// Defaults: `wait_weight = 1.0`, `delay_weight = 1.0`,
     /// `door_weight = 0.5`, `wait_squared_weight = 0.0`,
     /// `age_linear_weight = 0.0`.
+    ///
+    /// This is the **baseline** constructor — the fairness terms
+    /// (`wait_squared_weight`, `age_linear_weight`) are off, so behaviour
+    /// matches ETD as originally shipped. Mutant/unit tests that
+    /// measure a single term in isolation (`new().with_age_linear_weight(…)`)
+    /// rely on this contract.
+    ///
+    /// For the opinionated "pick ETD from the dropdown" configuration
+    /// used by [`BuiltinStrategy::Etd`](super::BuiltinStrategy::Etd),
+    /// call [`EtdDispatch::default`] instead — that ships the
+    /// linear-age fairness term active to bound the max-wait tail
+    /// under sustained peak traffic.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -71,6 +83,38 @@ impl EtdDispatch {
             door_weight: 0.5,
             wait_squared_weight: 0.0,
             age_linear_weight: 0.0,
+            pending_positions: SmallVec::new(),
+        }
+    }
+
+    /// Return the opinionated tuned configuration — equivalent to
+    /// [`Default::default`].
+    ///
+    /// Same dispatch shape as [`new`](Self::new) but with the linear
+    /// waiting-age fairness term active:
+    /// `age_linear_weight = 0.005` (seconds of cost-reduction per
+    /// waiting-tick summed across riders at the stop). That value is
+    /// calibrated against the `playground_audit` harness: a stop
+    /// hosting three 30-second waiters sees a ≈27s fairness bonus,
+    /// roughly equal to a short-trip ETA, which is strong enough to
+    /// break ties toward older waiters without overriding travel
+    /// dominance on fresh demand.
+    ///
+    /// Without the age term, ETD's rank is age-agnostic and a stream
+    /// of fresh lobby-side demand can indefinitely preempt a single
+    /// old waiter on an upper floor — exactly the tail-starvation
+    /// pattern showing up as ETD's `max_wait` lagging SCAN's by
+    /// 40-50% in the `playground_audit`. The linear term (from the
+    /// Lim 1983 / Barney–dos Santos CGC lineage) is the established
+    /// fix for that shape.
+    #[must_use]
+    pub fn tuned() -> Self {
+        Self {
+            wait_weight: 1.0,
+            delay_weight: 1.0,
+            door_weight: 0.5,
+            wait_squared_weight: 0.0,
+            age_linear_weight: 0.005,
             pending_positions: SmallVec::new(),
         }
     }
@@ -139,8 +183,13 @@ impl EtdDispatch {
 }
 
 impl Default for EtdDispatch {
+    /// The opinionated "pick ETD from the dropdown" configuration.
+    ///
+    /// Defaults to [`EtdDispatch::tuned`] — the baseline weights plus
+    /// an active linear-age fairness term. See the `tuned` docstring
+    /// for the calibration rationale.
     fn default() -> Self {
-        Self::new()
+        Self::tuned()
     }
 }
 

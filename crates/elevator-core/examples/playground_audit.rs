@@ -154,7 +154,11 @@ fn run_once(scenario: &Scenario, strategy_name: &str, abandon_override: Option<u
         "scan" => Simulation::new(&config, ScanDispatch::new()),
         "look" => Simulation::new(&config, LookDispatch::new()),
         "nearest" => Simulation::new(&config, NearestCarDispatch::new()),
-        "etd" => Simulation::new(&config, EtdDispatch::new()),
+        // Use `Default` (tuned stack with the age-linear fairness term
+        // active), not `new()` (zero baseline) — `BuiltinStrategy::Etd`
+        // maps to `Default`, so the audit should measure what the
+        // dropdown actually does.
+        "etd" => Simulation::new(&config, EtdDispatch::default()),
         // Use `Default` (tuned stack), not `new()` (zero baseline) —
         // `new()` would reduce RSR to `NearestCarDispatch` and give
         // the audit a misleadingly duplicated row.
