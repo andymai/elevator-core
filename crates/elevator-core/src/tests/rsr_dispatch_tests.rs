@@ -38,6 +38,7 @@ fn new_is_nearest_car_zero_baseline() {
     assert_eq!(baseline.coincident_car_call_bonus, 0.0);
     assert_eq!(baseline.load_penalty_coeff, 0.0);
     assert!((baseline.peak_direction_multiplier - 1.0).abs() < 1e-12);
+    assert_eq!(baseline.age_linear_weight, 0.0);
 }
 
 /// `tuned()` and `Default::default()` ship the opinionated stack — every
@@ -63,6 +64,10 @@ fn tuned_turns_on_every_penalty_and_bonus() {
         t.peak_direction_multiplier > 1.0,
         "peak_direction_multiplier must scale up during peaks"
     );
+    assert!(
+        t.age_linear_weight > 0.0,
+        "age_linear_weight must be active so the max-wait tail stays bounded"
+    );
 
     // `Default::default()` must equal `tuned()` — this ties the
     // Builtin-strategy dropdown to the tuned shape so nobody "fixes"
@@ -73,6 +78,7 @@ fn tuned_turns_on_every_penalty_and_bonus() {
     assert_eq!(d.coincident_car_call_bonus, t.coincident_car_call_bonus);
     assert_eq!(d.load_penalty_coeff, t.load_penalty_coeff);
     assert_eq!(d.peak_direction_multiplier, t.peak_direction_multiplier);
+    assert_eq!(d.age_linear_weight, t.age_linear_weight);
 }
 
 /// End-to-end effect of the tuned default: a committed-up car
@@ -266,6 +272,107 @@ fn load_penalty_prefers_emptier_car() {
     );
 }
 
+// ── Age-linear fairness term ───────────────────────────────────────
+
+/// A positive `age_linear_weight` breaks a travel-time tie toward the
+/// stop hosting the older waiter. Mirrors the ETD counterpart in
+/// `etd_age_weight_tests::age_linear_weight_prefers_older_waiting_rider`.
+#[test]
+fn age_linear_weight_prefers_older_waiting_rider() {
+    use crate::components::Weight;
+    use crate::dispatch::RiderInfo;
+
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 4.0); // at stops[1] (pos 4)
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // stops[0] at pos 0 — rider waiting 1000 ticks.
+    let old_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[0])
+        .or_default()
+        .push(RiderInfo {
+            id: old_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 1000,
+        });
+    // stops[2] at pos 8 — rider waiting only 1 tick.
+    let fresh_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[2])
+        .or_default()
+        .push(RiderInfo {
+            id: fresh_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 1,
+        });
+
+    let mut rsr = RsrDispatch::new().with_age_linear_weight(1.0);
+    let decision = decide_one(&mut rsr, elev, 4.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[0]),
+        "positive age_linear_weight must bias RSR toward the older waiter"
+    );
+}
+
+/// A modest `age_linear_weight` must not flip travel-time dominance
+/// when the far stop's extra wait isn't large enough to justify the
+/// detour. Regression guard against too-aggressive bias scales at the
+/// tuned default.
+#[test]
+fn age_linear_weight_does_not_override_travel_time() {
+    use crate::components::Weight;
+    use crate::dispatch::RiderInfo;
+
+    let (mut world, stops) = test_world();
+    let elev = spawn_elevator(&mut world, 0.0);
+
+    let group = test_group(&stops, vec![elev]);
+    let mut manifest = DispatchManifest::default();
+    // Near waiter — young.
+    let near_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[1])
+        .or_default()
+        .push(RiderInfo {
+            id: near_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 5,
+        });
+    // Far waiter — older, but not so much older that the tuned default
+    // should deflect the car past three intervening floors.
+    let far_waiter = world.spawn();
+    manifest
+        .waiting_at_stop
+        .entry(stops[3])
+        .or_default()
+        .push(RiderInfo {
+            id: far_waiter,
+            destination: None,
+            weight: Weight::from(70.0),
+            wait_ticks: 20,
+        });
+
+    // Tuned default (age_linear_weight = 0.005). Per-stop age bonus at
+    // the older stop: 0.005 × 20 = 0.1s — far smaller than the ~4s ETA
+    // gap at max_speed = 2.0.
+    let mut rsr = RsrDispatch::default();
+    let decision = decide_one(&mut rsr, elev, 0.0, &group, &manifest, &mut world);
+    assert_eq!(
+        decision,
+        DispatchDecision::GoToStop(stops[1]),
+        "tuned default age bonus must not reverse travel-time dominance on small age gaps"
+    );
+}
+
 // ── BuiltinStrategy round-trip ──────────────────────────────────────
 
 #[test]
@@ -331,6 +438,18 @@ fn peak_direction_multiplier_rejects_below_one() {
 #[should_panic(expected = "peak_direction_multiplier must be finite and ≥ 1.0")]
 fn peak_direction_multiplier_rejects_nan() {
     let _ = RsrDispatch::new().with_peak_direction_multiplier(f64::NAN);
+}
+
+#[test]
+#[should_panic(expected = "age_linear_weight must be finite and non-negative")]
+fn age_linear_weight_rejects_nan() {
+    let _ = RsrDispatch::new().with_age_linear_weight(f64::NAN);
+}
+
+#[test]
+#[should_panic(expected = "age_linear_weight must be finite and non-negative")]
+fn age_linear_weight_rejects_negative() {
+    let _ = RsrDispatch::new().with_age_linear_weight(-1.0);
 }
 
 // ── Peak-direction multiplier ───────────────────────────────────────

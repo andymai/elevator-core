@@ -96,6 +96,26 @@ pub struct RsrDispatch {
     /// is installed — tests and custom sims that bypass the auto-install
     /// stay unaffected.
     pub peak_direction_multiplier: f64,
+    /// Coefficient on the linear waiting-age fairness bonus. Each
+    /// candidate stop's rank is reduced by `age_linear_weight · Σ
+    /// wait_ticks` across waiting riders at the stop, so stops hosting
+    /// older calls win ties without the quadratic blow-up a squared-
+    /// wait term would have.
+    ///
+    /// Default `0.0` at [`new`](Self::new) / serde round-trip (keeps
+    /// single-term mutant tests valid and snapshots backward-compatible);
+    /// [`tuned`](Self::tuned) / [`default`](Self::default) ship `0.005`,
+    /// calibrated so three 30-second waiters at a stop pull roughly
+    /// one short-trip ETA off the rank — strong enough to break ties
+    /// toward older calls, not strong enough to override travel
+    /// dominance on fresh demand. Matches the ETD tuned default so the
+    /// two strategies' fairness protection lines up.
+    ///
+    /// Mirrors the Lim 1983 / Barney–dos Santos 1985 CGC lineage
+    /// already used in `EtdDispatch::age_linear_weight`; composes
+    /// additively with the other penalty-stack terms.
+    #[serde(default)]
+    pub age_linear_weight: f64,
 }
 
 impl RsrDispatch {
@@ -121,6 +141,7 @@ impl RsrDispatch {
             coincident_car_call_bonus: 0.0,
             load_penalty_coeff: 0.0,
             peak_direction_multiplier: 1.0,
+            age_linear_weight: 0.0,
         }
     }
 
@@ -153,6 +174,19 @@ impl RsrDispatch {
             // (lobby-bound loads shouldn't reverse for new pickups).
             // Off-peak stays unscaled for cheap inter-floor reversals.
             peak_direction_multiplier: 2.0,
+            // Linear waiting-age fairness. Tuned at 0.002 against the
+            // `playground_audit` harness — lighter than ETD's 0.005
+            // default because RSR's wrong-direction penalty and
+            // `pair_is_useful` path guard already handle two of the
+            // starvation patterns ETD needed the full-strength term
+            // for. At 0.002 on the audit skyscraper (2 cars, heavy
+            // peak), RSR beats SCAN across delivered / avg_wait /
+            // max_wait; at 0.005 the same scenario improves further
+            // but bleeds a few extra abandonments out of the
+            // single-car office run as the age bonus pulls the lone
+            // car off fresh demand faster than it can cycle. 0.002
+            // is the tighter balance.
+            age_linear_weight: 0.002,
         }
     }
 
@@ -213,6 +247,23 @@ impl RsrDispatch {
             "eta_weight must be finite and non-negative, got {weight}"
         );
         self.eta_weight = weight;
+        self
+    }
+
+    /// Set the linear waiting-age fairness weight. Composes additively
+    /// with the other penalty/bonus terms; `0.0` disables the term.
+    ///
+    /// # Panics
+    /// Panics on non-finite or negative weights. A `NaN` weight would
+    /// propagate through `mul_add` and silently collapse the stack;
+    /// a negative weight would invert the fairness ordering.
+    #[must_use]
+    pub fn with_age_linear_weight(mut self, weight: f64) -> Self {
+        assert!(
+            weight.is_finite() && weight >= 0.0,
+            "age_linear_weight must be finite and non-negative, got {weight}"
+        );
+        self.age_linear_weight = weight;
         self
     }
 
@@ -320,6 +371,20 @@ impl DispatchStrategy for RsrDispatch {
                 let load_ratio = (car.current_load().value() / capacity).clamp(0.0, 1.0);
                 cost += self.load_penalty_coeff * load_ratio;
             }
+        }
+
+        // Linear waiting-age fairness bonus. Pulls stale calls forward
+        // without the quadratic blow-up a squared-wait term would have;
+        // prevents fresh lobby-side demand from indefinitely preempting
+        // older upper-floor waiters. Mirrors ETD's `age_linear_weight`.
+        if self.age_linear_weight > 0.0 {
+            let wait_sum: f64 = ctx
+                .manifest
+                .waiting_riders_at(ctx.stop)
+                .iter()
+                .map(|r| r.wait_ticks as f64)
+                .sum();
+            cost = self.age_linear_weight.mul_add(-wait_sum, cost);
         }
 
         let cost = cost.max(0.0);
