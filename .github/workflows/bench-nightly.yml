@@ -78,7 +78,7 @@ jobs:
           MIN_CHANGE_PCT: '5.0'
         run: |
           python3 .github/scripts/filter-bench-regressions.py \
-            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT"
+            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" bench-output.log
 
       - name: Upload bench output
         if: always()

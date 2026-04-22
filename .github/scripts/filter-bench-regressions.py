@@ -3,13 +3,14 @@
 
 Criterion's built-in regression detection is purely p-value-based: any
 statistically significant change fires, including sub-%% drift that's noise
-on a shared CI runner. This script reads `bench-output.log`, keeps only the
-regressions whose median change exceeds a threshold, and writes the same
-4-line context blocks the old `grep -B 3` emitted.
+on a shared CI runner. This script keeps only the regressions whose median
+change exceeds a threshold, and writes the same 4-line context blocks the
+old `grep -B 3` emitted.
 
 Args:
     sys.argv[1]: path to append `regressed=true|false` to ($GITHUB_OUTPUT).
     sys.argv[2]: minimum |median change %| to alert on (e.g. "5.0").
+    sys.argv[3]: path to the Criterion bench output log to filter.
 """
 
 from __future__ import annotations
@@ -30,8 +31,9 @@ CHANGE_RE = re.compile(
 def main() -> int:
     github_output = Path(sys.argv[1])
     threshold = float(sys.argv[2])
+    bench_log = Path(sys.argv[3])
 
-    lines = Path("bench-output.log").read_text().splitlines(keepends=True)
+    lines = bench_log.read_text().splitlines(keepends=True)
 
     out: list[str] = []
     for i, line in enumerate(lines):
