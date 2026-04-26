@@ -1357,9 +1357,9 @@ pub(crate) fn assign_with_scratch(
             // The car's line's `serves` list is the set of stops it can
             // physically reach. In a single-line group every stop is
             // served (filter is a no-op); in a multi-line group (e.g.
-            // sky-lobby + service bank, or SKYSTACK's "coordinated"
-            // tower mode) a car on line A must not be assigned to a
-            // stop only line B serves — it would commit, sit there
+            // sky-lobby + service bank, low/high banks sharing a
+            // transfer floor) a car on line A must not be assigned to
+            // a stop only line B serves — it would commit, sit there
             // unable to reach, and starve the call. The pre-fix matrix
             // happily ranked such cross-line pairs because no other
             // gate caught them: `restricted_stops` is for explicit

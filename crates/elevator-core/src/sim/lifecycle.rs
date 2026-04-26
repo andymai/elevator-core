@@ -867,8 +867,8 @@ impl Simulation {
             // Replace the now-stale Route (still references the removed
             // stop) with a self-loop at the eject stop. Dispatch sees a
             // rider whose destination is its current location and
-            // ignores them; the consumer (e.g. SKYSTACK agent layer)
-            // observes `RiderEjected` and decides what to do next.
+            // ignores them; consumers observe `RiderEjected` and
+            // decide what to do next (game-side respawn, refund, etc.).
             let group = self.group_from_route(self.world.route(rid));
             self.world.set_route(rid, Route::direct(stop, stop, group));
             self.rider_index.insert_waiting(stop, rid);

@@ -372,9 +372,9 @@ impl WasmSim {
 
     /// Pull a richer game-facing view: door progress, direction lamps,
     /// per-car ETAs, hall-call lamp state, and topology metadata
-    /// (groups + lines). Designed for tower-builder games (notably
-    /// SKYSTACK) where the renderer needs more than `snapshot()` exposes.
-    /// All entity refs are `u64` (`BigInt`) matching the live-mutation API.
+    /// (groups + lines). Designed for game-side renderers that need
+    /// more than `snapshot()` exposes. All entity refs are `u64`
+    /// (`BigInt`) matching the live-mutation API.
     #[wasm_bindgen(js_name = worldView)]
     pub fn world_view(&self) -> world_view::WorldView {
         world_view::WorldView::build(&self.inner)
@@ -405,11 +405,12 @@ impl WasmSim {
 
     // ── Topology mutation API ────────────────────────────────────────
     //
-    // Granular live mutations for consumers (notably SKYSTACK) where the
-    // player edits the building mid-sim. Entity references cross the JS
-    // boundary as `u64` (BigInt in JS) carrying slotmap's full FFI
-    // encoding — version bits included, so a stale reference to a
-    // despawned entity fails cleanly instead of aliasing a reused slot.
+    // Granular live mutations for consumers where the building is
+    // edited mid-sim (e.g. game-side editors driving from external
+    // state). Entity references cross the JS boundary as `u64`
+    // (BigInt in JS) carrying slotmap's full FFI encoding — version
+    // bits included, so a stale reference to a despawned entity
+    // fails cleanly instead of aliasing a reused slot.
 
     /// Add a new dispatch group with the given name and strategy.
     /// Returns the group ID as a `u32` (groups have flat numeric IDs).
@@ -617,9 +618,10 @@ impl WasmSim {
     }
 
     /// Find the stop entity at `position` that's served by `line_ref`,
-    /// or `0` (slotmap-null) if none. Lets consumers like SKYSTACK
-    /// disambiguate co-located stops on different lines without the
-    /// per-shaft offset hack the bridge currently uses.
+    /// or `0` (slotmap-null) if none. Lets consumers disambiguate
+    /// co-located stops on different lines (sky-lobby served by
+    /// multiple banks, parallel shafts at the same physical floor)
+    /// without offset hacks.
     #[wasm_bindgen(js_name = findStopAtPositionOnLine)]
     pub fn find_stop_at_position_on_line(&self, position: f64, line_ref: u64) -> u64 {
         self.inner
