@@ -812,13 +812,13 @@ impl Simulation {
         // `scrub_stop_from_elevators`. Re-point it at the new destination
         // so the car resumes movement on the next tick; dispatch picks
         // it up via `riding_to_stop` regardless, but setting target_stop
-        // avoids one tick of idle drift.
+        // avoids one tick of idle drift. Phase is left untouched — a
+        // car mid-travel keeps `MovingToStop` and decelerates naturally.
         if let Some(car_eid) = aboard_car
             && let Some(car) = self.world.elevator_mut(car_eid)
             && car.target_stop.is_none()
         {
             car.target_stop = Some(alt_stop);
-            car.phase = ElevatorPhase::Idle;
         }
     }
 
@@ -848,6 +848,11 @@ impl Simulation {
             tick: self.tick,
         });
 
+        let rider_weight = self
+            .world
+            .rider(rid)
+            .map_or(crate::components::Weight::ZERO, |r| r.weight);
+
         if let Some(stop) = eject_stop {
             if let Some(r) = self.world.rider_mut(rid) {
                 r.phase = RiderPhase::Waiting;
@@ -856,8 +861,17 @@ impl Simulation {
             }
             if let Some(car) = self.world.elevator_mut(car_eid) {
                 car.riders.retain(|r| *r != rid);
+                car.current_load -= rider_weight;
             }
+            // Replace the now-stale Route (still references the removed
+            // stop) with a self-loop at the eject stop. Dispatch sees a
+            // rider whose destination is its current location and
+            // ignores them; the consumer (e.g. SKYSTACK agent layer)
+            // observes `RiderEjected` and decides what to do next.
+            let group = self.group_from_route(self.world.route(rid));
+            self.world.set_route(rid, Route::direct(stop, stop, group));
             self.rider_index.insert_waiting(stop, rid);
+            self.emit_capacity_changed(car_eid);
             self.events.emit(Event::RiderEjected {
                 rider: rid,
                 elevator: car_eid,
@@ -870,11 +884,28 @@ impl Simulation {
             }
             if let Some(car) = self.world.elevator_mut(car_eid) {
                 car.riders.retain(|r| *r != rid);
+                car.current_load -= rider_weight;
             }
             self.world.scrub_rider_from_pending_calls(rid);
+            self.emit_capacity_changed(car_eid);
             self.events.emit(Event::RiderAbandoned {
                 rider: rid,
                 stop: disabled_stop,
+                tick: self.tick,
+            });
+        }
+    }
+
+    /// Emit a `CapacityChanged` event reflecting the car's current load
+    /// after a passenger removal. Mirrors the pattern at
+    /// `loading.rs:364-371`.
+    fn emit_capacity_changed(&mut self, car_eid: EntityId) {
+        use ordered_float::OrderedFloat;
+        if let Some(car) = self.world.elevator(car_eid) {
+            self.events.emit(Event::CapacityChanged {
+                elevator: car_eid,
+                current_load: OrderedFloat(car.current_load.value()),
+                capacity: OrderedFloat(car.weight_capacity.value()),
                 tick: self.tick,
             });
         }
