@@ -789,6 +789,65 @@ impl ElevatorGroup {
     }
 }
 
+/// Look up the `serves` list for an elevator's line.
+///
+/// Walks `groups` to find the [`LineInfo`] whose entity matches the
+/// car's current `line()`. Returns `None` if the car has no line
+/// registered in any group (an inconsistent state — should be
+/// unreachable in a healthy sim).
+///
+/// Helper for callers of
+/// [`World::find_stop_at_position_in`](crate::world::World::find_stop_at_position_in)
+/// that already have group context: `find_stop_at_position(pos)` is
+/// global (any line wins) and ambiguous when two lines share a
+/// position; passing the elevator's serves list scopes the lookup to
+/// *its* line.
+///
+/// Cost: `O(groups × lines_per_group)` per call. For loops over many
+/// elevators per tick, prefer [`build_line_serves_index`] +
+/// [`elevator_line_serves_indexed`] to amortize the line walk.
+#[must_use]
+pub fn elevator_line_serves<'a>(
+    world: &World,
+    groups: &'a [ElevatorGroup],
+    elevator: EntityId,
+) -> Option<&'a [EntityId]> {
+    let line_eid = world.elevator(elevator)?.line();
+    groups
+        .iter()
+        .flat_map(ElevatorGroup::lines)
+        .find(|li| li.entity() == line_eid)
+        .map(LineInfo::serves)
+}
+
+/// Pre-built index mapping each line entity to its `serves` slice.
+/// Built once with [`build_line_serves_index`]; queried with
+/// [`elevator_line_serves_indexed`] for O(1) per-elevator lookup.
+pub type LineServesIndex<'a> = std::collections::HashMap<EntityId, &'a [EntityId]>;
+
+/// Build a [`LineServesIndex`] from the group list. O(groups × lines).
+/// Call once per substep / system and reuse across the elevator loop.
+#[must_use]
+pub fn build_line_serves_index(groups: &[ElevatorGroup]) -> LineServesIndex<'_> {
+    let mut idx: LineServesIndex<'_> = std::collections::HashMap::new();
+    for li in groups.iter().flat_map(ElevatorGroup::lines) {
+        idx.insert(li.entity(), li.serves());
+    }
+    idx
+}
+
+/// Indexed variant of [`elevator_line_serves`]. O(1) per call given
+/// a pre-built [`LineServesIndex`].
+#[must_use]
+pub fn elevator_line_serves_indexed<'a>(
+    world: &World,
+    index: &LineServesIndex<'a>,
+    elevator: EntityId,
+) -> Option<&'a [EntityId]> {
+    let line_eid = world.elevator(elevator)?.line();
+    index.get(&line_eid).copied()
+}
+
 /// Context passed to [`DispatchStrategy::rank`].
 ///
 /// Bundles the per-call arguments into a single struct so future context

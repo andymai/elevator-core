@@ -3510,3 +3510,172 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
         "car_a (line A) should have been assigned to stop A0"
     );
 }
+
+/// Two lines, two stops at the same physical position (one per line).
+/// A car parked at the position must load/exit riders bound for *its*
+/// line's stop, not whichever stop wins the global linear scan.
+///
+/// Pre-fix the loading system used the global lookup; with two stops
+/// at position 0.0 the wrong line's stop could win the scan, no rider
+/// would match `route.current_destination()`, and the car would sit
+/// idle with riders aboard.
+#[test]
+fn loading_resolves_co_located_stops_to_the_cars_own_line() {
+    use crate::components::RiderPhase;
+
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Co-located".into(),
+            // Order matters: declare B's stops first so they receive
+            // lower entity IDs and win the global linear scan in
+            // `find_stop_at_position`. With A first the global lookup
+            // returns A's stops by ID order and the test passes even
+            // without the per-line fix — false-positive guard.
+            stops: vec![
+                StopConfig {
+                    id: StopId(2),
+                    name: "B0".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(3),
+                    name: "B_top".into(),
+                    position: 8.0,
+                },
+                StopConfig {
+                    id: StopId(0),
+                    name: "A0".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "A_top".into(),
+                    position: 8.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "A".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 1,
+                        name: "carA".into(),
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                        restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
+                        bypass_load_up_pct: None,
+                        bypass_load_down_pct: None,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "B".into(),
+                    serves: vec![StopId(2), StopId(3)],
+                    elevators: vec![ElevatorConfig {
+                        id: 2,
+                        name: "carB".into(),
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
+                        starting_stop: StopId(2),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                        restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
+                        bypass_load_up_pct: None,
+                        bypass_load_down_pct: None,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+            ]),
+            groups: Some(vec![
+                GroupConfig {
+                    id: 0,
+                    name: "A".into(),
+                    lines: vec![1],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                    reposition: None,
+                    hall_call_mode: None,
+                    ack_latency_ticks: None,
+                },
+                GroupConfig {
+                    id: 1,
+                    name: "B".into(),
+                    lines: vec![2],
+                    dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                    reposition: None,
+                    hall_call_mode: None,
+                    ack_latency_ticks: None,
+                },
+            ]),
+        },
+        elevators: Vec::new(),
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let stop_a_top = sim.stop_entity(StopId(1)).unwrap();
+
+    // Spawn a rider on line A: A0 → A_top.
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+
+    let mut delivered = false;
+    for _ in 0..2000 {
+        sim.step();
+        let r = sim.world().rider(rider.entity()).unwrap();
+        if r.phase() == RiderPhase::Arrived {
+            delivered = true;
+            break;
+        }
+    }
+    assert!(delivered, "rider should be delivered with co-located stops");
+    let r = sim.world().rider(rider.entity()).unwrap();
+    assert_eq!(
+        r.current_stop(),
+        Some(stop_a_top),
+        "rider must exit at line A's top stop, not line B's"
+    );
+
+    // Symmetric check: line B must not have been involved at all.
+    // Pre-fix the loading lookup might pick the wrong line's stop and
+    // try to board/exit on the wrong car; verify line B's car never
+    // carried this rider.
+    let car_b = sim
+        .world()
+        .iter_elevators()
+        .find_map(|(eid, _, e)| (sim.world().line(e.line()).unwrap().name() == "B").then_some(eid))
+        .unwrap();
+    let car_b_riders = sim.world().elevator(car_b).unwrap().riders();
+    assert!(
+        !car_b_riders.contains(&rider.entity()),
+        "rider must never have boarded line B's car"
+    );
+}
