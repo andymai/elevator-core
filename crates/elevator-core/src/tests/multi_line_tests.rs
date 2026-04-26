@@ -3526,17 +3526,12 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
     let config = SimConfig {
         building: BuildingConfig {
             name: "Co-located".into(),
+            // Order matters: declare B's stops first so they receive
+            // lower entity IDs and win the global linear scan in
+            // `find_stop_at_position`. With A first the global lookup
+            // returns A's stops by ID order and the test passes even
+            // without the per-line fix — false-positive guard.
             stops: vec![
-                StopConfig {
-                    id: StopId(0),
-                    name: "A0".into(),
-                    position: 0.0,
-                },
-                StopConfig {
-                    id: StopId(1),
-                    name: "A_top".into(),
-                    position: 8.0,
-                },
                 StopConfig {
                     id: StopId(2),
                     name: "B0".into(),
@@ -3545,6 +3540,16 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
                 StopConfig {
                     id: StopId(3),
                     name: "B_top".into(),
+                    position: 8.0,
+                },
+                StopConfig {
+                    id: StopId(0),
+                    name: "A0".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "A_top".into(),
                     position: 8.0,
                 },
             ],
