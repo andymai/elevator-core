@@ -1294,9 +1294,36 @@ pub(crate) fn assign_with_scratch(
             let restricted = world
                 .elevator(car_eid)
                 .map(crate::components::Elevator::restricted_stops);
+
+            // The car's line's `serves` list is the set of stops it can
+            // physically reach. In a single-line group every stop is
+            // served (filter is a no-op); in a multi-line group (e.g.
+            // sky-lobby + service bank, or SKYSTACK's "coordinated"
+            // tower mode) a car on line A must not be assigned to a
+            // stop only line B serves — it would commit, sit there
+            // unable to reach, and starve the call. The pre-fix matrix
+            // happily ranked such cross-line pairs because no other
+            // gate caught them: `restricted_stops` is for explicit
+            // access denials, `pending_stops_minus_covered` filters
+            // stops not cars, and built-in strategies score on
+            // distance/direction without consulting line topology.
+            let car_serves: Option<&[EntityId]> = world
+                .elevator(car_eid)
+                .map(crate::components::Elevator::line)
+                .and_then(|line_eid| {
+                    group
+                        .lines()
+                        .iter()
+                        .find(|li| li.entity() == line_eid)
+                        .map(LineInfo::serves)
+                });
+
             for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
                 if restricted.is_some_and(|r| r.contains(&stop_eid)) {
                     continue; // leave SENTINEL — this pair is unavailable
+                }
+                if car_serves.is_some_and(|s| !s.contains(&stop_eid)) {
+                    continue; // car's line doesn't reach this stop
                 }
                 let ctx = RankContext {
                     car: car_eid,
