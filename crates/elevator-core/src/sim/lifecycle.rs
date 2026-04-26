@@ -648,22 +648,7 @@ impl Simulation {
         // If this is a stop, scrub it from elevator targets/queues,
         // abandon resident riders, and invalidate routes.
         if self.world.stop(id).is_some() {
-            self.scrub_stop_from_elevators(id);
-            let resident_ids: Vec<EntityId> =
-                self.rider_index.residents_at(id).iter().copied().collect();
-            for rid in resident_ids {
-                self.rider_index.remove_resident(id, rid);
-                self.rider_index.insert_abandoned(id, rid);
-                if let Some(r) = self.world.rider_mut(rid) {
-                    r.phase = RiderPhase::Abandoned;
-                }
-                self.events.emit(Event::RiderAbandoned {
-                    rider: rid,
-                    stop: id,
-                    tick: self.tick,
-                });
-            }
-            self.invalidate_routes_for_stop(id);
+            self.disable_stop_inner(id, false);
         }
 
         self.world.disable(id);
@@ -672,6 +657,28 @@ impl Simulation {
             tick: self.tick,
         });
         Ok(())
+    }
+
+    /// Stop-specific disable work shared by [`Self::disable`] and
+    /// [`Self::remove_stop`]. `removed` flips the route-invalidation
+    /// reason to [`RouteInvalidReason::StopRemoved`](crate::events::RouteInvalidReason::StopRemoved).
+    pub(super) fn disable_stop_inner(&mut self, id: EntityId, removed: bool) {
+        self.scrub_stop_from_elevators(id);
+        let resident_ids: Vec<EntityId> =
+            self.rider_index.residents_at(id).iter().copied().collect();
+        for rid in resident_ids {
+            self.rider_index.remove_resident(id, rid);
+            self.rider_index.insert_abandoned(id, rid);
+            if let Some(r) = self.world.rider_mut(rid) {
+                r.phase = RiderPhase::Abandoned;
+            }
+            self.events.emit(Event::RiderAbandoned {
+                rider: rid,
+                stop: id,
+                tick: self.tick,
+            });
+        }
+        self.invalidate_routes_for_stop(id, removed);
     }
 
     /// Re-enable a disabled entity.
@@ -696,12 +703,23 @@ impl Simulation {
 
     /// Invalidate routes for all riders referencing a disabled stop.
     ///
-    /// Attempts to reroute riders to the nearest enabled alternative stop.
-    /// If no alternative exists, emits `RouteInvalidated` with `NoAlternative`.
-    fn invalidate_routes_for_stop(&mut self, disabled_stop: EntityId) {
+    /// Reroutes Waiting and in-car riders to the nearest enabled
+    /// alternative stop in the same group. If no alternative exists, a
+    /// Waiting rider is abandoned in place; an in-car rider is ejected at
+    /// the car's nearest enabled stop (mirrors elevator-disable behavior
+    /// at `lifecycle.rs:583-598`).
+    ///
+    /// `removed` distinguishes a permanent removal (`StopRemoved`) from a
+    /// transient disable (`StopDisabled`) for emitted events.
+    fn invalidate_routes_for_stop(&mut self, disabled_stop: EntityId, removed: bool) {
         use crate::events::RouteInvalidReason;
 
-        // Find the group this stop belongs to.
+        let reroute_reason = if removed {
+            RouteInvalidReason::StopRemoved
+        } else {
+            RouteInvalidReason::StopDisabled
+        };
+
         let group_stops: Vec<EntityId> = self
             .groups
             .iter()
@@ -710,86 +728,190 @@ impl Simulation {
             .filter(|&s| s != disabled_stop && !self.world.is_disabled(s))
             .collect();
 
-        // Find all Waiting riders whose route references this stop.
-        // Riding riders are skipped — they'll be rerouted when they exit.
-        let rider_ids: Vec<EntityId> = self.world.rider_ids();
-        for rid in rider_ids {
-            let is_waiting = self
-                .world
-                .rider(rid)
-                .is_some_and(|r| r.phase == RiderPhase::Waiting);
-
-            if !is_waiting {
-                continue;
-            }
-
-            let references_stop = self.world.route(rid).is_some_and(|route| {
-                route
-                    .legs
-                    .iter()
-                    .skip(route.current_leg)
-                    .any(|leg| leg.to == disabled_stop || leg.from == disabled_stop)
-            });
-
-            if !references_stop {
-                continue;
-            }
-
-            // Try to find nearest alternative (excluding rider's current stop).
-            let rider_current_stop = self.world.rider(rid).and_then(|r| r.current_stop);
-
-            let disabled_stop_pos = self.world.stop(disabled_stop).map_or(0.0, |s| s.position);
-
-            let alternative = group_stops
-                .iter()
-                .filter(|&&s| Some(s) != rider_current_stop)
-                .filter_map(|&s| {
-                    self.world
-                        .stop(s)
-                        .map(|stop| (s, (stop.position - disabled_stop_pos).abs()))
-                })
-                .min_by(|a, b| a.1.total_cmp(&b.1))
-                .map(|(s, _)| s);
-
-            if let Some(alt_stop) = alternative {
-                // Reroute to nearest alternative.
-                let origin = rider_current_stop.unwrap_or(alt_stop);
-                let group = self.group_from_route(self.world.route(rid));
-                self.world
-                    .set_route(rid, Route::direct(origin, alt_stop, group));
-                self.events.emit(Event::RouteInvalidated {
-                    rider: rid,
-                    affected_stop: disabled_stop,
-                    reason: RouteInvalidReason::StopDisabled,
-                    tick: self.tick,
-                });
-            } else {
-                // No alternative — rider abandons immediately.
-                let abandon_stop = rider_current_stop.unwrap_or(disabled_stop);
-                self.events.emit(Event::RouteInvalidated {
-                    rider: rid,
-                    affected_stop: disabled_stop,
-                    reason: RouteInvalidReason::NoAlternative,
-                    tick: self.tick,
-                });
-                if let Some(r) = self.world.rider_mut(rid) {
-                    r.phase = RiderPhase::Abandoned;
-                }
-                // Fourth abandonment site (alongside the two in
-                // `advance_transient`); same stale-ID hazard. Scrub
-                // the rider from every hall/car-call pending list.
-                self.world.scrub_rider_from_pending_calls(rid);
-                if let Some(stop) = rider_current_stop {
-                    self.rider_index.remove_waiting(stop, rid);
-                    self.rider_index.insert_abandoned(stop, rid);
-                }
-                self.events.emit(Event::RiderAbandoned {
-                    rider: rid,
-                    stop: abandon_stop,
-                    tick: self.tick,
-                });
-            }
+        for rid in self.world.rider_ids() {
+            self.invalidate_route_for_rider(rid, disabled_stop, &group_stops, reroute_reason);
         }
+    }
+
+    /// Per-rider invalidation: reroute, eject, or abandon depending on
+    /// the rider's phase and the availability of alternatives.
+    fn invalidate_route_for_rider(
+        &mut self,
+        rid: EntityId,
+        disabled_stop: EntityId,
+        group_stops: &[EntityId],
+        reroute_reason: crate::events::RouteInvalidReason,
+    ) {
+        let Some(phase) = self.world.rider(rid).map(|r| r.phase) else {
+            return;
+        };
+        let is_waiting = phase == RiderPhase::Waiting;
+        let aboard_car = match phase {
+            RiderPhase::Boarding(c) | RiderPhase::Riding(c) | RiderPhase::Exiting(c) => Some(c),
+            _ => None,
+        };
+        if !is_waiting && aboard_car.is_none() {
+            return;
+        }
+
+        let references_stop = self.world.route(rid).is_some_and(|route| {
+            route
+                .legs
+                .iter()
+                .skip(route.current_leg)
+                .any(|leg| leg.to == disabled_stop || leg.from == disabled_stop)
+        });
+        if !references_stop {
+            return;
+        }
+
+        let rider_current_stop = self.world.rider(rid).and_then(|r| r.current_stop);
+        let disabled_stop_pos = self.world.stop(disabled_stop).map_or(0.0, |s| s.position);
+        let alternative = group_stops
+            .iter()
+            .filter(|&&s| Some(s) != rider_current_stop)
+            .filter_map(|&s| {
+                self.world
+                    .stop(s)
+                    .map(|stop| (s, (stop.position - disabled_stop_pos).abs()))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)))
+            .map(|(s, _)| s);
+
+        if let Some(alt_stop) = alternative {
+            self.reroute_to_alternative(rid, disabled_stop, alt_stop, aboard_car, reroute_reason);
+        } else if let Some(car_eid) = aboard_car {
+            self.eject_or_abandon_in_car_rider(rid, car_eid, disabled_stop);
+        } else {
+            self.abandon_waiting_rider(rid, disabled_stop, rider_current_stop);
+        }
+    }
+
+    /// Rewrite the rider's route to point at `alt_stop` and (if aboard a
+    /// car) re-prime the car's `target_stop` so it resumes movement.
+    fn reroute_to_alternative(
+        &mut self,
+        rid: EntityId,
+        disabled_stop: EntityId,
+        alt_stop: EntityId,
+        aboard_car: Option<EntityId>,
+        reroute_reason: crate::events::RouteInvalidReason,
+    ) {
+        let rider_current_stop = self.world.rider(rid).and_then(|r| r.current_stop);
+        let origin = rider_current_stop.unwrap_or(alt_stop);
+        let group = self.group_from_route(self.world.route(rid));
+        self.world
+            .set_route(rid, Route::direct(origin, alt_stop, group));
+        self.events.emit(Event::RouteInvalidated {
+            rider: rid,
+            affected_stop: disabled_stop,
+            reason: reroute_reason,
+            tick: self.tick,
+        });
+        // For in-car riders, the car's target_stop was just nulled by
+        // `scrub_stop_from_elevators`. Re-point it at the new destination
+        // so the car resumes movement on the next tick; dispatch picks
+        // it up via `riding_to_stop` regardless, but setting target_stop
+        // avoids one tick of idle drift.
+        if let Some(car_eid) = aboard_car
+            && let Some(car) = self.world.elevator_mut(car_eid)
+            && car.target_stop.is_none()
+        {
+            car.target_stop = Some(alt_stop);
+            car.phase = ElevatorPhase::Idle;
+        }
+    }
+
+    /// Handle an in-car rider when no alternative destination exists:
+    /// eject at the car's nearest enabled stop, or abandon if no stops
+    /// remain anywhere.
+    fn eject_or_abandon_in_car_rider(
+        &mut self,
+        rid: EntityId,
+        car_eid: EntityId,
+        disabled_stop: EntityId,
+    ) {
+        use crate::events::RouteInvalidReason;
+        let car_pos = self.world.position(car_eid).map_or(0.0, |p| p.value);
+        let eject_stop = self
+            .world
+            .iter_stops()
+            .filter(|(eid, _)| *eid != disabled_stop && !self.world.is_disabled(*eid))
+            .map(|(eid, stop)| (eid, (stop.position - car_pos).abs()))
+            .min_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)))
+            .map(|(eid, _)| eid);
+
+        self.events.emit(Event::RouteInvalidated {
+            rider: rid,
+            affected_stop: disabled_stop,
+            reason: RouteInvalidReason::NoAlternative,
+            tick: self.tick,
+        });
+
+        if let Some(stop) = eject_stop {
+            if let Some(r) = self.world.rider_mut(rid) {
+                r.phase = RiderPhase::Waiting;
+                r.current_stop = Some(stop);
+                r.board_tick = None;
+            }
+            if let Some(car) = self.world.elevator_mut(car_eid) {
+                car.riders.retain(|r| *r != rid);
+            }
+            self.rider_index.insert_waiting(stop, rid);
+            self.events.emit(Event::RiderEjected {
+                rider: rid,
+                elevator: car_eid,
+                stop,
+                tick: self.tick,
+            });
+        } else {
+            if let Some(r) = self.world.rider_mut(rid) {
+                r.phase = RiderPhase::Abandoned;
+            }
+            if let Some(car) = self.world.elevator_mut(car_eid) {
+                car.riders.retain(|r| *r != rid);
+            }
+            self.world.scrub_rider_from_pending_calls(rid);
+            self.events.emit(Event::RiderAbandoned {
+                rider: rid,
+                stop: disabled_stop,
+                tick: self.tick,
+            });
+        }
+    }
+
+    /// Abandon a Waiting rider in place when no alternative stop exists
+    /// in their group. Mirrors the `NoAlternative` path from #292.
+    fn abandon_waiting_rider(
+        &mut self,
+        rid: EntityId,
+        disabled_stop: EntityId,
+        rider_current_stop: Option<EntityId>,
+    ) {
+        use crate::events::RouteInvalidReason;
+        let abandon_stop = rider_current_stop.unwrap_or(disabled_stop);
+        self.events.emit(Event::RouteInvalidated {
+            rider: rid,
+            affected_stop: disabled_stop,
+            reason: RouteInvalidReason::NoAlternative,
+            tick: self.tick,
+        });
+        if let Some(r) = self.world.rider_mut(rid) {
+            r.phase = RiderPhase::Abandoned;
+        }
+        // Fourth abandonment site (alongside the two in
+        // `advance_transient`); same stale-ID hazard. Scrub the rider
+        // from every hall/car-call pending list.
+        self.world.scrub_rider_from_pending_calls(rid);
+        if let Some(stop) = rider_current_stop {
+            self.rider_index.remove_waiting(stop, rid);
+            self.rider_index.insert_abandoned(stop, rid);
+        }
+        self.events.emit(Event::RiderAbandoned {
+            rider: rid,
+            stop: abandon_stop,
+            tick: self.tick,
+        });
     }
 
     /// Remove a disabled stop from all elevator targets and queues.

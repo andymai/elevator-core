@@ -293,3 +293,176 @@ fn reroute_nonexistent_rider_returns_error() {
     let result = sim.reroute(RiderId::from(stop1), stop1);
     assert!(result.is_err());
 }
+
+// ── Stop-removal: Riding-rider rerouting (the deadlock fix) ────────
+
+/// Run the sim until the rider reaches a target phase or `cap` ticks elapse.
+fn step_until_phase(
+    sim: &mut Simulation,
+    rider: RiderId,
+    matcher: impl Fn(RiderPhase) -> bool,
+    cap: u64,
+) -> bool {
+    for _ in 0..cap {
+        sim.step();
+        let phase = sim.world().rider(rider.entity()).unwrap().phase;
+        if matcher(phase) {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn remove_stop_with_riding_passenger_reroutes() {
+    let config = three_stop_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Rider 0 → 2; advance until they're Riding.
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let made_it = step_until_phase(&mut sim, rider, |p| matches!(p, RiderPhase::Riding(_)), 500);
+    assert!(made_it, "rider never boarded within 500 ticks");
+
+    // Now remove the destination stop while they're aboard.
+    let stop2 = sim.stop_entity(StopId(2)).unwrap();
+    sim.remove_stop(stop2).unwrap();
+    sim.drain_events();
+
+    // Rider's route must point at the surviving alternative (stop 1).
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    let dest = sim
+        .world()
+        .route(rider.entity())
+        .and_then(crate::components::Route::current_destination);
+    assert_eq!(dest, Some(stop1), "rerouted destination should be stop 1");
+
+    // Eventually the rider exits at the substitute and never gets stuck.
+    let arrived = step_until_phase(&mut sim, rider, |p| matches!(p, RiderPhase::Arrived), 2_000);
+    assert!(
+        arrived,
+        "rider was not delivered to substitute stop within 2000 ticks (deadlock?)"
+    );
+}
+
+#[test]
+fn remove_stop_with_riding_passenger_emits_stop_removed_event() {
+    let config = three_stop_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    step_until_phase(&mut sim, rider, |p| matches!(p, RiderPhase::Riding(_)), 500);
+    sim.drain_events();
+
+    let stop2 = sim.stop_entity(StopId(2)).unwrap();
+    sim.remove_stop(stop2).unwrap();
+
+    let count = sim
+        .drain_events()
+        .into_iter()
+        .filter(|e| {
+            matches!(
+                e,
+                Event::RouteInvalidated {
+                    reason: RouteInvalidReason::StopRemoved,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(count, 1, "expected exactly one StopRemoved event");
+}
+
+#[test]
+fn remove_only_destination_with_riding_passenger_returns_to_origin() {
+    // 2-stop config; rider en route from stop 0 to stop 1; remove stop 1.
+    // Stop 0 is the only enabled alternative, so the rider is rerouted
+    // back to the origin and the car turns around to deliver them. This
+    // is the graceful "demolish destination floor" outcome — no deadlock.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Two".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: None,
+            groups: None,
+        },
+        elevators: vec![ElevatorConfig {
+            id: 0,
+            name: "E0".into(),
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(3.0),
+            deceleration: Accel::from(3.0),
+            weight_capacity: Weight::from(800.0),
+            starting_stop: StopId(0),
+            door_open_ticks: 5,
+            door_transition_ticks: 3,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
+        }],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    step_until_phase(&mut sim, rider, |p| matches!(p, RiderPhase::Riding(_)), 500);
+
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    sim.remove_stop(stop1).unwrap();
+
+    // Route now points at stop 0 (the surviving alternative).
+    let dest = sim
+        .world()
+        .route(rider.entity())
+        .and_then(crate::components::Route::current_destination);
+    assert_eq!(dest, Some(stop0));
+
+    // Sim eventually delivers them; no deadlock.
+    let arrived = step_until_phase(&mut sim, rider, |p| matches!(p, RiderPhase::Arrived), 2_000);
+    assert!(
+        arrived,
+        "rider was not delivered after rerouting to origin (deadlock?)"
+    );
+}
+
+#[test]
+fn remove_stop_evicts_rider_index_entries() {
+    let config = three_stop_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // Spawn riders bound for stop 1 (so they wait there as Waiting/Resident).
+    let _r0 = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    let _r1 = sim.spawn_rider(StopId(2), StopId(1), 70.0).unwrap();
+    sim.drain_events();
+
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    // Confirm we actually had something at stop 1 before we yank it.
+    sim.remove_stop(stop1).unwrap();
+
+    // After removal, no index entries should reference the despawned stop.
+    // (Rebuild guarantees this — stop's EntityId is no longer alive.)
+    assert_eq!(sim.waiting_count_at(stop1), 0);
+    assert_eq!(sim.resident_count_at(stop1), 0);
+    assert_eq!(sim.abandoned_count_at(stop1), 0);
+}

@@ -396,7 +396,14 @@ impl Simulation {
         }
 
         // Disable first to invalidate routes referencing this stop.
-        let _ = self.disable(stop);
+        // Use the stop-specific helper so route-invalidation events
+        // carry `StopRemoved` rather than `StopDisabled`.
+        self.disable_stop_inner(stop, true);
+        self.world.disable(stop);
+        self.events.emit(Event::EntityDisabled {
+            entity: stop,
+            tick: self.tick,
+        });
 
         // Scrub references to the removed stop from every elevator so the
         // post-despawn tick loop does not chase a dead EntityId through
@@ -445,6 +452,11 @@ impl Simulation {
 
         // Despawn from world.
         self.world.despawn(stop);
+
+        // Rebuild the rider index to evict any stale per-stop entries
+        // pointing at the despawned stop. Cheap (O(riders)) and the only
+        // safe option once the stop EntityId is gone.
+        self.rider_index.rebuild(&self.world);
 
         self.mark_topo_dirty();
         Ok(())

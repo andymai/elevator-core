@@ -699,6 +699,9 @@ pub enum RouteInvalidReason {
     StopDisabled,
     /// No alternative stop is available in the same group.
     NoAlternative,
+    /// A stop on the route was permanently removed (despawned).
+    /// Distinguishes the in-car reroute path from a transient disable.
+    StopRemoved,
 }
 
 /// Coarse-grained classification of an [`Event`].
