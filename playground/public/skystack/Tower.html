@@ -3009,7 +3009,12 @@
               var agent4 = aid3 !== undefined ? findAgent(aid3) : null;
               if (agent4) {
                 // Treat as if they gave up — leave the building.
+                // Clear `waiting` so `tickAgent` actually processes
+                // the new "leaving" phase next tick (the `waiting`
+                // flag is set when an agent enters the hall queue
+                // and gates further movement until cleared).
                 agent4.phase = "leaving";
+                agent4.waiting = false;
                 agent4.inElevator = null;
                 agent4.wasmRiderRef = undefined;
               }
