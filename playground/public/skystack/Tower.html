@@ -2800,26 +2800,42 @@
             wantLines.set(k, { col: e.shaftX, minY: e.minY, maxY: e.maxY, cars: e.cars });
           }
 
-          // Drop wasm lines whose JS shaft is gone. Reuse the group:
-          // there's no `removeGroup` in core yet, so deleting the JS
-          // map entry while the wasm group lingered would leak. By
-          // keeping the WASM_GROUPS entry, a later
+          // Drop wasm lines whose JS shaft is gone. `removeLine` only
+          // disables (doesn't despawn) the line's elevators and does
+          // nothing to its stops, so we explicitly remove each stop
+          // and elevator before the line — otherwise stale entities
+          // sit at the demolished shaft's positions and a re-built
+          // shaft on the same column would collide via
+          // `find_stop_at_position`.
+          //
+          // Reuse the group: there's no `removeGroup` in core yet,
+          // so leaving the WASM_GROUPS entry means a later
           // `ensureGroupFor(col)` for the same column reattaches a
-          // new line to the existing group instead of creating a
-          // second one. Bounded growth: ≤ GRID_W groups (~28).
+          // new line to the existing group instead of leaking a
+          // fresh one. Bounded growth: ≤ GRID_W groups (~28).
           for (var k of Array.from(WASM_LINES.keys())) {
             if (!wantLines.has(k)) {
+              var col = k.slice(1);
+              for (var sk of Array.from(WASM_STOPS.keys())) {
+                if (sk.split(":")[0] === col) {
+                  try {
+                    window.wasmSim.removeStop(WASM_STOPS.get(sk));
+                  } catch (e) {}
+                  WASM_STOPS.delete(sk);
+                }
+              }
+              for (var ck of Array.from(WASM_CARS.keys())) {
+                if (ck.split("#")[0] === col) {
+                  try {
+                    window.wasmSim.removeElevator(WASM_CARS.get(ck));
+                  } catch (e) {}
+                  WASM_CARS.delete(ck);
+                }
+              }
               try {
                 window.wasmSim.removeLine(WASM_LINES.get(k));
               } catch (e) {}
               WASM_LINES.delete(k);
-              // Also drop stops + cars under this shaft from our maps.
-              for (var sk of Array.from(WASM_STOPS.keys())) {
-                if (sk.split(":")[0] === k.slice(1)) WASM_STOPS.delete(sk);
-              }
-              for (var ck of Array.from(WASM_CARS.keys())) {
-                if (ck.split("#")[0] === k.slice(1)) WASM_CARS.delete(ck);
-              }
             }
           }
 
