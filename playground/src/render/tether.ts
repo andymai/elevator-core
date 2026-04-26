@@ -53,11 +53,11 @@ export function atmosphericLayer(altitudeM: number): string {
  */
 export function tetherFractionForAltitude(altitudeM: number, axisMaxM: number): number {
   if (axisMaxM <= 0) return 0;
-  const lo = Math.log10(1 + 0 / 1000);
+  // log10(1 + 0/1000) = 0, so the bottom of the axis drops out.
   const hi = Math.log10(1 + axisMaxM / 1000);
+  if (hi <= 0) return 0;
   const v = Math.log10(1 + Math.max(0, altitudeM) / 1000);
-  if (hi <= lo) return 0;
-  return Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+  return Math.max(0, Math.min(1, v / hi));
 }
 
 /**
@@ -84,7 +84,7 @@ export function formatAltitudeShort(altitudeM: number): string {
   return `${km.toLocaleString("en-US", { maximumFractionDigits: 0 })} km`;
 }
 
-/** Velocity formatted at km/h above 360 m/s, m/s otherwise — keeps the chip short. */
+/** Velocity formatted at km/h above 100 m/s, m/s otherwise — keeps the chip short. */
 export function formatVelocity(vMs: number): string {
   const a = Math.abs(vMs);
   if (a < 1) return `${a.toFixed(2)} m/s`;
@@ -148,12 +148,11 @@ export function tetherEta(
   const decelDist = (v * v) / (2 * deceleration);
   if (decelDist >= remaining) return v > 0 ? remaining / Math.max(v, 1e-3) : 0;
   // Coast/cruise phase + decel from max to 0.
-  const cruiseSpeed = maxSpeed;
-  const accelTime = Math.max(0, (cruiseSpeed - v) / acceleration);
+  const accelTime = Math.max(0, (maxSpeed - v) / acceleration);
   const accelDist = v * accelTime + 0.5 * acceleration * accelTime * accelTime;
-  const decelTime = cruiseSpeed / deceleration;
-  const fullDecelDist = (cruiseSpeed * cruiseSpeed) / (2 * deceleration);
+  const decelTime = maxSpeed / deceleration;
+  const fullDecelDist = (maxSpeed * maxSpeed) / (2 * deceleration);
   const cruiseDist = Math.max(0, remaining - accelDist - fullDecelDist);
-  const cruiseTime = cruiseDist / Math.max(cruiseSpeed, 1e-3);
+  const cruiseTime = cruiseDist / Math.max(maxSpeed, 1e-3);
   return accelTime + cruiseTime + decelTime;
 }

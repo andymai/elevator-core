@@ -8,7 +8,7 @@ import {
 } from "./draw-tether-hud";
 import type { Scale } from "./layout";
 import { TARGET_FILL } from "./palette";
-import { tetherDecadeTicks } from "./tether";
+import { formatAltitudeShort, tetherDecadeTicks } from "./tether";
 import type { Snapshot, TetherMeta } from "../types";
 
 /**
@@ -43,25 +43,19 @@ function lerp(a: number, b: number, t: number): number {
 function mixHex(a: string, b: string, t: number): string {
   const pa = parseInt(a.slice(1), 16);
   const pb = parseInt(b.slice(1), 16);
-  const ar = (pa >> 16) & 0xff;
-  const ag = (pa >> 8) & 0xff;
-  const ab = pa & 0xff;
-  const br = (pb >> 16) & 0xff;
-  const bg = (pb >> 8) & 0xff;
-  const bb = pb & 0xff;
-  const r = Math.round(lerp(ar, br, t));
-  const g = Math.round(lerp(ag, bg, t));
-  const bl = Math.round(lerp(ab, bb, t));
+  const r = Math.round(lerp((pa >> 16) & 0xff, (pb >> 16) & 0xff, t));
+  const g = Math.round(lerp((pa >> 8) & 0xff, (pb >> 8) & 0xff, t));
+  const bl = Math.round(lerp(pa & 0xff, pb & 0xff, t));
   return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0")}`;
 }
 
 /** `dayPhase` 0=full day, 1=full night. Smoothly lerps between palettes. */
 function atmosphereColor(altitudeM: number, dayPhase: number): string {
+  // Find the segment whose upper bound first meets/exceeds altitudeM.
   let i = 0;
   for (; i < ATMOSPHERE_STOPS.length - 1; i++) {
     const next = ATMOSPHERE_STOPS[i + 1];
-    if (next === undefined) break;
-    if (altitudeM <= next[0]) break;
+    if (next === undefined || altitudeM <= next[0]) break;
   }
   const lo = ATMOSPHERE_STOPS[i];
   const hi = ATMOSPHERE_STOPS[Math.min(i + 1, ATMOSPHERE_STOPS.length - 1)];
@@ -100,14 +94,6 @@ const STARS: Array<{ altFrac: number; xFrac: number; size: number; alpha: number
   return arr;
 })();
 
-function inverseAxis(axis: AltitudeAxis, screenFrac: number): number {
-  // toScreenAlt maps altitudeM → y by:
-  //   y = bottom - frac * (bottom - top), frac = log10(1 + alt/1000) / log10(1 + axisMax/1000)
-  // => alt = 1000 * (10^(frac * log10(1 + axisMax/1000)) - 1)
-  const hi = Math.log10(1 + axis.axisMaxM / 1000);
-  return 1000 * (10 ** (screenFrac * hi) - 1);
-}
-
 function drawTetherBackdrop(
   ctx: CanvasRenderingContext2D,
   axis: AltitudeAxis,
@@ -116,9 +102,12 @@ function drawTetherBackdrop(
   dayPhase: number,
 ): void {
   const grad = ctx.createLinearGradient(0, axis.shaftBottom, 0, axis.shaftTop);
+  // toScreenAlt maps altitudeM → y via frac = log10(1 + alt/1000) / hi.
+  // Inverting: alt = 1000 * (10^(frac * hi) - 1).
+  const hi = Math.log10(1 + axis.axisMaxM / 1000);
   const breaks = [0, 0.05, 0.15, 0.35, 0.6, 1];
   for (const t of breaks) {
-    const altMRaw = inverseAxis(axis, t);
+    const altMRaw = 1000 * (10 ** (t * hi) - 1);
     grad.addColorStop(t, atmosphereColor(altMRaw, dayPhase));
   }
   ctx.fillStyle = grad;
@@ -300,19 +289,9 @@ function drawTetherStops(
     ctx.fillText(stop.name, labelLeft + labelW - 4, y - 1);
     ctx.fillStyle = "rgba(160, 178, 210, 0.7)";
     ctx.font = `${(s.fontSmall - 0.5).toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-    ctx.fillText(formatAltitudeShortLocal(stop.y), labelLeft + labelW - 4, y + 10);
+    ctx.fillText(formatAltitudeShort(stop.y), labelLeft + labelW - 4, y + 10);
     ctx.font = `${s.fontMain.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
   }
-}
-
-// Re-imported to keep this module decoupled from `draw-tether-hud.ts`'s
-// HUD-specific exports. Same formatter, used at the platform labels.
-function formatAltitudeShortLocal(altitudeM: number): string {
-  if (altitudeM < 1000) return `${Math.round(altitudeM)} m`;
-  const km = altitudeM / 1000;
-  if (km < 10) return `${km.toFixed(1)} km`;
-  if (km < 1000) return `${km.toFixed(0)} km`;
-  return `${km.toLocaleString("en-US", { maximumFractionDigits: 0 })} km`;
 }
 
 /**

@@ -145,14 +145,13 @@ export function drawClimberHuds(
   const placements: Placement[] = [];
   hudList.forEach((hud, i) => {
     let p = place(hud, i % 2 === 0 ? "right" : "left");
-    // Try the other side if this one collides with anything already placed.
-    if (placements.some((q) => overlap(p, q))) {
+    const colliders = placements.filter((q) => overlap(p, q));
+    if (colliders.length > 0) {
       const flipped = place(hud, p.side === "right" ? "left" : "right");
-      if (!placements.some((q) => overlap(flipped, q))) {
+      if (placements.every((q) => !overlap(flipped, q))) {
         p = flipped;
       } else {
         // Both sides taken — stack vertically below the lowest collider.
-        const colliders = placements.filter((q) => overlap(p, q));
         const lowestBottom = Math.max(...colliders.map((q) => q.by + q.bubbleH));
         p = { ...p, by: lowestBottom + 4 };
       }
@@ -251,15 +250,14 @@ export function drawTetherSideCard(
     ctx.font = `600 ${(s.fontSmall - 1).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     ctx.fillText(PHASE_LABEL[hud.phase].toUpperCase(), valueX, y);
 
+    const eta =
+      hud.etaSeconds !== undefined && Number.isFinite(hud.etaSeconds)
+        ? formatDuration(hud.etaSeconds)
+        : "—";
     const stats: Array<[string, string]> = [
       ["Altitude", formatAltitudeShort(hud.altitudeM)],
       ["Velocity", formatVelocity(hud.velocity)],
-      [
-        "ETA",
-        hud.etaSeconds === undefined || !Number.isFinite(hud.etaSeconds)
-          ? "—"
-          : formatDuration(hud.etaSeconds),
-      ],
+      ["ETA", eta],
     ];
     ctx.font = `500 ${(s.fontSmall - 0.5).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     for (const [label, value] of stats) {
@@ -286,40 +284,26 @@ export function buildHudList(
   acceleration: number,
   deceleration: number,
 ): ClimberHud[] {
-  const out: ClimberHud[] = [];
   // Snapshot order is stable across frames, so deriving "Climber A/B/…"
   // from the car's index in the snapshot keeps the label tied to the
   // same cabin even though the entity id is opaque.
   const cars = [...snap.cars].sort((a, b) => a.id - b.id);
-  cars.forEach((car, idx) => {
+  return cars.map((car, idx) => {
     const altitudeM = car.y;
-    const layer = atmosphericLayer(altitudeM);
-    const phase = classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed);
-    let etaSeconds: number | undefined;
-    if (car.target !== undefined) {
-      const targetStop = snap.stops.find((s) => s.entity_id === car.target);
-      if (targetStop) {
-        etaSeconds = tetherEta(
-          altitudeM,
-          targetStop.y,
-          car.v,
-          maxSpeed,
-          acceleration,
-          deceleration,
-        );
-      }
-    }
-    const fallbackName = `Climber ${String.fromCharCode(65 + idx)}`;
-    out.push({
+    const targetStop =
+      car.target !== undefined ? snap.stops.find((s) => s.entity_id === car.target) : undefined;
+    const etaSeconds = targetStop
+      ? tetherEta(altitudeM, targetStop.y, car.v, maxSpeed, acceleration, deceleration)
+      : undefined;
+    return {
       cx,
       cy: axis.toScreenAlt(altitudeM),
       altitudeM,
       velocity: car.v,
-      phase,
-      layer,
-      carName: carNames.get(car.id) ?? fallbackName,
+      phase: classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed),
+      layer: atmosphericLayer(altitudeM),
+      carName: carNames.get(car.id) ?? `Climber ${String.fromCharCode(65 + idx)}`,
       etaSeconds,
-    });
+    };
   });
-  return out;
 }

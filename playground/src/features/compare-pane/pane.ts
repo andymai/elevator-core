@@ -74,11 +74,15 @@ export async function makePane(
   // Scenarios with many floors need a taller shaft, or the 42-floor
   // skyscraper crushes into a 6-px-per-story smear. The CSS applies
   // `min-height: var(--shaft-min-h)` so the page scrolls instead.
+  // Tether mode needs far more headroom — the log axis compresses
+  // 5+ decades into the visible range, and on mobile portrait the
+  // upper decades (Karman / LEO / GEO) end up with overlapping
+  // labels unless the canvas is tall enough to space them out.
   const wrap = handles.canvas.parentElement;
   if (wrap) {
     const stopCount = scenario.stops.length;
     const perStoryPx = 16;
-    const minShaftPx = Math.max(200, stopCount * perStoryPx);
+    const minShaftPx = scenario.tether ? 640 : Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
   return {
