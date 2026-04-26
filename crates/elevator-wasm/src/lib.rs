@@ -21,6 +21,7 @@ use slotmap::Key;
 use wasm_bindgen::prelude::*;
 
 mod dto;
+mod world_view;
 
 /// Encode an `EntityId` for the JS boundary as a `u64` (`BigInt` in JS).
 /// Carries slotmap's full FFI encoding (slot + version) so stale
@@ -335,6 +336,16 @@ impl WasmSim {
     /// Pull a cheap snapshot for rendering.
     pub fn snapshot(&self) -> dto::Snapshot {
         dto::Snapshot::build(&self.inner)
+    }
+
+    /// Pull a richer game-facing view: door progress, direction lamps,
+    /// per-car ETAs, hall-call lamp state, and topology metadata
+    /// (groups + lines). Designed for tower-builder games (notably
+    /// SKYSTACK) where the renderer needs more than `snapshot()` exposes.
+    /// All entity refs are `u64` (`BigInt`) matching the live-mutation API.
+    #[wasm_bindgen(js_name = worldView)]
+    pub fn world_view(&self) -> world_view::WorldView {
+        world_view::WorldView::build(&self.inner)
     }
 
     /// Drain all queued events since the last call.
