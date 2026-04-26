@@ -478,6 +478,30 @@ export class WasmSim {
         }
     }
     /**
+     * Spawn a rider between two stops identified by their entity refs
+     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
+     * runtime-added stops that have no config-time `StopId`.
+     * Returns the new rider's entity ref so consumers can correlate
+     * with subsequent `rider-*` events.
+     *
+     * # Errors
+     *
+     * Returns a JS error if either stop does not exist, the origin
+     * equals the destination, or no group serves both stops.
+     * @param {bigint} origin_ref
+     * @param {bigint} destination_ref
+     * @param {number} weight
+     * @param {number | null} [patience_ticks]
+     * @returns {bigint}
+     */
+    spawnRiderByRef(origin_ref, destination_ref, weight, patience_ticks) {
+        const ret = wasm.wasmsim_spawnRiderByRef(this.__wbg_ptr, origin_ref, destination_ref, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
      * Step the simulation forward `n` ticks.
      * @param {number} n
      */

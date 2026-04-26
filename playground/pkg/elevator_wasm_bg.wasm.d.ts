@@ -33,6 +33,7 @@ export const wasmsim_setTrafficRate: (a: number, b: number) => void;
 export const wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
 export const wasmsim_snapshot: (a: number) => any;
 export const wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
 export const wasmsim_stepMany: (a: number, b: number) => void;
 export const wasmsim_strategyName: (a: number) => [number, number];
 export const wasmsim_trafficMode: (a: number) => [number, number];

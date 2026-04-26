@@ -2623,6 +2623,65 @@
       </div>
     </div>
 
+    <!-- elevator-core wasm bootstrap. Loads the wasm bundle from the
+         playground's shared `pkg/` directory and exposes `WasmSim`
+         on `window`. The inline script below `await window.wasmReady`
+         before its first sim use. Pre-PR-5 SKYSTACK ran its own SCAN
+         scheduler; this PR routes elevator dispatch + movement +
+         loading through `wasmSim` and uses the existing JS state
+         tree as a render mirror. -->
+    <script type="module">
+      import init, { WasmSim } from "../pkg/elevator_wasm.js";
+
+      window.SKYSTACK_FLOOR_HEIGHT_M = 3.0;
+      window.SKYSTACK_SIM_TICKS_PER_GAME_MIN = 2;
+
+      window.wasmReady = (async () => {
+        await init();
+        // The minimum valid `SimConfig` requires a non-empty stops +
+        // elevators list. The stub is positioned far outside any
+        // plausible SKYSTACK shaft (negative-million metres) so it
+        // can't collide with player-built topology via
+        // `find_stop_at_position` even briefly. The stub is harmless
+        // — no riders are ever spawned into it — so leaving it in
+        // place is safer than depending on a wasm-side `removeGroup`
+        // that doesn't exist yet (tracked as follow-up).
+        var stub =
+          "SimConfig(" +
+          'building: BuildingConfig(name: "Skystack", stops: [' +
+          'StopConfig(id: StopId(0), name: "_stub0", position: -1000000.0),' +
+          'StopConfig(id: StopId(1), name: "_stub1", position: -999997.0)' +
+          "])," +
+          "elevators: [ElevatorConfig(" +
+          'id: 0, name: "_stub", max_speed: 2.0, acceleration: 1.5,' +
+          "deceleration: 2.0, weight_capacity: 800.0," +
+          "starting_stop: StopId(0), door_open_ticks: 10, door_transition_ticks: 5" +
+          ")]," +
+          "simulation: SimulationParams(ticks_per_second: 10.0)," +
+          "passenger_spawning: PassengerSpawnConfig(mean_interval_ticks: 120, weight_range: (50.0, 100.0))" +
+          ")";
+        var sim = new WasmSim(stub, "look", "adaptive");
+        window.wasmSim = sim;
+        return sim;
+      })()
+        .then((sim) => {
+          // Catch-up reconcile: if the player started a game before the
+          // wasm bundle finished loading, `rebuildElevators` already ran
+          // against an empty wasm world. Reconcile now so the wasm sim
+          // mirrors the existing JS shaft state on the next tick.
+          if (sim && window.SkystackWasm) window.SkystackWasm.reconcileTopology();
+          return sim;
+        })
+        .catch((err) => {
+          console.error("[skystack] wasm init failed:", err);
+          var b = document.createElement("div");
+          b.style.cssText =
+            "position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:8px;z-index:9999;font:12px monospace";
+          b.textContent = "SKYSTACK: elevator-core wasm failed to load: " + err.message;
+          document.body.appendChild(b);
+        });
+    </script>
+
     <script>
       /* Surface JS errors as an on-screen banner. Production Tauri/WebView2 has
    no visible devtools, so silent errors (null dereference, missing DOM, etc.)
@@ -2671,6 +2730,355 @@
       var FLOOR_MIN = -8;
       var FLOOR_MAX = 80;
       var GROUND_Y = 0; // floor 0 is ground
+
+      /* ===== ELEVATOR-CORE WASM BRIDGE ===========================
+         SKYSTACK keeps `state.elevators` (per-shaft metadata + cars)
+         as a JS-side render mirror. The wasm sim is the source of
+         truth for car positions, dispatch, doors, and rider lifecycle.
+         Each game tick:
+           1. SkystackWasm.reconcileTopology() — apply grid edits.
+           2. SkystackWasm.tickAll(N) — step the sim N times.
+           3. SkystackWasm.drainEvents() — process rider events.
+           4. SkystackWasm.syncMirror() — update state.elevators[].cars
+              from worldView() so the existing renderer just works. */
+      var SkystackWasm = (function () {
+        var FLOOR_H = 3.0; // metres per floor — matches wasm bootstrap
+        var SHAFT_OFFSET = 0.0001; // per-column offset to break position ties.
+        // `find_stop_at_position` is global (not per-line), so two shafts
+        // with stops at the same physical floor would collide on
+        // arrival. Offset each shaft by `col * SHAFT_OFFSET` so the
+        // closest-stop lookup returns the correct shaft. Visually
+        // imperceptible (sub-millimetre per column).
+        var WASM_GROUPS = new Map(); // shaft column key → wasm group id (number)
+        var WASM_LINES = new Map(); // shaft column key → wasm line ref (bigint)
+        var WASM_STOPS = new Map(); // (col + ":" + floorY) → wasm stop ref (bigint)
+        var WASM_CARS = new Map(); // (col + ":" + carIdx) → wasm car ref (bigint)
+        var RIDER_TO_AGENT = new Map(); // wasm rider ref (bigint) → agent.id
+        var FAILED = false; // sticky after a wasm error; bridge no-ops thereafter
+
+        function shaftKey(col) {
+          return "c" + col;
+        }
+        function stopKey(col, fy) {
+          return col + ":" + fy;
+        }
+        function carKey(col, idx) {
+          return col + "#" + idx;
+        }
+
+        // Each SKYSTACK shaft maps to its own wasm group ("independent
+        // mode"). Coordinated mode (one group spanning all shafts)
+        // lands in PR 6 once dispatch can filter cars by line within a
+        // shared group.
+        function ensureGroupFor(col) {
+          if (!window.wasmSim || FAILED) return null;
+          var k = shaftKey(col);
+          if (!WASM_GROUPS.has(k)) {
+            try {
+              var gid = window.wasmSim.addGroup(k, "look");
+              WASM_GROUPS.set(k, gid);
+            } catch (e) {
+              console.error("[skystack] addGroup failed:", e);
+              FAILED = true;
+              return null;
+            }
+          }
+          return WASM_GROUPS.get(k);
+        }
+
+        // Walk the JS-side state.elevators metadata and reconcile
+        // wasm topology against it. Called from rebuildElevators after
+        // SKYSTACK has discovered shafts from the grid.
+        function reconcileTopology() {
+          if (!window.wasmSim || FAILED) return;
+
+          // Collect the "wanted" set from current state.elevators.
+          var wantLines = new Map(); // shaftKey → {col, minY, maxY, cars: [{}]}
+          for (var ei = 0; ei < state.elevators.length; ei++) {
+            var e = state.elevators[ei];
+            var k = shaftKey(e.shaftX);
+            wantLines.set(k, { col: e.shaftX, minY: e.minY, maxY: e.maxY, cars: e.cars });
+          }
+
+          // Drop wasm lines whose JS shaft is gone. `removeLine` only
+          // disables (doesn't despawn) the line's elevators and does
+          // nothing to its stops, so we explicitly remove each stop
+          // and elevator before the line — otherwise stale entities
+          // sit at the demolished shaft's positions and a re-built
+          // shaft on the same column would collide via
+          // `find_stop_at_position`.
+          //
+          // Reuse the group: there's no `removeGroup` in core yet,
+          // so leaving the WASM_GROUPS entry means a later
+          // `ensureGroupFor(col)` for the same column reattaches a
+          // new line to the existing group instead of leaking a
+          // fresh one. Bounded growth: ≤ GRID_W groups (~28).
+          for (var k of Array.from(WASM_LINES.keys())) {
+            if (!wantLines.has(k)) {
+              var col = k.slice(1);
+              for (var sk of Array.from(WASM_STOPS.keys())) {
+                if (sk.split(":")[0] === col) {
+                  try {
+                    window.wasmSim.removeStop(WASM_STOPS.get(sk));
+                  } catch (e) {}
+                  WASM_STOPS.delete(sk);
+                }
+              }
+              for (var ck of Array.from(WASM_CARS.keys())) {
+                if (ck.split("#")[0] === col) {
+                  try {
+                    window.wasmSim.removeElevator(WASM_CARS.get(ck));
+                  } catch (e) {}
+                  WASM_CARS.delete(ck);
+                }
+              }
+              try {
+                window.wasmSim.removeLine(WASM_LINES.get(k));
+              } catch (e) {}
+              WASM_LINES.delete(k);
+            }
+          }
+
+          // Add or extend lines, plus reconcile their stops + cars.
+          wantLines.forEach(function (want, k) {
+            var gid = ensureGroupFor(want.col);
+            if (gid === null) return;
+            var lineRef = WASM_LINES.get(k);
+            var off = want.col * SHAFT_OFFSET;
+            var min = want.minY * FLOOR_H + off;
+            var max = want.maxY * FLOOR_H + off;
+            try {
+              if (lineRef === undefined) {
+                lineRef = window.wasmSim.addLine(gid, k, min, max, 4);
+                WASM_LINES.set(k, lineRef);
+              } else {
+                window.wasmSim.setLineRange(lineRef, min, max);
+              }
+            } catch (e) {
+              console.error("[skystack] line topology failed:", e);
+              FAILED = true;
+              return;
+            }
+
+            // Reconcile stops on this shaft. The "wanted" set is every
+            // floor between minY and maxY (each shaft cell gets its
+            // own wasm stop; SCAN-era SKYSTACK didn't model floors as
+            // entities so we pick the simplest mapping).
+            var wantedStops = new Set();
+            for (var fy = want.minY; fy <= want.maxY; fy++) {
+              var sk = stopKey(want.col, fy);
+              wantedStops.add(sk);
+              if (!WASM_STOPS.has(sk)) {
+                try {
+                  var sref = window.wasmSim.addStop(lineRef, "F" + fy, fy * FLOOR_H + off);
+                  WASM_STOPS.set(sk, sref);
+                } catch (e) {
+                  console.error("[skystack] addStop failed:", e);
+                }
+              }
+            }
+            // Drop stops the player demolished (PR #448 ensures
+            // in-flight riders are rerouted/ejected gracefully).
+            for (var sk of Array.from(WASM_STOPS.keys())) {
+              if (sk.split(":")[0] !== String(want.col)) continue;
+              if (!wantedStops.has(sk)) {
+                try {
+                  window.wasmSim.removeStop(WASM_STOPS.get(sk));
+                } catch (e) {}
+                WASM_STOPS.delete(sk);
+              }
+            }
+
+            // Reconcile cars: ensure one wasm elevator per JS car.
+            var wantedCars = new Set();
+            for (var ci = 0; ci < want.cars.length; ci++) {
+              var ck = carKey(want.col, ci);
+              wantedCars.add(ck);
+              if (!WASM_CARS.has(ck)) {
+                try {
+                  var startY = (want.cars[ci].y || want.minY) * FLOOR_H + off;
+                  var cref = window.wasmSim.addElevator(lineRef, startY);
+                  WASM_CARS.set(ck, cref);
+                } catch (e) {
+                  console.error("[skystack] addElevator failed:", e);
+                }
+              }
+            }
+            for (var ck of Array.from(WASM_CARS.keys())) {
+              if (ck.split("#")[0] !== String(want.col)) continue;
+              if (!wantedCars.has(ck)) {
+                try {
+                  window.wasmSim.removeElevator(WASM_CARS.get(ck));
+                } catch (e) {}
+                WASM_CARS.delete(ck);
+              }
+            }
+          });
+        }
+
+        // Convert a JS `(col, fy)` pair to a wasm stop ref. Returns
+        // null if the stop hasn't been registered yet (player just
+        // built it; reconcile hasn't run).
+        function stopRef(col, fy) {
+          return WASM_STOPS.get(stopKey(col, fy)) || null;
+        }
+
+        // Press a hall call for an agent waiting at (col, fromY) heading
+        // to toY. Returns true on success. The agent's `wasmRiderRef`
+        // is set so subsequent ticks can correlate exit events.
+        function requestRide(agent, col, fromY, toY) {
+          if (!window.wasmSim || FAILED) return false;
+          if (agent.wasmRiderRef !== undefined) return true; // already in flight
+          var origin = stopRef(col, fromY);
+          var dest = stopRef(col, toY);
+          if (!origin || !dest) return false;
+          if (Number(origin) === Number(dest)) return false; // same-floor; nothing to ride
+          try {
+            var weight = agent.weight || 75.0;
+            // Default patience = ~50 wasm ticks (5 s at 10 Hz).
+            // Passing `0` would map to `Some(0)` which Rust filters
+            // away → infinite patience → abandonment events never
+            // fire. Use a finite default; SKYSTACK already has
+            // its own complaint timer (180 game-min) but the wasm
+            // patience triggers `rider-abandoned` so the bridge can
+            // mark the agent as `leaving` cleanly.
+            var patience = agent.wasmPatienceTicks != null ? agent.wasmPatienceTicks : 600;
+            var ridRef = window.wasmSim.spawnRiderByRef(origin, dest, weight, patience);
+            window.wasmSim.pressHallCall(origin, toY > fromY ? "up" : "down");
+            agent.wasmRiderRef = ridRef;
+            agent.wasmShaftCol = col;
+            agent.wasmFromY = fromY;
+            agent.wasmToY = toY;
+            RIDER_TO_AGENT.set(String(ridRef), agent.id);
+            return true;
+          } catch (e) {
+            console.error("[skystack] requestRide failed:", e);
+            return false;
+          }
+        }
+
+        // Step wasm simulation by N sim-ticks. Game-min ≈ 2 sim ticks.
+        function tickAll(n) {
+          if (!window.wasmSim || FAILED) return;
+          try {
+            window.wasmSim.stepMany(n);
+          } catch (e) {
+            console.error("[skystack] stepMany failed:", e);
+            FAILED = true;
+          }
+        }
+
+        // Drain wasm events; correlate riders to agents and resolve
+        // boarding / exit / abandonment.
+        function drainEvents() {
+          if (!window.wasmSim || FAILED) return;
+          var events;
+          try {
+            events = window.wasmSim.drainEvents();
+          } catch (e) {
+            return;
+          }
+          for (var i = 0; i < events.length; i++) {
+            var ev = events[i];
+            if (ev.kind === "rider-spawned") {
+              // Correlation already established by requestRide; nothing
+              // more to do. (Kept here as documentation.)
+            } else if (ev.kind === "rider-boarded") {
+              var aid = RIDER_TO_AGENT.get(String(ev.rider));
+              var agent2 = aid !== undefined ? findAgent(aid) : null;
+              if (agent2) {
+                agent2.waitTicks = 0;
+                agent2.waiting = false;
+              }
+            } else if (ev.kind === "rider-exited") {
+              var aid2 = RIDER_TO_AGENT.get(String(ev.rider));
+              var agent3 = aid2 !== undefined ? findAgent(aid2) : null;
+              if (agent3 && agent3.wasmToY !== undefined) {
+                // Place the agent at the exit floor. The next
+                // tickAgent() will resume horizontal walking.
+                agent3.y = agent3.wasmToY;
+                agent3.inElevator = null;
+                agent3.wasmRiderRef = undefined;
+                agent3.wasmShaftCol = undefined;
+                agent3.wasmFromY = undefined;
+                agent3.wasmToY = undefined;
+              }
+              RIDER_TO_AGENT.delete(String(ev.rider));
+            } else if (ev.kind === "rider-abandoned") {
+              var aid3 = RIDER_TO_AGENT.get(String(ev.rider));
+              var agent4 = aid3 !== undefined ? findAgent(aid3) : null;
+              if (agent4) {
+                // Treat as if they gave up — leave the building.
+                // Clear `waiting` so `tickAgent` actually processes
+                // the new "leaving" phase next tick (the `waiting`
+                // flag is set when an agent enters the hall queue
+                // and gates further movement until cleared).
+                agent4.phase = "leaving";
+                agent4.waiting = false;
+                agent4.inElevator = null;
+                agent4.wasmRiderRef = undefined;
+              }
+              RIDER_TO_AGENT.delete(String(ev.rider));
+            }
+          }
+        }
+
+        // Mirror wasm car positions back into state.elevators so the
+        // existing renderer (drawElevatorCar) works unchanged.
+        function syncMirror() {
+          if (!window.wasmSim || FAILED) return;
+          var view;
+          try {
+            view = window.wasmSim.worldView();
+          } catch (e) {
+            return;
+          }
+          var carById = new Map();
+          for (var i = 0; i < view.cars.length; i++) {
+            carById.set(String(view.cars[i].id), view.cars[i]);
+          }
+          for (var ei = 0; ei < state.elevators.length; ei++) {
+            var elev = state.elevators[ei];
+            var off = elev.shaftX * SHAFT_OFFSET;
+            for (var ci = 0; ci < elev.cars.length; ci++) {
+              var ref = WASM_CARS.get(carKey(elev.shaftX, ci));
+              if (ref === undefined) continue;
+              var wc = carById.get(String(ref));
+              if (!wc) continue;
+              var floorY = (wc.y - off) / FLOOR_H;
+              elev.cars[ci].floatY = floorY;
+              elev.cars[ci].y = Math.round(floorY);
+              // Mirror passengers as wasm rider refs translated to
+              // agent ids (when known). The renderer uses this to
+              // count passengers and to find agents for in-elevator
+              // overlay drawing.
+              var passengers = [];
+              for (var ri = 0; ri < wc.rider_ids.length; ri++) {
+                var aid = RIDER_TO_AGENT.get(String(wc.rider_ids[ri]));
+                if (aid !== undefined) passengers.push(aid);
+              }
+              elev.cars[ci].passengers = passengers;
+              elev.cars[ci].dir = wc.v >= 0 ? 1 : -1;
+            }
+          }
+        }
+
+        return {
+          reconcileTopology: reconcileTopology,
+          tickAll: tickAll,
+          drainEvents: drainEvents,
+          syncMirror: syncMirror,
+          requestRide: requestRide,
+          stopRef: stopRef,
+          isReady: function () {
+            return !!window.wasmSim && !FAILED;
+          },
+          isFailed: function () {
+            return FAILED;
+          },
+        };
+      })();
+      window.SkystackWasm = SkystackWasm;
 
       /* ===== UNIT TYPES ===== */
       var UNITS = {
@@ -6868,6 +7276,10 @@
             cars: cars,
           });
         }
+        // Push the new shaft topology to the wasm sim. Safe to call
+        // before wasm is ready — reconcileTopology no-ops in that case
+        // and the next call (after wasmReady resolves) catches up.
+        SkystackWasm.reconcileTopology();
       }
 
       function addElevatorCar(gx, gy) {
@@ -6895,6 +7307,9 @@
             }
             e.cars.push({ y: e.minY, floatY: e.minY, dir: 1, passengers: [], stopTimer: 0 });
             state.cash -= cost;
+            // Push the new car to wasm too. Reconcile is a single
+            // entry-point that picks up the new entry in `e.cars`.
+            SkystackWasm.reconcileTopology();
             showToast("Added elevator car (+1, now " + e.cars.length + ")");
             return;
           }
@@ -7015,7 +7430,19 @@
           tickAgent(state.agents[i]);
           if (state.agents[i].state === "gone") state.agents.splice(i, 1);
         }
-        for (var ei = 0; ei < state.elevators.length; ei++) tickElevator(state.elevators[ei]);
+        // Wasm sim drives elevator dispatch + movement + loading.
+        // Each game-minute = SKYSTACK_SIM_TICKS_PER_GAME_MIN sim ticks.
+        if (SkystackWasm.isReady()) {
+          SkystackWasm.tickAll(window.SKYSTACK_SIM_TICKS_PER_GAME_MIN || 2);
+          SkystackWasm.drainEvents();
+          SkystackWasm.syncMirror();
+        } else {
+          // Wasm not yet loaded — fall back to the legacy SCAN
+          // scheduler so the game stays playable during the initial
+          // page load (~1s on slow connections). Drops out as soon
+          // as wasmReady resolves.
+          for (var ei = 0; ei < state.elevators.length; ei++) tickElevator(state.elevators[ei]);
+        }
         // Decay active events
         tickEvents();
       }
@@ -7700,6 +8127,36 @@
           if (transport.kind === "elevator") {
             var elev = state.elevators[transport.elevIdx];
             if (!elev) return false;
+            // Route through wasm when ready: spawn a Rider and press
+            // the hall call. The agent is "in flight" until the
+            // `rider-exited` event places them at `ty`. Fall back to
+            // the legacy queue if wasm hasn't loaded or the bridge
+            // failed (so the game stays playable during page load).
+            if (SkystackWasm.isReady() && a.wasmRiderRef === undefined) {
+              if (SkystackWasm.requestRide(a, elev.shaftX, a.y, ty)) {
+                a.inElevator = elev;
+                a.waiting = true;
+                return false;
+              }
+              // requestRide failed (e.g. stop not yet reconciled) —
+              // fall through to legacy queue so the agent isn't stuck.
+            }
+            if (a.wasmRiderRef !== undefined) {
+              if (SkystackWasm.isFailed()) {
+                // Wasm died mid-flight — drainEvents no-ops, so
+                // rider-exited will never fire and the agent would
+                // be stuck forever. Bail to the legacy queue path
+                // below by clearing the wasm flags.
+                a.wasmRiderRef = undefined;
+                a.wasmShaftCol = undefined;
+                a.wasmFromY = undefined;
+                a.wasmToY = undefined;
+              } else {
+                // Already in flight — wait for rider-exited.
+                a.waiting = true;
+                return false;
+              }
+            }
             var goingUp = ty > a.y;
             var queue = goingUp ? elev.queueUp : elev.queueDown;
             if (!queue[a.y]) queue[a.y] = [];
