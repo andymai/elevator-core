@@ -51,9 +51,20 @@ export function drawShaftLabels(
   ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "center";
+  // Car headers (drawn separately) live in the same `padTop` band, so a
+  // group label whose natural Y sits inside that band collides with the
+  // matching "Car N". Pin colliding labels to the top of `padTop`; leave
+  // labels for partial-height groups (shafts that don't reach the top of
+  // the building) at their natural position above their shaft.
+  const carHeaderY = s.padTop - s.fontSmall * 0.5 - 2;
+  const carHeaderTop = carHeaderY - s.fontSmall * 0.5 - 1;
+  const carHeaderBottom = carHeaderY + s.fontSmall * 0.5 + 1;
+  const clampedY = Math.max(s.fontSmall + 0.5, carHeaderTop);
   for (const l of labels) {
+    const naturalY = l.top - 3;
+    const collides = naturalY > carHeaderTop && naturalY - s.fontSmall < carHeaderBottom;
     ctx.fillStyle = l.color;
-    ctx.fillText(l.text, l.cx, l.top - 3);
+    ctx.fillText(l.text, l.cx, collides ? clampedY : naturalY);
   }
 }
 
@@ -141,7 +152,10 @@ export function drawCarHeaders(
   cars: readonly CarDto[],
   carX: Map<number, number>,
 ): void {
-  const y = s.padTop / 2 + 1;
+  // Sit just above the shaft top so group labels (drawn at the top of
+  // `padTop`) have clearance. Was `padTop / 2 + 1`, which collided with
+  // the group label of any single-car bank that reached the building top.
+  const y = s.padTop - s.fontSmall * 0.5 - 2;
   ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";

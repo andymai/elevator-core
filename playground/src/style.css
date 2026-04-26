@@ -245,9 +245,8 @@
     opacity: 0.4;
   }
 
-  /* Controls and phase strip base styling moved to Tailwind utilities on the
- * respective HTML elements. See index.html `<section class="controls ...">`
- * and `<section class="phase-strip ...">`. */
+  /* Controls and header phase indicator base styling live on Tailwind
+ * utilities applied directly to the elements in index.html. */
 
   /* ── Tweak panel ───────────────────────────────────────────────────── */
 
