@@ -2787,7 +2787,7 @@
             var p = new URLSearchParams(window.location.search).get("mode");
             if (p === "coordinated" || p === "independent") return p;
           } catch (e) {}
-          var sc = window.state && state.scenario;
+          var sc = window.state && window.state.scenario;
           if (sc && sc.groupingMode === "coordinated") return "coordinated";
           return "independent";
         }
