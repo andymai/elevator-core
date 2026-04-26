@@ -19,13 +19,12 @@
     <header
       class="top relative bg-gradient-to-b from-surface-secondary to-surface px-5 pt-3 pb-2.5 max-md:px-3.5 max-md:pt-2.5 max-md:pb-2"
     >
-      <div class="flex flex-wrap items-center gap-y-1 gap-x-3 min-w-0 max-md:gap-x-2">
+      <div class="flex flex-wrap items-center gap-y-1 gap-x-5 min-w-0 max-md:gap-x-3">
         <h1
           class="m-0 text-[14px] font-semibold tracking-[-0.005em] inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)] max-md:text-[12.5px] max-md:gap-2 max-md:tracking-[-0.01em]"
         >
           <span class="truncate"
-            ><span class="text-content-tertiary font-normal max-md:hidden"
-              >elevator-core <span class="text-content-tertiary/60">/</span> </span
+            ><span class="text-content-tertiary max-md:hidden">elevator-core / </span
             ><span class="text-content">playground</span></span
           >
         </h1>
@@ -34,36 +33,36 @@
           class="ml-auto md:order-3 flex items-center gap-4 shrink-0 max-md:gap-3"
           aria-label="External links"
         >
-          <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">
-            ?
-          </button>
           <a
-            class="text-content-tertiary no-underline text-xs transition-colors hover:text-content inline-flex items-center gap-1"
+            class="text-content-tertiary no-underline text-[13px] transition-colors hover:text-content inline-flex items-center gap-1"
             href="https://github.com/andymai/elevator-core"
             aria-label="Star elevator-core on GitHub"
-            ><span aria-hidden="true">&#9733;</span><span class="max-md:hidden">Star</span></a
+            ><span aria-hidden="true">&#9733;</span><span class="max-md:hidden">star</span></a
           >
           <a
-            class="text-content-tertiary no-underline text-xs transition-colors hover:text-content"
+            class="text-content-tertiary no-underline text-[13px] transition-colors hover:text-content"
             href="https://docs.rs/elevator-core"
             >docs</a
           >
           <a
-            class="text-content-tertiary no-underline text-xs transition-colors hover:text-content"
+            class="text-content-tertiary no-underline text-[13px] transition-colors hover:text-content"
             href="../"
             >guide</a
           >
+          <button type="button" id="shortcuts" class="nav-btn" title="Keyboard shortcuts (press ?)">
+            ?
+          </button>
         </nav>
 
         <div
-          class="md:order-2 flex items-center gap-2 text-[11px] text-content-tertiary min-w-0 max-md:basis-full max-md:text-[10.5px]"
+          class="md:order-2 flex items-center gap-1.5 text-[11.5px] text-content-tertiary min-w-0 max-md:basis-full max-md:text-[10.5px]"
         >
           <span class="ctl-k">Phase</span>
           <span id="phase-label" class="text-content-secondary tabular-nums font-medium"
             >&mdash;</span
           >
           <div
-            class="hidden lg:flex items-center gap-x-3 gap-y-1 ml-2 flex-wrap text-[10.5px]"
+            class="flex max-lg:hidden items-center gap-x-3 gap-y-1 ml-3 flex-wrap text-[10.5px]"
             aria-label="Cabin color legend"
           >
             <span class="ctl-k">Cabin</span>
@@ -89,12 +88,12 @@
       </div>
 
       <div
-        class="absolute inset-x-0 bottom-0 h-px bg-surface-elevated overflow-hidden"
+        class="absolute inset-x-0 bottom-0 h-px bg-stroke-subtle overflow-hidden"
         aria-hidden="true"
       >
         <div
           id="phase-progress-fill"
-          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_45%,transparent)] transition-[width] duration-normal ease-normal"
+          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover transition-[width] duration-normal ease-normal"
         ></div>
       </div>
     </header>
@@ -109,7 +108,7 @@
       id="verdict-ribbon"
       hidden
       aria-label="Comparison scoreboard"
-      class="verdict-ribbon grid grid-cols-[auto_repeat(5,1fr)] gap-3 px-5 py-2.5 bg-surface-secondary border-b border-stroke-subtle text-[11px] tabular-nums max-md:grid-cols-2 max-md:px-3.5"
+      class="verdict-ribbon grid items-center grid-cols-[auto_repeat(5,1fr)] gap-3 px-5 py-2.5 bg-surface-secondary border-b border-stroke-subtle text-[11px] tabular-nums max-md:grid-cols-2 max-md:px-3.5"
     ></section>
 
     <main
