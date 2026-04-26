@@ -538,6 +538,18 @@ export class WasmSim {
         const ret = wasm.wasmsim_waitingCountAt(this.__wbg_ptr, stop_id);
         return ret >>> 0;
     }
+    /**
+     * Pull a richer game-facing view: door progress, direction lamps,
+     * per-car ETAs, hall-call lamp state, and topology metadata
+     * (groups + lines). Designed for tower-builder games (notably
+     * SKYSTACK) where the renderer needs more than `snapshot()` exposes.
+     * All entity refs are `u64` (`BigInt`) matching the live-mutation API.
+     * @returns {WorldView}
+     */
+    worldView() {
+        const ret = wasm.wasmsim_worldView(this.__wbg_ptr);
+        return ret;
+    }
 }
 if (Symbol.dispose) WasmSim.prototype[Symbol.dispose] = WasmSim.prototype.free;
 
