@@ -42,4 +42,24 @@ describe("skystack vendored bundle", () => {
     expect(html).toMatch(/SkystackWasm\.tickAll\(/);
     expect(html).toMatch(/SkystackWasm\.drainEvents\(\)/);
   });
+
+  it("supports the coordinated/independent grouping-mode toggle", () => {
+    const html = readFileSync(resolve(SKYSTACK_DIR, "Tower.html"), "utf-8");
+    // Mode resolution function exists.
+    expect(html).toContain("currentGroupingMode");
+    // URL override is wired.
+    expect(html).toContain('"mode"');
+    expect(html).toContain('"coordinated"');
+    // Coordinated scenario shows up in SCENARIOS.
+    expect(html).toContain("coordinated: {");
+    expect(html).toContain('groupingMode: "coordinated"');
+  });
+
+  it("README documents both grouping modes", () => {
+    const readme = readFileSync(resolve(SKYSTACK_DIR, "README.md"), "utf-8");
+    expect(readme).toContain("Grouping modes");
+    expect(readme).toContain("`independent`");
+    expect(readme).toContain("`coordinated`");
+    expect(readme).toContain("?mode=coordinated");
+  });
 });

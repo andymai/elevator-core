@@ -2766,13 +2766,34 @@
           return col + "#" + idx;
         }
 
-        // Each SKYSTACK shaft maps to its own wasm group ("independent
-        // mode"). Coordinated mode (one group spanning all shafts)
-        // lands in PR 6 once dispatch can filter cars by line within a
-        // shared group.
+        // Default: each SKYSTACK shaft maps to its own wasm group
+        // ("independent mode"). Scenarios can opt into "coordinated"
+        // mode by setting `state.scenario.groupingMode = "coordinated"`
+        // — all shafts then share one group and dispatch picks the
+        // closest car across all shafts.
+        //
+        // CAVEAT: in coordinated mode, dispatch within a multi-line
+        // group does not currently filter cars by line membership.
+        // A car on shaft A may be assigned to a stop on shaft B, sit
+        // there with no way to reach it, and the rider waits longer
+        // than necessary. Use coordinated mode for showcase /
+        // experimentation; independent mode is the recommended
+        // default for normal play.
+        var SHARED_GROUP_KEY = "_tower";
+        function currentGroupingMode() {
+          // URL override (`?mode=coordinated`) for testing without
+          // touching scenario definitions.
+          try {
+            var p = new URLSearchParams(window.location.search).get("mode");
+            if (p === "coordinated" || p === "independent") return p;
+          } catch (e) {}
+          var sc = window.state && window.state.scenario;
+          if (sc && sc.groupingMode === "coordinated") return "coordinated";
+          return "independent";
+        }
         function ensureGroupFor(col) {
           if (!window.wasmSim || FAILED) return null;
-          var k = shaftKey(col);
+          var k = currentGroupingMode() === "coordinated" ? SHARED_GROUP_KEY : shaftKey(col);
           if (!WASM_GROUPS.has(k)) {
             try {
               var gid = window.wasmSim.addGroup(k, "look");
@@ -4564,6 +4585,22 @@
           difficulty: "Relaxed",
           init: function () {},
           goalText: null,
+        },
+        coordinated: {
+          name: "Coordinated Tower",
+          desc:
+            "Showcase: every shaft shares one wasm dispatch group. Cars are assigned across shafts based on proximity. " +
+            "Best with multi-shaft buildings; expect occasional dispatch quirks since dispatch doesn't yet filter by line.",
+          difficulty: "Experimental",
+          groupingMode: "coordinated",
+          init: function () {
+            state.cash = 5000000;
+            state.scenarioId = "coordinated";
+          },
+          goalText: "Reach 3★ with a coordinated multi-shaft layout",
+          goalTest: function () {
+            return state.stars >= 3;
+          },
         },
         sprint: {
           name: "Sprint",
