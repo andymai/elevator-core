@@ -108,7 +108,7 @@ function inverseAxis(axis: AltitudeAxis, screenFrac: number): number {
   return 1000 * (10 ** (screenFrac * hi) - 1);
 }
 
-export function drawTetherBackdrop(
+function drawTetherBackdrop(
   ctx: CanvasRenderingContext2D,
   axis: AltitudeAxis,
   shaftLeft: number,
@@ -167,7 +167,7 @@ export function drawTetherBackdrop(
  * "ground level" — the playground aesthetic favours flat, restrained
  * surfaces over skeuomorphic flourishes.
  */
-export function drawHorizon(
+function drawHorizon(
   ctx: CanvasRenderingContext2D,
   shaftLeft: number,
   shaftRight: number,
@@ -195,11 +195,7 @@ export function drawHorizon(
  * range. Kept understated so the climbers and HUD chips remain the
  * focal points; the cable is structural geometry, not decoration.
  */
-export function drawTetherCable(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  axis: AltitudeAxis,
-): void {
+function drawTetherCable(ctx: CanvasRenderingContext2D, cx: number, axis: AltitudeAxis): void {
   ctx.strokeStyle = "rgba(160, 165, 180, 0.08)";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -220,7 +216,7 @@ export function drawTetherCable(
  * as a small dark hexagonal mass with a "Counterweight" label so
  * users learn what it represents without an outsized icon.
  */
-export function drawCounterweight(
+function drawCounterweight(
   ctx: CanvasRenderingContext2D,
   cx: number,
   topY: number,
@@ -266,7 +262,7 @@ export function drawCounterweight(
  * tether passes through this docking ring" rather than the
  * building's full-width floor slab.
  */
-export function drawTetherStops(
+function drawTetherStops(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
   axis: AltitudeAxis,
@@ -324,11 +320,7 @@ function formatAltitudeShortLocal(altitudeM: number): string {
  * axis spans 0 → counterweight altitude with a log mapping so every
  * decade gets visible space.
  */
-export function buildTetherAxis(
-  shaftTop: number,
-  shaftBottom: number,
-  tether: TetherMeta,
-): AltitudeAxis {
+function buildTetherAxis(shaftTop: number, shaftBottom: number, tether: TetherMeta): AltitudeAxis {
   const axisMaxM = Math.max(tether.counterweightAltitudeM, 1);
   const hi = Math.log10(1 + axisMaxM / 1000);
   return {
@@ -343,7 +335,7 @@ export function buildTetherAxis(
   };
 }
 
-export function drawTetherTargetMarkers(
+function drawTetherTargetMarkers(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
   axis: AltitudeAxis,
@@ -376,7 +368,7 @@ export function drawTetherTargetMarkers(
   }
 }
 
-export function applyDayPhase(elapsedSec: number): number {
+function applyDayPhase(elapsedSec: number): number {
   // 240 s wall-clock cycle — slow enough to feel ambient, fast enough
   // to actually witness the change during a long climb.
   const period = 240;

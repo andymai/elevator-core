@@ -66,8 +66,8 @@ export interface TweakRange {
 
 /**
  * Per-scenario tweak bounds for the four user-facing knobs. Exists so
- * the space elevator (50 m/s climbers, 1000 m shaft, 1 car) can have
- * sane bounds distinct from a commercial building.
+ * the space elevator (1000 m/s climbers, 35,786 km shaft, up to 3
+ * cars) can have sane bounds distinct from a commercial building.
  */
 export interface TweakRanges {
   cars: TweakRange;

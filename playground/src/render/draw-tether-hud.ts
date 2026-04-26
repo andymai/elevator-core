@@ -28,7 +28,6 @@ export interface AltitudeAxis {
 }
 
 export interface ClimberHud {
-  carId: number;
   cx: number;
   cy: number;
   altitudeM: number;
@@ -36,10 +35,6 @@ export interface ClimberHud {
   phase: KinematicPhase;
   layer: string;
   carName: string;
-  load: number;
-  capacity: number;
-  riders: number;
-  targetAltitudeM: number | undefined;
   etaSeconds: number | undefined;
 }
 
@@ -301,11 +296,9 @@ export function buildHudList(
     const layer = atmosphericLayer(altitudeM);
     const phase = classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed);
     let etaSeconds: number | undefined;
-    let targetAltitudeM: number | undefined;
     if (car.target !== undefined) {
       const targetStop = snap.stops.find((s) => s.entity_id === car.target);
       if (targetStop) {
-        targetAltitudeM = targetStop.y;
         etaSeconds = tetherEta(
           altitudeM,
           targetStop.y,
@@ -318,7 +311,6 @@ export function buildHudList(
     }
     const fallbackName = `Climber ${String.fromCharCode(65 + idx)}`;
     out.push({
-      carId: car.id,
       cx,
       cy: axis.toScreenAlt(altitudeM),
       altitudeM,
@@ -326,10 +318,6 @@ export function buildHudList(
       phase,
       layer,
       carName: carNames.get(car.id) ?? fallbackName,
-      load: car.load,
-      capacity: car.capacity,
-      riders: car.riders,
-      targetAltitudeM,
       etaSeconds,
     });
   });
