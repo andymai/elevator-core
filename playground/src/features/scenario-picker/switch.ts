@@ -1,6 +1,6 @@
 import { scenarioById, STRATEGY_LABELS, type PermalinkState } from "../../domain";
 import { toast } from "../../platform";
-import type { StrategyName } from "../../types";
+import type { RepositionStrategyName, StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
 
 /** Narrow pane handles for scenario switching. */
@@ -37,6 +37,12 @@ export interface ScenarioSwitchHooks {
   renderPaneStrategyInfo: (pane: ScenarioPaneHandles, strategy: StrategyName) => void;
   refreshStrategyPopovers: () => void;
   renderTweakPanel: () => void;
+  /**
+   * Refresh the reposition-strategy chip on a pane. Mirrors
+   * `renderPaneStrategyInfo` and is invoked when a scenario's
+   * `defaultReposition` snaps the chip to a new value.
+   */
+  renderPaneRepositionInfo: (pane: ScenarioPaneHandles, reposition: RepositionStrategyName) => void;
 }
 
 /**
@@ -63,13 +69,26 @@ export async function switchScenario(
   const nextStrategyA = state.permalink.compare
     ? state.permalink.strategyA
     : scenario.defaultStrategy;
+  // Reposition is snapped on scenario switch only when the scenario
+  // opts in via `defaultReposition` — carrying a Lobby pick from a
+  // skyscraper into the space elevator made every idle climber
+  // slide back to the ground, which defeats the spread layout. The
+  // playback-speed slider is *not* touched here; that's a per-user
+  // preference, and a long-haul scenario where individual trips
+  // take minutes is intentional, not a UX bug.
+  const nextReposition: RepositionStrategyName =
+    scenario.defaultReposition !== undefined && !state.permalink.compare
+      ? scenario.defaultReposition
+      : state.permalink.repositionA;
   state.permalink = {
     ...state.permalink,
     scenario: scenario.id,
     strategyA: nextStrategyA,
+    repositionA: nextReposition,
     overrides: {},
   };
   hooks.renderPaneStrategyInfo(ui.paneA, nextStrategyA);
+  hooks.renderPaneRepositionInfo(ui.paneA, nextReposition);
   hooks.refreshStrategyPopovers();
   syncScenarioCards(ui, scenario.id);
   await resetAll();

@@ -472,71 +472,177 @@ const skyscraper: ScenarioMeta = {
   ron: buildSkyscraperRon(),
 };
 
-// ─── Space elevator — pure novelty ──────────────────────────────────
+// ─── Space elevator — orbital tether to GEO ─────────────────────────
+//
+// The tether climbs to geostationary altitude (35,786 km) with three
+// staged platforms along the way — the edge of space (Karman line),
+// a low-orbit transfer station, and the geostationary terminus. The
+// counterweight sits beyond GEO at the standard ~100,000 km tether
+// length, but it isn't a passenger destination — it's structural mass
+// keeping the cable in tension. The renderer draws it as a visual
+// cap at `tether.counterweightAltitudeM`.
+//
+// At a 1000 m/s climber speed (~3 600 km/h, faster than any real
+// proposal but watchable), Ground → GEO is about 10 hours of
+// simulated time. The playground's speed multiplier (cap raised so
+// this scenario is usable) keeps that to a few minutes wall-clock.
+//
+// Spawn rates are intentionally sparse — long-haul space-elevator
+// traffic isn't supposed to look like rush hour, and at very long
+// trip durations even modest spawn rates pile riders up faster than
+// any climber can deliver them.
+
+const KARMAN_M = 100_000;
+const LEO_M = 400_000;
+const GEO_M = 35_786_000;
+const COUNTERWEIGHT_M = 100_000_000;
+
+const TETHER_STOPS = 4;
+
+function tetherWeights(perIndex: (i: number) => number): number[] {
+  return Array.from({ length: TETHER_STOPS }, (_, i) => perIndex(i));
+}
 
 const spaceElevator: ScenarioMeta = {
   id: "space-elevator",
   label: "Space elevator",
   description:
-    "Two stops 1,000 km apart. Same engine, different scale — no traffic patterns really apply; it's a showpiece for the trapezoidal-motion primitives.",
+    "A 35,786 km tether to geostationary orbit with platforms at the Karman line, LEO, and the GEO terminus. Three climbers move payload along a single cable; the counterweight beyond GEO holds the line taut.",
   defaultStrategy: "scan",
+  // SpreadEvenly keeps idle climbers distributed across the stops
+  // instead of bouncing them all back to the ground (Lobby) or
+  // letting AdaptiveParking shuffle them oddly. With three climbers
+  // and three reachable platforms, the steady state is one cabin
+  // per platform — exactly what you want for sparse long-haul
+  // traffic.
+  defaultReposition: "spread",
+  // Phase durations are tuned to the tether's natural timescale, not
+  // a building's "morning rush / evening commute" model. A short hop
+  // up to Karman is ~250 sim seconds round-trip, so each phase lasts
+  // long enough to see at least one full short-hop cycle complete.
+  // Names avoid claiming a specific real-world duration ("shift",
+  // "window") since the demo replays the cycle every few real minutes.
   phases: [
+    // Outbound — most riders depart Ground bound for the upper
+    // platforms. LEO and GEO get the heaviest weight; Karman is a
+    // short side-trip. The weight curve favours long trips, which is
+    // where the trapezoidal motion profile reads most clearly. Spawn
+    // rate is high enough that a Karman round-trip (~5 min sim)
+    // accumulates 25–30 riders at the ground station — a single trip
+    // delivers a meaningful batch instead of one passenger at a time.
     {
-      name: "Scheduled lift",
-      durationSec: 300,
-      ridersPerMin: 4,
-      originWeights: [1, 1],
-      destWeights: [1, 1],
+      name: "Outbound cargo",
+      durationSec: 480,
+      ridersPerMin: 6,
+      originWeights: tetherWeights((i) => (i === 0 ? 6 : 1)),
+      destWeights: tetherWeights((i) => {
+        if (i === 0) return 0;
+        if (i === 1) return 2; // Karman — short hops
+        if (i === 2) return 3; // LEO transfer
+        return 4; // GEO platform
+      }),
+    },
+    // Inbound — returning crews and finished cargo come back down.
+    // Origin weights skew toward LEO/GEO to keep the down-traffic
+    // narrative visible.
+    {
+      name: "Inbound cargo",
+      durationSec: 360,
+      ridersPerMin: 5,
+      originWeights: tetherWeights((i) => {
+        if (i === 0) return 0;
+        if (i === 1) return 1;
+        if (i === 2) return 3;
+        return 5;
+      }),
+      destWeights: tetherWeights((i) => (i === 0 ? 6 : 1)),
     },
   ],
-  seedSpawns: 0,
+  // Pre-seed enough riders that all three climbers depart with a
+  // full cabin on the first frame instead of waiting for Poisson
+  // samples. 24 ≈ 8 per climber at the platform-default capacity
+  // tuning; the climbers' effective batch size scales with the
+  // weight slider in the tweak drawer.
+  seedSpawns: 24,
+  // Long trips deserve patience. 1800 s sim ≈ 1.9 min wall-clock at
+  // the recommended 16× playback — long enough that ground→Karman
+  // hops complete first, short enough that GEO no-shows do bound the
+  // queue.
+  abandonAfterSec: 1800,
   featureHint:
-    "Two stops, 1,000 km apart. Same engine, wildly different scale — proof that the simulation works on anything vertical.",
+    "Three climbers share a single 35,786 km tether. Watch the trapezoidal motion play out at scale: long cruise at 3,600 km/h between Karman, LEO, and the geostationary platform.",
   buildingName: "Orbital Tether",
   stops: [
     { name: "Ground Station", positionM: 0.0 },
-    { name: "Orbital Platform", positionM: 1000.0 },
+    { name: "Karman Line", positionM: KARMAN_M },
+    { name: "LEO Transfer", positionM: LEO_M },
+    { name: "GEO Platform", positionM: GEO_M },
   ],
-  defaultCars: 1,
+  defaultCars: 3,
   elevatorDefaults: {
-    maxSpeed: 50.0,
+    maxSpeed: 1000.0,
     acceleration: 10.0,
-    deceleration: 15.0,
+    deceleration: 10.0,
     weightCapacity: 10000.0,
-    doorOpenTicks: 120,
-    doorTransitionTicks: 30,
+    doorOpenTicks: 300,
+    doorTransitionTicks: 60,
   },
-  // Space elevator's operating envelope is two orders of magnitude
-  // away from a building. Bigger steps, no car-count tweaking
-  // (only 2 stops; multiple climbers on a tether is its own can of worms).
+  // Tweak ranges sized for the orbital envelope: speed in 250 m/s
+  // steps (50 → 2000), capacity in tonne increments. Door cycle stays
+  // short — a 5 s dwell at GEO is plenty for boarding/alighting.
   tweakRanges: {
-    cars: { min: 1, max: 1, step: 1 },
-    maxSpeed: { min: 5, max: 100, step: 5 },
-    weightCapacity: { min: 1000, max: 20000, step: 1000 },
-    doorCycleSec: { min: 2, max: 8, step: 0.5 },
+    cars: { min: 1, max: 3, step: 1 },
+    maxSpeed: { min: 250, max: 2000, step: 250 },
+    weightCapacity: { min: 2000, max: 20000, step: 2000 },
+    doorCycleSec: { min: 4, max: 12, step: 1 },
   },
-  passengerMeanIntervalTicks: 900,
+  passengerMeanIntervalTicks: 1200,
   passengerWeightRange: [60.0, 90.0],
+  // Tether-mode metadata. Counterweight is rendered, not visited.
+  // Day/night cycling stays off — the playground's warm-dark aesthetic
+  // is intentional and consistent across scenarios; cycling sky tones
+  // would draw the eye away from the climbers and metrics, which are
+  // the actual focal points.
+  tether: {
+    counterweightAltitudeM: COUNTERWEIGHT_M,
+    showDayNight: false,
+  },
   ron: `SimConfig(
     building: BuildingConfig(
         name: "Orbital Tether",
         stops: [
-            StopConfig(id: StopId(0), name: "Ground Station",   position: 0.0),
-            StopConfig(id: StopId(1), name: "Orbital Platform", position: 1000.0),
+            StopConfig(id: StopId(0), name: "Ground Station", position: 0.0),
+            StopConfig(id: StopId(1), name: "Karman Line",    position: ${KARMAN_M.toFixed(1)}),
+            StopConfig(id: StopId(2), name: "LEO Transfer",   position: ${LEO_M.toFixed(1)}),
+            StopConfig(id: StopId(3), name: "GEO Platform",   position: ${GEO_M.toFixed(1)}),
         ],
     ),
     elevators: [
         ElevatorConfig(
-            id: 0, name: "Climber Alpha",
-            max_speed: 50.0, acceleration: 10.0, deceleration: 15.0,
+            id: 0, name: "Climber A",
+            max_speed: 1000.0, acceleration: 10.0, deceleration: 10.0,
             weight_capacity: 10000.0,
             starting_stop: StopId(0),
-            door_open_ticks: 120, door_transition_ticks: 30,
+            door_open_ticks: 300, door_transition_ticks: 60,
+        ),
+        ElevatorConfig(
+            id: 1, name: "Climber B",
+            max_speed: 1000.0, acceleration: 10.0, deceleration: 10.0,
+            weight_capacity: 10000.0,
+            starting_stop: StopId(1),
+            door_open_ticks: 300, door_transition_ticks: 60,
+        ),
+        ElevatorConfig(
+            id: 2, name: "Climber C",
+            max_speed: 1000.0, acceleration: 10.0, deceleration: 10.0,
+            weight_capacity: 10000.0,
+            starting_stop: StopId(2),
+            door_open_ticks: 300, door_transition_ticks: 60,
         ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
     passenger_spawning: PassengerSpawnConfig(
-        mean_interval_ticks: 900,
+        mean_interval_ticks: 1200,
         weight_range: (60.0, 90.0),
     ),
 )`,

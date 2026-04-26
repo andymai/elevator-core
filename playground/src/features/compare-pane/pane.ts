@@ -1,5 +1,5 @@
 import { CanvasRenderer } from "../../render";
-import { buildScenarioRon, type Overrides } from "../../domain";
+import { applyPhysicsOverrides, buildScenarioRon, type Overrides } from "../../domain";
 import { Sim } from "../../sim";
 import type {
   CarBubble,
@@ -63,14 +63,31 @@ export async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
+  // Tether-mode rendering opts in via scenario metadata. Without
+  // this hookup the renderer falls back to the standard per-line
+  // column layout — which fails badly at 35,786 km axes.
+  renderer.setTetherConfig(scenario.tether ?? null);
+  if (scenario.tether) {
+    // Use the override-merged physics so a shared permalink with a
+    // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
+    // accurate ETA / phase classification immediately, instead of
+    // waiting for the user to nudge the slider and trigger the
+    // hot-swap path.
+    const phys = applyPhysicsOverrides(scenario, overrides);
+    renderer.setTetherPhysics(phys.maxSpeed, phys.acceleration, phys.deceleration);
+  }
   // Scenarios with many floors need a taller shaft, or the 42-floor
   // skyscraper crushes into a 6-px-per-story smear. The CSS applies
   // `min-height: var(--shaft-min-h)` so the page scrolls instead.
+  // Tether mode needs far more headroom — the log axis compresses
+  // 5+ decades into the visible range, and on mobile portrait the
+  // upper decades (Karman / LEO / GEO) end up with overlapping
+  // labels unless the canvas is tall enough to space them out.
   const wrap = handles.canvas.parentElement;
   if (wrap) {
     const stopCount = scenario.stops.length;
     const perStoryPx = 16;
-    const minShaftPx = Math.max(200, stopCount * perStoryPx);
+    const minShaftPx = scenario.tether ? 640 : Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
   return {

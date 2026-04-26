@@ -1,0 +1,166 @@
+/**
+ * Tether-mode rendering helpers — used only by scenarios that flag
+ * themselves as a space elevator (one shared shaft, vast altitude
+ * range, atmospheric backdrop). The CanvasRenderer falls back to the
+ * standard per-line column layout when no tether config is set.
+ *
+ * The altitude scale is logarithmic so the entire 0 → 100,000 km range
+ * remains legible in a single viewport: ground / Karman / LEO / GEO /
+ * counterweight all sit at distinct fractions of the canvas height
+ * even though they span seven orders of magnitude.
+ */
+
+/**
+ * Atmospheric layer for a given altitude (m). Used by the inline car
+ * chip and the side info card so the abstract altitude number is
+ * anchored to something concrete ("you're in the stratosphere").
+ *
+ * Boundaries follow standard atmosphere reference points (IAU and
+ * Wikipedia). The exosphere extends out to roughly 100,000 km, so
+ * everything from the thermopause through the counterweight zone
+ * lives there; the only stop with a more specific label is the
+ * narrow band right around geostationary altitude.
+ */
+export function atmosphericLayer(altitudeM: number): string {
+  if (altitudeM < 12_000) return "troposphere";
+  if (altitudeM < 50_000) return "stratosphere";
+  if (altitudeM < 80_000) return "mesosphere";
+  if (altitudeM < 700_000) return "thermosphere";
+  // Narrow window centred on the geostationary altitude (35,786 km
+  // ± 1 %) so the chip flips to a recognisable label as the climber
+  // approaches the GEO platform.
+  if (altitudeM >= 35_400_000 && altitudeM <= 36_200_000) return "geostationary";
+  return "exosphere";
+}
+
+/**
+ * Compress 0 → counterweight altitude into 0..1. Logarithmic with a
+ * 1 km offset so sea-level (0 m) maps to 0 cleanly and the lower
+ * decades (1 km, 10 km, 100 km) still claim screen real estate.
+ *
+ * `axisMaxM` is normally `counterweightAltitudeM`. Caller multiplies
+ * by available pixel range and inverts (higher altitudes draw higher
+ * on the canvas).
+ */
+export function tetherFractionForAltitude(altitudeM: number, axisMaxM: number): number {
+  if (axisMaxM <= 0) return 0;
+  // log10(1 + 0/1000) = 0, so the bottom of the axis drops out.
+  const hi = Math.log10(1 + axisMaxM / 1000);
+  if (hi <= 0) return 0;
+  const v = Math.log10(1 + Math.max(0, altitudeM) / 1000);
+  return Math.max(0, Math.min(1, v / hi));
+}
+
+/**
+ * Decade tick marks (1, 10, 100, 1000, 10 000, 100 000 km) for the
+ * atmosphere strip — drawn as faint horizontal hairlines with a
+ * label. Returns altitudes that fall inside the visible axis.
+ */
+export function tetherDecadeTicks(axisMaxM: number): Array<{ altitudeM: number; label: string }> {
+  const ticks: Array<{ altitudeM: number; label: string }> = [];
+  for (let p = 3; p <= 8; p++) {
+    const altitudeM = 10 ** p;
+    if (altitudeM > axisMaxM) break;
+    ticks.push({ altitudeM, label: formatAltitudeShort(altitudeM) });
+  }
+  return ticks;
+}
+
+/** "12 km" / "400 km" / "35,786 km" depending on magnitude. */
+export function formatAltitudeShort(altitudeM: number): string {
+  if (altitudeM < 1000) return `${Math.round(altitudeM)} m`;
+  const km = altitudeM / 1000;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  if (km < 1000) return `${km.toFixed(0)} km`;
+  return `${km.toLocaleString("en-US", { maximumFractionDigits: 0 })} km`;
+}
+
+/** Velocity formatted at km/h above 100 m/s, m/s otherwise — keeps the chip short. */
+export function formatVelocity(vMs: number): string {
+  const a = Math.abs(vMs);
+  if (a < 1) return `${a.toFixed(2)} m/s`;
+  if (a < 100) return `${a.toFixed(0)} m/s`;
+  const kph = (a * 3.6).toFixed(0);
+  return `${kph} km/h`;
+}
+
+/** Approximate trapezoidal-phase classification from current speed and accel/decel hints. */
+export type KinematicPhase = "accel" | "cruise" | "decel" | "idle";
+
+export function classifyKinematicPhase(
+  currentSpeed: number,
+  prevSpeed: number,
+  maxSpeed: number,
+): KinematicPhase {
+  const a = Math.abs(currentSpeed);
+  if (a < 0.5) return "idle";
+  const dv = a - Math.abs(prevSpeed);
+  // 5% deadband so floating-point cruise jitter doesn't flip-flop the chip.
+  if (a >= maxSpeed * 0.95 && Math.abs(dv) < maxSpeed * 0.005) return "cruise";
+  if (dv > 0) return "accel";
+  if (dv < 0) return "decel";
+  return "cruise";
+}
+
+/** Format seconds as a compact "1h 24m" / "42m" / "18s" depending on size. */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/**
+ * Trapezoidal-motion ETA from `posM` to `targetM`. Three branches:
+ *
+ *  1. Already inside the brake distance → time to decelerate to rest.
+ *  2. Long enough to reach `maxSpeed` → accel + cruise + decel.
+ *  3. Too short to reach `maxSpeed` → triangle profile, peak velocity
+ *     `vp` solved from `(vp² − v²)/(2a) + vp²/(2d) = remaining`.
+ *
+ * The previous implementation always added the full accel/decel
+ * times, overestimating sub-trapezoid trips by up to 2× (e.g. a 50 km
+ * trip from rest at 1000 m/s / 10 m/s² returned 200 s instead of the
+ * actual ~141 s). Approximation accuracy is "good enough for a HUD
+ * readout" — exact ETA would require the engine's planned profile.
+ */
+export function tetherEta(
+  posM: number,
+  targetM: number,
+  velocity: number,
+  maxSpeed: number,
+  acceleration: number,
+  deceleration: number,
+): number {
+  const remaining = Math.abs(targetM - posM);
+  if (remaining < 1e-3) return 0;
+  const v = Math.abs(velocity);
+  // Brake-from-current case: we're past the latest stop point. Time
+  // to come to rest is `v / deceleration` (the climber overshoots,
+  // but the HUD shows the time-to-zero as a useful upper bound).
+  const brakeDist = (v * v) / (2 * deceleration);
+  if (brakeDist >= remaining) return v > 0 ? v / deceleration : 0;
+  // Distances if we accel to maxSpeed and decel back to 0.
+  const accelTime = Math.max(0, (maxSpeed - v) / acceleration);
+  const accelDist = v * accelTime + 0.5 * acceleration * accelTime * accelTime;
+  const decelTime = maxSpeed / deceleration;
+  const decelDist = (maxSpeed * maxSpeed) / (2 * deceleration);
+  if (accelDist + decelDist >= remaining) {
+    // Triangle profile — never reaches maxSpeed. Solve for peak velocity:
+    //   (vp² − v²)/(2a) + vp²/(2d) = remaining
+    // => vp² = (2·a·d·remaining + d·v²) / (a + d)
+    const vpSq =
+      (2 * acceleration * deceleration * remaining + deceleration * v * v) /
+      (acceleration + deceleration);
+    const vp = Math.sqrt(Math.max(vpSq, v * v));
+    return (vp - v) / acceleration + vp / deceleration;
+  }
+  const cruiseDist = remaining - accelDist - decelDist;
+  return accelTime + cruiseDist / Math.max(maxSpeed, 1e-3) + decelTime;
+}

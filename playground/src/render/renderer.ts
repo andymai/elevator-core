@@ -1,4 +1,4 @@
-import type { CarDto, CarBubble, Snapshot } from "../types";
+import type { CarDto, CarBubble, Snapshot, TetherMeta } from "../types";
 import { arcPoint, easeOutNorm, hexWithAlpha } from "./color-utils";
 import {
   drawCarHeaders,
@@ -8,6 +8,7 @@ import {
   drawWaitingFigures,
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
+import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { RiderVariant } from "./figures/rider";
 import { pickRiderVariant } from "./figures/rider";
 import type { Scale } from "./layout";
@@ -66,6 +67,15 @@ export class CanvasRenderer {
   readonly #carStates: Map<number, CarState> = new Map();
   readonly #stopStates: Map<number, StopState> = new Map();
   readonly #tweens: Tween[] = [];
+  /** Set when the active scenario is a space-elevator-style tether. */
+  #tether: TetherMeta | null = null;
+  /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
+  readonly #prevVelocity: Map<number, number> = new Map();
+  /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
+  #activeMaxSpeed = 1;
+  #activeAcceleration = 1;
+  #activeDeceleration = 1;
+  #firstDrawAt = 0;
   // Per-stop per-line assignment: `stopId -> (lineId -> carId)`. The
   // previous `stopId -> carId` map was last-writer-wins: any car
   // dispatched to a multi-line stop — even a specialty bank moving
@@ -94,6 +104,33 @@ export class CanvasRenderer {
 
   get canvas(): HTMLCanvasElement {
     return this.#canvas;
+  }
+
+  /**
+   * Set or clear tether-mode metadata. Pane wiring calls this with the
+   * scenario's `tether` field on every (re)build so a scenario swap
+   * cleanly transitions between tether and building rendering.
+   */
+  setTetherConfig(tether: TetherMeta | null): void {
+    this.#tether = tether;
+    // Reset per-car kinematic state so a fresh scenario doesn't inherit
+    // stale velocities from the previous run. Also drop the
+    // building-mode `#stopAssignments` map — the tween path that
+    // ordinarily prunes it is skipped in tether mode, so leftover
+    // entries from a prior building scenario would otherwise persist.
+    this.#prevVelocity.clear();
+    this.#firstDrawAt = 0;
+    this.#stopAssignments.clear();
+  }
+
+  /**
+   * Report current physics knobs so the HUD's ETA / phase classifier
+   * stay in sync with hot-swapped values from the tweak drawer.
+   */
+  setTetherPhysics(maxSpeed: number, acceleration: number, deceleration: number): void {
+    if (Number.isFinite(maxSpeed) && maxSpeed > 0) this.#activeMaxSpeed = maxSpeed;
+    if (Number.isFinite(acceleration) && acceleration > 0) this.#activeAcceleration = acceleration;
+    if (Number.isFinite(deceleration) && deceleration > 0) this.#activeDeceleration = deceleration;
   }
 
   pushAssignment(stopId: number, elevatorId: number, lineId: number): void {
@@ -132,6 +169,14 @@ export class CanvasRenderer {
     const s = this.#cachedScale;
     if (s === null) return;
 
+    if (this.#tether !== null) {
+      this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);
+      return;
+    }
+
+    // Building mode keeps the legacy 2-stop tether heuristic — used by
+    // any scenario that didn't opt into explicit tether config but
+    // happens to have a long single-shaft layout.
     const isTether = snap.stops.length === 2;
 
     // Vertical axis.
@@ -368,6 +413,34 @@ export class CanvasRenderer {
     if (bubbles && bubbles.size > 0) {
       drawBubbles(ctx, this.#accent, snap, carX, toScreenY, s, bubbles, w);
     }
+  }
+
+  // The space-elevator scenario walks a single 35,786 km cable —
+  // visual model fundamentally different from the multi-shaft
+  // building: shared cable, stacked climbers, atmospheric backdrop.
+  // The full pipeline lives in `drawTetherScene`; the renderer only
+  // owns the per-frame state (velocity history, names, day-phase
+  // baseline) the helper threads through.
+  #drawTetherMode(
+    snap: Snapshot,
+    w: number,
+    h: number,
+    s: Scale,
+    speedMultiplier: number,
+    bubbles: Map<number, CarBubble> | undefined,
+    tether: TetherMeta,
+  ): void {
+    void speedMultiplier;
+    void bubbles;
+    const state: TetherRenderState = {
+      prevVelocity: this.#prevVelocity,
+      maxSpeed: this.#activeMaxSpeed,
+      acceleration: this.#activeAcceleration,
+      deceleration: this.#activeDeceleration,
+      firstDrawAt: this.#firstDrawAt,
+    };
+    drawTetherScene(this.#ctx, snap, w, h, s, tether, state);
+    this.#firstDrawAt = state.firstDrawAt;
   }
 
   // ── Flying-dot animations ─────────────────────────────────────────

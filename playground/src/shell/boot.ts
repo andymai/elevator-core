@@ -43,6 +43,26 @@ export async function boot(): Promise<void> {
   // scenario's `defaultStrategy` for pane A so "Share link from hotel"
   // doesn't deliver a mismatched config to the recipient.
   reconcileStrategyWithScenario(permalink);
+  const scenario = scenarioById(permalink.scenario);
+  // Cold-boot reposition default: if the URL didn't carry explicit
+  // `pa` / `pb` and the scenario advertises a `defaultReposition`,
+  // apply it to whichever pane(s) defaulted. Mirrors `switchScenario`
+  // so opening `?s=space-elevator` directly behaves the same as
+  // picking the scenario card from another scenario — without it, a
+  // fresh visitor lands on the tether with `lobby` parking and every
+  // idle climber slides back to the ground. Compare mode is *not*
+  // gated here: a fresh visitor in default compare-on mode otherwise
+  // misses the snap entirely and both panes inherit the global
+  // default.
+  const urlSearch = new URLSearchParams(window.location.search);
+  if (scenario.defaultReposition !== undefined) {
+    if (!urlSearch.has("pa")) {
+      permalink.repositionA = scenario.defaultReposition;
+    }
+    if (!urlSearch.has("pb")) {
+      permalink.repositionB = scenario.defaultReposition;
+    }
+  }
   // Compact decoded overrides against the resolved scenario so a URL
   // that carries values matching the current default (possible if a
   // scenario default shifted between share-time and load-time) doesn't
@@ -50,7 +70,6 @@ export async function boot(): Promise<void> {
   // `encodePermalink`'s contract is that callers compact first; this
   // is the decode-side counterpart, done once at boot rather than in
   // every subsequent write path.
-  const scenario = scenarioById(permalink.scenario);
   permalink.overrides = compactOverrides(scenario, permalink.overrides);
   applyPermalinkToUi(permalink, ui);
   const state: State = {
