@@ -8137,9 +8137,20 @@
               // fall through to legacy queue so the agent isn't stuck.
             }
             if (a.wasmRiderRef !== undefined) {
-              // Already in flight — wait for rider-exited.
-              a.waiting = true;
-              return false;
+              if (SkystackWasm.isFailed()) {
+                // Wasm died mid-flight — drainEvents no-ops, so
+                // rider-exited will never fire and the agent would
+                // be stuck forever. Bail to the legacy queue path
+                // below by clearing the wasm flags.
+                a.wasmRiderRef = undefined;
+                a.wasmShaftCol = undefined;
+                a.wasmFromY = undefined;
+                a.wasmToY = undefined;
+              } else {
+                // Already in flight — wait for rider-exited.
+                a.waiting = true;
+                return false;
+              }
             }
             var goingUp = ty > a.y;
             var queue = goingUp ? elev.queueUp : elev.queueDown;
