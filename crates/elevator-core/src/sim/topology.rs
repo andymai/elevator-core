@@ -268,6 +268,61 @@ impl Simulation {
         Ok(eid)
     }
 
+    /// Set the reachable position range of a line.
+    ///
+    /// Cars whose current position falls outside the new `[min, max]` are
+    /// clamped to the boundary. Phase is left untouched — a car mid-travel
+    /// keeps `MovingToStop` and the movement system reconciles on the
+    /// next tick.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::LineNotFound`] if the line entity does not exist.
+    /// Returns [`SimError::InvalidConfig`] if `min` or `max` is non-finite
+    /// or `min > max`.
+    pub fn set_line_range(&mut self, line: EntityId, min: f64, max: f64) -> Result<(), SimError> {
+        if !min.is_finite() || !max.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "line.range",
+                reason: format!("min/max must be finite (got min={min}, max={max})"),
+            });
+        }
+        if min > max {
+            return Err(SimError::InvalidConfig {
+                field: "line.range",
+                reason: format!("min ({min}) must be <= max ({max})"),
+            });
+        }
+        let line_ref = self
+            .world
+            .line_mut(line)
+            .ok_or(SimError::LineNotFound(line))?;
+        line_ref.min_position = min;
+        line_ref.max_position = max;
+
+        // Clamp any cars on this line whose position falls outside the new range.
+        let car_ids: Vec<EntityId> = self
+            .world
+            .iter_elevators()
+            .filter_map(|(eid, _, car)| (car.line == line).then_some(eid))
+            .collect();
+        for eid in car_ids {
+            let pos = self.world.position(eid).map_or(0.0, |p| p.value);
+            if pos < min || pos > max {
+                let clamped = pos.clamp(min, max);
+                if let Some(p) = self.world.position_mut(eid) {
+                    p.value = clamped;
+                }
+                if let Some(v) = self.world.velocity_mut(eid) {
+                    v.value = 0.0;
+                }
+            }
+        }
+
+        self.mark_topo_dirty();
+        Ok(())
+    }
+
     /// Remove a line and all its elevators from the simulation.
     ///
     /// Elevators on the line are disabled (not despawned) so riders are
