@@ -704,6 +704,13 @@ impl World {
     }
 
     /// Find the stop entity at a given position (within epsilon).
+    ///
+    /// Global lookup — does not filter by line. When two stops on
+    /// different lines share the same physical position the result is
+    /// whichever wins the linear scan, which is rarely what the
+    /// caller actually wants. Prefer
+    /// [`find_stop_at_position_in`](Self::find_stop_at_position_in)
+    /// when the caller knows which line's stops to consider.
     #[must_use]
     pub fn find_stop_at_position(&self, position: f64) -> Option<EntityId> {
         const EPSILON: f64 = 1e-6;
@@ -713,6 +720,32 @@ impl World {
             } else {
                 None
             }
+        })
+    }
+
+    /// Find the stop at a given position from within `candidates`.
+    ///
+    /// `candidates` is typically the `serves` list of a particular
+    /// [`LineInfo`](crate::dispatch::LineInfo) — i.e. the stops a
+    /// specific line can reach. Use this when a car arrives at a
+    /// position and you need *its* line's stop entity, not whichever
+    /// stop on any line happens to share the position. (Two parallel
+    /// shafts at the same physical floor, or a sky-lobby served by
+    /// both a low and high bank, both produce position collisions
+    /// the global lookup can't disambiguate.)
+    ///
+    /// O(n) over `candidates`, which is typically small.
+    #[must_use]
+    pub fn find_stop_at_position_in(
+        &self,
+        position: f64,
+        candidates: &[EntityId],
+    ) -> Option<EntityId> {
+        const EPSILON: f64 = 1e-6;
+        candidates.iter().copied().find(|&id| {
+            self.stops
+                .get(id)
+                .is_some_and(|stop| (stop.position - position).abs() < EPSILON)
         })
     }
 

@@ -616,6 +616,17 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }
 
+    /// Find the stop entity at `position` that's served by `line_ref`,
+    /// or `0` (slotmap-null) if none. Lets consumers like SKYSTACK
+    /// disambiguate co-located stops on different lines without the
+    /// per-shaft offset hack the bridge currently uses.
+    #[wasm_bindgen(js_name = findStopAtPositionOnLine)]
+    pub fn find_stop_at_position_on_line(&self, position: f64, line_ref: u64) -> u64 {
+        self.inner
+            .find_stop_at_position_on_line(position, u64_to_entity(line_ref))
+            .map_or(0, entity_to_u64)
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
