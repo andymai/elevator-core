@@ -74,6 +74,10 @@ fn collect_actions(
 ) -> Vec<LoadAction> {
     let mut actions: Vec<LoadAction> = Vec::new();
 
+    // Hoist the line→serves lookup out of the per-elevator loop so the
+    // O(groups × lines) walk runs once per phase, not once per car.
+    let serves_index = crate::dispatch::build_line_serves_index(groups);
+
     for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
@@ -98,7 +102,7 @@ fn collect_actions(
         // would otherwise resolve to whichever line's stop wins the
         // global linear scan, breaking exit/board matching for
         // riders on the bank this car *isn't* serving.
-        let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+        let serves = crate::dispatch::elevator_line_serves_indexed(world, &serves_index, eid);
         let Some(current_stop) = serves.map_or_else(
             || world.find_stop_at_position(pos),
             |s| world.find_stop_at_position_in(pos, s),

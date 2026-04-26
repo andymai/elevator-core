@@ -3658,4 +3658,19 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
         Some(stop_a_top),
         "rider must exit at line A's top stop, not line B's"
     );
+
+    // Symmetric check: line B must not have been involved at all.
+    // Pre-fix the loading lookup might pick the wrong line's stop and
+    // try to board/exit on the wrong car; verify line B's car never
+    // carried this rider.
+    let car_b = sim
+        .world()
+        .iter_elevators()
+        .find_map(|(eid, _, e)| (sim.world().line(e.line()).unwrap().name() == "B").then_some(eid))
+        .unwrap();
+    let car_b_riders = sim.world().elevator(car_b).unwrap().riders();
+    assert!(
+        !car_b_riders.contains(&rider.entity()),
+        "rider must never have boarded line B's car"
+    );
 }

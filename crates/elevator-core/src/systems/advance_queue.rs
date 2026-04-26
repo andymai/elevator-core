@@ -48,6 +48,10 @@ pub fn run(
     groups: &[crate::dispatch::ElevatorGroup],
     elevator_ids: &[EntityId],
 ) {
+    // Hoist the line→serves walk out of the per-elevator loop so the
+    // O(groups × lines) work runs once per phase rather than per car.
+    let serves_index = crate::dispatch::build_line_serves_index(groups);
+
     for &eid in elevator_ids {
         if world.is_disabled(eid) {
             continue;
@@ -73,7 +77,8 @@ pub fn run(
             ElevatorPhase::Idle | ElevatorPhase::Stopped => {
                 let Some(next) = front else { continue };
                 let pos = world.position(eid).map_or(0.0, |p| p.value);
-                let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+                let serves =
+                    crate::dispatch::elevator_line_serves_indexed(world, &serves_index, eid);
                 let at_stop = serves.map_or_else(
                     || world.find_stop_at_position(pos),
                     |s| world.find_stop_at_position_in(pos, s),
