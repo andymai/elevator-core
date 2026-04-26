@@ -695,12 +695,16 @@ impl std::fmt::Display for UpgradeValue {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum RouteInvalidReason {
-    /// A stop on the route was disabled.
+    /// A stop on the route was disabled (transient — the stop entity
+    /// still exists).
     StopDisabled,
-    /// No alternative stop is available in the same group.
+    /// Reserved. No code currently emits this — the "no alternative
+    /// found" signal is conveyed by the accompanying `RiderAbandoned`
+    /// event so this enum stays dedicated to *why* the route was
+    /// invalidated rather than *what the rerouter could do about it*.
     NoAlternative,
     /// A stop on the route was permanently removed (despawned).
-    /// Distinguishes the in-car reroute path from a transient disable.
+    /// Distinguishes the removal path from a transient disable.
     StopRemoved,
 }
 

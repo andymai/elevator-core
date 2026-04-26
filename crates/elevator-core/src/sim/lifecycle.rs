@@ -781,9 +781,9 @@ impl Simulation {
         if let Some(alt_stop) = alternative {
             self.reroute_to_alternative(rid, disabled_stop, alt_stop, aboard_car, reroute_reason);
         } else if let Some(car_eid) = aboard_car {
-            self.eject_or_abandon_in_car_rider(rid, car_eid, disabled_stop);
+            self.eject_or_abandon_in_car_rider(rid, car_eid, disabled_stop, reroute_reason);
         } else {
-            self.abandon_waiting_rider(rid, disabled_stop, rider_current_stop);
+            self.abandon_waiting_rider(rid, disabled_stop, rider_current_stop, reroute_reason);
         }
     }
 
@@ -824,14 +824,15 @@ impl Simulation {
 
     /// Handle an in-car rider when no alternative destination exists:
     /// eject at the car's nearest enabled stop, or abandon if no stops
-    /// remain anywhere.
+    /// remain anywhere. The reroute reason is forwarded so consumers
+    /// can distinguish a permanent removal from a transient disable.
     fn eject_or_abandon_in_car_rider(
         &mut self,
         rid: EntityId,
         car_eid: EntityId,
         disabled_stop: EntityId,
+        reroute_reason: crate::events::RouteInvalidReason,
     ) {
-        use crate::events::RouteInvalidReason;
         let car_pos = self.world.position(car_eid).map_or(0.0, |p| p.value);
         let eject_stop = self
             .world
@@ -844,7 +845,7 @@ impl Simulation {
         self.events.emit(Event::RouteInvalidated {
             rider: rid,
             affected_stop: disabled_stop,
-            reason: RouteInvalidReason::NoAlternative,
+            reason: reroute_reason,
             tick: self.tick,
         });
 
@@ -912,19 +913,23 @@ impl Simulation {
     }
 
     /// Abandon a Waiting rider in place when no alternative stop exists
-    /// in their group. Mirrors the `NoAlternative` path from #292.
+    /// in their group. The reroute reason is forwarded so consumers can
+    /// distinguish a permanent removal (`StopRemoved`) from a transient
+    /// disable (`StopDisabled`); the supplementary "no alternative was
+    /// found" signal is implicit in the `RiderAbandoned` event that
+    /// fires alongside this one.
     fn abandon_waiting_rider(
         &mut self,
         rid: EntityId,
         disabled_stop: EntityId,
         rider_current_stop: Option<EntityId>,
+        reroute_reason: crate::events::RouteInvalidReason,
     ) {
-        use crate::events::RouteInvalidReason;
         let abandon_stop = rider_current_stop.unwrap_or(disabled_stop);
         self.events.emit(Event::RouteInvalidated {
             rider: rid,
             affected_stop: disabled_stop,
-            reason: RouteInvalidReason::NoAlternative,
+            reason: reroute_reason,
             tick: self.tick,
         });
         if let Some(r) = self.world.rider_mut(rid) {

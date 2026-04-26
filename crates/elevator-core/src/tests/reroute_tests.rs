@@ -183,7 +183,9 @@ fn disable_only_stop_causes_abandonment() {
     let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase, RiderPhase::Abandoned);
 
-    // Should emit NoAlternative event.
+    // RouteInvalidated forwards the trigger reason (StopDisabled for
+    // disable, StopRemoved for remove_stop). The "no alternative found"
+    // signal is implicit in the accompanying RiderAbandoned event.
     let events = sim.drain_events();
     let invalidated_count = events
         .iter()
@@ -191,13 +193,21 @@ fn disable_only_stop_causes_abandonment() {
             matches!(
                 e,
                 Event::RouteInvalidated {
-                    reason: RouteInvalidReason::NoAlternative,
+                    reason: RouteInvalidReason::StopDisabled,
                     ..
                 }
             )
         })
         .count();
     assert_eq!(invalidated_count, 1);
+    let abandoned_count = events
+        .iter()
+        .filter(|e| matches!(e, Event::RiderAbandoned { .. }))
+        .count();
+    assert_eq!(
+        abandoned_count, 1,
+        "RiderAbandoned conveys 'no alternative'"
+    );
 
     // `invalidate_routes_for_stop`'s abandon path is the fourth
     // rider-abandonment site in the codebase; like the two in
@@ -443,6 +453,82 @@ fn remove_only_destination_with_riding_passenger_returns_to_origin() {
     assert!(
         arrived,
         "rider was not delivered after rerouting to origin (deadlock?)"
+    );
+}
+
+#[test]
+fn remove_stop_without_alternative_emits_stop_removed_not_no_alternative() {
+    // Two-stop scenario; rider Waiting at stop 0 bound for stop 1.
+    // Removing stop 1 leaves no alternative — the abandon path fires.
+    // Reason should be `StopRemoved` (not `NoAlternative`) so consumers
+    // can distinguish a permanent removal from a transient disable.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Two".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "A".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "B".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: None,
+            groups: None,
+        },
+        elevators: vec![ElevatorConfig {
+            id: 0,
+            name: "E0".into(),
+            max_speed: Speed::from(5.0),
+            acceleration: Accel::from(3.0),
+            deceleration: Accel::from(3.0),
+            weight_capacity: Weight::from(800.0),
+            starting_stop: StopId(0),
+            door_open_ticks: 5,
+            door_transition_ticks: 3,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
+        }],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    sim.drain_events();
+
+    let stop1 = sim.stop_entity(StopId(1)).unwrap();
+    sim.remove_stop(stop1).unwrap();
+
+    let events = sim.drain_events();
+    let stop_removed = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                Event::RouteInvalidated {
+                    reason: RouteInvalidReason::StopRemoved,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(
+        stop_removed, 1,
+        "abandon path should forward StopRemoved reason, not NoAlternative"
     );
 }
 
