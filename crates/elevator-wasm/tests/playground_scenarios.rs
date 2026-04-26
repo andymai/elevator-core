@@ -310,6 +310,65 @@ fn space_elevator_scenario_builds() {
     }
 }
 
+/// SKYSTACK builds the world entirely at runtime (no config-time
+/// `StopId`s) and spawns riders by entity ref. Exercise the same code
+/// path the JS bridge takes: empty group → line → stops → elevator →
+/// `build_rider(EntityId, EntityId)` → step until delivered.
+#[test]
+fn skystack_runtime_world_delivers_a_rider() {
+    use elevator_core::prelude::SimulationBuilder;
+    use elevator_core::sim::LineParams;
+
+    // The SKYSTACK bridge creates one group per shaft ("independent
+    // mode" in PR 5). The new shaft's group has its own dispatcher
+    // and only its cars are eligible for its line's hall calls.
+    let mut sim = SimulationBuilder::demo().build().unwrap();
+
+    // Position the new shaft well away from the demo's stops so
+    // `find_stop_at_position` returns the right entity at boundaries.
+    let group = sim.add_group("shaft-0", ScanDispatch::new());
+    let mut line_params = LineParams::new("shaft-0", group);
+    line_params.min_position = 100.0;
+    line_params.max_position = 112.0;
+    line_params.max_cars = Some(4);
+    let line = sim.add_line(&line_params).expect("add_line");
+
+    let stop_lobby = sim.add_stop("F0".into(), 100.0, line).expect("add_stop F0");
+    let stop_floor3 = sim.add_stop("F3".into(), 109.0, line).expect("add_stop F3");
+
+    let params = elevator_core::sim::ElevatorParams {
+        max_speed: elevator_core::components::Speed::from(2.0),
+        ..elevator_core::sim::ElevatorParams::default()
+    };
+    let _car = sim
+        .add_elevator(&params, line, 100.0)
+        .expect("add_elevator");
+
+    // SKYSTACK passes EntityIds (BigInts in JS) — exercise the same
+    // path through `build_rider`.
+    let rider = sim
+        .build_rider(stop_lobby, stop_floor3)
+        .expect("build_rider with entity refs")
+        .weight(70.0)
+        .spawn()
+        .expect("spawn");
+
+    let mut delivered = false;
+    for _ in 0..5000 {
+        sim.step();
+        let r = sim.world().rider(rider.entity()).unwrap();
+        if r.phase() == elevator_core::components::RiderPhase::Arrived {
+            delivered = true;
+            break;
+        }
+    }
+    assert!(
+        delivered,
+        "rider should reach destination within 5000 ticks"
+    );
+    assert!(sim.metrics().total_delivered() >= 1);
+}
+
 /// Office's group-time ETD hook swaps the active strategy to a tuned
 /// `EtdDispatch`. Make sure the swap path the wasm wrapper uses actually
 /// lands the weight on the instance.
