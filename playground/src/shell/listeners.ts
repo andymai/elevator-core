@@ -1,6 +1,7 @@
 import { setShortcutSheetOpen } from "../features/keyboard-shortcuts";
 import {
   renderPaneStrategyInfo,
+  renderPaneRepositionInfo,
   refreshStrategyPopovers,
   refreshRepositionPopovers,
   isAnyStrategyPopoverOpen,
@@ -31,8 +32,10 @@ export function attachListeners(state: State, ui: UiHandles): void {
 
   const switchHooks: ScenarioSwitchHooks = {
     renderPaneStrategyInfo,
+    renderPaneRepositionInfo,
     refreshStrategyPopovers: () => {
       refreshStrategyPopovers(state, ui, doResetAll);
+      refreshRepositionPopovers(state, ui, doResetAll);
     },
     renderTweakPanel: () => {
       const scenario = scenarioById(state.permalink.scenario);
