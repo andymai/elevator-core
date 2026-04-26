@@ -451,7 +451,7 @@ fn entity_to_u32(id: EntityId) -> u32 {
 }
 
 /// Map an `ElevatorPhase` to a short string suitable for CSS class names.
-fn phase_label(phase: ElevatorPhase) -> &'static str {
+pub fn phase_label(phase: ElevatorPhase) -> &'static str {
     match phase {
         ElevatorPhase::Idle => "idle",
         ElevatorPhase::MovingToStop(_) => "moving",
