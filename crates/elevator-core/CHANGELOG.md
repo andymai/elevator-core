@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.26.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.25.1...elevator-core-v15.26.0) (2026-04-26)
+
+
+### Features
+
+* **core:** per-line stop-at-position lookup ([#457](https://github.com/andymai/elevator-core/issues/457)) ([c202768](https://github.com/andymai/elevator-core/commit/c2027680542fac9c6c5fde87645eb15bbe935b7e))
+
 ## [15.25.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.25.0...elevator-core-v15.25.1) (2026-04-26)
 
 
