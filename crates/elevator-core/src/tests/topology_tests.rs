@@ -342,6 +342,89 @@ fn disabled_elevator_not_dispatched() {
 }
 
 #[test]
+fn add_line_rejects_invalid_bounds() {
+    use crate::components::Orientation;
+    use crate::sim::LineParams;
+
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+
+    let mut bad = LineParams::new("bad", GroupId(0));
+    bad.orientation = Orientation::default();
+
+    bad.min_position = f64::NAN;
+    bad.max_position = 10.0;
+    assert!(sim.add_line(&bad).is_err(), "NaN min should be rejected");
+
+    bad.min_position = 0.0;
+    bad.max_position = f64::INFINITY;
+    assert!(
+        sim.add_line(&bad).is_err(),
+        "infinite max should be rejected"
+    );
+
+    bad.min_position = 10.0;
+    bad.max_position = 5.0;
+    assert!(
+        sim.add_line(&bad).is_err(),
+        "inverted bounds should be rejected"
+    );
+}
+
+#[test]
+fn set_line_range_clamps_out_of_range_car() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+    let elevators = sim.groups()[0].lines()[0].elevators().to_vec();
+    assert!(!elevators.is_empty(), "default config should have a car");
+    let car = elevators[0];
+
+    // Move the car well above the building, then shrink the line below it.
+    if let Some(p) = sim.world_mut().position_mut(car) {
+        p.value = 100.0;
+    }
+
+    sim.set_line_range(line, 0.0, 10.0).unwrap();
+
+    let pos = sim.world().position(car).unwrap().value;
+    assert!(
+        (pos - 10.0).abs() < 1e-9,
+        "car should be clamped to new max (got {pos})"
+    );
+    let vel = sim.world().velocity(car).unwrap().value;
+    assert!(vel.abs() < 1e-9, "velocity should be zeroed on clamp");
+}
+
+#[test]
+fn set_line_range_rejects_inverted_bounds() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    assert!(sim.set_line_range(line, 10.0, 5.0).is_err());
+}
+
+#[test]
+fn set_line_range_rejects_nonfinite_bounds() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    assert!(sim.set_line_range(line, f64::NAN, 10.0).is_err());
+    assert!(sim.set_line_range(line, 0.0, f64::INFINITY).is_err());
+}
+
+#[test]
+fn set_line_range_unknown_line_is_error() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+
+    let bogus = sim.world_mut().spawn();
+    assert!(sim.set_line_range(bogus, 0.0, 10.0).is_err());
+}
+
+#[test]
 fn runtime_stop_has_no_stop_id() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();

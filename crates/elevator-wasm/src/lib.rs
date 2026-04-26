@@ -15,10 +15,26 @@ use elevator_core::dispatch::{
     BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, HallCallMode,
     LookDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
 };
+use elevator_core::entity::EntityId;
 use elevator_core::prelude::{Simulation, StopId};
+use slotmap::Key;
 use wasm_bindgen::prelude::*;
 
 mod dto;
+
+/// Encode an `EntityId` for the JS boundary as a `u64` (`BigInt` in JS).
+/// Carries slotmap's full FFI encoding (slot + version) so stale
+/// references fail cleanly instead of aliasing reused slots.
+fn entity_to_u64(id: EntityId) -> u64 {
+    id.data().as_ffi()
+}
+
+/// Decode a `u64` from JS back into an `EntityId`. The value must have
+/// originated from [`entity_to_u64`]; arbitrary bit patterns produce a
+/// `KeyData` that any subsequent world lookup will reject as missing.
+fn u64_to_entity(raw: u64) -> EntityId {
+    EntityId::from(slotmap::KeyData::from_ffi(raw))
+}
 
 /// Map a JS-facing strategy name to its `BuiltinStrategy` variant. Used to tag
 /// dispatcher instances so snapshots round-trip the active strategy id.
@@ -342,6 +358,219 @@ impl WasmSim {
         self.inner.stop_entity(StopId(stop_id)).map_or(0, |e| {
             u32::try_from(self.inner.waiting_count_at(e)).unwrap_or(u32::MAX)
         })
+    }
+
+    // ── Topology mutation API ────────────────────────────────────────
+    //
+    // Granular live mutations for consumers (notably SKYSTACK) where the
+    // player edits the building mid-sim. Entity references cross the JS
+    // boundary as `u64` (BigInt in JS) carrying slotmap's full FFI
+    // encoding — version bits included, so a stale reference to a
+    // despawned entity fails cleanly instead of aliasing a reused slot.
+
+    /// Add a new dispatch group with the given name and strategy.
+    /// Returns the group ID as a `u32` (groups have flat numeric IDs).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `dispatch_strategy` is not a recognised name
+    /// (`"scan" | "look" | "nearest" | "etd" | "destination" | "rsr"`).
+    #[wasm_bindgen(js_name = addGroup)]
+    pub fn add_group(&mut self, name: String, dispatch_strategy: &str) -> Result<u32, JsError> {
+        let group_id = match dispatch_strategy {
+            "scan" => self.inner.add_group(name, ScanDispatch::new()),
+            "look" => self.inner.add_group(name, LookDispatch::new()),
+            "nearest" => self.inner.add_group(name, NearestCarDispatch::new()),
+            "etd" => self.inner.add_group(name, EtdDispatch::new()),
+            "destination" => self.inner.add_group(name, DestinationDispatch::new()),
+            "rsr" => self.inner.add_group(name, RsrDispatch::new()),
+            other => return Err(JsError::new(&format!("unknown strategy: {other}"))),
+        };
+        Ok(group_id.0)
+    }
+
+    /// Add a new line to an existing group. Returns the line entity ref.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the group does not exist or the range is
+    /// non-finite or inverted.
+    #[wasm_bindgen(js_name = addLine)]
+    pub fn add_line(
+        &mut self,
+        group_id: u32,
+        name: String,
+        min_position: f64,
+        max_position: f64,
+        max_cars: Option<u32>,
+    ) -> Result<u64, JsError> {
+        let mut params =
+            elevator_core::sim::LineParams::new(name, elevator_core::ids::GroupId(group_id));
+        params.min_position = min_position;
+        params.max_position = max_position;
+        params.max_cars = max_cars.map(|n| n as usize);
+        self.inner
+            .add_line(&params)
+            .map(entity_to_u64)
+            .map_err(|e| JsError::new(&format!("add_line: {e}")))
+    }
+
+    /// Remove a line and all its elevators (riders ejected to nearest stop).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line does not exist.
+    #[wasm_bindgen(js_name = removeLine)]
+    pub fn remove_line(&mut self, line_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .remove_line(u64_to_entity(line_ref))
+            .map_err(|e| JsError::new(&format!("remove_line: {e}")))
+    }
+
+    /// Resize a line's reachable position range. The new range may
+    /// grow or shrink the line; cars outside the new bounds are
+    /// clamped to the boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line does not exist or the range is
+    /// non-finite or inverted.
+    #[wasm_bindgen(js_name = setLineRange)]
+    pub fn set_line_range(
+        &mut self,
+        line_ref: u64,
+        min_position: f64,
+        max_position: f64,
+    ) -> Result<(), JsError> {
+        self.inner
+            .set_line_range(u64_to_entity(line_ref), min_position, max_position)
+            .map_err(|e| JsError::new(&format!("set_line_range: {e}")))
+    }
+
+    /// Add a stop to a line at the given position. Returns the stop
+    /// entity ref.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line does not exist or the position is
+    /// non-finite.
+    #[wasm_bindgen(js_name = addStop)]
+    pub fn add_stop(&mut self, line_ref: u64, name: String, position: f64) -> Result<u64, JsError> {
+        self.inner
+            .add_stop(name, position, u64_to_entity(line_ref))
+            .map(entity_to_u64)
+            .map_err(|e| JsError::new(&format!("add_stop: {e}")))
+    }
+
+    /// Remove a stop. In-flight riders to/from it are rerouted, ejected,
+    /// or abandoned per `Simulation::remove_stop` semantics.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the stop does not exist.
+    #[wasm_bindgen(js_name = removeStop)]
+    pub fn remove_stop(&mut self, stop_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .remove_stop(u64_to_entity(stop_ref))
+            .map_err(|e| JsError::new(&format!("remove_stop: {e}")))
+    }
+
+    /// Add a new elevator to a line at `starting_position`. Optional
+    /// physics overrides; defaults match `ElevatorParams::default`.
+    /// Returns the elevator entity ref.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line does not exist, the position is
+    /// non-finite, the physics are invalid, or the line's `max_cars` is
+    /// already reached.
+    #[wasm_bindgen(js_name = addElevator)]
+    pub fn add_elevator(
+        &mut self,
+        line_ref: u64,
+        starting_position: f64,
+        max_speed: Option<f64>,
+        weight_capacity: Option<f64>,
+    ) -> Result<u64, JsError> {
+        // Validate at the boundary; `add_elevator` re-runs full physics
+        // checks, but rejecting NaN/inf here keeps the error message
+        // close to the source (the JS caller's argument).
+        if let Some(s) = max_speed
+            && (!s.is_finite() || s <= 0.0)
+        {
+            return Err(JsError::new(&format!(
+                "add_elevator: max_speed must be a positive finite number (got {s})"
+            )));
+        }
+        if let Some(w) = weight_capacity
+            && (!w.is_finite() || w <= 0.0)
+        {
+            return Err(JsError::new(&format!(
+                "add_elevator: weight_capacity must be a positive finite number (got {w})"
+            )));
+        }
+
+        let mut params = elevator_core::sim::ElevatorParams::default();
+        if let Some(s) = max_speed {
+            params.max_speed = elevator_core::components::Speed::from(s);
+        }
+        if let Some(w) = weight_capacity {
+            params.weight_capacity = elevator_core::components::Weight::from(w);
+        }
+        self.inner
+            .add_elevator(&params, u64_to_entity(line_ref), starting_position)
+            .map(entity_to_u64)
+            .map_err(|e| JsError::new(&format!("add_elevator: {e}")))
+    }
+
+    /// Remove an elevator (riders ejected to the nearest enabled stop).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist.
+    #[wasm_bindgen(js_name = removeElevator)]
+    pub fn remove_elevator(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .remove_elevator(u64_to_entity(elevator_ref))
+            .map_err(|e| JsError::new(&format!("remove_elevator: {e}")))
+    }
+
+    /// Press a hall call at a stop with direction `"up"` or `"down"`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the stop does not exist or `direction` is
+    /// not `"up"` or `"down"`.
+    #[wasm_bindgen(js_name = pressHallCall)]
+    pub fn press_hall_call(&mut self, stop_ref: u64, direction: &str) -> Result<(), JsError> {
+        let dir = match direction {
+            "up" => elevator_core::components::CallDirection::Up,
+            "down" => elevator_core::components::CallDirection::Down,
+            other => {
+                return Err(JsError::new(&format!(
+                    "direction must be 'up' or 'down', got {other:?}"
+                )));
+            }
+        };
+        let stop = u64_to_entity(stop_ref);
+        self.inner
+            .press_hall_button(stop, dir)
+            .map_err(|e| JsError::new(&format!("press_hall_call: {e}")))
+    }
+
+    /// Press a car-button (in-cab floor request) targeting `stop_ref`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator or stop does not exist.
+    #[wasm_bindgen(js_name = pressCarButton)]
+    pub fn press_car_button(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .press_car_button(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                u64_to_entity(stop_ref),
+            )
+            .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }
 
     // ── Uniform elevator-physics setters ─────────────────────────────
