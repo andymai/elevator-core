@@ -38,20 +38,27 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
 
-      # Pull the previous nightly's Criterion baseline so the current run
-      # compares against it. The save-step's key is suffixed with
-      # `github.run_id` (so every run writes a unique key — GHA cache
-      # entries are immutable), so the restore here has to use
-      # `restore-keys` with a shared prefix to match *any* prior
-      # nightly's key. Without this the restore silently misses on every
-      # run and `cargo bench` only sees absolute numbers, making the
-      # nightly's whole point — regression detection vs yesterday —
-      # inoperative.
+      # Restore the Criterion baseline so this run compares against it.
+      # The cache key is suffixed with `github.sha`, so re-running the
+      # *same* commit always restores the *first* measurement of that
+      # commit (the save step below is gated on `cache-hit != 'true'`,
+      # so the per-SHA baseline is locked once written). This bounds
+      # drift to single-run variance instead of compounding it across
+      # nights — under the previous `run_id`-keyed scheme each nightly
+      # save overwrote the baseline with its own noisy output, which
+      # then became tomorrow's comparison floor.
+      #
+      # When a new commit lands the exact-key restore misses; the
+      # `restore-keys` prefix-fallback then pulls the most recent
+      # SHA's baseline so the new commit is compared against the prior
+      # known-good measurement. The save step writes a fresh entry
+      # under the new SHA, freezing it for subsequent nightlies.
       - name: Restore previous criterion baseline
+        id: restore-baseline
         uses: actions/cache/restore@v4
         with:
           path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-never-matches-sentinel
+          key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
             criterion-baseline-${{ github.ref_name }}-
 
@@ -90,11 +97,16 @@ jobs:
             bench-output.log
           retention-days: 30
 
+      # Only save when the exact-key restore missed — i.e. this is the
+      # first nightly to bench this SHA. Skipping on exact-match keeps
+      # the per-SHA baseline frozen at its first measurement, which is
+      # what stops the noise compounding loop.
       - name: Save new criterion baseline
+        if: steps.restore-baseline.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-${{ github.run_id }}
+          key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
 
       # Open the regression issue *before* publishing to gh-pages so a
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
