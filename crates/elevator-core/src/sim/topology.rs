@@ -223,7 +223,29 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
+    /// Returns [`SimError::InvalidConfig`] if `min_position` / `max_position`
+    /// is non-finite or `min_position > max_position` — broken bounds
+    /// would produce NaN positions on every car added to the line.
     pub fn add_line(&mut self, params: &LineParams) -> Result<EntityId, SimError> {
+        if !params.min_position.is_finite() || !params.max_position.is_finite() {
+            return Err(SimError::InvalidConfig {
+                field: "line.range",
+                reason: format!(
+                    "min/max must be finite (got min={}, max={})",
+                    params.min_position, params.max_position
+                ),
+            });
+        }
+        if params.min_position > params.max_position {
+            return Err(SimError::InvalidConfig {
+                field: "line.range",
+                reason: format!(
+                    "min ({}) must be <= max ({})",
+                    params.min_position, params.max_position
+                ),
+            });
+        }
+
         let group_id = params.group;
         let group = self
             .groups

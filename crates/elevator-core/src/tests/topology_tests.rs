@@ -342,6 +342,36 @@ fn disabled_elevator_not_dispatched() {
 }
 
 #[test]
+fn add_line_rejects_invalid_bounds() {
+    use crate::components::Orientation;
+    use crate::sim::LineParams;
+
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+
+    let mut bad = LineParams::new("bad", GroupId(0));
+    bad.orientation = Orientation::default();
+
+    bad.min_position = f64::NAN;
+    bad.max_position = 10.0;
+    assert!(sim.add_line(&bad).is_err(), "NaN min should be rejected");
+
+    bad.min_position = 0.0;
+    bad.max_position = f64::INFINITY;
+    assert!(
+        sim.add_line(&bad).is_err(),
+        "infinite max should be rejected"
+    );
+
+    bad.min_position = 10.0;
+    bad.max_position = 5.0;
+    assert!(
+        sim.add_line(&bad).is_err(),
+        "inverted bounds should be rejected"
+    );
+}
+
+#[test]
 fn set_line_range_clamps_out_of_range_car() {
     let config = default_config();
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
