@@ -15,6 +15,97 @@ export class WasmSim {
         wasm.__wbg_wasmsim_free(ptr, 0);
     }
     /**
+     * Add a new elevator to a line at `starting_position`. Optional
+     * physics overrides; defaults match `ElevatorParams::default`.
+     * Returns the elevator entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist, the position is
+     * non-finite, the physics are invalid, or the line's `max_cars` is
+     * already reached.
+     * @param {bigint} line_ref
+     * @param {number} starting_position
+     * @param {number | null} [max_speed]
+     * @param {number | null} [weight_capacity]
+     * @returns {bigint}
+     */
+    addElevator(line_ref, starting_position, max_speed, weight_capacity) {
+        const ret = wasm.wasmsim_addElevator(this.__wbg_ptr, line_ref, starting_position, !isLikeNone(max_speed), isLikeNone(max_speed) ? 0 : max_speed, !isLikeNone(weight_capacity), isLikeNone(weight_capacity) ? 0 : weight_capacity);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
+     * Add a new dispatch group with the given name and strategy.
+     * Returns the group ID as a `u32` (groups have flat numeric IDs).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `dispatch_strategy` is not a recognised name
+     * (`"scan" | "look" | "nearest" | "etd" | "destination" | "rsr"`).
+     * @param {string} name
+     * @param {string} dispatch_strategy
+     * @returns {number}
+     */
+    addGroup(name, dispatch_strategy) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(dispatch_strategy, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_addGroup(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
+     * Add a new line to an existing group. Returns the line entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the group does not exist or the range is
+     * non-finite or inverted.
+     * @param {number} group_id
+     * @param {string} name
+     * @param {number} min_position
+     * @param {number} max_position
+     * @param {number | null} [max_cars]
+     * @returns {bigint}
+     */
+    addLine(group_id, name, min_position, max_position, max_cars) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_addLine(this.__wbg_ptr, group_id, ptr0, len0, min_position, max_position, isLikeNone(max_cars) ? 0x100000001 : (max_cars) >>> 0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
+     * Add a stop to a line at the given position. Returns the stop
+     * entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or the position is
+     * non-finite.
+     * @param {bigint} line_ref
+     * @param {string} name
+     * @param {number} position
+     * @returns {bigint}
+     */
+    addStop(line_ref, name, position) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_addStop(this.__wbg_ptr, line_ref, ptr0, len0, position);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
      * Current tick counter.
      * @returns {bigint}
      */
@@ -74,6 +165,82 @@ export class WasmSim {
         this.__wbg_ptr = ret[0] >>> 0;
         WasmSimFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * Press a car-button (in-cab floor request) targeting `stop_ref`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or stop does not exist.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     */
+    pressCarButton(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_pressCarButton(this.__wbg_ptr, elevator_ref, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Press a hall call at a stop with direction `"up"` or `"down"`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist or `direction` is
+     * not `"up"` or `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     */
+    pressHallCall(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_pressHallCall(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Remove an elevator (riders ejected to the nearest enabled stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     * @param {bigint} elevator_ref
+     */
+    removeElevator(elevator_ref) {
+        const ret = wasm.wasmsim_removeElevator(this.__wbg_ptr, elevator_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Remove a line and all its elevators (riders ejected to nearest stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist.
+     * @param {bigint} line_ref
+     */
+    removeLine(line_ref) {
+        const ret = wasm.wasmsim_removeLine(this.__wbg_ptr, line_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
+     * or abandoned per `Simulation::remove_stop` semantics.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist.
+     * @param {bigint} stop_ref
+     */
+    removeStop(stop_ref) {
+        const ret = wasm.wasmsim_removeStop(this.__wbg_ptr, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Active reposition strategy name (one of `adaptive | predictive
@@ -157,6 +324,25 @@ export class WasmSim {
      */
     setHallCallModeDestination() {
         wasm.wasmsim_setHallCallModeDestination(this.__wbg_ptr);
+    }
+    /**
+     * Resize a line's reachable position range. The new range may
+     * grow or shrink the line; cars outside the new bounds are
+     * clamped to the boundary.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or the range is
+     * non-finite or inverted.
+     * @param {bigint} line_ref
+     * @param {number} min_position
+     * @param {number} max_position
+     */
+    setLineRange(line_ref, min_position, max_position) {
+        const ret = wasm.wasmsim_setLineRange(this.__wbg_ptr, line_ref, min_position, max_position);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Set `max_speed` (m/s) on every elevator in the sim.

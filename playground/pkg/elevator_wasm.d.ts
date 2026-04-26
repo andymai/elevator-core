@@ -179,6 +179,47 @@ export class WasmSim {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Add a new elevator to a line at `starting_position`. Optional
+     * physics overrides; defaults match `ElevatorParams::default`.
+     * Returns the elevator entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist, the position is
+     * non-finite, the physics are invalid, or the line's `max_cars` is
+     * already reached.
+     */
+    addElevator(line_ref: bigint, starting_position: number, max_speed?: number | null, weight_capacity?: number | null): bigint;
+    /**
+     * Add a new dispatch group with the given name and strategy.
+     * Returns the group ID as a `u32` (groups have flat numeric IDs).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `dispatch_strategy` is not a recognised name
+     * (`"scan" | "look" | "nearest" | "etd" | "destination" | "rsr"`).
+     */
+    addGroup(name: string, dispatch_strategy: string): number;
+    /**
+     * Add a new line to an existing group. Returns the line entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the group does not exist or the range is
+     * non-finite or inverted.
+     */
+    addLine(group_id: number, name: string, min_position: number, max_position: number, max_cars?: number | null): bigint;
+    /**
+     * Add a stop to a line at the given position. Returns the stop
+     * entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or the position is
+     * non-finite.
+     */
+    addStop(line_ref: bigint, name: string, position: number): bigint;
+    /**
      * Current tick counter.
      */
     currentTick(): bigint;
@@ -204,6 +245,48 @@ export class WasmSim {
      * validation, or `strategy` is not a recognised built-in.
      */
     constructor(config_ron: string, strategy: string, reposition?: string | null);
+    /**
+     * Press a car-button (in-cab floor request) targeting `stop_ref`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or stop does not exist.
+     */
+    pressCarButton(elevator_ref: bigint, stop_ref: bigint): void;
+    /**
+     * Press a hall call at a stop with direction `"up"` or `"down"`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist or `direction` is
+     * not `"up"` or `"down"`.
+     */
+    pressHallCall(stop_ref: bigint, direction: string): void;
+    /**
+     * Remove an elevator (riders ejected to the nearest enabled stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     */
+    removeElevator(elevator_ref: bigint): void;
+    /**
+     * Remove a line and all its elevators (riders ejected to nearest stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist.
+     */
+    removeLine(line_ref: bigint): void;
+    /**
+     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
+     * or abandoned per `Simulation::remove_stop` semantics.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist.
+     */
+    removeStop(stop_ref: bigint): void;
     /**
      * Active reposition strategy name (one of `adaptive | predictive
      * | lobby | spread | none`). Used by the playground to label the
@@ -255,6 +338,17 @@ export class WasmSim {
      * that want DCS (e.g. the hotel) call this once on load.
      */
     setHallCallModeDestination(): void;
+    /**
+     * Resize a line's reachable position range. The new range may
+     * grow or shrink the line; cars outside the new bounds are
+     * clamped to the boundary.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or the range is
+     * non-finite or inverted.
+     */
+    setLineRange(line_ref: bigint, min_position: number, max_position: number): void;
     /**
      * Set `max_speed` (m/s) on every elevator in the sim.
      *
@@ -388,17 +482,27 @@ export interface InitOutput {
     readonly __wbg_wasmsim_free: (a: number, b: number) => void;
     readonly builtinRepositionStrategies: () => [number, number];
     readonly builtinStrategies: () => [number, number];
+    readonly wasmsim_addElevator: (a: number, b: bigint, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
+    readonly wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
+    readonly wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_currentTick: (a: number) => bigint;
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
     readonly wasmsim_metrics: (a: number) => any;
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];
+    readonly wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => [number, number];
+    readonly wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_removeLine: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_removeStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_repositionStrategyName: (a: number) => [number, number];
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setEtdWithWaitSquaredWeight: (a: number, b: number) => void;
     readonly wasmsim_setHallCallModeDestination: (a: number) => void;
+    readonly wasmsim_setLineRange: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_setMaxSpeedAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setReposition: (a: number, b: number, c: number) => number;
     readonly wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
