@@ -26,14 +26,35 @@ This page is a thin wasm bridge over the upstream `Tower.html`:
 Renderer, mail, market, scenarios, weather, save/load, prestige,
 agent state machine, and the daily challenge are untouched.
 
+## Grouping modes
+
+Each scenario picks how shafts share dispatchers via the
+`groupingMode` field on the scenario definition (default
+`"independent"`):
+
+- **`independent`** — each shaft owns its own wasm dispatch group.
+  A car on shaft A only ever serves shaft A's hall calls. This is
+  the recommended default for normal play because dispatch behaves
+  exactly as you'd expect.
+- **`coordinated`** — every shaft shares one dispatch group. Cars
+  are assigned across shafts based on proximity. The "Coordinated
+  Tower" scenario uses this mode as a showcase. Caveat: dispatch
+  in a multi-line group does not currently filter cars by line
+  membership, so an occasional cross-shaft assignment can leave
+  a rider waiting longer than necessary. The per-line bookkeeping
+  under `assigned_cars_by_line` is correct; only the assignment
+  heuristic is suboptimal here.
+
+A URL override is available for testing without editing scenarios:
+append `?mode=coordinated` (or `?mode=independent`) to the page URL.
+
 ## v1 limitations
 
 - **Save/load**: in-flight wasm riders aren't serialized. On load
   the game rebuilds wasm topology from the grid; agents re-route
   through the bridge on their next tick.
-- **Mode**: each shaft becomes its own wasm dispatch group
-  ("independent mode"). PR 6 adds a "coordinated mode" toggle for
-  scenarios where neighbouring shafts should share a dispatcher.
+- **Mode-switch mid-game**: switching scenarios tears down and
+  rebuilds wasm topology, which respawns in-flight riders.
 - **Mobile**: upstream desktop layout. Mobile restyling tracked
   as a follow-up.
 
