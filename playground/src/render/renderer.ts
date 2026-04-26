@@ -71,8 +71,6 @@ export class CanvasRenderer {
   #tether: TetherMeta | null = null;
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
-  /** Per-car name, captured once from the snapshot for HUD display. */
-  readonly #carNames: Map<number, string> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
   #activeMaxSpeed = 1;
   #activeAcceleration = 1;
@@ -116,10 +114,13 @@ export class CanvasRenderer {
   setTetherConfig(tether: TetherMeta | null): void {
     this.#tether = tether;
     // Reset per-car kinematic state so a fresh scenario doesn't inherit
-    // stale velocities from the previous run.
+    // stale velocities from the previous run. Also drop the
+    // building-mode `#stopAssignments` map — the tween path that
+    // ordinarily prunes it is skipped in tether mode, so leftover
+    // entries from a prior building scenario would otherwise persist.
     this.#prevVelocity.clear();
-    this.#carNames.clear();
     this.#firstDrawAt = 0;
+    this.#stopAssignments.clear();
   }
 
   /**
@@ -130,11 +131,6 @@ export class CanvasRenderer {
     if (Number.isFinite(maxSpeed) && maxSpeed > 0) this.#activeMaxSpeed = maxSpeed;
     if (Number.isFinite(acceleration) && acceleration > 0) this.#activeAcceleration = acceleration;
     if (Number.isFinite(deceleration) && deceleration > 0) this.#activeDeceleration = deceleration;
-  }
-
-  /** Update the cached display name for a car (the snapshot doesn't carry it). */
-  setCarName(carId: number, name: string): void {
-    this.#carNames.set(carId, name);
   }
 
   pushAssignment(stopId: number, elevatorId: number, lineId: number): void {
@@ -438,7 +434,6 @@ export class CanvasRenderer {
     void bubbles;
     const state: TetherRenderState = {
       prevVelocity: this.#prevVelocity,
-      carNames: this.#carNames,
       maxSpeed: this.#activeMaxSpeed,
       acceleration: this.#activeAcceleration,
       deceleration: this.#activeDeceleration,

@@ -10,19 +10,6 @@
  * even though they span seven orders of magnitude.
  */
 
-/** Per-pane tether-mode config. Set on the renderer when the scenario opts in. */
-export interface TetherConfig {
-  /**
-   * Altitude (m) of the visual cap above the topmost stop. The
-   * counterweight icon is drawn at this height; the climber never
-   * travels here. Real space elevators use a counterweight at
-   * ~100,000 km to keep the tether under tension past geostationary.
-   */
-  counterweightAltitudeM: number;
-  /** Whether to cycle the Earth-curve gradient between day/night. */
-  showDayNight: boolean;
-}
-
 /**
  * Atmospheric layer for a given altitude (m). Used by the inline car
  * chip and the side info card so the abstract altitude number is

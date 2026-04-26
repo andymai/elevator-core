@@ -117,6 +117,12 @@ export function drawClimberHuds(
     side: "left" | "right";
   }
 
+  // `place` reports the side it was asked for and clamps `bx` inside
+  // the canvas. Unlike an auto-flipping variant, this lets the
+  // collision pass distinguish "I tried left and it collided" from
+  // "I tried left but the canvas forced it back to right" — without
+  // that distinction, the flip-and-retry branch could re-place a
+  // chip on the same side and silently no-op.
   const place = (hud: ClimberHud, side: "left" | "right"): Placement => {
     const lines = [
       formatAltitudeShort(hud.altitudeM),
@@ -128,8 +134,7 @@ export function drawClimberHuds(
     const bubbleW = textW + padX * 2;
     const bubbleH = lines.length * lh + padY * 2;
     let bx = side === "right" ? hud.cx + gap : hud.cx - gap - bubbleW;
-    if (bx + bubbleW + 2 > canvasWidth) bx = hud.cx - gap - bubbleW;
-    if (bx < 2) bx = hud.cx + gap;
+    bx = Math.max(2, Math.min(canvasWidth - bubbleW - 2, bx));
     const by = hud.cy - bubbleH / 2;
     return { hud, lines, bx, by, bubbleW, bubbleH, side };
   };
@@ -145,14 +150,15 @@ export function drawClimberHuds(
   const placements: Placement[] = [];
   hudList.forEach((hud, i) => {
     let p = place(hud, i % 2 === 0 ? "right" : "left");
-    const colliders = placements.filter((q) => overlap(p, q));
-    if (colliders.length > 0) {
+    if (placements.some((q) => overlap(p, q))) {
       const flipped = place(hud, p.side === "right" ? "left" : "right");
       if (placements.every((q) => !overlap(flipped, q))) {
         p = flipped;
       } else {
-        // Both sides taken — stack vertically below the lowest collider.
-        const lowestBottom = Math.max(...colliders.map((q) => q.by + q.bubbleH));
+        // Both sides taken — stack the chip below every existing
+        // placement (not just the original-side colliders) so we
+        // can't end up sandwiched between them.
+        const lowestBottom = Math.max(...placements.map((q) => q.by + q.bubbleH));
         p = { ...p, by: lowestBottom + 4 };
       }
     }
@@ -278,15 +284,14 @@ export function buildHudList(
   snap: Snapshot,
   axis: AltitudeAxis,
   cx: number,
-  carNames: Map<number, string>,
   prevVelocity: Map<number, number>,
   maxSpeed: number,
   acceleration: number,
   deceleration: number,
 ): ClimberHud[] {
   // Snapshot order is stable across frames, so deriving "Climber A/B/…"
-  // from the car's index in the snapshot keeps the label tied to the
-  // same cabin even though the entity id is opaque.
+  // from the car's index in the sorted snapshot keeps the label tied
+  // to the same cabin even though the engine's entity id is opaque.
   const cars = [...snap.cars].sort((a, b) => a.id - b.id);
   return cars.map((car, idx) => {
     const altitudeM = car.y;
@@ -302,7 +307,7 @@ export function buildHudList(
       velocity: car.v,
       phase: classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed),
       layer: atmosphericLayer(altitudeM),
-      carName: carNames.get(car.id) ?? `Climber ${String.fromCharCode(65 + idx)}`,
+      carName: `Climber ${String.fromCharCode(65 + idx)}`,
       etaSeconds,
     };
   });

@@ -1,5 +1,5 @@
 import { CanvasRenderer } from "../../render";
-import { buildScenarioRon, type Overrides } from "../../domain";
+import { applyPhysicsOverrides, buildScenarioRon, type Overrides } from "../../domain";
 import { Sim } from "../../sim";
 import type {
   CarBubble,
@@ -68,7 +68,12 @@ export async function makePane(
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
   if (scenario.tether) {
-    const phys = scenario.elevatorDefaults;
+    // Use the override-merged physics so a shared permalink with a
+    // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
+    // accurate ETA / phase classification immediately, instead of
+    // waiting for the user to nudge the slider and trigger the
+    // hot-swap path.
+    const phys = applyPhysicsOverrides(scenario, overrides);
     renderer.setTetherPhysics(phys.maxSpeed, phys.acceleration, phys.deceleration);
   }
   // Scenarios with many floors need a taller shaft, or the 42-floor

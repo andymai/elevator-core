@@ -358,13 +358,11 @@ function applyDayPhase(elapsedSec: number): number {
 
 /**
  * Mutable per-frame state the renderer threads through tether mode:
- * carries velocity history (for kinematic-phase classification),
- * cached climber names, the active physics knobs, and the day/night
- * cycle baseline.
+ * carries velocity history (for kinematic-phase classification), the
+ * active physics knobs, and the day/night cycle baseline.
  */
 export interface TetherRenderState {
   prevVelocity: Map<number, number>;
-  carNames: Map<number, string>;
   maxSpeed: number;
   acceleration: number;
   deceleration: number;
@@ -441,7 +439,6 @@ export function drawTetherScene(
     snap,
     axis,
     cx,
-    state.carNames,
     state.prevVelocity,
     state.maxSpeed,
     state.acceleration,

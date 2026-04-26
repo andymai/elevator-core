@@ -60,6 +60,32 @@ describe("permalink: core knobs", () => {
     expect(qs).not.toMatch(/(^|&)pb=/);
   });
 
+  it("scenario-aware reposition: tether omits `spread` (its default) and emits `lobby` (an explicit pick)", () => {
+    // The space elevator declares `defaultReposition: "spread"`. So
+    // a tether URL with `pa=spread` is the implicit default and
+    // should round-trip without emitting the key. A tether URL where
+    // the user explicitly picked `lobby` MUST emit `pa=lobby` —
+    // otherwise on reload boot.ts re-applies the scenario default
+    // and silently overwrites the user's pick.
+    const tetherSpread = encodePermalink({
+      ...DEFAULT_STATE,
+      scenario: "space-elevator",
+      repositionA: "spread" as const,
+      repositionB: "spread" as const,
+    });
+    expect(tetherSpread).not.toMatch(/(^|&)pa=/);
+    expect(tetherSpread).not.toMatch(/(^|&)pb=/);
+
+    const tetherLobby = encodePermalink({
+      ...DEFAULT_STATE,
+      scenario: "space-elevator",
+      repositionA: "lobby" as const,
+      repositionB: "lobby" as const,
+    });
+    expect(tetherLobby).toMatch(/pa=lobby/);
+    expect(tetherLobby).toMatch(/pb=lobby/);
+  });
+
   it("encodes and round-trips non-default reposition picks", () => {
     // Use values that differ from DEFAULT_STATE.reposition{A,B}
     // (currently `lobby`/`adaptive`) so the encoder actually emits

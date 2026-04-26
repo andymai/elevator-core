@@ -1,4 +1,5 @@
 import { PARAM_KEYS, type Overrides, type ParamKey } from "../params";
+import { scenarioById } from "../scenarios";
 import type { RepositionStrategyName, StrategyName } from "../../types";
 
 // URL state encoding. Keeps the sim reproducible: sharing the URL replays
@@ -128,11 +129,19 @@ export function encodePermalink(state: PermalinkState): string {
   // strategy when the recipient toggles compare on. Only the compare flag
   // itself is conditional.
   p.set("b", state.strategyB);
-  // Reposition picks — omit when set to the baseline so bare URLs
-  // stay short. Any non-default pick is emitted explicitly, mirroring
-  // the `c` key contract (explicit wins, missing = default).
-  if (state.repositionA !== DEFAULT_STATE.repositionA) p.set("pa", state.repositionA);
-  if (state.repositionB !== DEFAULT_STATE.repositionB) p.set("pb", state.repositionB);
+  // Reposition picks — omit when set to the pane's effective default
+  // so bare URLs stay short. The "effective default" is the
+  // scenario's `defaultReposition` when the scenario specifies one
+  // (e.g. tether → "spread", applied to both panes), otherwise the
+  // global per-pane baseline (`lobby` for A, `adaptive` for B).
+  // Without scenario-awareness, a tether user who explicitly picked
+  // "lobby" would have it omitted, and on reload boot.ts would
+  // re-apply "spread" and silently overwrite their pick.
+  const sceneDefault = scenarioById(state.scenario).defaultReposition;
+  const defaultA = sceneDefault ?? DEFAULT_STATE.repositionA;
+  const defaultB = sceneDefault ?? DEFAULT_STATE.repositionB;
+  if (state.repositionA !== defaultA) p.set("pa", state.repositionA);
+  if (state.repositionB !== defaultB) p.set("pb", state.repositionB);
   // Always emit `c` explicitly so the URL round-trips identically
   // regardless of whether the sender's value matches the current
   // default. Missing `c` in the URL falls back to `DEFAULT_STATE.compare`
