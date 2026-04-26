@@ -132,6 +132,51 @@ fn find_stop_at_position() {
 }
 
 #[test]
+fn find_stop_at_position_in_disambiguates_co_located_stops() {
+    // Two stops at the same physical position — global lookup is
+    // ambiguous; the per-line variant must respect the candidates
+    // filter so callers get the stop they actually meant.
+    let mut world = World::new();
+    let s_low = world.spawn();
+    world.set_stop(
+        s_low,
+        Stop {
+            name: "Lobby (low bank)".into(),
+            position: 0.0,
+        },
+    );
+    let s_high = world.spawn();
+    world.set_stop(
+        s_high,
+        Stop {
+            name: "Lobby (high bank)".into(),
+            position: 0.0,
+        },
+    );
+
+    // Asking for stops on the "high bank" line returns s_high regardless
+    // of which one wins the global linear scan.
+    let high_bank_stops = [s_high];
+    assert_eq!(
+        world.find_stop_at_position_in(0.0, &high_bank_stops),
+        Some(s_high)
+    );
+
+    let low_bank_stops = [s_low];
+    assert_eq!(
+        world.find_stop_at_position_in(0.0, &low_bank_stops),
+        Some(s_low)
+    );
+
+    // No candidates → None even when stops exist at the position.
+    assert_eq!(world.find_stop_at_position_in(0.0, &[]), None);
+
+    // Candidates at a different position → None.
+    let other_stops = [s_low];
+    assert_eq!(world.find_stop_at_position_in(50.0, &other_stops), None);
+}
+
+#[test]
 fn multiple_entities_independent() {
     let mut world = World::new();
     let a = world.spawn();

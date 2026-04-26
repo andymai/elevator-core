@@ -817,6 +817,29 @@ impl Simulation {
             .map_or_else(Vec::new, |li| li.serves().to_vec())
     }
 
+    /// Find the stop at `position` that's served by `line`.
+    ///
+    /// Disambiguates the case where two stops on different lines share
+    /// the same physical position (e.g. parallel shafts at the same
+    /// floor, or a sky-lobby served by both a low and high bank). The
+    /// global [`World::find_stop_at_position`](crate::world::World::find_stop_at_position)
+    /// returns whichever stop wins the linear scan; this variant
+    /// scopes the lookup to the line's `serves` list so consumers
+    /// always get the stop *on the line they asked about*.
+    ///
+    /// Returns `None` if the line doesn't exist or no served stop
+    /// matches the position.
+    #[must_use]
+    pub fn find_stop_at_position_on_line(&self, position: f64, line: EntityId) -> Option<EntityId> {
+        let line_info = self
+            .groups
+            .iter()
+            .flat_map(ElevatorGroup::lines)
+            .find(|li| li.entity() == line)?;
+        self.world
+            .find_stop_at_position_in(position, line_info.serves())
+    }
+
     /// Get the line entity for an elevator.
     #[must_use]
     pub fn line_for_elevator(&self, elevator: EntityId) -> Option<EntityId> {
