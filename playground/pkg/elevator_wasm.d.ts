@@ -21,12 +21,53 @@ export interface MetricsDto {
 }
 
 /**
+ * Door state with a 0..1 transition progress for animation.
+ */
+export interface DoorView {
+    /**
+     * Steady-state or transition state. `closed`/`open` are stable;
+     * `opening`/`closing` are transient and `progress` advances over them.
+     */
+    state: "closed" | "opening" | "open" | "closing" | "unknown";
+    /**
+     * Progress through the current transition, 0..1. `0.0` for `closed` and
+     * `open` (steady states) and at the start of `opening`/`closing`; `1.0`
+     * at the end of a transition.
+     */
+    progress: number;
+}
+
+/**
  * Flattened event DTO. Every variant includes a `kind` discriminator and the
  * engine tick at which it was emitted; the remaining fields vary by kind.
  * Unknown variants (added to core later) fall back to `{ kind: \"other\" }` so
  * the UI stays forward-compatible.
  */
 export type EventDto = { kind: "rider-spawned"; tick: number; rider: number; origin: number; destination: number } | { kind: "rider-boarded"; tick: number; rider: number; elevator: number } | { kind: "rider-exited"; tick: number; rider: number; elevator: number; stop: number } | { kind: "rider-abandoned"; tick: number; rider: number; stop: number } | { kind: "elevator-arrived"; tick: number; elevator: number; stop: number } | { kind: "elevator-departed"; tick: number; elevator: number; stop: number } | { kind: "door-opened"; tick: number; elevator: number } | { kind: "door-closed"; tick: number; elevator: number } | { kind: "elevator-assigned"; tick: number; elevator: number; stop: number } | { kind: "elevator-repositioning"; tick: number; elevator: number; stop: number } | { kind: "other"; tick: number; label: string };
+
+/**
+ * Hall-call lamp state at a stop. The per-line assignment maps let
+ * renderers show \"the low-bank car is coming for the up call\" by
+ * looking up which car serves which line at this floor.
+ */
+export interface StopHallCalls {
+    /**
+     * Up-button lamp lit (a hall call is acknowledged).
+     */
+    up: boolean;
+    /**
+     * Down-button lamp lit.
+     */
+    down: boolean;
+    /**
+     * `(line, car)` pairs for the up call\'s per-line assignments.
+     */
+    up_assigned: LineCarPair[];
+    /**
+     * `(line, car)` pairs for the down call\'s per-line assignments.
+     */
+    down_assigned: LineCarPair[];
+}
 
 /**
  * One line\'s share of a stop\'s waiting queue.
@@ -99,6 +140,101 @@ export interface CarDto {
 }
 
 /**
+ * Per-elevator view for the game renderer.
+ */
+export interface CarView {
+    /**
+     * Stable entity ref. Matches the value `WasmSim::addElevator` returned.
+     */
+    id: number;
+    /**
+     * Line entity ref the car runs on.
+     */
+    line: number;
+    /**
+     * Group id the car\'s line belongs to.
+     */
+    group: number;
+    /**
+     * Position along the shaft axis.
+     */
+    y: number;
+    /**
+     * Signed velocity (+up, -down).
+     */
+    v: number;
+    /**
+     * Phase label (matches `CarDto.phase`).
+     */
+    phase: "idle" | "moving" | "repositioning" | "door-opening" | "loading" | "door-closing" | "stopped" | "unknown";
+    /**
+     * Target stop entity ref, if any.
+     */
+    target: number | undefined;
+    /**
+     * Current load weight.
+     */
+    load: number;
+    /**
+     * Capacity weight.
+     */
+    capacity: number;
+    /**
+     * Entity refs of riders aboard (for game-side `TenantData` lookup).
+     * Use `.length` for the count.
+     */
+    rider_ids: number[];
+    /**
+     * Door FSM state with transition progress.
+     */
+    door: DoorView;
+    /**
+     * Direction lamp: car will accept up-pickups.
+     */
+    going_up: boolean;
+    /**
+     * Direction lamp: car will accept down-pickups.
+     */
+    going_down: boolean;
+    /**
+     * ETA to `target` in seconds, or `None` if not currently dispatched
+     * to a known stop or the destination queue is empty.
+     */
+    eta_seconds: number | undefined;
+}
+
+/**
+ * Per-group metadata.
+ */
+export interface GroupView {
+    id: number;
+    name: string;
+    /**
+     * Lines that belong to this group.
+     */
+    line_ids: number[];
+}
+
+/**
+ * Per-line metadata.
+ */
+export interface LineView {
+    id: number;
+    group: number;
+    name: string;
+    min_position: number;
+    max_position: number;
+    /**
+     * Stops served, in entity-id order.
+     */
+    stop_ids: number[];
+    /**
+     * Cars on this line.
+     */
+    car_ids: number[];
+}
+
+/**
  * Per-stop rendering snapshot.
  */
 export interface StopDto {
@@ -150,6 +286,83 @@ export interface StopDto {
 }
 
 /**
+ * Per-stop rider population partitioned by lifecycle phase. Useful for
+ * SKYSTACK\'s \"this floor is overcrowded\" UI cues.
+ */
+export interface WaitingPhaseBreakdown {
+    /**
+     * Riders awaiting pickup at this stop.
+     */
+    waiting: number;
+    /**
+     * Riders parked at this stop (game-managed residents).
+     */
+    resident: number;
+    /**
+     * Riders who gave up here (kept until despawned).
+     */
+    abandoned: number;
+}
+
+/**
+ * Per-stop view for the game renderer.
+ */
+export interface StopView {
+    /**
+     * Stable entity ref. Matches the value `WasmSim::addStop` returned.
+     */
+    entity_id: number;
+    /**
+     * Config-level `StopId`, or `u32::MAX` for runtime-added stops.
+     */
+    stop_id: number;
+    /**
+     * Human-readable name.
+     */
+    name: string;
+    /**
+     * Position along the shaft axis.
+     */
+    y: number;
+    /**
+     * Lines that serve this stop (multi-line stops list more than one).
+     */
+    line_ids: number[];
+    /**
+     * Waiting riders heading up. Total count is in `phases.waiting`.
+     */
+    waiting_up: number;
+    /**
+     * Waiting riders heading down.
+     */
+    waiting_down: number;
+    /**
+     * Waiting riders partitioned by line.
+     */
+    waiting_by_line: WaitingByLineU64[];
+    /**
+     * Population partition by phase.
+     */
+    phases: WaitingPhaseBreakdown;
+    /**
+     * Hall-call lamps + per-line assignments.
+     */
+    hall_calls: StopHallCalls;
+}
+
+/**
+ * Top-level game-facing view returned by [`crate::WasmSim::world_view`].
+ */
+export interface WorldView {
+    tick: number;
+    dt: number;
+    cars: CarView[];
+    stops: StopView[];
+    lines: LineView[];
+    groups: GroupView[];
+}
+
+/**
  * Top-level snapshot returned by [`WasmSim::snapshot`](crate::WasmSim::snapshot).
  */
 export interface Snapshot {
@@ -169,6 +382,24 @@ export interface Snapshot {
      * Configured stops.
      */
     stops: StopDto[];
+}
+
+/**
+ * `(line, car)` pair carried by [`StopHallCalls`]. Tuples don\'t tsify
+ * cleanly, so use a named struct.
+ */
+export interface LineCarPair {
+    line: number;
+    car: number;
+}
+
+/**
+ * `WorldView`-flavoured `WaitingByLine` carrying `u64` line refs.
+ * (The existing `WaitingByLine` in `dto.rs` uses `u32` for `Snapshot`.)
+ */
+export interface WaitingByLineU64 {
+    line: number;
+    count: number;
 }
 
 
@@ -462,6 +693,14 @@ export class WasmSim {
      * Convenience: waiting rider count at a specific stop id.
      */
     waitingCountAt(stop_id: number): number;
+    /**
+     * Pull a richer game-facing view: door progress, direction lamps,
+     * per-car ETAs, hall-call lamp state, and topology metadata
+     * (groups + lines). Designed for tower-builder games (notably
+     * SKYSTACK) where the renderer needs more than `snapshot()` exposes.
+     * All entity refs are `u64` (`BigInt`) matching the live-mutation API.
+     */
+    worldView(): WorldView;
 }
 
 /**
@@ -516,6 +755,7 @@ export interface InitOutput {
     readonly wasmsim_trafficMode: (a: number) => [number, number];
     readonly wasmsim_trafficRate: (a: number) => number;
     readonly wasmsim_waitingCountAt: (a: number, b: number) => number;
+    readonly wasmsim_worldView: (a: number) => any;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;

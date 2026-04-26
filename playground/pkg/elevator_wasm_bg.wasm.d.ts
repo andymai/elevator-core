@@ -38,6 +38,7 @@ export const wasmsim_strategyName: (a: number) => [number, number];
 export const wasmsim_trafficMode: (a: number) => [number, number];
 export const wasmsim_trafficRate: (a: number) => number;
 export const wasmsim_waitingCountAt: (a: number, b: number) => number;
+export const wasmsim_worldView: (a: number) => any;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_externrefs: WebAssembly.Table;
