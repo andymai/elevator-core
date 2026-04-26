@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.24.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.24.0...elevator-core-v15.24.1) (2026-04-26)
+
+
+### Bug Fixes
+
+* **core:** scrub Routes and rebuild RiderIndex on stop removal ([#448](https://github.com/andymai/elevator-core/issues/448)) ([52d28ce](https://github.com/andymai/elevator-core/commit/52d28cefb7109cb793fa5412422f5aae59d237ea))
+
 ## [15.24.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.23.0...elevator-core-v15.24.0) (2026-04-22)
 
 
