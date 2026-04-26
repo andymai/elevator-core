@@ -3349,3 +3349,164 @@ fn waiting_counts_by_line_partitions_by_route_group() {
         assert_eq!(*n, 1, "each line carries exactly one rider");
     }
 }
+
+/// Single group, two lines with disjoint stop sets — the dispatcher
+/// must not assign a car to a stop that car's line doesn't serve.
+///
+/// Pre-fix the cost matrix happily ranked every `(car, stop)` pair in
+/// the group; `restricted_stops` was the only filter, and built-in
+/// strategies score on distance/direction without consulting line
+/// topology. A car on line A would get assigned to a stop only line B
+/// served, sit there, never reach it, and starve the call.
+///
+/// Surfaced during the SKYSTACK port's "coordinated" mode (one group
+/// spanning multiple shafts).
+#[test]
+fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
+    // One group, two lines:
+    //   Line A: serves stops 0 and 1
+    //   Line B: serves stops 2 and 3
+    // A car on Line B must NOT be dispatched to a hall call at stop 0.
+    let config = SimConfig {
+        building: BuildingConfig {
+            name: "Disjoint".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "A0".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "A1".into(),
+                    position: 4.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "B0".into(),
+                    position: 100.0,
+                },
+                StopConfig {
+                    id: StopId(3),
+                    name: "B1".into(),
+                    position: 104.0,
+                },
+            ],
+            lines: Some(vec![
+                LineConfig {
+                    id: 1,
+                    name: "A".into(),
+                    serves: vec![StopId(0), StopId(1)],
+                    elevators: vec![ElevatorConfig {
+                        id: 1,
+                        name: "carA".into(),
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
+                        starting_stop: StopId(0),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                        restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
+                        bypass_load_up_pct: None,
+                        bypass_load_down_pct: None,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+                LineConfig {
+                    id: 2,
+                    name: "B".into(),
+                    serves: vec![StopId(2), StopId(3)],
+                    elevators: vec![ElevatorConfig {
+                        id: 2,
+                        name: "carB".into(),
+                        max_speed: Speed::from(2.0),
+                        acceleration: Accel::from(1.5),
+                        deceleration: Accel::from(2.0),
+                        weight_capacity: Weight::from(800.0),
+                        starting_stop: StopId(2),
+                        door_open_ticks: 10,
+                        door_transition_ticks: 5,
+                        restricted_stops: Vec::new(),
+                        #[cfg(feature = "energy")]
+                        energy_profile: None,
+                        service_mode: None,
+                        inspection_speed_factor: 0.25,
+                        bypass_load_up_pct: None,
+                        bypass_load_down_pct: None,
+                    }],
+                    orientation: Orientation::Vertical,
+                    position: None,
+                    min_position: None,
+                    max_position: None,
+                    max_cars: None,
+                },
+            ]),
+            groups: Some(vec![GroupConfig {
+                id: 0,
+                name: "shared".into(),
+                lines: vec![1, 2],
+                dispatch: crate::dispatch::BuiltinStrategy::Scan,
+                reposition: None,
+                hall_call_mode: None,
+                ack_latency_ticks: None,
+            }]),
+        },
+        elevators: Vec::new(),
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let stop_a0 = sim.stop_entity(StopId(0)).unwrap();
+    let car_a = sim
+        .world()
+        .iter_elevators()
+        .find_map(|(eid, _, e)| (sim.world().line(e.line()).unwrap().name() == "A").then_some(eid))
+        .unwrap();
+    let car_b = sim
+        .world()
+        .iter_elevators()
+        .find_map(|(eid, _, e)| (sim.world().line(e.line()).unwrap().name() == "B").then_some(eid))
+        .unwrap();
+
+    // Spawn a rider routed via the shared group at stop A0 → A1. The
+    // dispatcher must pick car_a (line A serves both); car_b (line B)
+    // must never be assigned. Watch the ElevatorAssigned events.
+    sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+
+    let mut saw_correct_assignment = false;
+    for _ in 0..200 {
+        for ev in sim.drain_events() {
+            if let SimEvent::ElevatorAssigned { elevator, stop, .. } = ev
+                && stop == stop_a0
+            {
+                assert_ne!(
+                    elevator, car_b,
+                    "car_b (line B) was assigned to stop A0 — line filter regressed"
+                );
+                if elevator == car_a {
+                    saw_correct_assignment = true;
+                }
+            }
+        }
+        sim.step();
+    }
+    assert!(
+        saw_correct_assignment,
+        "car_a (line A) should have been assigned to stop A0"
+    );
+}
