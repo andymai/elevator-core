@@ -132,6 +132,19 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Find the stop entity at `position` that's served by `line_ref`,
+     * or `0` (slotmap-null) if none. Lets consumers like SKYSTACK
+     * disambiguate co-located stops on different lines without the
+     * per-shaft offset hack the bridge currently uses.
+     * @param {number} position
+     * @param {bigint} line_ref
+     * @returns {bigint}
+     */
+    findStopAtPositionOnLine(position, line_ref) {
+        const ret = wasm.wasmsim_findStopAtPositionOnLine(this.__wbg_ptr, position, line_ref);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
      * Current aggregate metrics.
      * @returns {MetricsDto}
      */

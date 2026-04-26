@@ -11,6 +11,7 @@ export const wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: nu
 export const wasmsim_currentTick: (a: number) => bigint;
 export const wasmsim_drainEvents: (a: number) => [number, number];
 export const wasmsim_dt: (a: number) => number;
+export const wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
 export const wasmsim_metrics: (a: number) => any;
 export const wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
 export const wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];
