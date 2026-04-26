@@ -526,11 +526,14 @@ const spaceElevator: ScenarioMeta = {
     // Outbound — most riders depart Ground bound for the upper
     // platforms. LEO and GEO get the heaviest weight; Karman is a
     // short side-trip. The weight curve favours long trips, which is
-    // where the trapezoidal motion profile reads most clearly.
+    // where the trapezoidal motion profile reads most clearly. Spawn
+    // rate is high enough that a Karman round-trip (~5 min sim)
+    // accumulates 25–30 riders at the ground station — a single trip
+    // delivers a meaningful batch instead of one passenger at a time.
     {
       name: "Outbound cargo",
       durationSec: 480,
-      ridersPerMin: 1.0,
+      ridersPerMin: 6,
       originWeights: tetherWeights((i) => (i === 0 ? 6 : 1)),
       destWeights: tetherWeights((i) => {
         if (i === 0) return 0;
@@ -545,7 +548,7 @@ const spaceElevator: ScenarioMeta = {
     {
       name: "Inbound cargo",
       durationSec: 360,
-      ridersPerMin: 0.8,
+      ridersPerMin: 5,
       originWeights: tetherWeights((i) => {
         if (i === 0) return 0;
         if (i === 1) return 1;
@@ -555,13 +558,12 @@ const spaceElevator: ScenarioMeta = {
       destWeights: tetherWeights((i) => (i === 0 ? 6 : 1)),
     },
   ],
-  // Pre-seed riders so the scene isn't empty on load. 6 spawns is
-  // enough to keep all three climbers busy through the first cycle
-  // without overwhelming the long-haul cadence — two depart Ground
-  // bound for Karman/LEO/GEO, the rest are scattered across the
-  // upper platforms heading down. The user sees motion immediately
-  // instead of waiting for the first Poisson sample.
-  seedSpawns: 6,
+  // Pre-seed enough riders that all three climbers depart with a
+  // full cabin on the first frame instead of waiting for Poisson
+  // samples. 24 ≈ 8 per climber at the platform-default capacity
+  // tuning; the climbers' effective batch size scales with the
+  // weight slider in the tweak drawer.
+  seedSpawns: 24,
   // Long trips deserve patience. 1800 s sim ≈ 1.9 min wall-clock at
   // the recommended 16× playback — long enough that ground→Karman
   // hops complete first, short enough that GEO no-shows do bound the

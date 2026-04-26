@@ -15,18 +15,22 @@
  * chip and the side info card so the abstract altitude number is
  * anchored to something concrete ("you're in the stratosphere").
  *
- * Boundaries follow standard atmosphere reference points; "deep
- * space" is anything beyond LEO altitudes where the climber is
- * effectively in vacuum and the named layers stop being meaningful.
+ * Boundaries follow standard atmosphere reference points (IAU and
+ * Wikipedia). The exosphere extends out to roughly 100,000 km, so
+ * everything from the thermopause through the counterweight zone
+ * lives there; the only stop with a more specific label is the
+ * narrow band right around geostationary altitude.
  */
 export function atmosphericLayer(altitudeM: number): string {
   if (altitudeM < 12_000) return "troposphere";
   if (altitudeM < 50_000) return "stratosphere";
   if (altitudeM < 80_000) return "mesosphere";
   if (altitudeM < 700_000) return "thermosphere";
-  if (altitudeM < 10_000_000) return "exosphere";
-  if (altitudeM < 35_786_000) return "cislunar space";
-  return "geostationary belt";
+  // Narrow window centred on the geostationary altitude (35,786 km
+  // ± 1 %) so the chip flips to a recognisable label as the climber
+  // approaches the GEO platform.
+  if (altitudeM >= 35_400_000 && altitudeM <= 36_200_000) return "geostationary";
+  return "exosphere";
 }
 
 /**
@@ -113,13 +117,18 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * Trapezoidal-motion ETA from `posM` to `targetM` given current
- * signed velocity, max speed, and decel. Returns seconds or
- * `Number.POSITIVE_INFINITY` if no target is set.
+ * Trapezoidal-motion ETA from `posM` to `targetM`. Three branches:
  *
- * Approximation: assume the climber will accel up to (or coast at)
- * max speed, then decelerate to a stop at the target. Good enough for
- * a HUD readout — exact ETA would require the engine's plan.
+ *  1. Already inside the brake distance → time to decelerate to rest.
+ *  2. Long enough to reach `maxSpeed` → accel + cruise + decel.
+ *  3. Too short to reach `maxSpeed` → triangle profile, peak velocity
+ *     `vp` solved from `(vp² − v²)/(2a) + vp²/(2d) = remaining`.
+ *
+ * The previous implementation always added the full accel/decel
+ * times, overestimating sub-trapezoid trips by up to 2× (e.g. a 50 km
+ * trip from rest at 1000 m/s / 10 m/s² returned 200 s instead of the
+ * actual ~141 s). Approximation accuracy is "good enough for a HUD
+ * readout" — exact ETA would require the engine's planned profile.
  */
 export function tetherEta(
   posM: number,
@@ -132,14 +141,26 @@ export function tetherEta(
   const remaining = Math.abs(targetM - posM);
   if (remaining < 1e-3) return 0;
   const v = Math.abs(velocity);
-  const decelDist = (v * v) / (2 * deceleration);
-  if (decelDist >= remaining) return v > 0 ? remaining / Math.max(v, 1e-3) : 0;
-  // Coast/cruise phase + decel from max to 0.
+  // Brake-from-current case: we're past the latest stop point. Time
+  // to come to rest is `v / deceleration` (the climber overshoots,
+  // but the HUD shows the time-to-zero as a useful upper bound).
+  const brakeDist = (v * v) / (2 * deceleration);
+  if (brakeDist >= remaining) return v > 0 ? v / deceleration : 0;
+  // Distances if we accel to maxSpeed and decel back to 0.
   const accelTime = Math.max(0, (maxSpeed - v) / acceleration);
   const accelDist = v * accelTime + 0.5 * acceleration * accelTime * accelTime;
   const decelTime = maxSpeed / deceleration;
-  const fullDecelDist = (maxSpeed * maxSpeed) / (2 * deceleration);
-  const cruiseDist = Math.max(0, remaining - accelDist - fullDecelDist);
-  const cruiseTime = cruiseDist / Math.max(maxSpeed, 1e-3);
-  return accelTime + cruiseTime + decelTime;
+  const decelDist = (maxSpeed * maxSpeed) / (2 * deceleration);
+  if (accelDist + decelDist >= remaining) {
+    // Triangle profile — never reaches maxSpeed. Solve for peak velocity:
+    //   (vp² − v²)/(2a) + vp²/(2d) = remaining
+    // => vp² = (2·a·d·remaining + d·v²) / (a + d)
+    const vpSq =
+      (2 * acceleration * deceleration * remaining + deceleration * v * v) /
+      (acceleration + deceleration);
+    const vp = Math.sqrt(Math.max(vpSq, v * v));
+    return (vp - v) / acceleration + vp / deceleration;
+  }
+  const cruiseDist = remaining - accelDist - decelDist;
+  return accelTime + cruiseDist / Math.max(maxSpeed, 1e-3) + decelTime;
 }

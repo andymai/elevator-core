@@ -43,9 +43,16 @@ describe("tether: atmospheric layer mapping", () => {
     expect(atmosphericLayer(30_000)).toBe("stratosphere");
     expect(atmosphericLayer(70_000)).toBe("mesosphere");
     expect(atmosphericLayer(400_000)).toBe("thermosphere"); // ISS altitude
+    // Exosphere covers the broad mid-band — the IAU's exosphere
+    // extends to ~100,000 km, so everything from 700 km up to (and
+    // past) the counterweight altitude lives here.
     expect(atmosphericLayer(5_000_000)).toBe("exosphere");
-    expect(atmosphericLayer(20_000_000)).toBe("cislunar space");
-    expect(atmosphericLayer(35_786_000)).toBe("geostationary belt");
+    expect(atmosphericLayer(20_000_000)).toBe("exosphere");
+    expect(atmosphericLayer(80_000_000)).toBe("exosphere");
+    // Narrow GEO band — the climber flips to "geostationary" only
+    // while it's actually near the GEO platform altitude.
+    expect(atmosphericLayer(35_786_000)).toBe("geostationary");
+    expect(atmosphericLayer(35_500_000)).toBe("geostationary");
   });
 });
 
@@ -72,22 +79,43 @@ describe("tether: ETA approximation", () => {
     expect(tetherEta(1000, 1000, 0, 1000, 10, 10)).toBeCloseTo(0, 5);
   });
 
-  it("when already cruising and within decel distance, returns the brake time", () => {
-    // Decel distance from 1000 m/s at 10 m/s²: 50,000 m. If only 25,000 m left
-    // and currently at full speed, the ETA falls back to remaining/v ≈ 25 s.
+  it("when already past the brake point, returns the brake-to-rest time", () => {
+    // Brake distance from 1000 m/s at 10 m/s²: 50,000 m. If only
+    // 25,000 m left and currently at full speed, the climber will
+    // overshoot — ETA falls back to v / decel = 100 s as a useful
+    // upper bound on time-to-reach-target.
     const eta = tetherEta(0, 25_000, 1000, 1000, 10, 10);
-    expect(eta).toBeGreaterThan(0);
-    expect(eta).toBeLessThan(50);
+    expect(eta).toBeCloseTo(100, 0);
+  });
+
+  it("triangle-profile trip never reaches max speed", () => {
+    // Ground (0) to 50 km, starting at rest, max 1000 m/s, a = d = 10.
+    // Trapezoidal would need 100 km (50 km accel + 50 km decel) — the
+    // 50 km trip is sub-trapezoid. Symmetric a/d means peak velocity
+    // vp = sqrt(remaining * a) = sqrt(500_000) ≈ 707 m/s, total
+    // time = 2 * vp / a ≈ 141.4 s.
+    const eta = tetherEta(0, 50_000, 0, 1000, 10, 10);
+    expect(eta).toBeGreaterThan(135);
+    expect(eta).toBeLessThan(150);
   });
 
   it("long trip uses the trapezoidal coast estimate", () => {
     // Ground (0) to Karman (100 km), starting at rest.
+    // Accel: 100 s / 50 km. Decel: 100 s / 50 km. No cruise → 200 s
+    // (this trip is right at the trapezoid/triangle boundary; the
+    // function picks the triangle branch and returns the same answer).
     const eta = tetherEta(0, 100_000, 0, 1000, 10, 10);
-    // Accel phase: 100 s reaching 1000 m/s, traveling 50 km.
-    // Decel phase: 100 s, 50 km.
-    // Total ≈ 200 s for an exact 100 km trip.
     expect(eta).toBeGreaterThan(180);
     expect(eta).toBeLessThan(220);
+  });
+
+  it("very long trip uses the cruise term", () => {
+    // Ground (0) to GEO (35,786 km), starting at rest.
+    // Accel: 100 s / 50 km, decel: 100 s / 50 km, cruise: 35,686 km
+    // at 1000 m/s ≈ 35,686 s. Total ~35,886 s.
+    const eta = tetherEta(0, 35_786_000, 0, 1000, 10, 10);
+    expect(eta).toBeGreaterThan(35_500);
+    expect(eta).toBeLessThan(36_500);
   });
 });
 
