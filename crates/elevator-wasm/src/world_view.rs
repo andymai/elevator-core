@@ -2,10 +2,10 @@
 //!
 //! Richer than [`Snapshot`](crate::dto::Snapshot): adds door-progress, direction
 //! lamps, ETAs, hall-call lamp state, and topology metadata (groups + lines).
-//! Designed for tower-builder games (notably SKYSTACK) that need to render
-//! the full sim state plus look up entities they created via the live-mutation
-//! API. All entity references cross the JS boundary as `u64` (`BigInt` in JS),
-//! matching the encoding [`WasmSim::add_*`](crate::WasmSim) returns.
+//! Designed for game-side renderers that need to render the full sim
+//! state plus look up entities they created via the live-mutation API.
+//! All entity references cross the JS boundary as `u64` (`BigInt` in
+//! JS), matching the encoding [`WasmSim::add_*`](crate::WasmSim) returns.
 //!
 //! Kept separate from `dto.rs` so the existing playground's `Snapshot` —
 //! which uses `u32` truncated entity ids — stays backward compatible.
@@ -143,8 +143,8 @@ pub struct LineCarPair {
     pub car: u64,
 }
 
-/// Per-stop rider population partitioned by lifecycle phase. Useful for
-/// SKYSTACK's "this floor is overcrowded" UI cues.
+/// Per-stop rider population partitioned by lifecycle phase. Useful
+/// for "this floor is overcrowded" / "queue is long" UI cues.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
 pub struct WaitingPhaseBreakdown {

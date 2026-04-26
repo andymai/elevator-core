@@ -310,18 +310,16 @@ fn space_elevator_scenario_builds() {
     }
 }
 
-/// SKYSTACK builds the world entirely at runtime (no config-time
-/// `StopId`s) and spawns riders by entity ref. Exercise the same code
-/// path the JS bridge takes: empty group → line → stops → elevator →
-/// `build_rider(EntityId, EntityId)` → step until delivered.
+/// End-to-end runtime topology: build a fresh group + line + stops +
+/// elevator at runtime (no config-time `StopId`s), spawn a rider by
+/// entity ref, step until delivered. Exercises the public mutation
+/// API the same way an external consumer would when building the
+/// world from external state (e.g. from a player-edited grid).
 #[test]
-fn skystack_runtime_world_delivers_a_rider() {
+fn runtime_topology_delivers_a_rider_by_entity_ref() {
     use elevator_core::prelude::SimulationBuilder;
     use elevator_core::sim::LineParams;
 
-    // The SKYSTACK bridge creates one group per shaft ("independent
-    // mode" in PR 5). The new shaft's group has its own dispatcher
-    // and only its cars are eligible for its line's hall calls.
     let mut sim = SimulationBuilder::demo().build().unwrap();
 
     // Position the new shaft well away from the demo's stops so
@@ -344,8 +342,8 @@ fn skystack_runtime_world_delivers_a_rider() {
         .add_elevator(&params, line, 100.0)
         .expect("add_elevator");
 
-    // SKYSTACK passes EntityIds (BigInts in JS) — exercise the same
-    // path through `build_rider`.
+    // Spawn by EntityId (the form `WasmSim::spawnRiderByRef` exposes
+    // to JS for runtime-added stops with no `StopId`).
     let rider = sim
         .build_rider(stop_lobby, stop_floor3)
         .expect("build_rider with entity refs")
