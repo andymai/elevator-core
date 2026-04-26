@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.25.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.25.0...elevator-core-v15.25.1) (2026-04-26)
+
+
+### Bug Fixes
+
+* **core:** filter dispatch candidates by line membership ([#456](https://github.com/andymai/elevator-core/issues/456)) ([3708c71](https://github.com/andymai/elevator-core/commit/3708c71ce5996048247ce7cc13171aa97b1a9941))
+
 ## [15.25.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.24.1...elevator-core-v15.25.0) (2026-04-26)
 
 
