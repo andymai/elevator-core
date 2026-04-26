@@ -133,9 +133,10 @@ export class WasmSim {
     }
     /**
      * Find the stop entity at `position` that's served by `line_ref`,
-     * or `0` (slotmap-null) if none. Lets consumers like SKYSTACK
-     * disambiguate co-located stops on different lines without the
-     * per-shaft offset hack the bridge currently uses.
+     * or `0` (slotmap-null) if none. Lets consumers disambiguate
+     * co-located stops on different lines (sky-lobby served by
+     * multiple banks, parallel shafts at the same physical floor)
+     * without offset hacks.
      * @param {number} position
      * @param {bigint} line_ref
      * @returns {bigint}
@@ -578,9 +579,9 @@ export class WasmSim {
     /**
      * Pull a richer game-facing view: door progress, direction lamps,
      * per-car ETAs, hall-call lamp state, and topology metadata
-     * (groups + lines). Designed for tower-builder games (notably
-     * SKYSTACK) where the renderer needs more than `snapshot()` exposes.
-     * All entity refs are `u64` (`BigInt`) matching the live-mutation API.
+     * (groups + lines). Designed for game-side renderers that need
+     * more than `snapshot()` exposes. All entity refs are `u64`
+     * (`BigInt`) matching the live-mutation API.
      * @returns {WorldView}
      */
     worldView() {
