@@ -1,4 +1,4 @@
-import type { StrategyName } from "./strategies";
+import type { RepositionStrategyName, StrategyName } from "./strategies";
 
 /**
  * One phase of a scenario's day cycle. The `TrafficDriver` linearly
@@ -79,6 +79,24 @@ export interface TweakRanges {
   doorCycleSec: TweakRange;
 }
 
+/**
+ * Tether-mode rendering hints for space-elevator-style scenarios.
+ * When present, the renderer collapses every car into a single shared
+ * shaft and switches the altitude axis to a log scale that spans
+ * sea level through the counterweight altitude.
+ */
+export interface TetherMeta {
+  /**
+   * Visual cap altitude (m) above the topmost stop. The counterweight
+   * icon is drawn here; the climber never travels past the topmost
+   * actual stop. Real space elevators terminate the cable at
+   * ~100,000 km counterweight mass to keep tension above GEO.
+   */
+  counterweightAltitudeM: number;
+  /** Cycle the Earth-curve gradient between day and night. */
+  showDayNight: boolean;
+}
+
 export interface ScenarioMeta {
   id: string;
   label: string;
@@ -134,4 +152,18 @@ export interface ScenarioMeta {
    * pressure instead of auto-draining.
    */
   abandonAfterSec?: number;
+  /**
+   * Tether-mode metadata. Set only by space-elevator-style scenarios;
+   * absent for regular building scenarios so they keep the standard
+   * per-line column rendering.
+   */
+  tether?: TetherMeta;
+  /**
+   * Default reposition (idle-parking) strategy applied on scenario
+   * selection. Lobby is fine for skyscrapers but a tether climber
+   * sliding back to the ground every time it's idle defeats the
+   * visualization, so the space-elevator scenario opts into Spread
+   * to keep idle climbers distributed across the platforms.
+   */
+  defaultReposition?: RepositionStrategyName;
 }

@@ -63,6 +63,14 @@ export async function makePane(
   const ron = buildScenarioRon(scenario, overrides);
   const sim = await Sim.create(ron, strategy, reposition);
   const renderer = new CanvasRenderer(handles.canvas, handles.accent);
+  // Tether-mode rendering opts in via scenario metadata. Without
+  // this hookup the renderer falls back to the standard per-line
+  // column layout — which fails badly at 35,786 km axes.
+  renderer.setTetherConfig(scenario.tether ?? null);
+  if (scenario.tether) {
+    const phys = scenario.elevatorDefaults;
+    renderer.setTetherPhysics(phys.maxSpeed, phys.acceleration, phys.deceleration);
+  }
   // Scenarios with many floors need a taller shaft, or the 42-floor
   // skyscraper crushes into a 6-px-per-story smear. The CSS applies
   // `min-height: var(--shaft-min-h)` so the page scrolls instead.
