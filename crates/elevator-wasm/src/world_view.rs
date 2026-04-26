@@ -104,9 +104,8 @@ pub struct CarView {
     pub load: f64,
     /// Capacity weight.
     pub capacity: f64,
-    /// Number of riders aboard.
-    pub riders: u32,
     /// Entity refs of riders aboard (for game-side `TenantData` lookup).
+    /// Use `.length` for the count.
     pub rider_ids: Vec<u64>,
     /// Door FSM state with transition progress.
     pub door: DoorView,
@@ -171,9 +170,7 @@ pub struct StopView {
     pub y: f64,
     /// Lines that serve this stop (multi-line stops list more than one).
     pub line_ids: Vec<u64>,
-    /// Total waiting riders.
-    pub waiting: u32,
-    /// Waiting riders heading up.
+    /// Waiting riders heading up. Total count is in `phases.waiting`.
     pub waiting_up: u32,
     /// Waiting riders heading down.
     pub waiting_down: u32,
@@ -338,7 +335,6 @@ fn build_cars(sim: &Simulation) -> Vec<CarView> {
                 target,
                 load: car.current_load().value(),
                 capacity: car.weight_capacity().value(),
-                riders: u32::try_from(car.riders().len()).unwrap_or(u32::MAX),
                 rider_ids: car.riders().iter().copied().map(entity_to_u64).collect(),
                 door,
                 going_up: car.going_up(),
@@ -382,7 +378,6 @@ fn build_stops(
                 name: stop.name().to_string(),
                 y: stop.position(),
                 line_ids: stop_to_lines.get(&id).cloned().unwrap_or_default(),
-                waiting: u32::try_from(sim.waiting_count_at(id)).unwrap_or(u32::MAX),
                 waiting_up: u32::try_from(up).unwrap_or(u32::MAX),
                 waiting_down: u32::try_from(down).unwrap_or(u32::MAX),
                 waiting_by_line,
@@ -394,11 +389,19 @@ fn build_stops(
 }
 
 fn build_stop_hall_calls(sim: &Simulation, stop: EntityId) -> StopHallCalls {
-    let up_call = sim.world().hall_call(stop, CallDirection::Up);
-    let down_call = sim.world().hall_call(stop, CallDirection::Down);
+    // Only surface a call (lamp + assignments) once it's been
+    // acknowledged. Pre-ack calls are an internal staging state; a
+    // renderer that sees `up: false` should never see `up_assigned: [...]`.
+    let acked = |dir| {
+        sim.world()
+            .hall_call(stop, dir)
+            .filter(|c| c.is_acknowledged())
+    };
+    let up_call = acked(CallDirection::Up);
+    let down_call = acked(CallDirection::Down);
     StopHallCalls {
-        up: up_call.is_some_and(elevator_core::components::HallCall::is_acknowledged),
-        down: down_call.is_some_and(elevator_core::components::HallCall::is_acknowledged),
+        up: up_call.is_some(),
+        down: down_call.is_some(),
         up_assigned: up_call.map(assigned_cars_to_pairs).unwrap_or_default(),
         down_assigned: down_call.map(assigned_cars_to_pairs).unwrap_or_default(),
     }
@@ -505,6 +508,31 @@ mod tests {
                 assert!(eta.is_finite(), "ETA must be finite (got {eta})");
                 assert!(eta >= 0.0, "ETA must be non-negative (got {eta})");
             }
+        }
+    }
+
+    #[test]
+    fn world_view_hall_calls_gated_by_acknowledgement() {
+        // When a hall call is pressed but ack-latency hasn't elapsed,
+        // the lamp must be off AND the assignment list empty. Renderers
+        // gate visualisation on the lamp; surfacing assignments before
+        // ack would let "ghost" arrows appear at unlit buttons.
+        let mut sim = demo_sim();
+        sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+        // Tick zero — call exists but isn't acknowledged yet (ack
+        // latency is configured in ticks at construction).
+        let view = WorldView::build(&sim);
+        let stop0 = sim.stop_entity(StopId(0)).unwrap();
+        let stop_view = view
+            .stops
+            .iter()
+            .find(|s| s.entity_id == entity_to_u64(stop0))
+            .unwrap();
+        if !stop_view.hall_calls.up {
+            assert!(
+                stop_view.hall_calls.up_assigned.is_empty(),
+                "unlit lamp must not surface assignments"
+            );
         }
     }
 
