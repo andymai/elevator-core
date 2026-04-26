@@ -3359,8 +3359,8 @@ fn waiting_counts_by_line_partitions_by_route_group() {
 /// topology. A car on line A would get assigned to a stop only line B
 /// served, sit there, never reach it, and starve the call.
 ///
-/// Surfaced during the SKYSTACK port's "coordinated" mode (one group
-/// spanning multiple shafts).
+/// Hits any multi-line group (sky-lobby + service bank, low/high
+/// banks sharing a transfer floor, etc).
 #[test]
 fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
     // One group, two lines:
