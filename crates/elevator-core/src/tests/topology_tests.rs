@@ -439,3 +439,34 @@ fn runtime_stop_has_no_stop_id() {
     );
     // There's no StopId for the runtime stop — only EntityId.
 }
+
+#[test]
+fn find_stop_at_position_on_line_walks_group_topology() {
+    let config = default_config();
+    let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    let stop = sim.add_stop("Roof".into(), 20.0, line).unwrap();
+
+    // Happy path: line exists, stop position matches.
+    assert_eq!(
+        sim.find_stop_at_position_on_line(20.0, line),
+        Some(stop),
+        "lookup should find the stop on the line"
+    );
+
+    // None case 1: position has no stop on this line.
+    assert_eq!(
+        sim.find_stop_at_position_on_line(99.0, line),
+        None,
+        "no stop at position 99.0"
+    );
+
+    // None case 2: line entity doesn't exist.
+    let bogus = sim.world_mut().spawn();
+    assert_eq!(
+        sim.find_stop_at_position_on_line(20.0, bogus),
+        None,
+        "unknown line should resolve to None"
+    );
+}

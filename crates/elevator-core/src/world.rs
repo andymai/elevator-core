@@ -703,7 +703,8 @@ impl World {
             .filter(|(id, r)| r.phase == RiderPhase::Waiting && !self.is_disabled(*id))
     }
 
-    /// Find the stop entity at a given position (within epsilon).
+    /// Find the stop entity at a given position (within
+    /// [`STOP_POSITION_EPSILON`](Self::STOP_POSITION_EPSILON)).
     ///
     /// Global lookup — does not filter by line. When two stops on
     /// different lines share the same physical position the result is
@@ -713,9 +714,8 @@ impl World {
     /// when the caller knows which line's stops to consider.
     #[must_use]
     pub fn find_stop_at_position(&self, position: f64) -> Option<EntityId> {
-        const EPSILON: f64 = 1e-6;
         self.stops.iter().find_map(|(id, stop)| {
-            if (stop.position - position).abs() < EPSILON {
+            if (stop.position - position).abs() < Self::STOP_POSITION_EPSILON {
                 Some(id)
             } else {
                 None
@@ -741,13 +741,19 @@ impl World {
         position: f64,
         candidates: &[EntityId],
     ) -> Option<EntityId> {
-        const EPSILON: f64 = 1e-6;
         candidates.iter().copied().find(|&id| {
             self.stops
                 .get(id)
-                .is_some_and(|stop| (stop.position - position).abs() < EPSILON)
+                .is_some_and(|stop| (stop.position - position).abs() < Self::STOP_POSITION_EPSILON)
         })
     }
+
+    /// Tolerance for [`find_stop_at_position`](Self::find_stop_at_position)
+    /// and [`find_stop_at_position_in`](Self::find_stop_at_position_in).
+    /// Sub-micrometre — small enough that no two distinct floors should
+    /// land within it, large enough to absorb floating-point noise from
+    /// trapezoidal-velocity arrival math.
+    pub const STOP_POSITION_EPSILON: f64 = 1e-6;
 
     /// Find the stop entity nearest to a given position.
     ///
