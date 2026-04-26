@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.25.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.24.1...elevator-core-v15.25.0) (2026-04-26)
+
+
+### Features
+
+* **wasm:** expose granular topology mutation API ([#450](https://github.com/andymai/elevator-core/issues/450)) ([120cf8a](https://github.com/andymai/elevator-core/commit/120cf8a538b96e51fa7547e34c9c81f0cff782e3))
+
 ## [15.24.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.24.0...elevator-core-v15.24.1) (2026-04-26)
 
 
