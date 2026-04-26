@@ -24,4 +24,22 @@ describe("skystack vendored bundle", () => {
     const readme = readFileSync(resolve(SKYSTACK_DIR, "README.md"), "utf-8");
     expect(readme).toContain("c05dc685b59ca25e3ca63916ad0b2a7555758bbc");
   });
+
+  it("wires the elevator-core wasm bridge", () => {
+    const html = readFileSync(resolve(SKYSTACK_DIR, "Tower.html"), "utf-8");
+    // Wasm bootstrap module imports the shared bundle.
+    expect(html).toMatch(
+      /<script\s+type="module">[\s\S]*import\s+init,\s*\{\s*WasmSim\s*\}\s*from\s*"\.\.\/pkg\/elevator_wasm\.js"/,
+    );
+    expect(html).toContain("window.wasmReady");
+    // SkystackWasm namespace is the JS-side bridge.
+    expect(html).toContain("SkystackWasm");
+    expect(html).toContain("reconcileTopology");
+    expect(html).toContain("requestRide");
+    // rebuildElevators triggers the bridge.
+    expect(html).toMatch(/SkystackWasm\.reconcileTopology\(\)/);
+    // simMinute drives the wasm sim and drains events when ready.
+    expect(html).toMatch(/SkystackWasm\.tickAll\(/);
+    expect(html).toMatch(/SkystackWasm\.drainEvents\(\)/);
+  });
 });

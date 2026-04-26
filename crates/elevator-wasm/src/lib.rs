@@ -317,6 +317,38 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("spawn: {e}")))
     }
 
+    /// Spawn a rider between two stops identified by their entity refs
+    /// (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
+    /// runtime-added stops that have no config-time `StopId`.
+    /// Returns the new rider's entity ref so consumers can correlate
+    /// with subsequent `rider-*` events.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if either stop does not exist, the origin
+    /// equals the destination, or no group serves both stops.
+    #[wasm_bindgen(js_name = spawnRiderByRef)]
+    pub fn spawn_rider_by_ref(
+        &mut self,
+        origin_ref: u64,
+        destination_ref: u64,
+        weight: f64,
+        patience_ticks: Option<u32>,
+    ) -> Result<u64, JsError> {
+        let mut builder = self
+            .inner
+            .build_rider(u64_to_entity(origin_ref), u64_to_entity(destination_ref))
+            .map_err(|e| JsError::new(&format!("spawn: {e}")))?
+            .weight(weight);
+        if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
+            builder = builder.patience(u64::from(ticks));
+        }
+        builder
+            .spawn()
+            .map(|rid| entity_to_u64(rid.entity()))
+            .map_err(|e| JsError::new(&format!("spawn: {e}")))
+    }
+
     /// Record a target traffic rate (riders per minute). The playground driver
     /// interprets this value externally and calls [`spawn_rider`](Self::spawn_rider)
     /// accordingly — the core sim is unaffected so determinism is preserved.
