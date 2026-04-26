@@ -1317,6 +1317,17 @@ pub(crate) fn assign_with_scratch(
                         .find(|li| li.entity() == line_eid)
                         .map(LineInfo::serves)
                 });
+            // `None` here means the car's line isn't in this group's
+            // line list — a topology inconsistency that should be
+            // unreachable. We can't fail the dispatch tick over it (the
+            // sim still has to make progress), so the filter falls
+            // open: the car is treated as if it could reach any stop.
+            // The debug-assert catches it during testing without
+            // affecting release builds.
+            debug_assert!(
+                world.elevator(car_eid).is_none() || car_serves.is_some(),
+                "car {car_eid:?} on line not present in its group's lines list"
+            );
 
             for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
                 if restricted.is_some_and(|r| r.contains(&stop_eid)) {
