@@ -427,15 +427,16 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("remove_line: {e}")))
     }
 
-    /// Resize a line's reachable position range. Cars outside the new
-    /// range are clamped to the boundary.
+    /// Resize a line's reachable position range. The new range may
+    /// grow or shrink the line; cars outside the new bounds are
+    /// clamped to the boundary.
     ///
     /// # Errors
     ///
     /// Returns a JS error if the line does not exist or the range is
     /// non-finite or inverted.
-    #[wasm_bindgen(js_name = extendLineRange)]
-    pub fn extend_line_range(
+    #[wasm_bindgen(js_name = setLineRange)]
+    pub fn set_line_range(
         &mut self,
         line_ref: u64,
         min_position: f64,
@@ -443,7 +444,7 @@ impl WasmSim {
     ) -> Result<(), JsError> {
         self.inner
             .set_line_range(u64_to_entity(line_ref), min_position, max_position)
-            .map_err(|e| JsError::new(&format!("extend_line_range: {e}")))
+            .map_err(|e| JsError::new(&format!("set_line_range: {e}")))
     }
 
     /// Add a stop to a line at the given position. Returns the stop
@@ -491,6 +492,24 @@ impl WasmSim {
         max_speed: Option<f64>,
         weight_capacity: Option<f64>,
     ) -> Result<u64, JsError> {
+        // Validate at the boundary; `add_elevator` re-runs full physics
+        // checks, but rejecting NaN/inf here keeps the error message
+        // close to the source (the JS caller's argument).
+        if let Some(s) = max_speed
+            && (!s.is_finite() || s <= 0.0)
+        {
+            return Err(JsError::new(&format!(
+                "add_elevator: max_speed must be a positive finite number (got {s})"
+            )));
+        }
+        if let Some(w) = weight_capacity
+            && (!w.is_finite() || w <= 0.0)
+        {
+            return Err(JsError::new(&format!(
+                "add_elevator: weight_capacity must be a positive finite number (got {w})"
+            )));
+        }
+
         let mut params = elevator_core::sim::ElevatorParams::default();
         if let Some(s) = max_speed {
             params.max_speed = elevator_core::components::Speed::from(s);
@@ -539,17 +558,17 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("press_hall_call: {e}")))
     }
 
-    /// Press a car-button (in-cab floor request).
+    /// Press a car-button (in-cab floor request) targeting `stop_ref`.
     ///
     /// # Errors
     ///
-    /// Returns a JS error if the elevator or floor does not exist.
+    /// Returns a JS error if the elevator or stop does not exist.
     #[wasm_bindgen(js_name = pressCarButton)]
-    pub fn press_car_button(&mut self, elevator_ref: u64, floor_ref: u64) -> Result<(), JsError> {
+    pub fn press_car_button(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
         self.inner
             .press_car_button(
                 elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                u64_to_entity(floor_ref),
+                u64_to_entity(stop_ref),
             )
             .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }

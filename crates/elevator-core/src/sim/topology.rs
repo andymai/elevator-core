@@ -307,7 +307,12 @@ impl Simulation {
             .filter_map(|(eid, _, car)| (car.line == line).then_some(eid))
             .collect();
         for eid in car_ids {
-            let pos = self.world.position(eid).map_or(0.0, |p| p.value);
+            // Skip cars without a Position component — clamping requires
+            // a real reading, and writing velocity alone (without a
+            // matching position update) would silently desync the two.
+            let Some(pos) = self.world.position(eid).map(|p| p.value) else {
+                continue;
+            };
             if pos < min || pos > max {
                 let clamped = pos.clamp(min, max);
                 if let Some(p) = self.world.position_mut(eid) {
