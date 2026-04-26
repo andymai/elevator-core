@@ -252,7 +252,7 @@ impl DispatchStrategy for DestinationDispatch {
         // monotone order. This is the source of truth per tick and avoids
         // incremental-insertion drift (duplicates, orphaned entries).
         for &car_eid in &candidate_cars {
-            rebuild_car_queue(world, car_eid);
+            rebuild_car_queue(world, group, car_eid);
         }
     }
 
@@ -461,7 +461,7 @@ pub fn clear_assignments_to(world: &mut crate::world::World, car_eid: EntityId) 
 /// sweep. A third run is appended when a rider's trip reverses the sweep
 /// twice (origin behind, dest ahead of origin in the original sweep).
 #[allow(clippy::too_many_lines)]
-fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
+fn rebuild_car_queue(world: &mut crate::world::World, group: &ElevatorGroup, car_eid: EntityId) {
     use crate::components::RiderPhase;
 
     // Local type for gathered (origin?, dest) trips.
@@ -516,7 +516,14 @@ fn rebuild_car_queue(world: &mut crate::world::World, car_eid: EntityId) {
             ElevatorPhase::MovingToStop(_) | ElevatorPhase::Repositioning(_)
         );
         if stopped_here {
-            world.find_stop_at_position(car_pos)
+            // Per-line lookup so a car parked at a sky-lobby served
+            // by multiple banks resolves to its own bank's stop.
+            let serves =
+                crate::dispatch::elevator_line_serves(world, std::slice::from_ref(group), car_eid);
+            serves.map_or_else(
+                || world.find_stop_at_position(car_pos),
+                |s| world.find_stop_at_position_in(car_pos, s),
+            )
         } else {
             None
         }

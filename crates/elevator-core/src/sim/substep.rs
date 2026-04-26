@@ -149,6 +149,7 @@ impl super::Simulation {
             &mut self.world,
             &mut self.events,
             &ctx,
+            &self.groups,
             &self.elevator_ids_buf,
         );
         for group in &self.groups {
@@ -171,6 +172,7 @@ impl super::Simulation {
             &mut self.world,
             &mut self.events,
             &ctx,
+            &self.groups,
             &self.elevator_ids_buf,
             &mut self.rider_index,
         );
@@ -198,6 +200,7 @@ impl super::Simulation {
             &mut self.world,
             &mut self.events,
             &ctx,
+            &self.groups,
             &self.elevator_ids_buf,
         );
         for group in &self.groups {

@@ -13,6 +13,7 @@ pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    groups: &[crate::dispatch::ElevatorGroup],
     elevator_ids: &[crate::entity::EntityId],
 ) {
     // Cars that just finished opening doors — collected so hall-call
@@ -28,7 +29,7 @@ pub fn run(
             .service_mode(eid)
             .is_some_and(|m| *m == crate::components::ServiceMode::Inspection);
 
-        process_door_commands(world, events, ctx, eid);
+        process_door_commands(world, events, ctx, groups, eid);
 
         let Some(car) = world.elevator_mut(eid) else {
             continue;
@@ -138,6 +139,7 @@ fn process_door_commands(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    groups: &[crate::dispatch::ElevatorGroup],
     eid: EntityId,
 ) {
     // Take the queue out so we can apply commands that need mutable world access.
@@ -151,7 +153,7 @@ fn process_door_commands(
     let mut remaining: Vec<DoorCommand> = Vec::new();
 
     for cmd in queue {
-        if try_apply_command(world, eid, cmd) {
+        if try_apply_command(world, groups, eid, cmd) {
             events.emit(Event::DoorCommandApplied {
                 elevator: eid,
                 command: cmd,
@@ -170,14 +172,19 @@ fn process_door_commands(
 /// Try to apply `cmd`. Returns `true` if it was applied (or is a no-op in
 /// the current state — a no-op still counts as "applied" since there is
 /// nothing to defer), `false` if it should remain queued.
-fn try_apply_command(world: &mut World, eid: EntityId, cmd: DoorCommand) -> bool {
+fn try_apply_command(
+    world: &mut World,
+    groups: &[crate::dispatch::ElevatorGroup],
+    eid: EntityId,
+    cmd: DoorCommand,
+) -> bool {
     let Some(car) = world.elevator(eid) else {
         return true;
     };
     let phase = car.phase;
 
     match cmd {
-        DoorCommand::Open => apply_open(world, eid, phase),
+        DoorCommand::Open => apply_open(world, groups, eid, phase),
         DoorCommand::Close => apply_close(world, eid, phase),
         DoorCommand::HoldOpen { ticks } => apply_hold(world, eid, phase, ticks),
         DoorCommand::CancelHold => apply_cancel_hold(world, eid, phase),
@@ -186,14 +193,24 @@ fn try_apply_command(world: &mut World, eid: EntityId, cmd: DoorCommand) -> bool
 
 /// Apply a pending `Open` command. Returns `false` to leave the command
 /// queued (car is mid-flight), `true` if applied or a no-op now.
-fn apply_open(world: &mut World, eid: EntityId, phase: ElevatorPhase) -> bool {
+fn apply_open(
+    world: &mut World,
+    groups: &[crate::dispatch::ElevatorGroup],
+    eid: EntityId,
+    phase: ElevatorPhase,
+) -> bool {
     match phase {
         // Already open or opening — no-op.
         ElevatorPhase::DoorOpening | ElevatorPhase::Loading => true,
         ElevatorPhase::Stopped | ElevatorPhase::Idle => {
-            // Must actually be parked at a stop to open doors.
+            // Must actually be parked at a stop on the car's line.
             let pos = world.position(eid).map_or(0.0, |p| p.value);
-            if world.find_stop_at_position(pos).is_none() {
+            let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+            let at_stop = serves.map_or_else(
+                || world.find_stop_at_position(pos),
+                |s| world.find_stop_at_position_in(pos, s),
+            );
+            if at_stop.is_none() {
                 return false;
             }
             if let Some(car) = world.elevator_mut(eid) {

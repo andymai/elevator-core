@@ -156,7 +156,7 @@ pub fn run(
                     || (matches!(c.phase, ElevatorPhase::MovingToStop(_)) && c.riders.is_empty())
             });
             if eligible {
-                commit_go_to_stop(world, events, ctx, car_eid, stop_eid);
+                commit_go_to_stop(world, events, ctx, groups, car_eid, stop_eid);
             }
         }
 
@@ -187,7 +187,7 @@ pub fn run(
         for (eid, decision) in result.decisions {
             match decision {
                 DispatchDecision::GoToStop(stop_eid) => {
-                    commit_go_to_stop(world, events, ctx, eid, stop_eid);
+                    commit_go_to_stop(world, events, ctx, groups, eid, stop_eid);
                     // Update the call's `assigned_car` so games querying
                     // `sim.assigned_car(...)` see dispatch's choice. The
                     // direction written matches the car's travel
@@ -218,7 +218,7 @@ pub fn run(
                                 da.total_cmp(&db)
                             });
                         if let Some(stop) = dest {
-                            commit_go_to_stop(world, events, ctx, eid, stop);
+                            commit_go_to_stop(world, events, ctx, groups, eid, stop);
                             continue;
                         }
                     }
@@ -232,9 +232,13 @@ pub fn run(
                     // Reset indicators to both-lit when returning to idle.
                     update_indicators(world, events, eid, true, true, ctx.tick);
                     if !was_idle {
-                        let at_stop = world
-                            .position(eid)
-                            .and_then(|p| world.find_stop_at_position(p.value));
+                        let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+                        let at_stop = world.position(eid).and_then(|p| {
+                            serves.map_or_else(
+                                || world.find_stop_at_position(p.value),
+                                |s| world.find_stop_at_position_in(p.value, s),
+                            )
+                        });
                         events.emit(Event::ElevatorIdle {
                             elevator: eid,
                             at_stop,
@@ -256,6 +260,7 @@ fn commit_go_to_stop(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    groups: &[ElevatorGroup],
     eid: EntityId,
     stop_eid: EntityId,
 ) {
@@ -278,7 +283,11 @@ fn commit_go_to_stop(
     }
 
     let pos = world.position(eid).map_or(0.0, |p| p.value);
-    let current_stop = world.find_stop_at_position(pos);
+    let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+    let current_stop = serves.map_or_else(
+        || world.find_stop_at_position(pos),
+        |s| world.find_stop_at_position_in(pos, s),
+    );
 
     events.emit(Event::ElevatorAssigned {
         elevator: eid,
