@@ -45,6 +45,7 @@ pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    groups: &[crate::dispatch::ElevatorGroup],
     elevator_ids: &[EntityId],
 ) {
     for &eid in elevator_ids {
@@ -72,7 +73,11 @@ pub fn run(
             ElevatorPhase::Idle | ElevatorPhase::Stopped => {
                 let Some(next) = front else { continue };
                 let pos = world.position(eid).map_or(0.0, |p| p.value);
-                let at_stop = world.find_stop_at_position(pos);
+                let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+                let at_stop = serves.map_or_else(
+                    || world.find_stop_at_position(pos),
+                    |s| world.find_stop_at_position_in(pos, s),
+                );
                 if at_stop == Some(next) {
                     // Already at the queued stop — pop and open doors.
                     if let Some(q) = world.destination_queue_mut(eid) {

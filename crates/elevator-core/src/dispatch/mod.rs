@@ -789,6 +789,33 @@ impl ElevatorGroup {
     }
 }
 
+/// Look up the `serves` list for an elevator's line.
+///
+/// Walks `groups` to find the [`LineInfo`] whose entity matches the
+/// car's current `line()`. Returns `None` if the car has no line
+/// registered in any group (an inconsistent state — should be
+/// unreachable in a healthy sim).
+///
+/// Helper for callers of
+/// [`World::find_stop_at_position_in`](crate::world::World::find_stop_at_position_in)
+/// that already have group context: `find_stop_at_position(pos)` is
+/// global (any line wins) and ambiguous when two lines share a
+/// position; passing the elevator's serves list scopes the lookup to
+/// *its* line.
+#[must_use]
+pub fn elevator_line_serves<'a>(
+    world: &World,
+    groups: &'a [ElevatorGroup],
+    elevator: EntityId,
+) -> Option<&'a [EntityId]> {
+    let line_eid = world.elevator(elevator)?.line();
+    groups
+        .iter()
+        .flat_map(ElevatorGroup::lines)
+        .find(|li| li.entity() == line_eid)
+        .map(LineInfo::serves)
+}
+
 /// Context passed to [`DispatchStrategy::rank`].
 ///
 /// Bundles the per-call arguments into a single struct so future context

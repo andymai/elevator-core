@@ -116,15 +116,22 @@ pub fn run(
                 tick: ctx.tick,
             });
 
-            // Emit departure from current stop if applicable.
-            if let Some(pos) = elev_pos
-                && let Some(from) = world.find_stop_at_position(pos)
-            {
-                events.emit(Event::ElevatorDeparted {
-                    elevator: elev_eid,
-                    from_stop: from,
-                    tick: ctx.tick,
-                });
+            // Emit departure from current stop if applicable. Use the
+            // per-line lookup so a sky-lobby served by multiple banks
+            // doesn't ambiguously resolve to the wrong line's stop.
+            if let Some(pos) = elev_pos {
+                let serves = crate::dispatch::elevator_line_serves(world, groups, elev_eid);
+                let from = serves.map_or_else(
+                    || world.find_stop_at_position(pos),
+                    |s| world.find_stop_at_position_in(pos, s),
+                );
+                if let Some(from) = from {
+                    events.emit(Event::ElevatorDeparted {
+                        elevator: elev_eid,
+                        from_stop: from,
+                        tick: ctx.tick,
+                    });
+                }
             }
         }
     }

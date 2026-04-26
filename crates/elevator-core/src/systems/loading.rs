@@ -68,6 +68,7 @@ enum LoadAction {
 #[allow(clippy::too_many_lines)]
 fn collect_actions(
     world: &World,
+    groups: &[crate::dispatch::ElevatorGroup],
     elevator_ids: &[EntityId],
     rider_index: &RiderIndex,
 ) -> Vec<LoadAction> {
@@ -93,7 +94,15 @@ fn collect_actions(
         }
 
         let pos = world.position(eid).map_or(0.0, |p| p.value);
-        let Some(current_stop) = world.find_stop_at_position(pos) else {
+        // Per-line lookup: a sky-lobby served by multiple banks
+        // would otherwise resolve to whichever line's stop wins the
+        // global linear scan, breaking exit/board matching for
+        // riders on the bank this car *isn't* serving.
+        let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+        let Some(current_stop) = serves.map_or_else(
+            || world.find_stop_at_position(pos),
+            |s| world.find_stop_at_position_in(pos, s),
+        ) else {
             continue;
         };
 
@@ -517,9 +526,10 @@ pub fn run(
     world: &mut World,
     events: &mut EventBus,
     ctx: &PhaseContext,
+    groups: &[crate::dispatch::ElevatorGroup],
     elevator_ids: &[EntityId],
     rider_index: &mut RiderIndex,
 ) {
-    let actions = collect_actions(world, elevator_ids, rider_index);
+    let actions = collect_actions(world, groups, elevator_ids, rider_index);
     apply_actions(actions, world, events, ctx, rider_index);
 }
