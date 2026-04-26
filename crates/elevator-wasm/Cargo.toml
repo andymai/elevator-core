@@ -42,5 +42,5 @@ slotmap = { workspace = true }
 # still bring in 0.3) need the `wasm_js` backend enabled. Kept target-scoped so
 # native (x86_64) builds of this crate are unaffected.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 getrandom_v04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
