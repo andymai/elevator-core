@@ -669,6 +669,19 @@ export class WasmSim {
      */
     spawnRider(origin: number, destination: number, weight: number, patience_ticks?: number | null): void;
     /**
+     * Spawn a rider between two stops identified by their entity refs
+     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
+     * runtime-added stops that have no config-time `StopId`.
+     * Returns the new rider's entity ref so consumers can correlate
+     * with subsequent `rider-*` events.
+     *
+     * # Errors
+     *
+     * Returns a JS error if either stop does not exist, the origin
+     * equals the destination, or no group serves both stops.
+     */
+    spawnRiderByRef(origin_ref: bigint, destination_ref: bigint, weight: number, patience_ticks?: number | null): bigint;
+    /**
      * Step the simulation forward `n` ticks.
      */
     stepMany(n: number): void;
@@ -750,6 +763,7 @@ export interface InitOutput {
     readonly wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
     readonly wasmsim_snapshot: (a: number) => any;
     readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_stepMany: (a: number, b: number) => void;
     readonly wasmsim_strategyName: (a: number) => [number, number];
     readonly wasmsim_trafficMode: (a: number) => [number, number];
