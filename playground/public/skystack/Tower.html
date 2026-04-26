@@ -2638,16 +2638,19 @@
 
       window.wasmReady = (async () => {
         await init();
-        // Empty world: SKYSTACK adds groups/lines/stops/cars at runtime
-        // via `rebuildElevators` once a game is loaded. The minimum
-        // valid RON is just a non-empty stops + elevators list — we
-        // construct a 2-stop / 1-elevator stub then immediately
-        // remove its line to leave a clean slate.
+        // The minimum valid `SimConfig` requires a non-empty stops +
+        // elevators list. The stub is positioned far outside any
+        // plausible SKYSTACK shaft (negative-million metres) so it
+        // can't collide with player-built topology via
+        // `find_stop_at_position` even briefly. The stub is harmless
+        // — no riders are ever spawned into it — so leaving it in
+        // place is safer than depending on a wasm-side `removeGroup`
+        // that doesn't exist yet (tracked as follow-up).
         var stub =
           "SimConfig(" +
           'building: BuildingConfig(name: "Skystack", stops: [' +
-          'StopConfig(id: StopId(0), name: "_stub0", position: 0.0),' +
-          'StopConfig(id: StopId(1), name: "_stub1", position: 3.0)' +
+          'StopConfig(id: StopId(0), name: "_stub0", position: -1000000.0),' +
+          'StopConfig(id: StopId(1), name: "_stub1", position: -999997.0)' +
           "])," +
           "elevators: [ElevatorConfig(" +
           'id: 0, name: "_stub", max_speed: 2.0, acceleration: 1.5,' +
@@ -2660,14 +2663,23 @@
         var sim = new WasmSim(stub, "look", "adaptive");
         window.wasmSim = sim;
         return sim;
-      })().catch((err) => {
-        console.error("[skystack] wasm init failed:", err);
-        var b = document.createElement("div");
-        b.style.cssText =
-          "position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:8px;z-index:9999;font:12px monospace";
-        b.textContent = "SKYSTACK: elevator-core wasm failed to load: " + err.message;
-        document.body.appendChild(b);
-      });
+      })()
+        .then((sim) => {
+          // Catch-up reconcile: if the player started a game before the
+          // wasm bundle finished loading, `rebuildElevators` already ran
+          // against an empty wasm world. Reconcile now so the wasm sim
+          // mirrors the existing JS shaft state on the next tick.
+          if (sim && window.SkystackWasm) window.SkystackWasm.reconcileTopology();
+          return sim;
+        })
+        .catch((err) => {
+          console.error("[skystack] wasm init failed:", err);
+          var b = document.createElement("div");
+          b.style.cssText =
+            "position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:8px;z-index:9999;font:12px monospace";
+          b.textContent = "SKYSTACK: elevator-core wasm failed to load: " + err.message;
+          document.body.appendChild(b);
+        });
     </script>
 
     <script>
@@ -2788,15 +2800,19 @@
             wantLines.set(k, { col: e.shaftX, minY: e.minY, maxY: e.maxY, cars: e.cars });
           }
 
-          // Drop wasm lines (and the entire group, since each shaft
-          // owns its own group in v1) that no longer exist in JS.
+          // Drop wasm lines whose JS shaft is gone. Reuse the group:
+          // there's no `removeGroup` in core yet, so deleting the JS
+          // map entry while the wasm group lingered would leak. By
+          // keeping the WASM_GROUPS entry, a later
+          // `ensureGroupFor(col)` for the same column reattaches a
+          // new line to the existing group instead of creating a
+          // second one. Bounded growth: ≤ GRID_W groups (~28).
           for (var k of Array.from(WASM_LINES.keys())) {
             if (!wantLines.has(k)) {
               try {
                 window.wasmSim.removeLine(WASM_LINES.get(k));
               } catch (e) {}
               WASM_LINES.delete(k);
-              WASM_GROUPS.delete(k);
               // Also drop stops + cars under this shaft from our maps.
               for (var sk of Array.from(WASM_STOPS.keys())) {
                 if (sk.split(":")[0] === k.slice(1)) WASM_STOPS.delete(sk);
@@ -2903,7 +2919,15 @@
           if (Number(origin) === Number(dest)) return false; // same-floor; nothing to ride
           try {
             var weight = agent.weight || 75.0;
-            var ridRef = window.wasmSim.spawnRiderByRef(origin, dest, weight, 0);
+            // Default patience = ~50 wasm ticks (5 s at 10 Hz).
+            // Passing `0` would map to `Some(0)` which Rust filters
+            // away → infinite patience → abandonment events never
+            // fire. Use a finite default; SKYSTACK already has
+            // its own complaint timer (180 game-min) but the wasm
+            // patience triggers `rider-abandoned` so the bridge can
+            // mark the agent as `leaving` cleanly.
+            var patience = agent.wasmPatienceTicks != null ? agent.wasmPatienceTicks : 600;
+            var ridRef = window.wasmSim.spawnRiderByRef(origin, dest, weight, patience);
             window.wasmSim.pressHallCall(origin, toY > fromY ? "up" : "down");
             agent.wasmRiderRef = ridRef;
             agent.wasmShaftCol = col;
