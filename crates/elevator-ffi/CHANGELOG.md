@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.0...elevator-ffi-v0.10.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* **ffi:** audit follow-ups — buffer contracts, panic guard, missing payload ([#511](https://github.com/andymai/elevator-core/issues/511)) ([7dbf86e](https://github.com/andymai/elevator-core/commit/7dbf86ed798a37cf897f5816c899a5b8009adecf))
+
 ## [0.10.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.9.0...elevator-ffi-v0.10.0) (2026-04-27)
 
 
