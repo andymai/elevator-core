@@ -83,7 +83,15 @@ export function loop(state: State, ui: UiHandles): void {
       const specs = state.seeding ? [] : state.traffic.drainSpawns(snapA, simElapsed);
       for (const spec of specs) {
         forEachPane(state, (pane) => {
-          pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight, spec.patienceTicks);
+          const r = pane.sim.spawnRider(
+            spec.originStopId,
+            spec.destStopId,
+            spec.weight,
+            spec.patienceTicks,
+          );
+          if (r.kind === "err") {
+            console.warn(`spawnRider failed: ${r.error}`);
+          }
         });
       }
 

@@ -145,7 +145,15 @@ export function drainSeedBatch(state: State): void {
     const specs = state.traffic.drainSpawns(snap, dt);
     for (const spec of specs) {
       forEachPane(state, (pane) => {
-        pane.sim.spawnRider(spec.originStopId, spec.destStopId, spec.weight, spec.patienceTicks);
+        const r = pane.sim.spawnRider(
+          spec.originStopId,
+          spec.destStopId,
+          spec.weight,
+          spec.patienceTicks,
+        );
+        if (r.kind === "err") {
+          console.warn(`spawnRider failed (seed): ${r.error}`);
+        }
       });
       state.seeding.remaining -= 1;
       if (state.seeding.remaining <= 0) break;
