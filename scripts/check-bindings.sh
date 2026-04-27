@@ -25,7 +25,7 @@ fi
 # only methods inside the matching impl get collected — Rider/Builder
 # helpers in the same files don't pollute the list.
 extract_pub_fns() {
-  awk '
+  gawk '
     function count_braces(s,    n, c, i) {
       n = 0
       for (i = 1; i <= length(s); i++) {
@@ -35,7 +35,7 @@ extract_pub_fns() {
       }
       return n
     }
-    /^impl([[:space:]]+|[[:space:]]*<.*>[[:space:]]+)([a-zA-Z_][a-zA-Z0-9_:]*::)?Simulation([[:space:]]|<|\{)/ {
+    /^impl([[:space:]]+|[[:space:]]*<[^>]*>[[:space:]]+)([a-zA-Z_][a-zA-Z0-9_:]*::)?Simulation([[:space:]]|<|\{)/ {
       in_sim = 1
       depth = 0
     }
@@ -113,7 +113,7 @@ total=$(echo "$code_methods" | wc -l)
 # Categorize each wasm / ffi status line.
 read -r wasm_exported wasm_skipped wasm_todo \
         ffi_exported  ffi_skipped  ffi_todo < <(
-  awk '
+  gawk '
     BEGIN { we=0; ws=0; wt=0; fe=0; fs=0; ft=0 }
     /^\s*wasm\s*=\s*"/ {
       match($0, /^\s*wasm\s*=\s*"([^"]*)"/, m); v = m[1]
