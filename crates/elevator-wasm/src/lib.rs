@@ -468,6 +468,19 @@ impl WasmSim {
             .collect()
     }
 
+    /// Peek at queued events without draining. Useful for read-only
+    /// inspection (e.g. UI dashboards) where the consumer doesn't
+    /// "own" the event stream.
+    #[wasm_bindgen(js_name = pendingEvents)]
+    pub fn pending_events(&mut self) -> Vec<dto::EventDto> {
+        self.inner
+            .pending_events()
+            .iter()
+            .cloned()
+            .map(dto::EventDto::from)
+            .collect()
+    }
+
     /// Current aggregate metrics.
     pub fn metrics(&self) -> dto::MetricsDto {
         dto::MetricsDto::build(&self.inner)
