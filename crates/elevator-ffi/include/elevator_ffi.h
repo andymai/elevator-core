@@ -1969,4 +1969,32 @@ enum EvStatus ev_sim_riders_on(struct EvSim *handle,
                                uint32_t capacity,
                                uint32_t *out_written);
 
+/**
+ * Find the shortest multi-leg route between two stops using the
+ * line-graph topology. On success writes the flattened stop sequence
+ * (origin first, destination last) to `out_stops`.
+ *
+ * Caller-owned buffer pattern: `out_written` is populated with the
+ * number of stops in the route regardless of buffer fit, so the caller
+ * can probe with `(null, 0)` to size a real buffer.
+ *
+ * Returns:
+ * - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
+ * - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
+ *   small; `out_written` contains the required slot count.
+ * - [`EvStatus::NotFound`] if no route exists.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out_stops`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`. `out_written` must be a writable `u32`.
+ */
+enum EvStatus ev_sim_shortest_route(struct EvSim *handle,
+                                    uint64_t from_stop_entity_id,
+                                    uint64_t to_stop_entity_id,
+                                    uint64_t *out_stops,
+                                    uint32_t capacity,
+                                    uint32_t *out_written);
+
 #endif  /* ELEVATOR_FFI_H */
