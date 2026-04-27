@@ -114,7 +114,7 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 data-[mode=manual-control]:grid-cols-[minmax(0,1fr)_360px] max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2 max-md:data-[mode=manual-control]:grid-cols-1"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 data-[mode=manual-control]:grid-cols-[minmax(0,1fr)_400px] max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2 max-md:data-[mode=manual-control]:grid-cols-1"
     >
       <section
         id="pane-a"
@@ -292,14 +292,15 @@
         </div>
       </section>
 
-      <!-- Manual control side panel. Hidden by default (utilities-layer
+      <!-- API explorer side panel. Hidden by default (utilities-layer
            rule keyed off layout's data-mode), surfaced when the active
            scenario sets `manualControl`. Populated dynamically by
-           features/manual-controls. -->
+           features/manual-controls — every widget surfaces its wasm
+           API call signature and writes to the call log on click. -->
       <aside
         id="manual-controls"
-        aria-label="Manual elevator controls"
-        class="manual-controls flex-col gap-3 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle rounded-lg shadow-md max-md:p-2.5 max-md:gap-2 overflow-y-auto"
+        aria-label="elevator-core API explorer"
+        class="api-explorer flex-col gap-3 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle rounded-lg shadow-md max-md:p-2.5 max-md:gap-2 overflow-y-auto"
       >
         <header class="flex items-center gap-2">
           <span
@@ -308,39 +309,37 @@
               class="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]"
               aria-hidden="true"
             ></span
-            >Controls</span
+            >elevator-core API</span
           >
         </header>
 
-        <!-- Scenario feature hint — populated dynamically from
-             scenario.featureHint. Hidden when the scenario doesn't
-             carry one. -->
-        <p id="manual-feature-hint" class="manual-feature-hint" hidden></p>
+        <!-- Scenario feature hint — populated from scenario.featureHint. -->
+        <p id="manual-feature-hint" class="api-feature-hint" hidden></p>
 
-        <section aria-label="Hall calls" class="manual-section">
-          <h3 class="manual-section-title">Hall calls</h3>
-          <div id="manual-hall-buttons" class="manual-hall-list"></div>
+        <section aria-label="Hall calls" class="api-section">
+          <h3 class="api-section-title">Hall calls</h3>
+          <div id="manual-hall-buttons" class="api-hall-list"></div>
         </section>
 
-        <section aria-label="Per-car controls" class="manual-section">
-          <h3 class="manual-section-title">Cars</h3>
+        <section aria-label="Per-car controls" class="api-section">
+          <h3 class="api-section-title">Cars</h3>
           <div id="manual-car-controls" class="flex flex-col gap-2"></div>
-          <button type="button" id="manual-add-car" class="manual-add-car-btn" hidden>
-            Add Car B
+          <button type="button" id="manual-add-car" class="api-lifecycle-btn" hidden>
+            sim.addElevator(lineRef, …)
           </button>
         </section>
 
-        <section aria-label="Spawn rider" class="manual-section">
-          <h3 class="manual-section-title">Spawn rider</h3>
-          <div id="manual-spawn-form" class="flex flex-wrap items-end gap-1.5"></div>
+        <section aria-label="Spawn rider" class="api-section">
+          <h3 class="api-section-title">Spawn rider</h3>
+          <div id="manual-spawn-form" class="api-row api-row-spawn"></div>
         </section>
 
-        <section aria-label="Event log" class="manual-section flex-1 min-h-0">
-          <h3 class="manual-section-title">Events</h3>
+        <section aria-label="Call log" class="api-section flex-1 min-h-0">
+          <h3 class="api-section-title">Call log</h3>
           <ul
             id="manual-event-log"
-            class="manual-event-log m-0 p-1.5 list-none flex flex-col gap-0.5 bg-surface border border-stroke-subtle rounded-sm text-[10.5px] tabular-nums text-content-tertiary overflow-y-auto h-[180px] max-md:h-[120px]"
-            data-empty-hint="Press a button or spawn a rider to see events."
+            class="api-call-log m-0 p-1.5 list-none flex flex-col gap-0.5 bg-surface border border-stroke-subtle rounded-sm text-[10.5px] tabular-nums text-content-tertiary overflow-y-auto h-[180px] max-md:h-[120px]"
+            data-empty-hint="Press a control or wait for an event."
           ></ul>
         </section>
       </aside>

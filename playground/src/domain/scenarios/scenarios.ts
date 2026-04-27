@@ -648,33 +648,38 @@ const spaceElevator: ScenarioMeta = {
 )`,
 };
 
-// ─── Manual control — small office, hands-on API showcase ───────────
+// ─── API explorer — live elevator-core API surface ──────────────────
 //
-// 5-floor office where the user drives the simulation by hand: hall
-// calls, car buttons, door commands, velocity slider, service-mode
-// dropdown, on-demand rider spawn, and live add/remove of a second
-// car. TrafficDriver is disabled (`phases: []`) so the only riders are
-// the ones the user spawns. Cars boot in `Normal` so spawned riders
-// auto-board and dispatch reacts to button presses; flipping a car to
-// `Manual` via the dropdown unlocks direct velocity control.
+// 5-floor office, 2 cars, auto-dispatch enabled. The right-rail
+// panel surfaces every imperative wasm method as its own widget,
+// each labelled with the literal API signature. A live call log
+// shows outgoing invocations and incoming engine events. Ambient
+// traffic drips in so the engine has something to do while the dev
+// pokes at the surface.
 //
-// Scale-wise this scenario sits below the convention burst (smaller
-// building, fewer cars, no traffic). It leads the SCENARIOS array so
-// first-time visitors land on the most approachable demo.
+// `id` stays "manual-office" so existing share permalinks keep
+// resolving to this demo (this scenario card has gone through two
+// design iterations on top of the same id).
 
-const manualOffice: ScenarioMeta = {
+const apiExplorer: ScenarioMeta = {
   id: "manual-office",
-  label: "Manual control",
+  label: "API explorer",
   description:
-    "5-floor office, no auto traffic. Press hall calls, car buttons, doors, and a velocity slider yourself; flip a car between Normal / Manual / Inspection / Out-of-service to see every service mode.",
+    "5-floor, 2-car office showing every elevator-core wasm method as a labelled control. Auto-dispatch handles ambient traffic; the right-rail panel lets you fire each API call by hand and watch the engine react in the call log.",
   defaultStrategy: "etd",
-  // Empty phases = TrafficDriver no-op (mirrors the convention's
-  // static post-keynote pattern). All riders are user-spawned.
-  phases: [],
+  phases: [
+    {
+      name: "Drift",
+      durationSec: 600,
+      ridersPerMin: 6,
+      originWeights: [3, 1, 1, 1, 1],
+      destWeights: [2, 1, 2, 2, 2],
+    },
+  ],
   seedSpawns: 0,
   featureHint:
-    "Press buttons by hand. Spawn a rider, watch dispatch pick the car, then flip the car to Manual and drive it yourself with the velocity slider.",
-  buildingName: "Manual Office",
+    "Every widget on the right is a wasm API call. Press a hall button, flip a car to Manual, drag velocity, hold a door — each invocation lands in the call log alongside the engine's reactions.",
+  buildingName: "API Explorer",
   stops: [
     { name: "Lobby", positionM: 0.0 },
     { name: "Floor 2", positionM: 4.0 },
@@ -682,10 +687,7 @@ const manualOffice: ScenarioMeta = {
     { name: "Floor 4", positionM: 12.0 },
     { name: "Floor 5", positionM: 16.0 },
   ],
-  // 1 car by default; the `Add Car B` toggle in the controls panel
-  // demos `addElevator`. Cap at 2 — beyond two cabins the cutaway
-  // renderer's right pane would have to shrink each cab.
-  defaultCars: 1,
+  defaultCars: 2,
   elevatorDefaults: {
     maxSpeed: 2.0,
     acceleration: 1.5,
@@ -694,21 +696,30 @@ const manualOffice: ScenarioMeta = {
     doorOpenTicks: 240,
     doorTransitionTicks: 60,
   },
+  // Up to 3 cars via Add — enough to demo `addElevator` /
+  // `removeElevator` lifecycle without the panel's per-car blocks
+  // overflowing the right rail.
   tweakRanges: {
-    cars: { min: 1, max: 2, step: 1 },
+    cars: { min: 1, max: 3, step: 1 },
     maxSpeed: { min: 0.5, max: 6, step: 0.5 },
     weightCapacity: { min: 200, max: 1500, step: 100 },
     doorCycleSec: { min: 2, max: 12, step: 0.5 },
   },
-  passengerMeanIntervalTicks: 60,
+  // ~6 riders/min ≈ mean_interval_ticks 600 at 60 Hz. Calm enough
+  // that the dev can read the call log between events; busy enough
+  // that auto-dispatch is visibly working.
+  passengerMeanIntervalTicks: 600,
   passengerWeightRange: [55.0, 100.0],
   manualControl: {
+    // Cars boot in Normal so dispatch handles ambient traffic by
+    // default. The dev flips a car to Manual via the per-car
+    // dropdown to drive it directly.
     defaultServiceMode: "normal",
     allowAddRemoveCar: true,
   },
   ron: `SimConfig(
     building: BuildingConfig(
-        name: "Manual Office",
+        name: "API Explorer",
         stops: [
             StopConfig(id: StopId(0), name: "Lobby",   position: 0.0),
             StopConfig(id: StopId(1), name: "Floor 2", position: 4.0),
@@ -725,20 +736,27 @@ const manualOffice: ScenarioMeta = {
             starting_stop: StopId(0),
             door_open_ticks: 240, door_transition_ticks: 60,
         ),
+        ElevatorConfig(
+            id: 1, name: "Car B",
+            max_speed: 2.0, acceleration: 1.5, deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(2),
+            door_open_ticks: 240, door_transition_ticks: 60,
+        ),
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
     passenger_spawning: PassengerSpawnConfig(
-        mean_interval_ticks: 60,
+        mean_interval_ticks: 600,
         weight_range: (55.0, 100.0),
     ),
 )`,
 };
 
-// Order is intentional: scale-ascending. Manual office sits first as
-// the most approachable starting point (5 stops, 1 car, hands-on);
-// then a 5-stop acute burst, a 42-stop sky-lobby tower, and a 4-stop
-// tether 35 786 km tall.
-export const SCENARIOS: ScenarioMeta[] = [manualOffice, convention, skyscraper, spaceElevator];
+// Order is intentional: scale-ascending. API explorer sits first as
+// the most approachable starting point (5 stops, 2 cars, hands-on
+// API surface); then a 5-stop acute burst, a 42-stop sky-lobby
+// tower, and a 4-stop tether 35 786 km tall.
+export const SCENARIOS: ScenarioMeta[] = [apiExplorer, convention, skyscraper, spaceElevator];
 
 export function scenarioById(id: string): ScenarioMeta {
   const match = SCENARIOS.find((s) => s.id === id);

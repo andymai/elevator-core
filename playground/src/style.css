@@ -1101,24 +1101,32 @@
     }
   }
 
-  /* ── Manual control panel ───────────────────────────────────────────── */
+  /* ── API explorer panel ─────────────────────────────────────────────── */
 
-  /* Side panel that replaces pane B in the manual-control scenario.
-   * Section titles, button rows, and the cabin-control sub-blocks. The
-   * scenario flips display:flex on via the data-mode utility-layer rule;
-   * everything below is structure for that case. */
-  .manual-section {
+  /* Side panel that replaces pane B in the API-explorer scenario. Each
+   * widget in the panel surfaces its wasm method signature in monospace
+   * (`.api-sig`) and writes to the call log on click. The panel
+   * scrolls vertically; the layout's data-mode utility-layer rule
+   * sets display:flex on the aside. */
+  .api-section {
     display: flex;
     flex-direction: column;
     gap: 6px;
     padding: 8px 0;
     border-bottom: 1px solid var(--border-subtle);
   }
-  .manual-section:last-of-type {
+  .api-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .api-section:last-of-type {
     border-bottom: 0;
     padding-bottom: 0;
   }
-  .manual-section-title {
+  .api-section-title {
     margin: 0;
     font-size: 10.5px;
     font-weight: 600;
@@ -1127,10 +1135,8 @@
     color: var(--text-tertiary);
   }
 
-  /* One-line orientation banner shown above hall-calls. Faint accent
-   * left border + a single line of body copy. Hidden when the
-   * scenario doesn't carry a `featureHint`. */
-  .manual-feature-hint {
+  /* One-line orientation banner from `scenario.featureHint`. */
+  .api-feature-hint {
     margin: 0;
     padding: 6px 8px 6px 10px;
     border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
@@ -1139,126 +1145,122 @@
     font-size: 11px;
     line-height: 1.35;
     color: var(--text-secondary);
-    letter-spacing: 0.005em;
   }
 
-  /* Hall-call list: rounded container around the rows so the column
-   * reads as a unit (real elevator panel). */
-  .manual-hall-list {
+  /* API row: monospace signature on top, the widget(s) on the next
+   * line. Used for hall calls, per-car door commands, velocity, etc. */
+  .api-row {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border-subtle);
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--bg-secondary);
+    gap: 4px;
   }
-
-  /* Hall-call rows: floor name on the left, [▲][▼] buttons on the right.
-   * Bordered separators between rows and a vertical rule between the
-   * up/down buttons mimic the column layout of a real call panel. */
-  .manual-hall-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: 0;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .manual-hall-row:last-child {
-    border-bottom: 0;
-  }
-  .manual-hall-row:hover {
-    background: var(--bg-hover);
-  }
-  .manual-hall-name {
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--text-secondary);
+  .api-sig {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    letter-spacing: 0;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .api-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Hall-call rows live in a flat list — the section title gives the
+   * group its anchor; each row carries its own monospace signature. */
+  .api-hall-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .api-row-hall {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .api-row-hall .api-sig {
+    flex: 1 1 auto;
+  }
+  .api-stop-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--bg-elevated);
     white-space: nowrap;
   }
-  .manual-hall-btn {
+  .api-row-hall .api-row-actions {
+    flex: 0 0 auto;
+  }
+  .api-hall-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
+    width: 28px;
     height: 24px;
     padding: 0;
-    border: 0;
-    border-left: 1px solid var(--border-subtle);
-    border-radius: 0;
-    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    background: var(--bg-elevated);
     color: var(--text-tertiary);
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1;
     cursor: pointer;
     transition:
       background 80ms,
       color 80ms;
   }
-  .manual-hall-btn:hover {
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  .api-hall-btn:hover {
+    background: var(--bg-hover);
     color: var(--text-secondary);
   }
-  .manual-hall-btn[data-lit="true"] {
+  .api-hall-btn[data-lit="true"] {
     background: color-mix(in srgb, var(--accent) 22%, var(--bg-elevated));
     color: var(--accent-up);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .manual-hall-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  /* Spacer "button" used in place of an unavailable up/down on the
-   * top/bottom floors. Has no visual presence but keeps the row's
-   * column alignment consistent. */
-  .manual-hall-spacer {
-    width: 32px;
-    height: 24px;
-    border-left: 1px solid var(--border-subtle);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   }
 
-  /* Per-car block: header with name + service-mode dropdown, button strip,
-   * door commands, velocity slider, e-stop. */
-  .manual-car-block {
+  /* Per-car block: header with synthesised name (Car A/B/C) + every
+   * per-car wasm method, each on its own labelled row. */
+  .api-car-block {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 8px;
+    gap: 8px;
+    padding: 10px;
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     background: var(--bg-secondary);
   }
-  .manual-car-header {
+  .api-car-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
-  .manual-car-name {
-    font-size: 11.5px;
+  .api-car-name {
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
     letter-spacing: 0.01em;
   }
-  .manual-car-mode-select {
+  .api-mode-select {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
     font-size: 11px;
-    padding: 2px 6px;
+    padding: 3px 6px;
     border: 1px solid var(--border-subtle);
     border-radius: 3px;
     background: var(--bg-elevated);
     color: var(--text-secondary);
     cursor: pointer;
   }
-  .manual-car-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .manual-car-btn {
+  .api-car-btn {
     width: 28px;
-    height: 24px;
+    height: 26px;
     padding: 0;
     border: 1px solid var(--border-subtle);
     border-radius: 50%;
@@ -1272,99 +1274,69 @@
       color 80ms,
       border-color 80ms;
   }
-  .manual-car-btn:hover {
+  .api-car-btn:hover {
     background: var(--bg-hover);
     color: var(--text-secondary);
   }
-  .manual-car-btn[data-lit="true"] {
+  .api-car-btn[data-lit="true"] {
     background: color-mix(in srgb, var(--accent) 28%, var(--bg-elevated));
     border-color: color-mix(in srgb, var(--accent) 60%, transparent);
     color: var(--accent-up);
   }
-  .manual-car-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
 
-  .manual-door-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding-top: 2px;
-  }
-  .manual-door-btn {
+  .api-door-btn {
     flex: 1 1 0;
-    min-width: 56px;
-    padding: 4px 6px;
+    min-width: 80px;
+    padding: 5px 8px;
     border: 1px solid var(--border-subtle);
     border-radius: 3px;
     background: var(--bg-elevated);
     color: var(--text-secondary);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
     font-size: 10.5px;
-    font-weight: 500;
     cursor: pointer;
   }
-  .manual-door-btn:hover {
+  .api-door-btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
   }
-  .manual-door-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
 
-  .manual-velocity-row {
+  .api-row-vel .api-row-actions {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
-  /* Hide the velocity row + E-Stop unless the car block is in
-   * `manual` mode. Disabled affordances were pulling the eye toward
-   * unusable controls; collapsing them keeps the per-car block
-   * compact in the common (Normal) case. */
-  .manual-car-block:not([data-mode="manual"]) .manual-velocity-row,
-  .manual-car-block:not([data-mode="manual"]) .manual-estop-btn {
-    display: none;
+  .api-vel-slider {
+    width: 100%;
+    accent-color: var(--accent);
   }
-  .manual-velocity-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
-  }
-  .manual-velocity-readout {
+  .api-vel-readout {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
     font-size: 11px;
-    font-variant-numeric: tabular-nums;
     color: var(--text-secondary);
-    min-width: 48px;
+    min-width: 60px;
     text-align: right;
   }
-  .manual-estop-btn {
-    padding: 4px 8px;
+
+  .api-estop-btn {
+    flex: 1 1 0;
+    padding: 5px 10px;
     border: 1px solid color-mix(in srgb, var(--bad) 50%, transparent);
     border-radius: 3px;
     background: color-mix(in srgb, var(--bad) 15%, var(--bg-elevated));
     color: var(--bad);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
     font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     cursor: pointer;
   }
-  .manual-estop-btn:hover {
+  .api-estop-btn:hover {
     background: color-mix(in srgb, var(--bad) 25%, var(--bg-elevated));
   }
-  .manual-estop-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
 
-  /* Add / Remove Car B affordance — full-width secondary action at
-   * the bottom of the CARS section. Sits next to its target (the car
-   * block list) instead of in the aside header. */
-  .manual-add-car-btn {
+  /* Lifecycle Add / Remove button — labelled with the literal
+   * `sim.addElevator` / `sim.removeElevator` signature. */
+  .api-lifecycle-btn {
     width: 100%;
     margin-top: 4px;
     padding: 6px 10px;
@@ -1372,54 +1344,35 @@
     border-radius: 4px;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 10.5px;
     cursor: pointer;
     transition:
       background 80ms,
       color 80ms,
       border-color 80ms;
   }
-  .manual-add-car-btn:hover {
+  .api-lifecycle-btn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--border-strong);
   }
-  .manual-add-car-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
 
-  /* Empty-state hint for the event log — surfaced via ::before when
-   * the list has no rendered children. */
-  .manual-event-log:empty::before {
-    content: attr(data-empty-hint);
-    display: block;
-    padding: 4px;
-    color: var(--text-disabled);
-    font-style: italic;
-    font-size: 10.5px;
-  }
-
-  /* Spawn rider form: dropdowns + weight input + spawn button. */
-  .manual-spawn-field {
-    display: flex;
+  /* Spawn-rider row: From/To selects + weight input + spawn button,
+   * all inline with the section's monospace signature. */
+  .api-row-spawn {
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
+  }
+  .api-spawn-fields {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .api-spawn-select {
     flex: 1 1 80px;
     min-width: 0;
-  }
-  .manual-spawn-label {
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
-  }
-  .manual-spawn-select,
-  .manual-spawn-weight {
-    width: 100%;
     padding: 3px 6px;
     border: 1px solid var(--border-subtle);
     border-radius: 3px;
@@ -1427,43 +1380,65 @@
     color: var(--text-secondary);
     font-size: 11px;
   }
-  .manual-spawn-btn {
+  .api-spawn-arrow {
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
+  .api-spawn-weight {
+    width: 60px;
+    padding: 3px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 11px;
+  }
+  .api-spawn-unit {
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  .api-spawn-btn {
     flex: 0 0 auto;
     padding: 5px 12px;
     border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: 3px;
     background: color-mix(in srgb, var(--accent) 18%, var(--bg-elevated));
     color: var(--accent-up);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 10.5px;
     cursor: pointer;
   }
-  .manual-spawn-btn:hover {
+  .api-spawn-btn:hover {
     background: color-mix(in srgb, var(--accent) 28%, var(--bg-elevated));
   }
 
-  /* Event log line: monospaced, color-coded by event kind. */
-  .manual-event-log li {
+  /* Empty-state hint for the call log. */
+  .api-call-log:empty::before {
+    content: attr(data-empty-hint);
+    display: block;
+    padding: 4px;
+    color: var(--text-disabled);
+    font-style: italic;
+    font-size: 10.5px;
+  }
+  .api-call-log-line {
     margin: 0;
     padding: 1px 4px;
     border-radius: 2px;
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .manual-event-log li[data-kind="rider-boarded"] {
-    color: color-mix(in srgb, var(--ok) 80%, var(--text-secondary));
+  .api-call-log-line[data-kind="call"] {
+    color: color-mix(in srgb, var(--accent) 70%, var(--text-secondary));
   }
-  .manual-event-log li[data-kind="rider-exited"] {
-    color: color-mix(in srgb, var(--accent) 80%, var(--text-secondary));
+  .api-call-log-line[data-kind="error"] {
+    color: var(--bad);
   }
-  .manual-event-log li[data-kind="door-opened"],
-  .manual-event-log li[data-kind="door-closed"] {
+  .api-call-log-line[data-kind="event"] {
     color: var(--text-tertiary);
-  }
-  .manual-event-log li[data-kind="elevator-assigned"] {
-    color: color-mix(in srgb, var(--accent) 60%, var(--text-secondary));
   }
 
   /* ── Mobile ─────────────────────────────────────────────────────────── */

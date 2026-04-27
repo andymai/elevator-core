@@ -110,24 +110,19 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // `configureTraffic` once the quota drains, so the scenario's
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
-    // Mount the manual-controls side panel for manual-control scenarios.
-    // The panel reads `paneA.sim` for entity refs and pushes the full
-    // CabinRenderState (selected car, per-car mode, hall-call lamps)
-    // into `paneA.renderer` on every `update()` tick.
+    // Mount the API-explorer side panel for `manualControl` scenarios.
+    // The panel reads `paneA.sim` for entity refs, wires every wasm
+    // method to a labelled control, and streams outgoing calls +
+    // incoming events into the in-panel call log on every tick.
     if (scenario.manualControl !== undefined) {
-      state.manualControls = mountManualControls(
-        paneA.sim,
-        scenario,
-        {
-          hallButtons: ui.manualHallButtons,
-          carControls: ui.manualCarControls,
-          spawnForm: ui.manualSpawnForm,
-          eventLog: ui.manualEventLog,
-          addCarBtn: ui.manualAddCarBtn,
-          featureHint: ui.manualFeatureHint,
-        },
-        paneA.renderer,
-      );
+      state.manualControls = mountManualControls(paneA.sim, scenario, {
+        hallButtons: ui.manualHallButtons,
+        carControls: ui.manualCarControls,
+        spawnForm: ui.manualSpawnForm,
+        eventLog: ui.manualEventLog,
+        addCarBtn: ui.manualAddCarBtn,
+        featureHint: ui.manualFeatureHint,
+      });
     }
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
