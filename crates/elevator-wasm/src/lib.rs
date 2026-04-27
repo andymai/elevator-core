@@ -104,6 +104,17 @@ fn parse_call_direction(label: &str) -> Result<elevator_core::components::CallDi
     }
 }
 
+/// Format a `Direction` as the JS-facing label string (`"up"`, `"down"`,
+/// or `"either"`). Mirrors the parsing convention used by `bestEta`.
+const fn format_direction(dir: elevator_core::components::Direction) -> &'static str {
+    use elevator_core::components::Direction;
+    match dir {
+        Direction::Up => "up",
+        Direction::Down => "down",
+        Direction::Either | _ => "either",
+    }
+}
+
 /// Map a JS-facing strategy name to its `BuiltinStrategy` variant. Used to tag
 /// dispatcher instances so snapshots round-trip the active strategy id.
 fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
@@ -982,6 +993,146 @@ impl WasmSim {
             .best_eta(stop, dir)
             .map(|(eid, d)| vec![entity_to_u64(eid), duration_to_ticks(d, dt)])
             .unwrap_or_default())
+    }
+
+    // ── Per-elevator introspection accessors ─────────────────────────
+    //
+    // Read-only queries for individual cars. All `Option<T>` returns
+    // surface as `T | undefined` in JS via wasm-bindgen's standard
+    // mapping; missing/disabled entities return `undefined`. Direction
+    // labels match the rest of the wasm contract (`"up"` / `"down"` /
+    // `"either"`).
+
+    /// Current velocity (distance/tick) of `elevator_ref`. Positive = up,
+    /// negative = down. Returns `undefined` if the entity has no velocity
+    /// component (i.e. is not an elevator).
+    #[wasm_bindgen(js_name = velocity)]
+    #[must_use]
+    pub fn velocity(&self, elevator_ref: u64) -> Option<f64> {
+        self.inner.velocity(u64_to_entity(elevator_ref))
+    }
+
+    /// Sub-tick interpolated position of `entity_ref` for smooth render
+    /// frames. `alpha` is in `[0.0, 1.0]` — `0.0` = current tick,
+    /// `1.0` = next tick. Returns `undefined` if the entity has no
+    /// position component.
+    #[wasm_bindgen(js_name = positionAt)]
+    #[must_use]
+    pub fn position_at(&self, entity_ref: u64, alpha: f64) -> Option<f64> {
+        self.inner.position_at(u64_to_entity(entity_ref), alpha)
+    }
+
+    /// Fraction of `elevator_ref`'s capacity currently occupied (by weight),
+    /// in `[0.0, 1.0]`. Returns `undefined` for missing entities.
+    #[wasm_bindgen(js_name = elevatorLoad)]
+    #[must_use]
+    pub fn elevator_load(&self, elevator_ref: u64) -> Option<f64> {
+        self.inner
+            .elevator_load(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+    }
+
+    /// Number of riders currently aboard `elevator_ref`. Returns `0` for
+    /// missing entities (`Simulation::occupancy` returns 0 for both
+    /// "not an elevator" and "empty cab" — distinguish via `isElevator`).
+    #[wasm_bindgen(js_name = occupancy)]
+    #[must_use]
+    pub fn occupancy(&self, elevator_ref: u64) -> u32 {
+        u32::try_from(self.inner.occupancy(u64_to_entity(elevator_ref))).unwrap_or(u32::MAX)
+    }
+
+    /// Indicator-lamp direction of `elevator_ref`: `"up"`, `"down"`, or
+    /// `"either"` (idle / no committed direction). Returns `undefined`
+    /// for missing entities.
+    #[wasm_bindgen(js_name = elevatorDirection)]
+    #[must_use]
+    pub fn elevator_direction(&self, elevator_ref: u64) -> Option<String> {
+        self.inner
+            .elevator_direction(u64_to_entity(elevator_ref))
+            .map(|d| format_direction(d).to_string())
+    }
+
+    /// Whether `elevator_ref` is currently committed upward. Returns
+    /// `undefined` for missing entities. A car that's `Either`-direction
+    /// reports `false` here and `false` in `elevatorGoingDown`.
+    #[wasm_bindgen(js_name = elevatorGoingUp)]
+    #[must_use]
+    pub fn elevator_going_up(&self, elevator_ref: u64) -> Option<bool> {
+        self.inner.elevator_going_up(u64_to_entity(elevator_ref))
+    }
+
+    /// Whether `elevator_ref` is currently committed downward. Returns
+    /// `undefined` for missing entities.
+    #[wasm_bindgen(js_name = elevatorGoingDown)]
+    #[must_use]
+    pub fn elevator_going_down(&self, elevator_ref: u64) -> Option<bool> {
+        self.inner.elevator_going_down(u64_to_entity(elevator_ref))
+    }
+
+    /// Total number of completed trips by `elevator_ref` since spawn.
+    /// Returns `undefined` for missing entities.
+    #[wasm_bindgen(js_name = elevatorMoveCount)]
+    #[must_use]
+    pub fn elevator_move_count(&self, elevator_ref: u64) -> Option<u64> {
+        self.inner.elevator_move_count(u64_to_entity(elevator_ref))
+    }
+
+    /// Distance `elevator_ref` would travel if it began decelerating
+    /// from its current velocity at its configured deceleration rate.
+    /// Returns `undefined` for missing entities or stationary cars.
+    #[wasm_bindgen(js_name = brakingDistance)]
+    #[must_use]
+    pub fn braking_distance(&self, elevator_ref: u64) -> Option<f64> {
+        self.inner.braking_distance(u64_to_entity(elevator_ref))
+    }
+
+    /// Position of the next stop in `elevator_ref`'s destination queue,
+    /// or current target if mid-trip. Returns `undefined` if the queue
+    /// is empty or the entity is not an elevator.
+    #[wasm_bindgen(js_name = futureStopPosition)]
+    #[must_use]
+    pub fn future_stop_position(&self, elevator_ref: u64) -> Option<f64> {
+        self.inner.future_stop_position(u64_to_entity(elevator_ref))
+    }
+
+    /// Total number of currently-idle elevators across the simulation.
+    /// "Idle" = phase is `Idle` (not parked at a stop with riders or
+    /// repositioning).
+    #[wasm_bindgen(js_name = idleElevatorCount)]
+    #[must_use]
+    pub fn idle_elevator_count(&self) -> u32 {
+        u32::try_from(self.inner.idle_elevator_count()).unwrap_or(u32::MAX)
+    }
+
+    /// Whether `entity_ref` resolves to an elevator entity in the world.
+    #[wasm_bindgen(js_name = isElevator)]
+    #[must_use]
+    pub fn is_elevator(&self, entity_ref: u64) -> bool {
+        self.inner.is_elevator(u64_to_entity(entity_ref))
+    }
+
+    /// Whether `entity_ref` resolves to a rider entity in the world.
+    #[wasm_bindgen(js_name = isRider)]
+    #[must_use]
+    pub fn is_rider(&self, entity_ref: u64) -> bool {
+        self.inner.is_rider(u64_to_entity(entity_ref))
+    }
+
+    /// Whether `entity_ref` resolves to a stop entity in the world.
+    #[wasm_bindgen(js_name = isStop)]
+    #[must_use]
+    pub fn is_stop(&self, entity_ref: u64) -> bool {
+        self.inner.is_stop(u64_to_entity(entity_ref))
+    }
+
+    /// Whether `entity_ref` is currently disabled (out of service / not
+    /// participating in dispatch). Returns `false` for nonexistent
+    /// entities — distinguish via `isElevator` / `isStop` first.
+    #[wasm_bindgen(js_name = isDisabled)]
+    #[must_use]
+    pub fn is_disabled(&self, entity_ref: u64) -> bool {
+        self.inner.is_disabled(u64_to_entity(entity_ref))
     }
 
     // ── Uniform elevator-physics setters ─────────────────────────────
