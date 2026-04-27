@@ -1874,8 +1874,12 @@ pub unsafe extern "C" fn ev_sim_remove_line(handle: *mut EvSim, line_entity_id: 
         match ev.sim.remove_line(line) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
                 set_last_error(format!("remove_line: {e}"));
-                EvStatus::NotFound
+                status
             }
         }
     })
@@ -1904,8 +1908,12 @@ pub unsafe extern "C" fn ev_sim_remove_stop(handle: *mut EvSim, stop_entity_id: 
         match ev.sim.remove_stop(stop) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
                 set_last_error(format!("remove_stop: {e}"));
-                EvStatus::NotFound
+                status
             }
         }
     })
@@ -1938,8 +1946,12 @@ pub unsafe extern "C" fn ev_sim_remove_elevator(
         match ev.sim.remove_elevator(elevator) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
                 set_last_error(format!("remove_elevator: {e}"));
-                EvStatus::NotFound
+                status
             }
         }
     })
