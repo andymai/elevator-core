@@ -597,6 +597,91 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("remove_stop: {e}")))
     }
 
+    /// Add an existing stop entity to a line's served list. The stop
+    /// must already exist (via `addStop` on some line, or from config).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the stop or line entity does not exist.
+    #[wasm_bindgen(js_name = addStopToLine)]
+    pub fn add_stop_to_line(&mut self, stop_ref: u64, line_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .add_stop_to_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
+            .map_err(|e| JsError::new(&format!("add_stop_to_line: {e}")))
+    }
+
+    /// Remove a stop from a line's served list. The stop entity itself
+    /// remains in the world — call `removeStop` to fully despawn.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line entity does not exist.
+    #[wasm_bindgen(js_name = removeStopFromLine)]
+    pub fn remove_stop_from_line(&mut self, stop_ref: u64, line_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .remove_stop_from_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
+            .map_err(|e| JsError::new(&format!("remove_stop_from_line: {e}")))
+    }
+
+    /// Reassign a line to a different group. Returns the previous group
+    /// id so the caller can detect a no-op (returned id == passed id).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the line does not exist or `new_group_id`
+    /// is not a valid group.
+    #[wasm_bindgen(js_name = assignLineToGroup)]
+    pub fn assign_line_to_group(
+        &mut self,
+        line_ref: u64,
+        new_group_id: u32,
+    ) -> Result<u32, JsError> {
+        self.inner
+            .assign_line_to_group(
+                u64_to_entity(line_ref),
+                elevator_core::ids::GroupId(new_group_id),
+            )
+            .map(|old| old.0)
+            .map_err(|e| JsError::new(&format!("assign_line_to_group: {e}")))
+    }
+
+    /// Reassign an elevator to a different line. Disabled cars stay
+    /// disabled; in-flight cars are aborted to the nearest reachable
+    /// stop on the new line.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator or new line does not exist.
+    #[wasm_bindgen(js_name = reassignElevatorToLine)]
+    pub fn reassign_elevator_to_line(
+        &mut self,
+        elevator_ref: u64,
+        new_line_ref: u64,
+    ) -> Result<(), JsError> {
+        self.inner
+            .reassign_elevator_to_line(u64_to_entity(elevator_ref), u64_to_entity(new_line_ref))
+            .map_err(|e| JsError::new(&format!("reassign_elevator_to_line: {e}")))
+    }
+
+    /// Replace an elevator's forbidden-stops set. Pass an empty array to
+    /// clear all restrictions.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist.
+    #[wasm_bindgen(js_name = setElevatorRestrictedStops)]
+    pub fn set_elevator_restricted_stops(
+        &mut self,
+        elevator_ref: u64,
+        stop_refs: Vec<u64>,
+    ) -> Result<(), JsError> {
+        let restricted: std::collections::HashSet<EntityId> =
+            stop_refs.into_iter().map(u64_to_entity).collect();
+        self.inner
+            .set_elevator_restricted_stops(u64_to_entity(elevator_ref), restricted)
+            .map_err(|e| JsError::new(&format!("set_elevator_restricted_stops: {e}")))
+    }
+
     /// Add a new elevator to a line at `starting_position`. Optional
     /// physics overrides; defaults match `ElevatorParams::default`.
     /// Returns the elevator entity ref.
