@@ -54,6 +54,7 @@ export const wasmsim_lineForElevator: (a: number, b: bigint) => bigint;
 export const wasmsim_linesInGroup: (a: number, b: number) => [number, number];
 export const wasmsim_linesServingStop: (a: number, b: bigint) => [number, number];
 export const wasmsim_metrics: (a: number) => any;
+export const wasmsim_metricsForTag: (a: number, b: number, c: number) => any;
 export const wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
 export const wasmsim_occupancy: (a: number, b: bigint) => number;
 export const wasmsim_openDoor: (a: number, b: bigint) => [number, number];

@@ -374,6 +374,38 @@ export interface StopView {
 }
 
 /**
+ * Per-tag aggregates. Returned by
+ * [`crate::WasmSim::metricsForTag`].
+ *
+ * Mirrors [`elevator_core::tagged_metrics::TaggedMetric`] field-for-field
+ * (no precision loss). Wait times stay in **ticks** here — JS consumers
+ * who want seconds multiply by `currentTick`-vs-prev-tick `dt` from the
+ * top-level metrics.
+ */
+export interface TaggedMetricDto {
+    /**
+     * Average wait time in ticks (spawn → board) for tagged riders.
+     */
+    avg_wait_ticks: number;
+    /**
+     * Maximum wait time observed in ticks for tagged riders.
+     */
+    max_wait_ticks: number;
+    /**
+     * Total riders delivered carrying this tag.
+     */
+    total_delivered: number;
+    /**
+     * Total riders abandoned carrying this tag.
+     */
+    total_abandoned: number;
+    /**
+     * Total riders spawned carrying this tag.
+     */
+    total_spawned: number;
+}
+
+/**
  * Top-level game-facing view returned by [`crate::WasmSim::world_view`].
  */
 export interface WorldView {
@@ -796,6 +828,14 @@ export class WasmSim {
      * Current aggregate metrics.
      */
     metrics(): MetricsDto;
+    /**
+     * Aggregate metrics for `tag`. Returns `undefined` if no riders
+     * carrying the tag have been recorded yet.
+     *
+     * Wait times in the returned `TaggedMetricDto` are in **ticks** —
+     * multiply by `dt` for real-time seconds.
+     */
+    metricsForTag(tag: string): TaggedMetricDto | undefined;
     /**
      * Construct a new simulation from a RON-encoded [`SimConfig`] and a
      * dispatch strategy name (`"scan" | "look" | "nearest" | "etd" | "destination"`).
@@ -1412,6 +1452,7 @@ export interface InitOutput {
     readonly wasmsim_linesInGroup: (a: number, b: number) => [number, number];
     readonly wasmsim_linesServingStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_metrics: (a: number) => any;
+    readonly wasmsim_metricsForTag: (a: number, b: number, c: number) => any;
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmsim_occupancy: (a: number, b: bigint) => number;
     readonly wasmsim_openDoor: (a: number, b: bigint) => [number, number];
