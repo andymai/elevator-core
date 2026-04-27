@@ -304,8 +304,8 @@ ffi  = "ev_sim_drain_events"
 [[methods]]
 name = "drain_events_where"
 category = "events"
-wasm = "todo:PR-G"
-ffi  = "todo:PR-G"
+wasm = "skip:closure marshaling — JS consumers filter drainEvents() output client-side"
+ffi  = "skip:closure marshaling — C consumers filter drain_events output"
 
 [[methods]]
 name = "pending_events"
@@ -642,7 +642,7 @@ ffi  = "ev_sim_destination_queue"
 [[methods]]
 name = "elevators_in_phase"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorsInPhase"
 ffi  = "todo:PR-C"
 
 [[methods]]
