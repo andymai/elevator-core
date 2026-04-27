@@ -1135,6 +1135,189 @@ impl WasmSim {
         self.inner.is_disabled(u64_to_entity(entity_ref))
     }
 
+    // ── Destinations + recall ────────────────────────────────────────
+    //
+    // Direct control over a car's destination queue, bypassing dispatch.
+    // Useful for scripted scenarios, NPC orchestration, or testing
+    // strategy edge cases without driving via hall calls. Each method
+    // takes a `u64` entity ref and returns a JS error on invalid inputs.
+
+    /// Append `stop_ref` to the back of `elevator_ref`'s destination queue.
+    /// Adjacent duplicates are suppressed (no-op if the queue's last
+    /// entry already equals `stop_ref`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `elevator_ref` is not an elevator or
+    /// `stop_ref` is not a stop.
+    #[wasm_bindgen(js_name = pushDestination)]
+    pub fn push_destination(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .push_destination(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                u64_to_entity(stop_ref),
+            )
+            .map_err(|e| JsError::new(&format!("push_destination: {e}")))
+    }
+
+    /// Insert `stop_ref` at the front of `elevator_ref`'s destination
+    /// queue ("go here next"). On the next `AdvanceQueue` phase the car
+    /// redirects to this new front if it differs from the current target.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `elevator_ref` is not an elevator or
+    /// `stop_ref` is not a stop.
+    #[wasm_bindgen(js_name = pushDestinationFront)]
+    pub fn push_destination_front(
+        &mut self,
+        elevator_ref: u64,
+        stop_ref: u64,
+    ) -> Result<(), JsError> {
+        self.inner
+            .push_destination_front(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                u64_to_entity(stop_ref),
+            )
+            .map_err(|e| JsError::new(&format!("push_destination_front: {e}")))
+    }
+
+    /// Empty an elevator's destination queue. Any in-progress trip
+    /// continues to its current target (the queue is the *future*
+    /// schedule); to also abort the in-flight trip, call
+    /// `abortMovement` after.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `elevator_ref` is not an elevator.
+    #[wasm_bindgen(js_name = clearDestinations)]
+    pub fn clear_destinations(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .clear_destinations(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("clear_destinations: {e}")))
+    }
+
+    /// Abort the elevator's in-flight movement. The car decelerates to
+    /// the nearest reachable stop; subsequent dispatch / queue entries
+    /// resume from there.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `elevator_ref` is not an elevator.
+    #[wasm_bindgen(js_name = abortMovement)]
+    pub fn abort_movement(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .abort_movement(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("abort_movement: {e}")))
+    }
+
+    /// Clear the queue and immediately recall the elevator to `stop_ref`.
+    /// Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
+    /// emitted as a single `ElevatorRecalled` event so games can render a
+    /// distinct callout (lobby drill, fire-service recall, etc.).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `elevator_ref` is not an elevator or
+    /// `stop_ref` is not a stop.
+    #[wasm_bindgen(js_name = recallTo)]
+    pub fn recall_to(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .recall_to(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                u64_to_entity(stop_ref),
+            )
+            .map_err(|e| JsError::new(&format!("recall_to: {e}")))
+    }
+
+    /// Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
+    /// stop refs in service order. Empty if the elevator has no queue or
+    /// is missing.
+    #[wasm_bindgen(js_name = destinationQueue)]
+    #[must_use]
+    pub fn destination_queue(&self, elevator_ref: u64) -> Vec<u64> {
+        self.inner
+            .destination_queue(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map(|q| q.iter().copied().map(entity_to_u64).collect())
+            .unwrap_or_default()
+    }
+
+    // ── Population queries (per-stop / per-elevator rider lists) ─────
+    //
+    // Returns flat `Vec<u64>` arrays of rider entity refs. Counts have
+    // dedicated `*_count_at` accessors that return `u32` directly to
+    // avoid the per-call allocation when the consumer only needs a size.
+
+    /// Riders currently waiting at `stop_ref`. Returns an empty array
+    /// for missing stops.
+    #[wasm_bindgen(js_name = waitingAt)]
+    #[must_use]
+    pub fn waiting_at(&self, stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .waiting_at(u64_to_entity(stop_ref))
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Riders settled / resident at `stop_ref` (e.g. tenants for a
+    /// residential building's "home floor" model). Returns an empty
+    /// array for missing stops.
+    #[wasm_bindgen(js_name = residentsAt)]
+    #[must_use]
+    pub fn residents_at(&self, stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .residents_at(u64_to_entity(stop_ref))
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Number of resident riders at `stop_ref`. Faster than counting
+    /// `residentsAt` since it skips the array allocation.
+    #[wasm_bindgen(js_name = residentCountAt)]
+    #[must_use]
+    pub fn resident_count_at(&self, stop_ref: u64) -> u32 {
+        u32::try_from(self.inner.resident_count_at(u64_to_entity(stop_ref))).unwrap_or(u32::MAX)
+    }
+
+    /// Riders who abandoned the call at `stop_ref` (gave up waiting).
+    /// Useful for rendering "frustrated" indicators or computing service
+    /// quality metrics. Returns an empty array for missing stops.
+    #[wasm_bindgen(js_name = abandonedAt)]
+    #[must_use]
+    pub fn abandoned_at(&self, stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .abandoned_at(u64_to_entity(stop_ref))
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Number of abandoned riders at `stop_ref`. Faster than counting
+    /// `abandonedAt`.
+    #[wasm_bindgen(js_name = abandonedCountAt)]
+    #[must_use]
+    pub fn abandoned_count_at(&self, stop_ref: u64) -> u32 {
+        u32::try_from(self.inner.abandoned_count_at(u64_to_entity(stop_ref))).unwrap_or(u32::MAX)
+    }
+
+    /// Riders currently aboard `elevator_ref`. Empty if the cab is
+    /// empty or `elevator_ref` is not an elevator.
+    #[wasm_bindgen(js_name = ridersOn)]
+    #[must_use]
+    pub fn riders_on(&self, elevator_ref: u64) -> Vec<u64> {
+        self.inner
+            .riders_on(u64_to_entity(elevator_ref))
+            .iter()
+            .copied()
+            .map(entity_to_u64)
+            .collect()
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
