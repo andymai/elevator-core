@@ -1706,6 +1706,42 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("disable: {e}")))
     }
 
+    // ── Tagging + tagged metrics ─────────────────────────────────────
+    //
+    // Attach tags to entities for grouped metrics queries (e.g. "tower"
+    // vs "annex" elevators, "weekday" vs "weekend" rider flows). The
+    // metrics_for_tag accessor is intentionally deferred — it returns a
+    // TaggedMetric reference that needs its own DTO design.
+
+    /// Attach `tag` to `entity_ref`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `entity_ref` does not exist.
+    #[wasm_bindgen(js_name = tagEntity)]
+    pub fn tag_entity(&mut self, entity_ref: u64, tag: String) -> Result<(), JsError> {
+        self.inner
+            .tag_entity(u64_to_entity(entity_ref), tag)
+            .map_err(|e| JsError::new(&format!("tag_entity: {e}")))
+    }
+
+    /// Remove `tag` from `entity_ref`. No-op if the entity wasn't tagged.
+    #[wasm_bindgen(js_name = untagEntity)]
+    pub fn untag_entity(&mut self, entity_ref: u64, tag: &str) {
+        self.inner.untag_entity(u64_to_entity(entity_ref), tag);
+    }
+
+    /// Every tag currently registered in the simulation.
+    #[wasm_bindgen(js_name = allTags)]
+    #[must_use]
+    pub fn all_tags(&self) -> Vec<String> {
+        self.inner
+            .all_tags()
+            .into_iter()
+            .map(String::from)
+            .collect()
+    }
+
     // ── Stop lookup + phase / direction queries ──────────────────────
 
     /// Resolve a config-time `StopId` (the small `u32` from the RON

@@ -995,6 +995,26 @@ enum EvStatus ev_sim_set_elevator_restricted_stops(struct EvSim *handle,
                                                    uint32_t count);
 
 /**
+ * Attach `tag` to `entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `tag` must be a null-terminated UTF-8 C string.
+ */
+enum EvStatus ev_sim_tag_entity(struct EvSim *handle, uint64_t entity_id, const char *tag);
+
+/**
+ * Remove `tag` from `entity_id`. No-op if the entity wasn't tagged.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `tag` must be a null-terminated UTF-8 C string.
+ */
+enum EvStatus ev_sim_untag_entity(struct EvSim *handle, uint64_t entity_id, const char *tag);
+
+/**
  * Replace a rider's destination with `new_destination_entity_id`. Used
  * for in-flight redirects (e.g. tenant changes mind).
  *
