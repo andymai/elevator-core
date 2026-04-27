@@ -21,7 +21,14 @@ import {
   resetAllOverrides,
 } from "../features/tweak-drawer";
 import { attachHoldToRepeat, toast } from "../platform";
-import { DEFAULT_STATE, PARAM_KEYS, SCENARIOS, scenarioById, encodePermalink } from "../domain";
+import {
+  DEFAULT_STATE,
+  PARAM_KEYS,
+  SCENARIOS,
+  scenarioById,
+  encodePermalink,
+  syncPermalinkUrl,
+} from "../domain";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { resetAll } from "./reset";
@@ -63,6 +70,7 @@ export function attachListeners(state: State, ui: UiHandles): void {
   refreshRepositionPopovers(state, ui, doResetAll);
   ui.compareToggle.addEventListener("change", () => {
     state.permalink = { ...state.permalink, compare: ui.compareToggle.checked };
+    syncPermalinkUrl(state.permalink);
     ui.layout.dataset["mode"] = state.permalink.compare ? "compare" : "single";
     // `also in …` badges depend on compare state, so re-render both
     // dispatch and reposition popovers when the toggle flips.
@@ -77,20 +85,29 @@ export function attachListeners(state: State, ui: UiHandles): void {
     ui.seedInput.value = seed;
     if (seed === state.permalink.seed) return;
     state.permalink = { ...state.permalink, seed };
+    syncPermalinkUrl(state.permalink);
     void resetAll(state, ui);
   });
   ui.seedShuffleBtn.addEventListener("click", () => {
     const next = randomSeedWord();
     ui.seedInput.value = next;
     state.permalink = { ...state.permalink, seed: next };
+    syncPermalinkUrl(state.permalink);
     void resetAll(state, ui).then(() => {
       toast(ui.toast, `Seed: ${next}`);
     });
   });
+  // Sliders fire `input` continuously while the user drags. We only
+  // sync the URL on `change` (drag end / commit) so the address bar
+  // doesn't churn on every pixel — `replaceState` is cheap but the
+  // visible URL flicker is distracting.
   ui.speedInput.addEventListener("input", () => {
     const v = Number(ui.speedInput.value);
     state.permalink.speed = v;
     ui.speedLabel.textContent = speedLabel(v);
+  });
+  ui.speedInput.addEventListener("change", () => {
+    syncPermalinkUrl(state.permalink);
   });
   ui.intensityInput.addEventListener("input", () => {
     const v = Number(ui.intensityInput.value);
@@ -98,10 +115,22 @@ export function attachListeners(state: State, ui: UiHandles): void {
     state.traffic.setIntensity(v);
     ui.intensityLabel.textContent = intensityLabel(v);
   });
+  ui.intensityInput.addEventListener("change", () => {
+    syncPermalinkUrl(state.permalink);
+  });
 
+  // Sync at attach time so the initial render doesn't rely on HTML
+  // defaults matching the TS init value.
+  const renderPlayButton = (): void => {
+    const label = state.running ? "Pause" : "Play";
+    ui.playBtn.dataset["state"] = state.running ? "running" : "paused";
+    ui.playBtn.setAttribute("aria-label", label);
+    ui.playBtn.title = label;
+  };
+  renderPlayButton();
   ui.playBtn.addEventListener("click", () => {
     state.running = !state.running;
-    ui.playBtn.textContent = state.running ? "Pause" : "Play";
+    renderPlayButton();
   });
 
   ui.resetBtn.addEventListener("click", () => {

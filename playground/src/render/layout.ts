@@ -44,11 +44,11 @@ export function scaleFor(width: number): Scale {
     padTop: lerp(22, 30),
     // Just enough bottom breathing room below the lowest floor slab.
     padBottom: lerp(10, 14),
-    // Sized for the widest building-mode labels ("Mechanical" /
-    // "Sky Lobby" on the skyscraper) on desktop, down to "Lobby" /
-    // "Floor N" on the narrowest phones. Tether mode picks its own
-    // gutter width inside `drawTetherScene`. `truncate()` clips
-    // anything that spills over on ultra-long custom stop names.
+    // Sized for the widest building-mode labels ("Penthouse" / "Sky
+    // Lobby" on the skyscraper) on desktop, down to "Lobby" / "Floor N"
+    // on the narrowest phones. Tether mode picks its own gutter width
+    // inside `drawTetherScene`. `truncate()` clips anything that
+    // spills over on ultra-long custom stop names.
     labelW: lerp(52, 120),
     // Preferred gutter for rider figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.

@@ -5,4 +5,3 @@ export {
   initMetricRows,
   renderMetricRows,
 } from "./metric-rows";
-export { renderVerdictRibbon } from "./verdict-ribbon";

@@ -1,6 +1,7 @@
 import type { TrafficDriver } from "../../sim";
 
 interface PhaseUiHandles {
+  phaseStrip: HTMLElement | null;
   phaseLabel: HTMLElement | null;
   phaseProgress: HTMLElement | null;
 }
@@ -10,9 +11,11 @@ interface PhaseState {
 }
 
 export function updatePhaseIndicator(state: PhaseState, ui: PhaseUiHandles): void {
+  const hasPhases = state.traffic.phases().length > 0;
+  if (ui.phaseStrip) ui.phaseStrip.hidden = !hasPhases;
   const el = ui.phaseLabel;
   if (!el) return;
-  const next = state.traffic.currentPhaseLabel() || "\u2014";
+  const next = hasPhases ? state.traffic.currentPhaseLabel() || "\u2014" : "\u2014";
   if (el.textContent !== next) el.textContent = next;
 }
 

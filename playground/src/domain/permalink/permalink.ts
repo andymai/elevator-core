@@ -121,6 +121,20 @@ function parseReposition(
     : fallback;
 }
 
+/**
+ * Replace the current address-bar URL with one that reflects the given
+ * permalink state. Uses `replaceState` (not `pushState`) so the back
+ * button keeps its meaning — a scenario switch is a UI tweak, not a
+ * navigation event the user expects to revisit. Safe to call from any
+ * mutator path; idempotent when the encoded query string already
+ * matches what's in the address bar.
+ */
+export function syncPermalinkUrl(state: PermalinkState): void {
+  const qs = encodePermalink(state);
+  if (window.location.search === qs) return;
+  window.history.replaceState(null, "", qs);
+}
+
 export function encodePermalink(state: PermalinkState): string {
   const p = new URLSearchParams();
   p.set("s", state.scenario);
