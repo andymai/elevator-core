@@ -26,8 +26,6 @@ export interface ScenarioSwitchUi {
   paneB: ScenarioPaneHandles;
   scenarioCards: HTMLElement;
   toast: HTMLElement;
-  compareToggle: HTMLInputElement;
-  layout: HTMLElement;
 }
 
 /**
@@ -65,22 +63,6 @@ export async function switchScenario(
   hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
-  // Manual-control scenarios force compare off, swap the layout mode,
-  // and toggle the body's `scenarioMode` flag (CSS rules in style.css
-  // hide the compare toggle and intensity slider keyed off that). Other
-  // scenarios clear the flag so the standard chrome reappears.
-  const isManual = scenario.manualControl !== undefined;
-  if (isManual) {
-    state.permalink.compare = false;
-    ui.compareToggle.checked = false;
-    document.body.dataset["scenarioMode"] = "manual-control";
-    ui.layout.dataset["mode"] = "manual-control";
-  } else {
-    delete document.body.dataset["scenarioMode"];
-    if (ui.layout.dataset["mode"] === "manual-control") {
-      ui.layout.dataset["mode"] = state.permalink.compare ? "compare" : "single";
-    }
-  }
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
   // panes alone so the user's comparison setup survives.
