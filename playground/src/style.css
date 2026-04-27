@@ -135,12 +135,8 @@
   /* Mobile touch target (matches Apple HIG) */
   --touch-target: 44px;
 
-  /* Bottom status-bar height for layout calculations. Updated at
-   * runtime by the ResizeObserver in `wire-ui.ts` to whatever the bar
-   * actually measures, but the static value below is the bootstrap
-   * default before the first observation fires. Matches the new
-   * fixed status bar (~36 px), down from the legacy floating-capsule
-   * height of 52 px. */
+  /* Bootstrap default; ResizeObserver in `wire-ui.ts` updates this at
+   * runtime to whatever the bar actually measures. */
   --controls-bar-h: 36px;
 
   /* Transition shorthand — combined duration + curve for custom CSS
@@ -480,16 +476,9 @@
     background: var(--accent);
     border-color: var(--accent);
   }
-  /* Render the check as an SVG mask, not a hand-positioned rotated
-   * rectangle. The previous "absolutely-position a 4×8 div with two
-   * borders, then rotate(45deg)" approach was untenable: the visible
-   * L is asymmetric inside its bounding box, so any pixel offset
-   * that centred the elbow left the tips off-axis (and vice-versa),
-   * and the magic numbers re-broke whenever the box size or border
-   * weight changed. The mask is intrinsically centred — the SVG's
-   * viewBox carries the path's symmetry, `mask-position: center`
-   * keeps it that way at any future size, and the fill colour comes
-   * from the pseudo-element's background so theme tokens still apply. */
+  /* SVG mask rather than a rotated border trick — the CSS L-shape is
+   * asymmetric in its bounding box, so pixel-nudging it always leaves
+   * the tips off-axis at some sizes. The viewBox carries the symmetry. */
   .ctl-check input[type="checkbox"]:checked::after {
     content: "";
     position: absolute;
@@ -707,11 +696,8 @@
 
   /* ── Bottom status bar ────────────────────────────────────────────── */
 
-  /* Edge-to-edge fixed bar pinned to the bottom of the viewport. The
-   * old floating capsule (rounded, blurred, fading to 25 % opacity)
-   * was redesigned in favour of always-visible page chrome — easier
-   * to scan at a glance and consistent with status-bar conventions
-   * (IDE, web app footer). */
+  /* Always-visible page chrome — easier to scan than the former
+   * opacity-fading capsule, consistent with IDE/webapp status bars. */
   .controls-bar {
     position: fixed;
     bottom: 0;
@@ -722,11 +708,8 @@
     border-top: 1px solid var(--border-subtle);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  /* Thin progress strip running along the bar's top edge. Mirrors the
-   * old phase-strip's visual cue (1 px amber gradient that fills with
-   * the day cycle) — repurposed here as the dividing line between
-   * panes and chrome so the fill animates exactly where the eye lands
-   * when scanning from the simulation down to the controls. */
+  /* 1 px amber fill along the bar's top edge — day-cycle progress sits
+   * exactly where the eye scans from simulation to controls. */
   .controls-bar-progress {
     position: absolute;
     top: -1px;
@@ -773,9 +756,7 @@
     background: var(--border-subtle);
     vertical-align: middle;
   }
-  /* Inline horizontal field — label sits *next to* the input rather
-   * than above it. Halves the bar's vertical footprint compared to
-   * the old stacked layout. */
+  /* Label inline with the input — halves the bar's vertical footprint. */
   .controls-bar-field {
     display: inline-flex;
     align-items: center;
@@ -791,7 +772,6 @@
     padding: 3px 22px 3px 7px;
     font-size: 11.5px;
   }
-  /* Push the action buttons to the right edge of the bar. */
   .controls-bar-actions {
     display: inline-flex;
     gap: 2px;
@@ -814,19 +794,15 @@
   .icon-btn svg {
     display: block;
   }
-  /* Play/pause toggle: both icons live in the DOM, the button's
-   * `data-state` attribute selects which one renders. Beats swapping
-   * innerHTML because it keeps the listener trivial and avoids any
-   * temptation to inject HTML strings at runtime. */
+  /* Both icons live in the DOM; `data-state` on the button selects
+   * which is visible — no innerHTML swapping in the listener. */
   #play[data-state="running"] .icon-play,
   #play[data-state="paused"] .icon-pause {
     display: none;
   }
 
-  /* Tweak panel as popover above the bottom bar. Absolutely positioned
-   * so the bar's flex layout stays a single horizontal row — the
-   * panel pops out *above* the bar rather than taking up flow space
-   * inside it. */
+  /* Absolute so the bar's flex layout stays a single row — the panel
+   * pops out above the bar without taking up flow space inside it. */
   .tweak-panel-popover {
     position: absolute;
     bottom: 100%;
@@ -871,11 +847,8 @@
       padding: 3px 7px;
       font-size: 11px;
     }
-    /* Touch-target floor on mobile per the project's mobile-P0 rule.
-     * Visual icon stays 14 px; the button stretches to the 44 px
-     * minimum so the bar reads as a thumb-friendly status bar on a
-     * phone. Bar grows from ~32 px desktop height to ~46 px on mobile,
-     * which is still well under the legacy floating-capsule footprint. */
+    /* Touch-target floor on mobile: visual icon stays 14 px; the button
+     * stretches to the 44 px HIG minimum so the bar is thumb-friendly. */
     .controls-bar-actions .icon-btn {
       min-width: var(--touch-target);
       min-height: var(--touch-target);

@@ -127,9 +127,6 @@ export function drawClimberHuds(
   // that distinction, the flip-and-retry branch could re-place a
   // chip on the same side and silently no-op.
   const place = (hud: ClimberHud, side: "left" | "right"): Placement => {
-    // Lead with the climber name so the chip is self-identifying — the
-    // side card's "Climber A/B/C" rows can otherwise float untethered
-    // from the cabins on the canvas.
     const lines = [
       hud.carName,
       formatAltitudeShort(hud.altitudeM),
@@ -186,8 +183,6 @@ export function drawClimberHuds(
 
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    // Line indices: 0 = climber name (header tone), 1 = altitude,
-    // 2 = velocity, 3 = phase + layer (phase tone).
     for (let i = 0; i < p.lines.length; i++) {
       const ly = p.by + padY + lh * i + lh / 2;
       const line = p.lines[i] ?? "";

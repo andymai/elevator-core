@@ -212,9 +212,6 @@ const SKY_LOW_FLOORS = 19; // Floors 1..19 above the lobby
 const SKY_HIGH_FLOORS = 16; // Floors 21..36 above the sky lobby
 const FLOOR_HEIGHT_M = 4;
 const SKY_LOBBY_POS = (1 + SKY_LOW_FLOORS) * FLOOR_HEIGHT_M; // 80 m
-// Array index for each basement level. B1 is declared just after
-// Lobby so it stays at index 1; B2 and B3 are appended at the end of
-// the RON, so they trail the upper-floor block.
 const SKY_B1_IDX = 1;
 const SKY_B2_IDX = 41;
 const SKY_B3_IDX = 42;
@@ -225,9 +222,6 @@ function skyWeights(fill: (i: number) => number): number[] {
   return Array.from({ length: SKY_TOTAL_STOPS }, (_, i) => fill(i));
 }
 
-// Helper — true when the array index points at any of the three
-// service-only basements (B1 / B2 / B3). Used in phase weight vectors
-// where all three basements should share the same multiplier.
 const isBasement = (i: number): boolean => i === SKY_B1_IDX || i === SKY_B2_IDX || i === SKY_B3_IDX;
 
 const skyPhases: Phase[] = [
@@ -239,9 +233,6 @@ const skyPhases: Phase[] = [
     name: "Morning rush",
     durationSec: 90,
     ridersPerMin: 40,
-    // Stop indices reflect RON declaration order: Lobby=0, B1=1,
-    // floors 1..19 = 2..20, Sky Lobby = 21, floors 21..36 = 22..37,
-    // Floor 37 = 38, Floor 38 = 39, Penthouse = 40, B2 = 41, B3 = 42.
     originWeights: skyWeights((i) => {
       if (i === 0) return 20; // Lobby
       if (i === SKY_B1_IDX) return 2; // B1 loading dock
@@ -457,9 +448,7 @@ ${elevator(4, "Service", 1, 350)}
 
 // Mirror of the RON stops for the scenario meta's `stops` array. The
 // traffic driver uses this to pick origins/destinations by index.
-// Order matches `buildSkyscraperRon` (Lobby first so the
-// TrafficDetector reads it as `stops[0]`; B2 and B3 trail the upper
-// floors so they slot into array indices 41 and 42).
+// Ordering must match `buildSkyscraperRon` — same stop-to-index mapping.
 const skyscraperStops: Array<{ name: string; positionM: number }> = [
   { name: "Lobby", positionM: 0 },
   { name: "B1", positionM: -4 },

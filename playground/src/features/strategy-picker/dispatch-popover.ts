@@ -28,10 +28,8 @@ export interface RepositionPaneHandles {
   repoPopover: HTMLElement;
 }
 
-/** Narrow interface for state access. The popover mutates the
- *  permalink and mirrors the change to the address bar via
- *  `syncPermalinkUrl`, which expects a full PermalinkState — keeping
- *  the inner shape exact would force the caller to widen for us. */
+/** `syncPermalinkUrl` encodes every field, so the full PermalinkState
+ *  is required rather than a narrower pick. */
 export interface StrategyState {
   permalink: PermalinkState;
 }

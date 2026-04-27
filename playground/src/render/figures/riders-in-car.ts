@@ -48,11 +48,6 @@ export function drawRidersInCar(
     drawRider(ctx, startX + i * stride, floorY, headR, riderColor, variant);
   }
 
-  // `+N` overflow pill: a small high-contrast chip pinned inside the
-  // cabin's top-right corner. Inside-the-cabin placement guarantees the
-  // chip never clips past the chassis or on a neighbouring shaft;
-  // earlier the label floated outside on `cx + totalRowW/2 + 2` and
-  // disappeared whenever the rider row ran wide.
   if (count > visible) {
     const text = `+${count - visible}`;
     const fontSize = Math.max(8, s.fontSmall - 1);
@@ -74,10 +69,7 @@ export function drawRidersInCar(
     ctx.fillText(text, pillRight - pillPadX, pillTop + pillH / 2);
   }
 
-  // `F` full-capacity overlay: large semi-transparent glyph centred in
-  // the cabin. Drawn after silhouettes + pill so it reads as the
-  // dominant signal — a glance at a red F over a packed cabin says
-  // "this car will skip waiting riders".
+  // Drawn after silhouettes + pill so the F reads as the dominant signal.
   if (isFull) {
     const fSize = Math.max(10, Math.min(carH * 0.7, carW * 0.55));
     ctx.font = `800 ${fSize.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;

@@ -119,10 +119,8 @@ export function attachListeners(state: State, ui: UiHandles): void {
     syncPermalinkUrl(state.permalink);
   });
 
-  // Both icons sit in the DOM; CSS selects the visible one off
-  // `data-state`. Sync from `state.running` at attach time so the
-  // initial render doesn't rely on the HTML defaults matching the
-  // TS init value.
+  // Sync at attach time so the initial render doesn't rely on HTML
+  // defaults matching the TS init value.
   const renderPlayButton = (): void => {
     const label = state.running ? "Pause" : "Play";
     ui.playBtn.dataset["state"] = state.running ? "running" : "paused";

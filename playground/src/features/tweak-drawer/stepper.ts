@@ -17,9 +17,8 @@ export interface StepperUi extends TweakPanelUi {
   toast: HTMLElement;
 }
 
-/** Narrow interface for stepper state. The full PermalinkState is
- *  needed so override mutations can mirror to the address bar via
- *  `syncPermalinkUrl` — encoding requires every permalink field. */
+/** `syncPermalinkUrl` encodes every field, so the full PermalinkState
+ *  is required rather than a narrower pick. */
 export interface StepperState extends HotSwapState {
   permalink: PermalinkState;
 }
