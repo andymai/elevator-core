@@ -968,12 +968,18 @@ pub unsafe extern "C" fn ev_sim_set_reposition(
             set_last_error("handle is null");
             return EvStatus::NullArg;
         }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        // Validate group existence before allocating the strategy box, so the
+        // NotFound path doesn't waste a heap allocation.
+        if !ev.sim.groups().iter().any(|g| g.id() == GroupId(group_id)) {
+            set_last_error(format!("group {group_id} not found"));
+            return EvStatus::NotFound;
+        }
         let Some(boxed) = strategy.instantiate() else {
             set_last_error("EvReposition::Custom is output-only — pass a concrete builtin");
             return EvStatus::InvalidArg;
         };
-        // Safety: validity guaranteed by caller.
-        let ev = unsafe { &mut *handle };
         ev.sim
             .set_reposition(GroupId(group_id), boxed, strategy.as_builtin());
         EvStatus::Ok
@@ -4835,8 +4841,9 @@ mod tests {
     use std::ffi::CString;
 
     #[test]
-    fn abi_version_is_two() {
-        assert_eq!(ev_abi_version(), 2);
+    fn abi_version_matches_constant() {
+        assert_eq!(ev_abi_version(), EV_ABI_VERSION);
+        assert_eq!(EV_ABI_VERSION, 3);
     }
 
     #[test]
