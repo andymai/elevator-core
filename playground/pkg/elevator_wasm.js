@@ -729,6 +729,21 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Aggregate metrics for `tag`. Returns `undefined` if no riders
+     * carrying the tag have been recorded yet.
+     *
+     * Wait times in the returned `TaggedMetricDto` are in **ticks** —
+     * multiply by `dt` for real-time seconds.
+     * @param {string} tag
+     * @returns {TaggedMetricDto | undefined}
+     */
+    metricsForTag(tag) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_metricsForTag(this.__wbg_ptr, ptr0, len0);
+        return ret;
+    }
+    /**
      * Construct a new simulation from a RON-encoded [`SimConfig`] and a
      * dispatch strategy name (`"scan" | "look" | "nearest" | "etd" | "destination"`).
      *
