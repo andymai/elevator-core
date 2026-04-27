@@ -793,8 +793,8 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }
 
-    /// Snapshot of every active hall call. Returns one
-    /// [`dto::HallCallDto`] per live `(stop, direction)` press.
+    /// Snapshot of every active hall call. Returns one `HallCallDto`
+    /// per live `(stop, direction)` press.
     #[wasm_bindgen(js_name = hallCalls)]
     #[must_use]
     pub fn hall_calls(&self) -> Vec<dto::HallCallDto> {
