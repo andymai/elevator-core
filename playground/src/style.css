@@ -662,10 +662,13 @@
       var(--bg-primary);
   }
   /* Scenario card hover/active/pressed base moved to Tailwind utilities in
- * `renderScenarioCards()` (src/main.ts). The old bottom accent bar
- * pseudo was tied to full-size cards and felt heavy on compact
- * pills — the `aria-pressed:bg-accent-muted` + accent border already
- * carry the selection signal. */
+ * `renderScenarioCards()` (src/main.ts). The accent ring below
+ * supplements the aria-pressed background + border so the selected
+ * scenario reads at a glance from across the strip — the muted-bg
+ * alone was too quiet against the section's radial gradient. */
+  .scenario-card[aria-pressed="true"] {
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
   /* ── Seed shuffle button (inside the seed input) ───────────────────── */
 
   /* Global `button` styling (gradient + border + padding + hover

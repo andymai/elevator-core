@@ -99,10 +99,18 @@
     </header>
 
     <section
-      id="scenario-cards"
       aria-label="Scenario picker"
-      class="scenario-cards flex flex-row flex-wrap items-center gap-1.5 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-1.5 max-md:px-3.5 max-md:py-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
-    ></section>
+      class="scenario-cards flex flex-row items-center gap-3 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-2 max-md:px-3.5 max-md:py-1.5"
+    >
+      <span
+        class="text-[10.5px] uppercase tracking-[0.08em] text-content-disabled font-medium select-none flex-none max-md:hidden"
+        >Scenario</span
+      >
+      <div
+        id="scenario-cards"
+        class="flex flex-row flex-wrap items-center gap-1.5 flex-1 min-w-0 max-md:gap-1.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:[-webkit-overflow-scrolling:touch] max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+      ></div>
+    </section>
 
     <section
       id="verdict-ribbon"

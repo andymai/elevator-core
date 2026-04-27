@@ -648,10 +648,14 @@ const spaceElevator: ScenarioMeta = {
 )`,
 };
 
-// Order is intentional: scale-ascending. A 5-stop acute burst, then a
-// 13-stop sky-lobby tower, then a 2-stop tether 1 000 km tall — the
-// card strip reads as a "zoom out" from building to orbit.
-export const SCENARIOS: ScenarioMeta[] = [convention, skyscraper, spaceElevator];
+// Order is "first-impression first": skyscraper leads because its
+// 40-floor multi-bank topology + sky-lobby transfers showcase the
+// playground's signature features the moment a visitor lands. Space
+// elevator second sets up the "zoom out" jump in scale. Convention
+// center last — it's an acute stress-test scenario rather than a
+// typical day cycle, useful but niche, so it sits at the end of the
+// row instead of greeting cold visitors.
+export const SCENARIOS: ScenarioMeta[] = [skyscraper, spaceElevator, convention];
 
 export function scenarioById(id: string): ScenarioMeta {
   const match = SCENARIOS.find((s) => s.id === id);
