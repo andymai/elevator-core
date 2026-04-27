@@ -556,6 +556,35 @@ enum EvStatus ev_sim_set_strategy(struct EvSim *handle,
                                   enum EvStrategy strategy);
 
 /**
+ * Remove the reposition strategy from `group_id`. Idle elevators stay
+ * where they parked instead of moving toward a target.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_remove_reposition(struct EvSim *handle, uint32_t group_id);
+
+/**
+ * Step the simulation forward up to `max_ticks` ticks.
+ *
+ * Stops early if the world becomes "quiet" (no in-flight riders, no
+ * pending hall calls, all cars idle). Writes the actual tick count
+ * to `*out_ticks_run` on both success and timeout.
+ *
+ * Returns `EvStatus::Ok` if the world quieted within `max_ticks`,
+ * `EvStatus::InvalidArg` if it failed to quiet (loop guard).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_ticks_run` must be a writable `u64`.
+ */
+enum EvStatus ev_sim_run_until_quiet(struct EvSim *handle,
+                                     uint64_t max_ticks,
+                                     uint64_t *out_ticks_run);
+
+/**
  * Press an up/down hall button at `stop_entity_id`. Games use this
  * for scripted NPCs, player input, or cutscene cues.
  *
