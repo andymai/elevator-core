@@ -90,6 +90,7 @@ export function mountManualControls(
   // Lifecycle: Add / Remove Car. Same UI affordance as before but
   // labelled with the wasm method names so devs see what fires.
   const addBtn = roots.addCarBtn;
+  let lastBtnText: string | null = null;
   const updateAddBtn = (): void => {
     if (!meta.allowAddRemoveCar) {
       addBtn.hidden = true;
@@ -99,7 +100,11 @@ export function mountManualControls(
     const max = scenario.tweakRanges.cars.max;
     const atMax = view.cars.length >= max;
     addBtn.hidden = false;
-    addBtn.textContent = atMax ? "sim.removeElevator(carRef)" : "sim.addElevator(lineRef, …)";
+    const next = atMax ? "sim.removeElevator(carRef)" : "sim.addElevator(lineRef, …)";
+    if (next !== lastBtnText) {
+      addBtn.textContent = next;
+      lastBtnText = next;
+    }
   };
   const onAddCar = (): void => {
     const view = sim.worldView();
@@ -174,6 +179,10 @@ function mountHallButtons(
     upBtn: HTMLButtonElement | null;
     downBtn: HTMLButtonElement | null;
   }> = [];
+  // Capture stop entity refs once at mount. The api-explorer
+  // scenario doesn't add stops at runtime, and a sim reset
+  // re-mounts the whole panel — so a captured ref is correct for
+  // this panel's lifetime. Keep this comment if we ever generalise.
   const initialView = sim.worldView();
 
   for (const stop of stops) {
@@ -185,7 +194,9 @@ function mountHallButtons(
 
     const isTop = stop === stops[0];
     const isBottom = stop === stops[stops.length - 1];
-    const stopRef = lookupStopRef(initialView, stop.configIndex);
+    const liveStop = initialView.stops[stop.configIndex];
+    if (!liveStop) continue;
+    const stopRef = BigInt(liveStop.entity_id);
 
     let upBtn: HTMLButtonElement | null = null;
     let downBtn: HTMLButtonElement | null = null;
@@ -242,12 +253,21 @@ function mountCarBlocks(
   sim: Sim,
   log: CallLogHandle,
 ): CarBlocksHandle {
-  // The blocks rebuild on every Add / Remove. We hold per-car
-  // sync hooks in a list keyed by car id so `sync()` can update
-  // velocity readouts and lit-state without rebuilding the DOM.
+  // The blocks rebuild on every Add / Remove. `syncers` are the
+  // per-frame update hooks (lit-state, velocity readout) re-bound
+  // each rebuild; `userState` survives rebuilds so Add Car C
+  // doesn't reset Car A's service mode and slider position back
+  // to scenario defaults.
   let syncers: Array<(view: WorldView) => void> = [];
+  const userState = new Map<number, { mode: ServiceModeName; velocity: number }>();
 
   const rebuild = (view: WorldView): void => {
+    // Drop state for cars that no longer exist (Remove Car).
+    const liveIds = new Set(view.cars.map((c) => c.id));
+    for (const id of [...userState.keys()]) {
+      if (!liveIds.has(id)) userState.delete(id);
+    }
+
     container.replaceChildren();
     syncers = [];
 
@@ -258,6 +278,7 @@ function mountCarBlocks(
       // the RON `name` field, so we synthesise A/B/C from index —
       // cars are stable across rebuilds within a scenario.
       const carName = `Car ${String.fromCharCode(65 + idx)}`;
+      const persisted = userState.get(car.id);
       const header = el("div", "api-car-header");
       header.append(el("span", "api-car-name", carName));
       block.append(header);
@@ -280,17 +301,25 @@ function mountCarBlocks(
         opt.textContent = m.label;
         select.append(opt);
       }
-      // Read the engine's current service mode if available; else
-      // default to scenario default. (worldView doesn't currently
-      // expose service mode per-car, so we initialise to the
-      // scenario default and trust subsequent user edits.)
-      select.value = scenario.manualControl?.defaultServiceMode ?? "normal";
+      // `WorldView` doesn't expose service mode per-car, so we
+      // track the user's selection in `userState` and treat the
+      // dropdown as the source of truth across rebuilds. Initial
+      // value: previously-picked mode (across an Add/Remove rebuild)
+      // or scenario default for fresh cars.
+      const initialMode: ServiceModeName =
+        persisted?.mode ?? scenario.manualControl?.defaultServiceMode ?? "normal";
+      select.value = initialMode;
+      // Seed the persisted state for fresh cars so a later remove of
+      // a different car doesn't drop this entry on the next rebuild.
+      if (!persisted) userState.set(car.id, { mode: initialMode, velocity: 0 });
       select.addEventListener("change", () => {
         const mode = select.value as ServiceModeName;
         const sig = `sim.setServiceMode(${carName}, "${mode}")`;
         log.call(sig);
         try {
           sim.setServiceMode(carRef, mode);
+          const entry = userState.get(car.id);
+          if (entry) entry.mode = mode;
         } catch (e) {
           log.callFailed(sig, e);
         }
@@ -298,7 +327,10 @@ function mountCarBlocks(
       modeRow.append(select);
       block.append(modeRow);
 
-      // pressCarButton — one per stop
+      // pressCarButton — one per stop. Map keyed by the engine's
+      // stop entity_id (u32 slot, matches `CarView.target`) so the
+      // per-frame syncer can `=== target` directly without
+      // index-juggling.
       const carBtnRow = el("div", "api-row");
       carBtnRow.append(el("span", "api-sig", `sim.pressCarButton(${carName}, stopRef)`));
       const carBtns = el("span", "api-row-actions");
@@ -307,7 +339,10 @@ function mountCarBlocks(
         .map((s, i) => ({ ...s, configIndex: i }))
         .sort((a, b) => b.positionM - a.positionM);
       for (const stop of sortedStops) {
-        const stopRef = lookupStopRef(view, stop.configIndex);
+        const liveStop = view.stops[stop.configIndex];
+        if (!liveStop) continue;
+        const stopEntityId = liveStop.entity_id;
+        const stopRef = BigInt(stopEntityId);
         const btn = makeApiButton(abbrev(stop.name), "api-car-btn", () => {
           const sig = `sim.pressCarButton(${carName}, ${stop.name})`;
           log.call(sig);
@@ -319,7 +354,7 @@ function mountCarBlocks(
         });
         btn.title = `Car call: ${stop.name}`;
         carBtns.append(btn);
-        carBtnByStop.set(stop.configIndex, btn);
+        carBtnByStop.set(stopEntityId, btn);
       }
       carBtnRow.append(carBtns);
       block.append(carBtnRow);
@@ -375,7 +410,13 @@ function mountCarBlocks(
       doorRow.append(doorBtns);
       block.append(doorRow);
 
-      // setTargetVelocity — slider with live readout
+      // setTargetVelocity — slider with engine-reported readout.
+      //
+      // `input` fires every drag-pixel; `change` fires on release.
+      // We push the live value into the engine on `input` so the
+      // cab tracks the slider continuously, but only log a single
+      // line per drag on `change` — otherwise the call log fills
+      // with one entry per pixel travelled.
       const velRow = el("div", "api-row api-row-vel");
       velRow.append(el("span", "api-sig", `sim.setTargetVelocity(${carName}, v)`));
       const velControls = el("span", "api-row-actions");
@@ -385,11 +426,25 @@ function mountCarBlocks(
       slider.min = String(-scenario.elevatorDefaults.maxSpeed);
       slider.max = String(scenario.elevatorDefaults.maxSpeed);
       slider.step = "0.1";
-      slider.value = "0";
-      const readout = el("span", "api-vel-readout", "+0.0 m/s");
+      slider.value = String(persisted?.velocity ?? 0);
+      const initialV = Number(slider.value);
+      const readout = el(
+        "span",
+        "api-vel-readout",
+        `${initialV >= 0 ? "+" : ""}${initialV.toFixed(1)} m/s`,
+      );
       slider.addEventListener("input", () => {
         const v = Number(slider.value);
-        readout.textContent = `${v >= 0 ? "+" : ""}${v.toFixed(1)} m/s`;
+        try {
+          sim.setTargetVelocity(carRef, v);
+          const entry = userState.get(car.id);
+          if (entry) entry.velocity = v;
+        } catch {
+          // Surface only on `change`; per-pixel errors would spam.
+        }
+      });
+      slider.addEventListener("change", () => {
+        const v = Number(slider.value);
         const sig = `sim.setTargetVelocity(${carName}, ${v.toFixed(2)})`;
         log.call(sig);
         try {
@@ -425,24 +480,31 @@ function mountCarBlocks(
       container.append(block);
 
       // Per-frame sync for this car: refresh `pressCarButton` lit
-      // state from the engine's target stop, refresh velocity readout.
+      // state and the velocity readout from engine state. The
+      // slider stays at the *commanded* position (whatever the user
+      // last set) — the readout shows *actual* engine velocity,
+      // which lags during accel/decel due to the trapezoidal profile.
+      let lastReadout = readout.textContent;
+      const lastLit = new Map<number, boolean>();
       syncers.push((v) => {
         const live = v.cars.find((c) => c.id === car.id);
         if (!live) return;
-        for (const [configIndex, btn] of carBtnByStop) {
-          const stopRef = lookupStopRef(v, configIndex);
-          const lit = live.target !== undefined && BigInt(live.target) === stopRef;
-          btn.dataset["lit"] = lit ? "true" : "false";
+        // Lit-state for car-call buttons — only DOM-mutate on change.
+        const target = live.target;
+        for (const [stopEntityId, btn] of carBtnByStop) {
+          const lit = target !== undefined && target === stopEntityId;
+          if (lastLit.get(stopEntityId) !== lit) {
+            btn.dataset["lit"] = lit ? "true" : "false";
+            lastLit.set(stopEntityId, lit);
+          }
         }
-        // Engine-reported velocity. Don't fight the slider while the
-        // user is dragging — only update readout/slider when the
-        // engine has settled (target ≠ slider).
+        // Velocity readout — quantise to one decimal so micro-jitter
+        // near zero doesn't thrash the DOM.
         const engineV = live.v;
-        const sliderV = Number(slider.value);
-        if (Math.abs(engineV - sliderV) > 0.05) {
-          // Live engine value diverges from commanded — update the
-          // readout to reflect actual cab motion.
-          readout.textContent = `${engineV >= 0 ? "+" : ""}${engineV.toFixed(1)} m/s`;
+        const text = `${engineV >= 0 ? "+" : ""}${engineV.toFixed(1)} m/s`;
+        if (text !== lastReadout) {
+          readout.textContent = text;
+          lastReadout = text;
         }
       });
     });
@@ -475,20 +537,25 @@ function mountSpawnForm(
   const weightInput = document.createElement("input");
   weightInput.type = "number";
   weightInput.className = "api-spawn-weight";
-  weightInput.min = "20";
-  weightInput.max = "300";
-  weightInput.step = "5";
   const [lo, hi] = scenario.passengerWeightRange;
+  weightInput.min = String(Math.round(lo));
+  weightInput.max = String(Math.round(hi));
+  weightInput.step = "5";
   weightInput.value = String(Math.round((lo + hi) / 2));
 
   const spawnBtn = makeApiButton("spawnRider", "api-spawn-btn", () => {
     const origin = Number(fromSelect.value);
     const dest = Number(toSelect.value);
-    if (origin === dest) return;
     const weight = Number(weightInput.value) || 75;
     const originName = scenario.stops[origin]?.name ?? `s${origin}`;
     const destName = scenario.stops[dest]?.name ?? `s${dest}`;
     const sig = `sim.spawnRider(${originName}, ${destName}, ${weight})`;
+    if (origin === dest) {
+      // Engine would reject; surface why in the log instead of
+      // silently no-op'ing.
+      log.callFailed(sig, new Error("origin === destination"));
+      return;
+    }
     log.call(sig);
     try {
       sim.spawnRider(origin, dest, weight);
@@ -533,22 +600,6 @@ function makeSelect(
   }
   select.value = String(options[defaultIndex]?.id ?? 0);
   return select;
-}
-
-/**
- * Resolve the wasm entity ref (u64) for a stop given its
- * config-list index. The ref is needed for the imperative API; the
- * config index is what the scenario metadata exposes.
- */
-function lookupStopRef(view: WorldView, configIndex: number): bigint {
-  const stop = view.stops[configIndex];
-  if (!stop) {
-    // Defensive: should never happen in well-formed scenarios. Return
-    // a clearly-invalid ref so the engine call surfaces a thrown
-    // exception rather than silently misfiring.
-    return 0n;
-  }
-  return BigInt(stop.entity_id);
 }
 
 function abbrev(name: string): string {

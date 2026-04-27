@@ -67,11 +67,10 @@ export function loop(state: State, ui: UiHandles): void {
         }
       });
 
-      // Manual-control panel: refresh hall-call lit state, per-car
-      // controls, and append the frame's events to the log. The panel
-      // pushes the full CabinRenderState (selected car, per-car
-      // service mode, hall-call lamps) into `paneA.renderer` itself,
-      // so the loop just needs to call `update()`.
+      // API-explorer panel: refresh hall-lamp / car-call lit state,
+      // velocity readouts, and append this frame's drained engine
+      // events to the call log. The renderer is untouched here — the
+      // standard multi-shaft `draw-building` path handles drawing.
       if (state.manualControls && state.paneA) {
         state.manualControls.update(state.paneA.sim, paneAEvents);
       }
