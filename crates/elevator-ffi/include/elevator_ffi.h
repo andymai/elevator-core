@@ -1028,6 +1028,60 @@ enum EvStatus ev_sim_transfer_points(struct EvSim *handle,
                                      uint32_t *out_written);
 
 /**
+ * Resolve a config-time `StopId` (the small `u32` from RON config) to
+ * its runtime `EntityId`. Returns `0` (slotmap-null) for unknown ids.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_stop_entity(struct EvSim *handle, uint32_t stop_id);
+
+/**
+ * Entity ids of every elevator currently repositioning.
+ * Buffer-pattern accessor.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_iter_repositioning_elevators(struct EvSim *handle,
+                                                  uint64_t *out,
+                                                  uint32_t capacity,
+                                                  uint32_t *out_written);
+
+/**
+ * Up/down split of riders waiting at a stop. Writes the up count to
+ * `*out_up_count` and the down count to `*out_down_count`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_up_count` and `out_down_count` must be writable `u32` pointers.
+ */
+enum EvStatus ev_sim_waiting_direction_counts_at(struct EvSim *handle,
+                                                 uint64_t stop_entity_id,
+                                                 uint32_t *out_up_count,
+                                                 uint32_t *out_down_count);
+
+/**
+ * Per-line waiting counts at a stop. Buffer-pattern accessor; emits
+ * flat alternating `[line_entity_id, count, ...]` pairs as `u64`.
+ * The number of pairs written is `*out_written / 2`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`.
+ */
+enum EvStatus ev_sim_waiting_counts_by_line_at(struct EvSim *handle,
+                                               uint64_t stop_entity_id,
+                                               uint64_t *out,
+                                               uint32_t capacity,
+                                               uint32_t *out_written);
+
+/**
  * Set the operational mode of an elevator.
  *
  * Modes are orthogonal to the elevator's phase — switching mode does not

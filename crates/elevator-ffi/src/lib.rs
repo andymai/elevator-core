@@ -2437,6 +2437,154 @@ pub unsafe extern "C" fn ev_sim_transfer_points(
     })
 }
 
+// ── Stop lookup + phase / direction queries ──────────────────────────────
+
+/// Resolve a config-time `StopId` (the small `u32` from RON config) to
+/// its runtime `EntityId`. Returns `0` (slotmap-null) for unknown ids.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_stop_entity(handle: *mut EvSim, stop_id: u32) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim
+            .stop_entity(elevator_core::prelude::StopId(stop_id))
+            .map_or(0, entity_to_u64)
+    })
+}
+
+/// Entity ids of every elevator currently repositioning.
+/// Buffer-pattern accessor.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_iter_repositioning_elevators(
+    handle: *mut EvSim,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        // Safety: `out` validity guaranteed by caller.
+        let written =
+            unsafe { write_entity_buffer(ev.sim.iter_repositioning_elevators(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Up/down split of riders waiting at a stop. Writes the up count to
+/// `*out_up_count` and the down count to `*out_down_count`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_up_count` and `out_down_count` must be writable `u32` pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_waiting_direction_counts_at(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out_up_count: *mut u32,
+    out_down_count: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_up_count.is_null() || out_down_count.is_null() {
+            set_last_error("handle or output pointer is null");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let (up, down) = ev.sim.waiting_direction_counts_at(stop);
+        // Safety: caller guarantees output pointers are writable.
+        unsafe {
+            *out_up_count = u32::try_from(up).unwrap_or(u32::MAX);
+            *out_down_count = u32::try_from(down).unwrap_or(u32::MAX);
+        }
+        EvStatus::Ok
+    })
+}
+
+/// Per-line waiting counts at a stop. Buffer-pattern accessor; emits
+/// flat alternating `[line_entity_id, count, ...]` pairs as `u64`.
+/// The number of pairs written is `*out_written / 2`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_waiting_counts_by_line_at(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let pairs = ev.sim.waiting_counts_by_line_at(stop);
+        let mut written: u32 = 0;
+        for (line, count) in pairs {
+            // Each pair takes 2 slots; stop if next pair would overflow.
+            if written + 2 > capacity {
+                break;
+            }
+            // Safety: caller guarantees `out` has at least `capacity`
+            // writable slots; bounds checked above.
+            unsafe {
+                *out.add(written as usize) = entity_to_u64(line);
+                *out.add(written as usize + 1) = u64::from(count);
+            }
+            written += 2;
+        }
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
 // ── Service mode + manual control ─────────────────────────────────────────
 //
 // Brings FFI to parity with the core `ServiceMode` API and the Manual-mode
