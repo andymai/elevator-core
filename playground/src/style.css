@@ -484,7 +484,12 @@
     position: absolute;
     inset: 0;
     background-color: var(--bg-primary);
-    --check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5 7 11.5 12.5 5.5'/%3E%3C/svg%3E");
+    /* `stroke='currentColor'` signals that the colour is irrelevant —
+     * the SVG is consumed as a `mask-image`, so the mask uses the
+     * alpha channel and the actual fill comes from this rule's
+     * `background-color`. Picking a literal hex would suggest the
+     * value matters; it doesn't. */
+    --check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5 7 11.5 12.5 5.5'/%3E%3C/svg%3E");
     -webkit-mask: var(--check-mask) center / 100% 100% no-repeat;
     mask: var(--check-mask) center / 100% 100% no-repeat;
   }
@@ -783,15 +788,18 @@
   }
   /* Icon buttons inside the status bar — square-ish, transparent
    * background, just the glyph. The base `button` element style
-   * supplies hover/focus chrome so we don't need to re-declare it. */
-  .icon-btn {
+   * supplies hover/focus chrome so we don't need to re-declare it.
+   * Selector scoped under `.controls-bar-actions` so its (0,2,0)
+   * specificity beats the sibling `.controls-bar-actions button`
+   * padding rule above without needing `!important`. */
+  .controls-bar-actions .icon-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 4px 6px !important;
+    padding: 4px 6px;
     line-height: 0;
   }
-  .icon-btn svg {
+  .controls-bar-actions .icon-btn svg {
     display: block;
   }
   /* Both icons live in the DOM; `data-state` on the button selects
