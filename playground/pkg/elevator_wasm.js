@@ -179,6 +179,17 @@ export class WasmSim {
         return v2;
     }
     /**
+     * Distance `elevator_ref` would travel if it began decelerating
+     * from its current velocity at its configured deceleration rate.
+     * Returns `undefined` for missing entities or stationary cars.
+     * @param {bigint} elevator_ref
+     * @returns {number | undefined}
+     */
+    brakingDistance(elevator_ref) {
+        const ret = wasm.wasmsim_brakingDistance(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
      * Cancel any pending hold extension on the doors.
      *
      * # Errors
@@ -232,6 +243,63 @@ export class WasmSim {
     dt() {
         const ret = wasm.wasmsim_dt(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Indicator-lamp direction of `elevator_ref`: `"up"`, `"down"`, or
+     * `"either"` (idle / no committed direction). Returns `undefined`
+     * for missing entities.
+     * @param {bigint} elevator_ref
+     * @returns {string | undefined}
+     */
+    elevatorDirection(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorDirection(this.__wbg_ptr, elevator_ref);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
+     * Whether `elevator_ref` is currently committed downward. Returns
+     * `undefined` for missing entities.
+     * @param {bigint} elevator_ref
+     * @returns {boolean | undefined}
+     */
+    elevatorGoingDown(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorGoingDown(this.__wbg_ptr, elevator_ref);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * Whether `elevator_ref` is currently committed upward. Returns
+     * `undefined` for missing entities. A car that's `Either`-direction
+     * reports `false` here and `false` in `elevatorGoingDown`.
+     * @param {bigint} elevator_ref
+     * @returns {boolean | undefined}
+     */
+    elevatorGoingUp(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorGoingUp(this.__wbg_ptr, elevator_ref);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * Fraction of `elevator_ref`'s capacity currently occupied (by weight),
+     * in `[0.0, 1.0]`. Returns `undefined` for missing entities.
+     * @param {bigint} elevator_ref
+     * @returns {number | undefined}
+     */
+    elevatorLoad(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorLoad(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * Total number of completed trips by `elevator_ref` since spawn.
+     * Returns `undefined` for missing entities.
+     * @param {bigint} elevator_ref
+     * @returns {bigint | undefined}
+     */
+    elevatorMoveCount(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorMoveCount(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
     }
     /**
      * Command an immediate stop on a Manual-mode elevator. Sets the
@@ -311,6 +379,17 @@ export class WasmSim {
         return BigInt.asUintN(64, ret);
     }
     /**
+     * Position of the next stop in `elevator_ref`'s destination queue,
+     * or current target if mid-trip. Returns `undefined` if the queue
+     * is empty or the entity is not an elevator.
+     * @param {bigint} elevator_ref
+     * @returns {number | undefined}
+     */
+    futureStopPosition(elevator_ref) {
+        const ret = wasm.wasmsim_futureStopPosition(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
      * Extend the doors' open dwell by `ticks`. Cumulative across calls.
      *
      * # Errors
@@ -325,6 +404,54 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Total number of currently-idle elevators across the simulation.
+     * "Idle" = phase is `Idle` (not parked at a stop with riders or
+     * repositioning).
+     * @returns {number}
+     */
+    idleElevatorCount() {
+        const ret = wasm.wasmsim_idleElevatorCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Whether `entity_ref` is currently disabled (out of service / not
+     * participating in dispatch). Returns `false` for nonexistent
+     * entities — distinguish via `isElevator` / `isStop` first.
+     * @param {bigint} entity_ref
+     * @returns {boolean}
+     */
+    isDisabled(entity_ref) {
+        const ret = wasm.wasmsim_isDisabled(this.__wbg_ptr, entity_ref);
+        return ret !== 0;
+    }
+    /**
+     * Whether `entity_ref` resolves to an elevator entity in the world.
+     * @param {bigint} entity_ref
+     * @returns {boolean}
+     */
+    isElevator(entity_ref) {
+        const ret = wasm.wasmsim_isElevator(this.__wbg_ptr, entity_ref);
+        return ret !== 0;
+    }
+    /**
+     * Whether `entity_ref` resolves to a rider entity in the world.
+     * @param {bigint} entity_ref
+     * @returns {boolean}
+     */
+    isRider(entity_ref) {
+        const ret = wasm.wasmsim_isRider(this.__wbg_ptr, entity_ref);
+        return ret !== 0;
+    }
+    /**
+     * Whether `entity_ref` resolves to a stop entity in the world.
+     * @param {bigint} entity_ref
+     * @returns {boolean}
+     */
+    isStop(entity_ref) {
+        const ret = wasm.wasmsim_isStop(this.__wbg_ptr, entity_ref);
+        return ret !== 0;
     }
     /**
      * Current aggregate metrics.
@@ -362,6 +489,17 @@ export class WasmSim {
         return this;
     }
     /**
+     * Number of riders currently aboard `elevator_ref`. Returns `0` for
+     * missing entities (`Simulation::occupancy` returns 0 for both
+     * "not an elevator" and "empty cab" — distinguish via `isElevator`).
+     * @param {bigint} elevator_ref
+     * @returns {number}
+     */
+    occupancy(elevator_ref) {
+        const ret = wasm.wasmsim_occupancy(this.__wbg_ptr, elevator_ref);
+        return ret >>> 0;
+    }
+    /**
      * Request the doors of an elevator to open. Applied immediately at a
      * stopped car with closed/closing doors; otherwise queued.
      *
@@ -396,6 +534,19 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Sub-tick interpolated position of `entity_ref` for smooth render
+     * frames. `alpha` is in `[0.0, 1.0]` — `0.0` = current tick,
+     * `1.0` = next tick. Returns `undefined` if the entity has no
+     * position component.
+     * @param {bigint} entity_ref
+     * @param {number} alpha
+     * @returns {number | undefined}
+     */
+    positionAt(entity_ref, alpha) {
+        const ret = wasm.wasmsim_positionAt(this.__wbg_ptr, entity_ref, alpha);
+        return ret[0] === 0 ? undefined : ret[1];
     }
     /**
      * Press a car-button (in-cab floor request) targeting `stop_ref`.
@@ -862,6 +1013,17 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Current velocity (distance/tick) of `elevator_ref`. Positive = up,
+     * negative = down. Returns `undefined` if the entity has no velocity
+     * component (i.e. is not an elevator).
+     * @param {bigint} elevator_ref
+     * @returns {number | undefined}
+     */
+    velocity(elevator_ref) {
+        const ret = wasm.wasmsim_velocity(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : ret[1];
     }
     /**
      * Convenience: waiting rider count at a specific stop id.
