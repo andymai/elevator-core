@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
-  it("ships exactly 3 scenarios", () => {
-    expect(SCENARIOS).toHaveLength(3);
+  it("ships exactly 4 scenarios", () => {
+    expect(SCENARIOS).toHaveLength(4);
   });
 
   it("every id is unique", () => {
@@ -17,11 +17,18 @@ describe("scenarios metadata", () => {
     }
   });
 
-  it("every scenario has either phases or seedSpawns — never both empty", () => {
+  it("every scenario has phases, seedSpawns, or opts into manual-control", () => {
+    // Manual-control scenarios run with `phases: []` because riders are
+    // spawned by hand from the controls panel — there's no day cycle to
+    // schedule. Allow that case so the assertion catches truly empty
+    // scenarios while letting `manualControl` opt out.
     for (const s of SCENARIOS) {
       const phased = s.phases.length > 0;
       const seeded = s.seedSpawns > 0;
-      expect(phased || seeded, `${s.id} has neither phases nor seedSpawns`).toBe(true);
+      const manual = s.manualControl !== undefined;
+      expect(phased || seeded || manual, `${s.id} has no phases / seedSpawns / manualControl`).toBe(
+        true,
+      );
     }
   });
 

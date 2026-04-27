@@ -22,8 +22,19 @@ export function randomSeedWord(): string {
 }
 
 export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
-  ui.compareToggle.checked = p.compare;
-  ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
+  const scenario = scenarioById(p.scenario);
+  // Manual-control scenarios swap the layout into a single-pane +
+  // side-controls grid that isn't expressible as compare on/off; honor
+  // that opt-in here so a fresh permalink load lands on the right
+  // layout from frame 0 (otherwise the layout flickers single → manual
+  // when boot.ts runs after this function).
+  const isManual = scenario.manualControl !== undefined;
+  ui.compareToggle.checked = isManual ? false : p.compare;
+  if (isManual) {
+    ui.layout.dataset["mode"] = "manual-control";
+  } else {
+    ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
+  }
   ui.seedInput.value = p.seed;
   ui.speedInput.value = String(p.speed);
   ui.speedLabel.textContent = speedLabel(p.speed);
@@ -34,7 +45,6 @@ export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   renderPaneRepositionInfo(ui.paneA, p.repositionA);
   renderPaneRepositionInfo(ui.paneB, p.repositionB);
   syncScenarioCards(ui, p.scenario);
-  const scenario = scenarioById(p.scenario);
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
   // click. A clean URL leaves the drawer closed so first-time

@@ -2,9 +2,11 @@ import type {
   EventDto,
   MetricsDto,
   RepositionStrategyName,
+  ServiceModeName,
   Snapshot,
   StrategyName,
   TrafficMode,
+  WorldView,
 } from "../types";
 
 // Thin TS wrapper around `WasmSim`. The wasm-bindgen generated class
@@ -33,6 +35,7 @@ interface WasmSimInstance {
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): Snapshot;
+  worldView(): WorldView;
   drainEvents(): EventDto[];
   metrics(): MetricsDto;
   waitingCountAt(stopId: number): number;
@@ -41,6 +44,23 @@ interface WasmSimInstance {
   setWeightCapacityAll(capacityKg: number): void;
   setDoorOpenTicksAll(ticks: number): void;
   setDoorTransitionTicksAll(ticks: number): void;
+  // Manual control + service mode (BigInt entity refs come from worldView()).
+  setServiceMode(elevatorRef: bigint, mode: string): void;
+  pressHallCall(stopRef: bigint, direction: string): void;
+  pressCarButton(elevatorRef: bigint, stopRef: bigint): void;
+  openDoor(elevatorRef: bigint): void;
+  closeDoor(elevatorRef: bigint): void;
+  holdDoor(elevatorRef: bigint, ticks: number): void;
+  cancelDoorHold(elevatorRef: bigint): void;
+  setTargetVelocity(elevatorRef: bigint, velocity: number): void;
+  emergencyStop(elevatorRef: bigint): void;
+  addElevator(
+    lineRef: bigint,
+    startingPosition: number,
+    maxSpeed?: number,
+    weightCapacity?: number,
+  ): bigint;
+  removeElevator(elevatorRef: bigint): void;
 }
 
 let modPromise: Promise<WasmModule> | null = null;
@@ -130,12 +150,74 @@ export class Sim {
     return this.#inner.snapshot();
   }
 
+  worldView(): WorldView {
+    return this.#inner.worldView();
+  }
+
   metrics(): MetricsDto {
     return this.#inner.metrics();
   }
 
   waitingCountAt(stopId: number): number {
     return this.#inner.waitingCountAt(stopId);
+  }
+
+  // ── Manual control + service mode ────────────────────────────────
+  // Entity refs are bigint, sourced from `worldView()`. Mirrors the
+  // wasm crate's section at crates/elevator-wasm/src/lib.rs (manual
+  // control + service mode block).
+
+  setServiceMode(elevatorRef: bigint, mode: ServiceModeName): void {
+    this.#inner.setServiceMode(elevatorRef, mode);
+  }
+
+  pressHallCall(stopRef: bigint, direction: "up" | "down"): void {
+    this.#inner.pressHallCall(stopRef, direction);
+  }
+
+  pressCarButton(elevatorRef: bigint, stopRef: bigint): void {
+    this.#inner.pressCarButton(elevatorRef, stopRef);
+  }
+
+  openDoor(elevatorRef: bigint): void {
+    this.#inner.openDoor(elevatorRef);
+  }
+
+  closeDoor(elevatorRef: bigint): void {
+    this.#inner.closeDoor(elevatorRef);
+  }
+
+  holdDoor(elevatorRef: bigint, ticks: number): void {
+    this.#inner.holdDoor(elevatorRef, ticks);
+  }
+
+  cancelDoorHold(elevatorRef: bigint): void {
+    this.#inner.cancelDoorHold(elevatorRef);
+  }
+
+  setTargetVelocity(elevatorRef: bigint, velocity: number): void {
+    this.#inner.setTargetVelocity(elevatorRef, velocity);
+  }
+
+  emergencyStop(elevatorRef: bigint): void {
+    this.#inner.emergencyStop(elevatorRef);
+  }
+
+  addElevator(
+    lineRef: bigint,
+    startingPosition: number,
+    options?: { maxSpeed?: number; weightCapacity?: number },
+  ): bigint {
+    return this.#inner.addElevator(
+      lineRef,
+      startingPosition,
+      options?.maxSpeed,
+      options?.weightCapacity,
+    );
+  }
+
+  removeElevator(elevatorRef: bigint): void {
+    this.#inner.removeElevator(elevatorRef);
   }
 
   applyPhysicsLive(params: {
