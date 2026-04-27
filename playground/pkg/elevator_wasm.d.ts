@@ -485,6 +485,10 @@ export class WasmSim {
      */
     allLines(): BigUint64Array;
     /**
+     * Every tag currently registered in the simulation.
+     */
+    allTags(): string[];
+    /**
      * Reassign a line to a different group. Returns the previous group
      * id so the caller can detect a no-op (returned id == passed id).
      *
@@ -1208,6 +1212,14 @@ export class WasmSim {
      */
     strategyName(): string;
     /**
+     * Attach `tag` to `entity_ref`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     */
+    tagEntity(entity_ref: bigint, tag: string): void;
+    /**
      * Current traffic mode as classified by `TrafficDetector`.
      *
      * Returns one of `"Idle" | "UpPeak" | "InterFloor" | "DownPeak"`.
@@ -1235,6 +1247,10 @@ export class WasmSim {
      * Returns a JS error if `direction` is not `"up"` / `"down"`.
      */
     unpinAssignment(stop_ref: bigint, direction: string): void;
+    /**
+     * Remove `tag` from `entity_ref`. No-op if the entity wasn't tagged.
+     */
+    untagEntity(entity_ref: bigint, tag: string): void;
     /**
      * Current velocity (distance/tick) of `elevator_ref`. Positive = up,
      * negative = down. Returns `undefined` if the entity has no velocity
@@ -1298,6 +1314,7 @@ export interface InitOutput {
     readonly wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_addStopToLine: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_allLines: (a: number) => [number, number];
+    readonly wasmsim_allTags: (a: number) => [number, number];
     readonly wasmsim_assignLineToGroup: (a: number, b: bigint, c: number) => [number, number, number];
     readonly wasmsim_assignedCar: (a: number, b: bigint, c: number, d: number) => [bigint, number, number];
     readonly wasmsim_assignedCarsByLine: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
@@ -1388,10 +1405,12 @@ export interface InitOutput {
     readonly wasmsim_stopEntity: (a: number, b: number) => bigint;
     readonly wasmsim_stopsServedByLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_strategyName: (a: number) => [number, number];
+    readonly wasmsim_tagEntity: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_trafficMode: (a: number) => [number, number];
     readonly wasmsim_trafficRate: (a: number) => number;
     readonly wasmsim_transferPoints: (a: number) => [number, number];
     readonly wasmsim_unpinAssignment: (a: number, b: bigint, c: number, d: number) => [number, number];
+    readonly wasmsim_untagEntity: (a: number, b: bigint, c: number, d: number) => void;
     readonly wasmsim_velocity: (a: number, b: bigint) => [number, number];
     readonly wasmsim_waitingAt: (a: number, b: bigint) => [number, number];
     readonly wasmsim_waitingCountAt: (a: number, b: number) => number;

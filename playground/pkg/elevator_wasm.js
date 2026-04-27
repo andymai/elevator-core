@@ -171,6 +171,16 @@ export class WasmSim {
         return v1;
     }
     /**
+     * Every tag currently registered in the simulation.
+     * @returns {string[]}
+     */
+    allTags() {
+        const ret = wasm.wasmsim_allTags(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Reassign a line to a different group. Returns the previous group
      * id so the caller can detect a no-op (returned id == passed id).
      *
@@ -1497,6 +1507,23 @@ export class WasmSim {
         }
     }
     /**
+     * Attach `tag` to `entity_ref`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     * @param {bigint} entity_ref
+     * @param {string} tag
+     */
+    tagEntity(entity_ref, tag) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_tagEntity(this.__wbg_ptr, entity_ref, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Current traffic mode as classified by `TrafficDetector`.
      *
      * Returns one of `"Idle" | "UpPeak" | "InterFloor" | "DownPeak"`.
@@ -1554,6 +1581,16 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Remove `tag` from `entity_ref`. No-op if the entity wasn't tagged.
+     * @param {bigint} entity_ref
+     * @param {string} tag
+     */
+    untagEntity(entity_ref, tag) {
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.wasmsim_untagEntity(this.__wbg_ptr, entity_ref, ptr0, len0);
     }
     /**
      * Current velocity (distance/tick) of `elevator_ref`. Positive = up,
