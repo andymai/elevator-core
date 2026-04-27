@@ -9,6 +9,11 @@
 //! macros, JS types, `getrandom/wasm_js`) live here.
 
 #![allow(clippy::needless_pass_by_value)]
+// Result-shape methods wrap their bodies in `(|| -> Result<T, String> { ... })()`
+// so internal `?` operators have a sensible target type. Inlining the closure
+// would require manual error-conversion at every `?` site, which is what the
+// closure exists to centralize.
+#![allow(clippy::redundant_closure_call)]
 
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
@@ -96,14 +101,12 @@ fn duration_to_ticks(d: std::time::Duration, dt: f64) -> u64 {
 /// Map a JS-facing direction label (`"up"` / `"down"`) to a
 /// [`CallDirection`]. Other inputs surface as a JS error so consumers
 /// can't smuggle an unknown direction through.
-fn parse_call_direction(label: &str) -> Result<elevator_core::components::CallDirection, JsError> {
+fn parse_call_direction(label: &str) -> Result<elevator_core::components::CallDirection, String> {
     use elevator_core::components::CallDirection;
     match label {
         "up" => Ok(CallDirection::Up),
         "down" => Ok(CallDirection::Down),
-        other => Err(JsError::new(&format!(
-            "direction must be 'up' or 'down', got {other:?}"
-        ))),
+        other => Err(format!("direction must be 'up' or 'down', got {other:?}")),
     }
 }
 
@@ -419,19 +422,22 @@ impl WasmSim {
         destination_ref: u64,
         weight: f64,
         patience_ticks: Option<u32>,
-    ) -> Result<u64, JsError> {
-        let mut builder = self
-            .inner
-            .build_rider(u64_to_entity(origin_ref), u64_to_entity(destination_ref))
-            .map_err(|e| JsError::new(&format!("spawn: {e}")))?
-            .weight(weight);
-        if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
-            builder = builder.patience(u64::from(ticks));
-        }
-        builder
-            .spawn()
-            .map(|rid| entity_to_u64(rid.entity()))
-            .map_err(|e| JsError::new(&format!("spawn: {e}")))
+    ) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            let mut builder = self
+                .inner
+                .build_rider(u64_to_entity(origin_ref), u64_to_entity(destination_ref))
+                .map_err(|e| format!("spawn: {e}"))?
+                .weight(weight);
+            if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
+                builder = builder.patience(u64::from(ticks));
+            }
+            builder
+                .spawn()
+                .map(|rid| entity_to_u64(rid.entity()))
+                .map_err(|e| format!("spawn: {e}"))
+        })()
+        .into()
     }
 
     /// Record a target traffic rate (riders per minute). The playground driver
@@ -518,17 +524,20 @@ impl WasmSim {
     /// Returns a JS error if `dispatch_strategy` is not a recognised name
     /// (`"scan" | "look" | "nearest" | "etd" | "destination" | "rsr"`).
     #[wasm_bindgen(js_name = addGroup)]
-    pub fn add_group(&mut self, name: String, dispatch_strategy: &str) -> Result<u32, JsError> {
-        let group_id = match dispatch_strategy {
-            "scan" => self.inner.add_group(name, ScanDispatch::new()),
-            "look" => self.inner.add_group(name, LookDispatch::new()),
-            "nearest" => self.inner.add_group(name, NearestCarDispatch::new()),
-            "etd" => self.inner.add_group(name, EtdDispatch::new()),
-            "destination" => self.inner.add_group(name, DestinationDispatch::new()),
-            "rsr" => self.inner.add_group(name, RsrDispatch::new()),
-            other => return Err(JsError::new(&format!("unknown strategy: {other}"))),
-        };
-        Ok(group_id.0)
+    pub fn add_group(&mut self, name: String, dispatch_strategy: &str) -> WasmU32Result {
+        (|| -> Result<u32, String> {
+            let group_id = match dispatch_strategy {
+                "scan" => self.inner.add_group(name, ScanDispatch::new()),
+                "look" => self.inner.add_group(name, LookDispatch::new()),
+                "nearest" => self.inner.add_group(name, NearestCarDispatch::new()),
+                "etd" => self.inner.add_group(name, EtdDispatch::new()),
+                "destination" => self.inner.add_group(name, DestinationDispatch::new()),
+                "rsr" => self.inner.add_group(name, RsrDispatch::new()),
+                other => return Err(format!("unknown strategy: {other}")),
+            };
+            Ok(group_id.0)
+        })()
+        .into()
     }
 
     /// Add a new line to an existing group. Returns the line entity ref.
@@ -545,16 +554,19 @@ impl WasmSim {
         min_position: f64,
         max_position: f64,
         max_cars: Option<u32>,
-    ) -> Result<u64, JsError> {
-        let mut params =
-            elevator_core::sim::LineParams::new(name, elevator_core::ids::GroupId(group_id));
-        params.min_position = min_position;
-        params.max_position = max_position;
-        params.max_cars = max_cars.map(|n| n as usize);
-        self.inner
-            .add_line(&params)
-            .map(entity_to_u64)
-            .map_err(|e| JsError::new(&format!("add_line: {e}")))
+    ) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            let mut params =
+                elevator_core::sim::LineParams::new(name, elevator_core::ids::GroupId(group_id));
+            params.min_position = min_position;
+            params.max_position = max_position;
+            params.max_cars = max_cars.map(|n| n as usize);
+            self.inner
+                .add_line(&params)
+                .map(entity_to_u64)
+                .map_err(|e| format!("add_line: {e}"))
+        })()
+        .into()
     }
 
     /// Remove a line and all its elevators (riders ejected to nearest stop).
@@ -563,10 +575,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if the line does not exist.
     #[wasm_bindgen(js_name = removeLine)]
-    pub fn remove_line(&mut self, line_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .remove_line(u64_to_entity(line_ref))
-            .map_err(|e| JsError::new(&format!("remove_line: {e}")))
+    pub fn remove_line(&mut self, line_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .remove_line(u64_to_entity(line_ref))
+                .map_err(|e| format!("remove_line: {e}"))
+        })()
+        .into()
     }
 
     /// Resize a line's reachable position range. The new range may
@@ -583,10 +598,13 @@ impl WasmSim {
         line_ref: u64,
         min_position: f64,
         max_position: f64,
-    ) -> Result<(), JsError> {
-        self.inner
-            .set_line_range(u64_to_entity(line_ref), min_position, max_position)
-            .map_err(|e| JsError::new(&format!("set_line_range: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .set_line_range(u64_to_entity(line_ref), min_position, max_position)
+                .map_err(|e| format!("set_line_range: {e}"))
+        })()
+        .into()
     }
 
     /// Add a stop to a line at the given position. Returns the stop
@@ -597,11 +615,14 @@ impl WasmSim {
     /// Returns a JS error if the line does not exist or the position is
     /// non-finite.
     #[wasm_bindgen(js_name = addStop)]
-    pub fn add_stop(&mut self, line_ref: u64, name: String, position: f64) -> Result<u64, JsError> {
-        self.inner
-            .add_stop(name, position, u64_to_entity(line_ref))
-            .map(entity_to_u64)
-            .map_err(|e| JsError::new(&format!("add_stop: {e}")))
+    pub fn add_stop(&mut self, line_ref: u64, name: String, position: f64) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            self.inner
+                .add_stop(name, position, u64_to_entity(line_ref))
+                .map(entity_to_u64)
+                .map_err(|e| format!("add_stop: {e}"))
+        })()
+        .into()
     }
 
     /// Remove a stop. In-flight riders to/from it are rerouted, ejected,
@@ -611,10 +632,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if the stop does not exist.
     #[wasm_bindgen(js_name = removeStop)]
-    pub fn remove_stop(&mut self, stop_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .remove_stop(u64_to_entity(stop_ref))
-            .map_err(|e| JsError::new(&format!("remove_stop: {e}")))
+    pub fn remove_stop(&mut self, stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .remove_stop(u64_to_entity(stop_ref))
+                .map_err(|e| format!("remove_stop: {e}"))
+        })()
+        .into()
     }
 
     /// Add an existing stop entity to a line's served list. The stop
@@ -624,10 +648,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if the stop or line entity does not exist.
     #[wasm_bindgen(js_name = addStopToLine)]
-    pub fn add_stop_to_line(&mut self, stop_ref: u64, line_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .add_stop_to_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
-            .map_err(|e| JsError::new(&format!("add_stop_to_line: {e}")))
+    pub fn add_stop_to_line(&mut self, stop_ref: u64, line_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .add_stop_to_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
+                .map_err(|e| format!("add_stop_to_line: {e}"))
+        })()
+        .into()
     }
 
     /// Remove a stop from a line's served list. The stop entity itself
@@ -637,10 +664,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if the line entity does not exist.
     #[wasm_bindgen(js_name = removeStopFromLine)]
-    pub fn remove_stop_from_line(&mut self, stop_ref: u64, line_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .remove_stop_from_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
-            .map_err(|e| JsError::new(&format!("remove_stop_from_line: {e}")))
+    pub fn remove_stop_from_line(&mut self, stop_ref: u64, line_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .remove_stop_from_line(u64_to_entity(stop_ref), u64_to_entity(line_ref))
+                .map_err(|e| format!("remove_stop_from_line: {e}"))
+        })()
+        .into()
     }
 
     /// Reassign a line to a different group. Returns the previous group
@@ -651,18 +681,17 @@ impl WasmSim {
     /// Returns a JS error if the line does not exist or `new_group_id`
     /// is not a valid group.
     #[wasm_bindgen(js_name = assignLineToGroup)]
-    pub fn assign_line_to_group(
-        &mut self,
-        line_ref: u64,
-        new_group_id: u32,
-    ) -> Result<u32, JsError> {
-        self.inner
-            .assign_line_to_group(
-                u64_to_entity(line_ref),
-                elevator_core::ids::GroupId(new_group_id),
-            )
-            .map(|old| old.0)
-            .map_err(|e| JsError::new(&format!("assign_line_to_group: {e}")))
+    pub fn assign_line_to_group(&mut self, line_ref: u64, new_group_id: u32) -> WasmU32Result {
+        (|| -> Result<u32, String> {
+            self.inner
+                .assign_line_to_group(
+                    u64_to_entity(line_ref),
+                    elevator_core::ids::GroupId(new_group_id),
+                )
+                .map(|old| old.0)
+                .map_err(|e| format!("assign_line_to_group: {e}"))
+        })()
+        .into()
     }
 
     /// Reassign an elevator to a different line. Disabled cars stay
@@ -677,10 +706,13 @@ impl WasmSim {
         &mut self,
         elevator_ref: u64,
         new_line_ref: u64,
-    ) -> Result<(), JsError> {
-        self.inner
-            .reassign_elevator_to_line(u64_to_entity(elevator_ref), u64_to_entity(new_line_ref))
-            .map_err(|e| JsError::new(&format!("reassign_elevator_to_line: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .reassign_elevator_to_line(u64_to_entity(elevator_ref), u64_to_entity(new_line_ref))
+                .map_err(|e| format!("reassign_elevator_to_line: {e}"))
+        })()
+        .into()
     }
 
     /// Replace an elevator's forbidden-stops set. Pass an empty array to
@@ -694,12 +726,15 @@ impl WasmSim {
         &mut self,
         elevator_ref: u64,
         stop_refs: Vec<u64>,
-    ) -> Result<(), JsError> {
-        let restricted: std::collections::HashSet<EntityId> =
-            stop_refs.into_iter().map(u64_to_entity).collect();
-        self.inner
-            .set_elevator_restricted_stops(u64_to_entity(elevator_ref), restricted)
-            .map_err(|e| JsError::new(&format!("set_elevator_restricted_stops: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let restricted: std::collections::HashSet<EntityId> =
+                stop_refs.into_iter().map(u64_to_entity).collect();
+            self.inner
+                .set_elevator_restricted_stops(u64_to_entity(elevator_ref), restricted)
+                .map_err(|e| format!("set_elevator_restricted_stops: {e}"))
+        })()
+        .into()
     }
 
     /// Add a new elevator to a line at `starting_position`. Optional
@@ -718,36 +753,39 @@ impl WasmSim {
         starting_position: f64,
         max_speed: Option<f64>,
         weight_capacity: Option<f64>,
-    ) -> Result<u64, JsError> {
-        // Validate at the boundary; `add_elevator` re-runs full physics
-        // checks, but rejecting NaN/inf here keeps the error message
-        // close to the source (the JS caller's argument).
-        if let Some(s) = max_speed
-            && (!s.is_finite() || s <= 0.0)
-        {
-            return Err(JsError::new(&format!(
-                "add_elevator: max_speed must be a positive finite number (got {s})"
-            )));
-        }
-        if let Some(w) = weight_capacity
-            && (!w.is_finite() || w <= 0.0)
-        {
-            return Err(JsError::new(&format!(
-                "add_elevator: weight_capacity must be a positive finite number (got {w})"
-            )));
-        }
+    ) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            // Validate at the boundary; `add_elevator` re-runs full physics
+            // checks, but rejecting NaN/inf here keeps the error message
+            // close to the source (the JS caller's argument).
+            if let Some(s) = max_speed
+                && (!s.is_finite() || s <= 0.0)
+            {
+                return Err(format!(
+                    "add_elevator: max_speed must be a positive finite number (got {s})"
+                ));
+            }
+            if let Some(w) = weight_capacity
+                && (!w.is_finite() || w <= 0.0)
+            {
+                return Err(format!(
+                    "add_elevator: weight_capacity must be a positive finite number (got {w})"
+                ));
+            }
 
-        let mut params = elevator_core::sim::ElevatorParams::default();
-        if let Some(s) = max_speed {
-            params.max_speed = elevator_core::components::Speed::from(s);
-        }
-        if let Some(w) = weight_capacity {
-            params.weight_capacity = elevator_core::components::Weight::from(w);
-        }
-        self.inner
-            .add_elevator(&params, u64_to_entity(line_ref), starting_position)
-            .map(entity_to_u64)
-            .map_err(|e| JsError::new(&format!("add_elevator: {e}")))
+            let mut params = elevator_core::sim::ElevatorParams::default();
+            if let Some(s) = max_speed {
+                params.max_speed = elevator_core::components::Speed::from(s);
+            }
+            if let Some(w) = weight_capacity {
+                params.weight_capacity = elevator_core::components::Weight::from(w);
+            }
+            self.inner
+                .add_elevator(&params, u64_to_entity(line_ref), starting_position)
+                .map(entity_to_u64)
+                .map_err(|e| format!("add_elevator: {e}"))
+        })()
+        .into()
     }
 
     /// Remove an elevator (riders ejected to the nearest enabled stop).
@@ -756,10 +794,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if the elevator does not exist.
     #[wasm_bindgen(js_name = removeElevator)]
-    pub fn remove_elevator(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .remove_elevator(u64_to_entity(elevator_ref))
-            .map_err(|e| JsError::new(&format!("remove_elevator: {e}")))
+    pub fn remove_elevator(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .remove_elevator(u64_to_entity(elevator_ref))
+                .map_err(|e| format!("remove_elevator: {e}"))
+        })()
+        .into()
     }
 
     /// Press a hall call at a stop with direction `"up"` or `"down"`.
@@ -769,20 +810,21 @@ impl WasmSim {
     /// Returns a JS error if the stop does not exist or `direction` is
     /// not `"up"` or `"down"`.
     #[wasm_bindgen(js_name = pressHallCall)]
-    pub fn press_hall_call(&mut self, stop_ref: u64, direction: &str) -> Result<(), JsError> {
-        let dir = match direction {
-            "up" => elevator_core::components::CallDirection::Up,
-            "down" => elevator_core::components::CallDirection::Down,
-            other => {
-                return Err(JsError::new(&format!(
-                    "direction must be 'up' or 'down', got {other:?}"
-                )));
-            }
-        };
-        let stop = u64_to_entity(stop_ref);
-        self.inner
-            .press_hall_button(stop, dir)
-            .map_err(|e| JsError::new(&format!("press_hall_call: {e}")))
+    pub fn press_hall_call(&mut self, stop_ref: u64, direction: &str) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let dir = match direction {
+                "up" => elevator_core::components::CallDirection::Up,
+                "down" => elevator_core::components::CallDirection::Down,
+                other => {
+                    return Err(format!("direction must be 'up' or 'down', got {other:?}"));
+                }
+            };
+            let stop = u64_to_entity(stop_ref);
+            self.inner
+                .press_hall_button(stop, dir)
+                .map_err(|e| format!("press_hall_call: {e}"))
+        })()
+        .into()
     }
 
     /// Press a car-button (in-cab floor request) targeting `stop_ref`.
@@ -791,13 +833,16 @@ impl WasmSim {
     ///
     /// Returns a JS error if the elevator or stop does not exist.
     #[wasm_bindgen(js_name = pressCarButton)]
-    pub fn press_car_button(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .press_car_button(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                u64_to_entity(stop_ref),
-            )
-            .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
+    pub fn press_car_button(&mut self, elevator_ref: u64, stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .press_car_button(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    u64_to_entity(stop_ref),
+                )
+                .map_err(|e| format!("press_car_button: {e}"))
+        })()
+        .into()
     }
 
     /// Snapshot of every active hall call. Returns one `HallCallDto`
@@ -856,12 +901,15 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist or the mode
     /// label is unknown.
     #[wasm_bindgen(js_name = setServiceMode)]
-    pub fn set_service_mode(&mut self, elevator_ref: u64, mode: &str) -> Result<(), JsError> {
-        let mode = parse_service_mode(mode)
-            .ok_or_else(|| JsError::new(&format!("unknown service mode: {mode}")))?;
-        self.inner
-            .set_service_mode(u64_to_entity(elevator_ref), mode)
-            .map_err(|e| JsError::new(&format!("set_service_mode: {e}")))
+    pub fn set_service_mode(&mut self, elevator_ref: u64, mode: &str) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let mode =
+                parse_service_mode(mode).ok_or_else(|| format!("unknown service mode: {mode}"))?;
+            self.inner
+                .set_service_mode(u64_to_entity(elevator_ref), mode)
+                .map_err(|e| format!("set_service_mode: {e}"))
+        })()
+        .into()
     }
 
     /// Get the current operational mode of an elevator as a label string.
@@ -883,13 +931,16 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist, is not in
     /// Manual mode, or `velocity` is non-finite.
     #[wasm_bindgen(js_name = setTargetVelocity)]
-    pub fn set_target_velocity(&mut self, elevator_ref: u64, velocity: f64) -> Result<(), JsError> {
-        self.inner
-            .set_target_velocity(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                velocity,
-            )
-            .map_err(|e| JsError::new(&format!("set_target_velocity: {e}")))
+    pub fn set_target_velocity(&mut self, elevator_ref: u64, velocity: f64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .set_target_velocity(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    velocity,
+                )
+                .map_err(|e| format!("set_target_velocity: {e}"))
+        })()
+        .into()
     }
 
     /// Command an immediate stop on a Manual-mode elevator. Sets the
@@ -901,12 +952,15 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist or is not in
     /// Manual mode.
     #[wasm_bindgen(js_name = emergencyStop)]
-    pub fn emergency_stop(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .emergency_stop(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("emergency_stop: {e}")))
+    pub fn emergency_stop(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .emergency_stop(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("emergency_stop: {e}"))
+        })()
+        .into()
     }
 
     /// Request the doors of an elevator to open. Applied immediately at a
@@ -916,12 +970,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if the elevator does not exist or is disabled.
     #[wasm_bindgen(js_name = openDoor)]
-    pub fn open_door(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .open_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("open_door: {e}")))
+    pub fn open_door(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .open_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("open_door: {e}"))
+        })()
+        .into()
     }
 
     /// Request the doors to close now. Forces an early close unless a
@@ -931,12 +988,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if the elevator does not exist or is disabled.
     #[wasm_bindgen(js_name = closeDoor)]
-    pub fn close_door(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .close_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("close_door: {e}")))
+    pub fn close_door(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .close_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("close_door: {e}"))
+        })()
+        .into()
     }
 
     /// Extend the doors' open dwell by `ticks`. Cumulative across calls.
@@ -946,13 +1006,16 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist, is disabled,
     /// or `ticks` is zero.
     #[wasm_bindgen(js_name = holdDoor)]
-    pub fn hold_door(&mut self, elevator_ref: u64, ticks: u32) -> Result<(), JsError> {
-        self.inner
-            .hold_door(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                ticks,
-            )
-            .map_err(|e| JsError::new(&format!("hold_door: {e}")))
+    pub fn hold_door(&mut self, elevator_ref: u64, ticks: u32) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .hold_door(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    ticks,
+                )
+                .map_err(|e| format!("hold_door: {e}"))
+        })()
+        .into()
     }
 
     /// Cancel any pending hold extension on the doors.
@@ -961,12 +1024,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if the elevator does not exist or is disabled.
     #[wasm_bindgen(js_name = cancelDoorHold)]
-    pub fn cancel_door_hold(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .cancel_door_hold(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("cancel_door_hold: {e}")))
+    pub fn cancel_door_hold(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .cancel_door_hold(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("cancel_door_hold: {e}"))
+        })()
+        .into()
     }
 
     // ── Dispatch introspection ───────────────────────────────────────
@@ -991,15 +1057,18 @@ impl WasmSim {
         car_ref: u64,
         stop_ref: u64,
         direction: &str,
-    ) -> Result<(), JsError> {
-        let dir = parse_call_direction(direction)?;
-        self.inner
-            .pin_assignment(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref)),
-                u64_to_entity(stop_ref),
-                dir,
-            )
-            .map_err(|e| JsError::new(&format!("pin_assignment: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let dir = parse_call_direction(direction)?;
+            self.inner
+                .pin_assignment(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref)),
+                    u64_to_entity(stop_ref),
+                    dir,
+                )
+                .map_err(|e| format!("pin_assignment: {e}"))
+        })()
+        .into()
     }
 
     /// Release a previous pin at `(stop_ref, direction)`. No-op if the
@@ -1009,10 +1078,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if `direction` is not `"up"` / `"down"`.
     #[wasm_bindgen(js_name = unpinAssignment)]
-    pub fn unpin_assignment(&mut self, stop_ref: u64, direction: &str) -> Result<(), JsError> {
-        let dir = parse_call_direction(direction)?;
-        self.inner.unpin_assignment(u64_to_entity(stop_ref), dir);
-        Ok(())
+    pub fn unpin_assignment(&mut self, stop_ref: u64, direction: &str) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let dir = parse_call_direction(direction)?;
+            self.inner.unpin_assignment(u64_to_entity(stop_ref), dir);
+            Ok(())
+        })()
+        .into()
     }
 
     /// Car currently assigned to serve the call at `(stop_ref, direction)`,
@@ -1024,12 +1096,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if `direction` is not `"up"` / `"down"`.
     #[wasm_bindgen(js_name = assignedCar)]
-    pub fn assigned_car(&self, stop_ref: u64, direction: &str) -> Result<u64, JsError> {
-        let dir = parse_call_direction(direction)?;
-        Ok(self
-            .inner
-            .assigned_car(u64_to_entity(stop_ref), dir)
-            .map_or(0, entity_to_u64))
+    pub fn assigned_car(&self, stop_ref: u64, direction: &str) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            let dir = parse_call_direction(direction)?;
+            Ok(self
+                .inner
+                .assigned_car(u64_to_entity(stop_ref), dir)
+                .map_or(0, entity_to_u64))
+        })()
+        .into()
     }
 
     /// Per-line cars assigned to the call at `(stop_ref, direction)`.
@@ -1047,7 +1122,7 @@ impl WasmSim {
         stop_ref: u64,
         direction: &str,
     ) -> Result<Vec<u64>, JsError> {
-        let dir = parse_call_direction(direction)?;
+        let dir = parse_call_direction(direction).map_err(|e| JsError::new(&e))?;
         Ok(self
             .inner
             .assigned_cars_by_line(u64_to_entity(stop_ref), dir)
@@ -1069,13 +1144,16 @@ impl WasmSim {
     /// elevator is in a service mode excluded from dispatch, or `stop`
     /// is not in the car's destination queue.
     #[wasm_bindgen(js_name = eta)]
-    pub fn eta(&self, car_ref: u64, stop_ref: u64) -> Result<u64, JsError> {
-        let elev = elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref));
-        let dt = self.inner.dt();
-        self.inner
-            .eta(elev, u64_to_entity(stop_ref))
-            .map(|d| duration_to_ticks(d, dt))
-            .map_err(|e| JsError::new(&format!("eta: {e}")))
+    pub fn eta(&self, car_ref: u64, stop_ref: u64) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            let elev = elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref));
+            let dt = self.inner.dt();
+            self.inner
+                .eta(elev, u64_to_entity(stop_ref))
+                .map(|d| duration_to_ticks(d, dt))
+                .map_err(|e| format!("eta: {e}"))
+        })()
+        .into()
     }
 
     /// Estimated ticks remaining before the assigned car reaches the
@@ -1087,11 +1165,14 @@ impl WasmSim {
     /// no car is assigned to it, the assigned car has no positional
     /// data, or `direction` is not `"up"` / `"down"`.
     #[wasm_bindgen(js_name = etaForCall)]
-    pub fn eta_for_call(&self, stop_ref: u64, direction: &str) -> Result<u64, JsError> {
-        let dir = parse_call_direction(direction)?;
-        self.inner
-            .eta_for_call(u64_to_entity(stop_ref), dir)
-            .map_err(|e| JsError::new(&format!("eta_for_call: {e}")))
+    pub fn eta_for_call(&self, stop_ref: u64, direction: &str) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            let dir = parse_call_direction(direction)?;
+            self.inner
+                .eta_for_call(u64_to_entity(stop_ref), dir)
+                .map_err(|e| format!("eta_for_call: {e}"))
+        })()
+        .into()
     }
 
     /// Best ETA (ticks) to `stop_ref` across every dispatch-eligible
@@ -1282,13 +1363,16 @@ impl WasmSim {
     /// Returns a JS error if `elevator_ref` is not an elevator or
     /// `stop_ref` is not a stop.
     #[wasm_bindgen(js_name = pushDestination)]
-    pub fn push_destination(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .push_destination(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                u64_to_entity(stop_ref),
-            )
-            .map_err(|e| JsError::new(&format!("push_destination: {e}")))
+    pub fn push_destination(&mut self, elevator_ref: u64, stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .push_destination(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    u64_to_entity(stop_ref),
+                )
+                .map_err(|e| format!("push_destination: {e}"))
+        })()
+        .into()
     }
 
     /// Insert `stop_ref` at the front of `elevator_ref`'s destination
@@ -1300,17 +1384,16 @@ impl WasmSim {
     /// Returns a JS error if `elevator_ref` is not an elevator or
     /// `stop_ref` is not a stop.
     #[wasm_bindgen(js_name = pushDestinationFront)]
-    pub fn push_destination_front(
-        &mut self,
-        elevator_ref: u64,
-        stop_ref: u64,
-    ) -> Result<(), JsError> {
-        self.inner
-            .push_destination_front(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                u64_to_entity(stop_ref),
-            )
-            .map_err(|e| JsError::new(&format!("push_destination_front: {e}")))
+    pub fn push_destination_front(&mut self, elevator_ref: u64, stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .push_destination_front(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    u64_to_entity(stop_ref),
+                )
+                .map_err(|e| format!("push_destination_front: {e}"))
+        })()
+        .into()
     }
 
     /// Empty an elevator's destination queue. Any in-progress trip
@@ -1322,12 +1405,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if `elevator_ref` is not an elevator.
     #[wasm_bindgen(js_name = clearDestinations)]
-    pub fn clear_destinations(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .clear_destinations(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("clear_destinations: {e}")))
+    pub fn clear_destinations(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .clear_destinations(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("clear_destinations: {e}"))
+        })()
+        .into()
     }
 
     /// Abort the elevator's in-flight movement. The car decelerates to
@@ -1338,12 +1424,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if `elevator_ref` is not an elevator.
     #[wasm_bindgen(js_name = abortMovement)]
-    pub fn abort_movement(&mut self, elevator_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .abort_movement(elevator_core::entity::ElevatorId::from(u64_to_entity(
-                elevator_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("abort_movement: {e}")))
+    pub fn abort_movement(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .abort_movement(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                    elevator_ref,
+                )))
+                .map_err(|e| format!("abort_movement: {e}"))
+        })()
+        .into()
     }
 
     /// Clear the queue and immediately recall the elevator to `stop_ref`.
@@ -1356,13 +1445,16 @@ impl WasmSim {
     /// Returns a JS error if `elevator_ref` is not an elevator or
     /// `stop_ref` is not a stop.
     #[wasm_bindgen(js_name = recallTo)]
-    pub fn recall_to(&mut self, elevator_ref: u64, stop_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .recall_to(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                u64_to_entity(stop_ref),
-            )
-            .map_err(|e| JsError::new(&format!("recall_to: {e}")))
+    pub fn recall_to(&mut self, elevator_ref: u64, stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .recall_to(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    u64_to_entity(stop_ref),
+                )
+                .map_err(|e| format!("recall_to: {e}"))
+        })()
+        .into()
     }
 
     /// Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
@@ -1550,12 +1642,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if `rider_ref` is not a rider entity.
     #[wasm_bindgen(js_name = despawnRider)]
-    pub fn despawn_rider(&mut self, rider_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .despawn_rider(elevator_core::entity::RiderId::from(u64_to_entity(
-                rider_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("despawn_rider: {e}")))
+    pub fn despawn_rider(&mut self, rider_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .despawn_rider(elevator_core::entity::RiderId::from(u64_to_entity(
+                    rider_ref,
+                )))
+                .map_err(|e| format!("despawn_rider: {e}"))
+        })()
+        .into()
     }
 
     /// Step the simulation forward up to `max_ticks` ticks, stopping
@@ -1568,12 +1663,13 @@ impl WasmSim {
     /// Returns a JS error if the world fails to quiet within `max_ticks`
     /// (infinite-loop guard).
     #[wasm_bindgen(js_name = runUntilQuiet)]
-    pub fn run_until_quiet(&mut self, max_ticks: u64) -> Result<u64, JsError> {
-        self.inner.run_until_quiet(max_ticks).map_err(|ticks| {
-            JsError::new(&format!(
-                "run_until_quiet: world did not quiet within {ticks} ticks"
-            ))
-        })
+    pub fn run_until_quiet(&mut self, max_ticks: u64) -> WasmU64Result {
+        (|| -> Result<u64, String> {
+            self.inner.run_until_quiet(max_ticks).map_err(|ticks| {
+                format!("run_until_quiet: world did not quiet within {ticks} ticks")
+            })
+        })()
+        .into()
     }
 
     // ── Dispatch metadata ────────────────────────────────────────────
@@ -1602,13 +1698,16 @@ impl WasmSim {
     ///
     /// Returns a JS error if the rider or destination does not exist.
     #[wasm_bindgen(js_name = reroute)]
-    pub fn reroute(&mut self, rider_ref: u64, new_destination_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .reroute(
-                elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
-                u64_to_entity(new_destination_ref),
-            )
-            .map_err(|e| JsError::new(&format!("reroute: {e}")))
+    pub fn reroute(&mut self, rider_ref: u64, new_destination_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .reroute(
+                    elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
+                    u64_to_entity(new_destination_ref),
+                )
+                .map_err(|e| format!("reroute: {e}"))
+        })()
+        .into()
     }
 
     /// Mark a rider as settled at their current stop. Settled riders
@@ -1619,12 +1718,15 @@ impl WasmSim {
     ///
     /// Returns a JS error if the rider does not exist.
     #[wasm_bindgen(js_name = settleRider)]
-    pub fn settle_rider(&mut self, rider_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .settle_rider(elevator_core::entity::RiderId::from(u64_to_entity(
-                rider_ref,
-            )))
-            .map_err(|e| JsError::new(&format!("settle_rider: {e}")))
+    pub fn settle_rider(&mut self, rider_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .settle_rider(elevator_core::entity::RiderId::from(u64_to_entity(
+                    rider_ref,
+                )))
+                .map_err(|e| format!("settle_rider: {e}"))
+        })()
+        .into()
     }
 
     /// Replace a rider's allowed-stops set. Empty array clears the
@@ -1638,12 +1740,15 @@ impl WasmSim {
         &mut self,
         rider_ref: u64,
         allowed_stop_refs: Vec<u64>,
-    ) -> Result<(), JsError> {
-        let allowed: std::collections::HashSet<EntityId> =
-            allowed_stop_refs.into_iter().map(u64_to_entity).collect();
-        self.inner
-            .set_rider_access(u64_to_entity(rider_ref), allowed)
-            .map_err(|e| JsError::new(&format!("set_rider_access: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let allowed: std::collections::HashSet<EntityId> =
+                allowed_stop_refs.into_iter().map(u64_to_entity).collect();
+            self.inner
+                .set_rider_access(u64_to_entity(rider_ref), allowed)
+                .map_err(|e| format!("set_rider_access: {e}"))
+        })()
+        .into()
     }
 
     /// Stops reachable from `from_stop` via the line-graph (BFS through
@@ -1698,15 +1803,18 @@ impl WasmSim {
         from_stop_ref: u64,
         to_stop_ref: u64,
         group_id: u32,
-    ) -> Result<(), JsError> {
-        let route = elevator_core::components::Route::direct(
-            u64_to_entity(from_stop_ref),
-            u64_to_entity(to_stop_ref),
-            elevator_core::ids::GroupId(group_id),
-        );
-        self.inner
-            .set_rider_route(u64_to_entity(rider_ref), route)
-            .map_err(|e| JsError::new(&format!("set_rider_route_direct: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let route = elevator_core::components::Route::direct(
+                u64_to_entity(from_stop_ref),
+                u64_to_entity(to_stop_ref),
+                elevator_core::ids::GroupId(group_id),
+            );
+            self.inner
+                .set_rider_route(u64_to_entity(rider_ref), route)
+                .map_err(|e| format!("set_rider_route_direct: {e}"))
+        })()
+        .into()
     }
 
     /// Replace a rider's remaining route with a multi-leg route built
@@ -1718,25 +1826,24 @@ impl WasmSim {
     /// Returns a JS error if the rider does not exist, has no current
     /// stop, or no route to `to_stop` exists.
     #[wasm_bindgen(js_name = setRiderRouteShortest)]
-    pub fn set_rider_route_shortest(
-        &mut self,
-        rider_ref: u64,
-        to_stop_ref: u64,
-    ) -> Result<(), JsError> {
-        let rider_eid = u64_to_entity(rider_ref);
-        let to_eid = u64_to_entity(to_stop_ref);
-        let from_eid = self
-            .inner
-            .world()
-            .rider(rider_eid)
-            .and_then(elevator_core::components::Rider::current_stop)
-            .ok_or_else(|| JsError::new("set_rider_route_shortest: rider has no current stop"))?;
-        let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
-            JsError::new("set_rider_route_shortest: no route between rider's stop and to_stop")
-        })?;
-        self.inner
-            .set_rider_route(rider_eid, route)
-            .map_err(|e| JsError::new(&format!("set_rider_route_shortest: {e}")))
+    pub fn set_rider_route_shortest(&mut self, rider_ref: u64, to_stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let rider_eid = u64_to_entity(rider_ref);
+            let to_eid = u64_to_entity(to_stop_ref);
+            let from_eid = self
+                .inner
+                .world()
+                .rider(rider_eid)
+                .and_then(elevator_core::components::Rider::current_stop)
+                .ok_or_else(|| "set_rider_route_shortest: rider has no current stop".to_owned())?;
+            let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
+                "set_rider_route_shortest: no route between rider's stop and to_stop".to_owned()
+            })?;
+            self.inner
+                .set_rider_route(rider_eid, route)
+                .map_err(|e| format!("set_rider_route_shortest: {e}"))
+        })()
+        .into()
     }
 
     /// Give a `Resident` rider a new single-leg route via `group_id`,
@@ -1756,15 +1863,18 @@ impl WasmSim {
         from_stop_ref: u64,
         to_stop_ref: u64,
         group_id: u32,
-    ) -> Result<(), JsError> {
-        let route = elevator_core::components::Route::direct(
-            u64_to_entity(from_stop_ref),
-            u64_to_entity(to_stop_ref),
-            elevator_core::ids::GroupId(group_id),
-        );
-        self.inner
-            .reroute_rider(u64_to_entity(rider_ref), route)
-            .map_err(|e| JsError::new(&format!("reroute_rider_direct: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let route = elevator_core::components::Route::direct(
+                u64_to_entity(from_stop_ref),
+                u64_to_entity(to_stop_ref),
+                elevator_core::ids::GroupId(group_id),
+            );
+            self.inner
+                .reroute_rider(u64_to_entity(rider_ref), route)
+                .map_err(|e| format!("reroute_rider_direct: {e}"))
+        })()
+        .into()
     }
 
     /// Give a `Resident` rider a multi-leg route to `to_stop` built from
@@ -1776,25 +1886,24 @@ impl WasmSim {
     /// Returns a JS error if the rider does not exist, is not in
     /// `Resident` phase, has no current stop, or no route exists.
     #[wasm_bindgen(js_name = rerouteRiderShortest)]
-    pub fn reroute_rider_shortest(
-        &mut self,
-        rider_ref: u64,
-        to_stop_ref: u64,
-    ) -> Result<(), JsError> {
-        let rider_eid = u64_to_entity(rider_ref);
-        let to_eid = u64_to_entity(to_stop_ref);
-        let from_eid = self
-            .inner
-            .world()
-            .rider(rider_eid)
-            .and_then(elevator_core::components::Rider::current_stop)
-            .ok_or_else(|| JsError::new("reroute_rider_shortest: rider has no current stop"))?;
-        let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
-            JsError::new("reroute_rider_shortest: no route between rider's stop and to_stop")
-        })?;
-        self.inner
-            .reroute_rider(rider_eid, route)
-            .map_err(|e| JsError::new(&format!("reroute_rider_shortest: {e}")))
+    pub fn reroute_rider_shortest(&mut self, rider_ref: u64, to_stop_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let rider_eid = u64_to_entity(rider_ref);
+            let to_eid = u64_to_entity(to_stop_ref);
+            let from_eid = self
+                .inner
+                .world()
+                .rider(rider_eid)
+                .and_then(elevator_core::components::Rider::current_stop)
+                .ok_or_else(|| "reroute_rider_shortest: rider has no current stop".to_owned())?;
+            let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
+                "reroute_rider_shortest: no route between rider's stop and to_stop".to_owned()
+            })?;
+            self.inner
+                .reroute_rider(rider_eid, route)
+                .map_err(|e| format!("reroute_rider_shortest: {e}"))
+        })()
+        .into()
     }
 
     // ── Per-elevator setters + lifecycle ─────────────────────────────
@@ -1811,17 +1920,16 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist or
     /// `acceleration` is non-positive / non-finite.
     #[wasm_bindgen(js_name = setAcceleration)]
-    pub fn set_acceleration(
-        &mut self,
-        elevator_ref: u64,
-        acceleration: f64,
-    ) -> Result<(), JsError> {
-        self.inner
-            .set_acceleration(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                acceleration,
-            )
-            .map_err(|e| JsError::new(&format!("set_acceleration: {e}")))
+    pub fn set_acceleration(&mut self, elevator_ref: u64, acceleration: f64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .set_acceleration(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    acceleration,
+                )
+                .map_err(|e| format!("set_acceleration: {e}"))
+        })()
+        .into()
     }
 
     /// Set the deceleration rate (distance/tick²) for a single elevator.
@@ -1831,17 +1939,16 @@ impl WasmSim {
     /// Returns a JS error if the elevator does not exist or
     /// `deceleration` is non-positive / non-finite.
     #[wasm_bindgen(js_name = setDeceleration)]
-    pub fn set_deceleration(
-        &mut self,
-        elevator_ref: u64,
-        deceleration: f64,
-    ) -> Result<(), JsError> {
-        self.inner
-            .set_deceleration(
-                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
-                deceleration,
-            )
-            .map_err(|e| JsError::new(&format!("set_deceleration: {e}")))
+    pub fn set_deceleration(&mut self, elevator_ref: u64, deceleration: f64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .set_deceleration(
+                    elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                    deceleration,
+                )
+                .map_err(|e| format!("set_deceleration: {e}"))
+        })()
+        .into()
     }
 
     /// Set how many ticks the per-rider arrival log retains. Global
@@ -1858,10 +1965,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if `entity_ref` does not exist.
     #[wasm_bindgen(js_name = enable)]
-    pub fn enable(&mut self, entity_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .enable(u64_to_entity(entity_ref))
-            .map_err(|e| JsError::new(&format!("enable: {e}")))
+    pub fn enable(&mut self, entity_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .enable(u64_to_entity(entity_ref))
+                .map_err(|e| format!("enable: {e}"))
+        })()
+        .into()
     }
 
     /// Disable an entity (elevator or stop). Disabled elevators eject
@@ -1872,10 +1982,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if `entity_ref` does not exist.
     #[wasm_bindgen(js_name = disable)]
-    pub fn disable(&mut self, entity_ref: u64) -> Result<(), JsError> {
-        self.inner
-            .disable(u64_to_entity(entity_ref))
-            .map_err(|e| JsError::new(&format!("disable: {e}")))
+    pub fn disable(&mut self, entity_ref: u64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .disable(u64_to_entity(entity_ref))
+                .map_err(|e| format!("disable: {e}"))
+        })()
+        .into()
     }
 
     // ── Tagging + tagged metrics ─────────────────────────────────────
@@ -1890,10 +2003,13 @@ impl WasmSim {
     ///
     /// Returns a JS error if `entity_ref` does not exist.
     #[wasm_bindgen(js_name = tagEntity)]
-    pub fn tag_entity(&mut self, entity_ref: u64, tag: String) -> Result<(), JsError> {
-        self.inner
-            .tag_entity(u64_to_entity(entity_ref), tag)
-            .map_err(|e| JsError::new(&format!("tag_entity: {e}")))
+    pub fn tag_entity(&mut self, entity_ref: u64, tag: String) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            self.inner
+                .tag_entity(u64_to_entity(entity_ref), tag)
+                .map_err(|e| format!("tag_entity: {e}"))
+        })()
+        .into()
     }
 
     /// Remove `tag` from `entity_ref`. No-op if the entity wasn't tagged.
@@ -1939,21 +2055,23 @@ impl WasmSim {
     ///
     /// Returns a JS error if `phase` is not one of the supported labels.
     #[wasm_bindgen(js_name = elevatorsInPhase)]
-    pub fn elevators_in_phase(&self, phase: &str) -> Result<u32, JsError> {
-        use elevator_core::prelude::ElevatorPhase;
-        let p = match phase {
-            "idle" => ElevatorPhase::Idle,
-            "door-opening" => ElevatorPhase::DoorOpening,
-            "loading" => ElevatorPhase::Loading,
-            "door-closing" => ElevatorPhase::DoorClosing,
-            "stopped" => ElevatorPhase::Stopped,
-            other => {
-                return Err(JsError::new(&format!(
-                    "phase must be one of idle / door-opening / loading / door-closing / stopped — got {other:?}"
-                )));
-            }
-        };
-        Ok(u32::try_from(self.inner.elevators_in_phase(p)).unwrap_or(u32::MAX))
+    pub fn elevators_in_phase(&self, phase: &str) -> WasmU32Result {
+        (|| -> Result<u32, String> {
+            use elevator_core::prelude::ElevatorPhase;
+            let p = match phase {
+                "idle" => ElevatorPhase::Idle,
+                "door-opening" => ElevatorPhase::DoorOpening,
+                "loading" => ElevatorPhase::Loading,
+                "door-closing" => ElevatorPhase::DoorClosing,
+                "stopped" => ElevatorPhase::Stopped,
+                other => {
+                    return Err(format!(
+                        "phase must be one of idle / door-opening / loading / door-closing / stopped — got {other:?}"
+                    ));
+                }
+            };
+            Ok(u32::try_from(self.inner.elevators_in_phase(p)).unwrap_or(u32::MAX))
+        })().into()
     }
 
     /// Resolve a config-time `StopId` (the small `u32` from the RON
@@ -2040,19 +2158,22 @@ impl WasmSim {
     /// Surfaces the underlying `SimError` as a `JsError` if `speed` is
     /// not a positive finite number.
     #[wasm_bindgen(js_name = setMaxSpeedAll)]
-    pub fn set_max_speed_all(&mut self, speed: f64) -> Result<(), JsError> {
-        let ids: Vec<_> = self
-            .inner
-            .world()
-            .iter_elevators()
-            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
-            .collect();
-        for id in ids {
-            self.inner
-                .set_max_speed(id, speed)
-                .map_err(|e| JsError::new(&format!("set_max_speed: {e}")))?;
-        }
-        Ok(())
+    pub fn set_max_speed_all(&mut self, speed: f64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let ids: Vec<_> = self
+                .inner
+                .world()
+                .iter_elevators()
+                .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+                .collect();
+            for id in ids {
+                self.inner
+                    .set_max_speed(id, speed)
+                    .map_err(|e| format!("set_max_speed: {e}"))?;
+            }
+            Ok(())
+        })()
+        .into()
     }
 
     /// Set `weight_capacity` (kg) on every elevator in the sim.
@@ -2067,19 +2188,22 @@ impl WasmSim {
     /// Surfaces the underlying `SimError` as a `JsError` if `capacity`
     /// is not a positive finite number.
     #[wasm_bindgen(js_name = setWeightCapacityAll)]
-    pub fn set_weight_capacity_all(&mut self, capacity: f64) -> Result<(), JsError> {
-        let ids: Vec<_> = self
-            .inner
-            .world()
-            .iter_elevators()
-            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
-            .collect();
-        for id in ids {
-            self.inner
-                .set_weight_capacity(id, capacity)
-                .map_err(|e| JsError::new(&format!("set_weight_capacity: {e}")))?;
-        }
-        Ok(())
+    pub fn set_weight_capacity_all(&mut self, capacity: f64) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let ids: Vec<_> = self
+                .inner
+                .world()
+                .iter_elevators()
+                .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+                .collect();
+            for id in ids {
+                self.inner
+                    .set_weight_capacity(id, capacity)
+                    .map_err(|e| format!("set_weight_capacity: {e}"))?;
+            }
+            Ok(())
+        })()
+        .into()
     }
 
     /// Set `door_open_ticks` (dwell duration) on every elevator.
@@ -2093,19 +2217,22 @@ impl WasmSim {
     /// Surfaces the underlying `SimError` as a `JsError` if `ticks`
     /// is zero.
     #[wasm_bindgen(js_name = setDoorOpenTicksAll)]
-    pub fn set_door_open_ticks_all(&mut self, ticks: u32) -> Result<(), JsError> {
-        let ids: Vec<_> = self
-            .inner
-            .world()
-            .iter_elevators()
-            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
-            .collect();
-        for id in ids {
-            self.inner
-                .set_door_open_ticks(id, ticks)
-                .map_err(|e| JsError::new(&format!("set_door_open_ticks: {e}")))?;
-        }
-        Ok(())
+    pub fn set_door_open_ticks_all(&mut self, ticks: u32) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let ids: Vec<_> = self
+                .inner
+                .world()
+                .iter_elevators()
+                .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+                .collect();
+            for id in ids {
+                self.inner
+                    .set_door_open_ticks(id, ticks)
+                    .map_err(|e| format!("set_door_open_ticks: {e}"))?;
+            }
+            Ok(())
+        })()
+        .into()
     }
 
     /// Set `door_transition_ticks` (open- and close-transition duration)
@@ -2119,19 +2246,22 @@ impl WasmSim {
     /// Surfaces the underlying `SimError` as a `JsError` if `ticks`
     /// is zero.
     #[wasm_bindgen(js_name = setDoorTransitionTicksAll)]
-    pub fn set_door_transition_ticks_all(&mut self, ticks: u32) -> Result<(), JsError> {
-        let ids: Vec<_> = self
-            .inner
-            .world()
-            .iter_elevators()
-            .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
-            .collect();
-        for id in ids {
-            self.inner
-                .set_door_transition_ticks(id, ticks)
-                .map_err(|e| JsError::new(&format!("set_door_transition_ticks: {e}")))?;
-        }
-        Ok(())
+    pub fn set_door_transition_ticks_all(&mut self, ticks: u32) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let ids: Vec<_> = self
+                .inner
+                .world()
+                .iter_elevators()
+                .map(|(eid, _, _)| elevator_core::entity::ElevatorId::from(eid))
+                .collect();
+            for id in ids {
+                self.inner
+                    .set_door_transition_ticks(id, ticks)
+                    .map_err(|e| format!("set_door_transition_ticks: {e}"))?;
+            }
+            Ok(())
+        })()
+        .into()
     }
 
     /// Flip every group in the sim into the DCS hall-call mode. Required
