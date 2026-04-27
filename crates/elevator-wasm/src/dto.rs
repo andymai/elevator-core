@@ -314,7 +314,7 @@ pub enum EventDto {
     },
     /// A rider was rejected from boarding (e.g., over capacity, access
     /// denied). `reason` is a kebab-case label drawn from
-    /// [`RejectionReason`].
+    /// [`elevator_core::error::RejectionReason`].
     RiderRejected {
         tick: u64,
         rider: u32,
@@ -384,13 +384,14 @@ pub enum EventDto {
         elevator: u32,
     },
     /// `command` is one of `"open"`, `"close"`, `"hold-open"`,
-    /// `"cancel-hold"` (kebab-case from [`crate::door::DoorCommand`]).
+    /// `"cancel-hold"` (kebab-case from
+    /// [`elevator_core::door::DoorCommand`]).
     DoorCommandQueued {
         tick: u64,
         elevator: u32,
         command: String,
     },
-    /// Same `command` set as [`DoorCommandQueued`].
+    /// Same `command` set as [`EventDto::DoorCommandQueued`].
     DoorCommandApplied {
         tick: u64,
         elevator: u32,

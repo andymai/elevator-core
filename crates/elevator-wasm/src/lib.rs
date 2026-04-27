@@ -1641,8 +1641,8 @@ impl WasmSim {
     /// Compute the shortest multi-leg route between two stops using the
     /// line-graph topology. Returns `undefined` if no path exists.
     ///
-    /// The returned [`dto::RouteDto`] is a flat list of stops (origin
-    /// first, destination last) — adjacent pairs are individual legs.
+    /// The returned `RouteDto` is a flat list of stops (origin first,
+    /// destination last) — adjacent pairs are individual legs.
     #[wasm_bindgen(js_name = shortestRoute)]
     #[must_use]
     pub fn shortest_route(&self, from_stop_ref: u64, to_stop_ref: u64) -> Option<dto::RouteDto> {
