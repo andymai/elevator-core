@@ -56,6 +56,7 @@ export const wasmsim_metrics: (a: number) => any;
 export const wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
 export const wasmsim_occupancy: (a: number, b: bigint) => number;
 export const wasmsim_openDoor: (a: number, b: bigint) => [number, number];
+export const wasmsim_pendingEvents: (a: number) => [number, number];
 export const wasmsim_pinAssignment: (a: number, b: bigint, c: bigint, d: number, e: number) => [number, number];
 export const wasmsim_positionAt: (a: number, b: bigint, c: number) => [number, number];
 export const wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];

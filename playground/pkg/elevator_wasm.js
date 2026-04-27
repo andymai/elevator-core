@@ -759,6 +759,18 @@ export class WasmSim {
         }
     }
     /**
+     * Peek at queued events without draining. Useful for read-only
+     * inspection (e.g. UI dashboards) where the consumer doesn't
+     * "own" the event stream.
+     * @returns {EventDto[]}
+     */
+    pendingEvents() {
+        const ret = wasm.wasmsim_pendingEvents(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Pin the call at `(stop_ref, direction)` to `car_ref`, locking it
      * out of dispatch reassignment.
      *
