@@ -259,11 +259,14 @@ function drawCabinPanel(
   const doorH = 10;
   const interiorTop = headerTop + headerH + 6;
   const interiorBottom = cabinBottom - doorH - 4;
-  const interiorH = Math.max(40, interiorBottom - interiorTop);
+  const interiorH = interiorBottom - interiorTop;
   // Inset interior slightly inside the cabin so the riders don't
   // touch the frame.
   const interiorLeft = cabinLeft + 10;
   const interiorRight = cabinRight - 10;
+  // Skip interior + door entirely on extremely short canvases — the
+  // header strip is the only thing that fits without overdrawing.
+  if (interiorH < 24) return;
   drawRoundedRect(
     ctx,
     interiorLeft,
@@ -275,10 +278,13 @@ function drawCabinPanel(
     CABIN_FRAME,
   );
 
-  // Car-button panel sits in the right-interior. Width fixed enough for
-  // a 2-column layout; height scales with available space (capped so it
-  // doesn't dominate when the cabin is tall).
-  const buttonPanelW = Math.min(80, Math.max(60, interiorRight - interiorLeft) * 0.32);
+  // Car-button panel sits in the right-interior. Take 32 % of the
+  // interior width with a 60 px floor and an 80 px cap. The `Math.max`
+  // wraps the multiplication so the floor actually applies — without
+  // the inner placement, narrow cabins produced a ~28 px panel whose
+  // 2-column cells were narrower than the button radius and visually
+  // overlapped.
+  const buttonPanelW = Math.min(80, Math.max(60, (interiorRight - interiorLeft) * 0.32));
   const buttonPanelH = Math.min(interiorH - 12, 110);
   const buttonPanelX = interiorRight - 6 - buttonPanelW;
   const buttonPanelY = interiorTop + 6;
