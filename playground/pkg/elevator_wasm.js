@@ -145,6 +145,22 @@ export class WasmSim {
         return BigInt.asUintN(64, ret[0]);
     }
     /**
+     * Add an existing stop entity to a line's served list. The stop
+     * must already exist (via `addStop` on some line, or from config).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop or line entity does not exist.
+     * @param {bigint} stop_ref
+     * @param {bigint} line_ref
+     */
+    addStopToLine(stop_ref, line_ref) {
+        const ret = wasm.wasmsim_addStopToLine(this.__wbg_ptr, stop_ref, line_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Entity ids of every line in the simulation, across all groups.
      * @returns {BigUint64Array}
      */
@@ -153,6 +169,25 @@ export class WasmSim {
         var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
+    }
+    /**
+     * Reassign a line to a different group. Returns the previous group
+     * id so the caller can detect a no-op (returned id == passed id).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or `new_group_id`
+     * is not a valid group.
+     * @param {bigint} line_ref
+     * @param {number} new_group_id
+     * @returns {number}
+     */
+    assignLineToGroup(line_ref, new_group_id) {
+        const ret = wasm.wasmsim_assignLineToGroup(this.__wbg_ptr, line_ref, new_group_id);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
     }
     /**
      * Car currently assigned to serve the call at `(stop_ref, direction)`,
@@ -788,6 +823,23 @@ export class WasmSim {
         return v1;
     }
     /**
+     * Reassign an elevator to a different line. Disabled cars stay
+     * disabled; in-flight cars are aborted to the nearest reachable
+     * stop on the new line.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or new line does not exist.
+     * @param {bigint} elevator_ref
+     * @param {bigint} new_line_ref
+     */
+    reassignElevatorToLine(elevator_ref, new_line_ref) {
+        const ret = wasm.wasmsim_reassignElevatorToLine(this.__wbg_ptr, elevator_ref, new_line_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Clear the queue and immediately recall the elevator to `stop_ref`.
      * Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
      * emitted as a single `ElevatorRecalled` event so games can render a
@@ -853,6 +905,22 @@ export class WasmSim {
      */
     removeStop(stop_ref) {
         const ret = wasm.wasmsim_removeStop(this.__wbg_ptr, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Remove a stop from a line's served list. The stop entity itself
+     * remains in the world — call `removeStop` to fully despawn.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line entity does not exist.
+     * @param {bigint} stop_ref
+     * @param {bigint} line_ref
+     */
+    removeStopFromLine(stop_ref, line_ref) {
+        const ret = wasm.wasmsim_removeStopFromLine(this.__wbg_ptr, stop_ref, line_ref);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
@@ -1009,6 +1077,24 @@ export class WasmSim {
      */
     setDoorTransitionTicksAll(ticks) {
         const ret = wasm.wasmsim_setDoorTransitionTicksAll(this.__wbg_ptr, ticks);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Replace an elevator's forbidden-stops set. Pass an empty array to
+     * clear all restrictions.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     * @param {bigint} elevator_ref
+     * @param {BigUint64Array} stop_refs
+     */
+    setElevatorRestrictedStops(elevator_ref, stop_refs) {
+        const ptr0 = passArray64ToWasm0(stop_refs, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_setElevatorRestrictedStops(this.__wbg_ptr, elevator_ref, ptr0, len0);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
