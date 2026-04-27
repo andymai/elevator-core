@@ -478,8 +478,13 @@
   .ctl-check input[type="checkbox"]:checked::after {
     content: "";
     position: absolute;
-    left: 4.5px;
-    top: 1.5px;
+    /* Nudge the rotated L so the check's elbow lands near the lower-
+     * center of the 16×16 box. The previous offset (4.5, 1.5) put the
+     * elbow at ~(6, 12) — visibly sagging toward the bottom-left. With
+     * default `transform-origin: 50% 50%`, shifting +0.5 px right and
+     * 1 px up lands the elbow near (7, 11) for a balanced ✓. */
+    left: 5px;
+    top: 0.5px;
     width: 4px;
     height: 8px;
     border: 2px solid var(--bg-primary);
