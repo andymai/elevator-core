@@ -781,13 +781,13 @@ ffi  = "ev_sim_set_max_speed"
 [[methods]]
 name = "set_acceleration"
 category = "parameters"
-wasm = "todo:PR-C"
+wasm = "setAcceleration"
 ffi  = "ev_sim_set_acceleration"
 
 [[methods]]
 name = "set_deceleration"
 category = "parameters"
-wasm = "todo:PR-C"
+wasm = "setDeceleration"
 ffi  = "ev_sim_set_deceleration"
 
 [[methods]]
@@ -811,19 +811,19 @@ ffi  = "ev_sim_set_weight_capacity"
 [[methods]]
 name = "set_arrival_log_retention_ticks"
 category = "parameters"
-wasm = "todo:PR-C"
+wasm = "setArrivalLogRetentionTicks"
 ffi  = "ev_sim_set_arrival_log_retention_ticks"
 
 [[methods]]
 name = "enable"
 category = "parameters"
-wasm = "todo:PR-C"
+wasm = "enable"
 ffi  = "ev_sim_enable"
 
 [[methods]]
 name = "disable"
 category = "parameters"
-wasm = "todo:PR-C"
+wasm = "disable"
 ffi  = "ev_sim_disable"
 
 # ─── Hooks (closures don't survive the binding boundary) ──────────────────
