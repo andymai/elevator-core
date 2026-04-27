@@ -5,6 +5,7 @@ import type {
   Snapshot,
   StrategyName,
   TrafficMode,
+  WasmVoidResult,
 } from "../types";
 
 // Thin TS wrapper around `WasmSim`. The wasm-bindgen generated class
@@ -29,7 +30,12 @@ interface WasmSimInstance {
   strategyName(): string;
   trafficMode(): string;
   setStrategy(name: string): boolean;
-  spawnRider(origin: number, destination: number, weight: number, patienceTicks?: number): void;
+  spawnRider(
+    origin: number,
+    destination: number,
+    weight: number,
+    patienceTicks?: number,
+  ): WasmVoidResult;
   setTrafficRate(ridersPerMinute: number): void;
   trafficRate(): number;
   snapshot(): Snapshot;
@@ -114,8 +120,13 @@ export class Sim {
     return this.#inner.setStrategy(name);
   }
 
-  spawnRider(origin: number, destination: number, weight: number, patienceTicks?: number): void {
-    this.#inner.spawnRider(origin, destination, weight, patienceTicks);
+  spawnRider(
+    origin: number,
+    destination: number,
+    weight: number,
+    patienceTicks?: number,
+  ): WasmVoidResult {
+    return this.#inner.spawnRider(origin, destination, weight, patienceTicks);
   }
 
   setTrafficRate(ridersPerMinute: number): void {

@@ -4,6 +4,9 @@ export type {
   Snapshot,
   MetricsDto,
   EventDto,
+  WasmVoidResult,
+  WasmU64Result,
+  WasmU32Result,
 } from "../../public/pkg/elevator_wasm";
 export type { StrategyName, RepositionStrategyName, TrafficMode } from "./strategies";
 export type { CarBubble } from "./bubble";

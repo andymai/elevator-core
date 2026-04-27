@@ -21,7 +21,10 @@ use slotmap::Key;
 use wasm_bindgen::prelude::*;
 
 mod dto;
+mod result;
 mod world_view;
+
+pub use result::{WasmU32Result, WasmU64Result, WasmVoidResult};
 
 /// Encode an `EntityId` for the JS boundary as a `u64` (`BigInt` in JS).
 /// Carries slotmap's full FFI encoding (slot + version) so stale
@@ -370,9 +373,10 @@ impl WasmSim {
     ///
     /// # Errors
     ///
-    /// Returns a JS error if either stop id is unknown, the rider is
-    /// rejected by the sim, or the `(origin, destination)` route
-    /// can't be auto-detected.
+    /// Returns a Result-shaped object: `{ kind: "ok" }` on success, or
+    /// `{ kind: "err", error: "..." }` if either stop id is unknown,
+    /// the rider is rejected by the sim, or the `(origin, destination)`
+    /// route can't be auto-detected.
     #[wasm_bindgen(js_name = spawnRider)]
     pub fn spawn_rider(
         &mut self,
@@ -380,19 +384,22 @@ impl WasmSim {
         destination: u32,
         weight: f64,
         patience_ticks: Option<u32>,
-    ) -> Result<(), JsError> {
-        let mut builder = self
-            .inner
-            .build_rider(StopId(origin), StopId(destination))
-            .map_err(|e| JsError::new(&format!("spawn: {e}")))?
-            .weight(weight);
-        if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
-            builder = builder.patience(u64::from(ticks));
-        }
-        builder
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| JsError::new(&format!("spawn: {e}")))
+    ) -> WasmVoidResult {
+        (|| -> Result<(), String> {
+            let mut builder = self
+                .inner
+                .build_rider(StopId(origin), StopId(destination))
+                .map_err(|e| format!("spawn: {e}"))?
+                .weight(weight);
+            if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
+                builder = builder.patience(u64::from(ticks));
+            }
+            builder
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("spawn: {e}"))
+        })()
+        .into()
     }
 
     /// Spawn a rider between two stops identified by their entity refs
