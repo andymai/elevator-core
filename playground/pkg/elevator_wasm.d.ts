@@ -472,6 +472,10 @@ export class WasmSim {
      */
     addStop(line_ref: bigint, name: string, position: number): bigint;
     /**
+     * Entity ids of every line in the simulation, across all groups.
+     */
+    allLines(): BigUint64Array;
+    /**
      * Car currently assigned to serve the call at `(stop_ref, direction)`,
      * or `0` (slotmap-null) if none. At stops served by multiple lines
      * this returns the entry with the numerically smallest line-entity
@@ -546,6 +550,15 @@ export class WasmSim {
      */
     currentTick(): bigint;
     /**
+     * Despawn a rider mid-flight. The rider is ejected from any
+     * boarding car and dropped from the world.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     */
+    despawnRider(rider_ref: bigint): void;
+    /**
      * Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
      * stop refs in service order. Empty if the elevator has no queue or
      * is missing.
@@ -586,6 +599,10 @@ export class WasmSim {
      * Returns `undefined` for missing entities.
      */
     elevatorMoveCount(elevator_ref: bigint): bigint | undefined;
+    /**
+     * Entity ids of all elevators currently assigned to `line_ref`.
+     */
+    elevatorsOnLine(line_ref: bigint): BigUint64Array;
     /**
      * Command an immediate stop on a Manual-mode elevator. Sets the
      * target velocity to zero and emits a distinct event so games can
@@ -638,6 +655,10 @@ export class WasmSim {
      */
     futureStopPosition(elevator_ref: bigint): number | undefined;
     /**
+     * Group ids of every group with a line that serves `stop_ref`.
+     */
+    groupsServingStop(stop_ref: bigint): Uint32Array;
+    /**
      * Extend the doors' open dwell by `ticks`. Cumulative across calls.
      *
      * # Errors
@@ -670,6 +691,25 @@ export class WasmSim {
      * Whether `entity_ref` resolves to a stop entity in the world.
      */
     isStop(entity_ref: bigint): boolean;
+    /**
+     * Total number of lines across all groups.
+     */
+    lineCount(): number;
+    /**
+     * Line entity that `elevator_ref` runs on, or `0` (slotmap-null)
+     * if missing or not an elevator.
+     */
+    lineForElevator(elevator_ref: bigint): bigint;
+    /**
+     * Entity ids of every line in `group_id`. Empty if the group does
+     * not exist.
+     */
+    linesInGroup(group_id: number): BigUint64Array;
+    /**
+     * Entity ids of every line that serves `stop_ref`. Useful for
+     * disambiguating sky-lobby calls served by multiple banks.
+     */
+    linesServingStop(stop_ref: bigint): BigUint64Array;
     /**
      * Current aggregate metrics.
      */
@@ -785,6 +825,11 @@ export class WasmSim {
      */
     removeLine(line_ref: bigint): void;
     /**
+     * Remove the reposition strategy from `group_id`. Idle elevators
+     * stay where they parked instead of moving toward a target.
+     */
+    removeReposition(group_id: number): void;
+    /**
      * Remove a stop. In-flight riders to/from it are rerouted, ejected,
      * or abandoned per `Simulation::remove_stop` semantics.
      *
@@ -815,6 +860,18 @@ export class WasmSim {
      * empty or `elevator_ref` is not an elevator.
      */
     ridersOn(elevator_ref: bigint): BigUint64Array;
+    /**
+     * Step the simulation forward up to `max_ticks` ticks, stopping
+     * early if the world becomes "quiet" (no in-flight riders, no
+     * pending hall calls, all cars idle). Returns the number of ticks
+     * actually run.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the world fails to quiet within `max_ticks`
+     * (infinite-loop guard).
+     */
+    runUntilQuiet(max_ticks: bigint): bigint;
     /**
      * Get the current operational mode of an elevator as a label string.
      * Returns `"normal"` for missing/disabled elevators (matches core's
@@ -1009,6 +1066,11 @@ export class WasmSim {
      */
     stepMany(n: number): void;
     /**
+     * Entity ids of every stop served by `line_ref`. Order is
+     * unspecified — sort by `positionAt` if you need axis order.
+     */
+    stopsServedByLine(line_ref: bigint): BigUint64Array;
+    /**
      * Active strategy name.
      */
     strategyName(): string;
@@ -1084,6 +1146,7 @@ export interface InitOutput {
     readonly wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
     readonly wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
+    readonly wasmsim_allLines: (a: number) => [number, number];
     readonly wasmsim_assignedCar: (a: number, b: bigint, c: number, d: number) => [bigint, number, number];
     readonly wasmsim_assignedCarsByLine: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
     readonly wasmsim_bestEta: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
@@ -1092,6 +1155,7 @@ export interface InitOutput {
     readonly wasmsim_clearDestinations: (a: number, b: bigint) => [number, number];
     readonly wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
     readonly wasmsim_currentTick: (a: number) => bigint;
+    readonly wasmsim_despawnRider: (a: number, b: bigint) => [number, number];
     readonly wasmsim_destinationQueue: (a: number, b: bigint) => [number, number];
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
@@ -1100,17 +1164,23 @@ export interface InitOutput {
     readonly wasmsim_elevatorGoingUp: (a: number, b: bigint) => number;
     readonly wasmsim_elevatorLoad: (a: number, b: bigint) => [number, number];
     readonly wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigint];
+    readonly wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_emergencyStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_eta: (a: number, b: bigint, c: bigint) => [bigint, number, number];
     readonly wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) => [bigint, number, number];
     readonly wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
     readonly wasmsim_futureStopPosition: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_groupsServingStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_holdDoor: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_idleElevatorCount: (a: number) => number;
     readonly wasmsim_isDisabled: (a: number, b: bigint) => number;
     readonly wasmsim_isElevator: (a: number, b: bigint) => number;
     readonly wasmsim_isRider: (a: number, b: bigint) => number;
     readonly wasmsim_isStop: (a: number, b: bigint) => number;
+    readonly wasmsim_lineCount: (a: number) => number;
+    readonly wasmsim_lineForElevator: (a: number, b: bigint) => bigint;
+    readonly wasmsim_linesInGroup: (a: number, b: number) => [number, number];
+    readonly wasmsim_linesServingStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_metrics: (a: number) => any;
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmsim_occupancy: (a: number, b: bigint) => number;
@@ -1124,11 +1194,13 @@ export interface InitOutput {
     readonly wasmsim_recallTo: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
     readonly wasmsim_removeLine: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_removeReposition: (a: number, b: number) => void;
     readonly wasmsim_removeStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_repositionStrategyName: (a: number) => [number, number];
     readonly wasmsim_residentCountAt: (a: number, b: bigint) => number;
     readonly wasmsim_residentsAt: (a: number, b: bigint) => [number, number];
     readonly wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_runUntilQuiet: (a: number, b: bigint) => [bigint, number, number];
     readonly wasmsim_serviceMode: (a: number, b: bigint) => [number, number];
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
@@ -1148,6 +1220,7 @@ export interface InitOutput {
     readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_stepMany: (a: number, b: number) => void;
+    readonly wasmsim_stopsServedByLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_strategyName: (a: number) => [number, number];
     readonly wasmsim_trafficMode: (a: number) => [number, number];
     readonly wasmsim_trafficRate: (a: number) => number;
