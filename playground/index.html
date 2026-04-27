@@ -13,8 +13,8 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-BMXHbOA8.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BZi4UVfT.css">
+    <script type="module" crossorigin src="./assets/index-CPkOrizS.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DRoCeFc9.css">
   </head>
   <body>
     <header
@@ -115,7 +115,7 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 data-[mode=manual-control]:grid-cols-[minmax(0,1fr)_360px] max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2 max-md:data-[mode=manual-control]:grid-cols-1"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2"
     >
       <section
         id="pane-a"
@@ -292,59 +292,6 @@
           <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
       </section>
-
-      <!-- Manual control side panel. Hidden by default (utilities-layer
-           rule keyed off layout's data-mode), surfaced when the active
-           scenario sets `manualControl`. Populated dynamically by
-           features/manual-controls. -->
-      <aside
-        id="manual-controls"
-        aria-label="Manual elevator controls"
-        class="manual-controls flex-col gap-3 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle rounded-lg shadow-md max-md:p-2.5 max-md:gap-2 overflow-y-auto"
-      >
-        <header class="flex items-center gap-2">
-          <span
-            class="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] uppercase text-content-secondary"
-            ><span
-              class="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]"
-              aria-hidden="true"
-            ></span
-            >Controls</span
-          >
-        </header>
-
-        <!-- Scenario feature hint — populated dynamically from
-             scenario.featureHint. Hidden when the scenario doesn't
-             carry one. -->
-        <p id="manual-feature-hint" class="manual-feature-hint" hidden></p>
-
-        <section aria-label="Hall calls" class="manual-section">
-          <h3 class="manual-section-title">Hall calls</h3>
-          <div id="manual-hall-buttons" class="manual-hall-list"></div>
-        </section>
-
-        <section aria-label="Per-car controls" class="manual-section">
-          <h3 class="manual-section-title">Cars</h3>
-          <div id="manual-car-controls" class="flex flex-col gap-2"></div>
-          <button type="button" id="manual-add-car" class="manual-add-car-btn" hidden>
-            Add Car B
-          </button>
-        </section>
-
-        <section aria-label="Spawn rider" class="manual-section">
-          <h3 class="manual-section-title">Spawn rider</h3>
-          <div id="manual-spawn-form" class="flex flex-wrap items-end gap-1.5"></div>
-        </section>
-
-        <section aria-label="Event log" class="manual-section flex-1 min-h-0">
-          <h3 class="manual-section-title">Events</h3>
-          <ul
-            id="manual-event-log"
-            class="manual-event-log m-0 p-1.5 list-none flex flex-col gap-0.5 bg-surface border border-stroke-subtle rounded-sm text-[10.5px] tabular-nums text-content-tertiary overflow-y-auto h-[180px] max-md:h-[120px]"
-            data-empty-hint="Press a button or spawn a rider to see events."
-          ></ul>
-        </section>
-      </aside>
     </main>
 
     <!-- Bottom controls bar — transparent when idle, full opacity on hover/focus -->
@@ -433,7 +380,6 @@
       </section>
       <div class="controls-bar-inner">
         <label
-          id="compare-toggle"
           class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-transparent border border-transparent rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke-subtle"
         >
           <input id="compare" type="checkbox" />
@@ -476,7 +422,7 @@
           </span>
           <input id="speed" type="range" min="1" max="64" step="1" value="2" class="w-full" />
         </label>
-        <label id="traffic-field" class="controls-bar-field">
+        <label class="controls-bar-field">
           <span class="ctl-k">
             <span>Intensity</span>
             <span
