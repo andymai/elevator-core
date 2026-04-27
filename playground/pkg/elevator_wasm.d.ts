@@ -410,6 +410,27 @@ export class WasmSim {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Riders who abandoned the call at `stop_ref` (gave up waiting).
+     * Useful for rendering "frustrated" indicators or computing service
+     * quality metrics. Returns an empty array for missing stops.
+     */
+    abandonedAt(stop_ref: bigint): BigUint64Array;
+    /**
+     * Number of abandoned riders at `stop_ref`. Faster than counting
+     * `abandonedAt`.
+     */
+    abandonedCountAt(stop_ref: bigint): number;
+    /**
+     * Abort the elevator's in-flight movement. The car decelerates to
+     * the nearest reachable stop; subsequent dispatch / queue entries
+     * resume from there.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator.
+     */
+    abortMovement(elevator_ref: bigint): void;
+    /**
      * Add a new elevator to a line at `starting_position`. Optional
      * physics overrides; defaults match `ElevatorParams::default`.
      * Returns the elevator entity ref.
@@ -501,6 +522,17 @@ export class WasmSim {
      */
     cancelDoorHold(elevator_ref: bigint): void;
     /**
+     * Empty an elevator's destination queue. Any in-progress trip
+     * continues to its current target (the queue is the *future*
+     * schedule); to also abort the in-flight trip, call
+     * `abortMovement` after.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator.
+     */
+    clearDestinations(elevator_ref: bigint): void;
+    /**
      * Request the doors to close now. Forces an early close unless a
      * rider is mid-boarding/exiting.
      *
@@ -513,6 +545,12 @@ export class WasmSim {
      * Current tick counter.
      */
     currentTick(): bigint;
+    /**
+     * Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
+     * stop refs in service order. Empty if the elevator has no queue or
+     * is missing.
+     */
+    destinationQueue(elevator_ref: bigint): BigUint64Array;
     /**
      * Drain all queued events since the last call.
      */
@@ -697,6 +735,40 @@ export class WasmSim {
      */
     pressHallCall(stop_ref: bigint, direction: string): void;
     /**
+     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
+     * Adjacent duplicates are suppressed (no-op if the queue's last
+     * entry already equals `stop_ref`).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     */
+    pushDestination(elevator_ref: bigint, stop_ref: bigint): void;
+    /**
+     * Insert `stop_ref` at the front of `elevator_ref`'s destination
+     * queue ("go here next"). On the next `AdvanceQueue` phase the car
+     * redirects to this new front if it differs from the current target.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     */
+    pushDestinationFront(elevator_ref: bigint, stop_ref: bigint): void;
+    /**
+     * Clear the queue and immediately recall the elevator to `stop_ref`.
+     * Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
+     * emitted as a single `ElevatorRecalled` event so games can render a
+     * distinct callout (lobby drill, fire-service recall, etc.).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     */
+    recallTo(elevator_ref: bigint, stop_ref: bigint): void;
+    /**
      * Remove an elevator (riders ejected to the nearest enabled stop).
      *
      * # Errors
@@ -727,6 +799,22 @@ export class WasmSim {
      * second chip in each pane header.
      */
     repositionStrategyName(): string;
+    /**
+     * Number of resident riders at `stop_ref`. Faster than counting
+     * `residentsAt` since it skips the array allocation.
+     */
+    residentCountAt(stop_ref: bigint): number;
+    /**
+     * Riders settled / resident at `stop_ref` (e.g. tenants for a
+     * residential building's "home floor" model). Returns an empty
+     * array for missing stops.
+     */
+    residentsAt(stop_ref: bigint): BigUint64Array;
+    /**
+     * Riders currently aboard `elevator_ref`. Empty if the cab is
+     * empty or `elevator_ref` is not an elevator.
+     */
+    ridersOn(elevator_ref: bigint): BigUint64Array;
     /**
      * Get the current operational mode of an elevator as a label string.
      * Returns `"normal"` for missing/disabled elevators (matches core's
@@ -953,6 +1041,11 @@ export class WasmSim {
      */
     velocity(elevator_ref: bigint): number | undefined;
     /**
+     * Riders currently waiting at `stop_ref`. Returns an empty array
+     * for missing stops.
+     */
+    waitingAt(stop_ref: bigint): BigUint64Array;
+    /**
      * Convenience: waiting rider count at a specific stop id.
      */
     waitingCountAt(stop_id: number): number;
@@ -984,6 +1077,9 @@ export interface InitOutput {
     readonly __wbg_wasmsim_free: (a: number, b: number) => void;
     readonly builtinRepositionStrategies: () => [number, number];
     readonly builtinStrategies: () => [number, number];
+    readonly wasmsim_abandonedAt: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_abandonedCountAt: (a: number, b: bigint) => number;
+    readonly wasmsim_abortMovement: (a: number, b: bigint) => [number, number];
     readonly wasmsim_addElevator: (a: number, b: bigint, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
     readonly wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
@@ -993,8 +1089,10 @@ export interface InitOutput {
     readonly wasmsim_bestEta: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
     readonly wasmsim_brakingDistance: (a: number, b: bigint) => [number, number];
     readonly wasmsim_cancelDoorHold: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_clearDestinations: (a: number, b: bigint) => [number, number];
     readonly wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
     readonly wasmsim_currentTick: (a: number) => bigint;
+    readonly wasmsim_destinationQueue: (a: number, b: bigint) => [number, number];
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
     readonly wasmsim_elevatorDirection: (a: number, b: bigint) => [number, number];
@@ -1021,10 +1119,16 @@ export interface InitOutput {
     readonly wasmsim_positionAt: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => [number, number];
+    readonly wasmsim_pushDestination: (a: number, b: bigint, c: bigint) => [number, number];
+    readonly wasmsim_pushDestinationFront: (a: number, b: bigint, c: bigint) => [number, number];
+    readonly wasmsim_recallTo: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
     readonly wasmsim_removeLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_removeStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_repositionStrategyName: (a: number) => [number, number];
+    readonly wasmsim_residentCountAt: (a: number, b: bigint) => number;
+    readonly wasmsim_residentsAt: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
     readonly wasmsim_serviceMode: (a: number, b: bigint) => [number, number];
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
@@ -1049,6 +1153,7 @@ export interface InitOutput {
     readonly wasmsim_trafficRate: (a: number) => number;
     readonly wasmsim_unpinAssignment: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_velocity: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_waitingAt: (a: number, b: bigint) => [number, number];
     readonly wasmsim_waitingCountAt: (a: number, b: number) => number;
     readonly wasmsim_worldView: (a: number) => any;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

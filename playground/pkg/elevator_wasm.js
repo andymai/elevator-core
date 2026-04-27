@@ -15,6 +15,45 @@ export class WasmSim {
         wasm.__wbg_wasmsim_free(ptr, 0);
     }
     /**
+     * Riders who abandoned the call at `stop_ref` (gave up waiting).
+     * Useful for rendering "frustrated" indicators or computing service
+     * quality metrics. Returns an empty array for missing stops.
+     * @param {bigint} stop_ref
+     * @returns {BigUint64Array}
+     */
+    abandonedAt(stop_ref) {
+        const ret = wasm.wasmsim_abandonedAt(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Number of abandoned riders at `stop_ref`. Faster than counting
+     * `abandonedAt`.
+     * @param {bigint} stop_ref
+     * @returns {number}
+     */
+    abandonedCountAt(stop_ref) {
+        const ret = wasm.wasmsim_abandonedCountAt(this.__wbg_ptr, stop_ref);
+        return ret >>> 0;
+    }
+    /**
+     * Abort the elevator's in-flight movement. The car decelerates to
+     * the nearest reachable stop; subsequent dispatch / queue entries
+     * resume from there.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator.
+     * @param {bigint} elevator_ref
+     */
+    abortMovement(elevator_ref) {
+        const ret = wasm.wasmsim_abortMovement(this.__wbg_ptr, elevator_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Add a new elevator to a line at `starting_position`. Optional
      * physics overrides; defaults match `ElevatorParams::default`.
      * Returns the elevator entity ref.
@@ -204,6 +243,23 @@ export class WasmSim {
         }
     }
     /**
+     * Empty an elevator's destination queue. Any in-progress trip
+     * continues to its current target (the queue is the *future*
+     * schedule); to also abort the in-flight trip, call
+     * `abortMovement` after.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator.
+     * @param {bigint} elevator_ref
+     */
+    clearDestinations(elevator_ref) {
+        const ret = wasm.wasmsim_clearDestinations(this.__wbg_ptr, elevator_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Request the doors to close now. Forces an early close unless a
      * rider is mid-boarding/exiting.
      *
@@ -225,6 +281,19 @@ export class WasmSim {
     currentTick() {
         const ret = wasm.wasmsim_currentTick(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
+     * stop refs in service order. Empty if the elevator has no queue or
+     * is missing.
+     * @param {bigint} elevator_ref
+     * @returns {BigUint64Array}
+     */
+    destinationQueue(elevator_ref) {
+        const ret = wasm.wasmsim_destinationQueue(this.__wbg_ptr, elevator_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Drain all queued events since the last call.
@@ -582,6 +651,61 @@ export class WasmSim {
         }
     }
     /**
+     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
+     * Adjacent duplicates are suppressed (no-op if the queue's last
+     * entry already equals `stop_ref`).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     */
+    pushDestination(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_pushDestination(this.__wbg_ptr, elevator_ref, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Insert `stop_ref` at the front of `elevator_ref`'s destination
+     * queue ("go here next"). On the next `AdvanceQueue` phase the car
+     * redirects to this new front if it differs from the current target.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     */
+    pushDestinationFront(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_pushDestinationFront(this.__wbg_ptr, elevator_ref, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Clear the queue and immediately recall the elevator to `stop_ref`.
+     * Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
+     * emitted as a single `ElevatorRecalled` event so games can render a
+     * distinct callout (lobby drill, fire-service recall, etc.).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     */
+    recallTo(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_recallTo(this.__wbg_ptr, elevator_ref, stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Remove an elevator (riders ejected to the nearest enabled stop).
      *
      * # Errors
@@ -641,6 +765,41 @@ export class WasmSim {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * Number of resident riders at `stop_ref`. Faster than counting
+     * `residentsAt` since it skips the array allocation.
+     * @param {bigint} stop_ref
+     * @returns {number}
+     */
+    residentCountAt(stop_ref) {
+        const ret = wasm.wasmsim_residentCountAt(this.__wbg_ptr, stop_ref);
+        return ret >>> 0;
+    }
+    /**
+     * Riders settled / resident at `stop_ref` (e.g. tenants for a
+     * residential building's "home floor" model). Returns an empty
+     * array for missing stops.
+     * @param {bigint} stop_ref
+     * @returns {BigUint64Array}
+     */
+    residentsAt(stop_ref) {
+        const ret = wasm.wasmsim_residentsAt(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Riders currently aboard `elevator_ref`. Empty if the cab is
+     * empty or `elevator_ref` is not an elevator.
+     * @param {bigint} elevator_ref
+     * @returns {BigUint64Array}
+     */
+    ridersOn(elevator_ref) {
+        const ret = wasm.wasmsim_ridersOn(this.__wbg_ptr, elevator_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Get the current operational mode of an elevator as a label string.
@@ -1024,6 +1183,18 @@ export class WasmSim {
     velocity(elevator_ref) {
         const ret = wasm.wasmsim_velocity(this.__wbg_ptr, elevator_ref);
         return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * Riders currently waiting at `stop_ref`. Returns an empty array
+     * for missing stops.
+     * @param {bigint} stop_ref
+     * @returns {BigUint64Array}
+     */
+    waitingAt(stop_ref) {
+        const ret = wasm.wasmsim_waitingAt(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Convenience: waiting rider count at a specific stop id.
