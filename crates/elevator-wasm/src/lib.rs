@@ -1768,6 +1768,19 @@ impl WasmSim {
             .collect()
     }
 
+    /// Aggregate metrics for `tag`. Returns `undefined` if no riders
+    /// carrying the tag have been recorded yet.
+    ///
+    /// Wait times in the returned [`dto::TaggedMetricDto`] are in
+    /// **ticks** — multiply by `dt` for real-time seconds.
+    #[wasm_bindgen(js_name = metricsForTag)]
+    #[must_use]
+    pub fn metrics_for_tag(&self, tag: &str) -> Option<dto::TaggedMetricDto> {
+        self.inner
+            .metrics_for_tag(tag)
+            .map(dto::TaggedMetricDto::from)
+    }
+
     // ── Stop lookup + phase / direction queries ──────────────────────
 
     /// Count elevators currently in the given phase. `phase` is one of:
