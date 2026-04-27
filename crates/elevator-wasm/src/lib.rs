@@ -1706,6 +1706,57 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("disable: {e}")))
     }
 
+    // ── Stop lookup + phase / direction queries ──────────────────────
+
+    /// Resolve a config-time `StopId` (the small `u32` from the RON
+    /// config) to its runtime `EntityId`. Returns `0` (slotmap-null)
+    /// for unknown ids.
+    #[wasm_bindgen(js_name = stopEntity)]
+    #[must_use]
+    pub fn stop_entity(&self, stop_id: u32) -> u64 {
+        self.inner
+            .stop_entity(elevator_core::prelude::StopId(stop_id))
+            .map_or(0, entity_to_u64)
+    }
+
+    /// Entity ids of every elevator currently repositioning (heading to
+    /// a parking stop with no rider obligation).
+    #[wasm_bindgen(js_name = iterRepositioningElevators)]
+    #[must_use]
+    pub fn iter_repositioning_elevators(&self) -> Vec<u64> {
+        self.inner
+            .iter_repositioning_elevators()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Up/down split of riders currently waiting at `stop_ref`. Returns
+    /// `[up_count, down_count]`; both `0` for missing stops.
+    #[wasm_bindgen(js_name = waitingDirectionCountsAt)]
+    #[must_use]
+    pub fn waiting_direction_counts_at(&self, stop_ref: u64) -> Vec<u32> {
+        let (up, down) = self
+            .inner
+            .waiting_direction_counts_at(u64_to_entity(stop_ref));
+        vec![
+            u32::try_from(up).unwrap_or(u32::MAX),
+            u32::try_from(down).unwrap_or(u32::MAX),
+        ]
+    }
+
+    /// Per-line waiting counts at `stop_ref`. Returns a flat array of
+    /// alternating `[line_ref, count, line_ref, count, ...]` pairs.
+    /// `count` is encoded as `u64` for symmetry with the entity refs.
+    #[wasm_bindgen(js_name = waitingCountsByLineAt)]
+    #[must_use]
+    pub fn waiting_counts_by_line_at(&self, stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .waiting_counts_by_line_at(u64_to_entity(stop_ref))
+            .into_iter()
+            .flat_map(|(line, count)| [entity_to_u64(line), u64::from(count)])
+            .collect()
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
