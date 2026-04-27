@@ -129,6 +129,34 @@ typedef enum EvStrategy {
 } EvStrategy;
 
 /**
+ * Operational service mode for an elevator. Mirrors
+ * [`elevator_core::components::ServiceMode`].
+ */
+typedef enum EvServiceMode {
+    /**
+     * Normal operation: dispatch assigns stops, doors auto-cycle.
+     */
+    Normal = 0,
+    /**
+     * Excluded from dispatch and repositioning. Consumer drives movement.
+     */
+    Independent = 1,
+    /**
+     * Reduced speed, doors hold open indefinitely.
+     */
+    Inspection = 2,
+    /**
+     * Driven by direct velocity commands. Doors follow manual API.
+     */
+    Manual = 3,
+    /**
+     * Shut down: excluded from dispatch, no auto-boarding, fully inert
+     * once idle.
+     */
+    OutOfService = 4,
+} EvServiceMode;
+
+/**
  * Opaque simulation handle. Layout is not part of the ABI.
  */
 typedef struct EvSim EvSim;
@@ -872,5 +900,110 @@ enum EvStatus ev_sim_remove_stop(struct EvSim *handle, uint64_t stop_entity_id);
  * `handle` must be a valid pointer returned by [`ev_sim_create`].
  */
 enum EvStatus ev_sim_remove_elevator(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Set the operational mode of an elevator.
+ *
+ * Modes are orthogonal to the elevator's phase — switching mode does not
+ * teleport the car, but it changes how subsequent ticks treat it.
+ * Leaving Manual zeroes velocity and clears any queued door commands.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_service_mode(struct EvSim *handle,
+                                      uint64_t elevator_entity_id,
+                                      enum EvServiceMode mode);
+
+/**
+ * Get the current operational mode of an elevator.
+ *
+ * Writes the mode to `*out_mode`. Returns `Normal` for missing/disabled
+ * elevators (matches core's `service_mode` accessor, which returns the
+ * default rather than erroring). Use [`ev_sim_frame`] to verify existence.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_mode` must be a valid pointer to a writable [`EvServiceMode`].
+ */
+enum EvStatus ev_sim_service_mode(struct EvSim *handle,
+                                  uint64_t elevator_entity_id,
+                                  enum EvServiceMode *out_mode);
+
+/**
+ * Set the target velocity for a Manual-mode elevator.
+ *
+ * Positive values command upward travel, negative values downward. The
+ * car ramps toward the target each tick using its configured
+ * acceleration / deceleration.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_target_velocity(struct EvSim *handle,
+                                         uint64_t elevator_entity_id,
+                                         double velocity);
+
+/**
+ * Command an immediate stop on a Manual-mode elevator.
+ *
+ * Sets the target velocity to zero; the car decelerates at its
+ * configured rate. Emits a distinct event so games can distinguish an
+ * emergency stop from a deliberate hold (`target_velocity` payload is
+ * `None` in the event).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_emergency_stop(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Request the doors of an elevator to open.
+ *
+ * Applied immediately when the car is stopped at a stop with
+ * closed/closing doors; otherwise queued until the car next arrives.
+ * No-op if doors are already open.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_open_door(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Request the doors to close now. Forces an early close unless a rider is
+ * mid-boarding/exiting (in which case the close waits). If doors are
+ * opening, the close queues until they reach fully-open.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_close_door(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Extend the doors' open dwell by `ticks`. Cumulative — repeat calls add.
+ * If doors aren't open yet, the hold queues and applies when they reach
+ * fully-open.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_hold_door(struct EvSim *handle, uint64_t elevator_entity_id, uint32_t ticks);
+
+/**
+ * Cancel any pending hold extension on the doors. If the base open timer
+ * has already elapsed, the doors close on the next doors-phase tick.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_cancel_door_hold(struct EvSim *handle, uint64_t elevator_entity_id);
 
 #endif  /* ELEVATOR_FFI_H */
