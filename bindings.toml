@@ -576,61 +576,61 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "velocity"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "velocity"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "position_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "positionAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "elevator_load"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorLoad"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "occupancy"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "occupancy"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "elevator_direction"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorDirection"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "elevator_going_up"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorGoingUp"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "elevator_going_down"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorGoingDown"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "elevator_move_count"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "elevatorMoveCount"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "braking_distance"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "brakingDistance"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "future_stop_position"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "futureStopPosition"
 ffi  = "todo:PR-C"
 
 [[methods]]
@@ -654,31 +654,31 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "idle_elevator_count"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "idleElevatorCount"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "is_elevator"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "isElevator"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "is_rider"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "isRider"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "is_stop"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "isStop"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "is_disabled"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "isDisabled"
 ffi  = "todo:PR-C"
 
 [[methods]]
