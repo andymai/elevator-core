@@ -30,7 +30,6 @@ export interface UiHandles {
   shortcutSheetClose: HTMLButtonElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
-  cockpitConsole: HTMLElement;
   cockpitThrottle: HTMLElement;
   cockpitVelocity: HTMLElement;
   cockpitDoorOpen: HTMLButtonElement;
@@ -114,7 +113,6 @@ export function wireUi(): UiHandles {
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
-    cockpitConsole: q("cockpit-console"),
     cockpitThrottle: q("cockpit-throttle"),
     cockpitVelocity: q("cockpit-velocity"),
     cockpitDoorOpen: q("cockpit-door-open") as HTMLButtonElement,
