@@ -793,6 +793,32 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }
 
+    /// Snapshot of every active hall call. Returns one `HallCallDto`
+    /// per live `(stop, direction)` press.
+    #[wasm_bindgen(js_name = hallCalls)]
+    #[must_use]
+    pub fn hall_calls(&self) -> Vec<dto::HallCallDto> {
+        self.inner
+            .hall_calls()
+            .map(dto::HallCallDto::from)
+            .collect()
+    }
+
+    /// Snapshot of car-button presses inside `elevator_ref`. Returns
+    /// an empty array if the elevator has no aboard riders or has not
+    /// been used.
+    #[wasm_bindgen(js_name = carCalls)]
+    #[must_use]
+    pub fn car_calls(&self, elevator_ref: u64) -> Vec<dto::CarCallDto> {
+        self.inner
+            .car_calls(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .iter()
+            .map(dto::CarCallDto::from)
+            .collect()
+    }
+
     /// Find the stop entity at `position` that's served by `line_ref`,
     /// or `0` (slotmap-null) if none. Lets consumers disambiguate
     /// co-located stops on different lines (sky-lobby served by

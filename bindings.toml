@@ -284,13 +284,13 @@ ffi  = "ev_sim_press_car_button"
 [[methods]]
 name = "hall_calls"
 category = "buttons"
-wasm = "todo:PR-B"
+wasm = "hallCalls"
 ffi  = "ev_sim_hall_calls_snapshot"
 
 [[methods]]
 name = "car_calls"
 category = "buttons"
-wasm = "todo:PR-B"
+wasm = "carCalls"
 ffi  = "todo:PR-B"
 
 # ─── Events ───────────────────────────────────────────────────────────────
