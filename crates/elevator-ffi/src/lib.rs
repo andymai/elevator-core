@@ -5005,6 +5005,85 @@ pub unsafe extern "C" fn ev_sim_riders_on(
     })
 }
 
+// ── shortest_route ────────────────────────────────────────────────────────
+
+/// Find the shortest multi-leg route between two stops using the
+/// line-graph topology. On success writes the flattened stop sequence
+/// (origin first, destination last) to `out_stops`.
+///
+/// Caller-owned buffer pattern: `out_written` is populated with the
+/// number of stops in the route regardless of buffer fit, so the caller
+/// can probe with `(null, 0)` to size a real buffer.
+///
+/// Returns:
+/// - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
+/// - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
+///   small; `out_written` contains the required slot count.
+/// - [`EvStatus::NotFound`] if no route exists.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out_stops`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`. `out_written` must be a writable `u32`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_shortest_route(
+    handle: *mut EvSim,
+    from_stop_entity_id: u64,
+    to_stop_entity_id: u64,
+    out_stops: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out_stops.is_null() {
+            set_last_error("out_stops is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(from) = entity_from_u64(from_stop_entity_id) else {
+            set_last_error("from_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(to) = entity_from_u64(to_stop_entity_id) else {
+            set_last_error("to_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let Some(route) = ev.sim.shortest_route(from, to) else {
+            // Safety: out_written non-null per check above.
+            unsafe { *out_written = 0 };
+            set_last_error("no route exists between the given stops");
+            return EvStatus::NotFound;
+        };
+        // Flatten leg chain into [from0, to0=from1, to1=from2, ...].
+        // Same projection as the wasm RouteDto.
+        let needed = u32::try_from(route.legs.len() + 1).unwrap_or(u32::MAX);
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = needed };
+        if needed > capacity {
+            set_last_error(format!("insufficient buffer: need {needed} stop slots"));
+            return EvStatus::InvalidArg;
+        }
+        // Safety: bounds-checked: needed <= capacity, and out_stops is
+        // valid for `capacity` u64s by precondition.
+        unsafe {
+            if let Some(first) = route.legs.first() {
+                *out_stops = entity_to_u64(first.from);
+                for (i, leg) in route.legs.iter().enumerate() {
+                    *out_stops.add(i + 1) = entity_to_u64(leg.to);
+                }
+            }
+        }
+        EvStatus::Ok
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5870,6 +5949,64 @@ mod tests {
                 )
             },
             EvStatus::NullArg,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn shortest_route_probe_then_fill() {
+        let handle = create_test_handle();
+        let (first_stop, last_stop) = stop_entities(handle);
+
+        // Probe pass: zero capacity should report required slots.
+        let mut needed: u32 = 0;
+        let probe = unsafe {
+            ev_sim_shortest_route(
+                handle,
+                first_stop,
+                last_stop,
+                std::ptr::null_mut(),
+                0,
+                &raw mut needed,
+            )
+        };
+        // Either Ok (route empty / fits) or InvalidArg (route too big),
+        // never NotFound for two stops on the same default-config line.
+        assert_ne!(probe, EvStatus::NotFound);
+        assert!(needed >= 2, "route should have >= 2 stops");
+
+        // Round 2 with a real buffer.
+        let mut buf: Vec<u64> = vec![0; needed as usize];
+        let mut written: u32 = 0;
+        assert_eq!(
+            unsafe {
+                ev_sim_shortest_route(
+                    handle,
+                    first_stop,
+                    last_stop,
+                    buf.as_mut_ptr(),
+                    needed,
+                    &raw mut written,
+                )
+            },
+            EvStatus::Ok,
+        );
+        assert_eq!(written, needed);
+        assert_eq!(buf[0], first_stop);
+        assert_eq!(buf[buf.len() - 1], last_stop);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn shortest_route_unknown_stops_reports_not_found_or_invalid() {
+        let handle = create_test_handle();
+        // Sentinel `0` is invalid → InvalidArg.
+        let mut written: u32 = 0;
+        assert_eq!(
+            unsafe {
+                ev_sim_shortest_route(handle, 0, 0, std::ptr::null_mut(), 0, &raw mut written)
+            },
+            EvStatus::InvalidArg,
         );
         unsafe { ev_sim_destroy(handle) };
     }
