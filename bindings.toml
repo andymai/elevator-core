@@ -1,0 +1,929 @@
+# Coverage manifest for elevator-core public API across binding crates.
+#
+# Every `pub fn` on `impl Simulation` (across `crates/elevator-core/src/sim.rs`
+# and `src/sim/*.rs`) MUST appear in this file, otherwise CI fails. This is
+# the contract that prevents "fully supported lib" drift: a new core method
+# can't ship without an explicit decision about whether it's bound and how.
+#
+# Schema
+# ------
+# Each entry under `[[methods]]` is one Simulation method:
+#
+#   [[methods]]
+#   name      = "<rust method name>"   # required — must match `pub fn <name>`
+#   category  = "<category>"           # required — see `[categories]` below
+#   wasm      = "<status>"             # required — see status values
+#   ffi       = "<status>"             # required — see status values
+#
+# Status values
+# -------------
+#   "<exported>"        — the method is exposed under this exported name
+#                         (e.g. "stepMany" for wasm, "ev_sim_step" for ffi)
+#   "skip:<reason>"     — intentionally not bound. Reason is mandatory and
+#                         must explain *why* (lifetimes, internal detail,
+#                         covered by another binding, etc.)
+#   "todo:<phase>"      — planned for binding in the named phase. Allowed
+#                         during phased rollout; CI emits a warning, not
+#                         an error. Once `phase` ships the entry must
+#                         become an exported name or skip.
+#
+# Phase markers (see PR plan in design doc)
+# -----------------------------------------
+#   PR-B   FFI catchup, wave 1 — topology + dispatch introspection
+#   PR-C   FFI catchup, wave 2 — parameters, introspection, destinations
+#   PR-D   Mode APIs (both bindings) — service modes, manual, emergency stop
+#   PR-E   Wasm error-rewrite + log callback + metrics + tagging
+#   PR-F   Persistence — snapshot bytes/JSON, seed control
+#   PR-G   AsyncIterator event stream
+
+[categories]
+lifecycle     = "Construction, ticking"
+modes         = "ServiceMode + Manual control + emergency stop + manual doors"
+dispatch      = "Strategy swap, pinning, ETA queries"
+riders        = "Spawn, despawn, settle"
+routes        = "Per-rider route mutation, reachability, transfers"
+topology      = "Add/remove groups/lines/stops/elevators at runtime"
+buttons       = "Hall calls, car calls"
+introspection = "Read-only queries about world state"
+parameters    = "Runtime tuning of speed/capacity/door timings"
+destinations  = "Push/clear/recall destinations on a car"
+events        = "Event drain + streaming"
+metrics       = "Aggregate counters + per-tag breakdowns"
+hooks         = "Before/after-tick callbacks"
+tagging       = "Entity tagging for grouped metrics"
+internal      = "Returns &World/&mut World/internal slices — never bound"
+
+# ─── Lifecycle ────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "new"
+category = "lifecycle"
+wasm = "constructor"
+ffi  = "ev_sim_create"
+
+[[methods]]
+name = "step"
+category = "lifecycle"
+wasm = "stepMany"  # exposes batched step, internally calls step in loop
+ffi  = "ev_sim_step"
+
+[[methods]]
+name = "advance_tick"
+category = "lifecycle"
+wasm = "skip:internal — driven by step()"
+ffi  = "skip:internal — driven by step()"
+
+[[methods]]
+name = "run_until_quiet"
+category = "lifecycle"
+wasm = "todo:PR-E"
+ffi  = "todo:PR-E"
+
+# ─── Substep / phase-by-phase ticking ─────────────────────────────────────
+# Internal — exposing these would let consumers run an out-of-order tick
+# loop and break invariants. The 8-phase Simulation::step is the boundary.
+
+[[methods]]
+name = "run_advance_transient"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_dispatch"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_advance_queue"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_doors"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_loading"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_metrics"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_movement"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "run_reposition"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+
+# ─── Modes (the original concern: \"emergency stop doesn't work\") ────────
+
+[[methods]]
+name = "set_service_mode"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "service_mode"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "set_target_velocity"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "emergency_stop"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "open_door"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "close_door"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "hold_door"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "cancel_door_hold"
+category = "modes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+# ─── Dispatch ─────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "set_dispatch"
+category = "dispatch"
+wasm = "setStrategy"
+ffi  = "ev_sim_set_strategy"
+
+[[methods]]
+name = "strategy_id"
+category = "dispatch"
+wasm = "strategyName"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_reposition"
+category = "dispatch"
+wasm = "setReposition"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "remove_reposition"
+category = "dispatch"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "reposition_id"
+category = "dispatch"
+wasm = "repositionStrategyName"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "build_dispatch_manifest"
+category = "internal"
+wasm = "skip:internal — strategies consume this"
+ffi  = "skip:internal — strategies consume this"
+
+[[methods]]
+name = "peek_dispatch_manifest"
+category = "internal"
+wasm = "skip:internal — strategies consume this"
+ffi  = "skip:internal — strategies consume this"
+
+[[methods]]
+name = "pin_assignment"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_pin_assignment"
+
+[[methods]]
+name = "unpin_assignment"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_unpin_assignment"
+
+[[methods]]
+name = "assigned_car"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_assigned_car"
+
+[[methods]]
+name = "assigned_cars_by_line"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_assigned_cars_by_line"
+
+[[methods]]
+name = "best_eta"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_best_eta"
+
+[[methods]]
+name = "eta_for_call"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_eta_for_call"
+
+[[methods]]
+name = "eta"
+category = "dispatch"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+# ─── Buttons ──────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "press_hall_button"
+category = "buttons"
+wasm = "pressHallCall"
+ffi  = "ev_sim_press_hall_button"
+
+[[methods]]
+name = "press_car_button"
+category = "buttons"
+wasm = "pressCarButton"
+ffi  = "ev_sim_press_car_button"
+
+[[methods]]
+name = "hall_calls"
+category = "buttons"
+wasm = "todo:PR-B"
+ffi  = "ev_sim_hall_calls_snapshot"
+
+[[methods]]
+name = "car_calls"
+category = "buttons"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+# ─── Events ───────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "drain_events"
+category = "events"
+wasm = "drainEvents"
+ffi  = "ev_sim_drain_events"
+
+[[methods]]
+name = "drain_events_where"
+category = "events"
+wasm = "todo:PR-G"
+ffi  = "todo:PR-G"
+
+[[methods]]
+name = "pending_events"
+category = "events"
+wasm = "todo:PR-E"
+ffi  = "ev_sim_pending_event_count"
+
+# ─── Riders ───────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "spawn_rider"
+category = "riders"
+wasm = "spawnRider"
+ffi  = "ev_sim_spawn_rider"
+
+[[methods]]
+name = "build_rider"
+category = "riders"
+wasm = "spawnRiderByRef"
+ffi  = "ev_sim_spawn_rider_ex"
+
+[[methods]]
+name = "despawn_rider"
+category = "riders"
+wasm = "todo:PR-D"
+ffi  = "ev_sim_despawn_rider"
+
+[[methods]]
+name = "settle_rider"
+category = "riders"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+# ─── Routes ───────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "reroute"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "reroute_rider"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "set_rider_route"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "set_rider_access"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "shortest_route"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "transfer_points"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+[[methods]]
+name = "reachable_stops_from"
+category = "routes"
+wasm = "todo:PR-D"
+ffi  = "todo:PR-D"
+
+# ─── Topology ─────────────────────────────────────────────────────────────
+
+[[methods]]
+name = "add_group"
+category = "topology"
+wasm = "addGroup"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "add_line"
+category = "topology"
+wasm = "addLine"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "add_stop"
+category = "topology"
+wasm = "addStop"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "add_stop_to_line"
+category = "topology"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "add_elevator"
+category = "topology"
+wasm = "addElevator"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "remove_elevator"
+category = "topology"
+wasm = "removeElevator"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "remove_line"
+category = "topology"
+wasm = "removeLine"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "remove_stop"
+category = "topology"
+wasm = "removeStop"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "remove_stop_from_line"
+category = "topology"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "set_line_range"
+category = "topology"
+wasm = "setLineRange"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "assign_line_to_group"
+category = "topology"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "reassign_elevator_to_line"
+category = "topology"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "set_elevator_restricted_stops"
+category = "topology"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+# ─── Introspection ────────────────────────────────────────────────────────
+
+[[methods]]
+name = "current_tick"
+category = "introspection"
+wasm = "currentTick"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "dt"
+category = "introspection"
+wasm = "dt"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "metrics"
+category = "metrics"
+wasm = "metrics"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "time"
+category = "internal"
+wasm = "skip:returns &TimeAdapter — internal layout"
+ffi  = "skip:returns &TimeAdapter — internal layout"
+
+[[methods]]
+name = "events_mut"
+category = "internal"
+wasm = "skip:returns &mut EventBus — never bound"
+ffi  = "skip:returns &mut EventBus — never bound"
+
+[[methods]]
+name = "metrics_mut"
+category = "internal"
+wasm = "skip:returns &mut Metrics — never bound"
+ffi  = "skip:returns &mut Metrics — never bound"
+
+[[methods]]
+name = "phase_context"
+category = "internal"
+wasm = "skip:returns PhaseContext — internal scheduling helper"
+ffi  = "skip:returns PhaseContext — internal scheduling helper"
+
+[[methods]]
+name = "elevators_on_line"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "groups_serving_stop"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "lines_in_group"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "lines_serving_stop"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "stops_served_by_line"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "line_for_elevator"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "all_lines"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "line_count"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "stop_lookup_iter"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "stop_entity"
+category = "introspection"
+wasm = "todo:PR-B"
+ffi  = "todo:PR-B"
+
+[[methods]]
+name = "find_stop_at_position_on_line"
+category = "introspection"
+wasm = "findStopAtPositionOnLine"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "velocity"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "position_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevator_load"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "occupancy"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevator_direction"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevator_going_up"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevator_going_down"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevator_move_count"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "braking_distance"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "future_stop_position"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "destination_queue"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "elevators_in_phase"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "iter_repositioning_elevators"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "idle_elevator_count"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "is_elevator"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "is_rider"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "is_stop"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "is_disabled"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "waiting_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "waiting_count_at"
+category = "introspection"
+wasm = "waitingCountAt"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "waiting_counts_by_line_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "waiting_direction_counts_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "residents_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "resident_count_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "abandoned_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "abandoned_count_at"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "riders_on"
+category = "introspection"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+# ─── Destinations ─────────────────────────────────────────────────────────
+
+[[methods]]
+name = "push_destination"
+category = "destinations"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "push_destination_front"
+category = "destinations"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "clear_destinations"
+category = "destinations"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "abort_movement"
+category = "destinations"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "recall_to"
+category = "destinations"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+# ─── Parameters ───────────────────────────────────────────────────────────
+# Note: wasm exposes "*All" sweeping helpers (setMaxSpeedAll, etc.) that
+# loop these per-elevator setters internally. PR-C will add per-elevator
+# variants for both bindings.
+
+[[methods]]
+name = "set_max_speed"
+category = "parameters"
+wasm = "setMaxSpeedAll"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_acceleration"
+category = "parameters"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_deceleration"
+category = "parameters"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_door_open_ticks"
+category = "parameters"
+wasm = "setDoorOpenTicksAll"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_door_transition_ticks"
+category = "parameters"
+wasm = "setDoorTransitionTicksAll"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_weight_capacity"
+category = "parameters"
+wasm = "setWeightCapacityAll"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "set_arrival_log_retention_ticks"
+category = "parameters"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "enable"
+category = "parameters"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+[[methods]]
+name = "disable"
+category = "parameters"
+wasm = "todo:PR-C"
+ffi  = "todo:PR-C"
+
+# ─── Hooks (closures don't survive the binding boundary) ──────────────────
+
+[[methods]]
+name = "add_after_hook"
+category = "hooks"
+wasm = "skip:closures don't survive the wasm boundary — use streaming events"
+ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
+
+[[methods]]
+name = "add_before_hook"
+category = "hooks"
+wasm = "skip:closures don't survive the wasm boundary — use streaming events"
+ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
+
+[[methods]]
+name = "add_after_group_hook"
+category = "hooks"
+wasm = "skip:closures don't survive the wasm boundary"
+ffi  = "skip:closures don't survive the FFI boundary"
+
+[[methods]]
+name = "add_before_group_hook"
+category = "hooks"
+wasm = "skip:closures don't survive the wasm boundary"
+ffi  = "skip:closures don't survive the FFI boundary"
+
+[[methods]]
+name = "load_extensions"
+category = "hooks"
+wasm = "skip:builder-pattern entry point — runs at construction"
+ffi  = "skip:builder-pattern entry point — runs at construction"
+
+[[methods]]
+name = "load_extensions_with"
+category = "hooks"
+wasm = "skip:takes a generic closure"
+ffi  = "skip:takes a generic closure"
+
+# ─── Tagging + per-tag metrics ────────────────────────────────────────────
+
+[[methods]]
+name = "tag_entity"
+category = "tagging"
+wasm = "todo:PR-E"
+ffi  = "todo:PR-E"
+
+[[methods]]
+name = "untag_entity"
+category = "tagging"
+wasm = "todo:PR-E"
+ffi  = "todo:PR-E"
+
+[[methods]]
+name = "all_tags"
+category = "tagging"
+wasm = "todo:PR-E"
+ffi  = "todo:PR-E"
+
+[[methods]]
+name = "metrics_for_tag"
+category = "metrics"
+wasm = "todo:PR-E"
+ffi  = "todo:PR-E"
+
+# ─── Internal — exposes &World, &mut World, internal slices ───────────────
+
+[[methods]]
+name = "world"
+category = "internal"
+wasm = "skip:returns &World — consumers use snapshot/worldView DTOs"
+ffi  = "skip:returns &World — consumers use ev_sim_frame"
+
+[[methods]]
+name = "world_mut"
+category = "internal"
+wasm = "skip:returns &mut World — never bound"
+ffi  = "skip:returns &mut World — never bound"
+
+[[methods]]
+name = "dispatchers"
+category = "internal"
+wasm = "skip:returns trait-object slice — never bound"
+ffi  = "skip:returns trait-object slice — never bound"
+
+[[methods]]
+name = "dispatchers_mut"
+category = "internal"
+wasm = "skip:returns &mut trait-object slice — never bound"
+ffi  = "skip:returns &mut trait-object slice — never bound"
+
+[[methods]]
+name = "groups"
+category = "internal"
+wasm = "skip:returns &[ElevatorGroup] — internal layout"
+ffi  = "skip:returns &[ElevatorGroup] — internal layout"
+
+[[methods]]
+name = "groups_mut"
+category = "internal"
+wasm = "skip:returns &mut [ElevatorGroup] — never bound"
+ffi  = "skip:returns &mut [ElevatorGroup] — never bound"

@@ -2,11 +2,12 @@
 
 ## Project Structure
 
-Cargo workspace with four crates:
+Cargo workspace with five crates:
 - `crates/elevator-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
 - `crates/elevator-bevy` — Bevy 0.18 game binary wrapping the core sim
 - `crates/elevator-ffi` — C ABI wrapper for Unity/.NET interop (not published to crates.io)
 - `crates/elevator-wasm` — wasm-bindgen surface for the browser playground
+- `crates/elevator-gdext` — gdext (Godot) extension wrapping the core sim
 
 ## Build
 
@@ -78,6 +79,10 @@ ID types: `ElevatorId`, `RiderId`, `StopId` are phantom-typed newtypes over `Ent
 ## Docs
 
 mdBook guide in `docs/` — deployed to GitHub Pages. Lint with `scripts/lint-docs.sh`.
+
+## Binding coverage
+
+`bindings.toml` at the workspace root enumerates every `pub fn` on `impl Simulation` and its binding status (`<exported>`, `skip:<reason>`, or `todo:<phase>`) for each consumer crate. CI runs `scripts/check-bindings.sh`; missing or stale entries fail the build. Add or update an entry in the same PR that adds, renames, or removes a public Simulation method.
 
 ## Config
 
