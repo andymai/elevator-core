@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.10.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.9.0...elevator-ffi-v0.10.0) (2026-04-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ffi:** bump ABI to v4 with full Event mirror coverage ([#504](https://github.com/andymai/elevator-core/issues/504))
+* replace archaic balk vocabulary ([#211](https://github.com/andymai/elevator-core/issues/211))
+
+### Features
+
+* **bindings:** add mode APIs to wasm and FFI (PR-D) ([#475](https://github.com/andymai/elevator-core/issues/475)) ([884a839](https://github.com/andymai/elevator-core/commit/884a839fc3d509743eb7e5b8f13938a27c9f123b))
+* **bindings:** add route mutators (setRiderRoute, rerouteRider) ([#503](https://github.com/andymai/elevator-core/issues/503)) ([4650107](https://github.com/andymai/elevator-core/commit/4650107441ef5904ddfe107eb4c1bb41ebde45e5))
+* **bindings:** add stop_lookup_iter to wasm and FFI ([#493](https://github.com/andymai/elevator-core/issues/493)) ([9bde897](https://github.com/andymai/elevator-core/commit/9bde8972116cc9f61d38450f5cd0619a4c80c92c))
+* **bindings:** add tagging APIs to wasm and FFI ([#487](https://github.com/andymai/elevator-core/issues/487)) ([0771a1b](https://github.com/andymai/elevator-core/commit/0771a1bb53519c3c482b31569aa1bc2f80ebb8e0))
+* **dispatch:** per-line hall-call assignment ([#438](https://github.com/andymai/elevator-core/issues/438)) ([aed059c](https://github.com/andymai/elevator-core/commit/aed059c962f60e799072f2ea85a15610017a3728))
+* FFI rider spawn, despawn, and lifecycle events ([#213](https://github.com/andymai/elevator-core/issues/213)) ([035e811](https://github.com/andymai/elevator-core/commit/035e81144c9781ef489f9e17a1f1ca3690c1cae3))
+* **ffi:** add destinations + population queries ([#481](https://github.com/andymai/elevator-core/issues/481)) ([aac1670](https://github.com/andymai/elevator-core/commit/aac1670416303fe9f6b6b6c71cae45f19e836833))
+* **ffi:** add ev_sim_add_elevator + EvElevatorParams ([#500](https://github.com/andymai/elevator-core/issues/500)) ([2dcbd54](https://github.com/andymai/elevator-core/commit/2dcbd547d00f5078769ab998c6a9cea5b88efd3e))
+* **ffi:** add ev_sim_shortest_route accessor ([#502](https://github.com/andymai/elevator-core/issues/502)) ([17b5e6e](https://github.com/andymai/elevator-core/commit/17b5e6e0562168d805a92a539f4fd1a9cf0ab04f))
+* **ffi:** add metrics, eta, car_calls, tagging, elevators_in_phase accessors ([#501](https://github.com/andymai/elevator-core/issues/501)) ([3771637](https://github.com/andymai/elevator-core/commit/3771637b068fc4189a012996bba2ba480129ca06))
+* **ffi:** add per-elevator + global introspection accessors ([#480](https://github.com/andymai/elevator-core/issues/480)) ([43d7dcc](https://github.com/andymai/elevator-core/commit/43d7dcc2722ab895cfd2b2536db251971d64876c))
+* **ffi:** add per-elevator parameter setters (PR-C) ([#478](https://github.com/andymai/elevator-core/issues/478)) ([751224a](https://github.com/andymai/elevator-core/commit/751224a471391a097269f72c30899d29e3a1a8e8))
+* **ffi:** add remove_reposition + run_until_quiet ([#492](https://github.com/andymai/elevator-core/issues/492)) ([f109899](https://github.com/andymai/elevator-core/commit/f10989930c1ff24c598bd790a3ba0fbdd6a45d43))
+* **ffi:** add topology mutation exports (PR-B wave 1) ([#474](https://github.com/andymai/elevator-core/issues/474)) ([adc013e](https://github.com/andymai/elevator-core/commit/adc013e0f053bb78cd873b8194394b78fe432b5e))
+* **ffi:** add topology mutation extras ([#483](https://github.com/andymai/elevator-core/issues/483)) ([9c7f11f](https://github.com/andymai/elevator-core/commit/9c7f11f84781aa135f02b39ac02a1c3a35768f97))
+* **ffi:** bump ABI to v3, add EvReposition + dispatch metadata ([#499](https://github.com/andymai/elevator-core/issues/499)) ([2cf61fa](https://github.com/andymai/elevator-core/commit/2cf61fab1fef547bbbe62da21fa3e84ad2ab87e8))
+* **ffi:** bump ABI to v4 with full Event mirror coverage ([#504](https://github.com/andymai/elevator-core/issues/504)) ([79d756a](https://github.com/andymai/elevator-core/commit/79d756ab961cb0329b377838ed39be1c2b52cacf))
+* **ffi:** rider routes + reachability queries ([#486](https://github.com/andymai/elevator-core/issues/486)) ([5b20dda](https://github.com/andymai/elevator-core/commit/5b20dda9941a25df04f6afc4c65cebda61469113))
+* **ffi:** stop lookup + phase/direction queries ([#490](https://github.com/andymai/elevator-core/issues/490)) ([7015b5e](https://github.com/andymai/elevator-core/commit/7015b5e07040533613d7c7a805375d8726a5716f))
+* **ffi:** topology introspection (mirror of [#482](https://github.com/andymai/elevator-core/issues/482)) ([#491](https://github.com/andymai/elevator-core/issues/491)) ([e9f5236](https://github.com/andymai/elevator-core/commit/e9f5236024c38bd080aec9b85722df465b425eef))
+
+
+### Bug Fixes
+
+* **sim:** pending_events flushes event bus to match drain semantics ([#286](https://github.com/andymai/elevator-core/issues/286)) ([165953d](https://github.com/andymai/elevator-core/commit/165953da0e35e9609947b35ad881f9a9d4ff1d73))
+
+
+### Code Refactoring
+
+* replace archaic balk vocabulary ([#211](https://github.com/andymai/elevator-core/issues/211)) ([f26b5b2](https://github.com/andymai/elevator-core/commit/f26b5b29fadf2472e6f7a306672c512569d49ab5))
+
 ## [0.9.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.8.0...elevator-ffi-v0.9.0) (2026-04-16)
 
 
