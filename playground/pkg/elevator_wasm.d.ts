@@ -503,6 +503,26 @@ export interface TaggedMetricDto {
 }
 
 /**
+ * Result shape for `u32`-typed returns (counts, ticks, codes).
+ * On the TS side:
+ * `{ kind: \"ok\"; value: number } | { kind: \"err\"; error: string }`.
+ */
+export type WasmU32Result = { kind: "ok"; value: number } | { kind: "err"; error: string };
+
+/**
+ * Result shape for entity-id returns (rider/elevator/stop/line ids).
+ * On the TS side:
+ * `{ kind: \"ok\"; value: bigint } | { kind: \"err\"; error: string }`.
+ */
+export type WasmU64Result = { kind: "ok"; value: number } | { kind: "err"; error: string };
+
+/**
+ * Result shape for void mutators. On the TS side:
+ * `{ kind: \"ok\" } | { kind: \"err\"; error: string }`.
+ */
+export type WasmVoidResult = { kind: "ok" } | { kind: "err"; error: string };
+
+/**
  * Top-level game-facing view returned by [`crate::WasmSim::world_view`].
  */
 export interface WorldView {
@@ -1417,11 +1437,12 @@ export class WasmSim {
      *
      * # Errors
      *
-     * Returns a JS error if either stop id is unknown, the rider is
-     * rejected by the sim, or the `(origin, destination)` route
-     * can't be auto-detected.
+     * Returns a Result-shaped object: `{ kind: "ok" }` on success, or
+     * `{ kind: "err", error: "..." }` if either stop id is unknown,
+     * the rider is rejected by the sim, or the `(origin, destination)`
+     * route can't be auto-detected.
      */
-    spawnRider(origin: number, destination: number, weight: number, patience_ticks?: number | null): void;
+    spawnRider(origin: number, destination: number, weight: number, patience_ticks?: number | null): WasmVoidResult;
     /**
      * Spawn a rider between two stops identified by their entity refs
      * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
@@ -1659,7 +1680,7 @@ export interface InitOutput {
     readonly wasmsim_settleRider: (a: number, b: bigint) => [number, number];
     readonly wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_snapshot: (a: number) => any;
-    readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_stepMany: (a: number, b: number) => void;
     readonly wasmsim_stopEntity: (a: number, b: number) => bigint;
