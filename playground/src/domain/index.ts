@@ -3,6 +3,7 @@ export {
   decodePermalink,
   encodePermalink,
   hashSeedWord,
+  syncPermalinkUrl,
   type PermalinkState,
 } from "./permalink";
 export {

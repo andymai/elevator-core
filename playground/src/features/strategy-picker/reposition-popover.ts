@@ -1,5 +1,6 @@
 import type { RepositionStrategyName } from "../../types";
 import { toast } from "../../platform";
+import { syncPermalinkUrl } from "../../domain";
 import { REPOSITION_DESCRIPTIONS, REPOSITION_LABELS, UI_REPOSITION_STRATEGIES } from "./labels";
 import { renderPopoverOptions } from "./popover-options";
 import {
@@ -125,6 +126,7 @@ async function pickReposition(
     state.permalink = { ...state.permalink, repositionB: reposition };
     renderPaneRepositionInfo(ui.paneB, reposition);
   }
+  syncPermalinkUrl(state.permalink);
   refreshRepositionPopovers(state, ui, resetAll);
   closeAllRepositionPopovers(ui);
   await resetAll();
