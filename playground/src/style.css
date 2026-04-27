@@ -1127,14 +1127,45 @@
     color: var(--text-tertiary);
   }
 
-  /* Hall-call rows: floor name on the left, [▲][▼] buttons on the right. */
+  /* One-line orientation banner shown above hall-calls. Faint accent
+   * left border + a single line of body copy. Hidden when the
+   * scenario doesn't carry a `featureHint`. */
+  .manual-feature-hint {
+    margin: 0;
+    padding: 6px 8px 6px 10px;
+    border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    letter-spacing: 0.005em;
+  }
+
+  /* Hall-call list: rounded container around the rows so the column
+   * reads as a unit (real elevator panel). */
+  .manual-hall-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+  }
+
+  /* Hall-call rows: floor name on the left, [▲][▼] buttons on the right.
+   * Bordered separators between rows and a vertical rule between the
+   * up/down buttons mimic the column layout of a real call panel. */
   .manual-hall-row {
     display: grid;
     grid-template-columns: 1fr auto auto;
     align-items: center;
-    gap: 6px;
-    padding: 3px 4px;
-    border-radius: 4px;
+    gap: 0;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .manual-hall-row:last-child {
+    border-bottom: 0;
   }
   .manual-hall-row:hover {
     background: var(--bg-hover);
@@ -1151,33 +1182,41 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 22px;
+    width: 32px;
+    height: 24px;
     padding: 0;
-    border: 1px solid var(--border-subtle);
-    border-radius: 3px;
-    background: var(--bg-elevated);
+    border: 0;
+    border-left: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
     color: var(--text-tertiary);
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
     transition:
       background 80ms,
-      color 80ms,
-      border-color 80ms;
+      color 80ms;
   }
   .manual-hall-btn:hover {
-    background: var(--bg-hover);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     color: var(--text-secondary);
   }
   .manual-hall-btn[data-lit="true"] {
     background: color-mix(in srgb, var(--accent) 22%, var(--bg-elevated));
-    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
     color: var(--accent-up);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
   }
   .manual-hall-btn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
+  }
+  /* Spacer "button" used in place of an unavailable up/down on the
+   * top/bottom floors. Has no visual presence but keeps the row's
+   * column alignment consistent. */
+  .manual-hall-spacer {
+    width: 32px;
+    height: 24px;
+    border-left: 1px solid var(--border-subtle);
   }
 
   /* Per-car block: header with name + service-mode dropdown, button strip,
@@ -1280,8 +1319,13 @@
     align-items: center;
     gap: 6px;
   }
-  .manual-velocity-row[data-disabled="true"] {
-    opacity: 0.45;
+  /* Hide the velocity row + E-Stop unless the car block is in
+   * `manual` mode. Disabled affordances were pulling the eye toward
+   * unusable controls; collapsing them keeps the per-car block
+   * compact in the common (Normal) case. */
+  .manual-car-block:not([data-mode="manual"]) .manual-velocity-row,
+  .manual-car-block:not([data-mode="manual"]) .manual-estop-btn {
+    display: none;
   }
   .manual-velocity-label {
     font-size: 10px;
@@ -1315,6 +1359,47 @@
   .manual-estop-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  /* Add / Remove Car B affordance — full-width secondary action at
+   * the bottom of the CARS section. Sits next to its target (the car
+   * block list) instead of in the aside header. */
+  .manual-add-car-btn {
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 10px;
+    border: 1px dashed var(--border-default);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+      background 80ms,
+      color 80ms,
+      border-color 80ms;
+  }
+  .manual-add-car-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+  .manual-add-car-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Empty-state hint for the event log — surfaced via ::before when
+   * the list has no rendered children. */
+  .manual-event-log:empty::before {
+    content: attr(data-empty-hint);
+    display: block;
+    padding: 4px;
+    color: var(--text-disabled);
+    font-style: italic;
+    font-size: 10.5px;
   }
 
   /* Spawn rider form: dropdowns + weight input + spawn button. */
@@ -1421,6 +1506,17 @@
   body[data-scenario-mode="manual-control"] #compare-toggle,
   body[data-scenario-mode="manual-control"] #traffic-field {
     display: none;
+  }
+  /* On mobile, the layout stacks pane A above the manual-controls
+   * aside. The fixed bottom controls bar would otherwise float over
+   * the aside's last item. Add bottom padding *inside* the aside so
+   * its content can scroll past the bar. (`overflow-y-auto` is
+   * already on the aside; the inner padding gives it room to scroll
+   * past the fixed bar at the viewport edge.) */
+  @media (max-width: 767px) {
+    .layout[data-mode="manual-control"] #manual-controls {
+      padding-bottom: calc(var(--controls-bar-h, 52px) + 16px + env(safe-area-inset-bottom));
+    }
   }
 
   .safe-top {
