@@ -584,6 +584,16 @@ export class WasmSim {
      */
     destinationQueue(elevator_ref: bigint): BigUint64Array;
     /**
+     * Disable an entity (elevator or stop). Disabled elevators eject
+     * their riders and are excluded from dispatch; disabled stops
+     * invalidate routes that reference them.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     */
+    disable(entity_ref: bigint): void;
+    /**
      * Drain all queued events since the last call.
      */
     drainEvents(): EventDto[];
@@ -633,6 +643,14 @@ export class WasmSim {
      * Manual mode.
      */
     emergencyStop(elevator_ref: bigint): void;
+    /**
+     * Re-enable a previously-disabled entity (elevator or stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     */
+    enable(entity_ref: bigint): void;
     /**
      * Estimated ticks remaining before `car_ref` reaches `stop_ref`.
      *
@@ -932,11 +950,35 @@ export class WasmSim {
      */
     serviceMode(elevator_ref: bigint): string;
     /**
+     * Set the acceleration rate (distance/tick²) for a single elevator.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or
+     * `acceleration` is non-positive / non-finite.
+     */
+    setAcceleration(elevator_ref: bigint, acceleration: number): void;
+    /**
+     * Set how many ticks the per-rider arrival log retains. Global
+     * setting; higher values trade memory for longer post-trip
+     * queries.
+     */
+    setArrivalLogRetentionTicks(retention_ticks: bigint): void;
+    /**
      * Swap every group's dispatcher to a DCS instance with the given
      * deferred-commitment window. `window_ticks = 0` is equivalent to
      * no window (immediate sticky).
      */
     setDcsWithCommitmentWindow(window_ticks: bigint): void;
+    /**
+     * Set the deceleration rate (distance/tick²) for a single elevator.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or
+     * `deceleration` is non-positive / non-finite.
+     */
+    setDeceleration(elevator_ref: bigint, deceleration: number): void;
     /**
      * Set `door_open_ticks` (dwell duration) on every elevator.
      *
@@ -1245,6 +1287,7 @@ export interface InitOutput {
     readonly wasmsim_currentTick: (a: number) => bigint;
     readonly wasmsim_despawnRider: (a: number, b: bigint) => [number, number];
     readonly wasmsim_destinationQueue: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_disable: (a: number, b: bigint) => [number, number];
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
     readonly wasmsim_elevatorDirection: (a: number, b: bigint) => [number, number];
@@ -1254,6 +1297,7 @@ export interface InitOutput {
     readonly wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigint];
     readonly wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_emergencyStop: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_enable: (a: number, b: bigint) => [number, number];
     readonly wasmsim_eta: (a: number, b: bigint, c: bigint) => [bigint, number, number];
     readonly wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) => [bigint, number, number];
     readonly wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
@@ -1294,7 +1338,10 @@ export interface InitOutput {
     readonly wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
     readonly wasmsim_runUntilQuiet: (a: number, b: bigint) => [bigint, number, number];
     readonly wasmsim_serviceMode: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_setAcceleration: (a: number, b: bigint, c: number) => [number, number];
+    readonly wasmsim_setArrivalLogRetentionTicks: (a: number, b: bigint) => void;
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
+    readonly wasmsim_setDeceleration: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setElevatorRestrictedStops: (a: number, b: bigint, c: number, d: number) => [number, number];
