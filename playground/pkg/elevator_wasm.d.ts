@@ -1114,6 +1114,30 @@ export class WasmSim {
      */
     reroute(rider_ref: bigint, new_destination_ref: bigint): void;
     /**
+     * Give a `Resident` rider a new single-leg route via `group_id`,
+     * transitioning them back to `Waiting`. The route's first leg origin
+     * must match the rider's current stop, so callers must know which
+     * stop the resident is at.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, is not in
+     * `Resident` phase, or the route's origin does not match the
+     * rider's current stop.
+     */
+    rerouteRiderDirect(rider_ref: bigint, from_stop_ref: bigint, to_stop_ref: bigint, group_id: number): void;
+    /**
+     * Give a `Resident` rider a multi-leg route to `to_stop` built from
+     * `shortest_route(rider's current_stop -> to_stop)`, transitioning
+     * them back to `Waiting`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, is not in
+     * `Resident` phase, has no current stop, or no route exists.
+     */
+    rerouteRiderShortest(rider_ref: bigint, to_stop_ref: bigint): void;
+    /**
      * Number of resident riders at `stop_ref`. Faster than counting
      * `residentsAt` since it skips the array allocation.
      */
@@ -1277,6 +1301,27 @@ export class WasmSim {
      * Returns a JS error if the rider does not exist.
      */
     setRiderAccess(rider_ref: bigint, allowed_stop_refs: BigUint64Array): void;
+    /**
+     * Replace a rider's remaining route with a single-leg route via
+     * `group_id`. Useful when the consumer already knows the group
+     * the rider should use (e.g. an express bank).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist.
+     */
+    setRiderRouteDirect(rider_ref: bigint, from_stop_ref: bigint, to_stop_ref: bigint, group_id: number): void;
+    /**
+     * Replace a rider's remaining route with a multi-leg route built
+     * from `shortest_route(rider's current_stop -> to_stop)`.
+     * Convenience wrapper for the common "send this rider here" case.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, has no current
+     * stop, or no route to `to_stop` exists.
+     */
+    setRiderRouteShortest(rider_ref: bigint, to_stop_ref: bigint): void;
     /**
      * Set the operational mode of an elevator.
      *
@@ -1583,6 +1628,8 @@ export interface InitOutput {
     readonly wasmsim_removeStopFromLine: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_repositionStrategyName: (a: number) => [number, number];
     readonly wasmsim_reroute: (a: number, b: bigint, c: bigint) => [number, number];
+    readonly wasmsim_rerouteRiderDirect: (a: number, b: bigint, c: bigint, d: bigint, e: number) => [number, number];
+    readonly wasmsim_rerouteRiderShortest: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_residentCountAt: (a: number, b: bigint) => number;
     readonly wasmsim_residentsAt: (a: number, b: bigint) => [number, number];
     readonly wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
@@ -1602,6 +1649,8 @@ export interface InitOutput {
     readonly wasmsim_setReposition: (a: number, b: number, c: number) => number;
     readonly wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
     readonly wasmsim_setRiderAccess: (a: number, b: bigint, c: number, d: number) => [number, number];
+    readonly wasmsim_setRiderRouteDirect: (a: number, b: bigint, c: bigint, d: bigint, e: number) => [number, number];
+    readonly wasmsim_setRiderRouteShortest: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_setStrategy: (a: number, b: number, c: number) => number;
     readonly wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => [number, number];

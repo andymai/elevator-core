@@ -1085,6 +1085,46 @@ export class WasmSim {
         }
     }
     /**
+     * Give a `Resident` rider a new single-leg route via `group_id`,
+     * transitioning them back to `Waiting`. The route's first leg origin
+     * must match the rider's current stop, so callers must know which
+     * stop the resident is at.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, is not in
+     * `Resident` phase, or the route's origin does not match the
+     * rider's current stop.
+     * @param {bigint} rider_ref
+     * @param {bigint} from_stop_ref
+     * @param {bigint} to_stop_ref
+     * @param {number} group_id
+     */
+    rerouteRiderDirect(rider_ref, from_stop_ref, to_stop_ref, group_id) {
+        const ret = wasm.wasmsim_rerouteRiderDirect(this.__wbg_ptr, rider_ref, from_stop_ref, to_stop_ref, group_id);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Give a `Resident` rider a multi-leg route to `to_stop` built from
+     * `shortest_route(rider's current_stop -> to_stop)`, transitioning
+     * them back to `Waiting`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, is not in
+     * `Resident` phase, has no current stop, or no route exists.
+     * @param {bigint} rider_ref
+     * @param {bigint} to_stop_ref
+     */
+    rerouteRiderShortest(rider_ref, to_stop_ref) {
+        const ret = wasm.wasmsim_rerouteRiderShortest(this.__wbg_ptr, rider_ref, to_stop_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Number of resident riders at `stop_ref`. Faster than counting
      * `residentsAt` since it skips the array allocation.
      * @param {bigint} stop_ref
@@ -1363,6 +1403,43 @@ export class WasmSim {
         const ptr0 = passArray64ToWasm0(allowed_stop_refs, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmsim_setRiderAccess(this.__wbg_ptr, rider_ref, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Replace a rider's remaining route with a single-leg route via
+     * `group_id`. Useful when the consumer already knows the group
+     * the rider should use (e.g. an express bank).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist.
+     * @param {bigint} rider_ref
+     * @param {bigint} from_stop_ref
+     * @param {bigint} to_stop_ref
+     * @param {number} group_id
+     */
+    setRiderRouteDirect(rider_ref, from_stop_ref, to_stop_ref, group_id) {
+        const ret = wasm.wasmsim_setRiderRouteDirect(this.__wbg_ptr, rider_ref, from_stop_ref, to_stop_ref, group_id);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Replace a rider's remaining route with a multi-leg route built
+     * from `shortest_route(rider's current_stop -> to_stop)`.
+     * Convenience wrapper for the common "send this rider here" case.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist, has no current
+     * stop, or no route to `to_stop` exists.
+     * @param {bigint} rider_ref
+     * @param {bigint} to_stop_ref
+     */
+    setRiderRouteShortest(rider_ref, to_stop_ref) {
+        const ret = wasm.wasmsim_setRiderRouteShortest(this.__wbg_ptr, rider_ref, to_stop_ref);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
