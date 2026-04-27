@@ -1736,8 +1736,7 @@ impl WasmSim {
     //
     // Attach tags to entities for grouped metrics queries (e.g. "tower"
     // vs "annex" elevators, "weekday" vs "weekend" rider flows). The
-    // metrics_for_tag accessor is intentionally deferred — it returns a
-    // TaggedMetric reference that needs its own DTO design.
+    // per-tag aggregates surface via `metricsForTag`.
 
     /// Attach `tag` to `entity_ref`.
     ///
