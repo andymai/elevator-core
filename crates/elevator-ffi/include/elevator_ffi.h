@@ -777,4 +777,100 @@ enum EvStatus ev_sim_spawn_rider_ex(struct EvSim *handle,
  */
 enum EvStatus ev_sim_despawn_rider(struct EvSim *handle, uint64_t rider_entity_id);
 
+/**
+ * Add a new dispatch group. On success, writes the new group's id to
+ * `*out_group_id`. Group ids are u32 and never reused.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+ * must be a null-terminated UTF-8 C string. `out_group_id` must be a
+ * valid pointer to a writable u32.
+ */
+enum EvStatus ev_sim_add_group(struct EvSim *handle,
+                               const char *name,
+                               enum EvStrategy strategy,
+                               uint32_t *out_group_id);
+
+/**
+ * Add a new line to an existing group. On success, writes the new line
+ * entity id to `*out_line_entity_id`.
+ *
+ * `max_cars` is a sentinel: pass `0` for unlimited, otherwise the cap.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+ * must be a null-terminated UTF-8 C string. `out_line_entity_id` must
+ * be a valid pointer to a writable u64.
+ */
+enum EvStatus ev_sim_add_line(struct EvSim *handle,
+                              uint32_t group_id,
+                              const char *name,
+                              double min_position,
+                              double max_position,
+                              uint32_t max_cars,
+                              uint64_t *out_line_entity_id);
+
+/**
+ * Add a new stop to a line. On success, writes the new stop entity id
+ * to `*out_stop_entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+ * must be a null-terminated UTF-8 C string. `out_stop_entity_id` must
+ * be a valid pointer to a writable u64.
+ */
+enum EvStatus ev_sim_add_stop(struct EvSim *handle,
+                              uint64_t line_entity_id,
+                              const char *name,
+                              double position,
+                              uint64_t *out_stop_entity_id);
+
+/**
+ * Set the reachable position range of a line. Cars whose current
+ * position falls outside the new `[min, max]` are clamped to the
+ * boundary; their phase is left untouched.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_line_range(struct EvSim *handle,
+                                    uint64_t line_entity_id,
+                                    double min_position,
+                                    double max_position);
+
+/**
+ * Remove a line. All elevators on the line are also removed; riders on
+ * those elevators are ejected to the nearest remaining stop.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_remove_line(struct EvSim *handle, uint64_t line_entity_id);
+
+/**
+ * Remove a stop. Riders waiting at this stop are abandoned; riders
+ * destined here are rerouted to the next viable stop on their route.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_remove_stop(struct EvSim *handle, uint64_t stop_entity_id);
+
+/**
+ * Remove an elevator. Riders aboard are ejected to the next scheduled
+ * stop in the car's destination queue, or to the nearest stop on the
+ * line if the queue is empty.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_remove_elevator(struct EvSim *handle, uint64_t elevator_entity_id);
+
 #endif  /* ELEVATOR_FFI_H */
