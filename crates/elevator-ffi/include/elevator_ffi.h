@@ -516,6 +516,59 @@ typedef struct EvEvent {
 } EvEvent;
 
 /**
+ * Repr-C mirror of [`elevator_core::sim::ElevatorParams`].
+ *
+ * Sentinel encoding:
+ * - `bypass_load_up_pct` and `bypass_load_down_pct`: NaN encodes
+ *   [`Option::None`]; any finite value is treated as `Some(v)`.
+ *
+ * Use [`ev_sim_default_elevator_params`] to populate this struct with
+ * the same defaults as `ElevatorParams::default()`. Callers should
+ * supply `restricted_stops` separately as a `(*const u64, count)` pair
+ * to [`ev_sim_add_elevator`].
+ */
+typedef struct EvElevatorParams {
+    /**
+     * Maximum travel speed (distance/tick); must be positive and finite.
+     */
+    double max_speed;
+    /**
+     * Acceleration rate (distance/tick^2); must be positive and finite.
+     */
+    double acceleration;
+    /**
+     * Deceleration rate (distance/tick^2); must be positive and finite.
+     */
+    double deceleration;
+    /**
+     * Maximum weight the car can carry; must be positive and finite.
+     */
+    double weight_capacity;
+    /**
+     * Ticks for a door open/close transition; must be > 0.
+     */
+    uint32_t door_transition_ticks;
+    /**
+     * Ticks the door stays fully open; must be > 0.
+     */
+    uint32_t door_open_ticks;
+    /**
+     * Speed multiplier for Inspection mode; must satisfy `0.0 < x <= 1.0`.
+     */
+    double inspection_speed_factor;
+    /**
+     * Full-load bypass threshold for upward pickups, or `NaN` for None.
+     * When non-NaN, must satisfy `0.0 <= x <= 1.0`.
+     */
+    double bypass_load_up_pct;
+    /**
+     * Full-load bypass threshold for downward pickups, or `NaN` for None.
+     * When non-NaN, must satisfy `0.0 <= x <= 1.0`.
+     */
+    double bypass_load_down_pct;
+} EvElevatorParams;
+
+/**
  * Return the ABI version compiled into this shared library.
  */
 uint32_t ev_abi_version(void);
@@ -1014,6 +1067,43 @@ enum EvStatus ev_sim_remove_line(struct EvSim *handle, uint64_t line_entity_id);
  * `handle` must be a valid pointer returned by [`ev_sim_create`].
  */
 enum EvStatus ev_sim_remove_stop(struct EvSim *handle, uint64_t stop_entity_id);
+
+/**
+ * Populate `out_params` with the same defaults as
+ * [`ElevatorParams::default()`](elevator_core::sim::ElevatorParams).
+ *
+ * `restricted_stops` is implicitly empty (callers pass `count = 0` to
+ * [`ev_sim_add_elevator`]).
+ *
+ * # Safety
+ *
+ * `out_params` must be a writable [`EvElevatorParams`] pointer.
+ */
+enum EvStatus ev_sim_default_elevator_params(struct EvElevatorParams *out_params);
+
+/**
+ * Add a new elevator at runtime. On success, writes the new elevator
+ * entity id to `*out_elevator_entity_id`.
+ *
+ * `restricted_stops` is a `(ptr, count)` pair giving the set of stop
+ * entity ids this elevator cannot serve. Pass `(null, 0)` for no
+ * restrictions. Duplicate entries are deduplicated.
+ *
+ * # Safety
+ *
+ * - `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * - `params` must be a valid pointer to a populated [`EvElevatorParams`].
+ * - `restricted_stops` must point to at least `restricted_stops_count`
+ *   contiguous `u64` values, or be null when `restricted_stops_count == 0`.
+ * - `out_elevator_entity_id` must be a writable `u64` pointer.
+ */
+enum EvStatus ev_sim_add_elevator(struct EvSim *handle,
+                                  const struct EvElevatorParams *params,
+                                  const uint64_t *restricted_stops,
+                                  uint32_t restricted_stops_count,
+                                  uint64_t line_entity_id,
+                                  double starting_position,
+                                  uint64_t *out_elevator_entity_id);
 
 /**
  * Remove an elevator. Riders aboard are ejected to the next scheduled
