@@ -49,4 +49,5 @@
 
 - [Bevy Integration](bevy-integration.md)
 - [Headless and Non-Bevy Usage](headless-non-bevy.md)
+- [Using the Bindings](using-the-bindings.md)
 - [Performance](performance.md)
