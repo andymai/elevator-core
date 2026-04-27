@@ -77,7 +77,7 @@ ffi  = "skip:internal — driven by step()"
 name = "run_until_quiet"
 category = "lifecycle"
 wasm = "runUntilQuiet"
-ffi  = "todo:PR-E"
+ffi  = "ev_sim_run_until_quiet"
 
 # ─── Substep / phase-by-phase ticking ─────────────────────────────────────
 # Internal — exposing these would let consumers run an out-of-order tick
@@ -205,7 +205,7 @@ ffi  = "todo:PR-C"
 name = "remove_reposition"
 category = "dispatch"
 wasm = "removeReposition"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_remove_reposition"
 
 [[methods]]
 name = "reposition_id"
