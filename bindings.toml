@@ -389,19 +389,19 @@ ffi  = "todo:PR-D"
 name = "add_group"
 category = "topology"
 wasm = "addGroup"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_add_group"
 
 [[methods]]
 name = "add_line"
 category = "topology"
 wasm = "addLine"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_add_line"
 
 [[methods]]
 name = "add_stop"
 category = "topology"
 wasm = "addStop"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_add_stop"
 
 [[methods]]
 name = "add_stop_to_line"
@@ -419,19 +419,19 @@ ffi  = "todo:PR-B"
 name = "remove_elevator"
 category = "topology"
 wasm = "removeElevator"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_remove_elevator"
 
 [[methods]]
 name = "remove_line"
 category = "topology"
 wasm = "removeLine"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_remove_line"
 
 [[methods]]
 name = "remove_stop"
 category = "topology"
 wasm = "removeStop"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_remove_stop"
 
 [[methods]]
 name = "remove_stop_from_line"
@@ -443,7 +443,7 @@ ffi  = "todo:PR-B"
 name = "set_line_range"
 category = "topology"
 wasm = "setLineRange"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_set_line_range"
 
 [[methods]]
 name = "assign_line_to_group"

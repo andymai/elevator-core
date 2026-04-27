@@ -37,7 +37,9 @@ use std::time::Duration;
 use elevator_core::builder::SimulationBuilder;
 use elevator_core::components::{Direction, ElevatorPhase, RiderPhase, Velocity};
 use elevator_core::config::SimConfig;
-use elevator_core::dispatch::BuiltinStrategy;
+use elevator_core::dispatch::{
+    BuiltinStrategy, EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch,
+};
 use elevator_core::door::DoorState;
 use elevator_core::entity::{ElevatorId, EntityId, RiderId};
 use elevator_core::ids::GroupId;
@@ -1629,6 +1631,332 @@ const fn encode_direction(dir: elevator_core::components::CallDirection) -> i8 {
     }
 }
 
+// ── Topology mutation ─────────────────────────────────────────────────────
+//
+// Runtime helpers for adding and removing groups, lines, and stops after
+// the Simulation has been built. Mirrors the wasm crate's addGroup /
+// addLine / addStop / removeLine / removeStop / removeElevator surface;
+// brings FFI to wasm's level for topology coverage.
+//
+// Strings are passed as null-terminated UTF-8. Out-params receive entity
+// ids on success. `add_elevator` is deferred to a follow-up because its
+// 11-field ElevatorParams struct needs its own repr-C design pass.
+
+/// Add a new dispatch group. On success, writes the new group's id to
+/// `*out_group_id`. Group ids are u32 and never reused.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+/// must be a null-terminated UTF-8 C string. `out_group_id` must be a
+/// valid pointer to a writable u32.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_add_group(
+    handle: *mut EvSim,
+    name: *const c_char,
+    strategy: EvStrategy,
+    out_group_id: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || out_group_id.is_null() {
+            set_last_error("handle, name, or out_group_id is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(name) };
+        let name_str = match cstr.to_str() {
+            Ok(s) => s.to_owned(),
+            Err(e) => {
+                set_last_error(format!("name is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        // `Simulation::add_group` is generic over the concrete strategy
+        // type, so dispatch on the enum to instantiate the right one
+        // directly. Mirrors the explicit match in `elevator-wasm`.
+        let group_id = match strategy.as_builtin() {
+            BuiltinStrategy::Scan => ev.sim.add_group(name_str, ScanDispatch::new()),
+            BuiltinStrategy::Look => ev.sim.add_group(name_str, LookDispatch::new()),
+            BuiltinStrategy::NearestCar => ev.sim.add_group(name_str, NearestCarDispatch::new()),
+            BuiltinStrategy::Etd => ev.sim.add_group(name_str, EtdDispatch::new()),
+            other => {
+                set_last_error(format!("unsupported strategy: {other:?}"));
+                return EvStatus::InvalidArg;
+            }
+        };
+        // Safety: caller guarantees out_group_id is writable.
+        unsafe { *out_group_id = group_id.0 };
+        EvStatus::Ok
+    })
+}
+
+/// Add a new line to an existing group. On success, writes the new line
+/// entity id to `*out_line_entity_id`.
+///
+/// `max_cars` is a sentinel: pass `0` for unlimited, otherwise the cap.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+/// must be a null-terminated UTF-8 C string. `out_line_entity_id` must
+/// be a valid pointer to a writable u64.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_add_line(
+    handle: *mut EvSim,
+    group_id: u32,
+    name: *const c_char,
+    min_position: f64,
+    max_position: f64,
+    max_cars: u32,
+    out_line_entity_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || out_line_entity_id.is_null() {
+            set_last_error("handle, name, or out_line_entity_id is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(name) };
+        let name_str = match cstr.to_str() {
+            Ok(s) => s.to_owned(),
+            Err(e) => {
+                set_last_error(format!("name is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        let mut params = elevator_core::sim::LineParams::new(name_str, GroupId(group_id));
+        params.min_position = min_position;
+        params.max_position = max_position;
+        params.max_cars = if max_cars == 0 {
+            None
+        } else {
+            Some(max_cars as usize)
+        };
+        match ev.sim.add_line(&params) {
+            Ok(line) => {
+                // Safety: caller guarantees out_line_entity_id is writable.
+                unsafe { *out_line_entity_id = entity_to_u64(line) };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::GroupNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("add_line: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Add a new stop to a line. On success, writes the new stop entity id
+/// to `*out_stop_entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `name`
+/// must be a null-terminated UTF-8 C string. `out_stop_entity_id` must
+/// be a valid pointer to a writable u64.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_add_stop(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    name: *const c_char,
+    position: f64,
+    out_stop_entity_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || name.is_null() || out_stop_entity_id.is_null() {
+            set_last_error("handle, name, or out_stop_entity_id is null");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(name) };
+        let name_str = match cstr.to_str() {
+            Ok(s) => s.to_owned(),
+            Err(e) => {
+                set_last_error(format!("name is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        match ev.sim.add_stop(name_str, position, line) {
+            Ok(stop) => {
+                // Safety: caller guarantees out_stop_entity_id is writable.
+                unsafe { *out_stop_entity_id = entity_to_u64(stop) };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("add_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set the reachable position range of a line. Cars whose current
+/// position falls outside the new `[min, max]` are clamped to the
+/// boundary; their phase is left untouched.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_line_range(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    min_position: f64,
+    max_position: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_line_range(line, min_position, max_position) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("set_line_range: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove a line. All elevators on the line are also removed; riders on
+/// those elevators are ejected to the nearest remaining stop.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_remove_line(handle: *mut EvSim, line_entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.remove_line(line) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("remove_line: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove a stop. Riders waiting at this stop are abandoned; riders
+/// destined here are rerouted to the next viable stop on their route.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_remove_stop(handle: *mut EvSim, stop_entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.remove_stop(stop) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("remove_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove an elevator. Riders aboard are ejected to the next scheduled
+/// stop in the car's destination queue, or to the nearest stop on the
+/// line if the queue is empty.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_remove_elevator(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.remove_elevator(elevator) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("remove_elevator: {e}"));
+                status
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2201,6 +2529,110 @@ mod tests {
             "should see RIDER_EXITED",
         );
 
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Topology mutation ────────────────────────────────────────────
+
+    #[test]
+    fn add_group_writes_id_and_returns_ok() {
+        let handle = create_test_handle();
+        let name = CString::new("Test Group").unwrap();
+        let mut group_id: u32 = u32::MAX;
+        let status =
+            unsafe { ev_sim_add_group(handle, name.as_ptr(), EvStrategy::Etd, &raw mut group_id) };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(group_id, u32::MAX, "out_group_id should be written");
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_group_rejects_null_name() {
+        let handle = create_test_handle();
+        let mut group_id: u32 = 0;
+        let status = unsafe {
+            ev_sim_add_group(
+                handle,
+                std::ptr::null(),
+                EvStrategy::Scan,
+                &raw mut group_id,
+            )
+        };
+        assert_eq!(status, EvStatus::NullArg);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_line_then_add_stop_round_trip() {
+        let handle = create_test_handle();
+        let name = CString::new("New Line").unwrap();
+        let mut line: u64 = 0;
+        // group 0 exists in default.ron
+        let status =
+            unsafe { ev_sim_add_line(handle, 0, name.as_ptr(), 0.0, 100.0, 0, &raw mut line) };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(line, 0);
+
+        let stop_name = CString::new("Lobby").unwrap();
+        let mut stop: u64 = 0;
+        let status =
+            unsafe { ev_sim_add_stop(handle, line, stop_name.as_ptr(), 12.5, &raw mut stop) };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(stop, 0);
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_line_to_missing_group_returns_not_found() {
+        let handle = create_test_handle();
+        let name = CString::new("Orphan Line").unwrap();
+        let mut line: u64 = 0;
+        let status =
+            unsafe { ev_sim_add_line(handle, 9999, name.as_ptr(), 0.0, 10.0, 0, &raw mut line) };
+        assert_eq!(status, EvStatus::NotFound);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn set_line_range_then_remove_stop_then_remove_line() {
+        let handle = create_test_handle();
+        let name = CString::new("Sandbox").unwrap();
+        let mut line: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_line(handle, 0, name.as_ptr(), 0.0, 50.0, 0, &raw mut line) },
+            EvStatus::Ok,
+        );
+
+        // Widen the line range.
+        assert_eq!(
+            unsafe { ev_sim_set_line_range(handle, line, -10.0, 200.0) },
+            EvStatus::Ok,
+        );
+
+        // Add a stop, then remove it.
+        let stop_name = CString::new("Mezz").unwrap();
+        let mut stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, stop_name.as_ptr(), 25.0, &raw mut stop) },
+            EvStatus::Ok,
+        );
+        assert_eq!(unsafe { ev_sim_remove_stop(handle, stop) }, EvStatus::Ok);
+
+        // Remove the line.
+        assert_eq!(unsafe { ev_sim_remove_line(handle, line) }, EvStatus::Ok);
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn remove_stop_with_invalid_id_returns_invalid_arg() {
+        let handle = create_test_handle();
+        // Zero is the sentinel for "invalid entity id" in entity_from_u64.
+        assert_eq!(
+            unsafe { ev_sim_remove_stop(handle, 0) },
+            EvStatus::InvalidArg,
+        );
         unsafe { ev_sim_destroy(handle) };
     }
 }
