@@ -1757,6 +1757,34 @@ impl WasmSim {
 
     // ── Stop lookup + phase / direction queries ──────────────────────
 
+    /// Count elevators currently in the given phase. `phase` is one of:
+    /// `"idle"`, `"door-opening"`, `"loading"`, `"door-closing"`,
+    /// `"stopped"`. The two with payload variants
+    /// (`MovingToStop(EntityId)` and `Repositioning(EntityId)`) are
+    /// not exposed here — use `iterRepositioningElevators` or the per-
+    /// elevator phase via the snapshot for those.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `phase` is not one of the supported labels.
+    #[wasm_bindgen(js_name = elevatorsInPhase)]
+    pub fn elevators_in_phase(&self, phase: &str) -> Result<u32, JsError> {
+        use elevator_core::prelude::ElevatorPhase;
+        let p = match phase {
+            "idle" => ElevatorPhase::Idle,
+            "door-opening" => ElevatorPhase::DoorOpening,
+            "loading" => ElevatorPhase::Loading,
+            "door-closing" => ElevatorPhase::DoorClosing,
+            "stopped" => ElevatorPhase::Stopped,
+            other => {
+                return Err(JsError::new(&format!(
+                    "phase must be one of idle / door-opening / loading / door-closing / stopped — got {other:?}"
+                )));
+            }
+        };
+        Ok(u32::try_from(self.inner.elevators_in_phase(p)).unwrap_or(u32::MAX))
+    }
+
     /// Resolve a config-time `StopId` (the small `u32` from the RON
     /// config) to its runtime `EntityId`. Returns `0` (slotmap-null)
     /// for unknown ids.
