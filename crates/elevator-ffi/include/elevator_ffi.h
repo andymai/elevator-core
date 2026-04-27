@@ -1082,6 +1082,118 @@ enum EvStatus ev_sim_waiting_counts_by_line_at(struct EvSim *handle,
                                                uint32_t *out_written);
 
 /**
+ * Entity ids of all elevators on `line_entity_id`. Buffer-pattern.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_elevators_on_line(struct EvSim *handle,
+                                       uint64_t line_entity_id,
+                                       uint64_t *out,
+                                       uint32_t capacity,
+                                       uint32_t *out_written);
+
+/**
+ * Entity ids of every line in `group_id`. Buffer-pattern.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_lines_in_group(struct EvSim *handle,
+                                    uint32_t group_id,
+                                    uint64_t *out,
+                                    uint32_t capacity,
+                                    uint32_t *out_written);
+
+/**
+ * Entity ids of every line that serves `stop_entity_id`. Buffer-pattern.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_lines_serving_stop(struct EvSim *handle,
+                                        uint64_t stop_entity_id,
+                                        uint64_t *out,
+                                        uint32_t capacity,
+                                        uint32_t *out_written);
+
+/**
+ * Entity ids of every stop served by `line_entity_id`. Buffer-pattern.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_stops_served_by_line(struct EvSim *handle,
+                                          uint64_t line_entity_id,
+                                          uint64_t *out,
+                                          uint32_t capacity,
+                                          uint32_t *out_written);
+
+/**
+ * Group ids of every group with a line that serves `stop_entity_id`.
+ * Returns a `u32` buffer (not `u64`) — `GroupId` is a u32 newtype.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u32` slots when
+ * `capacity > 0`.
+ */
+enum EvStatus ev_sim_groups_serving_stop(struct EvSim *handle,
+                                         uint64_t stop_entity_id,
+                                         uint32_t *out,
+                                         uint32_t capacity,
+                                         uint32_t *out_written);
+
+/**
+ * Line entity that `elevator_entity_id` runs on. Returns `0`
+ * (slotmap-null) for missing or non-elevator entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_line_for_elevator(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Entity ids of every line in the simulation, across all groups.
+ * Buffer-pattern.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_all_lines(struct EvSim *handle,
+                               uint64_t *out,
+                               uint32_t capacity,
+                               uint32_t *out_written);
+
+/**
+ * Total number of lines across all groups.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_line_count(struct EvSim *handle);
+
+/**
+ * Find the stop entity at `position` on `line_entity_id`. Returns `0`
+ * (slotmap-null) if no stop exists at that position on the line.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_find_stop_at_position_on_line(struct EvSim *handle,
+                                              double position,
+                                              uint64_t line_entity_id);
+
+/**
  * Set the operational mode of an elevator.
  *
  * Modes are orthogonal to the elevator's phase — switching mode does not

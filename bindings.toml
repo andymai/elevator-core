@@ -511,49 +511,49 @@ ffi  = "skip:returns PhaseContext — internal scheduling helper"
 name = "elevators_on_line"
 category = "introspection"
 wasm = "elevatorsOnLine"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_elevators_on_line"
 
 [[methods]]
 name = "groups_serving_stop"
 category = "introspection"
 wasm = "groupsServingStop"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_groups_serving_stop"
 
 [[methods]]
 name = "lines_in_group"
 category = "introspection"
 wasm = "linesInGroup"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_lines_in_group"
 
 [[methods]]
 name = "lines_serving_stop"
 category = "introspection"
 wasm = "linesServingStop"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_lines_serving_stop"
 
 [[methods]]
 name = "stops_served_by_line"
 category = "introspection"
 wasm = "stopsServedByLine"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_stops_served_by_line"
 
 [[methods]]
 name = "line_for_elevator"
 category = "introspection"
 wasm = "lineForElevator"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_line_for_elevator"
 
 [[methods]]
 name = "all_lines"
 category = "introspection"
 wasm = "allLines"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_all_lines"
 
 [[methods]]
 name = "line_count"
 category = "introspection"
 wasm = "lineCount"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_line_count"
 
 [[methods]]
 name = "stop_lookup_iter"
@@ -571,7 +571,7 @@ ffi  = "ev_sim_stop_entity"
 name = "find_stop_at_position_on_line"
 category = "introspection"
 wasm = "findStopAtPositionOnLine"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_find_stop_at_position_on_line"
 
 [[methods]]
 name = "velocity"
