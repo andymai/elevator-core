@@ -637,7 +637,7 @@ ffi  = "ev_sim_future_stop_position"
 name = "destination_queue"
 category = "introspection"
 wasm = "destinationQueue"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_destination_queue"
 
 [[methods]]
 name = "elevators_in_phase"
@@ -685,13 +685,13 @@ ffi  = "ev_sim_is_disabled"
 name = "waiting_at"
 category = "introspection"
 wasm = "waitingAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_waiting_at"
 
 [[methods]]
 name = "waiting_count_at"
 category = "introspection"
 wasm = "waitingCountAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_waiting_count_at"
 
 [[methods]]
 name = "waiting_counts_by_line_at"
@@ -709,31 +709,31 @@ ffi  = "todo:PR-C"
 name = "residents_at"
 category = "introspection"
 wasm = "residentsAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_residents_at"
 
 [[methods]]
 name = "resident_count_at"
 category = "introspection"
 wasm = "residentCountAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_resident_count_at"
 
 [[methods]]
 name = "abandoned_at"
 category = "introspection"
 wasm = "abandonedAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_abandoned_at"
 
 [[methods]]
 name = "abandoned_count_at"
 category = "introspection"
 wasm = "abandonedCountAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_abandoned_count_at"
 
 [[methods]]
 name = "riders_on"
 category = "introspection"
 wasm = "ridersOn"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_riders_on"
 
 # ─── Destinations ─────────────────────────────────────────────────────────
 
@@ -741,31 +741,31 @@ ffi  = "todo:PR-C"
 name = "push_destination"
 category = "destinations"
 wasm = "pushDestination"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_push_destination"
 
 [[methods]]
 name = "push_destination_front"
 category = "destinations"
 wasm = "pushDestinationFront"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_push_destination_front"
 
 [[methods]]
 name = "clear_destinations"
 category = "destinations"
 wasm = "clearDestinations"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_clear_destinations"
 
 [[methods]]
 name = "abort_movement"
 category = "destinations"
 wasm = "abortMovement"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_abort_movement"
 
 [[methods]]
 name = "recall_to"
 category = "destinations"
 wasm = "recallTo"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_recall_to"
 
 # ─── Parameters ───────────────────────────────────────────────────────────
 # Note: wasm exposes "*All" sweeping helpers (setMaxSpeedAll, etc.) that

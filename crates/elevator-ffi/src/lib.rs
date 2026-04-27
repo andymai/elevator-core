@@ -3045,6 +3045,481 @@ pub unsafe extern "C" fn ev_sim_dt(handle: *mut EvSim) -> f64 {
     })
 }
 
+// ── Destinations + recall ────────────────────────────────────────────────
+//
+// Direct control over a car's destination queue (mutators). Mirror of
+// the wasm pushDestination / pushDestinationFront / clearDestinations /
+// abortMovement / recallTo set.
+
+/// Append `stop_entity_id` to the back of `elevator_entity_id`'s
+/// destination queue. Adjacent duplicates are suppressed.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_push_destination(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(elevator), Some(stop)) = (
+            entity_from_u64(elevator_entity_id),
+            entity_from_u64(stop_entity_id),
+        ) else {
+            set_last_error("elevator_entity_id or stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.push_destination(ElevatorId::from(elevator), stop) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("push_destination: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Insert `stop_entity_id` at the front of the destination queue
+/// ("go here next").
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_push_destination_front(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(elevator), Some(stop)) = (
+            entity_from_u64(elevator_entity_id),
+            entity_from_u64(stop_entity_id),
+        ) else {
+            set_last_error("elevator_entity_id or stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .push_destination_front(ElevatorId::from(elevator), stop)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("push_destination_front: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Empty an elevator's destination queue. The in-flight trip continues
+/// to its current target — call [`ev_sim_abort_movement`] to also stop
+/// mid-flight.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_clear_destinations(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.clear_destinations(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("clear_destinations: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Abort the elevator's in-flight movement; decelerate to nearest stop.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_abort_movement(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.abort_movement(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("abort_movement: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Clear the queue and immediately recall to `stop_entity_id`. Emits a
+/// distinct `ElevatorRecalled` event.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_recall_to(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(elevator), Some(stop)) = (
+            entity_from_u64(elevator_entity_id),
+            entity_from_u64(stop_entity_id),
+        ) else {
+            set_last_error("elevator_entity_id or stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.recall_to(ElevatorId::from(elevator), stop) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("recall_to: {e}"));
+                status
+            }
+        }
+    })
+}
+
+// ── Population queries (buffer pattern) ──────────────────────────────────
+//
+// Returns flat lists of `EntityId` (as `u64`) using the standard FFI
+// buffer pattern: caller passes (out_buf, capacity, out_written), and
+// the function writes up to `capacity` entries plus the actual count.
+// Pair with the `*_count_at` accessors to size the buffer first.
+
+/// Internal: shared "iterator → buffer" writer. Writes up to `capacity`
+/// entries to `out`, returns the count actually written.
+unsafe fn write_entity_buffer(
+    iter: impl Iterator<Item = EntityId>,
+    out: *mut u64,
+    capacity: u32,
+) -> u32 {
+    let mut written: u32 = 0;
+    for entity in iter.take(capacity as usize) {
+        // Safety: caller guarantees `out` points to at least `capacity`
+        // u64 slots; loop never overruns by construction (take(capacity)).
+        unsafe {
+            *out.add(written as usize) = entity_to_u64(entity);
+        }
+        written += 1;
+    }
+    written
+}
+
+/// Snapshot of an elevator's destination queue.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`. `out_written` must be a writable `u32`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_destination_queue(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let queue = ev
+            .sim
+            .destination_queue(ElevatorId::from(elevator))
+            .unwrap_or(&[]);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(queue.iter().copied(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Riders waiting at `stop_entity_id`.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_waiting_at(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(ev.sim.waiting_at(stop), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Number of riders waiting at `stop_entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_waiting_count_at(handle: *mut EvSim, stop_entity_id: u64) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.waiting_count_at(stop)).unwrap_or(u32::MAX)
+    })
+}
+
+/// Riders settled / resident at `stop_entity_id`.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_residents_at(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(ev.sim.residents_at(stop), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Number of resident riders at `stop_entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_resident_count_at(handle: *mut EvSim, stop_entity_id: u64) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.resident_count_at(stop)).unwrap_or(u32::MAX)
+    })
+}
+
+/// Riders who abandoned the call at `stop_entity_id`.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_abandoned_at(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(ev.sim.abandoned_at(stop), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Number of abandoned riders at `stop_entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_abandoned_count_at(handle: *mut EvSim, stop_entity_id: u64) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.abandoned_count_at(stop)).unwrap_or(u32::MAX)
+    })
+}
+
+/// Riders currently aboard `elevator_entity_id`.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_riders_on(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let riders = ev.sim.riders_on(elevator);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(riders.iter().copied(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
