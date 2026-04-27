@@ -636,7 +636,7 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "destination_queue"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "destinationQueue"
 ffi  = "todo:PR-C"
 
 [[methods]]
@@ -684,7 +684,7 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "waiting_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "waitingAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
@@ -708,31 +708,31 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "residents_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "residentsAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "resident_count_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "residentCountAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "abandoned_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "abandonedAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "abandoned_count_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "abandonedCountAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "riders_on"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "ridersOn"
 ffi  = "todo:PR-C"
 
 # ─── Destinations ─────────────────────────────────────────────────────────
@@ -740,31 +740,31 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "push_destination"
 category = "destinations"
-wasm = "todo:PR-C"
+wasm = "pushDestination"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "push_destination_front"
 category = "destinations"
-wasm = "todo:PR-C"
+wasm = "pushDestinationFront"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "clear_destinations"
 category = "destinations"
-wasm = "todo:PR-C"
+wasm = "clearDestinations"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "abort_movement"
 category = "destinations"
-wasm = "todo:PR-C"
+wasm = "abortMovement"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "recall_to"
 category = "destinations"
-wasm = "todo:PR-C"
+wasm = "recallTo"
 ffi  = "todo:PR-C"
 
 # ─── Parameters ───────────────────────────────────────────────────────────
