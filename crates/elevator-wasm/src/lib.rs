@@ -1677,6 +1677,119 @@ impl WasmSim {
             .map(dto::RouteDto::from)
     }
 
+    /// Replace a rider's remaining route with a single-leg route via
+    /// `group_id`. Useful when the consumer already knows the group
+    /// the rider should use (e.g. an express bank).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist.
+    #[wasm_bindgen(js_name = setRiderRouteDirect)]
+    pub fn set_rider_route_direct(
+        &mut self,
+        rider_ref: u64,
+        from_stop_ref: u64,
+        to_stop_ref: u64,
+        group_id: u32,
+    ) -> Result<(), JsError> {
+        let route = elevator_core::components::Route::direct(
+            u64_to_entity(from_stop_ref),
+            u64_to_entity(to_stop_ref),
+            elevator_core::ids::GroupId(group_id),
+        );
+        self.inner
+            .set_rider_route(u64_to_entity(rider_ref), route)
+            .map_err(|e| JsError::new(&format!("set_rider_route_direct: {e}")))
+    }
+
+    /// Replace a rider's remaining route with a multi-leg route built
+    /// from `shortest_route(rider's current_stop -> to_stop)`.
+    /// Convenience wrapper for the common "send this rider here" case.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist, has no current
+    /// stop, or no route to `to_stop` exists.
+    #[wasm_bindgen(js_name = setRiderRouteShortest)]
+    pub fn set_rider_route_shortest(
+        &mut self,
+        rider_ref: u64,
+        to_stop_ref: u64,
+    ) -> Result<(), JsError> {
+        let rider_eid = u64_to_entity(rider_ref);
+        let to_eid = u64_to_entity(to_stop_ref);
+        let from_eid = self
+            .inner
+            .world()
+            .rider(rider_eid)
+            .and_then(elevator_core::components::Rider::current_stop)
+            .ok_or_else(|| JsError::new("set_rider_route_shortest: rider has no current stop"))?;
+        let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
+            JsError::new("set_rider_route_shortest: no route between rider's stop and to_stop")
+        })?;
+        self.inner
+            .set_rider_route(rider_eid, route)
+            .map_err(|e| JsError::new(&format!("set_rider_route_shortest: {e}")))
+    }
+
+    /// Give a `Resident` rider a new single-leg route via `group_id`,
+    /// transitioning them back to `Waiting`. The route's first leg origin
+    /// must match the rider's current stop, so callers must know which
+    /// stop the resident is at.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist, is not in
+    /// `Resident` phase, or the route's origin does not match the
+    /// rider's current stop.
+    #[wasm_bindgen(js_name = rerouteRiderDirect)]
+    pub fn reroute_rider_direct(
+        &mut self,
+        rider_ref: u64,
+        from_stop_ref: u64,
+        to_stop_ref: u64,
+        group_id: u32,
+    ) -> Result<(), JsError> {
+        let route = elevator_core::components::Route::direct(
+            u64_to_entity(from_stop_ref),
+            u64_to_entity(to_stop_ref),
+            elevator_core::ids::GroupId(group_id),
+        );
+        self.inner
+            .reroute_rider(u64_to_entity(rider_ref), route)
+            .map_err(|e| JsError::new(&format!("reroute_rider_direct: {e}")))
+    }
+
+    /// Give a `Resident` rider a multi-leg route to `to_stop` built from
+    /// `shortest_route(rider's current_stop -> to_stop)`, transitioning
+    /// them back to `Waiting`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist, is not in
+    /// `Resident` phase, has no current stop, or no route exists.
+    #[wasm_bindgen(js_name = rerouteRiderShortest)]
+    pub fn reroute_rider_shortest(
+        &mut self,
+        rider_ref: u64,
+        to_stop_ref: u64,
+    ) -> Result<(), JsError> {
+        let rider_eid = u64_to_entity(rider_ref);
+        let to_eid = u64_to_entity(to_stop_ref);
+        let from_eid = self
+            .inner
+            .world()
+            .rider(rider_eid)
+            .and_then(elevator_core::components::Rider::current_stop)
+            .ok_or_else(|| JsError::new("reroute_rider_shortest: rider has no current stop"))?;
+        let route = self.inner.shortest_route(from_eid, to_eid).ok_or_else(|| {
+            JsError::new("reroute_rider_shortest: no route between rider's stop and to_stop")
+        })?;
+        self.inner
+            .reroute_rider(rider_eid, route)
+            .map_err(|e| JsError::new(&format!("reroute_rider_shortest: {e}")))
+    }
+
     // ── Per-elevator setters + lifecycle ─────────────────────────────
     //
     // Per-elevator parameter setters that sit alongside the existing

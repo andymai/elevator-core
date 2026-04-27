@@ -1222,6 +1222,67 @@ enum EvStatus ev_sim_reroute(struct EvSim *handle,
 enum EvStatus ev_sim_settle_rider(struct EvSim *handle, uint64_t rider_entity_id);
 
 /**
+ * Replace a rider's remaining route with a single-leg route via
+ * `group_id`. Convenience wrapper for the common "send this rider via
+ * this group" case.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_rider_route_direct(struct EvSim *handle,
+                                            uint64_t rider_entity_id,
+                                            uint64_t from_stop_entity_id,
+                                            uint64_t to_stop_entity_id,
+                                            uint32_t group_id);
+
+/**
+ * Replace a rider's remaining route with a multi-leg route built from
+ * `shortest_route(rider's current_stop → to_stop)`.
+ *
+ * Returns [`EvStatus::NotFound`] if no route exists or the rider has
+ * no current stop.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_rider_route_shortest(struct EvSim *handle,
+                                              uint64_t rider_entity_id,
+                                              uint64_t to_stop_entity_id);
+
+/**
+ * Give a `Resident` rider a single-leg route via `group_id`,
+ * transitioning them back to `Waiting`. The route's first leg origin
+ * must match the rider's current stop.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_reroute_rider_direct(struct EvSim *handle,
+                                          uint64_t rider_entity_id,
+                                          uint64_t from_stop_entity_id,
+                                          uint64_t to_stop_entity_id,
+                                          uint32_t group_id);
+
+/**
+ * Give a `Resident` rider a multi-leg route to `to_stop` built from
+ * `shortest_route(rider's current_stop → to_stop)`, transitioning them
+ * back to `Waiting`.
+ *
+ * Returns [`EvStatus::NotFound`] if the rider has no current stop or
+ * no route exists.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_reroute_rider_shortest(struct EvSim *handle,
+                                            uint64_t rider_entity_id,
+                                            uint64_t to_stop_entity_id);
+
+/**
  * Replace a rider's allowed-stops set. Pass `count = 0` to clear.
  *
  * # Safety
