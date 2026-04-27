@@ -966,6 +966,68 @@ enum EvStatus ev_sim_set_elevator_restricted_stops(struct EvSim *handle,
                                                    uint32_t count);
 
 /**
+ * Replace a rider's destination with `new_destination_entity_id`. Used
+ * for in-flight redirects (e.g. tenant changes mind).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_reroute(struct EvSim *handle,
+                             uint64_t rider_entity_id,
+                             uint64_t new_destination_entity_id);
+
+/**
+ * Mark a rider as settled at their current stop (resident pool).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_settle_rider(struct EvSim *handle, uint64_t rider_entity_id);
+
+/**
+ * Replace a rider's allowed-stops set. Pass `count = 0` to clear.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `stop_ids` must point to at least `count` `u64` values when
+ * `count > 0`.
+ */
+enum EvStatus ev_sim_set_rider_access(struct EvSim *handle,
+                                      uint64_t rider_entity_id,
+                                      const uint64_t *stop_ids,
+                                      uint32_t count);
+
+/**
+ * Stops reachable from `from_stop_entity_id` via the line-graph.
+ * Buffer-pattern accessor (see [`ev_sim_destination_queue`]).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_reachable_stops_from(struct EvSim *handle,
+                                          uint64_t from_stop_entity_id,
+                                          uint64_t *out,
+                                          uint32_t capacity,
+                                          uint32_t *out_written);
+
+/**
+ * Stops where multiple lines intersect (transfer candidates).
+ * Buffer-pattern accessor.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_transfer_points(struct EvSim *handle,
+                                     uint64_t *out,
+                                     uint32_t capacity,
+                                     uint32_t *out_written);
+
+/**
  * Set the operational mode of an elevator.
  *
  * Modes are orthogonal to the elevator's phase — switching mode does not
