@@ -92,7 +92,7 @@ export async function boot(): Promise<void> {
     lastFrameTime: performance.now(),
     initToken: 0,
     seeding: null,
-    manualControls: null,
+    cockpit: null,
   };
   attachListeners(state, ui);
   await resetAll(state, ui);
