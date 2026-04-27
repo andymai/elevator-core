@@ -457,6 +457,29 @@ export class WasmSim {
         return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
     }
     /**
+     * Count elevators currently in the given phase. `phase` is one of:
+     * `"idle"`, `"door-opening"`, `"loading"`, `"door-closing"`,
+     * `"stopped"`. The two with payload variants
+     * (`MovingToStop(EntityId)` and `Repositioning(EntityId)`) are
+     * not exposed here — use `iterRepositioningElevators` or the per-
+     * elevator phase via the snapshot for those.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `phase` is not one of the supported labels.
+     * @param {string} phase
+     * @returns {number}
+     */
+    elevatorsInPhase(phase) {
+        const ptr0 = passStringToWasm0(phase, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_elevatorsInPhase(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
      * Entity ids of all elevators currently assigned to `line_ref`.
      * @param {bigint} line_ref
      * @returns {BigUint64Array}
