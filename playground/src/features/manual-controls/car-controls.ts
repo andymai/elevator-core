@@ -39,6 +39,14 @@ export interface CarControlsHandle {
   sync(view: WorldView, selectedRef: bigint | null): void;
   /** First car ref currently rendered, for cold-boot selection. */
   firstCarRef(): bigint | null;
+  /**
+   * Snapshot of every car block's currently-selected service mode,
+   * keyed by car ref. The panel reads this each frame and pushes it
+   * to the cabin renderer so the cabin badge / OOS door colour / OOS
+   * rider greying track the dropdown — without this, the renderer
+   * would never see service-mode changes.
+   */
+  serviceModes(): Map<bigint, ServiceModeName>;
 }
 
 const SERVICE_MODES: Array<{ value: ServiceModeName; label: string }> = [
@@ -114,6 +122,13 @@ export function mountCarControls(
     },
     firstCarRef(): bigint | null {
       return blocks[0]?.carRef ?? null;
+    },
+    serviceModes(): Map<bigint, ServiceModeName> {
+      const map = new Map<bigint, ServiceModeName>();
+      for (const block of blocks) {
+        map.set(block.carRef, block.modeSelect.value as ServiceModeName);
+      }
+      return map;
     },
   };
 }

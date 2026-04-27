@@ -1,9 +1,11 @@
+import type { CanvasRenderer } from "../../render";
 import type { Sim } from "../../sim";
-import type { EventDto, ScenarioMeta, ServiceModeName } from "../../types";
+import type { CarControlsHandlers } from "./car-controls";
 import { mountCarControls, type CarControlsHandle } from "./car-controls";
 import { mountHallButtons, type HallButtonsHandle } from "./hall-buttons";
 import { mountSpawnForm } from "./spawn-form";
 import { appendEvents } from "./event-log";
+import type { EventDto, ScenarioMeta } from "../../types";
 
 /** Containers the panel hydrates. All must exist in `index.html`. */
 export interface ManualControlsRoots {
@@ -33,12 +35,17 @@ export function selectedCarId(): bigint | null {
 /**
  * Mount the manual-controls side panel against `sim` for `scenario`.
  * Builds the hall-button rows, per-car blocks, spawn form, and event
- * log; applies the scenario's `defaultServiceMode` to every car.
+ * log; applies the scenario's `defaultServiceMode` to every car. Holds
+ * a `renderer` reference so each `update()` tick can push the
+ * authoritative UI state (selected car, per-car mode, hall-call
+ * lamps) into `CabinRenderState` — without this push the cabin badge
+ * and shaft lamps stay stuck on initial values.
  */
 export function mountManualControls(
   sim: Sim,
   scenario: ScenarioMeta,
   roots: ManualControlsRoots,
+  renderer: CanvasRenderer,
 ): ManualControlsHandle {
   const meta = scenario.manualControl;
   if (!meta) {
@@ -59,16 +66,18 @@ export function mountManualControls(
     },
   });
 
-  const cars: CarControlsHandle = mountCarControls(roots.carControls, scenario, initialView, {
+  // Build the handlers object once; both initial mount and the
+  // `rebuildCarControls` path on Add/Remove Car share it.
+  const carHandlers: CarControlsHandlers = {
     setServiceMode: (carRef, mode) => {
-      sim.setServiceMode(carRef, mode);
+      safe(() => {
+        sim.setServiceMode(carRef, mode);
+      });
     },
     pressCarButton: (carRef, stopRef) => {
-      try {
+      safe(() => {
         sim.pressCarButton(carRef, stopRef);
-      } catch (e) {
-        console.warn("pressCarButton:", e);
-      }
+      });
     },
     openDoor: (carRef) => {
       safe(() => {
@@ -103,7 +112,14 @@ export function mountManualControls(
     selectCar: (carRef) => {
       SELECTED = carRef;
     },
-  });
+  };
+
+  let carsHandle: CarControlsHandle = mountCarControls(
+    roots.carControls,
+    scenario,
+    initialView,
+    carHandlers,
+  );
 
   // Apply the scenario's default service mode to every car so the UI
   // dropdown and the engine state agree on first paint. Skipped when
@@ -132,22 +148,22 @@ export function mountManualControls(
   // would confuse "what just happened" given the panel re-mounts.
   roots.eventLog.replaceChildren();
 
-  // Add Car B / Remove Car B toggle. Mutates topology via the sim's
-  // addElevator / removeElevator wasm bindings.
+  // Add Car B / Remove Car B toggle. Hidden when the scenario opts
+  // out via `allowAddRemoveCar: false`; otherwise toggles label
+  // between "Add Car B" and "Remove Car B" based on whether we're at
+  // the per-scenario car cap.
   const addCarBtn = roots.addCarBtn;
   const updateAddCarBtn = (): void => {
-    const view = sim.worldView();
-    const max = scenario.tweakRanges.cars.max;
-    if (!meta.allowAddRemoveCar || view.cars.length >= max) {
-      addCarBtn.hidden = view.cars.length === 1 || !meta.allowAddRemoveCar;
-      addCarBtn.textContent = view.cars.length >= max ? "Remove Car B" : "Add Car B";
-      addCarBtn.disabled = !meta.allowAddRemoveCar;
-      addCarBtn.hidden = !meta.allowAddRemoveCar;
+    if (!meta.allowAddRemoveCar) {
+      addCarBtn.hidden = true;
       return;
     }
+    const view = sim.worldView();
+    const max = scenario.tweakRanges.cars.max;
+    const atMax = view.cars.length >= max;
     addCarBtn.hidden = false;
     addCarBtn.disabled = false;
-    addCarBtn.textContent = view.cars.length >= 2 ? "Remove Car B" : "Add Car B";
+    addCarBtn.textContent = atMax ? "Remove Car B" : "Add Car B";
   };
   const onAddCar = (): void => {
     const view = sim.worldView();
@@ -175,59 +191,15 @@ export function mountManualControls(
         console.warn("addElevator:", e);
       }
     }
-    // Topology changed; the panel needs a full re-mount to surface the
-    // new car block. Rebuild via `mountCarControls` against the fresh
-    // worldView.
     rebuildCarControls();
     updateAddCarBtn();
   };
   addCarBtn.addEventListener("click", onAddCar);
   updateAddCarBtn();
 
-  let carsHandle = cars;
   const rebuildCarControls = (): void => {
     initialView = sim.worldView();
-    carsHandle = mountCarControls(roots.carControls, scenario, initialView, {
-      setServiceMode: (carRef, mode) => {
-        sim.setServiceMode(carRef, mode);
-      },
-      pressCarButton: (carRef, stopRef) => {
-        sim.pressCarButton(carRef, stopRef);
-      },
-      openDoor: (carRef) => {
-        safe(() => {
-          sim.openDoor(carRef);
-        });
-      },
-      closeDoor: (carRef) => {
-        safe(() => {
-          sim.closeDoor(carRef);
-        });
-      },
-      holdDoor: (carRef, ticks) => {
-        safe(() => {
-          sim.holdDoor(carRef, ticks);
-        });
-      },
-      cancelDoorHold: (carRef) => {
-        safe(() => {
-          sim.cancelDoorHold(carRef);
-        });
-      },
-      setTargetVelocity: (carRef, velocity) => {
-        safe(() => {
-          sim.setTargetVelocity(carRef, velocity);
-        });
-      },
-      emergencyStop: (carRef) => {
-        safe(() => {
-          sim.emergencyStop(carRef);
-        });
-      },
-      selectCar: (carRef) => {
-        SELECTED = carRef;
-      },
-    });
+    carsHandle = mountCarControls(roots.carControls, scenario, initialView, carHandlers);
     // If the previously selected car was removed, fall back to the
     // first remaining car so the cutaway always has a focus.
     if (SELECTED !== null && !initialView.cars.some((c) => BigInt(c.id) === SELECTED)) {
@@ -240,7 +212,7 @@ export function mountManualControls(
     if (meta.defaultServiceMode !== "normal") {
       for (const car of initialView.cars) {
         try {
-          sim.setServiceMode(BigInt(car.id), meta.defaultServiceMode satisfies ServiceModeName);
+          sim.setServiceMode(BigInt(car.id), meta.defaultServiceMode);
         } catch {
           /* ignore — engine validates */
         }
@@ -249,7 +221,7 @@ export function mountManualControls(
   };
 
   // Pick the first car as the initial cutaway focus.
-  SELECTED = cars.firstCarRef();
+  SELECTED = carsHandle.firstCarRef();
 
   return {
     update(currentSim, events): void {
@@ -263,6 +235,22 @@ export function mountManualControls(
       carsHandle.sync(view, SELECTED);
       appendEvents(roots.eventLog, events);
       updateAddCarBtn();
+      // Push authoritative UI state to the cabin renderer. Built
+      // here (not in the loop) because the panel owns all three
+      // sources: the dropdown values, the hall-call lamp state from
+      // worldView, and the selected-car focus.
+      const hallCallsByStop = new Map<bigint, { up: boolean; down: boolean }>();
+      for (const stop of view.stops) {
+        hallCallsByStop.set(BigInt(stop.entity_id), {
+          up: stop.hall_calls.up,
+          down: stop.hall_calls.down,
+        });
+      }
+      renderer.setManualControlState({
+        selectedCarId: SELECTED,
+        serviceModeByCar: carsHandle.serviceModes(),
+        hallCallsByStop,
+      });
     },
     selectedCarRef: () => SELECTED,
     dispose(): void {

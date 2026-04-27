@@ -68,10 +68,15 @@ export async function makePane(
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
   // Manual-control rendering is gated on the same opt-in pattern. The
-  // selectedCarId stays `null` here; the manual-controls panel updates
-  // it via `setManualControlState` once the user picks a car.
+  // panel.update() call from the loop pushes a richer state object
+  // each frame (selected car, per-car service mode, hall-call lamps);
+  // here we just toggle the cutaway path on with empty maps.
   if (scenario.manualControl) {
-    renderer.setManualControlState({ selectedCarId: null });
+    renderer.setManualControlState({
+      selectedCarId: null,
+      serviceModeByCar: new Map(),
+      hallCallsByStop: new Map(),
+    });
   } else {
     renderer.setManualControlState(null);
   }

@@ -111,20 +111,22 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
     // Mount the manual-controls side panel for manual-control scenarios.
-    // The panel reads `paneA.sim` for entity refs and the worldView, and
-    // exposes a per-frame `update` the loop calls below.
+    // The panel reads `paneA.sim` for entity refs and pushes the full
+    // CabinRenderState (selected car, per-car mode, hall-call lamps)
+    // into `paneA.renderer` on every `update()` tick.
     if (scenario.manualControl !== undefined) {
-      state.manualControls = mountManualControls(paneA.sim, scenario, {
-        hallButtons: ui.manualHallButtons,
-        carControls: ui.manualCarControls,
-        spawnForm: ui.manualSpawnForm,
-        eventLog: ui.manualEventLog,
-        addCarBtn: ui.manualAddCarBtn,
-      });
-      // Sync the renderer's selectedCarId with the panel's initial
-      // selection so the cabin cutaway has a focus from frame 0.
-      const selected = state.manualControls.selectedCarRef();
-      paneA.renderer.setManualControlState({ selectedCarId: selected });
+      state.manualControls = mountManualControls(
+        paneA.sim,
+        scenario,
+        {
+          hallButtons: ui.manualHallButtons,
+          carControls: ui.manualCarControls,
+          spawnForm: ui.manualSpawnForm,
+          eventLog: ui.manualEventLog,
+          addCarBtn: ui.manualAddCarBtn,
+        },
+        paneA.renderer,
+      );
     }
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);

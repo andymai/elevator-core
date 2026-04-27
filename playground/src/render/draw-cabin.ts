@@ -19,9 +19,31 @@ import { drawRider, pickRiderVariant } from "./figures/rider";
  * pipeline — `renderer.ts` early-exits into this function when the
  * scenario's `manualControl` flag is set, mirroring the tether path.
  */
+/** Hall-call lamp state at one stop, keyed by stop entity ref. */
+export interface HallLampState {
+  up: boolean;
+  down: boolean;
+}
+
 export interface CabinRenderState {
   /** Currently focused car entity ref, or `null` for "first car". */
   selectedCarId: bigint | null;
+  /**
+   * Per-car service mode (drives the cabin badge, OOS door colour, OOS
+   * rider greying). Empty map = "everyone Normal" — every lookup falls
+   * through to the badge default. The panel rebuilds this each frame
+   * from the dropdown values so the renderer always tracks the
+   * authoritative UI state.
+   */
+  serviceModeByCar: Map<bigint, string>;
+  /**
+   * Per-stop hall-call lamp state. Sourced from
+   * `WorldView.stops[i].hall_calls.{up,down}` (the engine's
+   * acknowledged-call lamps), not from `waiting_up/waiting_down`
+   * (rider counts) — those can disagree in Manual mode where a user
+   * spawns a rider without pressing a hall call.
+   */
+  hallCallsByStop: Map<bigint, HallLampState>;
 }
 
 const CABIN_BG = "#1a1a1f";
@@ -44,7 +66,6 @@ export function drawCabinCutaway(
   w: number,
   h: number,
   state: CabinRenderState,
-  carServiceMode: Map<bigint, string>,
 ): void {
   if (snap.stops.length === 0 || w <= 0 || h <= 0) return;
 
@@ -63,7 +84,7 @@ export function drawCabinCutaway(
   }
 
   drawShaftPanel(ctx, snap, shaftX, topY, shaftW, bottomY - topY, state);
-  drawCabinPanel(ctx, snap, cabinX, topY, cabinW, bottomY - topY, state, carServiceMode);
+  drawCabinPanel(ctx, snap, cabinX, topY, cabinW, bottomY - topY, state);
 }
 
 function drawShaftPanel(
@@ -116,20 +137,17 @@ function drawShaftPanel(
     ctx.fillText(truncate(stop.name, 9), shaftLeft - 8, py);
 
     // Hall-call lamps as a tiny vertical pair on the shaft's left edge.
+    // Source: panel-supplied per-stop hall-call state from the engine
+    // (`WorldView.stops[i].hall_calls.{up,down}`). Falling back to
+    // `waiting_up/down` (rider counts) would diverge in Manual mode
+    // where a user spawns a rider without pressing a hall call.
+    const lamp = state.hallCallsByStop.get(BigInt(stop.entity_id));
     const lampX = shaftLeft - 4;
     const lampUpY = py - 4;
     const lampDownY = py + 4;
-    if (stop.waiting_up > 0) {
-      ctx.fillStyle = HALL_LAMP_ON;
-    } else {
-      ctx.fillStyle = HALL_LAMP_OFF;
-    }
+    ctx.fillStyle = lamp?.up ? HALL_LAMP_ON : HALL_LAMP_OFF;
     ctx.fillRect(lampX, lampUpY - 1, 3, 2);
-    if (stop.waiting_down > 0) {
-      ctx.fillStyle = HALL_LAMP_ON;
-    } else {
-      ctx.fillStyle = HALL_LAMP_OFF;
-    }
+    ctx.fillStyle = lamp?.down ? HALL_LAMP_ON : HALL_LAMP_OFF;
     ctx.fillRect(lampX, lampDownY - 1, 3, 2);
   }
 
@@ -166,7 +184,6 @@ function drawCabinPanel(
   w: number,
   h: number,
   state: CabinRenderState,
-  serviceModes: Map<bigint, string>,
 ): void {
   // Resolve which car to draw inside the cabin frame.
   const selected =
@@ -174,7 +191,9 @@ function drawCabinPanel(
       ? snap.cars.find((c) => BigInt(c.id) === state.selectedCarId)
       : snap.cars[0];
   const serviceMode =
-    selected !== undefined ? (serviceModes.get(BigInt(selected.id)) ?? "normal") : "normal";
+    selected !== undefined
+      ? (state.serviceModeByCar.get(BigInt(selected.id)) ?? "normal")
+      : "normal";
 
   // Cabin frame with rounded corners.
   const cabinTop = y + 26;

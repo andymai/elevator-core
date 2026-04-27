@@ -72,8 +72,6 @@ export class CanvasRenderer {
   #tether: TetherMeta | null = null;
   /** Set when the active scenario is the manual-control cabin cutaway. */
   #manualControl: CabinRenderState | null = null;
-  /** Per-car service mode hint, populated by the shell from the controls panel. */
-  readonly #serviceModeByCar: Map<bigint, string> = new Map();
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
@@ -134,19 +132,16 @@ export class CanvasRenderer {
    * Mirrors the tether opt-in.
    */
   setManualControlState(state: CabinRenderState | null): void {
+    // Reuse the existing per-car kinematic / assignment caches as
+    // scenario-switch boundaries — same trick `setTetherConfig` uses.
+    // Only reset on a transition into or out of manual mode, not on
+    // the per-frame state replacement the loop does.
+    const transitioning = (state === null) !== (this.#manualControl === null);
     this.#manualControl = state;
-    this.#prevVelocity.clear();
-    this.#stopAssignments.clear();
-  }
-
-  /** Update the service-mode hint for a car (drives the cabin badge). */
-  setServiceModeFor(carRef: bigint, mode: string): void {
-    this.#serviceModeByCar.set(carRef, mode);
-  }
-
-  /** Drop all per-car service-mode hints (e.g. on scenario switch). */
-  clearServiceModes(): void {
-    this.#serviceModeByCar.clear();
+    if (transitioning) {
+      this.#prevVelocity.clear();
+      this.#stopAssignments.clear();
+    }
   }
 
   /**
@@ -196,7 +191,7 @@ export class CanvasRenderer {
     if (s === null) return;
 
     if (this.#manualControl !== null) {
-      drawCabinCutaway(ctx, snap, w, h, this.#manualControl, this.#serviceModeByCar);
+      drawCabinCutaway(ctx, snap, w, h, this.#manualControl);
       return;
     }
 

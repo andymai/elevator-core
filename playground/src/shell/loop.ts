@@ -68,14 +68,12 @@ export function loop(state: State, ui: UiHandles): void {
       });
 
       // Manual-control panel: refresh hall-call lit state, per-car
-      // controls, and append the frame's events to the log. Skipped
-      // for non-manual scenarios where `state.manualControls` is null.
-      // Also propagate the selected car ref to the renderer so the
-      // cabin cutaway tracks user-clicked focus.
+      // controls, and append the frame's events to the log. The panel
+      // pushes the full CabinRenderState (selected car, per-car
+      // service mode, hall-call lamps) into `paneA.renderer` itself,
+      // so the loop just needs to call `update()`.
       if (state.manualControls && state.paneA) {
         state.manualControls.update(state.paneA.sim, paneAEvents);
-        const selected = state.manualControls.selectedCarRef();
-        state.paneA.renderer.setManualControlState({ selectedCarId: selected });
       }
 
       // Progressive pre-seed: drain the remaining quota in per-frame
