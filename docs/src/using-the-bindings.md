@@ -69,17 +69,37 @@ Method names are camelCase via `#[wasm_bindgen(js_name = ...)]`. Every getter ha
 
 ### Errors
 
-Methods that can fail return `Result<T, JsError>` on the Rust side, which materializes as a thrown `Error` on the TS side. Wrap fallible calls in `try/catch`:
+Most fallible methods return a Result-shaped object — a discriminated union with a string `kind` discriminator — instead of throwing. Three concrete result types cover the surface:
+
+| Type | Used by |
+|---|---|
+| `WasmVoidResult` | Mutators that return `()` on success (most methods) |
+| `WasmU64Result` | Methods that return an entity id |
+| `WasmU32Result` | Methods that return a count or code |
+
+Each materializes on the TS side as:
 
 ```ts
-try {
-    sim.spawnRider(originId, destId, 75);
-} catch (err) {
-    console.error("spawn failed:", (err as Error).message);
+type WasmU64Result =
+  | { kind: "ok"; value: bigint }
+  | { kind: "err"; error: string }
+```
+
+Usage:
+
+```ts
+const r = sim.spawnRider(originId, destId, 75);
+if (r.kind === "err") {
+    console.error("spawn failed:", r.error);
 }
 ```
 
-This is uniform across the binding — there is no `null` / `undefined` "error sentinel" pattern to special-case.
+The string discriminator narrows `r.value` and `r.error` per branch without a manual cast. There is no `null` / `undefined` "error sentinel" pattern to special-case.
+
+A small set of methods still throw rather than returning a Result-shape:
+
+- The `WasmSim` constructor (matches the JS-idiomatic "constructors throw" pattern)
+- `sim.assignedCarsByLine(stop, direction)` and `sim.bestEta(stop, direction)` — these return `bigint[]` and reusing the Result-shape would require introducing a fourth result type for one call site each. They throw on bad direction strings; wrap in `try/catch` if you can't statically guarantee `"up" / "down"`.
 
 ### Events
 

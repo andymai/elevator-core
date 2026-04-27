@@ -24,47 +24,58 @@
 #define EV_ABI_VERSION 4
 
 /**
- * `Event::HallButtonPressed`.
+ * `Event::HallButtonPressed`. Fields: `stop`, `direction` (`1` =
+ * up, `-1` = down), `tick`.
  */
 #define HALL_BUTTON_PRESSED 1
 
 /**
- * `Event::HallCallAcknowledged`.
+ * `Event::HallCallAcknowledged`. Fields: `stop`, `direction`,
+ * `tick`.
  */
 #define HALL_CALL_ACKNOWLEDGED 2
 
 /**
- * `Event::HallCallCleared`.
+ * `Event::HallCallCleared`. Fields: `stop`, `direction`, `car`
+ * (the elevator that cleared the call by arriving), `tick`.
  */
 #define HALL_CALL_CLEARED 3
 
 /**
- * `Event::CarButtonPressed`.
+ * `Event::CarButtonPressed`. Fields: `car`, `floor` (the
+ * requested stop), `rider` (or `0` for synthetic presses with no
+ * associated rider), `tick`.
  */
 #define CAR_BUTTON_PRESSED 4
 
 /**
- * `Event::RiderSkipped`.
+ * `Event::RiderSkipped`. Fields: `rider`, `car` (the elevator
+ * they declined to board), `stop` (where the skip happened),
+ * `tick`.
  */
 #define RIDER_SKIPPED 5
 
 /**
- * `Event::RiderSpawned`.
+ * `Event::RiderSpawned`. Fields: `rider`, `stop` (origin), `floor`
+ * (destination), `tick`.
  */
 #define RIDER_SPAWNED 6
 
 /**
- * `Event::RiderBoarded`.
+ * `Event::RiderBoarded`. Fields: `rider`, `car` (elevator),
+ * `tick`.
  */
 #define RIDER_BOARDED 7
 
 /**
- * `Event::RiderExited`.
+ * `Event::RiderExited`. Fields: `rider`, `car` (elevator), `stop`
+ * (where they exited), `tick`.
  */
 #define RIDER_EXITED 8
 
 /**
- * `Event::RiderAbandoned`.
+ * `Event::RiderAbandoned`. Fields: `rider`, `stop` (where they
+ * gave up), `tick`.
  */
 #define RIDER_ABANDONED 9
 
@@ -102,7 +113,15 @@
 
 /**
  * `Event::RiderRejected`. Fields: `rider`, `car` (elevator),
- * `code1` (rejection reason — see [`crate::ev_rejection_reason`]), `tick`.
+ * `code1` (rejection reason — see [`crate::ev_rejection_reason`]),
+ * `f1` (attempted_weight in kg, or `NaN` if no `RejectionContext`
+ * was attached), `f2` (current_load on the elevator at rejection
+ * time in kg, or `NaN`), `tick`.
+ *
+ * Capacity is intentionally not duplicated here — it lives on the
+ * elevator entity (`EvElevatorView::capacity_kg`) and rarely
+ * changes per-tick. Combine `f2` with the elevator's capacity for
+ * the remaining-room view.
  */
 #define RIDER_REJECTED 16
 
@@ -1360,28 +1379,22 @@ enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
 /**
  * Drain pending events into `out`.
  *
- * Delivers hall-call, car-call, skip, and rider lifecycle events.
  * Every event produced by the simulation is eventually delivered
  * exactly once, then removed from the internal queue. Call after
  * `ev_sim_step` each tick to catch new events.
  *
- * Field meanings by [`EvEvent::kind`]:
- * - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
- *   `direction`, `tick`.
- * - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
- * - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
- *   synthetic presses), `tick`.
- * - `RIDER_SKIPPED`: `rider`, `car` (elevator), `stop`, `tick`.
- * - `RIDER_SPAWNED`: `rider`, `stop` (origin), `floor`
- *   (destination), `tick`.
- * - `RIDER_BOARDED`: `rider`, `car` (elevator), `tick`.
- * - `RIDER_EXITED`: `rider`, `car` (elevator), `stop`, `tick`.
- * - `RIDER_ABANDONED`: `rider`, `stop`, `tick`.
+ * As of ABI v4 the FFI surfaces every public core `Event` variant —
+ * 49 kinds in total. The per-kind field map (which `EvEvent` slots
+ * carry meaningful data) lives on each constant in the
+ * [`ev_event_kind`] module. Variants the FFI hasn't enumerated yet
+ * surface as [`UNKNOWN`](ev_event_kind::UNKNOWN) so consumers stay
+ * forward-compatible.
  *
- * Unused fields for each kind are zeroed so the caller can inspect
- * a uniform struct layout. Other event kinds in the sim (door
- * transitions, direction indicators, etc.) are not surfaced.
- * Future kinds extend the discriminator.
+ * Unused fields for each kind are zeroed (numeric slots: `0`; floats:
+ * `0.0`) so the caller can inspect a uniform struct layout. Variants
+ * that carry an `Option<f64>` use `NaN` instead of `0.0` to
+ * disambiguate "no value" from "value of zero" — see the relevant
+ * kind's docs.
  *
  * ## Overflow handling — no silent drops
  *
@@ -2560,9 +2573,20 @@ enum EvStatus ev_sim_shortest_route(struct EvSim *handle,
 uint32_t ev_sim_car_call_count(struct EvSim *handle, uint64_t elevator_entity_id);
 
 /**
- * Snapshot of car calls inside `elevator_entity_id`. Caller-owned
- * buffer pattern: `out` points to a buffer of `capacity` [`EvCarCall`]s,
- * `out_written` receives the count actually written.
+ * Snapshot of car calls inside `elevator_entity_id`.
+ *
+ * Caller-owned buffer with probe-then-fill semantics: `out_written`
+ * is populated with the **required** slot count regardless of whether
+ * the buffer fits, so callers can probe with `(null, 0)` to size a
+ * real buffer.
+ *
+ * Returns:
+ * - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+ *   <= capacity`); the first `out_written` slots of `out` are
+ *   populated.
+ * - [`EvStatus::InvalidArg`] when the buffer is too small;
+ *   `out_written` carries the required slot count and no slot of
+ *   `out` is written.
  *
  * # Safety
  *
