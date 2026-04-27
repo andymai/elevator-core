@@ -67,6 +67,43 @@ const fn format_service_mode(mode: elevator_core::components::ServiceMode) -> &'
     }
 }
 
+/// Convert a real-time `Duration` (seconds) into integer simulation
+/// ticks at the given dt. Saturating cast — sub-tick remainders round
+/// to nearest, negative values clamp to 0, overflow clamps to `u64::MAX`.
+/// Used by the ETA accessors so the JS side gets a clean integer
+/// comparable to `currentTick` instead of a fractional seconds value
+/// whose float precision drifts across ticks.
+fn duration_to_ticks(d: std::time::Duration, dt: f64) -> u64 {
+    // 2^53 is the largest integer with a lossless f64 representation;
+    // any wider value rounds to even and loses bits in the conversion.
+    const MAX_LOSSLESS_TICKS: f64 = 9_007_199_254_740_992.0;
+    let ticks = (d.as_secs_f64() / dt).round();
+    if !ticks.is_finite() || ticks <= 0.0 {
+        0
+    } else if ticks >= MAX_LOSSLESS_TICKS {
+        u64::MAX
+    } else {
+        // Safety: bounds checked above (finite, in [0, 2^53)).
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let t = ticks as u64;
+        t
+    }
+}
+
+/// Map a JS-facing direction label (`"up"` / `"down"`) to a
+/// [`CallDirection`]. Other inputs surface as a JS error so consumers
+/// can't smuggle an unknown direction through.
+fn parse_call_direction(label: &str) -> Result<elevator_core::components::CallDirection, JsError> {
+    use elevator_core::components::CallDirection;
+    match label {
+        "up" => Ok(CallDirection::Up),
+        "down" => Ok(CallDirection::Down),
+        other => Err(JsError::new(&format!(
+            "direction must be 'up' or 'down', got {other:?}"
+        ))),
+    }
+}
+
 /// Map a JS-facing strategy name to its `BuiltinStrategy` variant. Used to tag
 /// dispatcher instances so snapshots round-trip the active strategy id.
 fn strategy_id(name: &str) -> Option<BuiltinStrategy> {
@@ -788,6 +825,163 @@ impl WasmSim {
                 elevator_ref,
             )))
             .map_err(|e| JsError::new(&format!("cancel_door_hold: {e}")))
+    }
+
+    // ── Dispatch introspection ───────────────────────────────────────
+    //
+    // Mirrors the FFI dispatch surface (pin/unpin, assigned car, ETA
+    // queries). Direction strings match the existing pressHallCall
+    // contract: `"up"` and `"down"` only. ETAs cross the boundary as u64
+    // ticks rather than seconds — matches FFI and avoids float precision
+    // surprises for permalinks / replays.
+
+    /// Pin the call at `(stop_ref, direction)` to `car_ref`, locking it
+    /// out of dispatch reassignment.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator/stop does not exist, the line
+    /// does not serve the stop, no hall call exists at that
+    /// `(stop, direction)`, or `direction` is not `"up"` / `"down"`.
+    #[wasm_bindgen(js_name = pinAssignment)]
+    pub fn pin_assignment(
+        &mut self,
+        car_ref: u64,
+        stop_ref: u64,
+        direction: &str,
+    ) -> Result<(), JsError> {
+        let dir = parse_call_direction(direction)?;
+        self.inner
+            .pin_assignment(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref)),
+                u64_to_entity(stop_ref),
+                dir,
+            )
+            .map_err(|e| JsError::new(&format!("pin_assignment: {e}")))
+    }
+
+    /// Release a previous pin at `(stop_ref, direction)`. No-op if the
+    /// call does not exist or wasn't pinned.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `direction` is not `"up"` / `"down"`.
+    #[wasm_bindgen(js_name = unpinAssignment)]
+    pub fn unpin_assignment(&mut self, stop_ref: u64, direction: &str) -> Result<(), JsError> {
+        let dir = parse_call_direction(direction)?;
+        self.inner.unpin_assignment(u64_to_entity(stop_ref), dir);
+        Ok(())
+    }
+
+    /// Car currently assigned to serve the call at `(stop_ref, direction)`,
+    /// or `0` (slotmap-null) if none. At stops served by multiple lines
+    /// this returns the entry with the numerically smallest line-entity
+    /// key (stable across ticks).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `direction` is not `"up"` / `"down"`.
+    #[wasm_bindgen(js_name = assignedCar)]
+    pub fn assigned_car(&self, stop_ref: u64, direction: &str) -> Result<u64, JsError> {
+        let dir = parse_call_direction(direction)?;
+        Ok(self
+            .inner
+            .assigned_car(u64_to_entity(stop_ref), dir)
+            .map_or(0, entity_to_u64))
+    }
+
+    /// Per-line cars assigned to the call at `(stop_ref, direction)`.
+    /// Returns a flat array of alternating `[line_ref, car_ref, ...]`
+    /// pairs. Empty when dispatch has no assignments yet.
+    ///
+    /// Iteration order is stable by line-entity id (`BTreeMap`).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `direction` is not `"up"` / `"down"`.
+    #[wasm_bindgen(js_name = assignedCarsByLine)]
+    pub fn assigned_cars_by_line(
+        &self,
+        stop_ref: u64,
+        direction: &str,
+    ) -> Result<Vec<u64>, JsError> {
+        let dir = parse_call_direction(direction)?;
+        Ok(self
+            .inner
+            .assigned_cars_by_line(u64_to_entity(stop_ref), dir)
+            .into_iter()
+            .flat_map(|(line, car)| [entity_to_u64(line), entity_to_u64(car)])
+            .collect())
+    }
+
+    /// Estimated ticks remaining before `car_ref` reaches `stop_ref`.
+    ///
+    /// Includes any in-progress door cycle, intermediate stops in the
+    /// car's destination queue, and the trapezoidal travel time for each
+    /// leg. Returns ticks rather than seconds so consumers can compare
+    /// with `currentTick`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator/stop does not exist, the
+    /// elevator is in a service mode excluded from dispatch, or `stop`
+    /// is not in the car's destination queue.
+    #[wasm_bindgen(js_name = eta)]
+    pub fn eta(&self, car_ref: u64, stop_ref: u64) -> Result<u64, JsError> {
+        let elev = elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref));
+        let dt = self.inner.dt();
+        self.inner
+            .eta(elev, u64_to_entity(stop_ref))
+            .map(|d| duration_to_ticks(d, dt))
+            .map_err(|e| JsError::new(&format!("eta: {e}")))
+    }
+
+    /// Estimated ticks remaining before the assigned car reaches the
+    /// call at `(stop_ref, direction)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if no hall call exists at `(stop, direction)`,
+    /// no car is assigned to it, the assigned car has no positional
+    /// data, or `direction` is not `"up"` / `"down"`.
+    #[wasm_bindgen(js_name = etaForCall)]
+    pub fn eta_for_call(&self, stop_ref: u64, direction: &str) -> Result<u64, JsError> {
+        let dir = parse_call_direction(direction)?;
+        self.inner
+            .eta_for_call(u64_to_entity(stop_ref), dir)
+            .map_err(|e| JsError::new(&format!("eta_for_call: {e}")))
+    }
+
+    /// Best ETA (ticks) to `stop_ref` across every dispatch-eligible
+    /// elevator, optionally filtered by indicator-lamp `direction`
+    /// (`"up"` / `"down"` / `"either"`). Returns a flat
+    /// `[elevator_ref, eta_ticks]` pair, or an empty array if no
+    /// eligible car has the stop queued.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `direction` is not `"up"` / `"down"` /
+    /// `"either"`.
+    #[wasm_bindgen(js_name = bestEta)]
+    pub fn best_eta(&self, stop_ref: u64, direction: &str) -> Result<Vec<u64>, JsError> {
+        use elevator_core::components::Direction;
+        let dir = match direction {
+            "up" => Direction::Up,
+            "down" => Direction::Down,
+            "either" => Direction::Either,
+            other => {
+                return Err(JsError::new(&format!(
+                    "direction must be 'up' / 'down' / 'either', got {other:?}"
+                )));
+            }
+        };
+        let stop = u64_to_entity(stop_ref);
+        let dt = self.inner.dt();
+        Ok(self
+            .inner
+            .best_eta(stop, dir)
+            .map(|(eid, d)| vec![entity_to_u64(eid), duration_to_ticks(d, dt)])
+            .unwrap_or_default())
     }
 
     // ── Uniform elevator-physics setters ─────────────────────────────

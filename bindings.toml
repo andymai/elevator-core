@@ -228,43 +228,43 @@ ffi  = "skip:internal — strategies consume this"
 [[methods]]
 name = "pin_assignment"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "pinAssignment"
 ffi  = "ev_sim_pin_assignment"
 
 [[methods]]
 name = "unpin_assignment"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "unpinAssignment"
 ffi  = "ev_sim_unpin_assignment"
 
 [[methods]]
 name = "assigned_car"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "assignedCar"
 ffi  = "ev_sim_assigned_car"
 
 [[methods]]
 name = "assigned_cars_by_line"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "assignedCarsByLine"
 ffi  = "ev_sim_assigned_cars_by_line"
 
 [[methods]]
 name = "best_eta"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "bestEta"
 ffi  = "ev_sim_best_eta"
 
 [[methods]]
 name = "eta_for_call"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "etaForCall"
 ffi  = "ev_sim_eta_for_call"
 
 [[methods]]
 name = "eta"
 category = "dispatch"
-wasm = "todo:PR-B"
+wasm = "eta"
 ffi  = "todo:PR-B"
 
 # ─── Buttons ──────────────────────────────────────────────────────────────
