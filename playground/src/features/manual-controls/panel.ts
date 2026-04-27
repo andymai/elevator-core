@@ -400,13 +400,16 @@ function mountCarBlocks(
       carBtnRow.append(carBtns);
       block.append(carBtnRow);
 
-      // Door commands. The button matching the engine's current door
-      // state gets `data-active="true"` each frame so the dev can see
-      // which transition is in flight without parsing the call log.
+      // Door commands. Short labels because the row's API signature
+      // already names the methods in full; the button text only has
+      // to disambiguate. The button matching the engine's current
+      // door state gets `data-active="true"` each frame.
       const doorRow = el("div", "api-row");
-      doorRow.append(el("span", "api-sig", `sim.openDoor / closeDoor / holdDoor / cancelDoorHold`));
+      doorRow.append(
+        el("span", "api-sig", `sim.{openDoor, closeDoor, holdDoor, cancelDoorHold}(${carName})`),
+      );
       const doorBtns = el("span", "api-row-actions");
-      const doorOpenBtn = makeApiButton("openDoor", "api-door-btn", () => {
+      const doorOpenBtn = makeApiButton("open", "api-door-btn", () => {
         const sig = `sim.openDoor(${carName})`;
         log.call(sig);
         try {
@@ -415,7 +418,7 @@ function mountCarBlocks(
           log.callFailed(sig, e);
         }
       });
-      const doorCloseBtn = makeApiButton("closeDoor", "api-door-btn", () => {
+      const doorCloseBtn = makeApiButton("close", "api-door-btn", () => {
         const sig = `sim.closeDoor(${carName})`;
         log.call(sig);
         try {
@@ -424,7 +427,7 @@ function mountCarBlocks(
           log.callFailed(sig, e);
         }
       });
-      const doorHoldBtn = makeApiButton(`holdDoor(${HOLD_TICKS})`, "api-door-btn", () => {
+      const doorHoldBtn = makeApiButton(`hold(${HOLD_TICKS})`, "api-door-btn", () => {
         const sig = `sim.holdDoor(${carName}, ${HOLD_TICKS})`;
         log.call(sig);
         try {
@@ -433,7 +436,7 @@ function mountCarBlocks(
           log.callFailed(sig, e);
         }
       });
-      const doorCancelBtn = makeApiButton("cancelDoorHold", "api-door-btn", () => {
+      const doorCancelBtn = makeApiButton("cancel hold", "api-door-btn", () => {
         const sig = `sim.cancelDoorHold(${carName})`;
         log.call(sig);
         try {

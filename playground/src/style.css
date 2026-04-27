@@ -1348,8 +1348,8 @@
 
   .api-door-btn {
     flex: 1 1 0;
-    min-width: 80px;
-    padding: 5px 8px;
+    min-width: 60px;
+    padding: 5px 6px;
     border: 1px solid var(--border-subtle);
     border-radius: 3px;
     background: var(--bg-elevated);
