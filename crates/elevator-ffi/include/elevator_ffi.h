@@ -931,6 +931,136 @@ typedef struct EvElevatorParams {
 } EvElevatorParams;
 
 /**
+ * C-ABI-flat projection of a `CarCall` for FFI consumers.
+ *
+ * Mirrors [`elevator_core::components::CarCall`] field-for-field with
+ * `EntityId` slots flattened to `u64` and the `pending_riders` Vec
+ * surfaced as a count (call [`ev_sim_car_call_pending_riders`] to read
+ * the actual rider list).
+ */
+typedef struct EvCarCall {
+    /**
+     * Elevator the button was pressed inside.
+     */
+    uint64_t car_entity_id;
+    /**
+     * Stop the button requests.
+     */
+    uint64_t floor_entity_id;
+    /**
+     * Tick the button was pressed.
+     */
+    uint64_t press_tick;
+    /**
+     * Tick dispatch first saw this call (after ack latency).
+     * `u64::MAX` while still pending acknowledgement.
+     */
+    uint64_t acknowledged_at;
+    /**
+     * Ticks the controller takes to acknowledge this call.
+     */
+    uint32_t ack_latency_ticks;
+    /**
+     * Number of riders aggregated onto this call. Read the actual
+     * rider ids via [`ev_sim_car_call_pending_riders`].
+     */
+    uint32_t pending_rider_count;
+} EvCarCall;
+
+/**
+ * Full repr-C mirror of [`elevator_core::metrics::Metrics`].
+ *
+ * Time fields stay in **ticks** (not seconds) — multiply by [`ev_sim_dt`]
+ * for real-time. The narrower [`EvMetricsView`] embedded in [`EvFrame`]
+ * is kept for backward compatibility; new code should prefer this struct.
+ */
+typedef struct EvMetrics {
+    /**
+     * Cumulative riders delivered.
+     */
+    uint64_t total_delivered;
+    /**
+     * Cumulative riders who abandoned.
+     */
+    uint64_t total_abandoned;
+    /**
+     * Total riders spawned.
+     */
+    uint64_t total_spawned;
+    /**
+     * Riders settled as residents.
+     */
+    uint64_t total_settled;
+    /**
+     * Riders rerouted from resident phase.
+     */
+    uint64_t total_rerouted;
+    /**
+     * Riders delivered in the current throughput window.
+     */
+    uint64_t throughput;
+    /**
+     * Average wait time in ticks (spawn → board).
+     */
+    double avg_wait_ticks;
+    /**
+     * Maximum wait time observed in ticks.
+     */
+    uint64_t max_wait_ticks;
+    /**
+     * Average ride time in ticks (board → exit).
+     */
+    double avg_ride_ticks;
+    /**
+     * Average elevator utilization (0.0..=1.0).
+     */
+    double avg_utilization;
+    /**
+     * Abandonment rate (0.0..=1.0).
+     */
+    double abandonment_rate;
+    /**
+     * Total distance traveled by all elevators.
+     */
+    double total_distance;
+    /**
+     * Total rounded-floor crossings across all elevators.
+     */
+    uint64_t total_moves;
+    /**
+     * Distance traveled while repositioning (subset of `total_distance`).
+     */
+    double reposition_distance;
+} EvMetrics;
+
+/**
+ * Per-tag metric snapshot. Mirrors
+ * [`elevator_core::tagged_metrics::TaggedMetric`].
+ */
+typedef struct EvTaggedMetric {
+    /**
+     * Average wait time in ticks for tagged riders.
+     */
+    double avg_wait_ticks;
+    /**
+     * Maximum wait time observed in ticks for tagged riders.
+     */
+    uint64_t max_wait_ticks;
+    /**
+     * Total riders delivered carrying this tag.
+     */
+    uint64_t total_delivered;
+    /**
+     * Total riders abandoned carrying this tag.
+     */
+    uint64_t total_abandoned;
+    /**
+     * Total riders spawned carrying this tag.
+     */
+    uint64_t total_spawned;
+} EvTaggedMetric;
+
+/**
  * Return the ABI version compiled into this shared library.
  */
 uint32_t ev_abi_version(void);
@@ -2419,5 +2549,143 @@ enum EvStatus ev_sim_shortest_route(struct EvSim *handle,
                                     uint64_t *out_stops,
                                     uint32_t capacity,
                                     uint32_t *out_written);
+
+/**
+ * Number of active car calls inside `elevator_entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_car_call_count(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Snapshot of car calls inside `elevator_entity_id`. Caller-owned
+ * buffer pattern: `out` points to a buffer of `capacity` [`EvCarCall`]s,
+ * `out_written` receives the count actually written.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable [`EvCarCall`] slots when
+ * `capacity > 0`. `out_written` must be a writable `u32`.
+ */
+enum EvStatus ev_sim_car_calls_snapshot(struct EvSim *handle,
+                                        uint64_t elevator_entity_id,
+                                        struct EvCarCall *out,
+                                        uint32_t capacity,
+                                        uint32_t *out_written);
+
+/**
+ * Pending rider list for the `index`-th car call inside `elevator_entity_id`.
+ * Caller-owned buffer pattern matching the call snapshot. Returns
+ * [`EvStatus::NotFound`] if the index is out of range.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`. `out_written` must be a writable `u32`.
+ */
+enum EvStatus ev_sim_car_call_pending_riders(struct EvSim *handle,
+                                             uint64_t elevator_entity_id,
+                                             uint32_t index,
+                                             uint64_t *out,
+                                             uint32_t capacity,
+                                             uint32_t *out_written);
+
+/**
+ * Read the full metrics snapshot.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_metrics` must be a writable [`EvMetrics`] pointer.
+ */
+enum EvStatus ev_sim_metrics(struct EvSim *handle, struct EvMetrics *out_metrics);
+
+/**
+ * Read the per-tag aggregates for `tag`. Returns [`EvStatus::NotFound`]
+ * if no riders carrying the tag have been recorded yet.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `tag` must be a null-terminated UTF-8 C string. `out_metric` must be
+ * a writable [`EvTaggedMetric`] pointer.
+ */
+enum EvStatus ev_sim_metrics_for_tag(struct EvSim *handle,
+                                     const char *tag,
+                                     struct EvTaggedMetric *out_metric);
+
+/**
+ * Number of registered metric tags.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_tag_count(struct EvSim *handle);
+
+/**
+ * List all registered metric tags.
+ *
+ * Caller-owned buffer pattern: `out` is an array of `*mut c_char` (one
+ * slot per tag) backed by a flat scratch buffer of `scratch_capacity`
+ * bytes; `out_written` receives the number of tags written,
+ * `out_scratch_used` the number of bytes written to the scratch buffer
+ * (including null terminators).
+ *
+ * Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
+ * `out_*` counts indicate the required sizes.
+ *
+ * # Safety
+ *
+ * `handle` must be valid. `out` and `scratch` may be null only when
+ * their respective capacities are zero. `out_written` and
+ * `out_scratch_used` must be writable `u32`s.
+ */
+enum EvStatus ev_sim_all_tags(struct EvSim *handle,
+                              char **out,
+                              uint32_t capacity,
+                              char *scratch,
+                              uint32_t scratch_capacity,
+                              uint32_t *out_written,
+                              uint32_t *out_scratch_used);
+
+/**
+ * Count elevators currently in `phase`.
+ *
+ * The `phase` argument uses the same encoding as [`EvElevatorView::phase`].
+ * Only data-less variants are supported: `0` `Idle`, `3` `DoorOpening`,
+ * `4` `Loading`, `5` `DoorClosing`, `6` `Stopped`.
+ *
+ * Returns [`EvStatus::InvalidArg`] for unknown phase codes.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_count` must be a writable `u32` pointer.
+ */
+enum EvStatus ev_sim_elevators_in_phase(struct EvSim *handle, uint8_t phase, uint32_t *out_count);
+
+/**
+ * ETA from `elevator_entity_id` to `stop_entity_id` in **ticks**.
+ * Mirrors [`Simulation::eta`](elevator_core::sim::Simulation::eta).
+ *
+ * Returns [`EvStatus::InvalidArg`] if the entities don't refer to a
+ * valid elevator/stop pair, or [`EvStatus::NotFound`] if the elevator
+ * cannot reach the stop (e.g. stop not on the elevator's line, or
+ * disabled).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_ticks` must be a writable `u64` pointer.
+ */
+enum EvStatus ev_sim_eta(struct EvSim *handle,
+                         uint64_t elevator_entity_id,
+                         uint64_t stop_entity_id,
+                         uint64_t *out_ticks);
 
 #endif  /* ELEVATOR_FFI_H */
