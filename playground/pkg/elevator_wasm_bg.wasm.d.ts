@@ -99,6 +99,7 @@ export const wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => [nu
 export const wasmsim_setTrafficRate: (a: number, b: number) => void;
 export const wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
 export const wasmsim_settleRider: (a: number, b: bigint) => [number, number];
+export const wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_snapshot: (a: number) => any;
 export const wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
