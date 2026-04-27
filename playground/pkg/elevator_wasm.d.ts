@@ -1203,6 +1203,13 @@ export class WasmSim {
      */
     stopEntity(stop_id: number): bigint;
     /**
+     * Snapshot of the config-time `StopId` → runtime `EntityId` map.
+     * Returns a flat `[stop_id_as_u64, entity_id, ...]` array — the
+     * `StopId` is zero-extended into the same `u64` slot the entity
+     * uses. Pair count is `array.length / 2`.
+     */
+    stopLookupIter(): BigUint64Array;
+    /**
      * Entity ids of every stop served by `line_ref`. Order is
      * unspecified — sort by `positionAt` if you need axis order.
      */
@@ -1403,6 +1410,7 @@ export interface InitOutput {
     readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
     readonly wasmsim_stepMany: (a: number, b: number) => void;
     readonly wasmsim_stopEntity: (a: number, b: number) => bigint;
+    readonly wasmsim_stopLookupIter: (a: number) => [number, number];
     readonly wasmsim_stopsServedByLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_strategyName: (a: number) => [number, number];
     readonly wasmsim_tagEntity: (a: number, b: bigint, c: number, d: number) => [number, number];

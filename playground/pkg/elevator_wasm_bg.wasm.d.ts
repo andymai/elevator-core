@@ -102,6 +102,7 @@ export const wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e:
 export const wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => [bigint, number, number];
 export const wasmsim_stepMany: (a: number, b: number) => void;
 export const wasmsim_stopEntity: (a: number, b: number) => bigint;
+export const wasmsim_stopLookupIter: (a: number) => [number, number];
 export const wasmsim_stopsServedByLine: (a: number, b: bigint) => [number, number];
 export const wasmsim_strategyName: (a: number) => [number, number];
 export const wasmsim_tagEntity: (a: number, b: bigint, c: number, d: number) => [number, number];
