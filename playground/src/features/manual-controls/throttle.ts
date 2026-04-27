@@ -26,8 +26,6 @@ export interface ThrottleOptions {
 }
 
 export interface ThrottleHandle {
-  /** Read the current commanded velocity. */
-  value(): number;
   /** Force the thumb back to centre and emit `onChange(0)`. */
   centre(): void;
   /** Update the velocity bound at runtime (e.g. tweak drawer change). */
@@ -160,7 +158,6 @@ export function mountThrottle(host: HTMLElement, opts: ThrottleOptions): Throttl
   host.addEventListener("keydown", onKeyDown);
 
   return {
-    value: () => value,
     centre: () => {
       setValue(0, { spring: true });
     },

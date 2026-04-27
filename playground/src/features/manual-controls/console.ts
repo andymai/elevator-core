@@ -26,9 +26,10 @@ export interface CockpitConsoleRoots {
 }
 
 export interface CockpitConsoleHandle {
-  update(sim: Sim, view: WorldView): void;
-  /** Currently driven car ref, or null before first frame. */
-  carRef(): bigint | null;
+  /** Per-frame update; the panel passes the latest worldView snapshot. */
+  update(view: WorldView): void;
+  /** The driven car's wasm entity ref. Stable for the panel's lifetime. */
+  carRef(): bigint;
   dispose(): void;
 }
 
@@ -46,10 +47,11 @@ export function mountCockpitConsole(
   if (firstCar === undefined) {
     throw new Error("mountCockpitConsole: scenario has no cars");
   }
-  // Capture the car ref once. The cockpit scenario locks cars at 1
-  // and disables Add/Remove, so this stays valid for the panel's
-  // lifetime — no rebuilds needed across `update()` calls.
-  let carRef = BigInt(firstCar.id);
+  // The cockpit scenario locks cars at 1 and disables Add/Remove,
+  // so this ref stays valid for the panel's lifetime. A sim reset
+  // re-mounts the whole panel via resetAll → mountManualControls,
+  // capturing a fresh ref then.
+  const carRef = BigInt(firstCar.id);
 
   // Resolve the effective max speed against user overrides. The
   // scenario default (2 m/s) would diverge from the engine when the
@@ -126,13 +128,9 @@ export function mountCockpitConsole(
   let lastMaxSpeed = resolvedMaxSpeed();
 
   return {
-    update(_currentSim, currentView): void {
+    update(currentView): void {
       const car = currentView.cars[0];
       if (car === undefined) return;
-      // Refresh car ref against the latest snapshot. The cockpit
-      // scenario locks cars at 1, but a sim reset rebuilds entities
-      // with fresh ids, so we re-hash from the snapshot every frame.
-      carRef = BigInt(car.id);
 
       // Velocity readout: quantise to one decimal so micro-jitter
       // near zero doesn't thrash the DOM and the readout stays

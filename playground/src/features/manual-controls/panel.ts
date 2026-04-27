@@ -105,7 +105,6 @@ export function mountManualControls(
     // zone.kind === "doors" — toggle. Read the car's current phase
     // from a fresh worldView; door-opening / loading → close;
     // otherwise → open.
-    if (carRef === null) return;
     const view = sim.worldView();
     const car = view.cars.find((c) => BigInt(c.id) === carRef);
     const phase = car?.phase;
@@ -128,7 +127,7 @@ export function mountManualControls(
   return {
     update(currentSim): void {
       const view = currentSim.worldView();
-      cockpit.update(currentSim, view);
+      cockpit.update(view);
 
       // Push authoritative cockpit state to the renderer. Hall-call
       // lamps come straight from `WorldView.stops[].hall_calls` (the
