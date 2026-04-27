@@ -40,9 +40,14 @@ export function loop(state: State, ui: UiHandles): void {
     const panesReady = paneA !== null && (!state.permalink.compare || paneB !== null);
     if (state.running && state.ready && panesReady) {
       const ticks = state.permalink.speed;
+      // Buffer paneA's events for the manual-controls log so it can
+      // surface them with no extra `drainEvents` call (which would
+      // miss them — events drain destructively).
+      let paneAEvents: ReturnType<typeof paneA.sim.drainEvents> = [];
       forEachPane(state, (pane) => {
         pane.sim.step(ticks);
         const events = pane.sim.drainEvents();
+        if (pane === state.paneA) paneAEvents = events;
         if (events.length > 0) {
           const snap = pane.sim.snapshot();
           updateBubbles(pane, events, snap);
@@ -61,6 +66,17 @@ export function loop(state: State, ui: UiHandles): void {
           }
         }
       });
+
+      // Manual-control panel: refresh hall-call lit state, per-car
+      // controls, and append the frame's events to the log. Skipped
+      // for non-manual scenarios where `state.manualControls` is null.
+      // Also propagate the selected car ref to the renderer so the
+      // cabin cutaway tracks user-clicked focus.
+      if (state.manualControls && state.paneA) {
+        state.manualControls.update(state.paneA.sim, paneAEvents);
+        const selected = state.manualControls.selectedCarRef();
+        state.paneA.renderer.setManualControlState({ selectedCarId: selected });
+      }
 
       // Progressive pre-seed: drain the remaining quota in per-frame
       // batches. While seeding is active we suppress the normal

@@ -617,6 +617,139 @@ impl WasmSim {
             .map_err(|e| JsError::new(&format!("press_car_button: {e}")))
     }
 
+    // ── Service mode + manual control ────────────────────────────────
+    //
+    // Wraps the per-elevator `ServiceMode` switch and the manual-mode
+    // door + velocity APIs at `crates/elevator-core/src/sim/manual.rs`.
+    // Door commands work in any mode (queued); velocity + emergency
+    // stop require `ServiceMode::Manual`.
+
+    /// Set an elevator's service mode.
+    ///
+    /// Accepts `"normal" | "independent" | "inspection" | "manual" |
+    /// "outofservice"`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or `mode` is
+    /// not a recognised name.
+    #[wasm_bindgen(js_name = setServiceMode)]
+    pub fn set_service_mode(&mut self, elevator_ref: u64, mode: &str) -> Result<(), JsError> {
+        use elevator_core::components::ServiceMode;
+        let parsed = match mode {
+            "normal" => ServiceMode::Normal,
+            "independent" => ServiceMode::Independent,
+            "inspection" => ServiceMode::Inspection,
+            "manual" => ServiceMode::Manual,
+            "outofservice" => ServiceMode::OutOfService,
+            other => {
+                return Err(JsError::new(&format!(
+                    "service mode must be one of normal | independent | inspection | manual | outofservice, got {other:?}"
+                )));
+            }
+        };
+        self.inner
+            .set_service_mode(u64_to_entity(elevator_ref), parsed)
+            .map_err(|e| JsError::new(&format!("set_service_mode: {e}")))
+    }
+
+    /// Request the doors of `elevator_ref` to open.
+    ///
+    /// Applied when the car next reaches a stop with closed/closing
+    /// doors; otherwise queued. Works in every service mode.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or is disabled.
+    #[wasm_bindgen(js_name = openDoor)]
+    pub fn open_door(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .open_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("open_door: {e}")))
+    }
+
+    /// Request the doors of `elevator_ref` to close now.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or is disabled.
+    #[wasm_bindgen(js_name = closeDoor)]
+    pub fn close_door(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .close_door(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("close_door: {e}")))
+    }
+
+    /// Extend the open dwell of `elevator_ref` by `ticks`. Cumulative.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `ticks` is zero, the elevator does not exist,
+    /// or the elevator is disabled.
+    #[wasm_bindgen(js_name = holdDoor)]
+    pub fn hold_door(&mut self, elevator_ref: u64, ticks: u32) -> Result<(), JsError> {
+        self.inner
+            .hold_door(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                ticks,
+            )
+            .map_err(|e| JsError::new(&format!("hold_door: {e}")))
+    }
+
+    /// Cancel a pending hold extension on `elevator_ref`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or is disabled.
+    #[wasm_bindgen(js_name = cancelDoorHold)]
+    pub fn cancel_door_hold(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .cancel_door_hold(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("cancel_door_hold: {e}")))
+    }
+
+    /// Set the target velocity (m/s) for a `ServiceMode::Manual` elevator.
+    /// Positive values command upward travel, negative values downward.
+    /// The car ramps toward the target each tick using its configured
+    /// acceleration / deceleration.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator is not in Manual mode, does
+    /// not exist, is disabled, or `velocity` is not finite.
+    #[wasm_bindgen(js_name = setTargetVelocity)]
+    pub fn set_target_velocity(&mut self, elevator_ref: u64, velocity: f64) -> Result<(), JsError> {
+        self.inner
+            .set_target_velocity(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                velocity,
+            )
+            .map_err(|e| JsError::new(&format!("set_target_velocity: {e}")))
+    }
+
+    /// Command an immediate stop on a `ServiceMode::Manual` elevator —
+    /// target velocity is set to zero and the car decelerates at its
+    /// configured rate.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator is not in Manual mode, does
+    /// not exist, or is disabled.
+    #[wasm_bindgen(js_name = emergencyStop)]
+    pub fn emergency_stop(&mut self, elevator_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .emergency_stop(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("emergency_stop: {e}")))
+    }
+
     /// Find the stop entity at `position` that's served by `line_ref`,
     /// or `0` (slotmap-null) if none. Lets consumers disambiguate
     /// co-located stops on different lines (sky-lobby served by

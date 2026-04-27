@@ -62,6 +62,14 @@ export function attachListeners(state: State, ui: UiHandles): void {
   refreshStrategyPopovers(state, ui, doResetAll);
   refreshRepositionPopovers(state, ui, doResetAll);
   ui.compareToggle.addEventListener("change", () => {
+    // Manual-control scenarios hide the compare toggle via CSS but the
+    // keyboard shortcut `c` still synthesises a click. Guard against
+    // it: snap the toggle back to false and bail before any reset, so
+    // the layout-mode flip doesn't strand the side panel.
+    if (document.body.dataset["scenarioMode"] === "manual-control") {
+      ui.compareToggle.checked = false;
+      return;
+    }
     state.permalink = { ...state.permalink, compare: ui.compareToggle.checked };
     ui.layout.dataset["mode"] = state.permalink.compare ? "compare" : "single";
     // `also in …` badges depend on compare state, so re-render both
