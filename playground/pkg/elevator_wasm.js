@@ -106,6 +106,79 @@ export class WasmSim {
         return BigInt.asUintN(64, ret[0]);
     }
     /**
+     * Car currently assigned to serve the call at `(stop_ref, direction)`,
+     * or `0` (slotmap-null) if none. At stops served by multiple lines
+     * this returns the entry with the numerically smallest line-entity
+     * key (stable across ticks).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `direction` is not `"up"` / `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     * @returns {bigint}
+     */
+    assignedCar(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_assignedCar(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
+     * Per-line cars assigned to the call at `(stop_ref, direction)`.
+     * Returns a flat array of alternating `[line_ref, car_ref, ...]`
+     * pairs. Empty when dispatch has no assignments yet.
+     *
+     * Iteration order is stable by line-entity id (`BTreeMap`).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `direction` is not `"up"` / `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     * @returns {BigUint64Array}
+     */
+    assignedCarsByLine(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_assignedCarsByLine(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v2;
+    }
+    /**
+     * Best ETA (ticks) to `stop_ref` across every dispatch-eligible
+     * elevator, optionally filtered by indicator-lamp `direction`
+     * (`"up"` / `"down"` / `"either"`). Returns a flat
+     * `[elevator_ref, eta_ticks]` pair, or an empty array if no
+     * eligible car has the stop queued.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `direction` is not `"up"` / `"down"` /
+     * `"either"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     * @returns {BigUint64Array}
+     */
+    bestEta(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_bestEta(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v2;
+    }
+    /**
      * Cancel any pending hold extension on the doors.
      *
      * # Errors
@@ -176,6 +249,52 @@ export class WasmSim {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Estimated ticks remaining before `car_ref` reaches `stop_ref`.
+     *
+     * Includes any in-progress door cycle, intermediate stops in the
+     * car's destination queue, and the trapezoidal travel time for each
+     * leg. Returns ticks rather than seconds so consumers can compare
+     * with `currentTick`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator/stop does not exist, the
+     * elevator is in a service mode excluded from dispatch, or `stop`
+     * is not in the car's destination queue.
+     * @param {bigint} car_ref
+     * @param {bigint} stop_ref
+     * @returns {bigint}
+     */
+    eta(car_ref, stop_ref) {
+        const ret = wasm.wasmsim_eta(this.__wbg_ptr, car_ref, stop_ref);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
+    }
+    /**
+     * Estimated ticks remaining before the assigned car reaches the
+     * call at `(stop_ref, direction)`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if no hall call exists at `(stop, direction)`,
+     * no car is assigned to it, the assigned car has no positional
+     * data, or `direction` is not `"up"` / `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     * @returns {bigint}
+     */
+    etaForCall(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_etaForCall(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
     }
     /**
      * Find the stop entity at `position` that's served by `line_ref`,
@@ -253,6 +372,27 @@ export class WasmSim {
      */
     openDoor(elevator_ref) {
         const ret = wasm.wasmsim_openDoor(this.__wbg_ptr, elevator_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Pin the call at `(stop_ref, direction)` to `car_ref`, locking it
+     * out of dispatch reassignment.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator/stop does not exist, the line
+     * does not serve the stop, no hall call exists at that
+     * `(stop, direction)`, or `direction` is not `"up"` / `"down"`.
+     * @param {bigint} car_ref
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     */
+    pinAssignment(car_ref, stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_pinAssignment(this.__wbg_ptr, car_ref, stop_ref, ptr0, len0);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
@@ -706,6 +846,24 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Release a previous pin at `(stop_ref, direction)`. No-op if the
+     * call does not exist or wasn't pinned.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `direction` is not `"up"` / `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     */
+    unpinAssignment(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_unpinAssignment(this.__wbg_ptr, stop_ref, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Convenience: waiting rider count at a specific stop id.
      * @param {number} stop_id
      * @returns {number}
@@ -828,6 +986,19 @@ function getArrayJsValueFromWasm0(ptr, len) {
     return result;
 }
 
+function getArrayU64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getBigUint64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+let cachedBigUint64ArrayMemory0 = null;
+function getBigUint64ArrayMemory0() {
+    if (cachedBigUint64ArrayMemory0 === null || cachedBigUint64ArrayMemory0.byteLength === 0) {
+        cachedBigUint64ArrayMemory0 = new BigUint64Array(wasm.memory.buffer);
+    }
+    return cachedBigUint64ArrayMemory0;
+}
+
 let cachedDataViewMemory0 = null;
 function getDataViewMemory0() {
     if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
@@ -929,6 +1100,7 @@ let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
+    cachedBigUint64ArrayMemory0 = null;
     cachedDataViewMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
