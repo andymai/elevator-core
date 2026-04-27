@@ -38,7 +38,8 @@ use elevator_core::builder::SimulationBuilder;
 use elevator_core::components::{Direction, ElevatorPhase, RiderPhase, Velocity};
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
-    BuiltinStrategy, EtdDispatch, LookDispatch, NearestCarDispatch, ScanDispatch,
+    BuiltinStrategy, DestinationDispatch, EtdDispatch, LookDispatch, NearestCarDispatch,
+    RsrDispatch, ScanDispatch,
 };
 use elevator_core::door::DoorState;
 use elevator_core::entity::{ElevatorId, EntityId, RiderId};
@@ -47,7 +48,7 @@ use elevator_core::sim::Simulation;
 use slotmap::{Key, KeyData};
 
 /// Current ABI version. Bumped for any breaking change to the C layout.
-pub const EV_ABI_VERSION: u32 = 2;
+pub const EV_ABI_VERSION: u32 = 3;
 
 /// Return the ABI version compiled into this shared library.
 #[unsafe(no_mangle)]
@@ -339,6 +340,9 @@ fn entity_from_u64(raw: u64) -> Option<EntityId> {
 // ── Strategy tag ─────────────────────────────────────────────────────────
 
 /// Built-in dispatch strategy identifier.
+///
+/// ABI v3 added `Destination` and `Rsr`; consumers compiled against
+/// v2 will see [`ev_abi_version`] return `3` and refuse to load.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvStrategy {
@@ -350,15 +354,114 @@ pub enum EvStrategy {
     NearestCar = 2,
     /// Estimated time to destination.
     Etd = 3,
+    /// Destination dispatch (lobby kiosk, hall-button mode = Destination).
+    Destination = 4,
+    /// RSR — composite cost-stack with stock weights.
+    Rsr = 5,
+    /// Custom (non-builtin) strategy. Passed only as an output value
+    /// from [`ev_sim_strategy_id`]; passing it to a setter returns
+    /// `EvStatus::InvalidArg` since FFI consumers cannot register
+    /// custom strategies.
+    Custom = 99,
 }
 
 impl EvStrategy {
-    const fn as_builtin(self) -> BuiltinStrategy {
-        match self {
+    /// Convert to a [`BuiltinStrategy`]. Returns `None` for
+    /// [`Self::Custom`] since it has no corresponding built-in.
+    const fn as_builtin(self) -> Option<BuiltinStrategy> {
+        Some(match self {
             Self::Scan => BuiltinStrategy::Scan,
             Self::Look => BuiltinStrategy::Look,
             Self::NearestCar => BuiltinStrategy::NearestCar,
             Self::Etd => BuiltinStrategy::Etd,
+            Self::Destination => BuiltinStrategy::Destination,
+            Self::Rsr => BuiltinStrategy::Rsr,
+            Self::Custom => return None,
+        })
+    }
+
+    /// Project a [`BuiltinStrategy`] reference into an `EvStrategy`.
+    /// The `Custom(_)` core variant maps to [`Self::Custom`].
+    const fn from_builtin(b: &BuiltinStrategy) -> Self {
+        match b {
+            BuiltinStrategy::Scan => Self::Scan,
+            BuiltinStrategy::Look => Self::Look,
+            BuiltinStrategy::NearestCar => Self::NearestCar,
+            BuiltinStrategy::Etd => Self::Etd,
+            BuiltinStrategy::Destination => Self::Destination,
+            BuiltinStrategy::Rsr => Self::Rsr,
+            _ => Self::Custom,
+        }
+    }
+}
+
+// ── Reposition strategy ──────────────────────────────────────────────────
+
+/// Built-in reposition strategy identifier (ABI v3+).
+///
+/// Mirrors [`elevator_core::dispatch::BuiltinReposition`]. `Custom` is
+/// an output-only sentinel for non-built-in strategies registered via
+/// the Rust API; FFI consumers passing `Custom` to a setter receive
+/// `EvStatus::InvalidArg`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvReposition {
+    /// Distribute idle elevators evenly across stops.
+    SpreadEvenly = 0,
+    /// Return idle elevators to a configured home stop.
+    ReturnToLobby = 1,
+    /// Position near stops with historically high demand.
+    DemandWeighted = 2,
+    /// Keep idle elevators where they are.
+    NearestIdle = 3,
+    /// Pre-position cars near stops with the highest recent arrival rate.
+    PredictiveParking = 4,
+    /// Mode-gated picker between `ReturnToLobby` / `PredictiveParking`.
+    Adaptive = 5,
+    /// Custom (output-only).
+    Custom = 99,
+}
+
+impl EvReposition {
+    fn instantiate(self) -> Option<Box<dyn elevator_core::dispatch::RepositionStrategy>> {
+        use elevator_core::dispatch::reposition;
+        match self {
+            Self::SpreadEvenly => Some(Box::new(reposition::SpreadEvenly)),
+            Self::ReturnToLobby => Some(Box::new(reposition::ReturnToLobby::new())),
+            Self::DemandWeighted => Some(Box::new(reposition::DemandWeighted)),
+            Self::NearestIdle => Some(Box::new(reposition::NearestIdle)),
+            Self::PredictiveParking => Some(Box::new(reposition::PredictiveParking::new())),
+            Self::Adaptive => Some(Box::new(reposition::AdaptiveParking::new())),
+            Self::Custom => None,
+        }
+    }
+
+    const fn as_builtin(self) -> elevator_core::dispatch::BuiltinReposition {
+        // Custom is intentionally projected to BuiltinReposition::Custom
+        // with an empty name — set_reposition rejects it before reaching
+        // this path, but the match is total for readability.
+        use elevator_core::dispatch::BuiltinReposition;
+        match self {
+            Self::SpreadEvenly => BuiltinReposition::SpreadEvenly,
+            Self::ReturnToLobby => BuiltinReposition::ReturnToLobby,
+            Self::DemandWeighted => BuiltinReposition::DemandWeighted,
+            Self::NearestIdle => BuiltinReposition::NearestIdle,
+            Self::PredictiveParking => BuiltinReposition::PredictiveParking,
+            Self::Adaptive => BuiltinReposition::Adaptive,
+            Self::Custom => BuiltinReposition::Custom(String::new()),
+        }
+    }
+
+    const fn from_builtin(b: &elevator_core::dispatch::BuiltinReposition) -> Self {
+        use elevator_core::dispatch::BuiltinReposition;
+        match b {
+            BuiltinReposition::SpreadEvenly => Self::SpreadEvenly,
+            BuiltinReposition::ReturnToLobby => Self::ReturnToLobby,
+            BuiltinReposition::DemandWeighted => Self::DemandWeighted,
+            BuiltinReposition::NearestIdle => Self::NearestIdle,
+            BuiltinReposition::PredictiveParking => Self::PredictiveParking,
+            BuiltinReposition::Adaptive => Self::Adaptive,
+            _ => Self::Custom,
         }
     }
 }
@@ -771,7 +874,10 @@ pub unsafe extern "C" fn ev_sim_set_strategy(
         }
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &mut *handle };
-        let builtin = strategy.as_builtin();
+        let Some(builtin) = strategy.as_builtin() else {
+            set_last_error("EvStrategy::Custom is output-only — pass a concrete builtin");
+            return EvStatus::InvalidArg;
+        };
         // Validate group existence before allocating the strategy box, so the
         // NotFound path doesn't waste a heap allocation.
         if !ev.sim.groups().iter().any(|g| g.id() == GroupId(group_id)) {
@@ -805,6 +911,109 @@ pub unsafe extern "C" fn ev_sim_remove_reposition(handle: *mut EvSim, group_id: 
         let ev = unsafe { &mut *handle };
         ev.sim.remove_reposition(GroupId(group_id));
         EvStatus::Ok
+    })
+}
+
+/// Get the dispatch strategy currently active on `group_id`. Writes the
+/// result to `*out_strategy`. Returns `EvStatus::NotFound` if the group
+/// has no registered strategy (or doesn't exist).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_strategy` must be a writable [`EvStrategy`] pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_strategy_id(
+    handle: *mut EvSim,
+    group_id: u32,
+    out_strategy: *mut EvStrategy,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_strategy.is_null() {
+            set_last_error("handle or out_strategy is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.strategy_id(GroupId(group_id)).map_or_else(
+            || {
+                set_last_error(format!("no strategy registered for group {group_id}"));
+                EvStatus::NotFound
+            },
+            |b| {
+                // Safety: caller guarantees out_strategy is writable.
+                unsafe { *out_strategy = EvStrategy::from_builtin(b) };
+                EvStatus::Ok
+            },
+        )
+    })
+}
+
+/// Set the reposition strategy on `group_id`. Pass [`EvReposition::Custom`]
+/// returns `InvalidArg` — FFI consumers cannot register custom strategies.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_reposition(
+    handle: *mut EvSim,
+    group_id: u32,
+    strategy: EvReposition,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(boxed) = strategy.instantiate() else {
+            set_last_error("EvReposition::Custom is output-only — pass a concrete builtin");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        ev.sim
+            .set_reposition(GroupId(group_id), boxed, strategy.as_builtin());
+        EvStatus::Ok
+    })
+}
+
+/// Get the reposition strategy currently set on `group_id`. Returns
+/// `EvStatus::NotFound` if the group has no reposition strategy.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_strategy` must be a writable [`EvReposition`] pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reposition_id(
+    handle: *mut EvSim,
+    group_id: u32,
+    out_strategy: *mut EvReposition,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_strategy.is_null() {
+            set_last_error("handle or out_strategy is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.reposition_id(GroupId(group_id)).map_or_else(
+            || {
+                set_last_error(format!(
+                    "no reposition strategy registered for group {group_id}"
+                ));
+                EvStatus::NotFound
+            },
+            |b| {
+                // Safety: caller guarantees out_strategy is writable.
+                unsafe { *out_strategy = EvReposition::from_builtin(b) };
+                EvStatus::Ok
+            },
+        )
     })
 }
 
@@ -1791,11 +2000,17 @@ pub unsafe extern "C" fn ev_sim_add_group(
         // `Simulation::add_group` is generic over the concrete strategy
         // type, so dispatch on the enum to instantiate the right one
         // directly. Mirrors the explicit match in `elevator-wasm`.
-        let group_id = match strategy.as_builtin() {
+        let Some(builtin) = strategy.as_builtin() else {
+            set_last_error("EvStrategy::Custom is output-only — pass a concrete builtin");
+            return EvStatus::InvalidArg;
+        };
+        let group_id = match builtin {
             BuiltinStrategy::Scan => ev.sim.add_group(name_str, ScanDispatch::new()),
             BuiltinStrategy::Look => ev.sim.add_group(name_str, LookDispatch::new()),
             BuiltinStrategy::NearestCar => ev.sim.add_group(name_str, NearestCarDispatch::new()),
             BuiltinStrategy::Etd => ev.sim.add_group(name_str, EtdDispatch::new()),
+            BuiltinStrategy::Destination => ev.sim.add_group(name_str, DestinationDispatch::new()),
+            BuiltinStrategy::Rsr => ev.sim.add_group(name_str, RsrDispatch::new()),
             other => {
                 set_last_error(format!("unsupported strategy: {other:?}"));
                 return EvStatus::InvalidArg;

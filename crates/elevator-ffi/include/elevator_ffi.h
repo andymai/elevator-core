@@ -17,7 +17,7 @@
 /**
  * Current ABI version. Bumped for any breaking change to the C layout.
  */
-#define EV_ABI_VERSION 2
+#define EV_ABI_VERSION 3
 
 /**
  * `Event::HallButtonPressed`.
@@ -108,6 +108,9 @@ typedef enum EvStatus {
 
 /**
  * Built-in dispatch strategy identifier.
+ *
+ * ABI v3 added `Destination` and `Rsr`; consumers compiled against
+ * v2 will see [`ev_abi_version`] return `3` and refuse to load.
  */
 typedef enum EvStrategy {
     /**
@@ -126,7 +129,61 @@ typedef enum EvStrategy {
      * Estimated time to destination.
      */
     Etd = 3,
+    /**
+     * Destination dispatch (lobby kiosk, hall-button mode = Destination).
+     */
+    Destination = 4,
+    /**
+     * RSR — composite cost-stack with stock weights.
+     */
+    Rsr = 5,
+    /**
+     * Custom (non-builtin) strategy. Passed only as an output value
+     * from [`ev_sim_strategy_id`]; passing it to a setter returns
+     * `EvStatus::InvalidArg` since FFI consumers cannot register
+     * custom strategies.
+     */
+    Custom = 99,
 } EvStrategy;
+
+/**
+ * Built-in reposition strategy identifier (ABI v3+).
+ *
+ * Mirrors [`elevator_core::dispatch::BuiltinReposition`]. `Custom` is
+ * an output-only sentinel for non-built-in strategies registered via
+ * the Rust API; FFI consumers passing `Custom` to a setter receive
+ * `EvStatus::InvalidArg`.
+ */
+typedef enum EvReposition {
+    /**
+     * Distribute idle elevators evenly across stops.
+     */
+    SpreadEvenly = 0,
+    /**
+     * Return idle elevators to a configured home stop.
+     */
+    ReturnToLobby = 1,
+    /**
+     * Position near stops with historically high demand.
+     */
+    DemandWeighted = 2,
+    /**
+     * Keep idle elevators where they are.
+     */
+    NearestIdle = 3,
+    /**
+     * Pre-position cars near stops with the highest recent arrival rate.
+     */
+    PredictiveParking = 4,
+    /**
+     * Mode-gated picker between `ReturnToLobby` / `PredictiveParking`.
+     */
+    Adaptive = 5,
+    /**
+     * Custom (output-only).
+     */
+    Custom = 99,
+} EvReposition;
 
 /**
  * Operational service mode for an elevator. Mirrors
@@ -564,6 +621,45 @@ enum EvStatus ev_sim_set_strategy(struct EvSim *handle,
  * `handle` must be a valid pointer returned by [`ev_sim_create`].
  */
 enum EvStatus ev_sim_remove_reposition(struct EvSim *handle, uint32_t group_id);
+
+/**
+ * Get the dispatch strategy currently active on `group_id`. Writes the
+ * result to `*out_strategy`. Returns `EvStatus::NotFound` if the group
+ * has no registered strategy (or doesn't exist).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_strategy` must be a writable [`EvStrategy`] pointer.
+ */
+enum EvStatus ev_sim_strategy_id(struct EvSim *handle,
+                                 uint32_t group_id,
+                                 enum EvStrategy *out_strategy);
+
+/**
+ * Set the reposition strategy on `group_id`. Pass [`EvReposition::Custom`]
+ * returns `InvalidArg` — FFI consumers cannot register custom strategies.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_reposition(struct EvSim *handle,
+                                    uint32_t group_id,
+                                    enum EvReposition strategy);
+
+/**
+ * Get the reposition strategy currently set on `group_id`. Returns
+ * `EvStatus::NotFound` if the group has no reposition strategy.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_strategy` must be a writable [`EvReposition`] pointer.
+ */
+enum EvStatus ev_sim_reposition_id(struct EvSim *handle,
+                                   uint32_t group_id,
+                                   enum EvReposition *out_strategy);
 
 /**
  * Step the simulation forward up to `max_ticks` ticks.
