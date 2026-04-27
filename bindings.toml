@@ -887,7 +887,7 @@ ffi  = "todo:PR-E"
 [[methods]]
 name = "metrics_for_tag"
 category = "metrics"
-wasm = "todo:PR-E"
+wasm = "metricsForTag"
 ffi  = "todo:PR-E"
 
 # ─── Internal — exposes &World, &mut World, internal slices ───────────────

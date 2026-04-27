@@ -286,6 +286,40 @@ impl From<elevator_core::components::Route> for RouteDto {
     }
 }
 
+/// Per-tag aggregates. Returned by
+/// [`crate::WasmSim::metricsForTag`].
+///
+/// Mirrors [`elevator_core::tagged_metrics::TaggedMetric`] field-for-field
+/// (no precision loss). Wait times stay in **ticks** here — JS consumers
+/// who want seconds multiply by `currentTick`-vs-prev-tick `dt` from the
+/// top-level metrics.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct TaggedMetricDto {
+    /// Average wait time in ticks (spawn → board) for tagged riders.
+    pub avg_wait_ticks: f64,
+    /// Maximum wait time observed in ticks for tagged riders.
+    pub max_wait_ticks: u64,
+    /// Total riders delivered carrying this tag.
+    pub total_delivered: u64,
+    /// Total riders abandoned carrying this tag.
+    pub total_abandoned: u64,
+    /// Total riders spawned carrying this tag.
+    pub total_spawned: u64,
+}
+
+impl From<&elevator_core::tagged_metrics::TaggedMetric> for TaggedMetricDto {
+    fn from(m: &elevator_core::tagged_metrics::TaggedMetric) -> Self {
+        Self {
+            avg_wait_ticks: m.avg_wait_time(),
+            max_wait_ticks: m.max_wait_time(),
+            total_delivered: m.total_delivered(),
+            total_abandoned: m.total_abandoned(),
+            total_spawned: m.total_spawned(),
+        }
+    }
+}
+
 /// Flattened event DTO. Every variant includes a `kind` discriminator and the
 /// engine tick at which it was emitted; the remaining fields vary by kind.
 /// Unknown variants (added to core later) fall back to `{ kind: "unknown" }`

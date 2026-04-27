@@ -1736,8 +1736,7 @@ impl WasmSim {
     //
     // Attach tags to entities for grouped metrics queries (e.g. "tower"
     // vs "annex" elevators, "weekday" vs "weekend" rider flows). The
-    // metrics_for_tag accessor is intentionally deferred — it returns a
-    // TaggedMetric reference that needs its own DTO design.
+    // per-tag aggregates surface via `metricsForTag`.
 
     /// Attach `tag` to `entity_ref`.
     ///
@@ -1766,6 +1765,19 @@ impl WasmSim {
             .into_iter()
             .map(String::from)
             .collect()
+    }
+
+    /// Aggregate metrics for `tag`. Returns `undefined` if no riders
+    /// carrying the tag have been recorded yet.
+    ///
+    /// Wait times in the returned `TaggedMetricDto` are in **ticks** —
+    /// multiply by `dt` for real-time seconds.
+    #[wasm_bindgen(js_name = metricsForTag)]
+    #[must_use]
+    pub fn metrics_for_tag(&self, tag: &str) -> Option<dto::TaggedMetricDto> {
+        self.inner
+            .metrics_for_tag(tag)
+            .map(dto::TaggedMetricDto::from)
     }
 
     // ── Stop lookup + phase / direction queries ──────────────────────
