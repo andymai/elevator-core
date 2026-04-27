@@ -172,6 +172,17 @@ export function mountThrottle(host: HTMLElement, opts: ThrottleOptions): Throttl
       setAria();
     },
     dispose() {
+      // Tear-down during a live drag would otherwise leave the host
+      // holding pointer capture on a detached element and the
+      // (about-to-be-replaced) sim with whatever non-zero velocity
+      // was last commanded. Release capture and snap to 0 first.
+      if (dragPointerId !== null) {
+        if (host.hasPointerCapture(dragPointerId)) {
+          host.releasePointerCapture(dragPointerId);
+        }
+        dragPointerId = null;
+        setValue(0, { spring: false });
+      }
       host.removeEventListener("pointerdown", onPointerDown);
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerup", onPointerUp);

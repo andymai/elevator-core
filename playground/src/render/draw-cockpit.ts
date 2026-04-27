@@ -53,6 +53,13 @@ export interface CockpitRenderState {
   hallCallsByStop: Map<number, HallLampState>;
   /** One-line orientation hint shown as a banner above the elevation. */
   hint: string;
+  /**
+   * Effective velocity bound (m/s, ≥0) — drives the cab's velocity
+   * ribbon scale so the tick fills the full ribbon height at
+   * ±maxSpeed and shrinks proportionally below that. The cockpit
+   * panel resolves this against the user's tweak overrides.
+   */
+  maxSpeed: number;
 }
 
 const HINT_COLOR = "#8b8c92";
@@ -150,13 +157,13 @@ export function drawCockpit(
     const lampX = padX + labelW + 4;
     const lampZoneW = lampW - 8;
     const lamp = state.hallCallsByStop.get(stop.entity_id);
-    drawHallLamp(ctx, lampX, py - 12, lampZoneW, 10, "up", lamp?.up ?? false);
-    drawHallLamp(ctx, lampX, py + 2, lampZoneW, 10, "down", lamp?.down ?? false);
-    // Top-floor up lamp and bottom-floor down lamp don't make sense
-    // physically, but we still register hit zones for them so the
-    // canvas click handler can swallow stray clicks without engine
-    // errors. The engine rejects invalid directions silently.
-    if (stop !== sortedStops[sortedStops.length - 1]) {
+    // Top-floor up and bottom-floor down lamps don't make physical
+    // sense — drop both the visible lamp and the hit zone so a
+    // mistapped click falls through to no-op.
+    const isTopFloor = stop === sortedStops[sortedStops.length - 1];
+    const isBottomFloor = stop === sortedStops[0];
+    if (!isTopFloor) {
+      drawHallLamp(ctx, lampX, py - 12, lampZoneW, 10, "up", lamp?.up ?? false);
       hitZones.push({
         x: lampX,
         y: py - 12,
@@ -166,7 +173,8 @@ export function drawCockpit(
         ref: stop.entity_id,
       });
     }
-    if (stop !== sortedStops[0]) {
+    if (!isBottomFloor) {
+      drawHallLamp(ctx, lampX, py + 2, lampZoneW, 10, "down", lamp?.down ?? false);
       hitZones.push({
         x: lampX,
         y: py + 2,
@@ -191,7 +199,27 @@ export function drawCockpit(
   // this renderer with multiple cars, only `cars[0]` is drawn.
   const car = snap.cars[0];
   if (!car) return;
-  drawCabCutaway(ctx, car, snap.stops, shaftLeft, shaftW, yToPx, shaftHeight, hitZones);
+
+  // Clip the cab to the shaft channel so the cutaway can't bleed
+  // over the hint banner at the top floor or under the canvas edge
+  // at the bottom. Save/restore brackets the clip so subsequent
+  // draws are unaffected.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(shaftLeft, shaftTop, shaftW, shaftHeight);
+  ctx.clip();
+  drawCabCutaway(
+    ctx,
+    car,
+    snap.stops,
+    shaftLeft,
+    shaftW,
+    yToPx,
+    shaftHeight,
+    state.maxSpeed,
+    hitZones,
+  );
+  ctx.restore();
 }
 
 /**
@@ -233,6 +261,7 @@ function drawCabCutaway(
   shaftW: number,
   yToPx: (m: number) => number,
   shaftHeight: number,
+  maxSpeed: number,
   hitZones: HitZone[],
 ): void {
   // Cab dimensions: take ~85% of shaft width; height proportional to
@@ -311,6 +340,23 @@ function drawCabCutaway(
     kind: "doors",
     ref: car.id,
   });
+
+  // ── Velocity ribbon ───────────────────────────────────────
+  // Hairline tick on the cab's right edge — direction + magnitude
+  // of the engine's reported velocity. Up = positive, Down =
+  // negative; tick height grows from the cab's vertical centre to
+  // ±half the interior height at ±maxSpeed. Visual confirmation
+  // that the throttle command is propagating to the engine.
+  if (maxSpeed > 0 && Math.abs(car.v) > 0.01) {
+    const ribbonRight = cabRight - 2;
+    const ribbonHalfH = interiorH / 2;
+    const fraction = Math.max(-1, Math.min(1, car.v / maxSpeed));
+    const ribbonCentreY = cabTop + cabH / 2;
+    const tickH = Math.abs(fraction) * ribbonHalfH;
+    const tickY = fraction > 0 ? ribbonCentreY - tickH : ribbonCentreY;
+    ctx.fillStyle = CAB_STROKE;
+    ctx.fillRect(ribbonRight - 2, tickY, 2, tickH);
+  }
 }
 
 function drawCarButtons(

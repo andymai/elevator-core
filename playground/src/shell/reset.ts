@@ -56,8 +56,8 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
   state.paneB = null;
   // Drop any manual-controls panel from the previous scenario; the new
   // scenario remounts below if it's also manual.
-  state.manualControls?.dispose();
-  state.manualControls = null;
+  state.cockpit?.dispose();
+  state.cockpit = null;
   try {
     // Build both panes *before* attaching either to `state`. Attaching
     // pane A while pane B is still awaiting wasm instantiation lets
@@ -115,11 +115,11 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // CockpitRenderState (hall-call lamps + hint) into `paneA.renderer`
     // on every `update()` tick.
     if (scenario.manualControl !== undefined) {
-      state.manualControls = mountManualControls(
+      state.cockpit = mountManualControls(
         paneA.sim,
         scenario,
+        state.permalink.overrides,
         {
-          console: ui.cockpitConsole,
           throttle: ui.cockpitThrottle,
           velocityReadout: ui.cockpitVelocity,
           doorOpen: ui.cockpitDoorOpen,

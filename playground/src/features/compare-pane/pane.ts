@@ -75,6 +75,7 @@ export async function makePane(
     renderer.setCockpitState({
       hallCallsByStop: new Map(),
       hint: scenario.featureHint,
+      maxSpeed: applyPhysicsOverrides(scenario, overrides).maxSpeed,
     });
   } else {
     renderer.setCockpitState(null);

@@ -1,3 +1,4 @@
+import { applyPhysicsOverrides, type Overrides } from "../../domain";
 import type { Sim } from "../../sim";
 import type { ScenarioMeta, WorldView } from "../../types";
 import { mountThrottle, type ThrottleHandle } from "./throttle";
@@ -6,7 +7,7 @@ import { mountThrottle, type ThrottleHandle } from "./throttle";
  * Cockpit console: the right-rail (or bottom-bar on mobile portrait)
  * driver controls. Hydrates the static markup placed in `index.html`
  * — caller passes in references to the existing throttle, door
- * buttons, spawn button, velocity readout, and hint elements.
+ * buttons, spawn button, and velocity readout elements.
  *
  * The console orchestrates one car. The cockpit scenario locks
  * `tweakRanges.cars` to {min: 1, max: 1} so there's always exactly
@@ -31,12 +32,13 @@ export interface CockpitConsoleHandle {
   dispose(): void;
 }
 
-/** Door dwell extension when HOLD is pressed (60 Hz ticks → 0.5 s). */
-const HOLD_TICKS = 30;
+/** Door dwell extension when HOLD is pressed (60 Hz ticks → 1 s). */
+const HOLD_TICKS = 60;
 
 export function mountCockpitConsole(
   sim: Sim,
   scenario: ScenarioMeta,
+  overrides: Overrides,
   view: WorldView,
   roots: CockpitConsoleRoots,
 ): CockpitConsoleHandle {
@@ -49,9 +51,15 @@ export function mountCockpitConsole(
   // lifetime — no rebuilds needed across `update()` calls.
   let carRef = BigInt(firstCar.id);
 
+  // Resolve the effective max speed against user overrides. The
+  // scenario default (2 m/s) would diverge from the engine when the
+  // user cranks the slider via the tweak drawer; this keeps the
+  // throttle clamp aligned with the engine's actual ceiling.
+  const resolvedMaxSpeed = (): number => applyPhysicsOverrides(scenario, overrides).maxSpeed;
+
   // ─── Throttle ───────────────────────────────────────────────────
   const throttle: ThrottleHandle = mountThrottle(roots.throttle, {
-    maxSpeed: scenario.elevatorDefaults.maxSpeed,
+    maxSpeed: resolvedMaxSpeed(),
     onChange: (v) => {
       try {
         sim.setTargetVelocity(carRef, v);
@@ -110,34 +118,39 @@ export function mountCockpitConsole(
   roots.spawnRider.addEventListener("click", onSpawn);
 
   // ─── Velocity readout ───────────────────────────────────────────
-  // Reads the *engine-reported* velocity (CarDto.v) — the slider
+  // Reads the *engine-reported* velocity (CarDto.v) — the throttle
   // commands a target, but with the trapezoidal profile the actual
   // velocity can lag while the cab is accelerating, and that's the
   // number the driver should see.
   let lastReadout = "";
+  let lastMaxSpeed = resolvedMaxSpeed();
 
   return {
-    update(currentSim, currentView): void {
-      // The shell may swap `Sim` instances on a reset; refresh the
-      // car ref from the new view.
+    update(_currentSim, currentView): void {
       const car = currentView.cars[0];
       if (car === undefined) return;
-      if (currentSim !== sim || currentView !== view) {
-        // Underlying sim changed (reset / scenario switch). Caller
-        // should be remounting the panel; refresh the car ref.
-        carRef = BigInt(car.id);
-      }
+      // Refresh car ref against the latest snapshot. The cockpit
+      // scenario locks cars at 1, but a sim reset rebuilds entities
+      // with fresh ids, so we re-hash from the snapshot every frame.
+      carRef = BigInt(car.id);
+
+      // Velocity readout: quantise to one decimal so micro-jitter
+      // near zero doesn't thrash the DOM and the readout stays
+      // calm to read.
       const v = car.v;
-      // Quantise to one decimal so micro-jitter at near-zero doesn't
-      // thrash the DOM (and makes the readout calmer to read).
       const text = `${v >= 0 ? "+" : ""}${v.toFixed(1)} m/s`;
       if (text !== lastReadout) {
         roots.velocityReadout.textContent = text;
         lastReadout = text;
       }
-      // Update throttle bound when scenario physics change live.
-      const max = scenario.elevatorDefaults.maxSpeed;
-      throttle.setMaxSpeed(max);
+      // Update throttle bound when overrides change live (tweak
+      // drawer hot-swap). Skipped when unchanged so the per-frame
+      // call stays cheap.
+      const max = resolvedMaxSpeed();
+      if (max !== lastMaxSpeed) {
+        throttle.setMaxSpeed(max);
+        lastMaxSpeed = max;
+      }
     },
     carRef: () => carRef,
     dispose() {

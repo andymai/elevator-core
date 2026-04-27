@@ -1,13 +1,12 @@
+import { applyPhysicsOverrides, type Overrides } from "../../domain";
 import type { CanvasRenderer } from "../../render";
 import type { HitZone } from "../../render/draw-cockpit";
 import type { Sim } from "../../sim";
-import type { EventDto, ScenarioMeta } from "../../types";
+import type { ScenarioMeta } from "../../types";
 import { mountCockpitConsole, type CockpitConsoleHandle } from "./console";
 
 /** Static DOM containers the cockpit panel hydrates. All must exist in `index.html`. */
 export interface ManualControlsRoots {
-  /** Right-rail (or bottom-bar) cockpit console root. */
-  console: HTMLElement;
   /** Throttle host inside the console — the throttle component owns its inner markup. */
   throttle: HTMLElement;
   velocityReadout: HTMLElement;
@@ -19,8 +18,8 @@ export interface ManualControlsRoots {
 }
 
 export interface ManualControlsHandle {
-  /** Per-frame update with the live sim handle and the latest events drain. */
-  update(sim: Sim, events: EventDto[]): void;
+  /** Per-frame update with the live sim handle. */
+  update(sim: Sim): void;
   /** Tear down listeners — called when the scenario switches away. */
   dispose(): void;
 }
@@ -36,14 +35,19 @@ export interface ManualControlsHandle {
  * `CockpitRenderState` (hall-call lamp map + hint copy) into the
  * renderer so the elevation reads the engine's authoritative state.
  *
- * The scenario locks `cars` at 1 and disables Add/Remove (see
- * `manualControl.allowAddRemoveCar: false`), which removes the whole
- * "preserve service-mode picks across rebuilds" plumbing the previous
- * implementation needed.
+ * `overrides` is the user's tweak-drawer state — needed so the
+ * throttle clamp matches the engine's effective `maxSpeed` after a
+ * tweak (the scenario's default would diverge otherwise).
+ *
+ * The scenario locks `cars` at 1 (`tweakRanges.cars: {min:1,max:1}`)
+ * and `manualControl.allowAddRemoveCar: false`, which removes the
+ * whole "preserve service-mode picks across rebuilds" plumbing the
+ * previous implementation needed.
  */
 export function mountManualControls(
   sim: Sim,
   scenario: ScenarioMeta,
+  overrides: Overrides,
   roots: ManualControlsRoots,
   renderer: CanvasRenderer,
 ): ManualControlsHandle {
@@ -56,7 +60,7 @@ export function mountManualControls(
   // Cockpit console — the right-rail driver controls. The hint
   // banner is drawn on the canvas elevation, not in the console DOM,
   // so the console doesn't need a hint root.
-  const cockpit: CockpitConsoleHandle = mountCockpitConsole(sim, scenario, initialView, {
+  const cockpit: CockpitConsoleHandle = mountCockpitConsole(sim, scenario, overrides, initialView, {
     throttle: roots.throttle,
     velocityReadout: roots.velocityReadout,
     doorOpen: roots.doorOpen,
@@ -81,11 +85,13 @@ export function mountManualControls(
   }
 
   // Canvas click dispatcher: hall-call lamp zones press a hall call;
-  // door zones toggle the cab doors. The engine rejects calls that
-  // don't make sense for the current service mode (e.g.
-  // `pressHallCall` in Manual mode), which surfaces here as a thrown
-  // exception we swallow — the visual lamp state stays whatever
-  // WorldView reports next frame.
+  // door zones toggle the cab doors.
+  //
+  // In Manual mode (cockpit default) `pressHallCall` records the call
+  // and lights the lamp but does NOT trigger auto-dispatch — the
+  // operator sees the lamp and chooses to drive there. The try/catch
+  // is defensive against a malformed StopRef, not service-mode
+  // rejection (the engine doesn't gate hall calls on service mode).
   const onCanvasClick = (zone: HitZone): void => {
     const carRef = cockpit.carRef();
     if (zone.kind === "hall-up" || zone.kind === "hall-down") {
@@ -115,9 +121,12 @@ export function mountManualControls(
   };
   renderer.setCockpitClickHandler(onCanvasClick);
 
+  // Reuse one map across frames; clearing is cheaper than
+  // re-allocating + GC'ing 60×/sec for a 5-stop building.
+  const hallCallsByStop = new Map<number, { up: boolean; down: boolean }>();
+
   return {
-    update(currentSim, _events): void {
-      void _events;
+    update(currentSim): void {
       const view = currentSim.worldView();
       cockpit.update(currentSim, view);
 
@@ -125,7 +134,7 @@ export function mountManualControls(
       // lamps come straight from `WorldView.stops[].hall_calls` (the
       // engine's acknowledged-call lamps) so the elevation matches
       // engine state exactly — no reflection lag.
-      const hallCallsByStop = new Map<number, { up: boolean; down: boolean }>();
+      hallCallsByStop.clear();
       for (const stop of view.stops) {
         hallCallsByStop.set(stop.entity_id, {
           up: stop.hall_calls.up,
@@ -135,10 +144,17 @@ export function mountManualControls(
       renderer.setCockpitState({
         hallCallsByStop,
         hint: scenario.featureHint,
+        maxSpeed: applyPhysicsOverrides(scenario, overrides).maxSpeed,
       });
     },
     dispose(): void {
       renderer.setCockpitClickHandler(null);
+      // Defensive: clear the renderer's cockpit state too. The next
+      // mount (compare-pane.makePane) will set it again with fresh
+      // defaults; this guards against a hypothetical reorder where
+      // the renderer is reused for a non-cockpit scenario before
+      // makePane runs.
+      renderer.setCockpitState(null);
       cockpit.dispose();
     },
   };
