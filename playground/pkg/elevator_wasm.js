@@ -1432,6 +1432,20 @@ export class WasmSim {
         }
     }
     /**
+     * Compute the shortest multi-leg route between two stops using the
+     * line-graph topology. Returns `undefined` if no path exists.
+     *
+     * The returned `RouteDto` is a flat list of stops (origin first,
+     * destination last) — adjacent pairs are individual legs.
+     * @param {bigint} from_stop_ref
+     * @param {bigint} to_stop_ref
+     * @returns {RouteDto | undefined}
+     */
+    shortestRoute(from_stop_ref, to_stop_ref) {
+        const ret = wasm.wasmsim_shortestRoute(this.__wbg_ptr, from_stop_ref, to_stop_ref);
+        return ret;
+    }
+    /**
      * Pull a cheap snapshot for rendering.
      * @returns {Snapshot}
      */
