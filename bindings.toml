@@ -406,7 +406,7 @@ ffi  = "ev_sim_add_stop"
 [[methods]]
 name = "add_stop_to_line"
 category = "topology"
-wasm = "todo:PR-B"
+wasm = "addStopToLine"
 ffi  = "ev_sim_add_stop_to_line"
 
 [[methods]]
@@ -436,7 +436,7 @@ ffi  = "ev_sim_remove_stop"
 [[methods]]
 name = "remove_stop_from_line"
 category = "topology"
-wasm = "todo:PR-B"
+wasm = "removeStopFromLine"
 ffi  = "ev_sim_remove_stop_from_line"
 
 [[methods]]
@@ -448,19 +448,19 @@ ffi  = "ev_sim_set_line_range"
 [[methods]]
 name = "assign_line_to_group"
 category = "topology"
-wasm = "todo:PR-B"
+wasm = "assignLineToGroup"
 ffi  = "ev_sim_assign_line_to_group"
 
 [[methods]]
 name = "reassign_elevator_to_line"
 category = "topology"
-wasm = "todo:PR-B"
+wasm = "reassignElevatorToLine"
 ffi  = "ev_sim_reassign_elevator_to_line"
 
 [[methods]]
 name = "set_elevator_restricted_stops"
 category = "topology"
-wasm = "todo:PR-B"
+wasm = "setElevatorRestrictedStops"
 ffi  = "ev_sim_set_elevator_restricted_stops"
 
 # ─── Introspection ────────────────────────────────────────────────────────
