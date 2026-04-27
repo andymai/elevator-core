@@ -145,6 +145,16 @@ export class WasmSim {
         return BigInt.asUintN(64, ret[0]);
     }
     /**
+     * Entity ids of every line in the simulation, across all groups.
+     * @returns {BigUint64Array}
+     */
+    allLines() {
+        const ret = wasm.wasmsim_allLines(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Car currently assigned to serve the call at `(stop_ref, direction)`,
      * or `0` (slotmap-null) if none. At stops served by multiple lines
      * this returns the entry with the numerically smallest line-entity
@@ -283,6 +293,21 @@ export class WasmSim {
         return BigInt.asUintN(64, ret);
     }
     /**
+     * Despawn a rider mid-flight. The rider is ejected from any
+     * boarding car and dropped from the world.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     * @param {bigint} rider_ref
+     */
+    despawnRider(rider_ref) {
+        const ret = wasm.wasmsim_despawnRider(this.__wbg_ptr, rider_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Snapshot of `elevator_ref`'s destination queue as a `Vec<u64>` of
      * stop refs in service order. Empty if the elevator has no queue or
      * is missing.
@@ -369,6 +394,17 @@ export class WasmSim {
     elevatorMoveCount(elevator_ref) {
         const ret = wasm.wasmsim_elevatorMoveCount(this.__wbg_ptr, elevator_ref);
         return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
+    }
+    /**
+     * Entity ids of all elevators currently assigned to `line_ref`.
+     * @param {bigint} line_ref
+     * @returns {BigUint64Array}
+     */
+    elevatorsOnLine(line_ref) {
+        const ret = wasm.wasmsim_elevatorsOnLine(this.__wbg_ptr, line_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Command an immediate stop on a Manual-mode elevator. Sets the
@@ -459,6 +495,17 @@ export class WasmSim {
         return ret[0] === 0 ? undefined : ret[1];
     }
     /**
+     * Group ids of every group with a line that serves `stop_ref`.
+     * @param {bigint} stop_ref
+     * @returns {Uint32Array}
+     */
+    groupsServingStop(stop_ref) {
+        const ret = wasm.wasmsim_groupsServingStop(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Extend the doors' open dwell by `ticks`. Cumulative across calls.
      *
      * # Errors
@@ -521,6 +568,48 @@ export class WasmSim {
     isStop(entity_ref) {
         const ret = wasm.wasmsim_isStop(this.__wbg_ptr, entity_ref);
         return ret !== 0;
+    }
+    /**
+     * Total number of lines across all groups.
+     * @returns {number}
+     */
+    lineCount() {
+        const ret = wasm.wasmsim_lineCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Line entity that `elevator_ref` runs on, or `0` (slotmap-null)
+     * if missing or not an elevator.
+     * @param {bigint} elevator_ref
+     * @returns {bigint}
+     */
+    lineForElevator(elevator_ref) {
+        const ret = wasm.wasmsim_lineForElevator(this.__wbg_ptr, elevator_ref);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Entity ids of every line in `group_id`. Empty if the group does
+     * not exist.
+     * @param {number} group_id
+     * @returns {BigUint64Array}
+     */
+    linesInGroup(group_id) {
+        const ret = wasm.wasmsim_linesInGroup(this.__wbg_ptr, group_id);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Entity ids of every line that serves `stop_ref`. Useful for
+     * disambiguating sky-lobby calls served by multiple banks.
+     * @param {bigint} stop_ref
+     * @returns {BigUint64Array}
+     */
+    linesServingStop(stop_ref) {
+        const ret = wasm.wasmsim_linesServingStop(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Current aggregate metrics.
@@ -734,6 +823,14 @@ export class WasmSim {
         }
     }
     /**
+     * Remove the reposition strategy from `group_id`. Idle elevators
+     * stay where they parked instead of moving toward a target.
+     * @param {number} group_id
+     */
+    removeReposition(group_id) {
+        wasm.wasmsim_removeReposition(this.__wbg_ptr, group_id);
+    }
+    /**
      * Remove a stop. In-flight riders to/from it are rerouted, ejected,
      * or abandoned per `Simulation::remove_stop` semantics.
      *
@@ -800,6 +897,26 @@ export class WasmSim {
         var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
+    }
+    /**
+     * Step the simulation forward up to `max_ticks` ticks, stopping
+     * early if the world becomes "quiet" (no in-flight riders, no
+     * pending hall calls, all cars idle). Returns the number of ticks
+     * actually run.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the world fails to quiet within `max_ticks`
+     * (infinite-loop guard).
+     * @param {bigint} max_ticks
+     * @returns {bigint}
+     */
+    runUntilQuiet(max_ticks) {
+        const ret = wasm.wasmsim_runUntilQuiet(this.__wbg_ptr, max_ticks);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return BigInt.asUintN(64, ret[0]);
     }
     /**
      * Get the current operational mode of an elevator as a label string.
@@ -1111,6 +1228,18 @@ export class WasmSim {
         wasm.wasmsim_stepMany(this.__wbg_ptr, n);
     }
     /**
+     * Entity ids of every stop served by `line_ref`. Order is
+     * unspecified — sort by `positionAt` if you need axis order.
+     * @param {bigint} line_ref
+     * @returns {BigUint64Array}
+     */
+    stopsServedByLine(line_ref) {
+        const ret = wasm.wasmsim_stopsServedByLine(this.__wbg_ptr, line_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Active strategy name.
      * @returns {string}
      */
@@ -1319,6 +1448,11 @@ function getArrayJsValueFromWasm0(ptr, len) {
     return result;
 }
 
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getBigUint64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
@@ -1343,6 +1477,14 @@ function getDataViewMemory0() {
 function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return decodeText(ptr, len);
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -1435,6 +1577,7 @@ function __wbg_finalize_init(instance, module) {
     wasmModule = module;
     cachedBigUint64ArrayMemory0 = null;
     cachedDataViewMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;
