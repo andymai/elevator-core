@@ -363,6 +363,54 @@ impl EvStrategy {
     }
 }
 
+// ── Service mode ─────────────────────────────────────────────────────────
+
+/// Operational service mode for an elevator. Mirrors
+/// [`elevator_core::components::ServiceMode`].
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvServiceMode {
+    /// Normal operation: dispatch assigns stops, doors auto-cycle.
+    Normal = 0,
+    /// Excluded from dispatch and repositioning. Consumer drives movement.
+    Independent = 1,
+    /// Reduced speed, doors hold open indefinitely.
+    Inspection = 2,
+    /// Driven by direct velocity commands. Doors follow manual API.
+    Manual = 3,
+    /// Shut down: excluded from dispatch, no auto-boarding, fully inert
+    /// once idle.
+    OutOfService = 4,
+}
+
+impl EvServiceMode {
+    const fn to_core(self) -> elevator_core::components::ServiceMode {
+        use elevator_core::components::ServiceMode;
+        match self {
+            Self::Normal => ServiceMode::Normal,
+            Self::Independent => ServiceMode::Independent,
+            Self::Inspection => ServiceMode::Inspection,
+            Self::Manual => ServiceMode::Manual,
+            Self::OutOfService => ServiceMode::OutOfService,
+        }
+    }
+
+    const fn from_core(mode: elevator_core::components::ServiceMode) -> Self {
+        use elevator_core::components::ServiceMode;
+        match mode {
+            ServiceMode::Normal => Self::Normal,
+            ServiceMode::Independent => Self::Independent,
+            ServiceMode::Inspection => Self::Inspection,
+            ServiceMode::Manual => Self::Manual,
+            // ServiceMode is #[non_exhaustive]; future variants fall back
+            // here so an unknown numeric tag never reaches C consumers.
+            // Add a matching EvServiceMode variant in the same release
+            // that adds the core variant.
+            ServiceMode::OutOfService | _ => Self::OutOfService,
+        }
+    }
+}
+
 // ── FFI entrypoints ──────────────────────────────────────────────────────
 
 fn guard<R, F>(fallback: R, f: F) -> R
@@ -1955,6 +2003,322 @@ pub unsafe extern "C" fn ev_sim_remove_elevator(
             }
         }
     })
+}
+
+// ── Service mode + manual control ─────────────────────────────────────────
+//
+// Brings FFI to parity with the core `ServiceMode` API and the Manual-mode
+// command set (set_target_velocity, emergency_stop, manual door commands).
+//
+// All entrypoints take a u64 entity id (raw EntityId / ElevatorId via the
+// existing entity_to_u64 / entity_from_u64 helpers). Errors map to existing
+// EvStatus codes with structured last_error messages.
+
+/// Set the operational mode of an elevator.
+///
+/// Modes are orthogonal to the elevator's phase — switching mode does not
+/// teleport the car, but it changes how subsequent ticks treat it.
+/// Leaving Manual zeroes velocity and clears any queued door commands.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_service_mode(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    mode: EvServiceMode,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_service_mode(elevator, mode.to_core()) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("set_service_mode: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Get the current operational mode of an elevator.
+///
+/// Writes the mode to `*out_mode`. Returns `Normal` for missing/disabled
+/// elevators (matches core's `service_mode` accessor, which returns the
+/// default rather than erroring). Use [`ev_sim_frame`] to verify existence.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_mode` must be a valid pointer to a writable [`EvServiceMode`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_service_mode(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out_mode: *mut EvServiceMode,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_mode.is_null() {
+            set_last_error("handle or out_mode is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let mode = EvServiceMode::from_core(ev.sim.service_mode(elevator));
+        // Safety: caller guarantees out_mode is writable.
+        unsafe { *out_mode = mode };
+        EvStatus::Ok
+    })
+}
+
+/// Set the target velocity for a Manual-mode elevator.
+///
+/// Positive values command upward travel, negative values downward. The
+/// car ramps toward the target each tick using its configured
+/// acceleration / deceleration.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_target_velocity(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    velocity: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_target_velocity(ElevatorId::from(elevator), velocity)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_target_velocity: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Command an immediate stop on a Manual-mode elevator.
+///
+/// Sets the target velocity to zero; the car decelerates at its
+/// configured rate. Emits a distinct event so games can distinguish an
+/// emergency stop from a deliberate hold (`target_velocity` payload is
+/// `None` in the event).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_emergency_stop(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.emergency_stop(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("emergency_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Request the doors of an elevator to open.
+///
+/// Applied immediately when the car is stopped at a stop with
+/// closed/closing doors; otherwise queued until the car next arrives.
+/// No-op if doors are already open.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_open_door(handle: *mut EvSim, elevator_entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.open_door(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("open_door: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Request the doors to close now. Forces an early close unless a rider is
+/// mid-boarding/exiting (in which case the close waits). If doors are
+/// opening, the close queues until they reach fully-open.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_close_door(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.close_door(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("close_door: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Extend the doors' open dwell by `ticks`. Cumulative — repeat calls add.
+/// If doors aren't open yet, the hold queues and applies when they reach
+/// fully-open.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_hold_door(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    ticks: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.hold_door(ElevatorId::from(elevator), ticks) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("hold_door: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Cancel any pending hold extension on the doors. If the base open timer
+/// has already elapsed, the doors close on the next doors-phase tick.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_cancel_door_hold(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.cancel_door_hold(ElevatorId::from(elevator)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("cancel_door_hold: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Internal: shared error-to-status mapping for the manual-mode and door
+/// commands.
+///
+/// `NotFound` for missing entities, `InvalidArg` for everything else
+/// (wrong service mode, disabled elevator, non-finite velocity).
+const fn mode_error_status(e: &elevator_core::error::SimError) -> EvStatus {
+    use elevator_core::error::SimError;
+    match e {
+        SimError::EntityNotFound(_) | SimError::NotAnElevator(_) => EvStatus::NotFound,
+        _ => EvStatus::InvalidArg,
+    }
 }
 
 #[cfg(test)]

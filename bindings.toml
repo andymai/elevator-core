@@ -136,50 +136,50 @@ ffi  = "skip:internal — phase ordering invariant"
 [[methods]]
 name = "set_service_mode"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "setServiceMode"
+ffi  = "ev_sim_set_service_mode"
 
 [[methods]]
 name = "service_mode"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "serviceMode"
+ffi  = "ev_sim_service_mode"
 
 [[methods]]
 name = "set_target_velocity"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "setTargetVelocity"
+ffi  = "ev_sim_set_target_velocity"
 
 [[methods]]
 name = "emergency_stop"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "emergencyStop"
+ffi  = "ev_sim_emergency_stop"
 
 [[methods]]
 name = "open_door"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "openDoor"
+ffi  = "ev_sim_open_door"
 
 [[methods]]
 name = "close_door"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "closeDoor"
+ffi  = "ev_sim_close_door"
 
 [[methods]]
 name = "hold_door"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "holdDoor"
+ffi  = "ev_sim_hold_door"
 
 [[methods]]
 name = "cancel_door_hold"
 category = "modes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+wasm = "cancelDoorHold"
+ffi  = "ev_sim_cancel_door_hold"
 
 # ─── Dispatch ─────────────────────────────────────────────────────────────
 
