@@ -869,19 +869,19 @@ ffi  = "skip:takes a generic closure"
 [[methods]]
 name = "tag_entity"
 category = "tagging"
-wasm = "todo:PR-E"
-ffi  = "todo:PR-E"
+wasm = "tagEntity"
+ffi  = "ev_sim_tag_entity"
 
 [[methods]]
 name = "untag_entity"
 category = "tagging"
-wasm = "todo:PR-E"
-ffi  = "todo:PR-E"
+wasm = "untagEntity"
+ffi  = "ev_sim_untag_entity"
 
 [[methods]]
 name = "all_tags"
 category = "tagging"
-wasm = "todo:PR-E"
+wasm = "allTags"
 ffi  = "todo:PR-E"
 
 [[methods]]

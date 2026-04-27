@@ -2299,6 +2299,95 @@ pub unsafe extern "C" fn ev_sim_set_elevator_restricted_stops(
     })
 }
 
+// ── Tagging ──────────────────────────────────────────────────────────────
+//
+// Attach string tags to entities for grouped metrics. Mirrors wasm's
+// tagEntity / untagEntity. The `all_tags` and `metrics_for_tag`
+// accessors are deferred — `all_tags` needs a string-buffer pattern
+// and `metrics_for_tag` needs a TaggedMetric DTO.
+
+/// Attach `tag` to `entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `tag` must be a null-terminated UTF-8 C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_tag_entity(
+    handle: *mut EvSim,
+    entity_id: u64,
+    tag: *const c_char,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || tag.is_null() {
+            set_last_error("handle or tag is null");
+            return EvStatus::NullArg;
+        }
+        let Some(entity) = entity_from_u64(entity_id) else {
+            set_last_error("entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(tag) };
+        let tag_str = match cstr.to_str() {
+            Ok(s) => s.to_owned(),
+            Err(e) => {
+                set_last_error(format!("tag is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.tag_entity(entity, tag_str) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("tag_entity: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove `tag` from `entity_id`. No-op if the entity wasn't tagged.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `tag` must be a null-terminated UTF-8 C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_untag_entity(
+    handle: *mut EvSim,
+    entity_id: u64,
+    tag: *const c_char,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || tag.is_null() {
+            set_last_error("handle or tag is null");
+            return EvStatus::NullArg;
+        }
+        let Some(entity) = entity_from_u64(entity_id) else {
+            set_last_error("entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(tag) };
+        let tag_str = match cstr.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("tag is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        ev.sim.untag_entity(entity, tag_str);
+        EvStatus::Ok
+    })
+}
+
 // ── Routes + rider lifecycle ─────────────────────────────────────────────
 //
 // Per-rider mutations (reroute, settle, access) and read-only graph
