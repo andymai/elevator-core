@@ -56,8 +56,8 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
   state.paneB = null;
   // Drop any manual-controls panel from the previous scenario; the new
   // scenario remounts below if it's also manual.
-  state.cockpit?.dispose();
-  state.cockpit = null;
+  state.manualControls?.dispose();
+  state.manualControls = null;
   try {
     // Build both panes *before* attaching either to `state`. Attaching
     // pane A while pane B is still awaiting wasm instantiation lets
@@ -110,27 +110,21 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // `configureTraffic` once the quota drains, so the scenario's
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
-    // Mount the cockpit console for cockpit (manual-control) scenarios.
-    // The panel reads `paneA.sim` for entity refs and pushes the
-    // CockpitRenderState (hall-call lamps + hint) into `paneA.renderer`
-    // on every `update()` tick.
+    // Mount the manual-controls side panel for manual-control scenarios.
+    // The panel reads `paneA.sim` for entity refs and pushes the full
+    // CabinRenderState (selected car, per-car mode, hall-call lamps)
+    // into `paneA.renderer` on every `update()` tick.
     if (scenario.manualControl !== undefined) {
-      // Pass a getter, not a value: the tweak-drawer hot-swap path
-      // replaces `state.permalink.overrides` with a fresh object on
-      // every change, so a captured snapshot would freeze the
-      // throttle clamp at boot-time max-speed.
-      state.cockpit = mountManualControls(
+      state.manualControls = mountManualControls(
         paneA.sim,
         scenario,
-        () => state.permalink.overrides,
         {
-          throttle: ui.cockpitThrottle,
-          velocityReadout: ui.cockpitVelocity,
-          doorOpen: ui.cockpitDoorOpen,
-          doorClose: ui.cockpitDoorClose,
-          doorHold: ui.cockpitDoorHold,
-          emergencyStop: ui.cockpitEStop,
-          spawnRider: ui.cockpitSpawn,
+          hallButtons: ui.manualHallButtons,
+          carControls: ui.manualCarControls,
+          spawnForm: ui.manualSpawnForm,
+          eventLog: ui.manualEventLog,
+          addCarBtn: ui.manualAddCarBtn,
+          featureHint: ui.manualFeatureHint,
         },
         paneA.renderer,
       );
