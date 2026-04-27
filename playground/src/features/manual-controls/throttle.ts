@@ -151,10 +151,12 @@ export function mountThrottle(host: HTMLElement, opts: ThrottleOptions): Throttl
       setValue(value - KEY_NUDGE_M_S, { spring: false });
       e.preventDefault();
     } else if (e.key === "Home") {
-      setValue(maxSpeed, { spring: false });
+      // ARIA `role="slider"`: Home = minimum value.
+      setValue(-maxSpeed, { spring: false });
       e.preventDefault();
     } else if (e.key === "End") {
-      setValue(-maxSpeed, { spring: false });
+      // ARIA `role="slider"`: End = maximum value.
+      setValue(maxSpeed, { spring: false });
       e.preventDefault();
     } else if (e.key === " " || e.key === "Spacebar") {
       setValue(0, { spring: true });
