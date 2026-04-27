@@ -469,13 +469,13 @@ ffi  = "todo:PR-B"
 name = "current_tick"
 category = "introspection"
 wasm = "currentTick"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_current_tick"
 
 [[methods]]
 name = "dt"
 category = "introspection"
 wasm = "dt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_dt"
 
 [[methods]]
 name = "metrics"
@@ -577,61 +577,61 @@ ffi  = "todo:PR-C"
 name = "velocity"
 category = "introspection"
 wasm = "velocity"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_velocity"
 
 [[methods]]
 name = "position_at"
 category = "introspection"
 wasm = "positionAt"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_position_at"
 
 [[methods]]
 name = "elevator_load"
 category = "introspection"
 wasm = "elevatorLoad"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevator_load"
 
 [[methods]]
 name = "occupancy"
 category = "introspection"
 wasm = "occupancy"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_occupancy"
 
 [[methods]]
 name = "elevator_direction"
 category = "introspection"
 wasm = "elevatorDirection"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevator_direction"
 
 [[methods]]
 name = "elevator_going_up"
 category = "introspection"
 wasm = "elevatorGoingUp"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevator_going_up"
 
 [[methods]]
 name = "elevator_going_down"
 category = "introspection"
 wasm = "elevatorGoingDown"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevator_going_down"
 
 [[methods]]
 name = "elevator_move_count"
 category = "introspection"
 wasm = "elevatorMoveCount"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevator_move_count"
 
 [[methods]]
 name = "braking_distance"
 category = "introspection"
 wasm = "brakingDistance"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_braking_distance"
 
 [[methods]]
 name = "future_stop_position"
 category = "introspection"
 wasm = "futureStopPosition"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_future_stop_position"
 
 [[methods]]
 name = "destination_queue"
@@ -655,31 +655,31 @@ ffi  = "todo:PR-C"
 name = "idle_elevator_count"
 category = "introspection"
 wasm = "idleElevatorCount"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_idle_elevator_count"
 
 [[methods]]
 name = "is_elevator"
 category = "introspection"
 wasm = "isElevator"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_is_elevator"
 
 [[methods]]
 name = "is_rider"
 category = "introspection"
 wasm = "isRider"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_is_rider"
 
 [[methods]]
 name = "is_stop"
 category = "introspection"
 wasm = "isStop"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_is_stop"
 
 [[methods]]
 name = "is_disabled"
 category = "introspection"
 wasm = "isDisabled"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_is_disabled"
 
 [[methods]]
 name = "waiting_at"
