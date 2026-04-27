@@ -168,28 +168,32 @@ const convention: ScenarioMeta = {
 
 // ─── Skyscraper — 40 floors, zoned banks, multi-leg transfers ────────
 //
-// Real skyscraper: 40 named floors (Lobby + 39 above) + a basement
-// and a mechanical service floor for the utility elevator. Four
-// elevator banks, each a separate `LineConfig` + `GroupConfig` so
-// the core's topology graph can plan multi-leg journeys that
-// transfer at the sky lobby.
+// Real skyscraper: 40 named floors (Lobby + 39 above) + three
+// basements served only by a utility elevator. Four elevator banks,
+// each a separate `LineConfig` + `GroupConfig` so the core's topology
+// graph can plan multi-leg journeys that transfer at the sky lobby.
 //
-//   Stop layout (42 stops, ids 0..41, 4 m spacing):
-//     id 0  : B1          (-4 m)     — service-only
-//     id 1  : Lobby       (0 m)      — every bank reaches here
-//     id 2-20: Floor 1-19  (4..76 m)  — low zone
-//     id 21 : Sky Lobby   (80 m)     — transfer point (low + high + exec)
-//     id 22-37: Floor 21-36 (84..144 m) — high zone
-//     id 38 : Floor 37    (148 m)    — exec-only
-//     id 39 : Floor 38    (152 m)    — exec-only
-//     id 40 : Penthouse   (156 m)    — exec-only
-//     id 41 : Mechanical  (160 m)    — service-only
+//   Stop layout (43 stops, 4 m spacing). Lobby is declared first in
+//   the RON (array index 0) so the TrafficDetector — which keys off
+//   `stops[0]` for its lobby reference — classifies the morning-rush
+//   peak correctly. StopId values are independent of declaration
+//   order.
+//     id 1   : Lobby       (0 m)      — array idx 0, every bank
+//     id 0   : B1          (-4 m)     — array idx 1, service-only
+//     id 2-20: Floor 1-19  (4..76 m)  — array idx 2-20, low zone
+//     id 21  : Sky Lobby   (80 m)     — array idx 21, transfer point
+//     id 22-37: Floor 21-36 (84..144 m) — array idx 22-37, high zone
+//     id 38  : Floor 37    (148 m)    — array idx 38, exec-only
+//     id 39  : Floor 38    (152 m)    — array idx 39, exec-only
+//     id 40  : Penthouse   (156 m)    — array idx 40, exec-only
+//     id 41  : B2          (-8 m)     — array idx 41, service-only
+//     id 42  : B3          (-12 m)    — array idx 42, service-only
 //
 //   Banks:
 //     - Low bank      (2 cars): Lobby ↔ floors 1-19 ↔ Sky Lobby
 //     - High bank     (1 car) : Sky Lobby ↔ floors 21-36
 //     - Executive    (1 car) : Lobby ↔ Sky Lobby ↔ floors 37/38/Penthouse
-//     - Service      (1 car) : B1 ↔ Lobby ↔ Mechanical
+//     - Service      (1 car) : Lobby ↔ B1 ↔ B2 ↔ B3
 //
 // A rider from Lobby → Floor 30 has no single group serving both
 // ends, so the sim's `RiderBuilder::spawn` falls back to the
@@ -199,7 +203,7 @@ const convention: ScenarioMeta = {
 //
 // Exec-only floors (37, 38, Penthouse) are reachable ONLY by the
 // exec car — no other bank's `serves` list includes them. Service-
-// only floors (B1, Mechanical) work the same way for the service car.
+// only floors (B1, B2, B3) work the same way for the service car.
 // This demonstrates the core's per-line stop restriction from both
 // sides: a small bank that's the *only* way to reach a few stops,
 // and a large bank that can't reach those same stops.
@@ -208,78 +212,91 @@ const SKY_LOW_FLOORS = 19; // Floors 1..19 above the lobby
 const SKY_HIGH_FLOORS = 16; // Floors 21..36 above the sky lobby
 const FLOOR_HEIGHT_M = 4;
 const SKY_LOBBY_POS = (1 + SKY_LOW_FLOORS) * FLOOR_HEIGHT_M; // 80 m
+// Array index for each basement level. B1 is declared just after
+// Lobby so it stays at index 1; B2 and B3 are appended at the end of
+// the RON, so they trail the upper-floor block.
+const SKY_B1_IDX = 1;
+const SKY_B2_IDX = 41;
+const SKY_B3_IDX = 42;
+const SKY_TOTAL_STOPS = 43;
 
-/** Phases are relative-rate weighted across the full 42-stop array. */
+/** Phases are relative-rate weighted across the full 43-stop array. */
 function skyWeights(fill: (i: number) => number): number[] {
-  return Array.from({ length: 42 }, (_, i) => fill(i));
+  return Array.from({ length: SKY_TOTAL_STOPS }, (_, i) => fill(i));
 }
 
+// Helper — true when the array index points at any of the three
+// service-only basements (B1 / B2 / B3). Used in phase weight vectors
+// where all three basements should share the same multiplier.
+const isBasement = (i: number): boolean => i === SKY_B1_IDX || i === SKY_B2_IDX || i === SKY_B3_IDX;
+
 const skyPhases: Phase[] = [
-  // Morning rush: heavy from Lobby going up. Service floors (B1,
-  // Mechanical) get enough weight to keep the service car working —
-  // staff arrivals up to Mechanical, and a steady trickle of
-  // maintenance / deliveries coming up from the loading dock at B1.
+  // Morning rush: heavy from Lobby going up. The basements (B1
+  // loading dock, B2 parking, B3 utility plant) get enough weight to
+  // keep the service car working — staff arrivals through the parking
+  // levels and a steady trickle of deliveries from the loading dock.
   {
     name: "Morning rush",
     durationSec: 90,
     ridersPerMin: 40,
-    // Stop indices reflect the RON declaration order: Lobby=0, B1=1,
+    // Stop indices reflect RON declaration order: Lobby=0, B1=1,
     // floors 1..19 = 2..20, Sky Lobby = 21, floors 21..36 = 22..37,
-    // Floor 37 = 38, Floor 38 = 39, Penthouse = 40, Mechanical = 41.
+    // Floor 37 = 38, Floor 38 = 39, Penthouse = 40, B2 = 41, B3 = 42.
     originWeights: skyWeights((i) => {
       if (i === 0) return 20; // Lobby
-      if (i === 1) return 2; // B1 loading dock
-      if (i === 41) return 0.2; // Mechanical (quiet early)
+      if (i === SKY_B1_IDX) return 2; // B1 loading dock
+      if (i === SKY_B2_IDX) return 1.2; // B2 parking — staff arriving by car
+      if (i === SKY_B3_IDX) return 0.2; // B3 utility plant (quiet early)
       return 0.1;
     }),
     // Destinations: bulk across all public floors; exec floors get
-    // their share; mechanical gets noticeable weight for staff arrivals.
+    // their share; basements pick up morning deliveries + maintenance.
     destWeights: skyWeights((i) => {
       if (i === 0) return 0; // already at Lobby
-      if (i === 1) return 0.3; // some deliveries down to B1
+      if (i === SKY_B1_IDX) return 0.3; // some deliveries down to B1
+      if (i === SKY_B2_IDX) return 0.4; // parking returns
+      if (i === SKY_B3_IDX) return 0.7; // utility-plant maintenance crew
       if (i === 21) return 2; // sky lobby amenities
       if (i >= 38 && i <= 40) return 0.6; // exec floors
-      if (i === 41) return 1.4; // mechanical — staff arrivals
       return 1; // public floors
     }),
   },
   // Midday: internal floor-to-floor movement, with light service ops
-  // (deliveries, maintenance rounds) between B1 / Mechanical and the
+  // (deliveries, maintenance rounds) between the basements and the
   // public floors.
   {
     name: "Midday meetings",
     durationSec: 90,
     ridersPerMin: 18,
     originWeights: skyWeights((i) => {
-      if (i === 1) return 0.6; // B1 loading dock
-      if (i === 41) return 0.5; // mechanical rounds
+      if (isBasement(i)) return 0.5; // light deliveries / maintenance
       return 1;
     }),
     destWeights: skyWeights((i) => {
-      if (i === 1) return 0.5; // B1
-      if (i === 41) return 0.5;
+      if (isBasement(i)) return 0.5;
       return 1;
     }),
   },
-  // Lunch: sky lobby is a canteen hub. Service floors idle but not
-  // fully zeroed so the utility car still shows occasional activity.
+  // Lunch: sky lobby is a canteen hub. Basements idle but not fully
+  // zeroed so the utility car still shows occasional activity.
   {
     name: "Lunch crowd",
     durationSec: 75,
     ridersPerMin: 22,
     originWeights: skyWeights((i) => {
       if (i === 21) return 4; // sky lobby outbound (returning to desks)
-      if (i === 1 || i === 41) return 0.25; // B1 / Mechanical
+      if (isBasement(i)) return 0.25;
       return 1;
     }),
     destWeights: skyWeights((i) => {
       if (i === 21) return 5; // sky lobby inbound (cafeteria)
-      if (i === 1 || i === 41) return 0.25; // B1 / Mechanical
+      if (isBasement(i)) return 0.25;
       return 1;
     }),
   },
-  // Evening: downward rush. Mechanical staff head home via the
-  // service car; B1 gets packages picked up at the loading dock.
+  // Evening: downward rush. Maintenance crews head home via the
+  // service car through the basements; B1/B2 see pickups at the
+  // loading dock and parking deck.
   {
     name: "Evening commute",
     durationSec: 90,
@@ -287,30 +304,31 @@ const skyPhases: Phase[] = [
     originWeights: skyWeights((i) => {
       // Lobby (0), B1 (1), and Sky Lobby (21) are quiet as origins —
       // riders are leaving floors, not arriving at them.
-      if (i === 0 || i === 1 || i === 21) return 0.3;
-      if (i === 41) return 1.2; // staff leaving mechanical
+      if (i === 0 || i === SKY_B1_IDX || i === 21) return 0.3;
+      if (i === SKY_B2_IDX) return 0.4; // parking pickups
+      if (i === SKY_B3_IDX) return 1.2; // utility-plant staff leaving
       return 1;
     }),
     destWeights: skyWeights((i) => {
       if (i === 0) return 20; // Lobby
-      if (i === 1) return 1; // deliveries to loading dock
-      if (i === 41) return 0.2;
+      if (i === SKY_B1_IDX) return 1; // deliveries to loading dock
+      if (i === SKY_B2_IDX) return 0.6; // parking deck
+      if (i === SKY_B3_IDX) return 0.2; // utility plant quiet at end of day
       return 0.1;
     }),
   },
-  // Late: minimal, some overnight service + security. B1 (1) and
-  // Mechanical (41) carry the overnight traffic; everything else
-  // sleeps.
+  // Late: minimal, some overnight service + security. B1/B2/B3
+  // share the overnight traffic; everything else sleeps.
   {
     name: "Late night",
     durationSec: 60,
     ridersPerMin: 6,
-    originWeights: skyWeights((i) => (i === 1 || i === 41 ? 1.5 : 0.2)),
-    destWeights: skyWeights((i) => (i === 1 || i === 41 ? 1.5 : 0.2)),
+    originWeights: skyWeights((i) => (isBasement(i) ? 1.5 : 0.2)),
+    destWeights: skyWeights((i) => (isBasement(i) ? 1.5 : 0.2)),
   },
 ];
 
-// Build the multi-zone RON programmatically — 42 stops + 4 lines is
+// Build the multi-zone RON programmatically — 43 stops + 4 lines is
 // too many lines to author by hand without copy-paste bugs.
 function buildSkyscraperRon(): string {
   const stops: string[] = [];
@@ -343,7 +361,11 @@ function buildSkyscraperRon(): string {
   stops.push(`        StopConfig(id: StopId(38), name: "Floor 37",   position: 148.0),`);
   stops.push(`        StopConfig(id: StopId(39), name: "Floor 38",   position: 152.0),`);
   stops.push(`        StopConfig(id: StopId(40), name: "Penthouse",  position: 156.0),`);
-  stops.push(`        StopConfig(id: StopId(41), name: "Mechanical", position: 160.0),`);
+  // B2 / B3 trail the upper floors in declaration order — they're
+  // service-only so the rendering order along the shaft (driven by
+  // position, not array index) still puts them at the building floor.
+  stops.push(`        StopConfig(id: StopId(41), name: "B2",         position: -8.0),`);
+  stops.push(`        StopConfig(id: StopId(42), name: "B3",         position: -12.0),`);
 
   const lowServes = [1, ...Array.from({ length: SKY_LOW_FLOORS }, (_, k) => 2 + k), 21];
   const highServes = [21, ...Array.from({ length: SKY_HIGH_FLOORS }, (_, k) => 22 + k)];
@@ -351,11 +373,12 @@ function buildSkyscraperRon(): string {
   // Service line's `serves` list. Order matters: the `ReturnToLobby`
   // reposition strategy defaults to `home_stop_index: 0` — the first
   // stop in the line's serves list — so putting Lobby (StopId 1)
-  // first means an idle Service car parks at the Lobby rather than
-  // the basement. Without this, AdaptiveParking's up-peak branch
-  // bounces the Service car between B1 and the Lobby every time a
-  // service rider finishes a trip.
-  const serviceServes = [1, 0, 41];
+  // first means an idle Service car parks at the Lobby rather than a
+  // basement. Without this, AdaptiveParking's up-peak branch bounces
+  // the Service car between B1 and the Lobby every time a service
+  // rider finishes a trip. The basement chain (B1 → B2 → B3) is the
+  // service car's exclusive territory; no other line reaches them.
+  const serviceServes = [1, 0, 41, 42];
   const serveList = (ids: number[]): string => ids.map((i) => `StopId(${i})`).join(", ");
 
   // Per-car physics parameterised on capacity (kg). Main-bank cars
@@ -435,7 +458,8 @@ ${elevator(4, "Service", 1, 350)}
 // Mirror of the RON stops for the scenario meta's `stops` array. The
 // traffic driver uses this to pick origins/destinations by index.
 // Order matches `buildSkyscraperRon` (Lobby first so the
-// TrafficDetector reads it as `stops[0]`).
+// TrafficDetector reads it as `stops[0]`; B2 and B3 trail the upper
+// floors so they slot into array indices 41 and 42).
 const skyscraperStops: Array<{ name: string; positionM: number }> = [
   { name: "Lobby", positionM: 0 },
   { name: "B1", positionM: -4 },
@@ -451,7 +475,8 @@ const skyscraperStops: Array<{ name: string; positionM: number }> = [
   { name: "Floor 37", positionM: 148 },
   { name: "Floor 38", positionM: 152 },
   { name: "Penthouse", positionM: 156 },
-  { name: "Mechanical", positionM: 160 },
+  { name: "B2", positionM: -8 },
+  { name: "B3", positionM: -12 },
 ];
 
 const skyscraper: ScenarioMeta = {
