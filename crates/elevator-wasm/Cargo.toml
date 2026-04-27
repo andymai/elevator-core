@@ -1,6 +1,6 @@
 [package]
 name = "elevator-wasm"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 description = "wasm-bindgen surface for elevator-core (browser playground)"
 license.workspace = true
