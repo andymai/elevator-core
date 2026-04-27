@@ -472,9 +472,28 @@ export class WasmSim {
      */
     addStop(line_ref: bigint, name: string, position: number): bigint;
     /**
+     * Add an existing stop entity to a line's served list. The stop
+     * must already exist (via `addStop` on some line, or from config).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop or line entity does not exist.
+     */
+    addStopToLine(stop_ref: bigint, line_ref: bigint): void;
+    /**
      * Entity ids of every line in the simulation, across all groups.
      */
     allLines(): BigUint64Array;
+    /**
+     * Reassign a line to a different group. Returns the previous group
+     * id so the caller can detect a no-op (returned id == passed id).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line does not exist or `new_group_id`
+     * is not a valid group.
+     */
+    assignLineToGroup(line_ref: bigint, new_group_id: number): number;
     /**
      * Car currently assigned to serve the call at `(stop_ref, direction)`,
      * or `0` (slotmap-null) if none. At stops served by multiple lines
@@ -802,6 +821,16 @@ export class WasmSim {
      */
     reachableStopsFrom(from_stop_ref: bigint): BigUint64Array;
     /**
+     * Reassign an elevator to a different line. Disabled cars stay
+     * disabled; in-flight cars are aborted to the nearest reachable
+     * stop on the new line.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or new line does not exist.
+     */
+    reassignElevatorToLine(elevator_ref: bigint, new_line_ref: bigint): void;
+    /**
      * Clear the queue and immediately recall the elevator to `stop_ref`.
      * Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
      * emitted as a single `ElevatorRecalled` event so games can render a
@@ -843,6 +872,15 @@ export class WasmSim {
      * Returns a JS error if the stop does not exist.
      */
     removeStop(stop_ref: bigint): void;
+    /**
+     * Remove a stop from a line's served list. The stop entity itself
+     * remains in the world — call `removeStop` to fully despawn.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the line entity does not exist.
+     */
+    removeStopFromLine(stop_ref: bigint, line_ref: bigint): void;
     /**
      * Active reposition strategy name (one of `adaptive | predictive
      * | lobby | spread | none`). Used by the playground to label the
@@ -925,6 +963,15 @@ export class WasmSim {
      * is zero.
      */
     setDoorTransitionTicksAll(ticks: number): void;
+    /**
+     * Replace an elevator's forbidden-stops set. Pass an empty array to
+     * clear all restrictions.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     */
+    setElevatorRestrictedStops(elevator_ref: bigint, stop_refs: BigUint64Array): void;
     /**
      * Swap every group's dispatcher to a tuned ETD instance that
      * applies the group-time squared-wait fairness bonus. Higher
@@ -1185,7 +1232,9 @@ export interface InitOutput {
     readonly wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
     readonly wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
+    readonly wasmsim_addStopToLine: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_allLines: (a: number) => [number, number];
+    readonly wasmsim_assignLineToGroup: (a: number, b: bigint, c: number) => [number, number, number];
     readonly wasmsim_assignedCar: (a: number, b: bigint, c: number, d: number) => [bigint, number, number];
     readonly wasmsim_assignedCarsByLine: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
     readonly wasmsim_bestEta: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
@@ -1231,11 +1280,13 @@ export interface InitOutput {
     readonly wasmsim_pushDestination: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_pushDestinationFront: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_reachableStopsFrom: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_reassignElevatorToLine: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_recallTo: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
     readonly wasmsim_removeLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_removeReposition: (a: number, b: number) => void;
     readonly wasmsim_removeStop: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_removeStopFromLine: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_repositionStrategyName: (a: number) => [number, number];
     readonly wasmsim_reroute: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_residentCountAt: (a: number, b: bigint) => number;
@@ -1246,6 +1297,7 @@ export interface InitOutput {
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => [number, number];
+    readonly wasmsim_setElevatorRestrictedStops: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_setEtdWithWaitSquaredWeight: (a: number, b: number) => void;
     readonly wasmsim_setHallCallModeDestination: (a: number) => void;
     readonly wasmsim_setLineRange: (a: number, b: bigint, c: number, d: number) => [number, number];
