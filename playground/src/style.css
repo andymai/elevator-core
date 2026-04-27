@@ -183,9 +183,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
   /* Body is a flex column so `<main id="layout">` can `flex-1` to fill
-   * whatever space is left after header + scenario strip + phase strip
-   * + (optional) verdict ribbon. Bottom controls bar is position:fixed
-   * and sits above the content via padding-bottom on main. */
+   * whatever space is left after header + scenario strip + phase
+   * strip. Bottom controls bar is position:fixed and sits above the
+   * content via padding-bottom on main. */
   body {
     display: flex;
     flex-direction: column;
