@@ -119,14 +119,20 @@ export function attachListeners(state: State, ui: UiHandles): void {
     syncPermalinkUrl(state.permalink);
   });
 
-  ui.playBtn.addEventListener("click", () => {
-    state.running = !state.running;
+  // Both icons sit in the DOM; CSS selects the visible one off
+  // `data-state`. Sync from `state.running` at attach time so the
+  // initial render doesn't rely on the HTML defaults matching the
+  // TS init value.
+  const renderPlayButton = (): void => {
     const label = state.running ? "Pause" : "Play";
-    // Both icons sit in the DOM; CSS selects the visible one off this
-    // attribute. See `#play[data-state=…]` in `style.css`.
     ui.playBtn.dataset["state"] = state.running ? "running" : "paused";
     ui.playBtn.setAttribute("aria-label", label);
     ui.playBtn.title = label;
+  };
+  renderPlayButton();
+  ui.playBtn.addEventListener("click", () => {
+    state.running = !state.running;
+    renderPlayButton();
   });
 
   ui.resetBtn.addEventListener("click", () => {

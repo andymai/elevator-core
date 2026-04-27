@@ -207,13 +207,10 @@ export function drawTetherSideCard(
   s: Scale,
 ): void {
   if (hudList.length === 0) return;
-  // Sort the card list by altitude descending so the row order on
-  // the card matches the canvas top-to-bottom — climbers stay
-  // labelled by their stable id-derived name (A/B/C), but their
-  // place in the list reflects current physical position. Without
-  // this, "Climber A" sits at the top of the card even when its
-  // cabin is at the ground.
-  const sortedList = [...hudList].sort((a, b) => b.altitudeM - a.altitudeM);
+  // Caller contract: `hudList` is already sorted by altitude
+  // descending — `drawTetherScene` passes the same `sortedHud` to
+  // both the inline-chip pass and the side card so chip placement
+  // and card row order stay in lockstep. Don't re-sort here.
   const titleH = 18;
   const padX = 10;
   const padY = 6;
@@ -225,7 +222,7 @@ export function drawTetherSideCard(
   // bound for, how long).
   const rowsPerCar = 5;
   const rowH = padY * 2 + rowsPerCar * lineH;
-  const cardH = titleH + padY + (rowH + rowGap) * sortedList.length;
+  const cardH = titleH + padY + (rowH + rowGap) * hudList.length;
   ctx.save();
   // Card surface — mirrors the pane chrome (`from-surface-elevated to-surface-secondary`).
   const grad = ctx.createLinearGradient(cardX, cardYStart, cardX, cardYStart + cardH);
@@ -253,7 +250,7 @@ export function drawTetherSideCard(
   ctx.fillText("CLIMBERS", cardX + padX, cardYStart + titleH / 2 + 2);
 
   let cursorY = cardYStart + titleH + padY;
-  for (const hud of sortedList) {
+  for (const hud of hudList) {
     // Row card on a slightly darker surface so it lifts off the panel.
     ctx.fillStyle = "rgba(15, 15, 18, 0.55)";
     roundedRect(ctx, cardX + 6, cursorY, cardW - 12, rowH, 5);

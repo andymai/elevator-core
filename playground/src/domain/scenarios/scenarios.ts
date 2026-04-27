@@ -483,13 +483,13 @@ const skyscraper: ScenarioMeta = {
   id: "skyscraper-sky-lobby",
   label: "Skyscraper",
   description:
-    "40-floor tower with four elevator banks. Most cross-zone riders transfer at the sky lobby; the exec car is the only way up to the penthouse suites; a service elevator links the basement and mechanical room.",
+    "40-floor tower with four elevator banks. Most cross-zone riders transfer at the sky lobby; the exec car is the only way up to the penthouse suites; a service elevator links the lobby to three basement levels (B1 loading dock, B2 parking, B3 utility plant).",
   defaultStrategy: "etd",
   phases: skyPhases,
   seedSpawns: 0,
   abandonAfterSec: 240,
   featureHint:
-    "Cross-zone riders transfer at the Sky Lobby (two-leg routes). The Executive car is the only way to the top 3 floors; the Service car is the only way to B1 / Mechanical.",
+    "Cross-zone riders transfer at the Sky Lobby (two-leg routes). The Executive car is the only way to the top 3 floors; the Service car is the only way down to B1 / B2 / B3.",
   buildingName: "Skyscraper",
   stops: skyscraperStops,
   // Car count is fixed — the multi-line config can't be regenerated

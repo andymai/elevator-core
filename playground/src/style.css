@@ -135,8 +135,13 @@
   /* Mobile touch target (matches Apple HIG) */
   --touch-target: 44px;
 
-  /* Bottom controls bar height for layout calculations */
-  --controls-bar-h: 52px;
+  /* Bottom status-bar height for layout calculations. Updated at
+   * runtime by the ResizeObserver in `wire-ui.ts` to whatever the bar
+   * actually measures, but the static value below is the bootstrap
+   * default before the first observation fires. Matches the new
+   * fixed status bar (~36 px), down from the legacy floating-capsule
+   * height of 52 px. */
+  --controls-bar-h: 36px;
 
   /* Transition shorthand — combined duration + curve for custom CSS
    * convenience. Tailwind utilities consume the split tokens from @theme. */
@@ -490,7 +495,7 @@
     position: absolute;
     inset: 0;
     background-color: var(--bg-primary);
-    --check-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5 7 11.5 12.5 5.5'/%3E%3C/svg%3E");
+    --check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5 7 11.5 12.5 5.5'/%3E%3C/svg%3E");
     -webkit-mask: var(--check-mask) center / 100% 100% no-repeat;
     mask: var(--check-mask) center / 100% 100% no-repeat;
   }
@@ -865,6 +870,15 @@
     .controls-bar-actions button {
       padding: 3px 7px;
       font-size: 11px;
+    }
+    /* Touch-target floor on mobile per the project's mobile-P0 rule.
+     * Visual icon stays 14 px; the button stretches to the 44 px
+     * minimum so the bar reads as a thumb-friendly status bar on a
+     * phone. Bar grows from ~32 px desktop height to ~46 px on mobile,
+     * which is still well under the legacy floating-capsule footprint. */
+    .controls-bar-actions .icon-btn {
+      min-width: var(--touch-target);
+      min-height: var(--touch-target);
     }
     /* Phase block can hide on the narrowest viewports — the section
      * already collapses when no phases are installed, but on a phone
