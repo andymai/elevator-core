@@ -7,6 +7,7 @@ import {
   drawShaftLabels,
   drawWaitingFigures,
 } from "./draw-building";
+import { drawCabinCutaway, type CabinRenderState } from "./draw-cabin";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { RiderVariant } from "./figures/rider";
@@ -69,6 +70,8 @@ export class CanvasRenderer {
   readonly #tweens: Tween[] = [];
   /** Set when the active scenario is a space-elevator-style tether. */
   #tether: TetherMeta | null = null;
+  /** Set when the active scenario is the manual-control cabin cutaway. */
+  #manualControl: CabinRenderState | null = null;
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
@@ -124,6 +127,24 @@ export class CanvasRenderer {
   }
 
   /**
+   * Toggle the cabin-cutaway render path. When set, every other render
+   * branch is bypassed and `drawCabinCutaway` takes over the canvas.
+   * Mirrors the tether opt-in.
+   */
+  setManualControlState(state: CabinRenderState | null): void {
+    // Reuse the existing per-car kinematic / assignment caches as
+    // scenario-switch boundaries — same trick `setTetherConfig` uses.
+    // Only reset on a transition into or out of manual mode, not on
+    // the per-frame state replacement the loop does.
+    const transitioning = (state === null) !== (this.#manualControl === null);
+    this.#manualControl = state;
+    if (transitioning) {
+      this.#prevVelocity.clear();
+      this.#stopAssignments.clear();
+    }
+  }
+
+  /**
    * Report current physics knobs so the HUD's ETA / phase classifier
    * stay in sync with hot-swapped values from the tweak drawer.
    */
@@ -168,6 +189,11 @@ export class CanvasRenderer {
     }
     const s = this.#cachedScale;
     if (s === null) return;
+
+    if (this.#manualControl !== null) {
+      drawCabinCutaway(ctx, snap, w, h, this.#manualControl);
+      return;
+    }
 
     if (this.#tether !== null) {
       this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);

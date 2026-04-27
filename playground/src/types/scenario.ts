@@ -80,6 +80,36 @@ export interface TweakRanges {
 }
 
 /**
+ * `ServiceMode` variants exposed in the playground UI. Mirrors a
+ * subset of `elevator_core::components::ServiceMode`. `Independent`
+ * is omitted on purpose — it overlaps with `Manual` semantically and
+ * would confuse the dropdown; consumers needing it can drop to the
+ * wasm API directly.
+ */
+export type ServiceModeName = "normal" | "manual" | "inspection" | "outofservice";
+
+/**
+ * Manual-control scenario metadata. Set only by scenarios that opt
+ * into the cabin-cutaway renderer + side controls panel layout
+ * (currently just the small office). Mirrors `tether?: TetherMeta`.
+ */
+export interface ManualControlMeta {
+  /**
+   * Service mode applied to every car after the sim builds. Normal
+   * keeps auto-loading and auto-dispatch on so spawned riders board
+   * on door open and hall calls assign cars — the manual buttons sit
+   * "alongside" rather than being the only way to drive the car. Users
+   * flip individual cars to Manual via the per-car dropdown.
+   */
+  defaultServiceMode: ServiceModeName;
+  /**
+   * Show the "Add Car B" / "Remove Car B" toggle in the controls
+   * panel. Maps to `addElevator` / `removeElevator` on the sim.
+   */
+  allowAddRemoveCar: boolean;
+}
+
+/**
  * Tether-mode rendering hints for space-elevator-style scenarios.
  * When present, the renderer collapses every car into a single shared
  * shaft and switches the altitude axis to a log scale that spans
@@ -158,6 +188,12 @@ export interface ScenarioMeta {
    * per-line column rendering.
    */
   tether?: TetherMeta;
+  /**
+   * Manual-control metadata. Set only by scenarios that swap the
+   * compare-pane chrome for the cabin-cutaway + controls-panel layout
+   * (small office demo). Mutually exclusive with `tether` in practice.
+   */
+  manualControl?: ManualControlMeta;
   /**
    * Default reposition (idle-parking) strategy applied on scenario
    * selection. Lobby is fine for skyscrapers but a tether climber

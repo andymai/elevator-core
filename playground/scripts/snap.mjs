@@ -39,6 +39,10 @@ const SCENES = [
     url: `${BASE}/?s=space-elevator&c=0&a=scan`,
   },
   {
+    name: "manual-control",
+    url: `${BASE}/?s=manual-office&c=0&a=etd`,
+  },
+  {
     name: "strategy-popover-open",
     url: `${BASE}/?s=skyscraper-sky-lobby&c=0&a=scan`,
     // Open the strategy popover on pane A to capture its styling.

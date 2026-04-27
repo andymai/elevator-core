@@ -71,6 +71,16 @@ export async function boot(): Promise<void> {
   // is the decode-side counterpart, done once at boot rather than in
   // every subsequent write path.
   permalink.overrides = compactOverrides(scenario, permalink.overrides);
+  // Manual-control scenarios force compare off and switch the layout
+  // mode upfront so the side panel shows from the first paint instead
+  // of flickering through compare mode then snapping in. The compare
+  // toggle and intensity slider are hidden via the body data attribute
+  // (CSS rules in style.css drive the actual hide).
+  if (scenario.manualControl !== undefined) {
+    permalink.compare = false;
+    document.body.dataset["scenarioMode"] = "manual-control";
+    ui.layout.dataset["mode"] = "manual-control";
+  }
   applyPermalinkToUi(permalink, ui);
   const state: State = {
     running: true,
@@ -82,6 +92,7 @@ export async function boot(): Promise<void> {
     lastFrameTime: performance.now(),
     initToken: 0,
     seeding: null,
+    manualControls: null,
   };
   attachListeners(state, ui);
   await resetAll(state, ui);
