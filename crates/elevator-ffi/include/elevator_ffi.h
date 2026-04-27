@@ -1006,4 +1006,103 @@ enum EvStatus ev_sim_hold_door(struct EvSim *handle, uint64_t elevator_entity_id
  */
 enum EvStatus ev_sim_cancel_door_hold(struct EvSim *handle, uint64_t elevator_entity_id);
 
+/**
+ * Set the maximum travel speed (distance/tick) of an elevator.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_max_speed(struct EvSim *handle,
+                                   uint64_t elevator_entity_id,
+                                   double max_speed);
+
+/**
+ * Set the acceleration rate (distance/tick²) of an elevator.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_acceleration(struct EvSim *handle,
+                                      uint64_t elevator_entity_id,
+                                      double acceleration);
+
+/**
+ * Set the deceleration rate (distance/tick²) of an elevator.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_deceleration(struct EvSim *handle,
+                                      uint64_t elevator_entity_id,
+                                      double deceleration);
+
+/**
+ * Set the weight capacity (kg) of an elevator.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_weight_capacity(struct EvSim *handle,
+                                         uint64_t elevator_entity_id,
+                                         double capacity);
+
+/**
+ * Set door transition (open/close) duration in ticks. Applied on the
+ * next door cycle — an in-progress transition keeps its timing.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_door_transition_ticks(struct EvSim *handle,
+                                               uint64_t elevator_entity_id,
+                                               uint32_t ticks);
+
+/**
+ * Set how long doors hold fully open (ticks). Applied on the next door
+ * cycle — a door currently dwelling completes its existing dwell first.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_door_open_ticks(struct EvSim *handle,
+                                         uint64_t elevator_entity_id,
+                                         uint32_t ticks);
+
+/**
+ * Set how many ticks the per-rider arrival log retains. Global setting
+ * (not per-elevator). Higher = more memory but longer post-trip queries.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_arrival_log_retention_ticks(struct EvSim *handle,
+                                                     uint64_t retention_ticks);
+
+/**
+ * Enable a previously-disabled entity (elevator or stop).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_enable(struct EvSim *handle, uint64_t entity_id);
+
+/**
+ * Disable an entity (elevator or stop). Disabled elevators eject riders
+ * and are excluded from dispatch; disabled stops invalidate routes that
+ * reference them.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_disable(struct EvSim *handle, uint64_t entity_id);
+
 #endif  /* ELEVATOR_FFI_H */

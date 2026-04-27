@@ -2321,6 +2321,321 @@ const fn mode_error_status(e: &elevator_core::error::SimError) -> EvStatus {
     }
 }
 
+// ── Per-elevator parameter setters ───────────────────────────────────────
+//
+// Runtime tuning of physics and door timings. All setters validate input
+// (positive-finite for f64 fields, non-zero for tick counts) and emit an
+// ElevatorUpgraded event per call. Mirrors the wasm crate's set*All
+// helpers, but operates on a single elevator — wasm's "all" wrappers loop
+// these per car under the hood.
+
+/// Set the maximum travel speed (distance/tick) of an elevator.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_max_speed(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    max_speed: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_max_speed(ElevatorId::from(elevator), max_speed) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_max_speed: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set the acceleration rate (distance/tick²) of an elevator.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_acceleration(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    acceleration: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_acceleration(ElevatorId::from(elevator), acceleration)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_acceleration: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set the deceleration rate (distance/tick²) of an elevator.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_deceleration(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    deceleration: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_deceleration(ElevatorId::from(elevator), deceleration)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_deceleration: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set the weight capacity (kg) of an elevator.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_weight_capacity(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    capacity: f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_weight_capacity(ElevatorId::from(elevator), capacity)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_weight_capacity: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set door transition (open/close) duration in ticks. Applied on the
+/// next door cycle — an in-progress transition keeps its timing.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_door_transition_ticks(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    ticks: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_door_transition_ticks(ElevatorId::from(elevator), ticks)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_door_transition_ticks: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set how long doors hold fully open (ticks). Applied on the next door
+/// cycle — a door currently dwelling completes its existing dwell first.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_door_open_ticks(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    ticks: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_door_open_ticks(ElevatorId::from(elevator), ticks)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_door_open_ticks: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set how many ticks the per-rider arrival log retains. Global setting
+/// (not per-elevator). Higher = more memory but longer post-trip queries.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_arrival_log_retention_ticks(
+    handle: *mut EvSim,
+    retention_ticks: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        ev.sim.set_arrival_log_retention_ticks(retention_ticks);
+        EvStatus::Ok
+    })
+}
+
+/// Enable a previously-disabled entity (elevator or stop).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_enable(handle: *mut EvSim, entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(entity) = entity_from_u64(entity_id) else {
+            set_last_error("entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.enable(entity) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("enable: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Disable an entity (elevator or stop). Disabled elevators eject riders
+/// and are excluded from dispatch; disabled stops invalidate routes that
+/// reference them.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_disable(handle: *mut EvSim, entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(entity) = entity_from_u64(entity_id) else {
+            set_last_error("entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.disable(entity) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("disable: {e}"));
+                status
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
