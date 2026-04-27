@@ -64,6 +64,9 @@ jobs:
       - name: Lint docs
         run: scripts/lint-docs.sh
 
+      - name: Check binding coverage
+        run: scripts/check-bindings.sh
+
   supply-chain:
     name: Supply chain (cargo-deny)
     if: |
