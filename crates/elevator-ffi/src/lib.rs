@@ -2033,6 +2033,176 @@ pub unsafe extern "C" fn ev_sim_remove_stop(handle: *mut EvSim, stop_entity_id: 
     })
 }
 
+// ── add_elevator ─────────────────────────────────────────────────────────
+
+/// Repr-C mirror of [`elevator_core::sim::ElevatorParams`].
+///
+/// Sentinel encoding:
+/// - `bypass_load_up_pct` and `bypass_load_down_pct`: NaN encodes
+///   [`Option::None`]; any finite value is treated as `Some(v)`.
+///
+/// Use [`ev_sim_default_elevator_params`] to populate this struct with
+/// the same defaults as `ElevatorParams::default()`. Callers should
+/// supply `restricted_stops` separately as a `(*const u64, count)` pair
+/// to [`ev_sim_add_elevator`].
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvElevatorParams {
+    /// Maximum travel speed (distance/tick); must be positive and finite.
+    pub max_speed: f64,
+    /// Acceleration rate (distance/tick^2); must be positive and finite.
+    pub acceleration: f64,
+    /// Deceleration rate (distance/tick^2); must be positive and finite.
+    pub deceleration: f64,
+    /// Maximum weight the car can carry; must be positive and finite.
+    pub weight_capacity: f64,
+    /// Ticks for a door open/close transition; must be > 0.
+    pub door_transition_ticks: u32,
+    /// Ticks the door stays fully open; must be > 0.
+    pub door_open_ticks: u32,
+    /// Speed multiplier for Inspection mode; must satisfy `0.0 < x <= 1.0`.
+    pub inspection_speed_factor: f64,
+    /// Full-load bypass threshold for upward pickups, or `NaN` for None.
+    /// When non-NaN, must satisfy `0.0 <= x <= 1.0`.
+    pub bypass_load_up_pct: f64,
+    /// Full-load bypass threshold for downward pickups, or `NaN` for None.
+    /// When non-NaN, must satisfy `0.0 <= x <= 1.0`.
+    pub bypass_load_down_pct: f64,
+}
+
+/// Populate `out_params` with the same defaults as
+/// [`ElevatorParams::default()`](elevator_core::sim::ElevatorParams).
+///
+/// `restricted_stops` is implicitly empty (callers pass `count = 0` to
+/// [`ev_sim_add_elevator`]).
+///
+/// # Safety
+///
+/// `out_params` must be a writable [`EvElevatorParams`] pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_default_elevator_params(
+    out_params: *mut EvElevatorParams,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if out_params.is_null() {
+            set_last_error("out_params is null");
+            return EvStatus::NullArg;
+        }
+        let defaults = elevator_core::sim::ElevatorParams::default();
+        // Safety: caller guarantees out_params is writable.
+        unsafe {
+            *out_params = EvElevatorParams {
+                max_speed: defaults.max_speed.value(),
+                acceleration: defaults.acceleration.value(),
+                deceleration: defaults.deceleration.value(),
+                weight_capacity: defaults.weight_capacity.value(),
+                door_transition_ticks: defaults.door_transition_ticks,
+                door_open_ticks: defaults.door_open_ticks,
+                inspection_speed_factor: defaults.inspection_speed_factor,
+                bypass_load_up_pct: defaults.bypass_load_up_pct.unwrap_or(f64::NAN),
+                bypass_load_down_pct: defaults.bypass_load_down_pct.unwrap_or(f64::NAN),
+            };
+        }
+        EvStatus::Ok
+    })
+}
+
+/// Add a new elevator at runtime. On success, writes the new elevator
+/// entity id to `*out_elevator_entity_id`.
+///
+/// `restricted_stops` is a `(ptr, count)` pair giving the set of stop
+/// entity ids this elevator cannot serve. Pass `(null, 0)` for no
+/// restrictions. Duplicate entries are deduplicated.
+///
+/// # Safety
+///
+/// - `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// - `params` must be a valid pointer to a populated [`EvElevatorParams`].
+/// - `restricted_stops` must point to at least `restricted_stops_count`
+///   contiguous `u64` values, or be null when `restricted_stops_count == 0`.
+/// - `out_elevator_entity_id` must be a writable `u64` pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_add_elevator(
+    handle: *mut EvSim,
+    params: *const EvElevatorParams,
+    restricted_stops: *const u64,
+    restricted_stops_count: u32,
+    line_entity_id: u64,
+    starting_position: f64,
+    out_elevator_entity_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || params.is_null() || out_elevator_entity_id.is_null() {
+            set_last_error("handle, params, or out_elevator_entity_id is null");
+            return EvStatus::NullArg;
+        }
+        if restricted_stops.is_null() && restricted_stops_count != 0 {
+            set_last_error("restricted_stops is null but count is non-zero");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: caller guarantees params is a valid EvElevatorParams.
+        let p = unsafe { &*params };
+        // Safety: caller guarantees the slice is valid for `count` elements.
+        let restricted_slice: &[u64] = if restricted_stops_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(restricted_stops, restricted_stops_count as usize) }
+        };
+        let mut restricted_set = std::collections::HashSet::with_capacity(restricted_slice.len());
+        for raw in restricted_slice {
+            let Some(eid) = entity_from_u64(*raw) else {
+                set_last_error(format!("restricted_stops contains invalid id {raw}"));
+                return EvStatus::InvalidArg;
+            };
+            restricted_set.insert(eid);
+        }
+
+        let core_params = elevator_core::sim::ElevatorParams {
+            max_speed: elevator_core::components::Speed::from(p.max_speed),
+            acceleration: elevator_core::components::Accel::from(p.acceleration),
+            deceleration: elevator_core::components::Accel::from(p.deceleration),
+            weight_capacity: elevator_core::components::Weight::from(p.weight_capacity),
+            door_transition_ticks: p.door_transition_ticks,
+            door_open_ticks: p.door_open_ticks,
+            restricted_stops: restricted_set,
+            inspection_speed_factor: p.inspection_speed_factor,
+            bypass_load_up_pct: if p.bypass_load_up_pct.is_nan() {
+                None
+            } else {
+                Some(p.bypass_load_up_pct)
+            },
+            bypass_load_down_pct: if p.bypass_load_down_pct.is_nan() {
+                None
+            } else {
+                Some(p.bypass_load_down_pct)
+            },
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.add_elevator(&core_params, line, starting_position) {
+            Ok(elevator) => {
+                // Safety: caller guarantees out_elevator_entity_id is writable.
+                unsafe { *out_elevator_entity_id = entity_to_u64(elevator) };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("add_elevator: {e}"));
+                status
+            }
+        }
+    })
+}
+
 /// Remove an elevator. Riders aboard are ejected to the next scheduled
 /// stop in the car's destination queue, or to the nearest stop on the
 /// line if the queue is empty.
@@ -5289,6 +5459,195 @@ mod tests {
         assert_eq!(
             unsafe { ev_sim_remove_stop(handle, 0) },
             EvStatus::InvalidArg,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn default_elevator_params_matches_core_defaults() {
+        let mut params = EvElevatorParams {
+            max_speed: 0.0,
+            acceleration: 0.0,
+            deceleration: 0.0,
+            weight_capacity: 0.0,
+            door_transition_ticks: 0,
+            door_open_ticks: 0,
+            inspection_speed_factor: 0.0,
+            bypass_load_up_pct: 0.0,
+            bypass_load_down_pct: 0.0,
+        };
+        let status = unsafe { ev_sim_default_elevator_params(&raw mut params) };
+        assert_eq!(status, EvStatus::Ok);
+        let core = elevator_core::sim::ElevatorParams::default();
+        // Bit-for-bit equality: ev_sim_default_elevator_params writes the raw
+        // f64s straight from core, so any drift would be a copy-paste bug.
+        assert_eq!(params.max_speed.to_bits(), core.max_speed.value().to_bits());
+        assert_eq!(
+            params.weight_capacity.to_bits(),
+            core.weight_capacity.value().to_bits(),
+        );
+        assert_eq!(params.door_transition_ticks, core.door_transition_ticks);
+        // Default bypass thresholds are None → encoded as NaN.
+        assert!(params.bypass_load_up_pct.is_nan());
+        assert!(params.bypass_load_down_pct.is_nan());
+    }
+
+    #[test]
+    fn add_elevator_with_defaults_returns_ok() {
+        let handle = create_test_handle();
+        let line_name = CString::new("Test Line").unwrap();
+        let mut line: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_line(handle, 0, line_name.as_ptr(), 0.0, 100.0, 0, &raw mut line) },
+            EvStatus::Ok,
+        );
+
+        // Need at least one stop on the line for add_elevator to find a
+        // valid starting point. (add_elevator itself only requires the
+        // line, but downstream phases need stops.)
+        let stop_name = CString::new("Lobby").unwrap();
+        let mut stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, stop_name.as_ptr(), 0.0, &raw mut stop) },
+            EvStatus::Ok,
+        );
+
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let params = unsafe { params.assume_init() };
+
+        let mut elevator: u64 = 0;
+        let status = unsafe {
+            ev_sim_add_elevator(
+                handle,
+                &raw const params,
+                std::ptr::null(),
+                0,
+                line,
+                0.0,
+                &raw mut elevator,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(elevator, 0);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_elevator_rejects_invalid_line() {
+        let handle = create_test_handle();
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let params = unsafe { params.assume_init() };
+        let mut elevator: u64 = 0;
+        let status = unsafe {
+            ev_sim_add_elevator(
+                handle,
+                &raw const params,
+                std::ptr::null(),
+                0,
+                0, // invalid line id
+                0.0,
+                &raw mut elevator,
+            )
+        };
+        assert_eq!(status, EvStatus::InvalidArg);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_elevator_with_restricted_stops() {
+        let handle = create_test_handle();
+        let line_name = CString::new("Restricted Line").unwrap();
+        let mut line: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_line(handle, 0, line_name.as_ptr(), 0.0, 100.0, 0, &raw mut line) },
+            EvStatus::Ok,
+        );
+        let s1 = CString::new("S1").unwrap();
+        let mut stop1: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, s1.as_ptr(), 0.0, &raw mut stop1) },
+            EvStatus::Ok,
+        );
+        let s2 = CString::new("S2").unwrap();
+        let mut stop2: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, s2.as_ptr(), 50.0, &raw mut stop2) },
+            EvStatus::Ok,
+        );
+
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let params = unsafe { params.assume_init() };
+
+        let restricted = [stop2];
+        let restricted_count = u32::try_from(restricted.len()).expect("len fits u32");
+        let mut elevator: u64 = 0;
+        let status = unsafe {
+            ev_sim_add_elevator(
+                handle,
+                &raw const params,
+                restricted.as_ptr(),
+                restricted_count,
+                line,
+                0.0,
+                &raw mut elevator,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(elevator, 0);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_elevator_null_args_rejected() {
+        let handle = create_test_handle();
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let params = unsafe { params.assume_init() };
+        let mut elevator: u64 = 0;
+        // Null params pointer.
+        assert_eq!(
+            unsafe {
+                ev_sim_add_elevator(
+                    handle,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    1,
+                    0.0,
+                    &raw mut elevator,
+                )
+            },
+            EvStatus::NullArg,
+        );
+        // restricted_stops null with non-zero count.
+        assert_eq!(
+            unsafe {
+                ev_sim_add_elevator(
+                    handle,
+                    &raw const params,
+                    std::ptr::null(),
+                    3,
+                    1,
+                    0.0,
+                    &raw mut elevator,
+                )
+            },
+            EvStatus::NullArg,
         );
         unsafe { ev_sim_destroy(handle) };
     }
