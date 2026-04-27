@@ -251,10 +251,45 @@ impl MetricsDto {
     }
 }
 
+/// A multi-stop route shaped for JS consumers as a flat array of stop
+/// entity ids. Returned by [`crate::WasmSim::shortestRoute`].
+///
+/// The first entry is the origin, the last is the destination, and any
+/// in-between entries are transfer points. Adjacent pairs become route
+/// legs internally; this projection drops the per-leg `via` (Group /
+/// Line / Walk) information since it isn't observable to the JS side
+/// without additional context.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct RouteDto {
+    /// Ordered stop entity ids (length >= 2 for a valid route). The
+    /// rider visits these in sequence; each adjacent pair is one leg.
+    pub stops: Vec<u32>,
+    /// Optional total cost in ticks (currently always `None` —
+    /// [`Simulation::shortest_route`] doesn't yet compute cost).
+    pub cost: Option<u64>,
+}
+
+impl From<elevator_core::components::Route> for RouteDto {
+    fn from(route: elevator_core::components::Route) -> Self {
+        // Flatten the leg chain into [from0, to0=from1, to1=from2, ...].
+        // Adjacent duplicates collapse — `RouteLeg.to == next.from` by
+        // construction, so the chain has `legs.len() + 1` distinct stops.
+        let mut stops: Vec<u32> = Vec::with_capacity(route.legs.len() + 1);
+        if let Some(first) = route.legs.first() {
+            stops.push(entity_to_u32(first.from));
+            for leg in &route.legs {
+                stops.push(entity_to_u32(leg.to));
+            }
+        }
+        Self { stops, cost: None }
+    }
+}
+
 /// Flattened event DTO. Every variant includes a `kind` discriminator and the
 /// engine tick at which it was emitted; the remaining fields vary by kind.
-/// Unknown variants (added to core later) fall back to `{ kind: "other" }` so
-/// the UI stays forward-compatible.
+/// Unknown variants (added to core later) fall back to `{ kind: "unknown" }`
+/// so the UI stays forward-compatible.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
