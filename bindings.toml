@@ -368,7 +368,7 @@ ffi  = "ev_sim_set_rider_access"
 [[methods]]
 name = "shortest_route"
 category = "routes"
-wasm = "todo:PR-D"
+wasm = "shortestRoute"
 ffi  = "todo:PR-D"
 
 [[methods]]
