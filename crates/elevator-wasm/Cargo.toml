@@ -37,10 +37,9 @@ serde = { workspace = true }
 ron = { workspace = true }
 slotmap = { workspace = true }
 
-# getrandom's js backend is required for `rand` on wasm32 targets. Both
-# version trees in the dep graph (rand 0.10 pulls 0.4; some workspace members
-# still bring in 0.3) need the `wasm_js` backend enabled. Kept target-scoped so
+# getrandom's js backend is required for `rand` on wasm32 targets. Only one
+# version is in the dep graph today (rand 0.10 → getrandom 0.4); the explicit
+# direct dep is what flips on the `wasm_js` backend. Kept target-scoped so
 # native (x86_64) builds of this crate are unaffected.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"] }
-getrandom_v04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
