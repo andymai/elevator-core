@@ -320,6 +320,120 @@ impl From<&elevator_core::tagged_metrics::TaggedMetric> for TaggedMetricDto {
     }
 }
 
+/// One entry in [`HallCallDto::assigned_cars_by_line`].
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct AssignedCarByLine {
+    /// Line entity id keying the assignment.
+    pub line: u32,
+    /// Car committed to this `(stop, direction)` call on the line.
+    pub car: u32,
+}
+
+/// Hall-call snapshot. Returned by [`crate::WasmSim::hallCalls`].
+///
+/// Mirrors [`elevator_core::components::HallCall`] field-for-field with
+/// `EntityId` slots flattened to `u32` and the `BTreeMap` projection
+/// flattened to a `Vec` of `(line, car)` pairs (entry order is by
+/// line entity id, stable across ticks).
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct HallCallDto {
+    /// Stop where the button was pressed.
+    pub stop: u32,
+    /// Direction label: `"up"` or `"down"`.
+    pub direction: String,
+    /// Tick at which the button was first pressed.
+    pub press_tick: u64,
+    /// Tick at which dispatch first saw this call (after ack latency).
+    /// `None` while still pending acknowledgement.
+    pub acknowledged_at: Option<u64>,
+    /// Ticks the controller took to acknowledge this call.
+    pub ack_latency_ticks: u32,
+    /// Riders currently waiting on this call (Classic mode). Empty in
+    /// Destination mode where calls carry a single `destination` instead.
+    pub pending_riders: Vec<u32>,
+    /// Destination requested at press time (Destination mode only).
+    pub destination: Option<u32>,
+    /// Cars committed to serving this call, by line. A stop served by
+    /// multiple lines can hold one entry per line simultaneously.
+    pub assigned_cars_by_line: Vec<AssignedCarByLine>,
+    /// When `true`, dispatch will not reassign this call to a different car.
+    pub pinned: bool,
+}
+
+impl From<&elevator_core::components::HallCall> for HallCallDto {
+    fn from(c: &elevator_core::components::HallCall) -> Self {
+        Self {
+            stop: entity_to_u32(c.stop),
+            direction: match c.direction {
+                elevator_core::components::CallDirection::Up => "up",
+                elevator_core::components::CallDirection::Down => "down",
+                _ => "either",
+            }
+            .to_string(),
+            press_tick: c.press_tick,
+            acknowledged_at: c.acknowledged_at,
+            ack_latency_ticks: c.ack_latency_ticks,
+            pending_riders: c
+                .pending_riders
+                .iter()
+                .copied()
+                .map(entity_to_u32)
+                .collect(),
+            destination: c.destination.map(entity_to_u32),
+            assigned_cars_by_line: c
+                .assigned_cars_by_line
+                .iter()
+                .map(|(line, car)| AssignedCarByLine {
+                    line: entity_to_u32(*line),
+                    car: entity_to_u32(*car),
+                })
+                .collect(),
+            pinned: c.pinned,
+        }
+    }
+}
+
+/// Car-call (in-cab floor button) snapshot. Returned by
+/// [`crate::WasmSim::carCalls`].
+///
+/// Mirrors [`elevator_core::components::CarCall`] field-for-field.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct CarCallDto {
+    /// Elevator the button was pressed inside.
+    pub car: u32,
+    /// Stop the button requests.
+    pub floor: u32,
+    /// Tick the button was pressed.
+    pub press_tick: u64,
+    /// Tick dispatch first saw this call (after ack latency).
+    pub acknowledged_at: Option<u64>,
+    /// Ticks the controller took to acknowledge this call.
+    pub ack_latency_ticks: u32,
+    /// Riders who pressed the button.
+    pub pending_riders: Vec<u32>,
+}
+
+impl From<&elevator_core::components::CarCall> for CarCallDto {
+    fn from(c: &elevator_core::components::CarCall) -> Self {
+        Self {
+            car: entity_to_u32(c.car),
+            floor: entity_to_u32(c.floor),
+            press_tick: c.press_tick,
+            acknowledged_at: c.acknowledged_at,
+            ack_latency_ticks: c.ack_latency_ticks,
+            pending_riders: c
+                .pending_riders
+                .iter()
+                .copied()
+                .map(entity_to_u32)
+                .collect(),
+        }
+    }
+}
+
 /// Flattened event DTO. Every variant includes a `kind` discriminator and the
 /// engine tick at which it was emitted; the remaining fields vary by kind.
 /// Unknown variants (added to core later) fall back to `{ kind: "unknown" }`
