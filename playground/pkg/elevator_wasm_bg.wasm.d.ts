@@ -20,6 +20,7 @@ export const wasmsim_assignedCarsByLine: (a: number, b: bigint, c: number, d: nu
 export const wasmsim_bestEta: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
 export const wasmsim_brakingDistance: (a: number, b: bigint) => [number, number];
 export const wasmsim_cancelDoorHold: (a: number, b: bigint) => [number, number];
+export const wasmsim_carCalls: (a: number, b: bigint) => [number, number];
 export const wasmsim_clearDestinations: (a: number, b: bigint) => [number, number];
 export const wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
 export const wasmsim_currentTick: (a: number) => bigint;
@@ -42,6 +43,7 @@ export const wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) =>
 export const wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
 export const wasmsim_futureStopPosition: (a: number, b: bigint) => [number, number];
 export const wasmsim_groupsServingStop: (a: number, b: bigint) => [number, number];
+export const wasmsim_hallCalls: (a: number) => [number, number];
 export const wasmsim_holdDoor: (a: number, b: bigint, c: number) => [number, number];
 export const wasmsim_idleElevatorCount: (a: number) => number;
 export const wasmsim_isDisabled: (a: number, b: bigint) => number;

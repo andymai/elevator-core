@@ -298,6 +298,19 @@ export class WasmSim {
         }
     }
     /**
+     * Snapshot of car-button presses inside `elevator_ref`. Returns
+     * an empty array if the elevator has no aboard riders or has not
+     * been used.
+     * @param {bigint} elevator_ref
+     * @returns {CarCallDto[]}
+     */
+    carCalls(elevator_ref) {
+        const ret = wasm.wasmsim_carCalls(this.__wbg_ptr, elevator_ref);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Empty an elevator's destination queue. Any in-progress trip
      * continues to its current target (the queue is the *future*
      * schedule); to also abort the in-flight trip, call
@@ -600,6 +613,17 @@ export class WasmSim {
     groupsServingStop(stop_ref) {
         const ret = wasm.wasmsim_groupsServingStop(this.__wbg_ptr, stop_ref);
         var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Snapshot of every active hall call. Returns one `HallCallDto`
+     * per live `(stop, direction)` press.
+     * @returns {HallCallDto[]}
+     */
+    hallCalls() {
+        const ret = wasm.wasmsim_hallCalls(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }

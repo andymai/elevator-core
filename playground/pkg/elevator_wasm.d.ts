@@ -44,6 +44,39 @@ export interface MetricsDto {
 }
 
 /**
+ * Car-call (in-cab floor button) snapshot. Returned by
+ * [`crate::WasmSim::carCalls`].
+ *
+ * Mirrors [`elevator_core::components::CarCall`] field-for-field.
+ */
+export interface CarCallDto {
+    /**
+     * Elevator the button was pressed inside.
+     */
+    car: number;
+    /**
+     * Stop the button requests.
+     */
+    floor: number;
+    /**
+     * Tick the button was pressed.
+     */
+    press_tick: number;
+    /**
+     * Tick dispatch first saw this call (after ack latency).
+     */
+    acknowledged_at: number | undefined;
+    /**
+     * Ticks the controller took to acknowledge this call.
+     */
+    ack_latency_ticks: number;
+    /**
+     * Riders who pressed the button.
+     */
+    pending_riders: number[];
+}
+
+/**
  * Door state with a 0..1 transition progress for animation.
  */
 export interface DoorView {
@@ -90,6 +123,70 @@ export interface StopHallCalls {
      * `(line, car)` pairs for the down call\'s per-line assignments.
      */
     down_assigned: LineCarPair[];
+}
+
+/**
+ * Hall-call snapshot. Returned by [`crate::WasmSim::hallCalls`].
+ *
+ * Mirrors [`elevator_core::components::HallCall`] field-for-field with
+ * `EntityId` slots flattened to `u32` and the `BTreeMap` projection
+ * flattened to a `Vec` of `(line, car)` pairs (entry order is by
+ * line entity id, stable across ticks).
+ */
+export interface HallCallDto {
+    /**
+     * Stop where the button was pressed.
+     */
+    stop: number;
+    /**
+     * Direction label: `\"up\"` or `\"down\"`.
+     */
+    direction: string;
+    /**
+     * Tick at which the button was first pressed.
+     */
+    press_tick: number;
+    /**
+     * Tick at which dispatch first saw this call (after ack latency).
+     * `None` while still pending acknowledgement.
+     */
+    acknowledged_at: number | undefined;
+    /**
+     * Ticks the controller took to acknowledge this call.
+     */
+    ack_latency_ticks: number;
+    /**
+     * Riders currently waiting on this call (Classic mode). Empty in
+     * Destination mode where calls carry a single `destination` instead.
+     */
+    pending_riders: number[];
+    /**
+     * Destination requested at press time (Destination mode only).
+     */
+    destination: number | undefined;
+    /**
+     * Cars committed to serving this call, by line. A stop served by
+     * multiple lines can hold one entry per line simultaneously.
+     */
+    assigned_cars_by_line: AssignedCarByLine[];
+    /**
+     * When `true`, dispatch will not reassign this call to a different car.
+     */
+    pinned: boolean;
+}
+
+/**
+ * One entry in [`HallCallDto::assigned_cars_by_line`].
+ */
+export interface AssignedCarByLine {
+    /**
+     * Line entity id keying the assignment.
+     */
+    line: number;
+    /**
+     * Car committed to this `(stop, direction)` call on the line.
+     */
+    car: number;
 }
 
 /**
@@ -604,6 +701,12 @@ export class WasmSim {
      */
     cancelDoorHold(elevator_ref: bigint): void;
     /**
+     * Snapshot of car-button presses inside `elevator_ref`. Returns
+     * an empty array if the elevator has no aboard riders or has not
+     * been used.
+     */
+    carCalls(elevator_ref: bigint): CarCallDto[];
+    /**
      * Empty an elevator's destination queue. Any in-progress trip
      * continues to its current target (the queue is the *future*
      * schedule); to also abort the in-flight trip, call
@@ -767,6 +870,11 @@ export class WasmSim {
      * Group ids of every group with a line that serves `stop_ref`.
      */
     groupsServingStop(stop_ref: bigint): Uint32Array;
+    /**
+     * Snapshot of every active hall call. Returns one `HallCallDto`
+     * per live `(stop, direction)` press.
+     */
+    hallCalls(): HallCallDto[];
     /**
      * Extend the doors' open dwell by `ticks`. Cumulative across calls.
      *
@@ -1418,6 +1526,7 @@ export interface InitOutput {
     readonly wasmsim_bestEta: (a: number, b: bigint, c: number, d: number) => [number, number, number, number];
     readonly wasmsim_brakingDistance: (a: number, b: bigint) => [number, number];
     readonly wasmsim_cancelDoorHold: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_carCalls: (a: number, b: bigint) => [number, number];
     readonly wasmsim_clearDestinations: (a: number, b: bigint) => [number, number];
     readonly wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
     readonly wasmsim_currentTick: (a: number) => bigint;
@@ -1440,6 +1549,7 @@ export interface InitOutput {
     readonly wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
     readonly wasmsim_futureStopPosition: (a: number, b: bigint) => [number, number];
     readonly wasmsim_groupsServingStop: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_hallCalls: (a: number) => [number, number];
     readonly wasmsim_holdDoor: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_idleElevatorCount: (a: number) => number;
     readonly wasmsim_isDisabled: (a: number, b: bigint) => number;
