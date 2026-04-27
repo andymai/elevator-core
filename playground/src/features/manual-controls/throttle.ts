@@ -138,12 +138,23 @@ export function mountThrottle(host: HTMLElement, opts: ThrottleOptions): Throttl
   };
 
   // ─── Keyboard ───────────────────────────────────────────────────
+  // Up/Right always nudge positive (ascend); Down/Left always nudge
+  // negative. Both axes are bound regardless of orientation so the
+  // ARIA slider role behaves naturally on desktop (vertical) and
+  // mobile portrait (horizontal). Home/End jump to the limits;
+  // Space recentres.
   const onKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "ArrowUp") {
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
       setValue(value + KEY_NUDGE_M_S, { spring: false });
       e.preventDefault();
-    } else if (e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
       setValue(value - KEY_NUDGE_M_S, { spring: false });
+      e.preventDefault();
+    } else if (e.key === "Home") {
+      setValue(maxSpeed, { spring: false });
+      e.preventDefault();
+    } else if (e.key === "End") {
+      setValue(-maxSpeed, { spring: false });
       e.preventDefault();
     } else if (e.key === " " || e.key === "Spacebar") {
       setValue(0, { spring: true });
