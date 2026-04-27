@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.2.0...elevator-wasm-v0.3.0) (2026-04-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **wasm:** migrate remaining 52 fallible methods to Result-shape (PR-E phase 2) ([#509](https://github.com/andymai/elevator-core/issues/509))
+
+### Features
+
+* **wasm:** migrate remaining 52 fallible methods to Result-shape (PR-E phase 2) ([#509](https://github.com/andymai/elevator-core/issues/509)) ([52e4fce](https://github.com/andymai/elevator-core/commit/52e4fcebdd89835f62b33408562d82a0a5c6884f))
+
 ## [0.2.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.1.0...elevator-wasm-v0.2.0) (2026-04-27)
 
 
