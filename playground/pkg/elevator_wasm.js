@@ -356,6 +356,22 @@ export class WasmSim {
         return v1;
     }
     /**
+     * Disable an entity (elevator or stop). Disabled elevators eject
+     * their riders and are excluded from dispatch; disabled stops
+     * invalidate routes that reference them.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     * @param {bigint} entity_ref
+     */
+    disable(entity_ref) {
+        const ret = wasm.wasmsim_disable(this.__wbg_ptr, entity_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Drain all queued events since the last call.
      * @returns {EventDto[]}
      */
@@ -454,6 +470,20 @@ export class WasmSim {
      */
     emergencyStop(elevator_ref) {
         const ret = wasm.wasmsim_emergencyStop(this.__wbg_ptr, elevator_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Re-enable a previously-disabled entity (elevator or stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `entity_ref` does not exist.
+     * @param {bigint} entity_ref
+     */
+    enable(entity_ref) {
+        const ret = wasm.wasmsim_enable(this.__wbg_ptr, entity_ref);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
@@ -1035,6 +1065,31 @@ export class WasmSim {
         }
     }
     /**
+     * Set the acceleration rate (distance/tick²) for a single elevator.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or
+     * `acceleration` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} acceleration
+     */
+    setAcceleration(elevator_ref, acceleration) {
+        const ret = wasm.wasmsim_setAcceleration(this.__wbg_ptr, elevator_ref, acceleration);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Set how many ticks the per-rider arrival log retains. Global
+     * setting; higher values trade memory for longer post-trip
+     * queries.
+     * @param {bigint} retention_ticks
+     */
+    setArrivalLogRetentionTicks(retention_ticks) {
+        wasm.wasmsim_setArrivalLogRetentionTicks(this.__wbg_ptr, retention_ticks);
+    }
+    /**
      * Swap every group's dispatcher to a DCS instance with the given
      * deferred-commitment window. `window_ticks = 0` is equivalent to
      * no window (immediate sticky).
@@ -1042,6 +1097,22 @@ export class WasmSim {
      */
     setDcsWithCommitmentWindow(window_ticks) {
         wasm.wasmsim_setDcsWithCommitmentWindow(this.__wbg_ptr, window_ticks);
+    }
+    /**
+     * Set the deceleration rate (distance/tick²) for a single elevator.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or
+     * `deceleration` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} deceleration
+     */
+    setDeceleration(elevator_ref, deceleration) {
+        const ret = wasm.wasmsim_setDeceleration(this.__wbg_ptr, elevator_ref, deceleration);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Set `door_open_ticks` (dwell duration) on every elevator.
