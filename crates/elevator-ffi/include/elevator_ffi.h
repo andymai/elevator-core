@@ -902,6 +902,70 @@ enum EvStatus ev_sim_remove_stop(struct EvSim *handle, uint64_t stop_entity_id);
 enum EvStatus ev_sim_remove_elevator(struct EvSim *handle, uint64_t elevator_entity_id);
 
 /**
+ * Add an existing stop to a line's served list.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_add_stop_to_line(struct EvSim *handle,
+                                      uint64_t stop_entity_id,
+                                      uint64_t line_entity_id);
+
+/**
+ * Remove a stop from a line's served list. The stop entity itself
+ * remains in the world — call [`ev_sim_remove_stop`] to fully despawn.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_remove_stop_from_line(struct EvSim *handle,
+                                           uint64_t stop_entity_id,
+                                           uint64_t line_entity_id);
+
+/**
+ * Reassign a line to a different group. Writes the previous group id
+ * to `*out_old_group` on success.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_old_group` may be null if the caller does not need the previous id.
+ */
+enum EvStatus ev_sim_assign_line_to_group(struct EvSim *handle,
+                                          uint64_t line_entity_id,
+                                          uint32_t new_group,
+                                          uint32_t *out_old_group);
+
+/**
+ * Reassign an elevator to a different line.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_reassign_elevator_to_line(struct EvSim *handle,
+                                               uint64_t elevator_entity_id,
+                                               uint64_t new_line_entity_id);
+
+/**
+ * Set the list of stops `elevator_entity_id` is forbidden from
+ * serving. The list replaces the current restriction set entirely.
+ * Pass `count = 0` to clear all restrictions.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `stop_ids` must point to at least `count` `u64` values when
+ * `count > 0`.
+ */
+enum EvStatus ev_sim_set_elevator_restricted_stops(struct EvSim *handle,
+                                                   uint64_t elevator_entity_id,
+                                                   const uint64_t *stop_ids,
+                                                   uint32_t count);
+
+/**
  * Set the operational mode of an elevator.
  *
  * Modes are orthogonal to the elevator's phase — switching mode does not
