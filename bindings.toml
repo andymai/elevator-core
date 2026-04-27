@@ -564,7 +564,7 @@ ffi  = "todo:PR-B"
 [[methods]]
 name = "stop_entity"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "stopEntity"
 ffi  = "todo:PR-B"
 
 [[methods]]
@@ -648,7 +648,7 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "iter_repositioning_elevators"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "iterRepositioningElevators"
 ffi  = "todo:PR-C"
 
 [[methods]]
@@ -696,13 +696,13 @@ ffi  = "ev_sim_waiting_count_at"
 [[methods]]
 name = "waiting_counts_by_line_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "waitingCountsByLineAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
 name = "waiting_direction_counts_at"
 category = "introspection"
-wasm = "todo:PR-C"
+wasm = "waitingDirectionCountsAt"
 ffi  = "todo:PR-C"
 
 [[methods]]
