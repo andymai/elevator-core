@@ -776,55 +776,55 @@ ffi  = "todo:PR-C"
 name = "set_max_speed"
 category = "parameters"
 wasm = "setMaxSpeedAll"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_max_speed"
 
 [[methods]]
 name = "set_acceleration"
 category = "parameters"
 wasm = "todo:PR-C"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_acceleration"
 
 [[methods]]
 name = "set_deceleration"
 category = "parameters"
 wasm = "todo:PR-C"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_deceleration"
 
 [[methods]]
 name = "set_door_open_ticks"
 category = "parameters"
 wasm = "setDoorOpenTicksAll"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_door_open_ticks"
 
 [[methods]]
 name = "set_door_transition_ticks"
 category = "parameters"
 wasm = "setDoorTransitionTicksAll"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_door_transition_ticks"
 
 [[methods]]
 name = "set_weight_capacity"
 category = "parameters"
 wasm = "setWeightCapacityAll"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_weight_capacity"
 
 [[methods]]
 name = "set_arrival_log_retention_ticks"
 category = "parameters"
 wasm = "todo:PR-C"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_arrival_log_retention_ticks"
 
 [[methods]]
 name = "enable"
 category = "parameters"
 wasm = "todo:PR-C"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_enable"
 
 [[methods]]
 name = "disable"
 category = "parameters"
 wasm = "todo:PR-C"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_disable"
 
 # ─── Hooks (closures don't survive the binding boundary) ──────────────────
 
