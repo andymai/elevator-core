@@ -787,6 +787,72 @@ pub unsafe extern "C" fn ev_sim_set_strategy(
     })
 }
 
+/// Remove the reposition strategy from `group_id`. Idle elevators stay
+/// where they parked instead of moving toward a target.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_remove_reposition(handle: *mut EvSim, group_id: u32) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        ev.sim.remove_reposition(GroupId(group_id));
+        EvStatus::Ok
+    })
+}
+
+/// Step the simulation forward up to `max_ticks` ticks.
+///
+/// Stops early if the world becomes "quiet" (no in-flight riders, no
+/// pending hall calls, all cars idle). Writes the actual tick count
+/// to `*out_ticks_run` on both success and timeout.
+///
+/// Returns `EvStatus::Ok` if the world quieted within `max_ticks`,
+/// `EvStatus::InvalidArg` if it failed to quiet (loop guard).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_ticks_run` must be a writable `u64`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_run_until_quiet(
+    handle: *mut EvSim,
+    max_ticks: u64,
+    out_ticks_run: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_ticks_run.is_null() {
+            set_last_error("handle or out_ticks_run is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.run_until_quiet(max_ticks) {
+            Ok(ticks) => {
+                // Safety: caller guarantees out_ticks_run writable.
+                unsafe { *out_ticks_run = ticks };
+                EvStatus::Ok
+            }
+            Err(ticks) => {
+                // Safety: caller guarantees out_ticks_run writable.
+                unsafe { *out_ticks_run = ticks };
+                set_last_error(format!(
+                    "run_until_quiet: world did not quiet within {ticks} ticks"
+                ));
+                EvStatus::InvalidArg
+            }
+        }
+    })
+}
+
 // ── Hall / car call FFI ─────────────────────────────────────────────
 
 /// Translate an FFI direction flag to a [`CallDirection`]. `1` → Up,
