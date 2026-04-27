@@ -1625,6 +1625,87 @@ impl WasmSim {
             .collect()
     }
 
+    // ── Per-elevator setters + lifecycle ─────────────────────────────
+    //
+    // Per-elevator parameter setters that sit alongside the existing
+    // `*All` aggregate sweeps. The aggregate variants stay because the
+    // playground "Tweak parameters" drawer uses them; per-elevator
+    // versions are for consumers that want granular control.
+
+    /// Set the acceleration rate (distance/tick²) for a single elevator.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or
+    /// `acceleration` is non-positive / non-finite.
+    #[wasm_bindgen(js_name = setAcceleration)]
+    pub fn set_acceleration(
+        &mut self,
+        elevator_ref: u64,
+        acceleration: f64,
+    ) -> Result<(), JsError> {
+        self.inner
+            .set_acceleration(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                acceleration,
+            )
+            .map_err(|e| JsError::new(&format!("set_acceleration: {e}")))
+    }
+
+    /// Set the deceleration rate (distance/tick²) for a single elevator.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist or
+    /// `deceleration` is non-positive / non-finite.
+    #[wasm_bindgen(js_name = setDeceleration)]
+    pub fn set_deceleration(
+        &mut self,
+        elevator_ref: u64,
+        deceleration: f64,
+    ) -> Result<(), JsError> {
+        self.inner
+            .set_deceleration(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                deceleration,
+            )
+            .map_err(|e| JsError::new(&format!("set_deceleration: {e}")))
+    }
+
+    /// Set how many ticks the per-rider arrival log retains. Global
+    /// setting; higher values trade memory for longer post-trip
+    /// queries.
+    #[wasm_bindgen(js_name = setArrivalLogRetentionTicks)]
+    pub fn set_arrival_log_retention_ticks(&mut self, retention_ticks: u64) {
+        self.inner.set_arrival_log_retention_ticks(retention_ticks);
+    }
+
+    /// Re-enable a previously-disabled entity (elevator or stop).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `entity_ref` does not exist.
+    #[wasm_bindgen(js_name = enable)]
+    pub fn enable(&mut self, entity_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .enable(u64_to_entity(entity_ref))
+            .map_err(|e| JsError::new(&format!("enable: {e}")))
+    }
+
+    /// Disable an entity (elevator or stop). Disabled elevators eject
+    /// their riders and are excluded from dispatch; disabled stops
+    /// invalidate routes that reference them.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `entity_ref` does not exist.
+    #[wasm_bindgen(js_name = disable)]
+    pub fn disable(&mut self, entity_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .disable(u64_to_entity(entity_ref))
+            .map_err(|e| JsError::new(&format!("disable: {e}")))
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
