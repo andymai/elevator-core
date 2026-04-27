@@ -6,6 +6,10 @@ description = "C ABI for elevator-core (Unity / native interop)"
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+# Distributed as a prebuilt cdylib + header per platform, not via
+# crates.io. release-please still tracks the version + tag so consumers
+# can pin against a specific build.
+publish = false
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
