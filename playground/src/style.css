@@ -1241,15 +1241,84 @@
     color: var(--text-primary);
     letter-spacing: 0.01em;
   }
-  .api-mode-select {
+  /* Live engine-state strip at the top of each car block. Each
+   * chip is a small monospace badge; `data-k` attribute drives a
+   * subtle hue per state value (mode, doors, target). */
+  .api-car-state {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    margin-bottom: 4px;
+  }
+  .api-state-chip {
     font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
-    font-size: 11px;
-    padding: 3px 6px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  /* Mode chip — most consequential piece of state, hue per mode. */
+  .api-state-chip[data-k="manual"] {
+    color: var(--accent-up);
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-elevated));
+  }
+  .api-state-chip[data-k="outofservice"] {
+    color: var(--bad);
+    background: color-mix(in srgb, var(--bad) 18%, var(--bg-elevated));
+  }
+  .api-state-chip[data-k="inspection"] {
+    color: #a78bfa;
+    background: color-mix(in srgb, #a78bfa 18%, var(--bg-elevated));
+  }
+  /* Door state hue */
+  .api-state-chip[data-k="open"],
+  .api-state-chip[data-k="opening"] {
+    color: var(--accent-up);
+  }
+  /* Target chip emphasis when set */
+  .api-state-chip[data-k="set"] {
+    color: var(--accent-up);
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+  }
+
+  /* Service-mode chip-row picker. Replaces the previous `<select>`
+   * with explicit pill-style toggles — the API enum's 4 values are
+   * visible at a glance, `[data-active="true"]` shows the current
+   * pick. Mutually exclusive (only one chip is active per car). */
+  .api-mode-chips {
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .api-mode-chip {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    font-size: 10.5px;
+    padding: 4px 8px;
     border: 1px solid var(--border-subtle);
     border-radius: 3px;
     background: var(--bg-elevated);
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     cursor: pointer;
+    transition:
+      background 80ms,
+      color 80ms,
+      border-color 80ms;
+  }
+  .api-mode-chip:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+  .api-mode-chip[data-active="true"] {
+    background: color-mix(in srgb, var(--accent) 25%, var(--bg-elevated));
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    color: var(--accent-up);
+    font-weight: 600;
   }
   .api-car-btn {
     width: 28px;
@@ -1293,6 +1362,14 @@
     background: var(--bg-hover);
     color: var(--text-primary);
   }
+  /* Door button highlighted when its commanded state is active or
+   * in flight — open / opening light openDoor; closed / closing
+   * light closeDoor. Set per-frame from `CarView.door.state`. */
+  .api-door-btn[data-active="true"] {
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg-elevated));
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    color: var(--accent-up);
+  }
 
   .api-row-vel .api-row-actions {
     display: grid;
@@ -1303,6 +1380,13 @@
   .api-vel-slider {
     width: 100%;
     accent-color: var(--accent);
+  }
+  /* Disabled slider — engine rejects setTargetVelocity unless
+   * service mode is `manual`. The disabled state makes that
+   * precondition visible instead of silently throwing. */
+  .api-vel-slider:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
   .api-vel-readout {
     font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
@@ -1325,6 +1409,13 @@
   }
   .api-estop-btn:hover {
     background: color-mix(in srgb, var(--bad) 25%, var(--bg-elevated));
+  }
+  .api-estop-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--bg-elevated);
+    color: var(--text-tertiary);
+    border-color: var(--border-subtle);
   }
 
   /* Lifecycle Add / Remove button — labelled with the literal

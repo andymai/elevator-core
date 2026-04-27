@@ -283,48 +283,89 @@ function mountCarBlocks(
       header.append(el("span", "api-car-name", carName));
       block.append(header);
 
-      // setServiceMode
+      // Live engine-state strip — updated every frame from
+      // `WorldView`. The single most important affordance: when the
+      // dev clicks `openDoor`, the `doors` field flips from `closed`
+      // → `opening` → `open` right here, so they see the method's
+      // effect without scanning the canvas.
+      //
+      // `mode` reads from our `userState` (WorldView doesn't expose
+      // service mode per-car); every other chip reads engine state.
+      const stateline = el("div", "api-car-state");
+      const stateChips = {
+        mode: el("span", "api-state-chip", "—"),
+        phase: el("span", "api-state-chip", "—"),
+        floor: el("span", "api-state-chip", "—"),
+        doors: el("span", "api-state-chip", "—"),
+        velocity: el("span", "api-state-chip", "—"),
+        load: el("span", "api-state-chip", "—"),
+        target: el("span", "api-state-chip", "—"),
+      };
+      stateChips.mode.title = "Service mode (last setServiceMode value)";
+      stateChips.phase.title = "CarView.phase";
+      stateChips.floor.title = "Nearest stop to CarView.y";
+      stateChips.doors.title = "CarView.door.state";
+      stateChips.velocity.title = "CarView.v";
+      stateChips.load.title = "CarView.rider_ids.length / CarView.capacity";
+      stateChips.target.title = "CarView.target → stop name";
+      stateline.append(
+        stateChips.mode,
+        stateChips.phase,
+        stateChips.floor,
+        stateChips.doors,
+        stateChips.velocity,
+        stateChips.load,
+        stateChips.target,
+      );
+      block.append(stateline);
+
+      // setServiceMode — chip-row picker. A styled `<select>` reads as
+      // an inline label; an explicit row of mutually-exclusive chips
+      // makes the API surface obvious (4 enum values, click to set).
       const modeRow = el("div", "api-row");
-      const modeSig = el("span", "api-sig", `sim.setServiceMode(${carName}, mode)`);
-      modeRow.append(modeSig);
-      const select = document.createElement("select");
-      select.className = "api-mode-select";
+      modeRow.append(el("span", "api-sig", `sim.setServiceMode(${carName}, mode)`));
+      const modeChipsBar = el("span", "api-row-actions api-mode-chips");
       const modes: Array<{ value: ServiceModeName; label: string }> = [
         { value: "normal", label: "normal" },
         { value: "manual", label: "manual" },
         { value: "inspection", label: "inspection" },
-        { value: "outofservice", label: "outofservice" },
+        { value: "outofservice", label: "OOS" },
       ];
-      for (const m of modes) {
-        const opt = document.createElement("option");
-        opt.value = m.value;
-        opt.textContent = m.label;
-        select.append(opt);
-      }
-      // `WorldView` doesn't expose service mode per-car, so we
-      // track the user's selection in `userState` and treat the
-      // dropdown as the source of truth across rebuilds. Initial
-      // value: previously-picked mode (across an Add/Remove rebuild)
-      // or scenario default for fresh cars.
       const initialMode: ServiceModeName =
         persisted?.mode ?? scenario.manualControl?.defaultServiceMode ?? "normal";
-      select.value = initialMode;
       // Seed the persisted state for fresh cars so a later remove of
       // a different car doesn't drop this entry on the next rebuild.
       if (!persisted) userState.set(car.id, { mode: initialMode, velocity: 0 });
-      select.addEventListener("change", () => {
-        const mode = select.value as ServiceModeName;
-        const sig = `sim.setServiceMode(${carName}, "${mode}")`;
-        log.call(sig);
-        try {
-          sim.setServiceMode(carRef, mode);
-          const entry = userState.get(car.id);
-          if (entry) entry.mode = mode;
-        } catch (e) {
-          log.callFailed(sig, e);
+      // Track the active chip locally so the syncer can flip
+      // `data-active` and the `mode` precondition can read it.
+      let currentMode: ServiceModeName = initialMode;
+      const modeChipBtns = new Map<ServiceModeName, HTMLButtonElement>();
+      const setActiveModeChip = (mode: ServiceModeName): void => {
+        for (const [m, btn] of modeChipBtns) {
+          btn.dataset["active"] = m === mode ? "true" : "false";
         }
-      });
-      modeRow.append(select);
+      };
+      for (const m of modes) {
+        const btn = makeApiButton(m.label, "api-mode-chip", () => {
+          if (currentMode === m.value) return; // no-op press
+          const sig = `sim.setServiceMode(${carName}, "${m.value}")`;
+          log.call(sig);
+          try {
+            sim.setServiceMode(carRef, m.value);
+            currentMode = m.value;
+            const entry = userState.get(car.id);
+            if (entry) entry.mode = m.value;
+            setActiveModeChip(m.value);
+          } catch (e) {
+            log.callFailed(sig, e);
+          }
+        });
+        btn.title = m.value;
+        modeChipBtns.set(m.value, btn);
+        modeChipsBar.append(btn);
+      }
+      setActiveModeChip(initialMode);
+      modeRow.append(modeChipsBar);
       block.append(modeRow);
 
       // pressCarButton — one per stop. Map keyed by the engine's
@@ -359,54 +400,49 @@ function mountCarBlocks(
       carBtnRow.append(carBtns);
       block.append(carBtnRow);
 
-      // Door commands: open / close / hold / cancelHold
+      // Door commands. The button matching the engine's current door
+      // state gets `data-active="true"` each frame so the dev can see
+      // which transition is in flight without parsing the call log.
       const doorRow = el("div", "api-row");
       doorRow.append(el("span", "api-sig", `sim.openDoor / closeDoor / holdDoor / cancelDoorHold`));
       const doorBtns = el("span", "api-row-actions");
-      doorBtns.append(
-        makeApiButton("openDoor", "api-door-btn", () => {
-          const sig = `sim.openDoor(${carName})`;
-          log.call(sig);
-          try {
-            sim.openDoor(carRef);
-          } catch (e) {
-            log.callFailed(sig, e);
-          }
-        }),
-      );
-      doorBtns.append(
-        makeApiButton("closeDoor", "api-door-btn", () => {
-          const sig = `sim.closeDoor(${carName})`;
-          log.call(sig);
-          try {
-            sim.closeDoor(carRef);
-          } catch (e) {
-            log.callFailed(sig, e);
-          }
-        }),
-      );
-      doorBtns.append(
-        makeApiButton(`holdDoor(${HOLD_TICKS})`, "api-door-btn", () => {
-          const sig = `sim.holdDoor(${carName}, ${HOLD_TICKS})`;
-          log.call(sig);
-          try {
-            sim.holdDoor(carRef, HOLD_TICKS);
-          } catch (e) {
-            log.callFailed(sig, e);
-          }
-        }),
-      );
-      doorBtns.append(
-        makeApiButton("cancelDoorHold", "api-door-btn", () => {
-          const sig = `sim.cancelDoorHold(${carName})`;
-          log.call(sig);
-          try {
-            sim.cancelDoorHold(carRef);
-          } catch (e) {
-            log.callFailed(sig, e);
-          }
-        }),
-      );
+      const doorOpenBtn = makeApiButton("openDoor", "api-door-btn", () => {
+        const sig = `sim.openDoor(${carName})`;
+        log.call(sig);
+        try {
+          sim.openDoor(carRef);
+        } catch (e) {
+          log.callFailed(sig, e);
+        }
+      });
+      const doorCloseBtn = makeApiButton("closeDoor", "api-door-btn", () => {
+        const sig = `sim.closeDoor(${carName})`;
+        log.call(sig);
+        try {
+          sim.closeDoor(carRef);
+        } catch (e) {
+          log.callFailed(sig, e);
+        }
+      });
+      const doorHoldBtn = makeApiButton(`holdDoor(${HOLD_TICKS})`, "api-door-btn", () => {
+        const sig = `sim.holdDoor(${carName}, ${HOLD_TICKS})`;
+        log.call(sig);
+        try {
+          sim.holdDoor(carRef, HOLD_TICKS);
+        } catch (e) {
+          log.callFailed(sig, e);
+        }
+      });
+      const doorCancelBtn = makeApiButton("cancelDoorHold", "api-door-btn", () => {
+        const sig = `sim.cancelDoorHold(${carName})`;
+        log.call(sig);
+        try {
+          sim.cancelDoorHold(carRef);
+        } catch (e) {
+          log.callFailed(sig, e);
+        }
+      });
+      doorBtns.append(doorOpenBtn, doorCloseBtn, doorHoldBtn, doorCancelBtn);
       doorRow.append(doorBtns);
       block.append(doorRow);
 
@@ -486,10 +522,84 @@ function mountCarBlocks(
       // which lags during accel/decel due to the trapezoidal profile.
       let lastReadout = readout.textContent;
       const lastLit = new Map<number, boolean>();
+      const lastChip: Record<keyof typeof stateChips, string> = {
+        mode: "",
+        phase: "",
+        floor: "",
+        doors: "",
+        velocity: "",
+        load: "",
+        target: "",
+      };
+      let lastDoorState = "";
+      let lastModeGate: ServiceModeName | null = null;
+      const setChip = (key: keyof typeof stateChips, text: string, kind?: string): void => {
+        const chip = stateChips[key];
+        if (lastChip[key] !== text) {
+          chip.textContent = text;
+          lastChip[key] = text;
+        }
+        const k = kind ?? text;
+        if (chip.dataset["k"] !== k) chip.dataset["k"] = k;
+      };
       syncers.push((v) => {
         const live = v.cars.find((c) => c.id === car.id);
         if (!live) return;
-        // Lit-state for car-call buttons — only DOM-mutate on change.
+        // ── Live engine-state strip ─────────────────────────────
+        setChip("mode", currentMode, currentMode);
+        setChip("phase", live.phase);
+        // Floor: nearest stop within 0.25 m, or "between" while moving.
+        let nearestName = "between";
+        let nearestDist = Infinity;
+        for (const stop of v.stops) {
+          const d = Math.abs(stop.y - live.y);
+          if (d < nearestDist) {
+            nearestDist = d;
+            nearestName = stop.name;
+          }
+        }
+        setChip("floor", nearestDist < 0.25 ? nearestName : "between");
+        const doorState = live.door.state;
+        setChip("doors", doorState, doorState);
+        const engineV = live.v;
+        const vText = `${engineV >= 0 ? "+" : ""}${engineV.toFixed(1)} m/s`;
+        setChip("velocity", vText);
+        setChip("load", `${live.rider_ids.length}/${live.capacity | 0}`);
+        let targetName = "—";
+        if (live.target !== undefined) {
+          const targetStop = v.stops.find((s) => s.entity_id === live.target);
+          targetName = targetStop?.name ?? `s${live.target}`;
+        }
+        setChip("target", targetName, live.target !== undefined ? "set" : "none");
+
+        // ── Door button active state ────────────────────────────
+        if (doorState !== lastDoorState) {
+          doorOpenBtn.dataset["active"] =
+            doorState === "opening" || doorState === "open" ? "true" : "false";
+          doorCloseBtn.dataset["active"] =
+            doorState === "closing" || doorState === "closed" ? "true" : "false";
+          lastDoorState = doorState;
+        }
+
+        // ── Manual-mode gating ──────────────────────────────────
+        // The engine rejects `setTargetVelocity` and `emergencyStop`
+        // unless the car is in `manual`. Disable the slider + E-Stop
+        // when out of mode so devs see why the controls are inert,
+        // instead of silently logging `WrongServiceMode` errors.
+        if (currentMode !== lastModeGate) {
+          const isManual = currentMode === "manual";
+          slider.disabled = !isManual;
+          eStopBtn.disabled = !isManual;
+          slider.title = isManual
+            ? `sim.setTargetVelocity(${carName}, v)`
+            : `requires sim.setServiceMode(${carName}, "manual")`;
+          eStopBtn.title = isManual
+            ? `sim.emergencyStop(${carName})`
+            : `requires sim.setServiceMode(${carName}, "manual")`;
+          lastModeGate = currentMode;
+        }
+
+        // ── Car-call lit-state ──────────────────────────────────
         const target = live.target;
         for (const [stopEntityId, btn] of carBtnByStop) {
           const lit = target !== undefined && target === stopEntityId;
@@ -498,13 +608,11 @@ function mountCarBlocks(
             lastLit.set(stopEntityId, lit);
           }
         }
-        // Velocity readout — quantise to one decimal so micro-jitter
-        // near zero doesn't thrash the DOM.
-        const engineV = live.v;
-        const text = `${engineV >= 0 ? "+" : ""}${engineV.toFixed(1)} m/s`;
-        if (text !== lastReadout) {
-          readout.textContent = text;
-          lastReadout = text;
+
+        // ── Velocity readout (engine-actual, not slider) ────────
+        if (vText !== lastReadout) {
+          readout.textContent = vText;
+          lastReadout = vText;
         }
       });
     });
