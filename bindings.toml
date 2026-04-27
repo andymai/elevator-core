@@ -193,13 +193,13 @@ ffi  = "ev_sim_set_strategy"
 name = "strategy_id"
 category = "dispatch"
 wasm = "strategyName"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_strategy_id"
 
 [[methods]]
 name = "set_reposition"
 category = "dispatch"
 wasm = "setReposition"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_set_reposition"
 
 [[methods]]
 name = "remove_reposition"
@@ -211,7 +211,7 @@ ffi  = "ev_sim_remove_reposition"
 name = "reposition_id"
 category = "dispatch"
 wasm = "repositionStrategyName"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_reposition_id"
 
 [[methods]]
 name = "build_dispatch_manifest"
