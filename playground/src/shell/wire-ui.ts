@@ -30,13 +30,6 @@ export interface UiHandles {
   shortcutSheetClose: HTMLButtonElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
-  manualControls: HTMLElement;
-  manualHallButtons: HTMLElement;
-  manualCarControls: HTMLElement;
-  manualSpawnForm: HTMLElement;
-  manualEventLog: HTMLElement;
-  manualAddCarBtn: HTMLButtonElement;
-  manualFeatureHint: HTMLElement;
 }
 
 export function wireUi(): UiHandles {
@@ -113,13 +106,6 @@ export function wireUi(): UiHandles {
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
-    manualControls: q("manual-controls"),
-    manualHallButtons: q("manual-hall-buttons"),
-    manualCarControls: q("manual-car-controls"),
-    manualSpawnForm: q("manual-spawn-form"),
-    manualEventLog: q("manual-event-log"),
-    manualAddCarBtn: q("manual-add-car") as HTMLButtonElement,
-    manualFeatureHint: q("manual-feature-hint"),
   };
 
   renderScenarioCards(ui);
