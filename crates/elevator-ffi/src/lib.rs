@@ -2636,6 +2636,415 @@ pub unsafe extern "C" fn ev_sim_disable(handle: *mut EvSim, entity_id: u64) -> E
     })
 }
 
+// ── Per-elevator + global introspection accessors ────────────────────────
+//
+// Read-only queries. All entity-taking accessors return a sentinel for
+// missing/disabled entities (NaN for f64, 0 for u64, false for bool).
+// This matches the existing FFI pattern (e.g. ev_sim_assigned_car
+// writes 0 to its out-param when the call has no assignment).
+//
+// Consumers that need to distinguish "missing" from "valid value" call
+// ev_sim_is_elevator / ev_sim_is_stop first, then read the accessor.
+
+/// Current velocity (distance/tick) of an elevator. Positive = up,
+/// negative = down. Returns `NaN` for non-elevator entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_velocity(handle: *mut EvSim, elevator_entity_id: u64) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return f64::NAN;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.velocity(elevator).unwrap_or(f64::NAN)
+    })
+}
+
+/// Sub-tick interpolated position of an entity. `alpha` in `[0.0, 1.0]`
+/// (`0.0` = current tick, `1.0` = next tick). Returns `NaN` for entities
+/// without a position component.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_position_at(handle: *mut EvSim, entity_id: u64, alpha: f64) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        let Some(entity) = entity_from_u64(entity_id) else {
+            return f64::NAN;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.position_at(entity, alpha).unwrap_or(f64::NAN)
+    })
+}
+
+/// Fraction of capacity occupied by weight, in `[0.0, 1.0]`. Returns
+/// `NaN` for non-elevator entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_load(handle: *mut EvSim, elevator_entity_id: u64) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return f64::NAN;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim
+            .elevator_load(ElevatorId::from(elevator))
+            .unwrap_or(f64::NAN)
+    })
+}
+
+/// Number of riders currently aboard. Returns `0` for empty cabs and
+/// for non-elevator entities (disambiguate via [`ev_sim_is_elevator`]).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_occupancy(handle: *mut EvSim, elevator_entity_id: u64) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.occupancy(elevator)).unwrap_or(u32::MAX)
+    })
+}
+
+/// Indicator-lamp direction of an elevator: `1` = Up, `-1` = Down,
+/// `0` = Either / idle / missing entity. Encoding matches
+/// [`EvHallCall::direction`].
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_direction(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> i8 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        match ev.sim.elevator_direction(elevator) {
+            Some(elevator_core::components::Direction::Up) => 1,
+            Some(elevator_core::components::Direction::Down) => -1,
+            _ => 0,
+        }
+    })
+}
+
+/// Whether an elevator is currently committed upward. Returns `false`
+/// for missing entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_going_up(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(elevator_entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.elevator_going_up(e).unwrap_or(false)
+        })
+    })
+}
+
+/// Whether an elevator is currently committed downward. Returns `false`
+/// for missing entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_going_down(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(elevator_entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.elevator_going_down(e).unwrap_or(false)
+        })
+    })
+}
+
+/// Total number of completed trips since spawn. Returns `0` for missing
+/// entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_move_count(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.elevator_move_count(elevator).unwrap_or(0)
+    })
+}
+
+/// Distance the elevator would travel if it began decelerating now from
+/// its current velocity. Returns `NaN` for stationary or missing
+/// entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_braking_distance(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return f64::NAN;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.braking_distance(elevator).unwrap_or(f64::NAN)
+    })
+}
+
+/// Position of the next stop in the destination queue (or current
+/// target mid-trip). Returns `NaN` for empty queues / missing entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_future_stop_position(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return f64::NAN;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.future_stop_position(elevator).unwrap_or(f64::NAN)
+    })
+}
+
+/// Total number of currently-idle elevators across the simulation.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_idle_elevator_count(handle: *mut EvSim) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.idle_elevator_count()).unwrap_or(u32::MAX)
+    })
+}
+
+/// Whether an entity is an elevator.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_is_elevator(handle: *mut EvSim, entity_id: u64) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.is_elevator(e)
+        })
+    })
+}
+
+/// Whether an entity is a rider.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_is_rider(handle: *mut EvSim, entity_id: u64) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.is_rider(e)
+        })
+    })
+}
+
+/// Whether an entity is a stop.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_is_stop(handle: *mut EvSim, entity_id: u64) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.is_stop(e)
+        })
+    })
+}
+
+/// Whether an entity is currently disabled. Returns `false` for both
+/// "enabled" and "doesn't exist" — distinguish via the type-check
+/// accessors first.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_is_disabled(handle: *mut EvSim, entity_id: u64) -> bool {
+    guard(false, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return false;
+        }
+        entity_from_u64(entity_id).is_some_and(|e| {
+            // Safety: validity guaranteed by caller.
+            let ev = unsafe { &*handle };
+            ev.sim.is_disabled(e)
+        })
+    })
+}
+
+/// Current simulation tick.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_current_tick(handle: *mut EvSim) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.current_tick()
+    })
+}
+
+/// Time delta per tick (seconds). Useful for converting ETA tick counts
+/// into real-time durations on the consumer side.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_dt(handle: *mut EvSim) -> f64 {
+    guard(f64::NAN, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return f64::NAN;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.dt()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
