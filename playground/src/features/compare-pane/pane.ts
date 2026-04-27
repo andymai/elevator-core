@@ -73,7 +73,7 @@ export async function makePane(
   // here we just toggle the cutaway path on with empty maps.
   if (scenario.manualControl) {
     renderer.setManualControlState({
-      selectedCarSlot: null,
+      selectedCarId: null,
       serviceModeByCar: new Map(),
       hallCallsByStop: new Map(),
     });

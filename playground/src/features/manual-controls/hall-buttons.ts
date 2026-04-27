@@ -57,7 +57,7 @@ export function mountHallButtons(
       entry.up = up;
     } else {
       // Spacer keeps grid columns aligned across rows.
-      row.append(el("span", "manual-hall-spacer"));
+      row.append(el("span", "w-7"));
     }
     if (!isBottom) {
       const down = el("button", "manual-hall-btn");
@@ -70,7 +70,7 @@ export function mountHallButtons(
       row.append(down);
       entry.down = down;
     } else {
-      row.append(el("span", "manual-hall-spacer"));
+      row.append(el("span", "w-7"));
     }
     rows.push(entry);
     container.append(row);

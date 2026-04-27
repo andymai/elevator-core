@@ -36,7 +36,6 @@ export interface UiHandles {
   manualSpawnForm: HTMLElement;
   manualEventLog: HTMLElement;
   manualAddCarBtn: HTMLButtonElement;
-  manualFeatureHint: HTMLElement;
 }
 
 export function wireUi(): UiHandles {
@@ -119,7 +118,6 @@ export function wireUi(): UiHandles {
     manualSpawnForm: q("manual-spawn-form"),
     manualEventLog: q("manual-event-log"),
     manualAddCarBtn: q("manual-add-car") as HTMLButtonElement,
-    manualFeatureHint: q("manual-feature-hint"),
   };
 
   renderScenarioCards(ui);

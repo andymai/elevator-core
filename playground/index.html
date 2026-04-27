@@ -301,7 +301,7 @@
         aria-label="Manual elevator controls"
         class="manual-controls flex-col gap-3 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle rounded-lg shadow-md max-md:p-2.5 max-md:gap-2 overflow-y-auto"
       >
-        <header class="flex items-center gap-2">
+        <header class="flex items-center justify-between gap-2">
           <span
             class="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] uppercase text-content-secondary"
             ><span
@@ -310,24 +310,24 @@
             ></span
             >Controls</span
           >
+          <button
+            type="button"
+            id="manual-add-car"
+            class="manual-add-car text-[11px] font-medium px-2 py-1 rounded-sm border border-stroke-subtle bg-surface-elevated text-content-secondary hover:bg-surface-hover hover:text-content disabled:opacity-50 disabled:cursor-not-allowed"
+            hidden
+          >
+            Add Car B
+          </button>
         </header>
-
-        <!-- Scenario feature hint — populated dynamically from
-             scenario.featureHint. Hidden when the scenario doesn't
-             carry one. -->
-        <p id="manual-feature-hint" class="manual-feature-hint" hidden></p>
 
         <section aria-label="Hall calls" class="manual-section">
           <h3 class="manual-section-title">Hall calls</h3>
-          <div id="manual-hall-buttons" class="manual-hall-list"></div>
+          <div id="manual-hall-buttons" class="flex flex-col gap-1"></div>
         </section>
 
         <section aria-label="Per-car controls" class="manual-section">
           <h3 class="manual-section-title">Cars</h3>
           <div id="manual-car-controls" class="flex flex-col gap-2"></div>
-          <button type="button" id="manual-add-car" class="manual-add-car-btn" hidden>
-            Add Car B
-          </button>
         </section>
 
         <section aria-label="Spawn rider" class="manual-section">
@@ -340,7 +340,6 @@
           <ul
             id="manual-event-log"
             class="manual-event-log m-0 p-1.5 list-none flex flex-col gap-0.5 bg-surface border border-stroke-subtle rounded-sm text-[10.5px] tabular-nums text-content-tertiary overflow-y-auto h-[180px] max-md:h-[120px]"
-            data-empty-hint="Press a button or spawn a rider to see events."
           ></ul>
         </section>
       </aside>
