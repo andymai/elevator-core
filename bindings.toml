@@ -558,8 +558,8 @@ ffi  = "ev_sim_line_count"
 [[methods]]
 name = "stop_lookup_iter"
 category = "introspection"
-wasm = "todo:PR-B"
-ffi  = "todo:PR-B"
+wasm = "stopLookupIter"
+ffi  = "ev_sim_stop_lookup_iter"
 
 [[methods]]
 name = "stop_entity"

@@ -1087,6 +1087,24 @@ enum EvStatus ev_sim_transfer_points(struct EvSim *handle,
 uint64_t ev_sim_stop_entity(struct EvSim *handle, uint32_t stop_id);
 
 /**
+ * Snapshot of the config-time `StopId` → runtime `EntityId` map.
+ *
+ * Buffer-pattern accessor; emits flat `[stop_id_as_u64, entity_id, ...]`
+ * pairs (each pair = 2 `u64` slots). The number of pairs written is
+ * `*out_written / 2`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`.
+ */
+enum EvStatus ev_sim_stop_lookup_iter(struct EvSim *handle,
+                                      uint64_t *out,
+                                      uint32_t capacity,
+                                      uint32_t *out_written);
+
+/**
  * Entity ids of every elevator currently repositioning.
  * Buffer-pattern accessor.
  *

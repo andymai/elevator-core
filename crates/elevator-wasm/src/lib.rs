@@ -1755,6 +1755,19 @@ impl WasmSim {
             .map_or(0, entity_to_u64)
     }
 
+    /// Snapshot of the config-time `StopId` → runtime `EntityId` map.
+    /// Returns a flat `[stop_id_as_u64, entity_id, ...]` array — the
+    /// `StopId` is zero-extended into the same `u64` slot the entity
+    /// uses. Pair count is `array.length / 2`.
+    #[wasm_bindgen(js_name = stopLookupIter)]
+    #[must_use]
+    pub fn stop_lookup_iter(&self) -> Vec<u64> {
+        self.inner
+            .stop_lookup_iter()
+            .flat_map(|(stop_id, entity)| [u64::from(stop_id.0), entity_to_u64(*entity)])
+            .collect()
+    }
+
     /// Entity ids of every elevator currently repositioning (heading to
     /// a parking stop with no rider obligation).
     #[wasm_bindgen(js_name = iterRepositioningElevators)]
