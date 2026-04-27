@@ -89,23 +89,22 @@ export interface TweakRanges {
 export type ServiceModeName = "normal" | "manual" | "inspection" | "outofservice";
 
 /**
- * Operator-cockpit scenario metadata. Set by scenarios that opt
- * into the cockpit renderer + right-rail console layout (currently
- * just the small office). Mirrors `tether?: TetherMeta`.
+ * Manual-control scenario metadata. Set only by scenarios that opt
+ * into the cabin-cutaway renderer + side controls panel layout
+ * (currently just the small office). Mirrors `tether?: TetherMeta`.
  */
 export interface ManualControlMeta {
   /**
-   * Service mode applied to every car after the sim builds. The
-   * cockpit demo sets `manual` so the throttle is the authoritative
-   * motion source on first paint; the field is kept generic so a
-   * future scenario could opt for `inspection` or another mode
-   * without a type change.
+   * Service mode applied to every car after the sim builds. Normal
+   * keeps auto-loading and auto-dispatch on so spawned riders board
+   * on door open and hall calls assign cars — the manual buttons sit
+   * "alongside" rather than being the only way to drive the car. Users
+   * flip individual cars to Manual via the per-car dropdown.
    */
   defaultServiceMode: ServiceModeName;
   /**
-   * Reserved for future cockpit variants that allow live
-   * `addElevator` / `removeElevator`. The current single-car cockpit
-   * leaves this `false` and the toggle is not surfaced.
+   * Show the "Add Car B" / "Remove Car B" toggle in the controls
+   * panel. Maps to `addElevator` / `removeElevator` on the sim.
    */
   allowAddRemoveCar: boolean;
 }

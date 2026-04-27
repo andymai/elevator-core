@@ -7,7 +7,7 @@ import {
   drawShaftLabels,
   drawWaitingFigures,
 } from "./draw-building";
-import { drawCockpit, type CockpitRenderState, type HitZone } from "./draw-cockpit";
+import { drawCabinCutaway, type CabinRenderState } from "./draw-cabin";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { RiderVariant } from "./figures/rider";
@@ -70,16 +70,8 @@ export class CanvasRenderer {
   readonly #tweens: Tween[] = [];
   /** Set when the active scenario is a space-elevator-style tether. */
   #tether: TetherMeta | null = null;
-  /** Set when the active scenario is the operator cockpit. */
-  #cockpit: CockpitRenderState | null = null;
-  /**
-   * Hit zones from the most recent cockpit frame. Pointerdown on the
-   * canvas finds the topmost matching zone and dispatches via
-   * `#cockpitClickHandler`. Reused across frames to avoid allocations.
-   */
-  readonly #cockpitHitZones: HitZone[] = [];
-  #cockpitClickHandler: ((zone: HitZone) => void) | null = null;
-  readonly #onCanvasPointerDown: (e: PointerEvent) => void;
+  /** Set when the active scenario is the manual-control cabin cutaway. */
+  #manualControl: CabinRenderState | null = null;
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
@@ -107,30 +99,10 @@ export class CanvasRenderer {
       this.#resize();
     };
     window.addEventListener("resize", this.#onResize);
-    this.#onCanvasPointerDown = (e: PointerEvent): void => {
-      const handler = this.#cockpitClickHandler;
-      if (handler === null) return;
-      const rect = this.#canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      // Iterate in reverse so later-drawn zones (e.g. the cab doors
-      // on top of the shaft) win over earlier ones if they overlap.
-      for (let i = this.#cockpitHitZones.length - 1; i >= 0; i--) {
-        const z = this.#cockpitHitZones[i];
-        if (z === undefined) continue;
-        if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) {
-          e.preventDefault();
-          handler(z);
-          return;
-        }
-      }
-    };
-    this.#canvas.addEventListener("pointerdown", this.#onCanvasPointerDown);
   }
 
   dispose(): void {
     window.removeEventListener("resize", this.#onResize);
-    this.#canvas.removeEventListener("pointerdown", this.#onCanvasPointerDown);
   }
 
   get canvas(): HTMLCanvasElement {
@@ -155,33 +127,21 @@ export class CanvasRenderer {
   }
 
   /**
-   * Toggle the operator-cockpit render path. When set, every other
-   * render branch is bypassed and `drawCockpit` takes over the canvas.
+   * Toggle the cabin-cutaway render path. When set, every other render
+   * branch is bypassed and `drawCabinCutaway` takes over the canvas.
    * Mirrors the tether opt-in.
    */
-  setCockpitState(state: CockpitRenderState | null): void {
+  setManualControlState(state: CabinRenderState | null): void {
     // Reuse the existing per-car kinematic / assignment caches as
     // scenario-switch boundaries — same trick `setTetherConfig` uses.
-    // Only reset on a transition into or out of cockpit mode, not on
+    // Only reset on a transition into or out of manual mode, not on
     // the per-frame state replacement the loop does.
-    const transitioning = (state === null) !== (this.#cockpit === null);
-    this.#cockpit = state;
+    const transitioning = (state === null) !== (this.#manualControl === null);
+    this.#manualControl = state;
     if (transitioning) {
       this.#prevVelocity.clear();
       this.#stopAssignments.clear();
-      // Drop hit zones on transition out; pointerdown on the canvas
-      // in non-cockpit modes is a no-op anyway.
-      if (state === null) this.#cockpitHitZones.length = 0;
     }
-  }
-
-  /**
-   * Register the cockpit canvas-click dispatcher. The renderer holds
-   * one handler at a time; the cockpit panel installs its handler on
-   * mount and clears it on dispose.
-   */
-  setCockpitClickHandler(handler: ((zone: HitZone) => void) | null): void {
-    this.#cockpitClickHandler = handler;
   }
 
   /**
@@ -230,8 +190,8 @@ export class CanvasRenderer {
     const s = this.#cachedScale;
     if (s === null) return;
 
-    if (this.#cockpit !== null) {
-      drawCockpit(ctx, snap, w, h, this.#cockpit, this.#cockpitHitZones);
+    if (this.#manualControl !== null) {
+      drawCabinCutaway(ctx, snap, w, h, this.#manualControl);
       return;
     }
 

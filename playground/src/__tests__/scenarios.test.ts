@@ -80,24 +80,4 @@ describe("scenarios metadata", () => {
       expect(s.description.length, s.id).toBeGreaterThan(0);
     }
   });
-
-  // Operator-cockpit shape — guards against accidental regression
-  // back toward the previous "expose every WASM API as a control"
-  // demo. The id stays "manual-office" for permalink stability.
-  it("operator cockpit scenario keeps its single-car / Manual shape", () => {
-    const cockpit = scenarioById("manual-office");
-    expect(cockpit.label).toBe("Operator cockpit");
-    expect(cockpit.defaultCars).toBe(1);
-    expect(cockpit.tweakRanges.cars.min).toBe(1);
-    expect(cockpit.tweakRanges.cars.max).toBe(1);
-    expect(cockpit.manualControl).toBeDefined();
-    expect(cockpit.manualControl?.defaultServiceMode).toBe("manual");
-    expect(cockpit.manualControl?.allowAddRemoveCar).toBe(false);
-    // Single calm phase ("Drift") with a low spawn rate; the RON
-    // mean_interval_ticks should match the per-min rate at 60 Hz.
-    expect(cockpit.phases).toHaveLength(1);
-    expect(cockpit.phases[0]?.ridersPerMin).toBe(4);
-    expect(cockpit.passengerMeanIntervalTicks).toBe(900);
-    expect(cockpit.ron).toMatch(/mean_interval_ticks:\s*900/);
-  });
 });
