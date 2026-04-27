@@ -76,7 +76,7 @@ ffi  = "skip:internal — driven by step()"
 [[methods]]
 name = "run_until_quiet"
 category = "lifecycle"
-wasm = "todo:PR-E"
+wasm = "runUntilQuiet"
 ffi  = "todo:PR-E"
 
 # ─── Substep / phase-by-phase ticking ─────────────────────────────────────
@@ -204,7 +204,7 @@ ffi  = "todo:PR-C"
 [[methods]]
 name = "remove_reposition"
 category = "dispatch"
-wasm = "todo:PR-C"
+wasm = "removeReposition"
 ffi  = "todo:PR-C"
 
 [[methods]]
@@ -330,7 +330,7 @@ ffi  = "ev_sim_spawn_rider_ex"
 [[methods]]
 name = "despawn_rider"
 category = "riders"
-wasm = "todo:PR-D"
+wasm = "despawnRider"
 ffi  = "ev_sim_despawn_rider"
 
 [[methods]]
@@ -510,49 +510,49 @@ ffi  = "skip:returns PhaseContext — internal scheduling helper"
 [[methods]]
 name = "elevators_on_line"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "elevatorsOnLine"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "groups_serving_stop"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "groupsServingStop"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "lines_in_group"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "linesInGroup"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "lines_serving_stop"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "linesServingStop"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "stops_served_by_line"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "stopsServedByLine"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "line_for_elevator"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "lineForElevator"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "all_lines"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "allLines"
 ffi  = "todo:PR-B"
 
 [[methods]]
 name = "line_count"
 category = "introspection"
-wasm = "todo:PR-B"
+wasm = "lineCount"
 ffi  = "todo:PR-B"
 
 [[methods]]

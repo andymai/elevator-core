@@ -1318,6 +1318,143 @@ impl WasmSim {
             .collect()
     }
 
+    // ── Topology introspection ───────────────────────────────────────
+    //
+    // Read-only queries about the group / line / stop / elevator
+    // relationship graph. Useful for UI panels that render the bank
+    // structure or for tools that audit which lines serve which stops.
+
+    /// Entity ids of all elevators currently assigned to `line_ref`.
+    #[wasm_bindgen(js_name = elevatorsOnLine)]
+    #[must_use]
+    pub fn elevators_on_line(&self, line_ref: u64) -> Vec<u64> {
+        self.inner
+            .elevators_on_line(u64_to_entity(line_ref))
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Entity ids of every line in `group_id`. Empty if the group does
+    /// not exist.
+    #[wasm_bindgen(js_name = linesInGroup)]
+    #[must_use]
+    pub fn lines_in_group(&self, group_id: u32) -> Vec<u64> {
+        self.inner
+            .lines_in_group(elevator_core::ids::GroupId(group_id))
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Entity ids of every line that serves `stop_ref`. Useful for
+    /// disambiguating sky-lobby calls served by multiple banks.
+    #[wasm_bindgen(js_name = linesServingStop)]
+    #[must_use]
+    pub fn lines_serving_stop(&self, stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .lines_serving_stop(u64_to_entity(stop_ref))
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Entity ids of every stop served by `line_ref`. Order is
+    /// unspecified — sort by `positionAt` if you need axis order.
+    #[wasm_bindgen(js_name = stopsServedByLine)]
+    #[must_use]
+    pub fn stops_served_by_line(&self, line_ref: u64) -> Vec<u64> {
+        self.inner
+            .stops_served_by_line(u64_to_entity(line_ref))
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Group ids of every group with a line that serves `stop_ref`.
+    #[wasm_bindgen(js_name = groupsServingStop)]
+    #[must_use]
+    pub fn groups_serving_stop(&self, stop_ref: u64) -> Vec<u32> {
+        self.inner
+            .groups_serving_stop(u64_to_entity(stop_ref))
+            .into_iter()
+            .map(|g| g.0)
+            .collect()
+    }
+
+    /// Line entity that `elevator_ref` runs on, or `0` (slotmap-null)
+    /// if missing or not an elevator.
+    #[wasm_bindgen(js_name = lineForElevator)]
+    #[must_use]
+    pub fn line_for_elevator(&self, elevator_ref: u64) -> u64 {
+        self.inner
+            .line_for_elevator(u64_to_entity(elevator_ref))
+            .map_or(0, entity_to_u64)
+    }
+
+    /// Entity ids of every line in the simulation, across all groups.
+    #[wasm_bindgen(js_name = allLines)]
+    #[must_use]
+    pub fn all_lines(&self) -> Vec<u64> {
+        self.inner
+            .all_lines()
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Total number of lines across all groups.
+    #[wasm_bindgen(js_name = lineCount)]
+    #[must_use]
+    pub fn line_count(&self) -> u32 {
+        u32::try_from(self.inner.line_count()).unwrap_or(u32::MAX)
+    }
+
+    // ── Riders + lifecycle ───────────────────────────────────────────
+
+    /// Despawn a rider mid-flight. The rider is ejected from any
+    /// boarding car and dropped from the world.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `rider_ref` is not a rider entity.
+    #[wasm_bindgen(js_name = despawnRider)]
+    pub fn despawn_rider(&mut self, rider_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .despawn_rider(elevator_core::entity::RiderId::from(u64_to_entity(
+                rider_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("despawn_rider: {e}")))
+    }
+
+    /// Step the simulation forward up to `max_ticks` ticks, stopping
+    /// early if the world becomes "quiet" (no in-flight riders, no
+    /// pending hall calls, all cars idle). Returns the number of ticks
+    /// actually run.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the world fails to quiet within `max_ticks`
+    /// (infinite-loop guard).
+    #[wasm_bindgen(js_name = runUntilQuiet)]
+    pub fn run_until_quiet(&mut self, max_ticks: u64) -> Result<u64, JsError> {
+        self.inner.run_until_quiet(max_ticks).map_err(|ticks| {
+            JsError::new(&format!(
+                "run_until_quiet: world did not quiet within {ticks} ticks"
+            ))
+        })
+    }
+
+    // ── Dispatch metadata ────────────────────────────────────────────
+
+    /// Remove the reposition strategy from `group_id`. Idle elevators
+    /// stay where they parked instead of moving toward a target.
+    #[wasm_bindgen(js_name = removeReposition)]
+    pub fn remove_reposition(&mut self, group_id: u32) {
+        self.inner
+            .remove_reposition(elevator_core::ids::GroupId(group_id));
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
