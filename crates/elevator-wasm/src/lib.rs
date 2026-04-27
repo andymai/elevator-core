@@ -1770,8 +1770,8 @@ impl WasmSim {
     /// Aggregate metrics for `tag`. Returns `undefined` if no riders
     /// carrying the tag have been recorded yet.
     ///
-    /// Wait times in the returned [`dto::TaggedMetricDto`] are in
-    /// **ticks** — multiply by `dt` for real-time seconds.
+    /// Wait times in the returned `TaggedMetricDto` are in **ticks** —
+    /// multiply by `dt` for real-time seconds.
     #[wasm_bindgen(js_name = metricsForTag)]
     #[must_use]
     pub fn metrics_for_tag(&self, tag: &str) -> Option<dto::TaggedMetricDto> {
