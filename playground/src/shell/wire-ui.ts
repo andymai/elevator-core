@@ -30,13 +30,13 @@ export interface UiHandles {
   shortcutSheetClose: HTMLButtonElement;
   paneA: PaneHandles;
   paneB: PaneHandles;
-  cockpitThrottle: HTMLElement;
-  cockpitVelocity: HTMLElement;
-  cockpitDoorOpen: HTMLButtonElement;
-  cockpitDoorClose: HTMLButtonElement;
-  cockpitDoorHold: HTMLButtonElement;
-  cockpitEStop: HTMLButtonElement;
-  cockpitSpawn: HTMLButtonElement;
+  manualControls: HTMLElement;
+  manualHallButtons: HTMLElement;
+  manualCarControls: HTMLElement;
+  manualSpawnForm: HTMLElement;
+  manualEventLog: HTMLElement;
+  manualAddCarBtn: HTMLButtonElement;
+  manualFeatureHint: HTMLElement;
 }
 
 export function wireUi(): UiHandles {
@@ -113,13 +113,13 @@ export function wireUi(): UiHandles {
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
     paneA: paneHandles("a", COLOR_A),
     paneB: paneHandles("b", COLOR_B),
-    cockpitThrottle: q("cockpit-throttle"),
-    cockpitVelocity: q("cockpit-velocity"),
-    cockpitDoorOpen: q("cockpit-door-open") as HTMLButtonElement,
-    cockpitDoorClose: q("cockpit-door-close") as HTMLButtonElement,
-    cockpitDoorHold: q("cockpit-door-hold") as HTMLButtonElement,
-    cockpitEStop: q("cockpit-estop") as HTMLButtonElement,
-    cockpitSpawn: q("cockpit-spawn") as HTMLButtonElement,
+    manualControls: q("manual-controls"),
+    manualHallButtons: q("manual-hall-buttons"),
+    manualCarControls: q("manual-car-controls"),
+    manualSpawnForm: q("manual-spawn-form"),
+    manualEventLog: q("manual-event-log"),
+    manualAddCarBtn: q("manual-add-car") as HTMLButtonElement,
+    manualFeatureHint: q("manual-feature-hint"),
   };
 
   renderScenarioCards(ui);

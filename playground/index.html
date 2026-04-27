@@ -114,7 +114,7 @@
     <main
       id="layout"
       data-mode="single"
-      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 data-[mode=manual-control]:grid-cols-[minmax(0,1fr)_220px] max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2 max-md:data-[mode=manual-control]:grid-cols-1 max-md:portrait:data-[mode=manual-control]:grid-rows-[1fr_auto]"
+      class="layout grid gap-3.5 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 data-[mode=single]:grid-cols-1 data-[mode=compare]:grid-cols-2 data-[mode=manual-control]:grid-cols-[minmax(0,1fr)_360px] max-md:gap-2.5 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))] max-md:data-[mode=compare]:grid-cols-1 max-md:landscape:data-[mode=compare]:grid-cols-2 max-md:data-[mode=manual-control]:grid-cols-1"
     >
       <section
         id="pane-a"
@@ -200,7 +200,7 @@
         <div
           class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
-          <canvas id="shaft-a" class="absolute inset-0 w-full h-full block touch-none"></canvas>
+          <canvas id="shaft-a" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
       </section>
 
@@ -288,46 +288,61 @@
         <div
           class="shaft-wrap relative bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
-          <canvas id="shaft-b" class="absolute inset-0 w-full h-full block touch-none"></canvas>
+          <canvas id="shaft-b" class="absolute inset-0 w-full h-full block"></canvas>
         </div>
       </section>
 
-      <!-- Operator cockpit console. Hidden by default (utilities-layer
+      <!-- Manual control side panel. Hidden by default (utilities-layer
            rule keyed off layout's data-mode), surfaced when the active
-           scenario sets `manualControl`. Hydrated by
-           features/manual-controls. Right-rail on desktop, bottom-bar
-           on mobile portrait. -->
-      <aside id="cockpit-console" aria-label="Operator cockpit controls" class="cockpit-console">
-        <div class="cockpit-velocity tabular-nums" id="cockpit-velocity">+0.0 m/s</div>
-        <div
-          id="cockpit-throttle"
-          class="cockpit-throttle"
-          role="slider"
-          aria-label="Throttle"
-          aria-valuemin="-2"
-          aria-valuemax="2"
-          aria-valuenow="0"
-          tabindex="0"
-        >
-          <div class="cockpit-throttle-track" aria-hidden="true"></div>
-          <div class="cockpit-throttle-marks" aria-hidden="true">
-            <span class="cockpit-throttle-mark cockpit-throttle-mark--up">▲</span>
-            <span class="cockpit-throttle-mark cockpit-throttle-mark--centre">●</span>
-            <span class="cockpit-throttle-mark cockpit-throttle-mark--down">▼</span>
-          </div>
-          <div class="cockpit-throttle-thumb" aria-hidden="true"></div>
-        </div>
-        <div class="cockpit-doors" id="cockpit-doors">
-          <button type="button" class="cockpit-btn" id="cockpit-door-open">Open</button>
-          <button type="button" class="cockpit-btn" id="cockpit-door-close">Close</button>
-          <button type="button" class="cockpit-btn" id="cockpit-door-hold">Hold +1s</button>
-          <button type="button" class="cockpit-btn cockpit-btn--danger" id="cockpit-estop">
-            E-Stop
+           scenario sets `manualControl`. Populated dynamically by
+           features/manual-controls. -->
+      <aside
+        id="manual-controls"
+        aria-label="Manual elevator controls"
+        class="manual-controls flex-col gap-3 min-w-0 p-3 bg-gradient-to-b from-surface-elevated to-surface-secondary border border-stroke-subtle rounded-lg shadow-md max-md:p-2.5 max-md:gap-2 overflow-y-auto"
+      >
+        <header class="flex items-center gap-2">
+          <span
+            class="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] uppercase text-content-secondary"
+            ><span
+              class="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_60%,transparent)]"
+              aria-hidden="true"
+            ></span
+            >Controls</span
+          >
+        </header>
+
+        <!-- Scenario feature hint — populated dynamically from
+             scenario.featureHint. Hidden when the scenario doesn't
+             carry one. -->
+        <p id="manual-feature-hint" class="manual-feature-hint" hidden></p>
+
+        <section aria-label="Hall calls" class="manual-section">
+          <h3 class="manual-section-title">Hall calls</h3>
+          <div id="manual-hall-buttons" class="manual-hall-list"></div>
+        </section>
+
+        <section aria-label="Per-car controls" class="manual-section">
+          <h3 class="manual-section-title">Cars</h3>
+          <div id="manual-car-controls" class="flex flex-col gap-2"></div>
+          <button type="button" id="manual-add-car" class="manual-add-car-btn" hidden>
+            Add Car B
           </button>
-        </div>
-        <button type="button" class="cockpit-btn cockpit-spawn-btn" id="cockpit-spawn">
-          + Spawn rider
-        </button>
+        </section>
+
+        <section aria-label="Spawn rider" class="manual-section">
+          <h3 class="manual-section-title">Spawn rider</h3>
+          <div id="manual-spawn-form" class="flex flex-wrap items-end gap-1.5"></div>
+        </section>
+
+        <section aria-label="Event log" class="manual-section flex-1 min-h-0">
+          <h3 class="manual-section-title">Events</h3>
+          <ul
+            id="manual-event-log"
+            class="manual-event-log m-0 p-1.5 list-none flex flex-col gap-0.5 bg-surface border border-stroke-subtle rounded-sm text-[10.5px] tabular-nums text-content-tertiary overflow-y-auto h-[180px] max-md:h-[120px]"
+            data-empty-hint="Press a button or spawn a rider to see events."
+          ></ul>
+        </section>
       </aside>
     </main>
 

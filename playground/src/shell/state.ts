@@ -27,11 +27,10 @@ export interface State {
    */
   seeding: { remaining: number } | null;
   /**
-   * Mounted operator-cockpit panel handle, or `null` when the active
-   * scenario isn't a cockpit (manual-control) scenario. `resetAll`
-   * mounts it after paneA is built; the loop calls `update()` once
-   * per frame so the velocity readout, hall-call lamps, and hint
-   * banner stay in sync with the engine.
+   * Mounted manual-controls panel handle, or `null` when the active
+   * scenario isn't a manual-control scenario. `resetAll` mounts it
+   * after paneA is built; the loop calls `update()` once per frame to
+   * refresh lit state and append new events.
    */
-  cockpit: ManualControlsHandle | null;
+  manualControls: ManualControlsHandle | null;
 }
