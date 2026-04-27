@@ -1105,4 +1105,173 @@ enum EvStatus ev_sim_enable(struct EvSim *handle, uint64_t entity_id);
  */
 enum EvStatus ev_sim_disable(struct EvSim *handle, uint64_t entity_id);
 
+/**
+ * Current velocity (distance/tick) of an elevator. Positive = up,
+ * negative = down. Returns `NaN` for non-elevator entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_velocity(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Sub-tick interpolated position of an entity. `alpha` in `[0.0, 1.0]`
+ * (`0.0` = current tick, `1.0` = next tick). Returns `NaN` for entities
+ * without a position component.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_position_at(struct EvSim *handle, uint64_t entity_id, double alpha);
+
+/**
+ * Fraction of capacity occupied by weight, in `[0.0, 1.0]`. Returns
+ * `NaN` for non-elevator entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_elevator_load(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Number of riders currently aboard. Returns `0` for empty cabs and
+ * for non-elevator entities (disambiguate via [`ev_sim_is_elevator`]).
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_occupancy(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Indicator-lamp direction of an elevator: `1` = Up, `-1` = Down,
+ * `0` = Either / idle / missing entity. Encoding matches
+ * [`EvHallCall::direction`].
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+int8_t ev_sim_elevator_direction(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Whether an elevator is currently committed upward. Returns `false`
+ * for missing entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_elevator_going_up(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Whether an elevator is currently committed downward. Returns `false`
+ * for missing entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_elevator_going_down(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Total number of completed trips since spawn. Returns `0` for missing
+ * entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_elevator_move_count(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Distance the elevator would travel if it began decelerating now from
+ * its current velocity. Returns `NaN` for stationary or missing
+ * entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_braking_distance(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Position of the next stop in the destination queue (or current
+ * target mid-trip). Returns `NaN` for empty queues / missing entities.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_future_stop_position(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Total number of currently-idle elevators across the simulation.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_idle_elevator_count(struct EvSim *handle);
+
+/**
+ * Whether an entity is an elevator.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_is_elevator(struct EvSim *handle, uint64_t entity_id);
+
+/**
+ * Whether an entity is a rider.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_is_rider(struct EvSim *handle, uint64_t entity_id);
+
+/**
+ * Whether an entity is a stop.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_is_stop(struct EvSim *handle, uint64_t entity_id);
+
+/**
+ * Whether an entity is currently disabled. Returns `false` for both
+ * "enabled" and "doesn't exist" — distinguish via the type-check
+ * accessors first.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+bool ev_sim_is_disabled(struct EvSim *handle, uint64_t entity_id);
+
+/**
+ * Current simulation tick.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_current_tick(struct EvSim *handle);
+
+/**
+ * Time delta per tick (seconds). Useful for converting ETA tick counts
+ * into real-time durations on the consumer side.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+double ev_sim_dt(struct EvSim *handle);
+
 #endif  /* ELEVATOR_FFI_H */
