@@ -5998,6 +5998,541 @@ pub unsafe extern "C" fn ev_sim_shortest_route(
     })
 }
 
+// ── car_calls + EvCarCall ────────────────────────────────────────────────
+
+/// C-ABI-flat projection of a `CarCall` for FFI consumers.
+///
+/// Mirrors [`elevator_core::components::CarCall`] field-for-field with
+/// `EntityId` slots flattened to `u64` and the `pending_riders` Vec
+/// surfaced as a count (call [`ev_sim_car_call_pending_riders`] to read
+/// the actual rider list).
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvCarCall {
+    /// Elevator the button was pressed inside.
+    pub car_entity_id: u64,
+    /// Stop the button requests.
+    pub floor_entity_id: u64,
+    /// Tick the button was pressed.
+    pub press_tick: u64,
+    /// Tick dispatch first saw this call (after ack latency).
+    /// `u64::MAX` while still pending acknowledgement.
+    pub acknowledged_at: u64,
+    /// Ticks the controller takes to acknowledge this call.
+    pub ack_latency_ticks: u32,
+    /// Number of riders aggregated onto this call. Read the actual
+    /// rider ids via [`ev_sim_car_call_pending_riders`].
+    pub pending_rider_count: u32,
+}
+
+/// Number of active car calls inside `elevator_entity_id`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_car_call_count(handle: *mut EvSim, elevator_entity_id: u64) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(
+            ev.sim
+                .car_calls(elevator_core::entity::ElevatorId::from(elevator))
+                .len(),
+        )
+        .unwrap_or(u32::MAX)
+    })
+}
+
+/// Snapshot of car calls inside `elevator_entity_id`. Caller-owned
+/// buffer pattern: `out` points to a buffer of `capacity` [`EvCarCall`]s,
+/// `out_written` receives the count actually written.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable [`EvCarCall`] slots when
+/// `capacity > 0`. `out_written` must be a writable `u32`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_car_calls_snapshot(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out: *mut EvCarCall,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let calls = ev
+            .sim
+            .car_calls(elevator_core::entity::ElevatorId::from(elevator));
+        let mut written: u32 = 0;
+        for call in calls.iter().take(capacity as usize) {
+            let record = EvCarCall {
+                car_entity_id: entity_to_u64(call.car),
+                floor_entity_id: entity_to_u64(call.floor),
+                press_tick: call.press_tick,
+                acknowledged_at: call.acknowledged_at.unwrap_or(u64::MAX),
+                ack_latency_ticks: call.ack_latency_ticks,
+                pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
+            };
+            // Safety: caller guarantees `out` has at least `capacity` entries.
+            unsafe {
+                std::ptr::write(out.add(written as usize), record);
+            }
+            written += 1;
+        }
+        // Safety: validated non-null above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Pending rider list for the `index`-th car call inside `elevator_entity_id`.
+/// Caller-owned buffer pattern matching the call snapshot. Returns
+/// [`EvStatus::NotFound`] if the index is out of range.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`. `out_written` must be a writable `u32`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_car_call_pending_riders(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    index: u32,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let calls = ev
+            .sim
+            .car_calls(elevator_core::entity::ElevatorId::from(elevator));
+        let Some(call) = calls.get(index as usize) else {
+            set_last_error(format!(
+                "car call index {index} out of range (have {})",
+                calls.len()
+            ));
+            return EvStatus::NotFound;
+        };
+        // Safety: `out` validity guaranteed by caller.
+        let written =
+            unsafe { write_entity_buffer(call.pending_riders.iter().copied(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+// ── metrics + EvMetrics (richer mirror) ──────────────────────────────────
+
+/// Full repr-C mirror of [`elevator_core::metrics::Metrics`].
+///
+/// Time fields stay in **ticks** (not seconds) — multiply by [`ev_sim_dt`]
+/// for real-time. The narrower [`EvMetricsView`] embedded in [`EvFrame`]
+/// is kept for backward compatibility; new code should prefer this struct.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvMetrics {
+    /// Cumulative riders delivered.
+    pub total_delivered: u64,
+    /// Cumulative riders who abandoned.
+    pub total_abandoned: u64,
+    /// Total riders spawned.
+    pub total_spawned: u64,
+    /// Riders settled as residents.
+    pub total_settled: u64,
+    /// Riders rerouted from resident phase.
+    pub total_rerouted: u64,
+    /// Riders delivered in the current throughput window.
+    pub throughput: u64,
+    /// Average wait time in ticks (spawn → board).
+    pub avg_wait_ticks: f64,
+    /// Maximum wait time observed in ticks.
+    pub max_wait_ticks: u64,
+    /// Average ride time in ticks (board → exit).
+    pub avg_ride_ticks: f64,
+    /// Average elevator utilization (0.0..=1.0).
+    pub avg_utilization: f64,
+    /// Abandonment rate (0.0..=1.0).
+    pub abandonment_rate: f64,
+    /// Total distance traveled by all elevators.
+    pub total_distance: f64,
+    /// Total rounded-floor crossings across all elevators.
+    pub total_moves: u64,
+    /// Distance traveled while repositioning (subset of `total_distance`).
+    pub reposition_distance: f64,
+}
+
+/// Read the full metrics snapshot.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_metrics` must be a writable [`EvMetrics`] pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_metrics(
+    handle: *mut EvSim,
+    out_metrics: *mut EvMetrics,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_metrics.is_null() {
+            set_last_error("handle or out_metrics is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let m = ev.sim.metrics();
+        let view = EvMetrics {
+            total_delivered: m.total_delivered(),
+            total_abandoned: m.total_abandoned(),
+            total_spawned: m.total_spawned(),
+            total_settled: m.total_settled(),
+            total_rerouted: m.total_rerouted(),
+            throughput: m.throughput(),
+            avg_wait_ticks: m.avg_wait_time(),
+            max_wait_ticks: m.max_wait_time(),
+            avg_ride_ticks: m.avg_ride_time(),
+            avg_utilization: m.avg_utilization(),
+            abandonment_rate: m.abandonment_rate(),
+            total_distance: m.total_distance(),
+            total_moves: m.total_moves(),
+            reposition_distance: m.reposition_distance(),
+        };
+        // Safety: caller guarantees out_metrics is writable.
+        unsafe { *out_metrics = view };
+        EvStatus::Ok
+    })
+}
+
+// ── tagging accessors ────────────────────────────────────────────────────
+
+/// Per-tag metric snapshot. Mirrors
+/// [`elevator_core::tagged_metrics::TaggedMetric`].
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvTaggedMetric {
+    /// Average wait time in ticks for tagged riders.
+    pub avg_wait_ticks: f64,
+    /// Maximum wait time observed in ticks for tagged riders.
+    pub max_wait_ticks: u64,
+    /// Total riders delivered carrying this tag.
+    pub total_delivered: u64,
+    /// Total riders abandoned carrying this tag.
+    pub total_abandoned: u64,
+    /// Total riders spawned carrying this tag.
+    pub total_spawned: u64,
+}
+
+/// Read the per-tag aggregates for `tag`. Returns [`EvStatus::NotFound`]
+/// if no riders carrying the tag have been recorded yet.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `tag` must be a null-terminated UTF-8 C string. `out_metric` must be
+/// a writable [`EvTaggedMetric`] pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_metrics_for_tag(
+    handle: *mut EvSim,
+    tag: *const c_char,
+    out_metric: *mut EvTaggedMetric,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || tag.is_null() || out_metric.is_null() {
+            set_last_error("handle, tag, or out_metric is null");
+            return EvStatus::NullArg;
+        }
+        // Safety: caller guarantees null-terminated string.
+        let cstr = unsafe { CStr::from_ptr(tag) };
+        let tag_str = match cstr.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("tag is not valid UTF-8: {e}"));
+                return EvStatus::InvalidUtf8;
+            }
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let Some(m) = ev.sim.metrics_for_tag(tag_str) else {
+            set_last_error(format!("no recorded metrics for tag {tag_str:?}"));
+            return EvStatus::NotFound;
+        };
+        let record = EvTaggedMetric {
+            avg_wait_ticks: m.avg_wait_time(),
+            max_wait_ticks: m.max_wait_time(),
+            total_delivered: m.total_delivered(),
+            total_abandoned: m.total_abandoned(),
+            total_spawned: m.total_spawned(),
+        };
+        // Safety: caller guarantees out_metric is writable.
+        unsafe { *out_metric = record };
+        EvStatus::Ok
+    })
+}
+
+/// Number of registered metric tags.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_tag_count(handle: *mut EvSim) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.all_tags().len()).unwrap_or(u32::MAX)
+    })
+}
+
+/// List all registered metric tags.
+///
+/// Caller-owned buffer pattern: `out` is an array of `*mut c_char` (one
+/// slot per tag) backed by a flat scratch buffer of `scratch_capacity`
+/// bytes; `out_written` receives the number of tags written,
+/// `out_scratch_used` the number of bytes written to the scratch buffer
+/// (including null terminators).
+///
+/// Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
+/// `out_*` counts indicate the required sizes.
+///
+/// # Safety
+///
+/// `handle` must be valid. `out` and `scratch` may be null only when
+/// their respective capacities are zero. `out_written` and
+/// `out_scratch_used` must be writable `u32`s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_all_tags(
+    handle: *mut EvSim,
+    out: *mut *mut c_char,
+    capacity: u32,
+    scratch: *mut c_char,
+    scratch_capacity: u32,
+    out_written: *mut u32,
+    out_scratch_used: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() || out_scratch_used.is_null() {
+            set_last_error("handle, out_written, or out_scratch_used is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        if scratch_capacity > 0 && scratch.is_null() {
+            set_last_error("scratch is null but scratch_capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let tags = ev.sim.all_tags();
+        let needed_count = u32::try_from(tags.len()).unwrap_or(u32::MAX);
+        let needed_scratch: usize = tags.iter().map(|t| t.len() + 1).sum();
+        let needed_scratch_u32 = u32::try_from(needed_scratch).unwrap_or(u32::MAX);
+        // Safety: validated non-null above.
+        unsafe {
+            *out_written = needed_count;
+            *out_scratch_used = needed_scratch_u32;
+        }
+        if needed_count > capacity || needed_scratch_u32 > scratch_capacity {
+            set_last_error(format!(
+                "insufficient buffer: need {needed_count} tag slots and \
+                 {needed_scratch_u32} scratch bytes"
+            ));
+            return EvStatus::InvalidArg;
+        }
+        let mut scratch_offset: usize = 0;
+        for (i, tag) in tags.iter().enumerate() {
+            let bytes = tag.as_bytes();
+            // Safety: bounds checked above (needed_scratch <= scratch_capacity).
+            unsafe {
+                let dst = scratch.add(scratch_offset).cast::<u8>();
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), dst, bytes.len());
+                *dst.add(bytes.len()) = 0;
+                *out.add(i) = scratch.add(scratch_offset);
+            }
+            scratch_offset += bytes.len() + 1;
+        }
+        EvStatus::Ok
+    })
+}
+
+// ── elevators_in_phase ────────────────────────────────────────────────────
+
+/// Count elevators currently in `phase`.
+///
+/// The `phase` argument uses the same encoding as [`EvElevatorView::phase`].
+/// Only data-less variants are supported: `0` `Idle`, `3` `DoorOpening`,
+/// `4` `Loading`, `5` `DoorClosing`, `6` `Stopped`.
+///
+/// Returns [`EvStatus::InvalidArg`] for unknown phase codes.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_count` must be a writable `u32` pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevators_in_phase(
+    handle: *mut EvSim,
+    phase: u8,
+    out_count: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_count.is_null() {
+            set_last_error("handle or out_count is null");
+            return EvStatus::NullArg;
+        }
+        let Some(p) = phase_from_u8(phase) else {
+            set_last_error(format!("unknown phase code {phase}"));
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let count = u32::try_from(ev.sim.elevators_in_phase(p)).unwrap_or(u32::MAX);
+        // Safety: caller guarantees out_count is writable.
+        unsafe { *out_count = count };
+        EvStatus::Ok
+    })
+}
+
+/// Decode the C-side phase code into the core enum. Only the no-data
+/// variants are supported — `MovingToStop` and `Repositioning` carry a
+/// `target stop` payload, so equality with a code-only argument would
+/// require also threading the stop through. Wasm makes the same call.
+const fn phase_from_u8(code: u8) -> Option<ElevatorPhase> {
+    match code {
+        0 => Some(ElevatorPhase::Idle),
+        3 => Some(ElevatorPhase::DoorOpening),
+        4 => Some(ElevatorPhase::Loading),
+        5 => Some(ElevatorPhase::DoorClosing),
+        6 => Some(ElevatorPhase::Stopped),
+        _ => None,
+    }
+}
+
+/// Convert a `Duration` to the engine's tick count, rounding to nearest
+/// and saturating non-finite / out-of-range values to `u64::MAX`. Bounded
+/// at `2^53` because that's the largest u64 representable exactly as
+/// f64; beyond it the cast to `u64` is undefined.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn duration_to_ticks(duration: std::time::Duration, dt: f64) -> u64 {
+    if dt <= 0.0 {
+        return u64::MAX;
+    }
+    let t = (duration.as_secs_f64() / dt).round();
+    if t.is_finite() && t >= 0.0 && t <= 2.0_f64.powi(53) {
+        t as u64
+    } else {
+        u64::MAX
+    }
+}
+
+// ── eta ───────────────────────────────────────────────────────────────────
+
+/// ETA from `elevator_entity_id` to `stop_entity_id` in **ticks**.
+/// Mirrors [`Simulation::eta`](elevator_core::sim::Simulation::eta).
+///
+/// Returns [`EvStatus::InvalidArg`] if the entities don't refer to a
+/// valid elevator/stop pair, or [`EvStatus::NotFound`] if the elevator
+/// cannot reach the stop (e.g. stop not on the elevator's line, or
+/// disabled).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_ticks` must be a writable `u64` pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_eta(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    stop_entity_id: u64,
+    out_ticks: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_ticks.is_null() {
+            set_last_error("handle or out_ticks is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        match ev
+            .sim
+            .eta(elevator_core::entity::ElevatorId::from(elevator), stop)
+        {
+            Ok(duration) => {
+                let dt = ev.sim.dt();
+                let ticks = duration_to_ticks(duration, dt);
+                // Safety: caller guarantees out_ticks is writable.
+                unsafe { *out_ticks = ticks };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                set_last_error(format!("eta: {e}"));
+                EvStatus::NotFound
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -6987,6 +7522,112 @@ mod tests {
             saw_v4_kind,
             "expected at least one v4 event kind (>= 10) in the drained stream"
         );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn metrics_accessor_returns_richer_view_than_frame_subset() {
+        let handle = create_test_handle();
+        for _ in 0..50 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+        let mut m = std::mem::MaybeUninit::<EvMetrics>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_metrics(handle, m.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let m = unsafe { m.assume_init() };
+        assert!(m.total_distance >= 0.0);
+        assert!(m.avg_wait_ticks.is_finite());
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn metrics_for_unknown_tag_returns_not_found() {
+        let handle = create_test_handle();
+        let tag = CString::new("never-seen").unwrap();
+        let mut out = std::mem::MaybeUninit::<EvTaggedMetric>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_metrics_for_tag(handle, tag.as_ptr(), out.as_mut_ptr()) },
+            EvStatus::NotFound,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn elevators_in_phase_idle_after_setup() {
+        let handle = create_test_handle();
+        let mut count: u32 = 0;
+        assert_eq!(
+            unsafe { ev_sim_elevators_in_phase(handle, 0, &raw mut count) },
+            EvStatus::Ok,
+        );
+        assert!(count >= 1);
+        assert_eq!(
+            unsafe { ev_sim_elevators_in_phase(handle, 99, &raw mut count) },
+            EvStatus::InvalidArg,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn eta_for_unreachable_pair_returns_invalid_arg() {
+        let handle = create_test_handle();
+        let mut ticks: u64 = 0;
+        let status = unsafe { ev_sim_eta(handle, 0, 0, &raw mut ticks) };
+        assert_eq!(status, EvStatus::InvalidArg);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn car_call_count_for_unknown_elevator_returns_zero() {
+        let handle = create_test_handle();
+        let count = unsafe { ev_sim_car_call_count(handle, 0) };
+        assert_eq!(count, 0);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn all_tags_zero_capacity_probes_required_size() {
+        let handle = create_test_handle();
+        let mut written: u32 = 0;
+        let mut scratch_used: u32 = 0;
+        let probe = unsafe {
+            ev_sim_all_tags(
+                handle,
+                std::ptr::null_mut(),
+                0,
+                std::ptr::null_mut(),
+                0,
+                &raw mut written,
+                &raw mut scratch_used,
+            )
+        };
+        if written == 0 {
+            assert_eq!(probe, EvStatus::Ok);
+            assert_eq!(scratch_used, 0);
+        } else {
+            assert_eq!(probe, EvStatus::InvalidArg);
+            let mut slots: Vec<*mut c_char> = vec![std::ptr::null_mut(); written as usize];
+            let mut scratch: Vec<u8> = vec![0; scratch_used as usize];
+            let mut written2: u32 = 0;
+            let mut scratch_used2: u32 = 0;
+            assert_eq!(
+                unsafe {
+                    ev_sim_all_tags(
+                        handle,
+                        slots.as_mut_ptr(),
+                        written,
+                        scratch.as_mut_ptr().cast(),
+                        scratch_used,
+                        &raw mut written2,
+                        &raw mut scratch_used2,
+                    )
+                },
+                EvStatus::Ok,
+            );
+            assert_eq!(written2, written);
+        }
         unsafe { ev_sim_destroy(handle) };
     }
 }
