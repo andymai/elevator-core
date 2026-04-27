@@ -2005,6 +2005,234 @@ pub unsafe extern "C" fn ev_sim_remove_elevator(
     })
 }
 
+/// Add an existing stop to a line's served list.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_add_stop_to_line(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    line_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(stop), Some(line)) = (
+            entity_from_u64(stop_entity_id),
+            entity_from_u64(line_entity_id),
+        ) else {
+            set_last_error("stop_entity_id or line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.add_stop_to_line(stop, line) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_)
+                    | elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("add_stop_to_line: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove a stop from a line's served list. The stop entity itself
+/// remains in the world — call [`ev_sim_remove_stop`] to fully despawn.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_remove_stop_from_line(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    line_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(stop), Some(line)) = (
+            entity_from_u64(stop_entity_id),
+            entity_from_u64(line_entity_id),
+        ) else {
+            set_last_error("stop_entity_id or line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.remove_stop_from_line(stop, line) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("remove_stop_from_line: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Reassign a line to a different group. Writes the previous group id
+/// to `*out_old_group` on success.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_old_group` may be null if the caller does not need the previous id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_assign_line_to_group(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    new_group: u32,
+    out_old_group: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.assign_line_to_group(line, GroupId(new_group)) {
+            Ok(old) => {
+                if !out_old_group.is_null() {
+                    // Safety: caller guarantees out_old_group writable when non-null.
+                    unsafe { *out_old_group = old.0 };
+                }
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::LineNotFound(_)
+                    | elevator_core::error::SimError::GroupNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("assign_line_to_group: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Reassign an elevator to a different line.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reassign_elevator_to_line(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    new_line_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(elevator), Some(new_line)) = (
+            entity_from_u64(elevator_entity_id),
+            entity_from_u64(new_line_entity_id),
+        ) else {
+            set_last_error("elevator_entity_id or new_line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.reassign_elevator_to_line(elevator, new_line) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = match e {
+                    elevator_core::error::SimError::EntityNotFound(_)
+                    | elevator_core::error::SimError::LineNotFound(_) => EvStatus::NotFound,
+                    _ => EvStatus::InvalidArg,
+                };
+                set_last_error(format!("reassign_elevator_to_line: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Set the list of stops `elevator_entity_id` is forbidden from
+/// serving. The list replaces the current restriction set entirely.
+/// Pass `count = 0` to clear all restrictions.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `stop_ids` must point to at least `count` `u64` values when
+/// `count > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_elevator_restricted_stops(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    stop_ids: *const u64,
+    count: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        if count > 0 && stop_ids.is_null() {
+            set_last_error("stop_ids is null but count > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: caller guarantees stop_ids points to at least `count`
+        // u64 values when count > 0.
+        let raw = if count == 0 {
+            &[][..]
+        } else {
+            unsafe { std::slice::from_raw_parts(stop_ids, count as usize) }
+        };
+        let mut set = std::collections::HashSet::with_capacity(raw.len());
+        for &raw_id in raw {
+            let Some(stop) = entity_from_u64(raw_id) else {
+                set_last_error("a stop_ids entry was invalid");
+                return EvStatus::InvalidArg;
+            };
+            set.insert(stop);
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_elevator_restricted_stops(elevator, set) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_elevator_restricted_stops: {e}"));
+                status
+            }
+        }
+    })
+}
+
 // ── Service mode + manual control ─────────────────────────────────────────
 //
 // Brings FFI to parity with the core `ServiceMode` API and the Manual-mode
