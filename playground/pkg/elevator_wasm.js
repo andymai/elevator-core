@@ -635,6 +635,17 @@ export class WasmSim {
         return ret !== 0;
     }
     /**
+     * Entity ids of every elevator currently repositioning (heading to
+     * a parking stop with no rider obligation).
+     * @returns {BigUint64Array}
+     */
+    iterRepositioningElevators() {
+        const ret = wasm.wasmsim_iterRepositioningElevators(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Total number of lines across all groups.
      * @returns {number}
      */
@@ -1447,6 +1458,17 @@ export class WasmSim {
         wasm.wasmsim_stepMany(this.__wbg_ptr, n);
     }
     /**
+     * Resolve a config-time `StopId` (the small `u32` from the RON
+     * config) to its runtime `EntityId`. Returns `0` (slotmap-null)
+     * for unknown ids.
+     * @param {number} stop_id
+     * @returns {bigint}
+     */
+    stopEntity(stop_id) {
+        const ret = wasm.wasmsim_stopEntity(this.__wbg_ptr, stop_id);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
      * Entity ids of every stop served by `line_ref`. Order is
      * unspecified — sort by `positionAt` if you need axis order.
      * @param {bigint} line_ref
@@ -1564,6 +1586,31 @@ export class WasmSim {
     waitingCountAt(stop_id) {
         const ret = wasm.wasmsim_waitingCountAt(this.__wbg_ptr, stop_id);
         return ret >>> 0;
+    }
+    /**
+     * Per-line waiting counts at `stop_ref`. Returns a flat array of
+     * alternating `[line_ref, count, line_ref, count, ...]` pairs.
+     * `count` is encoded as `u64` for symmetry with the entity refs.
+     * @param {bigint} stop_ref
+     * @returns {BigUint64Array}
+     */
+    waitingCountsByLineAt(stop_ref) {
+        const ret = wasm.wasmsim_waitingCountsByLineAt(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Up/down split of riders currently waiting at `stop_ref`. Returns
+     * `[up_count, down_count]`; both `0` for missing stops.
+     * @param {bigint} stop_ref
+     * @returns {Uint32Array}
+     */
+    waitingDirectionCountsAt(stop_ref) {
+        const ret = wasm.wasmsim_waitingDirectionCountsAt(this.__wbg_ptr, stop_ref);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
     }
     /**
      * Pull a richer game-facing view: door progress, direction lamps,
