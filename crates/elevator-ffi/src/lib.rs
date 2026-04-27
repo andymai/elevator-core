@@ -2233,6 +2233,210 @@ pub unsafe extern "C" fn ev_sim_set_elevator_restricted_stops(
     })
 }
 
+// ── Routes + rider lifecycle ─────────────────────────────────────────────
+//
+// Per-rider mutations (reroute, settle, access) and read-only graph
+// queries (reachability, transfer points). The full-Route overloads
+// (set_rider_route, reroute_rider, shortest_route) need a Route DTO and
+// land in a follow-up — todo:PR-Routes-DTO.
+
+/// Replace a rider's destination with `new_destination_entity_id`. Used
+/// for in-flight redirects (e.g. tenant changes mind).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reroute(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    new_destination_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let (Some(rider), Some(dest)) = (
+            entity_from_u64(rider_entity_id),
+            entity_from_u64(new_destination_entity_id),
+        ) else {
+            set_last_error("rider_entity_id or new_destination_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.reroute(RiderId::from(rider), dest) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("reroute: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Mark a rider as settled at their current stop (resident pool).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_settle_rider(handle: *mut EvSim, rider_entity_id: u64) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.settle_rider(RiderId::from(rider)) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("settle_rider: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Replace a rider's allowed-stops set. Pass `count = 0` to clear.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `stop_ids` must point to at least `count` `u64` values when
+/// `count > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_rider_access(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    stop_ids: *const u64,
+    count: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        if count > 0 && stop_ids.is_null() {
+            set_last_error("stop_ids is null but count > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: caller guarantees stop_ids points to at least `count`
+        // u64 values when count > 0.
+        let raw = if count == 0 {
+            &[][..]
+        } else {
+            unsafe { std::slice::from_raw_parts(stop_ids, count as usize) }
+        };
+        let mut set = std::collections::HashSet::with_capacity(raw.len());
+        for &raw_id in raw {
+            let Some(stop) = entity_from_u64(raw_id) else {
+                set_last_error("a stop_ids entry was invalid");
+                return EvStatus::InvalidArg;
+            };
+            set.insert(stop);
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_rider_access(rider, set) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_rider_access: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Stops reachable from `from_stop_entity_id` via the line-graph.
+/// Buffer-pattern accessor (see [`ev_sim_destination_queue`]).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reachable_stops_from(
+    handle: *mut EvSim,
+    from_stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(from_stop_entity_id) else {
+            set_last_error("from_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let stops = ev.sim.reachable_stops_from(stop);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(stops.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Stops where multiple lines intersect (transfer candidates).
+/// Buffer-pattern accessor.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_transfer_points(
+    handle: *mut EvSim,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let stops = ev.sim.transfer_points();
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(stops.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
 // ── Service mode + manual control ─────────────────────────────────────────
 //
 // Brings FFI to parity with the core `ServiceMode` API and the Manual-mode

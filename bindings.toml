@@ -337,7 +337,7 @@ ffi  = "ev_sim_despawn_rider"
 name = "settle_rider"
 category = "riders"
 wasm = "settleRider"
-ffi  = "todo:PR-D"
+ffi  = "ev_sim_settle_rider"
 
 # ─── Routes ───────────────────────────────────────────────────────────────
 
@@ -345,7 +345,7 @@ ffi  = "todo:PR-D"
 name = "reroute"
 category = "routes"
 wasm = "reroute"
-ffi  = "todo:PR-D"
+ffi  = "ev_sim_reroute"
 
 [[methods]]
 name = "reroute_rider"
@@ -363,7 +363,7 @@ ffi  = "todo:PR-D"
 name = "set_rider_access"
 category = "routes"
 wasm = "setRiderAccess"
-ffi  = "todo:PR-D"
+ffi  = "ev_sim_set_rider_access"
 
 [[methods]]
 name = "shortest_route"
@@ -375,13 +375,13 @@ ffi  = "todo:PR-D"
 name = "transfer_points"
 category = "routes"
 wasm = "transferPoints"
-ffi  = "todo:PR-D"
+ffi  = "ev_sim_transfer_points"
 
 [[methods]]
 name = "reachable_stops_from"
 category = "routes"
 wasm = "reachableStopsFrom"
-ffi  = "todo:PR-D"
+ffi  = "ev_sim_reachable_stops_from"
 
 # ─── Topology ─────────────────────────────────────────────────────────────
 
