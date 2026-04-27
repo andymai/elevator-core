@@ -2585,6 +2585,315 @@ pub unsafe extern "C" fn ev_sim_waiting_counts_by_line_at(
     })
 }
 
+// ── Topology introspection ───────────────────────────────────────────────
+//
+// Buffer-pattern accessors for the group/line/stop/elevator graph.
+// Mirrors the wasm topology introspection in #482.
+
+/// Entity ids of all elevators on `line_entity_id`. Buffer-pattern.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevators_on_line(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let elevators = ev.sim.elevators_on_line(line);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(elevators.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Entity ids of every line in `group_id`. Buffer-pattern.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_lines_in_group(
+    handle: *mut EvSim,
+    group_id: u32,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let lines = ev.sim.lines_in_group(GroupId(group_id));
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(lines.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Entity ids of every line that serves `stop_entity_id`. Buffer-pattern.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_lines_serving_stop(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let lines = ev.sim.lines_serving_stop(stop);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(lines.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Entity ids of every stop served by `line_entity_id`. Buffer-pattern.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_stops_served_by_line(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("line_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let stops = ev.sim.stops_served_by_line(line);
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(stops.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Group ids of every group with a line that serves `stop_entity_id`.
+/// Returns a `u32` buffer (not `u64`) — `GroupId` is a u32 newtype.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u32` slots when
+/// `capacity > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_groups_serving_stop(
+    handle: *mut EvSim,
+    stop_entity_id: u64,
+    out: *mut u32,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        let Some(stop) = entity_from_u64(stop_entity_id) else {
+            set_last_error("stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let groups = ev.sim.groups_serving_stop(stop);
+        let mut written: u32 = 0;
+        for g in groups.into_iter().take(capacity as usize) {
+            // Safety: caller guarantees `out` has at least `capacity`
+            // writable slots; bounds checked above.
+            unsafe {
+                *out.add(written as usize) = g.0;
+            }
+            written += 1;
+        }
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Line entity that `elevator_entity_id` runs on. Returns `0`
+/// (slotmap-null) for missing or non-elevator entities.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_line_for_elevator(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.line_for_elevator(elevator).map_or(0, entity_to_u64)
+    })
+}
+
+/// Entity ids of every line in the simulation, across all groups.
+/// Buffer-pattern.
+///
+/// # Safety
+///
+/// See [`ev_sim_destination_queue`] for buffer requirements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_all_lines(
+    handle: *mut EvSim,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let lines = ev.sim.all_lines();
+        // Safety: `out` validity guaranteed by caller.
+        let written = unsafe { write_entity_buffer(lines.into_iter(), out, capacity) };
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
+/// Total number of lines across all groups.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_line_count(handle: *mut EvSim) -> u32 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        u32::try_from(ev.sim.line_count()).unwrap_or(u32::MAX)
+    })
+}
+
+/// Find the stop entity at `position` on `line_entity_id`. Returns `0`
+/// (slotmap-null) if no stop exists at that position on the line.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_find_stop_at_position_on_line(
+    handle: *mut EvSim,
+    position: f64,
+    line_entity_id: u64,
+) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            return 0;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim
+            .find_stop_at_position_on_line(position, line)
+            .map_or(0, entity_to_u64)
+    })
+}
+
 // ── Service mode + manual control ─────────────────────────────────────────
 //
 // Brings FFI to parity with the core `ServiceMode` API and the Manual-mode
