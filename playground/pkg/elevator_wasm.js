@@ -776,6 +776,18 @@ export class WasmSim {
         }
     }
     /**
+     * Stops reachable from `from_stop` via the line-graph (BFS through
+     * shared elevators). Excludes `from_stop` itself.
+     * @param {bigint} from_stop_ref
+     * @returns {BigUint64Array}
+     */
+    reachableStopsFrom(from_stop_ref) {
+        const ret = wasm.wasmsim_reachableStopsFrom(this.__wbg_ptr, from_stop_ref);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Clear the queue and immediately recall the elevator to `stop_ref`.
      * Equivalent to `clearDestinations` + `pushDestination(stop_ref)`,
      * emitted as a single `ElevatorRecalled` event so games can render a
@@ -861,6 +873,22 @@ export class WasmSim {
             return getStringFromWasm0(ret[0], ret[1]);
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Replace a rider's destination with `new_destination`. Re-routes
+     * in-flight riders to head to the new stop after their current leg.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider or destination does not exist.
+     * @param {bigint} rider_ref
+     * @param {bigint} new_destination_ref
+     */
+    reroute(rider_ref, new_destination_ref) {
+        const ret = wasm.wasmsim_reroute(this.__wbg_ptr, rider_ref, new_destination_ref);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
         }
     }
     /**
@@ -1070,6 +1098,24 @@ export class WasmSim {
         wasm.wasmsim_setRepositionPredictiveParking(this.__wbg_ptr, window_ticks);
     }
     /**
+     * Replace a rider's allowed-stops set. Empty array clears the
+     * restriction (rider can use any stop).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist.
+     * @param {bigint} rider_ref
+     * @param {BigUint64Array} allowed_stop_refs
+     */
+    setRiderAccess(rider_ref, allowed_stop_refs) {
+        const ptr0 = passArray64ToWasm0(allowed_stop_refs, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_setRiderAccess(this.__wbg_ptr, rider_ref, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Set the operational mode of an elevator.
      *
      * `mode` is one of: `"normal"`, `"independent"`, `"inspection"`,
@@ -1152,6 +1198,22 @@ export class WasmSim {
      */
     setWeightCapacityAll(capacity) {
         const ret = wasm.wasmsim_setWeightCapacityAll(this.__wbg_ptr, capacity);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Mark a rider as settled at their current stop. Settled riders
+     * move from the waiting/riding pools into the resident pool —
+     * useful for "tenants who arrived home" semantics.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider does not exist.
+     * @param {bigint} rider_ref
+     */
+    settleRider(rider_ref) {
+        const ret = wasm.wasmsim_settleRider(this.__wbg_ptr, rider_ref);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
@@ -1283,6 +1345,18 @@ export class WasmSim {
     trafficRate() {
         const ret = wasm.wasmsim_trafficRate(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Stops where multiple lines intersect — the natural transfer
+     * candidates for multi-leg routes (e.g. sky-lobby in a tall
+     * building, transfer station in a transit network).
+     * @returns {BigUint64Array}
+     */
+    transferPoints() {
+        const ret = wasm.wasmsim_transferPoints(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Release a previous pin at `(stop_ref, direction)`. No-op if the
@@ -1497,6 +1571,13 @@ function getUint8ArrayMemory0() {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArray64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getBigUint64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
