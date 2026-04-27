@@ -451,6 +451,22 @@ export class WasmSim {
      */
     addStop(line_ref: bigint, name: string, position: number): bigint;
     /**
+     * Cancel a pending hold extension on `elevator_ref`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or is disabled.
+     */
+    cancelDoorHold(elevator_ref: bigint): void;
+    /**
+     * Request the doors of `elevator_ref` to close now.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or is disabled.
+     */
+    closeDoor(elevator_ref: bigint): void;
+    /**
      * Current tick counter.
      */
     currentTick(): bigint;
@@ -463,6 +479,17 @@ export class WasmSim {
      */
     dt(): number;
     /**
+     * Command an immediate stop on a `ServiceMode::Manual` elevator —
+     * target velocity is set to zero and the car decelerates at its
+     * configured rate.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator is not in Manual mode, does
+     * not exist, or is disabled.
+     */
+    emergencyStop(elevator_ref: bigint): void;
+    /**
      * Find the stop entity at `position` that's served by `line_ref`,
      * or `0` (slotmap-null) if none. Lets consumers disambiguate
      * co-located stops on different lines (sky-lobby served by
@@ -470,6 +497,15 @@ export class WasmSim {
      * without offset hacks.
      */
     findStopAtPositionOnLine(position: number, line_ref: bigint): bigint;
+    /**
+     * Extend the open dwell of `elevator_ref` by `ticks`. Cumulative.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `ticks` is zero, the elevator does not exist,
+     * or the elevator is disabled.
+     */
+    holdDoor(elevator_ref: bigint, ticks: number): void;
     /**
      * Current aggregate metrics.
      */
@@ -484,6 +520,17 @@ export class WasmSim {
      * validation, or `strategy` is not a recognised built-in.
      */
     constructor(config_ron: string, strategy: string, reposition?: string | null);
+    /**
+     * Request the doors of `elevator_ref` to open.
+     *
+     * Applied when the car next reaches a stop with closed/closing
+     * doors; otherwise queued. Works in every service mode.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or is disabled.
+     */
+    openDoor(elevator_ref: bigint): void;
     /**
      * Press a car-button (in-cab floor request) targeting `stop_ref`.
      *
@@ -620,6 +667,18 @@ export class WasmSim {
      */
     setRepositionPredictiveParking(window_ticks: bigint): void;
     /**
+     * Set an elevator's service mode.
+     *
+     * Accepts `"normal" | "independent" | "inspection" | "manual" |
+     * "outofservice"`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist or `mode` is
+     * not a recognised name.
+     */
+    setServiceMode(elevator_ref: bigint, mode: string): void;
+    /**
      * Swap the dispatch strategy by name. Returns `true` on success.
      *
      * State is preserved; only the assignment policy changes. Unknown names
@@ -627,6 +686,18 @@ export class WasmSim {
      * without panicking.
      */
     setStrategy(name: string): boolean;
+    /**
+     * Set the target velocity (m/s) for a `ServiceMode::Manual` elevator.
+     * Positive values command upward travel, negative values downward.
+     * The car ramps toward the target each tick using its configured
+     * acceleration / deceleration.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator is not in Manual mode, does
+     * not exist, is disabled, or `velocity` is not finite.
+     */
+    setTargetVelocity(elevator_ref: bigint, velocity: number): void;
     /**
      * Record a target traffic rate (riders per minute). The playground driver
      * interprets this value externally and calls [`spawn_rider`](Self::spawn_rider)
@@ -746,12 +817,17 @@ export interface InitOutput {
     readonly wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
     readonly wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
+    readonly wasmsim_cancelDoorHold: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
     readonly wasmsim_currentTick: (a: number) => bigint;
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
+    readonly wasmsim_emergencyStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
+    readonly wasmsim_holdDoor: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_metrics: (a: number) => any;
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly wasmsim_openDoor: (a: number, b: bigint) => [number, number];
     readonly wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];
     readonly wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
@@ -767,7 +843,9 @@ export interface InitOutput {
     readonly wasmsim_setMaxSpeedAll: (a: number, b: number) => [number, number];
     readonly wasmsim_setReposition: (a: number, b: number, c: number) => number;
     readonly wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
+    readonly wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => [number, number];
     readonly wasmsim_setStrategy: (a: number, b: number, c: number) => number;
+    readonly wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => [number, number];
     readonly wasmsim_setTrafficRate: (a: number, b: number) => void;
     readonly wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
     readonly wasmsim_snapshot: (a: number) => any;
