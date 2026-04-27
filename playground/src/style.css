@@ -182,10 +182,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  /* Body is a flex column so `<main id="layout">` can `flex-1` to fill
-   * whatever space is left after header + scenario strip + phase
-   * strip. Bottom controls bar is position:fixed and sits above the
-   * content via padding-bottom on main. */
+  /* Body is a flex column so `<main id="layout">` can `flex-1` to
+   * fill whatever space is left after header + scenario strip. The
+   * fixed bottom status bar sits above main content via the
+   * `--controls-bar-h` padding reserved on `<main>`. */
   body {
     display: flex;
     flex-direction: column;
@@ -700,74 +700,112 @@
     box-shadow: none;
   }
 
-  /* ── Bottom controls bar ──────────────────────────────────────────────��� */
+  /* ── Bottom status bar ────────────────────────────────────────────── */
 
+  /* Edge-to-edge fixed bar pinned to the bottom of the viewport. The
+   * old floating capsule (rounded, blurred, fading to 25 % opacity)
+   * was redesigned in favour of always-visible page chrome — easier
+   * to scan at a glance and consistent with status-bar conventions
+   * (IDE, web app footer). */
   .controls-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 45;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 0 16px calc(8px + env(safe-area-inset-bottom));
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-subtle);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Thin progress strip running along the bar's top edge. Mirrors the
+   * old phase-strip's visual cue (1 px amber gradient that fills with
+   * the day cycle) — repurposed here as the dividing line between
+   * panes and chrome so the fill animates exactly where the eye lands
+   * when scanning from the simulation down to the controls. */
+  .controls-bar-progress {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    overflow: hidden;
     pointer-events: none;
-    opacity: 0.25;
-    transition: opacity 300ms ease;
   }
-  .controls-bar:hover,
-  .controls-bar:focus-within {
-    opacity: 1;
-  }
-  @media (pointer: coarse) {
-    .controls-bar {
-      opacity: 1;
-    }
+  .controls-bar-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(to right, var(--accent), var(--accent-up));
+    transition: width var(--duration-normal) var(--ease-normal);
   }
   .controls-bar-inner {
-    pointer-events: auto;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
-    backdrop-filter: blur(12px) saturate(140%);
-    -webkit-backdrop-filter: blur(12px) saturate(140%);
-    border: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    max-width: 100%;
+    gap: 4px 8px;
+    padding: 4px 14px;
+    min-height: 32px;
   }
+  /* Phase indicator on the left of the bar. Hidden via the `hidden`
+   * attribute when the active scenario has no phases — controls fall
+   * back to the left edge in that case. */
+  .controls-bar-phase {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 2px;
+  }
+  .controls-bar-phase[hidden] {
+    display: none;
+  }
+  .controls-bar-divider {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 6px 0 8px;
+    background: var(--border-subtle);
+    vertical-align: middle;
+  }
+  /* Inline horizontal field — label sits *next to* the input rather
+   * than above it. Halves the bar's vertical footprint compared to
+   * the old stacked layout. */
   .controls-bar-field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
   }
   .controls-bar-field input[type="range"] {
-    width: 100px;
-    margin: 6px 0;
+    width: 80px;
+    margin: 0;
   }
   .controls-bar-field input[type="text"] {
     width: 80px;
-    padding: 5px 24px 5px 8px;
-    font-size: 12px;
+    padding: 3px 22px 3px 7px;
+    font-size: 11.5px;
   }
+  /* Push the action buttons to the right edge of the bar. */
   .controls-bar-actions {
-    display: flex;
-    gap: 6px;
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
   }
   .controls-bar-actions button {
-    padding: 5px 10px;
+    padding: 3px 9px;
     font-size: 11.5px;
   }
 
-  /* Tweak panel as popover above the bottom bar */
+  /* Tweak panel as popover above the bottom bar. Absolutely positioned
+   * so the bar's flex layout stays a single horizontal row — the
+   * panel pops out *above* the bar rather than taking up flow space
+   * inside it. */
   .tweak-panel-popover {
-    pointer-events: auto;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
     width: min(680px, calc(100vw - 32px));
     margin-bottom: 6px;
     border-radius: var(--radius-lg);
@@ -784,33 +822,36 @@
   @keyframes tweak-popover-in {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translate(-50%, 8px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
   }
 
   @media (max-width: 767px) {
-    .controls-bar {
-      padding: 0 8px calc(6px + env(safe-area-inset-bottom));
-    }
     .controls-bar-inner {
-      width: 100%;
-      padding: 6px 10px;
-      gap: 6px;
-      border-radius: var(--radius-md);
+      padding: 4px 10px;
+      gap: 4px 6px;
     }
     .controls-bar-field input[type="range"] {
-      width: 80px;
-    }
-    .controls-bar-field input[type="text"] {
       width: 70px;
     }
+    .controls-bar-field input[type="text"] {
+      width: 64px;
+    }
     .controls-bar-actions button {
-      padding: 5px 8px;
+      padding: 3px 7px;
       font-size: 11px;
+    }
+    /* Phase block can hide on the narrowest viewports — the section
+     * already collapses when no phases are installed, but on a phone
+     * even the active label crowds out the controls. The dedicated
+     * scenario-phase strip used to sit above the panes for this
+     * reason; keeping the same `max-md` cutoff here. */
+    .controls-bar-phase {
+      display: none;
     }
     .tweak-panel-popover {
       width: calc(100vw - 16px);

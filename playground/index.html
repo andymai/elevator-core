@@ -93,28 +93,6 @@
       ></div>
     </section>
 
-    <section
-      id="phase-strip"
-      hidden
-      aria-label="Current traffic phase"
-      class="relative flex items-center gap-2 px-5 py-1 border-b border-stroke-subtle text-[11px] text-content-tertiary max-md:px-3.5"
-    >
-      <span
-        class="text-[10px] uppercase tracking-[0.08em] text-content-disabled font-medium select-none flex-none"
-        >Phase</span
-      >
-      <span id="phase-label" class="text-content-secondary tabular-nums font-medium">&mdash;</span>
-      <div
-        class="absolute inset-x-0 bottom-0 h-px bg-stroke-subtle overflow-hidden pointer-events-none"
-        aria-hidden="true"
-      >
-        <div
-          id="phase-progress-fill"
-          class="absolute inset-y-0 left-0 w-0 bg-gradient-to-r from-accent to-accent-hover transition-[width] duration-normal ease-normal"
-        ></div>
-      </div>
-    </section>
-
     <main
       id="layout"
       data-mode="single"
@@ -297,8 +275,16 @@
       </section>
     </main>
 
-    <!-- Bottom controls bar — transparent when idle, full opacity on hover/focus -->
+    <!-- Bottom status bar — fixed, edge-to-edge, always visible. Hosts the
+         phase indicator (with progress fill on the top edge) and the
+         simulation controls. The Tweak panel still pops up above. -->
     <div id="controls-bar" class="controls-bar">
+      <!-- 1 px progress fill running along the bar's top edge. Fills as
+           the day cycle advances; hidden when the active scenario has
+           no phases. -->
+      <div class="controls-bar-progress" aria-hidden="true">
+        <div id="phase-progress-fill" class="controls-bar-progress-fill"></div>
+      </div>
       <section
         class="tweak-panel tweak-panel-popover"
         id="tweak-panel"
@@ -382,8 +368,15 @@
         </div>
       </section>
       <div class="controls-bar-inner">
+        <div id="phase-strip" class="controls-bar-phase" hidden>
+          <span class="ctl-k">Phase</span>
+          <span id="phase-label" class="text-content-secondary tabular-nums font-medium"
+            >&mdash;</span
+          >
+          <span class="controls-bar-divider" aria-hidden="true"></span>
+        </div>
         <label
-          class="ctl-check flex flex-row items-center gap-2 px-2.5 py-1.5 bg-transparent border border-transparent rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke-subtle"
+          class="ctl-check flex flex-row items-center gap-1.5 px-2 py-1 bg-transparent border border-transparent rounded-md cursor-pointer transition-colors duration-fast select-none hover:bg-surface-hover hover:border-stroke-subtle"
         >
           <input id="compare" type="checkbox" />
           <span class="text-[11px] text-content-secondary font-medium tracking-[0.08em] uppercase"
