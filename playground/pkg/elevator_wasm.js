@@ -1587,19 +1587,19 @@ export class WasmSim {
      *
      * # Errors
      *
-     * Returns a JS error if either stop id is unknown, the rider is
-     * rejected by the sim, or the `(origin, destination)` route
-     * can't be auto-detected.
+     * Returns a Result-shaped object: `{ kind: "ok" }` on success, or
+     * `{ kind: "err", error: "..." }` if either stop id is unknown,
+     * the rider is rejected by the sim, or the `(origin, destination)`
+     * route can't be auto-detected.
      * @param {number} origin
      * @param {number} destination
      * @param {number} weight
      * @param {number | null} [patience_ticks]
+     * @returns {WasmVoidResult}
      */
     spawnRider(origin, destination, weight, patience_ticks) {
         const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
+        return ret;
     }
     /**
      * Spawn a rider between two stops identified by their entity refs
