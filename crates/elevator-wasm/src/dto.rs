@@ -259,6 +259,7 @@ impl MetricsDto {
 #[tsify(into_wasm_abi)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum EventDto {
+    // ── Rider lifecycle ─────────────────────────────────────────────
     RiderSpawned {
         tick: u64,
         rider: u32,
@@ -276,11 +277,59 @@ pub enum EventDto {
         elevator: u32,
         stop: u32,
     },
+    /// A rider was rejected from boarding (e.g., over capacity, access
+    /// denied). `reason` is a kebab-case label drawn from
+    /// [`RejectionReason`].
+    RiderRejected {
+        tick: u64,
+        rider: u32,
+        elevator: u32,
+        reason: String,
+    },
     RiderAbandoned {
         tick: u64,
         rider: u32,
         stop: u32,
     },
+    /// A rider was ejected from a disabled / removed elevator.
+    RiderEjected {
+        tick: u64,
+        rider: u32,
+        elevator: u32,
+        stop: u32,
+    },
+    RiderSettled {
+        tick: u64,
+        rider: u32,
+        stop: u32,
+    },
+    RiderDespawned {
+        tick: u64,
+        rider: u32,
+    },
+    /// A rider was rerouted via `sim.reroute()` or `sim.reroute_rider()`.
+    RiderRerouted {
+        tick: u64,
+        rider: u32,
+        new_destination: u32,
+    },
+    /// A rider skipped a car they considered too crowded.
+    RiderSkipped {
+        tick: u64,
+        rider: u32,
+        elevator: u32,
+        at_stop: u32,
+    },
+    /// A rider's route was invalidated by topology change. `reason` is
+    /// `"stop-disabled"`, `"stop-removed"`, or `"no-alternative"`.
+    RouteInvalidated {
+        tick: u64,
+        rider: u32,
+        affected_stop: u32,
+        reason: String,
+    },
+
+    // ── Elevator motion + doors ─────────────────────────────────────
     ElevatorArrived {
         tick: u64,
         elevator: u32,
@@ -299,29 +348,247 @@ pub enum EventDto {
         tick: u64,
         elevator: u32,
     },
+    /// `command` is one of `"open"`, `"close"`, `"hold-open"`,
+    /// `"cancel-hold"` (kebab-case from [`crate::door::DoorCommand`]).
+    DoorCommandQueued {
+        tick: u64,
+        elevator: u32,
+        command: String,
+    },
+    /// Same `command` set as [`DoorCommandQueued`].
+    DoorCommandApplied {
+        tick: u64,
+        elevator: u32,
+        command: String,
+    },
+    /// An elevator passes a stop without stopping.
+    PassingFloor {
+        tick: u64,
+        elevator: u32,
+        stop: u32,
+        moving_up: bool,
+    },
+    /// An in-flight movement was aborted; the car decelerates to
+    /// `brake_target`.
+    MovementAborted {
+        tick: u64,
+        elevator: u32,
+        brake_target: u32,
+    },
+    ElevatorIdle {
+        tick: u64,
+        elevator: u32,
+        /// `None` if the car is not currently parked at a stop.
+        at_stop: Option<u32>,
+    },
+
+    // ── Dispatch / calls ────────────────────────────────────────────
     ElevatorAssigned {
         tick: u64,
         elevator: u32,
         stop: u32,
     },
+    /// `direction` is `"up"` or `"down"`.
+    HallButtonPressed {
+        tick: u64,
+        stop: u32,
+        direction: String,
+    },
+    HallCallAcknowledged {
+        tick: u64,
+        stop: u32,
+        direction: String,
+    },
+    HallCallCleared {
+        tick: u64,
+        stop: u32,
+        direction: String,
+        car: u32,
+    },
+    /// `rider` is `None` when the press is synthetic (scripted).
+    CarButtonPressed {
+        tick: u64,
+        car: u32,
+        floor: u32,
+        rider: Option<u32>,
+    },
+    DestinationQueued {
+        tick: u64,
+        elevator: u32,
+        stop: u32,
+    },
+
+    // ── Repositioning ───────────────────────────────────────────────
     /// Idle elevator has been sent to a new parking position by the
-    /// group's reposition strategy. Distinguished from `ElevatorAssigned`
-    /// so UIs can narrate "repositioning" as its own state rather than
-    /// conflating it with a passenger-servicing dispatch.
+    /// group's reposition strategy.
     ElevatorRepositioning {
         tick: u64,
         elevator: u32,
         stop: u32,
     },
-    Other {
+    /// An elevator completed repositioning at its target stop.
+    ElevatorRepositioned {
+        tick: u64,
+        elevator: u32,
+        stop: u32,
+    },
+    /// The elevator was recalled to a stop via `sim.recall_to()`.
+    ElevatorRecalled {
+        tick: u64,
+        elevator: u32,
+        to_stop: u32,
+    },
+
+    // ── Topology lifecycle ──────────────────────────────────────────
+    StopAdded {
+        tick: u64,
+        stop: u32,
+        line: u32,
+        group: u32,
+    },
+    StopRemoved {
+        tick: u64,
+        stop: u32,
+    },
+    ElevatorAdded {
+        tick: u64,
+        elevator: u32,
+        line: u32,
+        group: u32,
+    },
+    ElevatorRemoved {
+        tick: u64,
+        elevator: u32,
+        line: u32,
+        group: u32,
+    },
+    LineAdded {
+        tick: u64,
+        line: u32,
+        group: u32,
+    },
+    LineRemoved {
+        tick: u64,
+        line: u32,
+        group: u32,
+    },
+    LineReassigned {
+        tick: u64,
+        line: u32,
+        old_group: u32,
+        new_group: u32,
+    },
+    ElevatorReassigned {
+        tick: u64,
+        elevator: u32,
+        old_line: u32,
+        new_line: u32,
+    },
+    EntityDisabled {
+        tick: u64,
+        entity: u32,
+    },
+    EntityEnabled {
+        tick: u64,
+        entity: u32,
+    },
+    /// A stop was removed while resident riders were still attached;
+    /// the consumer must relocate or despawn them.
+    ResidentsAtRemovedStop {
+        /// `tick` is `0` for this variant (it is not carried by the
+        /// underlying core event).
+        tick: u64,
+        stop: u32,
+        residents: Vec<u32>,
+    },
+
+    // ── Observability ───────────────────────────────────────────────
+    /// Service mode transition. `from`/`to` are kebab-case labels:
+    /// `"normal"`, `"independent"`, `"inspection"`, `"manual"`,
+    /// `"out-of-service"`.
+    ServiceModeChanged {
+        tick: u64,
+        elevator: u32,
+        from: String,
+        to: String,
+    },
+    /// A velocity command on a Manual-mode elevator. `target_velocity`
+    /// is `null` when the command clears the target (emergency stop).
+    ManualVelocityCommanded {
+        tick: u64,
+        elevator: u32,
+        target_velocity: Option<f64>,
+    },
+    CapacityChanged {
+        tick: u64,
+        elevator: u32,
+        current_load: f64,
+        capacity: f64,
+    },
+    DirectionIndicatorChanged {
+        tick: u64,
+        elevator: u32,
+        going_up: bool,
+        going_down: bool,
+    },
+    /// An elevator parameter was upgraded at runtime. `field` is one of
+    /// `"max-speed"`, `"acceleration"`, `"deceleration"`,
+    /// `"weight-capacity"`, `"door-transition-ticks"`,
+    /// `"door-open-ticks"`. `old`/`new` are the value as f64 (tick
+    /// counts cast losslessly into the ~2^53 safe range).
+    ElevatorUpgraded {
+        tick: u64,
+        elevator: u32,
+        field: String,
+        old: f64,
+        new: f64,
+    },
+    /// Energy consumed/regenerated this tick. Only emitted with the
+    /// `energy` feature on core; absent otherwise.
+    EnergyConsumed {
+        tick: u64,
+        elevator: u32,
+        consumed: f64,
+        regenerated: f64,
+    },
+    /// Snapshot restore encountered an entity reference that could not
+    /// be remapped — signals snapshot corruption.
+    SnapshotDanglingReference {
+        tick: u64,
+        stale_id: u32,
+    },
+    /// Snapshot restore could not re-instantiate the reposition
+    /// strategy for a group.
+    RepositionStrategyNotRestored {
+        /// Always `0` — the underlying event carries no tick.
+        tick: u64,
+        group: u32,
+    },
+    /// Snapshot restore failed to replay tunable dispatch config; the
+    /// strategy runs with its default weights.
+    DispatchConfigNotRestored {
+        /// Always `0` — the underlying event carries no tick.
+        tick: u64,
+        group: u32,
+        reason: String,
+    },
+
+    // ── Forward-compat fallback ─────────────────────────────────────
+    /// Fallback for core `Event` variants that this binding does not
+    /// know about (added to core after this binding was compiled).
+    /// Consumers should treat this as "event was emitted but the shape
+    /// is unknown" — `label` carries the variant name.
+    Unknown {
         tick: u64,
         label: String,
     },
 }
 
 impl From<Event> for EventDto {
+    #[allow(clippy::too_many_lines)]
     fn from(event: Event) -> Self {
         match event {
+            // ── Rider lifecycle ─────────────────────────────────────
             Event::RiderSpawned {
                 tick,
                 rider,
@@ -353,11 +620,76 @@ impl From<Event> for EventDto {
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
             },
+            Event::RiderRejected {
+                tick,
+                rider,
+                elevator,
+                reason,
+                ..
+            } => Self::RiderRejected {
+                tick,
+                rider: entity_to_u32(rider),
+                elevator: entity_to_u32(elevator),
+                reason: rejection_label(reason).to_string(),
+            },
             Event::RiderAbandoned { tick, rider, stop } => Self::RiderAbandoned {
                 tick,
                 rider: entity_to_u32(rider),
                 stop: entity_to_u32(stop),
             },
+            Event::RiderEjected {
+                tick,
+                rider,
+                elevator,
+                stop,
+            } => Self::RiderEjected {
+                tick,
+                rider: entity_to_u32(rider),
+                elevator: entity_to_u32(elevator),
+                stop: entity_to_u32(stop),
+            },
+            Event::RiderSettled { tick, rider, stop } => Self::RiderSettled {
+                tick,
+                rider: entity_to_u32(rider),
+                stop: entity_to_u32(stop),
+            },
+            Event::RiderDespawned { tick, rider } => Self::RiderDespawned {
+                tick,
+                rider: entity_to_u32(rider),
+            },
+            Event::RiderRerouted {
+                tick,
+                rider,
+                new_destination,
+            } => Self::RiderRerouted {
+                tick,
+                rider: entity_to_u32(rider),
+                new_destination: entity_to_u32(new_destination),
+            },
+            Event::RiderSkipped {
+                tick,
+                rider,
+                elevator,
+                at_stop,
+            } => Self::RiderSkipped {
+                tick,
+                rider: entity_to_u32(rider),
+                elevator: entity_to_u32(elevator),
+                at_stop: entity_to_u32(at_stop),
+            },
+            Event::RouteInvalidated {
+                tick,
+                rider,
+                affected_stop,
+                reason,
+            } => Self::RouteInvalidated {
+                tick,
+                rider: entity_to_u32(rider),
+                affected_stop: entity_to_u32(affected_stop),
+                reason: route_invalid_label(reason).to_string(),
+            },
+
+            // ── Elevator motion + doors ─────────────────────────────
             Event::ElevatorArrived {
                 tick,
                 elevator,
@@ -384,6 +716,55 @@ impl From<Event> for EventDto {
                 tick,
                 elevator: entity_to_u32(elevator),
             },
+            Event::DoorCommandQueued {
+                tick,
+                elevator,
+                command,
+            } => Self::DoorCommandQueued {
+                tick,
+                elevator: entity_to_u32(elevator),
+                command: door_command_label(command).to_string(),
+            },
+            Event::DoorCommandApplied {
+                tick,
+                elevator,
+                command,
+            } => Self::DoorCommandApplied {
+                tick,
+                elevator: entity_to_u32(elevator),
+                command: door_command_label(command).to_string(),
+            },
+            Event::PassingFloor {
+                tick,
+                elevator,
+                stop,
+                moving_up,
+            } => Self::PassingFloor {
+                tick,
+                elevator: entity_to_u32(elevator),
+                stop: entity_to_u32(stop),
+                moving_up,
+            },
+            Event::MovementAborted {
+                tick,
+                elevator,
+                brake_target,
+            } => Self::MovementAborted {
+                tick,
+                elevator: entity_to_u32(elevator),
+                brake_target: entity_to_u32(brake_target),
+            },
+            Event::ElevatorIdle {
+                tick,
+                elevator,
+                at_stop,
+            } => Self::ElevatorIdle {
+                tick,
+                elevator: entity_to_u32(elevator),
+                at_stop: at_stop.map(entity_to_u32),
+            },
+
+            // ── Dispatch / calls ────────────────────────────────────
             Event::ElevatorAssigned {
                 tick,
                 elevator,
@@ -393,6 +774,57 @@ impl From<Event> for EventDto {
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
             },
+            Event::HallButtonPressed {
+                tick,
+                stop,
+                direction,
+            } => Self::HallButtonPressed {
+                tick,
+                stop: entity_to_u32(stop),
+                direction: call_direction_label(direction).to_string(),
+            },
+            Event::HallCallAcknowledged {
+                tick,
+                stop,
+                direction,
+            } => Self::HallCallAcknowledged {
+                tick,
+                stop: entity_to_u32(stop),
+                direction: call_direction_label(direction).to_string(),
+            },
+            Event::HallCallCleared {
+                tick,
+                stop,
+                direction,
+                car,
+            } => Self::HallCallCleared {
+                tick,
+                stop: entity_to_u32(stop),
+                direction: call_direction_label(direction).to_string(),
+                car: entity_to_u32(car),
+            },
+            Event::CarButtonPressed {
+                tick,
+                car,
+                floor,
+                rider,
+            } => Self::CarButtonPressed {
+                tick,
+                car: entity_to_u32(car),
+                floor: entity_to_u32(floor),
+                rider: rider.map(entity_to_u32),
+            },
+            Event::DestinationQueued {
+                tick,
+                elevator,
+                stop,
+            } => Self::DestinationQueued {
+                tick,
+                elevator: entity_to_u32(elevator),
+                stop: entity_to_u32(stop),
+            },
+
+            // ── Repositioning ───────────────────────────────────────
             Event::ElevatorRepositioning {
                 tick,
                 elevator,
@@ -402,7 +834,190 @@ impl From<Event> for EventDto {
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(to_stop),
             },
-            other => Self::Other {
+            Event::ElevatorRepositioned {
+                tick,
+                elevator,
+                at_stop,
+            } => Self::ElevatorRepositioned {
+                tick,
+                elevator: entity_to_u32(elevator),
+                stop: entity_to_u32(at_stop),
+            },
+            Event::ElevatorRecalled {
+                tick,
+                elevator,
+                to_stop,
+            } => Self::ElevatorRecalled {
+                tick,
+                elevator: entity_to_u32(elevator),
+                to_stop: entity_to_u32(to_stop),
+            },
+
+            // ── Topology lifecycle ──────────────────────────────────
+            Event::StopAdded {
+                tick,
+                stop,
+                line,
+                group,
+            } => Self::StopAdded {
+                tick,
+                stop: entity_to_u32(stop),
+                line: entity_to_u32(line),
+                group: group.0,
+            },
+            Event::StopRemoved { tick, stop } => Self::StopRemoved {
+                tick,
+                stop: entity_to_u32(stop),
+            },
+            Event::ElevatorAdded {
+                tick,
+                elevator,
+                line,
+                group,
+            } => Self::ElevatorAdded {
+                tick,
+                elevator: entity_to_u32(elevator),
+                line: entity_to_u32(line),
+                group: group.0,
+            },
+            Event::ElevatorRemoved {
+                tick,
+                elevator,
+                line,
+                group,
+            } => Self::ElevatorRemoved {
+                tick,
+                elevator: entity_to_u32(elevator),
+                line: entity_to_u32(line),
+                group: group.0,
+            },
+            Event::LineAdded { tick, line, group } => Self::LineAdded {
+                tick,
+                line: entity_to_u32(line),
+                group: group.0,
+            },
+            Event::LineRemoved { tick, line, group } => Self::LineRemoved {
+                tick,
+                line: entity_to_u32(line),
+                group: group.0,
+            },
+            Event::LineReassigned {
+                tick,
+                line,
+                old_group,
+                new_group,
+            } => Self::LineReassigned {
+                tick,
+                line: entity_to_u32(line),
+                old_group: old_group.0,
+                new_group: new_group.0,
+            },
+            Event::ElevatorReassigned {
+                tick,
+                elevator,
+                old_line,
+                new_line,
+            } => Self::ElevatorReassigned {
+                tick,
+                elevator: entity_to_u32(elevator),
+                old_line: entity_to_u32(old_line),
+                new_line: entity_to_u32(new_line),
+            },
+            Event::EntityDisabled { tick, entity } => Self::EntityDisabled {
+                tick,
+                entity: entity_to_u32(entity),
+            },
+            Event::EntityEnabled { tick, entity } => Self::EntityEnabled {
+                tick,
+                entity: entity_to_u32(entity),
+            },
+            Event::ResidentsAtRemovedStop { stop, residents } => Self::ResidentsAtRemovedStop {
+                tick: 0,
+                stop: entity_to_u32(stop),
+                residents: residents.into_iter().map(entity_to_u32).collect(),
+            },
+
+            // ── Observability ───────────────────────────────────────
+            Event::ServiceModeChanged {
+                tick,
+                elevator,
+                from,
+                to,
+            } => Self::ServiceModeChanged {
+                tick,
+                elevator: entity_to_u32(elevator),
+                from: service_mode_label(from).to_string(),
+                to: service_mode_label(to).to_string(),
+            },
+            Event::ManualVelocityCommanded {
+                tick,
+                elevator,
+                target_velocity,
+            } => Self::ManualVelocityCommanded {
+                tick,
+                elevator: entity_to_u32(elevator),
+                target_velocity: target_velocity.map(|v| v.0),
+            },
+            Event::CapacityChanged {
+                tick,
+                elevator,
+                current_load,
+                capacity,
+            } => Self::CapacityChanged {
+                tick,
+                elevator: entity_to_u32(elevator),
+                current_load: current_load.0,
+                capacity: capacity.0,
+            },
+            Event::DirectionIndicatorChanged {
+                tick,
+                elevator,
+                going_up,
+                going_down,
+            } => Self::DirectionIndicatorChanged {
+                tick,
+                elevator: entity_to_u32(elevator),
+                going_up,
+                going_down,
+            },
+            Event::ElevatorUpgraded {
+                tick,
+                elevator,
+                field,
+                old,
+                new,
+            } => Self::ElevatorUpgraded {
+                tick,
+                elevator: entity_to_u32(elevator),
+                field: upgrade_field_label(field).to_string(),
+                old: upgrade_value_to_f64(old),
+                new: upgrade_value_to_f64(new),
+            },
+            // EnergyConsumed is feature-gated on core but wasm doesn't
+            // enable that feature, so the variant falls into the Unknown
+            // fallback below. Mirror the explicit arm here when wasm
+            // enables the feature.
+            Event::SnapshotDanglingReference { stale_id, tick } => {
+                Self::SnapshotDanglingReference {
+                    tick,
+                    stale_id: entity_to_u32(stale_id),
+                }
+            }
+            Event::RepositionStrategyNotRestored { group } => Self::RepositionStrategyNotRestored {
+                tick: 0,
+                group: group.0,
+            },
+            Event::DispatchConfigNotRestored { group, reason } => Self::DispatchConfigNotRestored {
+                tick: 0,
+                group: group.0,
+                reason,
+            },
+
+            // ── Forward-compat fallback for new Event variants ──────
+            // `Event` is `#[non_exhaustive]`; future variants land here
+            // until the binding is updated. The label carries the variant
+            // name parsed from `Debug` so consumers can at least log it.
+            other => Self::Unknown {
                 tick: event_tick(&other),
                 label: format!("{other:?}")
                     .split_whitespace()
@@ -412,6 +1027,88 @@ impl From<Event> for EventDto {
                     .to_string(),
             },
         }
+    }
+}
+
+/// Map [`CallDirection`] to its kebab-case wire label.
+fn call_direction_label(d: elevator_core::components::CallDirection) -> &'static str {
+    use elevator_core::components::CallDirection;
+    match d {
+        CallDirection::Up => "up",
+        CallDirection::Down => "down",
+        _ => "either",
+    }
+}
+
+/// Map [`ServiceMode`] to its kebab-case wire label.
+fn service_mode_label(m: elevator_core::components::ServiceMode) -> &'static str {
+    use elevator_core::components::ServiceMode;
+    match m {
+        ServiceMode::Normal => "normal",
+        ServiceMode::Independent => "independent",
+        ServiceMode::Inspection => "inspection",
+        ServiceMode::Manual => "manual",
+        ServiceMode::OutOfService | _ => "out-of-service",
+    }
+}
+
+/// Map [`DoorCommand`] to its kebab-case wire label. The `ticks`
+/// payload on `HoldOpen` is intentionally dropped — the event is for
+/// observability, not replay; consumers that need the magnitude pull
+/// it from the originating `holdDoor` call.
+fn door_command_label(c: elevator_core::door::DoorCommand) -> &'static str {
+    use elevator_core::door::DoorCommand;
+    match c {
+        DoorCommand::Open => "open",
+        DoorCommand::Close => "close",
+        DoorCommand::HoldOpen { .. } => "hold-open",
+        DoorCommand::CancelHold | _ => "cancel-hold",
+    }
+}
+
+/// Map [`RejectionReason`] to its kebab-case wire label.
+fn rejection_label(r: elevator_core::error::RejectionReason) -> &'static str {
+    use elevator_core::error::RejectionReason;
+    match r {
+        RejectionReason::OverCapacity => "over-capacity",
+        RejectionReason::PreferenceBased => "preference-based",
+        RejectionReason::AccessDenied | _ => "access-denied",
+    }
+}
+
+/// Map [`RouteInvalidReason`] to its kebab-case wire label.
+fn route_invalid_label(r: elevator_core::events::RouteInvalidReason) -> &'static str {
+    use elevator_core::events::RouteInvalidReason;
+    match r {
+        RouteInvalidReason::StopDisabled => "stop-disabled",
+        RouteInvalidReason::NoAlternative => "no-alternative",
+        RouteInvalidReason::StopRemoved | _ => "stop-removed",
+    }
+}
+
+/// Map [`UpgradeField`] to its kebab-case wire label.
+fn upgrade_field_label(f: elevator_core::events::UpgradeField) -> &'static str {
+    use elevator_core::events::UpgradeField;
+    match f {
+        UpgradeField::MaxSpeed => "max-speed",
+        UpgradeField::Acceleration => "acceleration",
+        UpgradeField::Deceleration => "deceleration",
+        UpgradeField::WeightCapacity => "weight-capacity",
+        UpgradeField::DoorTransitionTicks => "door-transition-ticks",
+        UpgradeField::DoorOpenTicks | _ => "door-open-ticks",
+    }
+}
+
+/// Pack [`UpgradeValue`] into a single `f64`. Tick counts cast losslessly
+/// into the integer-safe `[0, 2^53]` range; floats pass through.
+fn upgrade_value_to_f64(v: elevator_core::events::UpgradeValue) -> f64 {
+    use elevator_core::events::UpgradeValue;
+    match v {
+        UpgradeValue::Float(f) => f.0,
+        UpgradeValue::Ticks(t) => f64::from(t),
+        // Future variants of `UpgradeValue` (it's `#[non_exhaustive]`)
+        // surface as NaN; consumers can detect via `Number.isNaN`.
+        _ => f64::NAN,
     }
 }
 
