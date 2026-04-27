@@ -3,8 +3,10 @@ import {
   isOverridden,
   resolveParam,
   scenarioById,
+  syncPermalinkUrl,
   type Overrides,
   type ParamKey,
+  type PermalinkState,
 } from "../../domain";
 import { toast } from "../../platform";
 import { applyHotSwapAndRender, type HotSwapState } from "./hot-swap";
@@ -15,9 +17,10 @@ export interface StepperUi extends TweakPanelUi {
   toast: HTMLElement;
 }
 
-/** Narrow interface for stepper state. */
+/** `syncPermalinkUrl` encodes every field, so the full PermalinkState
+ *  is required rather than a narrower pick. */
 export interface StepperState extends HotSwapState {
-  permalink: { scenario: string; overrides: Overrides };
+  permalink: PermalinkState;
 }
 
 function clampToRange(v: number, lo: number, hi: number): number {
@@ -67,6 +70,7 @@ export function resetParam(
   const next = { ...state.permalink.overrides };
   Reflect.deleteProperty(next, key);
   state.permalink = { ...state.permalink, overrides: next };
+  syncPermalinkUrl(state.permalink);
   // Per-key reset of the live-mutated knobs goes through the same
   // hot-swap path so metrics don't reset; cars-count reset rebuilds.
   if (key === "cars") {
@@ -90,6 +94,7 @@ export async function resetAllOverrides(
     resolveParam(scenario, "cars", state.permalink.overrides),
   );
   state.permalink = { ...state.permalink, overrides: {} };
+  syncPermalinkUrl(state.permalink);
   if (hadCarsOverride) {
     await resetAll();
   } else {
@@ -116,6 +121,7 @@ function setOverride(
     ...state.permalink,
     overrides: compactOverrides(scenario, next),
   };
+  syncPermalinkUrl(state.permalink);
   if (key === "cars") {
     void resetAll();
   } else {

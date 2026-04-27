@@ -61,7 +61,7 @@ src/
   app/                 Typed event bus (AppEvents)
   features/
     compare-pane/      Pane lifecycle, rendering, speech bubbles, mode badge
-    scoreboard/        Metric rows, sparklines, verdict ribbon
+    scoreboard/        Metric rows, sparklines
     tweak-drawer/      Parameter steppers, hot-swap, drawer rendering
     strategy-picker/   Dispatch + reposition popover system
     scenario-picker/   Scenario cards, switch logic, mobile sheet readout

@@ -1,5 +1,5 @@
 import { type Pane, makePane, disposePane, forEachPane } from "../features/compare-pane";
-import { updatePhaseIndicator } from "../features/phase-strip";
+import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-strip";
 import { initMetricRows } from "../features/scoreboard";
 import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../features/strategy-picker";
 import { renderTweakPanel } from "../features/tweak-drawer";
@@ -106,6 +106,10 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
     updatePhaseIndicator(state, ui);
+    // Reset the progress fill explicitly; the loop refreshes it every
+    // 4 frames, but without this the bar briefly shows the previous
+    // scenario's last fill position before the next batch fires.
+    updatePhaseProgress(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
   } catch (err) {
     if (token === state.initToken) {

@@ -87,8 +87,11 @@ export function drawCar(
   ctx.lineWidth = 1;
   ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
 
-  if (car.riders > 0) {
-    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster);
+  // 0.95 = within one typical rider weight (~75 kg) of capacity; once
+  // load is in this envelope no more riders can board.
+  const isFull = car.capacity > 0 && car.load >= car.capacity * 0.95;
+  if (car.riders > 0 || isFull) {
+    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster, isFull);
   }
 }
 

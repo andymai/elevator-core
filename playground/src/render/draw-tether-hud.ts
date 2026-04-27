@@ -35,6 +35,9 @@ export interface ClimberHud {
   phase: KinematicPhase;
   layer: string;
   carName: string;
+  /** En-route destination stop name, e.g. "GEO Platform". Undefined
+   *  when the car is idle (no target stop assigned). */
+  destinationName: string | undefined;
   etaSeconds: number | undefined;
 }
 
@@ -125,6 +128,7 @@ export function drawClimberHuds(
   // chip on the same side and silently no-op.
   const place = (hud: ClimberHud, side: "left" | "right"): Placement => {
     const lines = [
+      hud.carName,
       formatAltitudeShort(hud.altitudeM),
       formatVelocity(hud.velocity),
       `${PHASE_LABEL[hud.phase]} · ${hud.layer}`,
@@ -182,7 +186,7 @@ export function drawClimberHuds(
     for (let i = 0; i < p.lines.length; i++) {
       const ly = p.by + padY + lh * i + lh / 2;
       const line = p.lines[i] ?? "";
-      ctx.fillStyle = i === 2 ? PHASE_HUE[p.hud.phase] : "rgba(240, 244, 252, 0.95)";
+      ctx.fillStyle = i === 0 || i === 3 ? PHASE_HUE[p.hud.phase] : "rgba(240, 244, 252, 0.95)";
       ctx.fillText(line, p.bx + padX, ly);
     }
     ctx.restore();
@@ -198,15 +202,20 @@ export function drawTetherSideCard(
   s: Scale,
 ): void {
   if (hudList.length === 0) return;
+  // Caller contract: `hudList` is already sorted by altitude
+  // descending — `drawTetherScene` passes the same `sortedHud` to
+  // both the inline-chip pass and the side card so chip placement
+  // and card row order stay in lockstep. Don't re-sort here.
   const titleH = 18;
   const padX = 10;
   const padY = 6;
   const rowGap = 5;
   const lineH = s.fontSmall + 2.5;
-  // Header line + altitude + velocity + ETA. Atmospheric layer is
-  // already shown on the inline chip beside each cabin, so the side
-  // card stays compact.
-  const rowsPerCar = 4;
+  // Header line + altitude + velocity + destination + ETA. Atmospheric
+  // layer is already shown on the inline chip beside each cabin, so the
+  // side card stays focused on per-trip context (where, how fast,
+  // bound for, how long).
+  const rowsPerCar = 5;
   const rowH = padY * 2 + rowsPerCar * lineH;
   const cardH = titleH + padY + (rowH + rowGap) * hudList.length;
   ctx.save();
@@ -263,6 +272,7 @@ export function drawTetherSideCard(
     const stats: Array<[string, string]> = [
       ["Altitude", formatAltitudeShort(hud.altitudeM)],
       ["Velocity", formatVelocity(hud.velocity)],
+      ["Dest", hud.destinationName ?? "—"],
       ["ETA", eta],
     ];
     ctx.font = `500 ${(s.fontSmall - 0.5).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
@@ -308,6 +318,7 @@ export function buildHudList(
       phase: classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed),
       layer: atmosphericLayer(altitudeM),
       carName: `Climber ${String.fromCharCode(65 + idx)}`,
+      destinationName: targetStop?.name,
       etaSeconds,
     };
   });

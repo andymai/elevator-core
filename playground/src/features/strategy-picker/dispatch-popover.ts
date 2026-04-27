@@ -1,5 +1,6 @@
-import type { RepositionStrategyName, StrategyName } from "../../types";
+import type { StrategyName } from "../../types";
 import { toast } from "../../platform";
+import { syncPermalinkUrl, type PermalinkState } from "../../domain";
 import { STRATEGY_DESCRIPTIONS, STRATEGY_LABELS, UI_STRATEGIES } from "./labels";
 import { renderPopoverOptions } from "./popover-options";
 import { closeAllPopovers } from "./reposition-popover";
@@ -27,16 +28,10 @@ export interface RepositionPaneHandles {
   repoPopover: HTMLElement;
 }
 
-/** Narrow interface for state access. */
+/** `syncPermalinkUrl` encodes every field, so the full PermalinkState
+ *  is required rather than a narrower pick. */
 export interface StrategyState {
-  permalink: {
-    strategyA: StrategyName;
-    strategyB: StrategyName;
-    repositionA: RepositionStrategyName;
-    repositionB: RepositionStrategyName;
-    compare: boolean;
-    scenario: string;
-  };
+  permalink: PermalinkState;
 }
 
 /**
@@ -160,6 +155,7 @@ async function pickStrategy(
     state.permalink = { ...state.permalink, strategyB: strategy };
     renderPaneStrategyInfo(ui.paneB, strategy);
   }
+  syncPermalinkUrl(state.permalink);
   refreshStrategyPopovers(state, ui, resetAll);
   closeAllStrategyPopovers(ui);
   await resetAll();

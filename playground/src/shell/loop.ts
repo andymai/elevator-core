@@ -1,11 +1,11 @@
 import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-strip";
-import { diffMetrics, renderMetricRows, renderVerdictRibbon } from "../features/scoreboard";
+import { diffMetrics, renderMetricRows } from "../features/scoreboard";
 import { forEachPane, renderPane, updateBubbles, updateModeBadge } from "../features/compare-pane";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { drainSeedBatch } from "./reset";
 
-function updateScoreboard(state: State, ui: UiHandles): void {
+function updateScoreboard(state: State): void {
   const paneA = state.paneA;
   if (!paneA?.latestMetrics) return;
   const paneB = state.paneB;
@@ -13,10 +13,8 @@ function updateScoreboard(state: State, ui: UiHandles): void {
     const compare = diffMetrics(paneA.latestMetrics, paneB.latestMetrics);
     renderMetricRows(paneA.metricsEl, paneA.latestMetrics, compare.a, paneA.metricHistory);
     renderMetricRows(paneB.metricsEl, paneB.latestMetrics, compare.b, paneB.metricHistory);
-    renderVerdictRibbon(ui.verdictRibbon, compare.a);
   } else {
     renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null, paneA.metricHistory);
-    ui.verdictRibbon.hidden = true;
   }
   updateModeBadge(paneA);
   if (paneB) updateModeBadge(paneB);
@@ -96,7 +94,7 @@ export function loop(state: State, ui: UiHandles): void {
         renderPane(paneB, paneB.sim.snapshot(), speed);
       }
 
-      updateScoreboard(state, ui);
+      updateScoreboard(state);
       // Phase indicator updates at ~15 Hz so it stays readable even
       // when the sim is racing ahead.
       if ((uiFrame += 1) % 4 === 0) {

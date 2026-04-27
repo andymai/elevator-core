@@ -1,4 +1,4 @@
-import { scenarioById, STRATEGY_LABELS, type PermalinkState } from "../../domain";
+import { scenarioById, STRATEGY_LABELS, syncPermalinkUrl, type PermalinkState } from "../../domain";
 import { toast } from "../../platform";
 import type { RepositionStrategyName, StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
@@ -87,6 +87,7 @@ export async function switchScenario(
     repositionA: nextReposition,
     overrides: {},
   };
+  syncPermalinkUrl(state.permalink);
   hooks.renderPaneStrategyInfo(ui.paneA, nextStrategyA);
   hooks.renderPaneRepositionInfo(ui.paneA, nextReposition);
   hooks.refreshStrategyPopovers();
