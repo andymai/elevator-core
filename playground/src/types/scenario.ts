@@ -190,10 +190,9 @@ export interface ScenarioMeta {
    */
   tether?: TetherMeta;
   /**
-   * Operator-cockpit metadata. Set only by scenarios that swap the
-   * compare-pane chrome for the cockpit elevation + right-rail
-   * console layout (operator-cockpit demo). Mutually exclusive with
-   * `tether` in practice.
+   * Manual-control metadata. Set only by scenarios that swap the
+   * compare-pane chrome for the cabin-cutaway + controls-panel layout
+   * (small office demo). Mutually exclusive with `tether` in practice.
    */
   manualControl?: ManualControlMeta;
   /**

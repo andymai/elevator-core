@@ -1,9 +1,9 @@
-import { applyPhysicsOverrides } from "../../domain";
+import { applyPhysicsOverrides, type Overrides } from "../../domain";
 import type { CanvasRenderer } from "../../render";
 import type { HitZone } from "../../render/draw-cockpit";
 import type { Sim } from "../../sim";
 import type { ScenarioMeta } from "../../types";
-import { mountCockpitConsole, type CockpitConsoleHandle, type OverridesGetter } from "./console";
+import { mountCockpitConsole, type CockpitConsoleHandle } from "./console";
 
 /** Static DOM containers the cockpit panel hydrates. All must exist in `index.html`. */
 export interface ManualControlsRoots {
@@ -35,12 +35,9 @@ export interface ManualControlsHandle {
  * `CockpitRenderState` (hall-call lamp map + hint copy) into the
  * renderer so the elevation reads the engine's authoritative state.
  *
- * `getOverrides` returns the user's *current* tweak-drawer state.
- * Must be a getter, not a value — the hot-swap path in
- * `tweak-drawer/stepper.ts` replaces `state.permalink.overrides`
- * with a new object without remounting the cockpit, so a captured
- * snapshot would go stale and the throttle clamp would freeze at
- * the boot-time max-speed.
+ * `overrides` is the user's tweak-drawer state — needed so the
+ * throttle clamp matches the engine's effective `maxSpeed` after a
+ * tweak (the scenario's default would diverge otherwise).
  *
  * The scenario locks `cars` at 1 (`tweakRanges.cars: {min:1,max:1}`)
  * and `manualControl.allowAddRemoveCar: false`, which removes the
@@ -50,7 +47,7 @@ export interface ManualControlsHandle {
 export function mountManualControls(
   sim: Sim,
   scenario: ScenarioMeta,
-  getOverrides: OverridesGetter,
+  overrides: Overrides,
   roots: ManualControlsRoots,
   renderer: CanvasRenderer,
 ): ManualControlsHandle {
@@ -63,21 +60,15 @@ export function mountManualControls(
   // Cockpit console — the right-rail driver controls. The hint
   // banner is drawn on the canvas elevation, not in the console DOM,
   // so the console doesn't need a hint root.
-  const cockpit: CockpitConsoleHandle = mountCockpitConsole(
-    sim,
-    scenario,
-    getOverrides,
-    initialView,
-    {
-      throttle: roots.throttle,
-      velocityReadout: roots.velocityReadout,
-      doorOpen: roots.doorOpen,
-      doorClose: roots.doorClose,
-      doorHold: roots.doorHold,
-      emergencyStop: roots.emergencyStop,
-      spawnRider: roots.spawnRider,
-    },
-  );
+  const cockpit: CockpitConsoleHandle = mountCockpitConsole(sim, scenario, overrides, initialView, {
+    throttle: roots.throttle,
+    velocityReadout: roots.velocityReadout,
+    doorOpen: roots.doorOpen,
+    doorClose: roots.doorClose,
+    doorHold: roots.doorHold,
+    emergencyStop: roots.emergencyStop,
+    spawnRider: roots.spawnRider,
+  });
 
   // Apply the scenario's default service mode so the engine state
   // matches what the cockpit assumes (Manual = throttle drives the
@@ -152,7 +143,7 @@ export function mountManualControls(
       renderer.setCockpitState({
         hallCallsByStop,
         hint: scenario.featureHint,
-        maxSpeed: applyPhysicsOverrides(scenario, getOverrides()).maxSpeed,
+        maxSpeed: applyPhysicsOverrides(scenario, overrides).maxSpeed,
       });
     },
     dispose(): void {

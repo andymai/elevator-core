@@ -4,14 +4,6 @@ import type { ScenarioMeta, WorldView } from "../../types";
 import { mountThrottle, type ThrottleHandle } from "./throttle";
 
 /**
- * Getter for the live overrides bag. Must read state at call time
- * — the tweak-drawer hot-swap path replaces `state.permalink.overrides`
- * with a new object without remounting the cockpit, so a captured
- * reference goes stale immediately after the user nudges the slider.
- */
-export type OverridesGetter = () => Overrides;
-
-/**
  * Cockpit console: the right-rail (or bottom-bar on mobile portrait)
  * driver controls. Hydrates the static markup placed in `index.html`
  * — caller passes in references to the existing throttle, door
@@ -47,7 +39,7 @@ const HOLD_TICKS = 60;
 export function mountCockpitConsole(
   sim: Sim,
   scenario: ScenarioMeta,
-  getOverrides: OverridesGetter,
+  overrides: Overrides,
   view: WorldView,
   roots: CockpitConsoleRoots,
 ): CockpitConsoleHandle {
@@ -61,12 +53,11 @@ export function mountCockpitConsole(
   // capturing a fresh ref then.
   const carRef = BigInt(firstCar.id);
 
-  // Resolve the effective max speed against the *current* overrides.
-  // Calling `getOverrides()` each frame is mandatory: the tweak
-  // drawer's hot-swap path replaces the overrides object without
-  // remounting, so a captured snapshot would go stale and the
-  // throttle clamp would diverge from the engine's actual ceiling.
-  const resolvedMaxSpeed = (): number => applyPhysicsOverrides(scenario, getOverrides()).maxSpeed;
+  // Resolve the effective max speed against user overrides. The
+  // scenario default (2 m/s) would diverge from the engine when the
+  // user cranks the slider via the tweak drawer; this keeps the
+  // throttle clamp aligned with the engine's actual ceiling.
+  const resolvedMaxSpeed = (): number => applyPhysicsOverrides(scenario, overrides).maxSpeed;
 
   // ─── Throttle ───────────────────────────────────────────────────
   const throttle: ThrottleHandle = mountThrottle(roots.throttle, {

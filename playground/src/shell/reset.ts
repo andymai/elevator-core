@@ -115,14 +115,10 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // CockpitRenderState (hall-call lamps + hint) into `paneA.renderer`
     // on every `update()` tick.
     if (scenario.manualControl !== undefined) {
-      // Pass a getter, not a value: the tweak-drawer hot-swap path
-      // replaces `state.permalink.overrides` with a fresh object on
-      // every change, so a captured snapshot would freeze the
-      // throttle clamp at boot-time max-speed.
       state.cockpit = mountManualControls(
         paneA.sim,
         scenario,
-        () => state.permalink.overrides,
+        state.permalink.overrides,
         {
           throttle: ui.cockpitThrottle,
           velocityReadout: ui.cockpitVelocity,
