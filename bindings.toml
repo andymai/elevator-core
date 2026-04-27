@@ -413,7 +413,7 @@ ffi  = "ev_sim_add_stop_to_line"
 name = "add_elevator"
 category = "topology"
 wasm = "addElevator"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_add_elevator"
 
 [[methods]]
 name = "remove_elevator"
