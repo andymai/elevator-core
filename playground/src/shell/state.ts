@@ -1,5 +1,4 @@
 import type { Pane } from "../features/compare-pane";
-import type { ManualControlsHandle } from "../features/manual-controls";
 import type { TrafficDriver } from "../sim";
 import type { PermalinkState } from "../domain";
 
@@ -26,11 +25,4 @@ export interface State {
    * when not seeding (the common case for day-cycle scenarios).
    */
   seeding: { remaining: number } | null;
-  /**
-   * Mounted manual-controls panel handle, or `null` when the active
-   * scenario isn't a manual-control scenario. `resetAll` mounts it
-   * after paneA is built; the loop calls `update()` once per frame to
-   * refresh lit state and append new events.
-   */
-  manualControls: ManualControlsHandle | null;
 }

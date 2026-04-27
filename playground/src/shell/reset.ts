@@ -1,5 +1,4 @@
 import { type Pane, makePane, disposePane, forEachPane } from "../features/compare-pane";
-import { mountManualControls } from "../features/manual-controls";
 import { updatePhaseIndicator } from "../features/phase-strip";
 import { initMetricRows } from "../features/scoreboard";
 import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../features/strategy-picker";
@@ -54,10 +53,6 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
   disposePane(state.paneB);
   state.paneA = null;
   state.paneB = null;
-  // Drop any manual-controls panel from the previous scenario; the new
-  // scenario remounts below if it's also manual.
-  state.manualControls?.dispose();
-  state.manualControls = null;
   try {
     // Build both panes *before* attaching either to `state`. Attaching
     // pane A while pane B is still awaiting wasm instantiation lets
@@ -110,24 +105,6 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // `configureTraffic` once the quota drains, so the scenario's
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
-    // Mount the manual-controls side panel for manual-control scenarios.
-    // The panel reads `paneA.sim` for entity refs and pushes the full
-    // CabinRenderState (selected car, per-car mode, hall-call lamps)
-    // into `paneA.renderer` on every `update()` tick.
-    if (scenario.manualControl !== undefined) {
-      state.manualControls = mountManualControls(
-        paneA.sim,
-        scenario,
-        {
-          hallButtons: ui.manualHallButtons,
-          carControls: ui.manualCarControls,
-          spawnForm: ui.manualSpawnForm,
-          eventLog: ui.manualEventLog,
-          addCarBtn: ui.manualAddCarBtn,
-        },
-        paneA.renderer,
-      );
-    }
     updatePhaseIndicator(state, ui);
     renderTweakPanel(scenario, state.permalink.overrides, ui);
   } catch (err) {

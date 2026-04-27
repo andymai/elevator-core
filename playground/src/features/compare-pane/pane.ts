@@ -67,19 +67,6 @@ export async function makePane(
   // this hookup the renderer falls back to the standard per-line
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
-  // Manual-control rendering is gated on the same opt-in pattern. The
-  // panel.update() call from the loop pushes a richer state object
-  // each frame (selected car, per-car service mode, hall-call lamps);
-  // here we just toggle the cutaway path on with empty maps.
-  if (scenario.manualControl) {
-    renderer.setManualControlState({
-      selectedCarId: null,
-      serviceModeByCar: new Map(),
-      hallCallsByStop: new Map(),
-    });
-  } else {
-    renderer.setManualControlState(null);
-  }
   if (scenario.tether) {
     // Use the override-merged physics so a shared permalink with a
     // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
