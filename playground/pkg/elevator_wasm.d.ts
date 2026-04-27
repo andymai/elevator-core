@@ -633,6 +633,19 @@ export class WasmSim {
      */
     elevatorMoveCount(elevator_ref: bigint): bigint | undefined;
     /**
+     * Count elevators currently in the given phase. `phase` is one of:
+     * `"idle"`, `"door-opening"`, `"loading"`, `"door-closing"`,
+     * `"stopped"`. The two with payload variants
+     * (`MovingToStop(EntityId)` and `Repositioning(EntityId)`) are
+     * not exposed here — use `iterRepositioningElevators` or the per-
+     * elevator phase via the snapshot for those.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `phase` is not one of the supported labels.
+     */
+    elevatorsInPhase(phase: string): number;
+    /**
      * Entity ids of all elevators currently assigned to `line_ref`.
      */
     elevatorsOnLine(line_ref: bigint): BigUint64Array;
@@ -1347,6 +1360,7 @@ export interface InitOutput {
     readonly wasmsim_elevatorGoingUp: (a: number, b: bigint) => number;
     readonly wasmsim_elevatorLoad: (a: number, b: bigint) => [number, number];
     readonly wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigint];
+    readonly wasmsim_elevatorsInPhase: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_emergencyStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_enable: (a: number, b: bigint) => [number, number];
