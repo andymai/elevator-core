@@ -6,7 +6,7 @@
 //! strategy by name.
 //!
 //! The core crate stays engine-agnostic — all wasm-specific concerns (bindgen
-//! macros, JS types, `getrandom/js`) live here.
+//! macros, JS types, `getrandom/wasm_js`) live here.
 
 #![allow(clippy::needless_pass_by_value)]
 
