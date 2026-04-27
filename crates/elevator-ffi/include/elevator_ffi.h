@@ -16,8 +16,12 @@
 
 /**
  * Current ABI version. Bumped for any breaking change to the C layout.
+ *
+ * **v4** widened [`EvEvent`] from 7 fields to 14 to carry the full
+ * payload of every core `Event` variant in a single drain pass. The
+ * kind discriminator was extended from 9 known kinds to 49.
  */
-#define EV_ABI_VERSION 3
+#define EV_ABI_VERSION 4
 
 /**
  * `Event::HallButtonPressed`.
@@ -63,6 +67,320 @@
  * `Event::RiderAbandoned`.
  */
 #define RIDER_ABANDONED 9
+
+/**
+ * `Event::ElevatorDeparted`. Fields: `car`, `stop` (from_stop), `tick`.
+ */
+#define ELEVATOR_DEPARTED 10
+
+/**
+ * `Event::ElevatorArrived`. Fields: `car`, `stop` (at_stop), `tick`.
+ */
+#define ELEVATOR_ARRIVED 11
+
+/**
+ * `Event::DoorOpened`. Fields: `car`, `tick`.
+ */
+#define DOOR_OPENED 12
+
+/**
+ * `Event::DoorClosed`. Fields: `car`, `tick`.
+ */
+#define DOOR_CLOSED 13
+
+/**
+ * `Event::PassingFloor`. Fields: `car`, `stop`, `direction` (`1` =
+ * up, `-1` = down), `tick`.
+ */
+#define PASSING_FLOOR 14
+
+/**
+ * `Event::MovementAborted`. Fields: `car`, `stop` (brake_target),
+ * `tick`.
+ */
+#define MOVEMENT_ABORTED 15
+
+/**
+ * `Event::RiderRejected`. Fields: `rider`, `car` (elevator),
+ * `code1` (rejection reason — see [`crate::ev_rejection_reason`]), `tick`.
+ */
+#define RIDER_REJECTED 16
+
+/**
+ * `Event::RiderEjected`. Fields: `rider`, `car` (elevator), `stop`,
+ * `tick`.
+ */
+#define RIDER_EJECTED 17
+
+/**
+ * `Event::ElevatorAssigned`. Fields: `car`, `stop`, `tick`.
+ */
+#define ELEVATOR_ASSIGNED 18
+
+/**
+ * `Event::StopAdded`. Fields: `stop`, `entity` (line), `group`, `tick`.
+ */
+#define STOP_ADDED 19
+
+/**
+ * `Event::ElevatorAdded`. Fields: `car`, `entity` (line), `group`,
+ * `tick`.
+ */
+#define ELEVATOR_ADDED 20
+
+/**
+ * `Event::EntityDisabled`. Fields: `entity`, `tick`.
+ */
+#define ENTITY_DISABLED 21
+
+/**
+ * `Event::EntityEnabled`. Fields: `entity`, `tick`.
+ */
+#define ENTITY_ENABLED 22
+
+/**
+ * `Event::RouteInvalidated`. Fields: `rider`, `stop` (affected_stop),
+ * `code1` (reason — see [`crate::ev_route_invalid_reason`]), `tick`.
+ */
+#define ROUTE_INVALIDATED 23
+
+/**
+ * `Event::RiderRerouted`. Fields: `rider`, `floor` (new_destination),
+ * `tick`.
+ */
+#define RIDER_REROUTED 24
+
+/**
+ * `Event::RiderSettled`. Fields: `rider`, `stop`, `tick`.
+ */
+#define RIDER_SETTLED 25
+
+/**
+ * `Event::RiderDespawned`. Fields: `rider`, `tick`.
+ */
+#define RIDER_DESPAWNED 26
+
+/**
+ * `Event::LineAdded`. Fields: `entity` (line), `group`, `tick`.
+ */
+#define LINE_ADDED 27
+
+/**
+ * `Event::LineRemoved`. Fields: `entity` (line), `group`, `tick`.
+ */
+#define LINE_REMOVED 28
+
+/**
+ * `Event::LineReassigned`. Fields: `entity` (line), `group`
+ * (new_group), `count` (old_group as u32), `tick`.
+ */
+#define LINE_REASSIGNED 29
+
+/**
+ * `Event::ElevatorReassigned`. Fields: `car`, `stop` (new_line),
+ * `entity` (old_line), `tick`.
+ */
+#define ELEVATOR_REASSIGNED 30
+
+/**
+ * `Event::ElevatorRepositioning`. Fields: `car`, `stop` (to_stop),
+ * `tick`.
+ */
+#define ELEVATOR_REPOSITIONING 31
+
+/**
+ * `Event::ElevatorRepositioned`. Fields: `car`, `stop` (at_stop),
+ * `tick`.
+ */
+#define ELEVATOR_REPOSITIONED 32
+
+/**
+ * `Event::ElevatorRecalled`. Fields: `car`, `stop` (to_stop),
+ * `tick`.
+ */
+#define ELEVATOR_RECALLED 33
+
+/**
+ * `Event::ServiceModeChanged`. Fields: `car`, `code1` (new mode —
+ * same encoding as [`crate::EvServiceMode`]), `code2` (previous
+ * mode), `tick`.
+ */
+#define SERVICE_MODE_CHANGED 34
+
+/**
+ * `Event::EnergyConsumed`. Fields: `car`, `f1` (consumed kJ), `f2`
+ * (regenerated kJ), `tick`. Requires the `energy` feature on
+ * `elevator-core`; emitted as `UNKNOWN` if the feature is off.
+ */
+#define ENERGY_CONSUMED 35
+
+/**
+ * `Event::CapacityChanged`. Fields: `car`, `f1` (current_load), `f2`
+ * (capacity), `tick`.
+ */
+#define CAPACITY_CHANGED 36
+
+/**
+ * `Event::ElevatorIdle`. Fields: `car`, `stop` (at_stop, `0` when
+ * the elevator is idle mid-shaft), `tick`.
+ */
+#define ELEVATOR_IDLE 37
+
+/**
+ * `Event::DirectionIndicatorChanged`. Fields: `car`, `code1` (1 if
+ * going_up else 0), `code2` (1 if going_down else 0), `tick`.
+ */
+#define DIRECTION_INDICATOR_CHANGED 38
+
+/**
+ * `Event::ElevatorRemoved`. Fields: `car`, `entity` (line),
+ * `group`, `tick`.
+ */
+#define ELEVATOR_REMOVED 39
+
+/**
+ * `Event::DestinationQueued`. Fields: `car`, `stop`, `tick`.
+ */
+#define DESTINATION_QUEUED 40
+
+/**
+ * `Event::StopRemoved`. Fields: `stop`, `tick`.
+ */
+#define STOP_REMOVED 41
+
+/**
+ * `Event::DoorCommandQueued`. Fields: `car`, `code1` (door
+ * command — see [`crate::ev_door_command`]), `count` (hold ticks for
+ * `HoldOpen`, `0` for other commands), `tick`.
+ */
+#define DOOR_COMMAND_QUEUED 42
+
+/**
+ * `Event::DoorCommandApplied`. Fields: `car`, `code1` (door
+ * command), `count` (hold ticks for `HoldOpen`), `tick`.
+ */
+#define DOOR_COMMAND_APPLIED 43
+
+/**
+ * `Event::ElevatorUpgraded`. Fields: `car`, `code1` (field — see
+ * [`crate::ev_upgrade_field`]), `f1` (new value when float, NaN
+ * otherwise), `count` (new value when integral ticks, `u32::MAX`
+ * otherwise), `tick`.
+ */
+#define ELEVATOR_UPGRADED 44
+
+/**
+ * `Event::ManualVelocityCommanded`. Fields: `car`, `f1` (target
+ * velocity, `NaN` when the command clears the target), `tick`.
+ */
+#define MANUAL_VELOCITY_COMMANDED 45
+
+/**
+ * `Event::SnapshotDanglingReference`. Fields: `entity` (stale id),
+ * `tick`.
+ */
+#define SNAPSHOT_DANGLING_REFERENCE 46
+
+/**
+ * `Event::RepositionStrategyNotRestored`. Fields: `group`, `tick`.
+ */
+#define REPOSITION_STRATEGY_NOT_RESTORED 47
+
+/**
+ * `Event::DispatchConfigNotRestored`. Fields: `group`, `tick`.
+ */
+#define DISPATCH_CONFIG_NOT_RESTORED 48
+
+/**
+ * `Event::ResidentsAtRemovedStop`. Fields: `stop`, `count`
+ * (residents.len()), `tick`. The actual rider list is **not**
+ * surfaced — this signal is informational; consumers needing the
+ * list should query `ev_sim_residents_at` before the stop is
+ * removed.
+ */
+#define RESIDENTS_AT_REMOVED_STOP 49
+
+/**
+ * Reserved sentinel for variants the FFI does not yet mirror.
+ * Consumers should ignore events with this kind to stay
+ * forward-compatible.
+ */
+#define UNKNOWN 0
+
+/**
+ * `RejectionReason::OverCapacity`.
+ */
+#define OVER_CAPACITY 0
+
+/**
+ * `RejectionReason::PreferenceBased`.
+ */
+#define PREFERENCE_BASED 1
+
+/**
+ * `RejectionReason::AccessDenied`.
+ */
+#define ACCESS_DENIED 2
+
+/**
+ * `RouteInvalidReason::StopDisabled`.
+ */
+#define STOP_DISABLED 0
+
+/**
+ * `RouteInvalidReason::NoAlternative`.
+ */
+#define NO_ALTERNATIVE 1
+
+/**
+ * `DoorCommand::Open`.
+ */
+#define OPEN 0
+
+/**
+ * `DoorCommand::Close`.
+ */
+#define CLOSE 1
+
+/**
+ * `DoorCommand::HoldOpen`.
+ */
+#define HOLD_OPEN 2
+
+/**
+ * `DoorCommand::CancelHold`.
+ */
+#define CANCEL_HOLD 3
+
+/**
+ * `UpgradeField::MaxSpeed`.
+ */
+#define MAX_SPEED 0
+
+/**
+ * `UpgradeField::Acceleration`.
+ */
+#define ACCELERATION 1
+
+/**
+ * `UpgradeField::Deceleration`.
+ */
+#define DECELERATION 2
+
+/**
+ * `UpgradeField::WeightCapacity`.
+ */
+#define WEIGHT_CAPACITY 3
+
+/**
+ * `UpgradeField::DoorTransitionTicks`.
+ */
+#define DOOR_TRANSITION_TICKS 4
+
+/**
+ * `UpgradeField::DoorOpenTicks`.
+ */
+#define DOOR_OPEN_TICKS 5
 
 /**
  * Status code returned by every FFI entrypoint.
@@ -467,52 +785,96 @@ typedef struct EvHallCall {
 } EvHallCall;
 
 /**
- * C-ABI-flat projection of the hall-call, car-call, skip, and rider
- * lifecycle events emitted by the simulation.
+ * C-ABI-flat projection of every `Event` variant emitted by the
+ * simulation.
  *
- * All entity-id fields use `0` to mean "not applicable for this
- * event kind" (real entity ids are never zero under the FFI
- * encoding). The `kind` discriminator picks which fields are
- * meaningful — see [`ev_event_kind`] for the kind constants and the
- * [`ev_sim_drain_events`] docs for the per-kind field map.
+ * The `kind` discriminator picks which fields are meaningful — see
+ * [`ev_event_kind`] for the kind constants and per-kind field map.
+ * Entity-id fields use `0` to mean "not applicable for this kind"
+ * (real entity ids are never zero under the FFI encoding).
+ *
+ * **ABI v4** widened this from 7 to 14 fields to cover the full payload
+ * of every core variant in a single drain pass; consumers that bound
+ * against v3 must rebuild and check [`EV_ABI_VERSION`].
  */
 typedef struct EvEvent {
     /**
      * Event kind discriminator. Values outside [`ev_event_kind`] are
-     * reserved — ignore unknown kinds for forward compatibility.
+     * reserved — surface as [`UNKNOWN`](ev_event_kind::UNKNOWN) and
+     * ignore for forward compatibility.
      */
     uint8_t kind;
     /**
-     * Direction for hall-call events: `1` = Up, `-1` = Down, `0` = N/A.
+     * Direction code: `1` = Up, `-1` = Down, `0` = N/A. Used by hall-call
+     * events and `PassingFloor`.
      */
     int8_t direction;
+    /**
+     * Primary enum payload. Meaning depends on `kind` (see the kind
+     * docs for each event). `0` when not applicable.
+     */
+    uint8_t code1;
+    /**
+     * Secondary enum payload. Meaning depends on `kind`. `0` when not
+     * applicable.
+     */
+    uint8_t code2;
+    /**
+     * Group id payload (for `LineAdded`, `LineRemoved`, `LineReassigned`,
+     * `StopAdded`, `ElevatorAdded`, `ElevatorRemoved`,
+     * `RepositionStrategyNotRestored`, `DispatchConfigNotRestored`).
+     * `0` for kinds that don't carry a group.
+     */
+    uint32_t group;
     /**
      * Tick the event was emitted on.
      */
     uint64_t tick;
     /**
-     * Stop entity id. Used by hall-call events, `RiderSkipped`,
-     * `RiderSpawned` (origin), `RiderExited`, `RiderAbandoned`.
-     * `0` when not applicable.
+     * Stop entity id. Meaning depends on the kind.
      */
     uint64_t stop;
     /**
-     * Car/elevator entity id. Used by `HallCallCleared`,
-     * `CarButtonPressed`, `RiderSkipped`, `RiderBoarded`,
-     * `RiderExited`. `0` when not applicable.
+     * Car/elevator entity id. Meaning depends on the kind.
      */
     uint64_t car;
     /**
-     * Rider entity id. Used by `CarButtonPressed`, `RiderSkipped`,
-     * and all rider lifecycle events. `0` when not applicable.
+     * Rider entity id.
      */
     uint64_t rider;
     /**
-     * Destination stop entity id. Used by `CarButtonPressed` (the
-     * requested floor) and `RiderSpawned` (the rider's destination).
-     * `0` for all other kinds.
+     * Destination/floor entity id. Used by `CarButtonPressed` (the
+     * requested floor), `RiderSpawned` (rider's destination), and
+     * `RiderRerouted` (new_destination).
      */
     uint64_t floor;
+    /**
+     * Generic entity id slot for variants that carry an entity that
+     * doesn't fit `stop`/`car`/`rider`/`floor` — `EntityDisabled`,
+     * `EntityEnabled`, `LineAdded` (line), `StopAdded` (line),
+     * `ElevatorReassigned` (old_line), `SnapshotDanglingReference`,
+     * etc. `0` when not applicable.
+     */
+    uint64_t entity;
+    /**
+     * Count payload. Used by `ResidentsAtRemovedStop` (rider count),
+     * `ElevatorUpgraded` (new value when integral ticks, `u64::MAX`
+     * when float), and `LineReassigned` (old group id encoded as u64
+     * for callers that want both groups). `0` when not applicable.
+     */
+    uint64_t count;
+    /**
+     * Primary float payload. Used by `EnergyConsumed` (consumed kJ),
+     * `CapacityChanged` (current_load), `ElevatorUpgraded` (new value
+     * when float), and `ManualVelocityCommanded` (target velocity,
+     * `NaN` when the command clears the target).
+     */
+    double f1;
+    /**
+     * Secondary float payload. Used by `EnergyConsumed` (regenerated
+     * kJ) and `CapacityChanged` (capacity).
+     */
+    double f2;
 } EvEvent;
 
 /**

@@ -23,6 +23,12 @@ missing_errors_doc = "warn"
 missing_panics_doc = "allow"
 missing_safety_doc = "allow"
 
+[features]
+default = []
+# Mirror elevator-core's `energy` feature so the FFI surfaces
+# `Event::EnergyConsumed` in the drained event stream.
+energy = ["elevator-core/energy"]
+
 [dependencies]
 elevator-core = { path = "../elevator-core" }
 ron = { workspace = true }
