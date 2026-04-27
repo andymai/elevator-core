@@ -223,17 +223,20 @@ const skyPhases: Phase[] = [
     name: "Morning rush",
     durationSec: 90,
     ridersPerMin: 40,
+    // Stop indices reflect the RON declaration order: Lobby=0, B1=1,
+    // floors 1..19 = 2..20, Sky Lobby = 21, floors 21..36 = 22..37,
+    // Floor 37 = 38, Floor 38 = 39, Penthouse = 40, Mechanical = 41.
     originWeights: skyWeights((i) => {
-      if (i === 1) return 20; // Lobby
-      if (i === 0) return 2; // B1 loading dock
+      if (i === 0) return 20; // Lobby
+      if (i === 1) return 2; // B1 loading dock
       if (i === 41) return 0.2; // Mechanical (quiet early)
       return 0.1;
     }),
     // Destinations: bulk across all public floors; exec floors get
     // their share; mechanical gets noticeable weight for staff arrivals.
     destWeights: skyWeights((i) => {
-      if (i === 0) return 0.3; // some deliveries down to B1
-      if (i === 1) return 0; // already at Lobby
+      if (i === 0) return 0; // already at Lobby
+      if (i === 1) return 0.3; // some deliveries down to B1
       if (i === 21) return 2; // sky lobby amenities
       if (i >= 38 && i <= 40) return 0.6; // exec floors
       if (i === 41) return 1.4; // mechanical — staff arrivals
@@ -248,12 +251,12 @@ const skyPhases: Phase[] = [
     durationSec: 90,
     ridersPerMin: 18,
     originWeights: skyWeights((i) => {
-      if (i === 0) return 0.6; // loading dock
+      if (i === 1) return 0.6; // B1 loading dock
       if (i === 41) return 0.5; // mechanical rounds
       return 1;
     }),
     destWeights: skyWeights((i) => {
-      if (i === 0) return 0.5;
+      if (i === 1) return 0.5; // B1
       if (i === 41) return 0.5;
       return 1;
     }),
@@ -266,12 +269,12 @@ const skyPhases: Phase[] = [
     ridersPerMin: 22,
     originWeights: skyWeights((i) => {
       if (i === 21) return 4; // sky lobby outbound (returning to desks)
-      if (i === 0 || i === 41) return 0.25;
+      if (i === 1 || i === 41) return 0.25; // B1 / Mechanical
       return 1;
     }),
     destWeights: skyWeights((i) => {
       if (i === 21) return 5; // sky lobby inbound (cafeteria)
-      if (i === 0 || i === 41) return 0.25;
+      if (i === 1 || i === 41) return 0.25; // B1 / Mechanical
       return 1;
     }),
   },
@@ -282,24 +285,28 @@ const skyPhases: Phase[] = [
     durationSec: 90,
     ridersPerMin: 36,
     originWeights: skyWeights((i) => {
+      // Lobby (0), B1 (1), and Sky Lobby (21) are quiet as origins —
+      // riders are leaving floors, not arriving at them.
       if (i === 0 || i === 1 || i === 21) return 0.3;
       if (i === 41) return 1.2; // staff leaving mechanical
       return 1;
     }),
     destWeights: skyWeights((i) => {
-      if (i === 1) return 20; // Lobby
-      if (i === 0) return 1; // deliveries to loading dock
+      if (i === 0) return 20; // Lobby
+      if (i === 1) return 1; // deliveries to loading dock
       if (i === 41) return 0.2;
       return 0.1;
     }),
   },
-  // Late: minimal, some overnight service + security.
+  // Late: minimal, some overnight service + security. B1 (1) and
+  // Mechanical (41) carry the overnight traffic; everything else
+  // sleeps.
   {
     name: "Late night",
     durationSec: 60,
     ridersPerMin: 6,
-    originWeights: skyWeights((i) => (i === 0 || i === 41 ? 1.5 : 0.2)),
-    destWeights: skyWeights((i) => (i === 0 || i === 41 ? 1.5 : 0.2)),
+    originWeights: skyWeights((i) => (i === 1 || i === 41 ? 1.5 : 0.2)),
+    destWeights: skyWeights((i) => (i === 1 || i === 41 ? 1.5 : 0.2)),
   },
 ];
 
@@ -307,8 +314,15 @@ const skyPhases: Phase[] = [
 // too many lines to author by hand without copy-paste bugs.
 function buildSkyscraperRon(): string {
   const stops: string[] = [];
-  stops.push(`        StopConfig(id: StopId(0),  name: "B1",         position: -4.0),`);
+  // Lobby is declared FIRST so its EntityId lands at index 0 in the
+  // World's stop array. The TrafficDetector hard-codes `stops[0]` as
+  // its lobby reference (`traffic_detector.rs:217`), which made the
+  // 76 %-Lobby morning rush misclassify as "Mixed" while B1 sat at
+  // index 0. StopId values are independent of array order — B1 keeps
+  // StopId(0), Lobby keeps StopId(1) — so all line/group/elevator
+  // references that key off StopId remain valid.
   stops.push(`        StopConfig(id: StopId(1),  name: "Lobby",      position: 0.0),`);
+  stops.push(`        StopConfig(id: StopId(0),  name: "B1",         position: -4.0),`);
   for (let f = 1; f <= SKY_LOW_FLOORS; f++) {
     const id = 1 + f; // ids 2..20
     const pos = f * FLOOR_HEIGHT_M;
@@ -420,9 +434,11 @@ ${elevator(4, "Service", 1, 350)}
 
 // Mirror of the RON stops for the scenario meta's `stops` array. The
 // traffic driver uses this to pick origins/destinations by index.
+// Order matches `buildSkyscraperRon` (Lobby first so the
+// TrafficDetector reads it as `stops[0]`).
 const skyscraperStops: Array<{ name: string; positionM: number }> = [
-  { name: "B1", positionM: -4 },
   { name: "Lobby", positionM: 0 },
+  { name: "B1", positionM: -4 },
   ...Array.from({ length: SKY_LOW_FLOORS }, (_, k) => ({
     name: `Floor ${k + 1}`,
     positionM: (k + 1) * FLOOR_HEIGHT_M,
