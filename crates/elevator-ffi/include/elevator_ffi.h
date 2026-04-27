@@ -1274,4 +1274,154 @@ uint64_t ev_sim_current_tick(struct EvSim *handle);
  */
 double ev_sim_dt(struct EvSim *handle);
 
+/**
+ * Append `stop_entity_id` to the back of `elevator_entity_id`'s
+ * destination queue. Adjacent duplicates are suppressed.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_push_destination(struct EvSim *handle,
+                                      uint64_t elevator_entity_id,
+                                      uint64_t stop_entity_id);
+
+/**
+ * Insert `stop_entity_id` at the front of the destination queue
+ * ("go here next").
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_push_destination_front(struct EvSim *handle,
+                                            uint64_t elevator_entity_id,
+                                            uint64_t stop_entity_id);
+
+/**
+ * Empty an elevator's destination queue. The in-flight trip continues
+ * to its current target — call [`ev_sim_abort_movement`] to also stop
+ * mid-flight.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_clear_destinations(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Abort the elevator's in-flight movement; decelerate to nearest stop.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_abort_movement(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Clear the queue and immediately recall to `stop_entity_id`. Emits a
+ * distinct `ElevatorRecalled` event.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_recall_to(struct EvSim *handle,
+                               uint64_t elevator_entity_id,
+                               uint64_t stop_entity_id);
+
+/**
+ * Snapshot of an elevator's destination queue.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`. `out_written` must be a writable `u32`.
+ */
+enum EvStatus ev_sim_destination_queue(struct EvSim *handle,
+                                       uint64_t elevator_entity_id,
+                                       uint64_t *out,
+                                       uint32_t capacity,
+                                       uint32_t *out_written);
+
+/**
+ * Riders waiting at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_waiting_at(struct EvSim *handle,
+                                uint64_t stop_entity_id,
+                                uint64_t *out,
+                                uint32_t capacity,
+                                uint32_t *out_written);
+
+/**
+ * Number of riders waiting at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_waiting_count_at(struct EvSim *handle, uint64_t stop_entity_id);
+
+/**
+ * Riders settled / resident at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_residents_at(struct EvSim *handle,
+                                  uint64_t stop_entity_id,
+                                  uint64_t *out,
+                                  uint32_t capacity,
+                                  uint32_t *out_written);
+
+/**
+ * Number of resident riders at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_resident_count_at(struct EvSim *handle, uint64_t stop_entity_id);
+
+/**
+ * Riders who abandoned the call at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_abandoned_at(struct EvSim *handle,
+                                  uint64_t stop_entity_id,
+                                  uint64_t *out,
+                                  uint32_t capacity,
+                                  uint32_t *out_written);
+
+/**
+ * Number of abandoned riders at `stop_entity_id`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_sim_abandoned_count_at(struct EvSim *handle, uint64_t stop_entity_id);
+
+/**
+ * Riders currently aboard `elevator_entity_id`.
+ *
+ * # Safety
+ *
+ * See [`ev_sim_destination_queue`] for buffer requirements.
+ */
+enum EvStatus ev_sim_riders_on(struct EvSim *handle,
+                               uint64_t elevator_entity_id,
+                               uint64_t *out,
+                               uint32_t capacity,
+                               uint32_t *out_written);
+
 #endif  /* ELEVATOR_FFI_H */
