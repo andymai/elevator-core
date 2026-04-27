@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Writing a Custom Dispatch - elevator-core</title>
+        <title>Using the Bindings - elevator-core</title>
 
 
         <!-- Custom HTML head -->
@@ -147,7 +147,7 @@
                         <a href="https://github.com/andymai/elevator-core" title="Git repository" aria-label="Git repository">
                             <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
                         </a>
-                        <a href="https://github.com/andymai/elevator-core/edit/main/docs/src/src/custom-dispatch.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                        <a href="https://github.com/andymai/elevator-core/edit/main/docs/src/src/using-the-bindings.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
                             <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
                         </a>
 
@@ -181,314 +181,238 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="writing-a-custom-dispatch-strategy"><a class="header" href="#writing-a-custom-dispatch-strategy">Writing a Custom Dispatch Strategy</a></h1>
-<p>The built-in strategies (<a href="dispatch-strategies.html">SCAN, LOOK, NearestCar, ETD, Destination</a>) cover most general-purpose needs. Write a custom strategy when you need domain-specific behavior the built-ins don’t capture – priority lanes, VIP handling, freight vs. passenger separation, fairness guarantees, energy-aware dispatch.</p>
-<p>This chapter is a narrative tutorial that walks from a minimal strategy to a production-grade one with snapshot support. If you just need a quick overview, the <a href="dispatch-strategies.html">Dispatch Strategies</a> chapter has one.</p>
-<h2 id="how-dispatch-works"><a class="header" href="#how-dispatch-works">How dispatch works</a></h2>
-<p>Strategies express preference as a cost on each <code>(car, stop)</code> pair. The dispatch system collects those costs into a matrix and solves the optimal assignment across the whole group, guaranteeing that two cars are never sent to the same hall call. Cars left unassigned fall through to <code>fallback</code> for per-car policy (idle, park, etc.). (The solver is the Hungarian / Kuhn-Munkres algorithm – you don’t need to know how it works, just that it finds the globally optimal matching.)</p>
-<pre class="mermaid">flowchart LR
-    A["DispatchStrategy::rank()"] --&gt;|"scores (car, stop) pairs"| B["Cost Matrix"]
-    B --&gt;|"O(n^3) solver"| C["Hungarian Assignment"]
-    C --&gt;|"unassigned cars"| D["fallback()"]
-    C --&gt;|"assigned cars"| E["GoToStop decisions"]
-    D --&gt; F["Idle / Park / custom"]
-</pre>
-
-<h2 id="the-trait-surface"><a class="header" href="#the-trait-surface">The trait surface</a></h2>
-<pre><code class="language-text">pub trait DispatchStrategy: Send + Sync {
-    /// Pre-pass hook with mutable world access. Used by sticky strategies
-    /// (e.g. destination dispatch) to commit rider -&gt; car assignments.
-    fn pre_dispatch(
-        &amp;mut self,
-        _group: &amp;ElevatorGroup,
-        _manifest: &amp;DispatchManifest,
-        _world: &amp;mut World,
-    ) { /* default: no-op */ }
-
-    /// Per-car setup called once before any `rank` calls for this car.
-    /// Strategies with per-car state (sweep direction, queue pointers)
-    /// refresh it here so `rank` is order-independent over stops.
-    fn prepare_car(
-        &amp;mut self,
-        _car: EntityId,
-        _car_position: f64,
-        _group: &amp;ElevatorGroup,
-        _manifest: &amp;DispatchManifest,
-        _world: &amp;World,
-    ) { /* default: no-op */ }
-
-    /// Score sending `car` to `stop`. Lower is better. `None` marks
-    /// the pair unavailable (capacity limits, wrong-direction, sticky).
-    /// Must return a finite, non-negative value when `Some`.
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt;;
-
-    /// Decide what a car should do when the assignment phase couldn't
-    /// give it a stop (no demand or all candidate ranks were `None`).
-    fn fallback(
-        &amp;mut self,
-        _car: EntityId,
-        _car_position: f64,
-        _group: &amp;ElevatorGroup,
-        _manifest: &amp;DispatchManifest,
-        _world: &amp;World,
-    ) -&gt; DispatchDecision { DispatchDecision::Idle }
-
-    /// Clean up per-elevator state when a car leaves the group.
-    /// Strategies with internal `HashMap&lt;EntityId, _&gt;` state must
-    /// remove the entry here -- otherwise the map grows unbounded.
-    fn notify_removed(&amp;mut self, _elevator: EntityId) { /* default: no-op */ }
-}
-</code></pre>
-<p><code>RankContext</code> bundles the per-call arguments into a single struct:</p>
-<pre><code class="language-text">pub struct RankContext&lt;'a&gt; {
-    pub car: EntityId,
-    pub car_position: f64,
-    pub stop: EntityId,
-    pub stop_position: f64,
-    pub group: &amp;'a ElevatorGroup,
-    pub manifest: &amp;'a DispatchManifest,
-    pub world: &amp;'a World,
-}
-</code></pre>
-<p>Only <code>rank</code> is required. The default <code>fallback</code> returns <code>Idle</code>; the other hooks exist for strategies that need them.</p>
-<h2 id="step-1--the-simplest-possible-strategy"><a class="header" href="#step-1--the-simplest-possible-strategy">Step 1 – The simplest possible strategy</a></h2>
-<p>“Nearest-car by distance, favoring stops with more waiting riders.”</p>
-<pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use elevator_core::dispatch::{DispatchStrategy, RankContext};
-
-struct BusyStopNearest;
-
-impl DispatchStrategy for BusyStopNearest {
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
-        let distance = (ctx.car_position - ctx.stop_position).abs();
-        let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
-        // Subtract a crowding bonus so busier stops look cheaper. Clamp
-        // so the solver never sees a negative cost.
-        Some((distance - waiting).max(0.0))
-    }
-}
-<span class="boring">}</span></code></pre>
-<p>What this gets you automatically:</p>
+                        <h1 id="using-the-bindings"><a class="header" href="#using-the-bindings">Using the Bindings</a></h1>
+<p><code>elevator-core</code> is a Rust library, but the simulation is also exposed through two non-Rust binding crates so games and tools written in other languages can drive it without a Rust toolchain in their build pipeline:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Crate</th><th>Surface</th><th>Audience</th></tr>
+</thead>
+<tbody>
+<tr><td><code>elevator-wasm</code></td><td><code>wasm-bindgen</code> exports + auto-generated TypeScript types</td><td>Browser playgrounds, JS/TS games, web dashboards</td></tr>
+<tr><td><code>elevator-ffi</code></td><td>C ABI shared library + auto-generated <code>elevator_ffi.h</code></td><td>Unity (P/Invoke), .NET, native C/C++ harnesses</td></tr>
+</tbody>
+</table>
+</div>
+<p>Both bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.</p>
+<h2 id="coverage-and-stability"><a class="header" href="#coverage-and-stability">Coverage and stability</a></h2>
+<p>The set of <code>Simulation</code> methods exposed through each binding is enumerated in <a href="https://github.com/andymai/elevator-core/blob/main/bindings.toml"><code>bindings.toml</code></a> at the workspace root. CI verifies the file is in sync with <code>pub fn</code> declarations, so a new core method cannot ship without an explicit decision about whether it is bound and how.</p>
+<p>Three statuses are valid per cell (one for <code>wasm</code>, one for <code>ffi</code>):</p>
 <ul>
-<li><strong>Coordination across cars</strong> – the Hungarian solver never sends two cars to the same hall call.</li>
-<li><strong>Direction indicators</strong> driven by the <code>GoToStop</code> decision vs. car position.</li>
-<li><strong><code>DestinationQueue</code> management</strong> handled by later phases – you don’t touch it.</li>
-<li><strong>Dispatch events</strong> (<code>ElevatorAssigned</code>, <code>ElevatorIdle</code>, <code>DirectionIndicatorChanged</code>) emit automatically.</li>
+<li>An exported name (<code>stepMany</code>, <code>ev_sim_step</code>) means the method is bound under that name.</li>
+<li><code>skip:&lt;reason&gt;</code> means the method is intentionally not bound. The reason is mandatory and documents <em>why</em> (lifetime, internal detail, covered by another binding, etc.).</li>
+<li><code>todo:&lt;phase&gt;</code> is a temporary status during phased rollout.</li>
 </ul>
-<p>Returning <code>None</code> from <code>rank</code> excludes a <code>(car, stop)</code> pair entirely – use it for capacity limits, wrong-direction stops, or restricted stops. When every candidate stop returns <code>None</code> (or there are no demanded stops at all), the dispatcher calls <code>fallback</code>, which defaults to <code>Idle</code>.</p>
-<h2 id="step-2--per-car-state-with-prepare_car"><a class="header" href="#step-2--per-car-state-with-prepare_car">Step 2 – Per-car state with <code>prepare_car</code></a></h2>
-<p>Strategies whose ranking depends on per-car state (a sweep direction, a queue pointer, a cached priority) should refresh that state in <code>prepare_car</code>. The framework calls it once per car per pass, before any <code>rank</code> calls for that car, so the subsequent <code>rank</code> results are independent of the order the dispatcher iterates stops.</p>
-<p>The built-in <code>ScanDispatch</code> uses this hook to decide whether the car’s sweep direction should flip for the current pass. That decision depends on whole-group demand, so doing it inside <code>rank</code> would give different answers depending on which stop was scored first.</p>
-<pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use std::collections::HashMap;
-use elevator_core::dispatch::{
-    DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
-};
-use elevator_core::entity::EntityId;
-use elevator_core::world::World;
+<p>At the time of this chapter both bindings are at full coverage of the public surface — no <code>todo:</code> rows remain. Any future additions to <code>Simulation</code> will appear there before they ship.</p>
+<h2 id="elevator-wasm"><a class="header" href="#elevator-wasm">elevator-wasm</a></h2>
+<p>The wasm binding is built once, copied into your project, and consumed as ES modules. The TypeScript types are auto-generated by <code>tsify-next</code> from the Rust DTOs, so adding a field on the Rust side propagates to TS without hand-editing.</p>
+<h3 id="building-and-consuming"><a class="header" href="#building-and-consuming">Building and consuming</a></h3>
+<p>The build script in this repository wraps <code>wasm-pack</code> and <code>wasm-bindgen-cli</code> with the right targets:</p>
+<pre><code class="language-bash">scripts/build-wasm.sh
+</code></pre>
+<p>This produces a <code>pkg/</code> directory under <code>playground/public/</code> containing:</p>
+<ul>
+<li><code>elevator_wasm.js</code> — the JS shim</li>
+<li><code>elevator_wasm_bg.wasm</code> — the compiled module</li>
+<li><code>elevator_wasm.d.ts</code> — TypeScript types for every DTO</li>
+</ul>
+<p>For a non-playground consumer, copy <code>pkg/</code> into your project and import the constructor:</p>
+<pre><code class="language-ts">import init, { WasmSim } from "./pkg/elevator_wasm.js";
 
-struct DirectionalDispatch {
-    /// Tracks the preferred sweep direction per car.
-    sweep_up: HashMap&lt;EntityId, bool&gt;,
+await init();
+const sim = WasmSim.fromConfigJson(myConfigJson);
+
+for (let i = 0; i &lt; 60; i++) {
+    sim.stepMany(1);
 }
 
-impl DispatchStrategy for DirectionalDispatch {
-    fn prepare_car(
-        &amp;mut self,
-        car: EntityId,
-        car_position: f64,
-        group: &amp;ElevatorGroup,
-        manifest: &amp;DispatchManifest,
-        world: &amp;World,
-    ) {
-        // Decide sweep direction based on where demand is heaviest
-        // relative to this car. This runs once per car, before any
-        // rank() calls for that car.
-        let demand_above = group.stop_entities().iter().filter(|&amp;&amp;s| {
-            manifest.waiting_count_at(s) &gt; 0
-                &amp;&amp; world.stop_position(s).map_or(false, |p| p &gt; car_position)
-        }).count();
-        let demand_below = group.stop_entities().iter().filter(|&amp;&amp;s| {
-            manifest.waiting_count_at(s) &gt; 0
-                &amp;&amp; world.stop_position(s).map_or(false, |p| p &lt; car_position)
-        }).count();
-        self.sweep_up.insert(car, demand_above &gt;= demand_below);
-    }
-
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
-        let going_up = self.sweep_up.get(&amp;ctx.car).copied().unwrap_or(true);
-        let is_ahead = if going_up {
-            ctx.stop_position &gt;= ctx.car_position
-        } else {
-            ctx.stop_position &lt;= ctx.car_position
-        };
-        if is_ahead {
-            Some((ctx.car_position - ctx.stop_position).abs())
-        } else {
-            // Penalize stops behind the sweep direction.
-            Some((ctx.car_position - ctx.stop_position).abs() + 1000.0)
-        }
-    }
-
-    fn notify_removed(&amp;mut self, elevator: EntityId) {
-        self.sweep_up.remove(&amp;elevator);
-    }
+const snapshot = sim.snapshot();
+console.log(`tick ${snapshot.tick}, ${snapshot.cars.length} cars`);
+</code></pre>
+<h3 id="dto-shape-and-naming"><a class="header" href="#dto-shape-and-naming">DTO shape and naming</a></h3>
+<p>Every method that returns structured data returns a <code>tsify</code>-generated DTO. The naming convention is <code>*Dto</code> on the Rust side, and the same struct name without the <code>Dto</code> suffix on the TS side is <em>not</em> used — TypeScript consumers see the full Rust name (<code>CarDto</code>, <code>StopDto</code>, <code>MetricsDto</code>, <code>RouteDto</code>, <code>HallCallDto</code>, <code>CarCallDto</code>, <code>TaggedMetricDto</code>, <code>EventDto</code>).</p>
+<p>Method names are camelCase via <code>#[wasm_bindgen(js_name = ...)]</code>. Every getter has the same shape on both sides:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Rust</th><th>TypeScript</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sim.snapshot()</code></td><td><code>sim.snapshot()</code></td></tr>
+<tr><td><code>sim.metrics_for_tag("vip")</code></td><td><code>sim.metricsForTag("vip")</code></td></tr>
+<tr><td><code>sim.shortest_route(from, to)</code></td><td><code>sim.shortestRoute(from, to)</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="errors"><a class="header" href="#errors">Errors</a></h3>
+<p>Methods that can fail return <code>Result&lt;T, JsError&gt;</code> on the Rust side, which materializes as a thrown <code>Error</code> on the TS side. Wrap fallible calls in <code>try/catch</code>:</p>
+<pre><code class="language-ts">try {
+    sim.spawnRider(originId, destId, 75);
+} catch (err) {
+    console.error("spawn failed:", (err as Error).message);
 }
-<span class="boring">}</span></code></pre>
-<h2 id="step-3--carrying-state-and-the-notify_removed-contract"><a class="header" href="#step-3--carrying-state-and-the-notify_removed-contract">Step 3 – Carrying state, and the <code>notify_removed</code> contract</a></h2>
-<p>If your strategy tracks something per elevator (direction history, last-served stop, priority bookkeeping), it owns a <code>HashMap&lt;EntityId, _&gt;</code>. That map must be cleaned up when an elevator is removed or reassigned across groups, or it grows forever.</p>
-<p>The framework calls <code>notify_removed(elevator)</code> on the group’s dispatcher whenever:</p>
-<ol>
-<li><code>Simulation::remove_elevator(id)</code> is called, OR</li>
-<li><code>Simulation::reassign_elevator_to_line(id, new_line)</code> moves an elevator <em>across groups</em> (same-group moves don’t fire <code>notify_removed</code> because the dispatcher still owns the elevator).</li>
-</ol>
-<p>Forgetting to implement this is the most common correctness bug in custom strategies. <code>ScanDispatch</code> and <code>LookDispatch</code> both use it to evict direction entries.</p>
-<pre><code class="language-text">use std::collections::HashMap;
-
-#[derive(Default)]
-struct PriorityDispatch {
-    /// Per-elevator cooldown -- once this elevator served a priority stop,
-    /// suppress priority preference for N ticks so non-priority riders
-    /// aren't starved.
-    cooldown_ticks: HashMap&lt;EntityId, u64&gt;,
-}
-
-impl DispatchStrategy for PriorityDispatch {
-    fn rank(/* ... */) -&gt; Option&lt;f64&gt; { /* ... */ }
-
-    fn notify_removed(&amp;mut self, elevator: EntityId) {
-        // CRITICAL: keeps the map from growing unbounded under churn.
-        self.cooldown_ticks.remove(&amp;elevator);
+</code></pre>
+<p>This is uniform across the binding — there is no <code>null</code> / <code>undefined</code> “error sentinel” pattern to special-case.</p>
+<h3 id="events"><a class="header" href="#events">Events</a></h3>
+<p><code>sim.drainEvents()</code> returns an array of <code>EventDto</code> objects. Each has a <code>kind</code> discriminator (<code>"rider-spawned"</code>, <code>"door-opened"</code>, etc., kebab-case) plus the variant-specific fields:</p>
+<pre><code class="language-ts">for (const ev of sim.drainEvents()) {
+    switch (ev.kind) {
+        case "rider-spawned":
+            console.log(`rider ${ev.rider} spawned at stop ${ev.origin}`);
+            break;
+        case "door-opened":
+            playSfx("door-open", ev.elevator);
+            break;
+        case "unknown":
+            // Forward-compat: future Event variants surface here.
+            break;
     }
 }
 </code></pre>
-<h2 id="step-4--snapshot-support"><a class="header" href="#step-4--snapshot-support">Step 4 – Snapshot support</a></h2>
-<p>Simulations can be serialized via <code>Simulation::snapshot()</code> for save/load, replay, and deterministic testing. The snapshot records each group’s dispatch strategy by name. Built-in strategies serialize to specific variants (<code>BuiltinStrategy::Scan</code>, <code>::Look</code>, <code>::NearestCar</code>, <code>::Etd</code>, <code>::Rsr</code>, <code>::Destination</code>); custom strategies serialize to <code>BuiltinStrategy::Custom(String)</code>.</p>
-<p>On restore, <code>WorldSnapshot::restore()</code> takes an optional factory function that maps the custom name back to a strategy instance. If your custom strategy doesn’t identify itself via <code>builtin_id</code> (see below), the sim silently records <code>BuiltinStrategy::Scan</code> instead – the snapshot name is wrong and the factory never gets called on restore.</p>
-<p>The canonical pattern uses two hooks on the <code>DispatchStrategy</code> trait:</p>
+<p>The TypeScript discriminated union is the auto-generated type, so the compiler narrows fields per <code>kind</code> without manual casting.</p>
+<h2 id="elevator-ffi"><a class="header" href="#elevator-ffi">elevator-ffi</a></h2>
+<p>The FFI binding is a <code>cdylib</code> produced by <code>cargo build -p elevator-ffi --release</code> and a C header at <a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-ffi/include/elevator_ffi.h"><code>crates/elevator-ffi/include/elevator_ffi.h</code></a> regenerated automatically by <code>cbindgen</code> on every build. CI guards against header drift.</p>
+<p>The C-side public API is small and uniform: every entry point starts with <code>ev_sim_*</code>, takes an <code>EvSim*</code> handle as the first argument, and returns an <code>EvStatus</code> code. The exception is constructors (<code>ev_sim_create*</code>) which return the handle directly (or null on failure).</p>
+<h3 id="abi-version-handshake"><a class="header" href="#abi-version-handshake">ABI version handshake</a></h3>
+<p>Every shared library carries an integer ABI version. Consumers MUST check it on startup and refuse to proceed if it doesn’t match the version they were built against:</p>
+<pre><code class="language-c">#include "elevator_ffi.h"
+
+if (ev_abi_version() != EV_ABI_VERSION) {
+    fprintf(stderr, "elevator-ffi ABI mismatch: lib %u, header %u\n",
+            ev_abi_version(), EV_ABI_VERSION);
+    return 1;
+}
+</code></pre>
+<p>The constant in the header (<code>EV_ABI_VERSION</code>) bumps on every layout change to a <code>repr(C)</code> struct or any other breaking change to the C surface. A bump is a <code>feat!:</code> commit and triggers a major version bump on <code>elevator-ffi</code> itself; consumers see it as a SemVer-major rebuild signal.</p>
+<h3 id="status-codes"><a class="header" href="#status-codes">Status codes</a></h3>
+<p>Every fallible function returns <code>EvStatus</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Code</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>EvStatusOk</code></td><td>Success</td></tr>
+<tr><td><code>EvStatusNullArg</code></td><td>A required pointer argument was null</td></tr>
+<tr><td><code>EvStatusInvalidUtf8</code></td><td>A C string argument was not valid UTF-8</td></tr>
+<tr><td><code>EvStatusConfigLoad</code> / <code>EvStatusConfigParse</code></td><td>Config file I/O / parse failure</td></tr>
+<tr><td><code>EvStatusBuildFailed</code></td><td><code>SimulationBuilder::build</code> returned an error</td></tr>
+<tr><td><code>EvStatusNotFound</code></td><td>Entity, group, or resource not found</td></tr>
+<tr><td><code>EvStatusInvalidArg</code></td><td>Argument structurally valid but semantically rejected</td></tr>
+<tr><td><code>EvStatusPanic</code></td><td>A Rust panic was caught at the FFI boundary</td></tr>
+</tbody>
+</table>
+</div>
+<p>On any non-<code>Ok</code> status, <code>ev_last_error()</code> returns a thread-local null-terminated description. The pointer is valid until the next FFI call on the same thread:</p>
+<pre><code class="language-c">EvStatus s = ev_sim_step(sim);
+if (s != EvStatusOk) {
+    fprintf(stderr, "step failed: %s\n", ev_last_error());
+}
+</code></pre>
+<h3 id="the-buffer-pattern-for-variable-length-output"><a class="header" href="#the-buffer-pattern-for-variable-length-output">The buffer pattern for variable-length output</a></h3>
+<p>C has no native dynamic arrays, so any FFI export that returns a list takes a caller-owned buffer with explicit capacity. Two-step usage: probe to size, then allocate and read:</p>
+<pre><code class="language-c">// Step 1 — probe with capacity 0 to learn the required size.
+uint32_t needed = 0;
+EvStatus s = ev_sim_shortest_route(sim, from, to, NULL, 0, &amp;needed);
+if (s == EvStatusNotFound) {
+    // No route exists.
+    return;
+}
+// `needed` is now the slot count.
+
+// Step 2 — allocate, read, use.
+uint64_t* stops = malloc(needed * sizeof(uint64_t));
+uint32_t written = 0;
+s = ev_sim_shortest_route(sim, from, to, stops, needed, &amp;written);
+assert(s == EvStatusOk &amp;&amp; written == needed);
+
+for (uint32_t i = 0; i &lt; written; i++) {
+    /* ... handle stops[i] ... */
+}
+free(stops);
+</code></pre>
+<p>The same pattern applies to <code>ev_sim_hall_calls_snapshot</code>, <code>ev_sim_car_calls_snapshot</code>, <code>ev_sim_drain_events</code>, <code>ev_sim_destination_queue</code>, the population queries (<code>ev_sim_waiting_at</code>, <code>ev_sim_residents_at</code>, <code>ev_sim_abandoned_at</code>), and <code>ev_sim_all_tags</code>.</p>
+<h3 id="sentinel-encoding-for-optional-values"><a class="header" href="#sentinel-encoding-for-optional-values">Sentinel encoding for optional values</a></h3>
+<p>Where the Rust API returns <code>Option&lt;T&gt;</code>, the FFI flat layout uses sentinels chosen to round-trip safely:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Rust type</th><th>FFI sentinel for <code>None</code></th></tr>
+</thead>
+<tbody>
+<tr><td><code>Option&lt;f64&gt;</code></td><td><code>f64::NAN</code> (test with <code>isnan()</code>)</td></tr>
+<tr><td><code>Option&lt;u64&gt;</code></td><td><code>0</code> (entity ids never use slot 0)</td></tr>
+<tr><td><code>Option&lt;bool&gt;</code></td><td><code>false</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>These are the same sentinels used inside the engine’s own <code>repr(C)</code> stuctures (e.g. <code>EvElevatorParams.bypass_load_up_pct</code>), so the encoding is uniform across input parameters and output buffers.</p>
+<h3 id="evevent-and-the-event-mirror"><a class="header" href="#evevent-and-the-event-mirror">EvEvent and the event mirror</a></h3>
+<p><code>ev_sim_drain_events</code> writes a sequence of <code>EvEvent</code> records into a caller-owned buffer. Each record has a <code>kind</code> discriminator and 13 payload fields shared by every event kind; <code>ev_event_kind</code> provides named constants for every variant the Rust core emits.</p>
+<p>The struct is wide on purpose — the wasm side hands consumers a discriminated union with variant-specific fields, while the FFI side keeps every event the same shape so a C consumer can iterate over a single typed array. Field semantics depend on <code>kind</code>; for example:</p>
+<pre><code class="language-c">EvEvent buf[256];
+uint32_t written = 0;
+ev_sim_drain_events(sim, buf, 256, &amp;written);
+
+for (uint32_t i = 0; i &lt; written; i++) {
+    EvEvent* e = &amp;buf[i];
+    switch (e-&gt;kind) {
+    case ev_event_kind_RIDER_SPAWNED:
+        printf("rider %llu at stop %llu, dest %llu\n", e-&gt;rider, e-&gt;stop, e-&gt;floor);
+        break;
+    case ev_event_kind_DOOR_COMMAND_QUEUED:
+        // code1 = command (Open / Close / HoldOpen / CancelHold)
+        // count = hold ticks for HoldOpen, 0 otherwise
+        printf("door cmd %u on car %llu, hold %llu\n", e-&gt;code1, e-&gt;car, e-&gt;count);
+        break;
+    case ev_event_kind_UNKNOWN:
+        // Forward-compat: future variants surface here.
+        break;
+    }
+}
+</code></pre>
+<p>The full per-kind field map lives in the rustdoc on <a href="https://docs.rs/elevator-ffi/latest/elevator_ffi/ev_event_kind/index.html"><code>ev_event_kind</code></a>.</p>
+<h3 id="thread-safety"><a class="header" href="#thread-safety">Thread-safety</a></h3>
+<p>Each <code>EvSim</code> handle is <strong>not</strong> <code>Sync</code>. Callers must serialize all calls on a single handle. Multiple handles created from <code>ev_sim_create</code> are independent and may be driven from different threads.</p>
+<p><code>ev_last_error</code> is thread-local — different threads see different last-error strings. This means a status check must happen on the same thread that made the call.</p>
+<h3 id="memory-ownership"><a class="header" href="#memory-ownership">Memory ownership</a></h3>
 <ul>
-<li><strong><code>builtin_id()</code></strong> advertises the snapshot name. Override it to return <code>BuiltinStrategy::Custom("name")</code> so <code>Simulation::new</code> / the builder / <code>set_dispatch</code> all record the right identity, regardless of which entry point the caller uses.</li>
-<li><strong><code>snapshot_config()</code> / <code>restore_config()</code></strong> (optional) round-trip any tunable configuration. Without overriding, the restored instance runs with whatever defaults the factory produces. Override them if your strategy has runtime-tunable weights or other state that should survive a save.</li>
+<li><code>EvSim*</code> handles are owned by the caller. Create with <code>ev_sim_create</code> (or <code>ev_sim_create_from_config</code>); destroy with <code>ev_sim_destroy</code>. Failing to destroy leaks the underlying simulation.</li>
+<li><code>ev_sim_frame</code> returns pointers into an internal buffer owned by the handle. <strong>Those pointers are valid only until the next call to <code>ev_sim_frame</code> on the same handle.</strong> Do not retain them across frames; copy what you need.</li>
+<li>The string from <code>ev_last_error</code> is valid only until the next FFI call on the same thread.</li>
 </ul>
-<pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use elevator_core::prelude::*;
-use elevator_core::config::ElevatorConfig;
-use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy, RankContext};
-use elevator_core::snapshot::WorldSnapshot;
-use serde::{Deserialize, Serialize};
-
-const PRIORITY_NAME: &amp;str = "priority";
-
-#[derive(Default, Serialize, Deserialize)]
-struct PriorityDispatch {
-    urgency_boost: f64,
-}
-
-impl DispatchStrategy for PriorityDispatch {
-    // Real implementations score against `ctx`; see `BusyStopNearest` above.
-    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
-
-    fn builtin_id(&amp;self) -&gt; Option&lt;BuiltinStrategy&gt; {
-        // Identify the strategy to the snapshot layer. Keep this name
-        // stable across releases -- changing it breaks old saves.
-        Some(BuiltinStrategy::Custom(PRIORITY_NAME.into()))
-    }
-
-    fn snapshot_config(&amp;self) -&gt; Option&lt;String&gt; {
-        ron::to_string(self).ok()
-    }
-
-    fn restore_config(&amp;mut self, serialized: &amp;str) -&gt; Result&lt;(), String&gt; {
-        let restored: Self = ron::from_str(serialized).map_err(|e| e.to_string())?;
-        *self = restored;
-        Ok(())
-    }
-}
-
-fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
-    // `Simulation::new` and the builder consult `builtin_id` so you can
-    // drop the strategy in without a second id argument -- the snapshot
-    // records `BuiltinStrategy::Custom("priority")` automatically.
-    let _sim = SimulationBuilder::new()
-        .stop(StopId(0), "Ground", 0.0)
-        .stop(StopId(1), "Top", 10.0)
-        .elevator(ElevatorConfig::default())
-        .dispatch(PriorityDispatch::default())
-        .build()?;
-
-    // When restoring, the factory maps names back to strategy instances.
-    // `restore_config` replays `urgency_boost` onto the new instance.
-    let sim = snapshot.restore(Some(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
-        match name {
-            PRIORITY_NAME =&gt; Some(Box::new(PriorityDispatch::default())),
-            // Return `None` for unknown names -- the restore records a
-            // `SnapshotDanglingReference` event and falls back to
-            // `ScanDispatch` rather than panicking.
-            _ =&gt; None,
-        }
-    }))?;
-    let _ = sim;
-    Ok(())
-}
-<span class="boring">}</span></code></pre>
-<p>The name is opaque to the library. Keep it stable across releases – changing the name breaks old saved snapshots.</p>
-<h2 id="step-5--testing-a-custom-strategy"><a class="header" href="#step-5--testing-a-custom-strategy">Step 5 – Testing a custom strategy</a></h2>
-<p>Two levels of test coverage work well:</p>
-<p><strong>Unit-test through <code>dispatch::assign</code> in isolation.</strong> Construct a minimal <code>World</code>, an <code>ElevatorGroup</code>, and a <code>DispatchManifest</code>, then run one assignment pass. This exercises the Hungarian matching and <code>fallback</code> path end-to-end, so the test reflects real runtime behavior. See <code>crates/elevator-core/src/tests/dispatch_tests.rs</code> for the helper pattern (<code>test_world()</code>, <code>test_group()</code>, <code>spawn_elevator()</code>, <code>add_demand()</code>).</p>
-<p><strong>Integration-test via a full <code>Simulation</code>.</strong> Spawn riders, step the loop, assert on events (<code>ElevatorAssigned</code>, <code>RiderBoarded</code>, etc.). This catches bugs that only surface through the 8-phase interaction – e.g., a strategy that excludes every <code>(car, stop)</code> pair it shouldn’t, or one whose <code>prepare_car</code> mutation leaves stale state between passes.</p>
-<pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span><span class="boring">use elevator_core::prelude::*;
-</span><span class="boring">struct BusyStopNearest;
-</span><span class="boring">impl DispatchStrategy for BusyStopNearest {
-</span><span class="boring">    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
-</span><span class="boring">}
-</span>#[test]
-fn custom_strategy_assigns_nearest_car() {
-    let mut sim = SimulationBuilder::new()
-        .stop(StopId(0), "Ground", 0.0)
-        .stop(StopId(1), "Top", 10.0)
-        .elevator(ElevatorConfig::default())
-        .dispatch(BusyStopNearest)
-        .build()
-        .unwrap();
-
-    sim.spawn_rider(StopId(0), StopId(1), 75.0).unwrap();
-    sim.step();
-
-    let events = sim.drain_events();
-    assert!(events.iter().any(|e| matches!(e, Event::ElevatorAssigned { .. })));
-}
-<span class="boring">}</span></code></pre>
-<p>See <a href="testing.html">Testing Your Simulation</a> for broader testing patterns including snapshot round-trips and deterministic replay.</p>
-<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance considerations</a></h2>
+<h2 id="common-patterns-across-both-bindings"><a class="header" href="#common-patterns-across-both-bindings">Common patterns across both bindings</a></h2>
+<p>Some idioms apply to both surfaces:</p>
 <ul>
-<li><code>rank</code> runs O(cars x stops) per tick per group, and the Hungarian solver itself is O(n^3) in the group size. At 60 ticks/second and a realistic group (20 cars, 50 stops), that’s millions of <code>rank</code> calls per simulated minute – keep the hot path allocation-free and <code>manifest</code> lookups cheap.</li>
-<li><code>SmallVec&lt;[T; N]&gt;</code> is already the storage choice in the built-in strategies for intermediate partitions. If your strategy partitions cars or stops, consider the same.</li>
-<li>The <code>DispatchManifest</code> is immutable – never try to mutate demand from inside <code>rank</code>. If you need per-rider state across ticks, store it in your strategy.</li>
-<li>Avoid iterating <code>HashMap&lt;EntityId, _&gt;</code> in the hot path – order is nondeterministic. Use <code>BTreeMap</code> or sort keys before iteration.</li>
+<li>
+<p><strong>Build once, drive many ticks.</strong> The simulation handle is a heavy object; create it at startup and keep it for the lifetime of the application. <code>step</code> and <code>stepMany</code> are designed to be called every frame.</p>
+</li>
+<li>
+<p><strong>Drain events every tick.</strong> Both bindings emit events into an internal queue; if you don’t drain, the queue grows unbounded. The drain operations are non-blocking — call them after every step in your tick loop.</p>
+</li>
+<li>
+<p><strong>Entity ids are stable across ticks but not across simulation builds.</strong> Save them as numbers between calls, but don’t persist them across <code>ev_sim_destroy</code> / <code>WasmSim</code> rebuilds.</p>
+</li>
+<li>
+<p><strong>Snapshots round-trip the full simulation state.</strong> Both bindings can serialize a snapshot to bytes, ship it across a network or persist it to disk, then restore it later. See <a href="snapshots-determinism.html">Snapshots and Determinism</a> for the determinism guarantees.</p>
+</li>
 </ul>
-<h2 id="putting-it-together-a-runnable-example"><a class="header" href="#putting-it-together-a-runnable-example">Putting it together: a runnable example</a></h2>
-<p>See <a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/custom_dispatch.rs"><code>examples/custom_dispatch.rs</code></a> in the repository – a complete file implementing a round-robin strategy with all three trait methods, ready to <code>cargo run --example custom_dispatch</code>.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <ul>
-<li><a href="extensions.html">Extensions</a> – attach per-rider / per-elevator data (VIP tags, priority, preferences) that your strategy can consult via <code>world.get_ext::&lt;T&gt;(id)</code>.</li>
-<li><a href="snapshots-determinism.html">Snapshots and Determinism</a> – full snapshot/restore cycle, with emphasis on the custom-strategy factory.</li>
-<li><a href="events-metrics.html">Events and Metrics</a> – what dispatch emits and how to consume it for debugging.</li>
+<li><a href="headless-non-bevy.html">Headless and Non-Bevy Usage</a> — the same integration patterns from the Rust side; useful for understanding what each binding’s exports map back to.</li>
+<li><a href="events-metrics.html">Events and Metrics</a> — the <code>Event</code> enum and metric accumulators that drive UI updates in either binding.</li>
+<li><a href="stability.html">Stability and Versioning</a> — how API breaks are signaled across crates, and what the ABI version handshake protects against.</li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="error-handling.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="headless-non-bevy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="extensions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="performance.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -498,11 +422,11 @@ fn custom_strategy_assigns_nearest_car() {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="error-handling.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="headless-non-bevy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="extensions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="performance.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
