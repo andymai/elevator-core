@@ -8,17 +8,12 @@ export const wasmsim_addElevator: (a: number, b: bigint, c: number, d: number, e
 export const wasmsim_addGroup: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const wasmsim_addLine: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [bigint, number, number];
 export const wasmsim_addStop: (a: number, b: bigint, c: number, d: number, e: number) => [bigint, number, number];
-export const wasmsim_cancelDoorHold: (a: number, b: bigint) => [number, number];
-export const wasmsim_closeDoor: (a: number, b: bigint) => [number, number];
 export const wasmsim_currentTick: (a: number) => bigint;
 export const wasmsim_drainEvents: (a: number) => [number, number];
 export const wasmsim_dt: (a: number) => number;
-export const wasmsim_emergencyStop: (a: number, b: bigint) => [number, number];
 export const wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
-export const wasmsim_holdDoor: (a: number, b: bigint, c: number) => [number, number];
 export const wasmsim_metrics: (a: number) => any;
 export const wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
-export const wasmsim_openDoor: (a: number, b: bigint) => [number, number];
 export const wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => [number, number];
 export const wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => [number, number];
 export const wasmsim_removeElevator: (a: number, b: bigint) => [number, number];
@@ -34,9 +29,7 @@ export const wasmsim_setLineRange: (a: number, b: bigint, c: number, d: number) 
 export const wasmsim_setMaxSpeedAll: (a: number, b: number) => [number, number];
 export const wasmsim_setReposition: (a: number, b: number, c: number) => number;
 export const wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
-export const wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => [number, number];
 export const wasmsim_setStrategy: (a: number, b: number, c: number) => number;
-export const wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => [number, number];
 export const wasmsim_setTrafficRate: (a: number, b: number) => void;
 export const wasmsim_setWeightCapacityAll: (a: number, b: number) => [number, number];
 export const wasmsim_snapshot: (a: number) => any;

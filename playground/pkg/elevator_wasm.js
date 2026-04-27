@@ -106,34 +106,6 @@ export class WasmSim {
         return BigInt.asUintN(64, ret[0]);
     }
     /**
-     * Cancel a pending hold extension on `elevator_ref`.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator does not exist or is disabled.
-     * @param {bigint} elevator_ref
-     */
-    cancelDoorHold(elevator_ref) {
-        const ret = wasm.wasmsim_cancelDoorHold(this.__wbg_ptr, elevator_ref);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * Request the doors of `elevator_ref` to close now.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator does not exist or is disabled.
-     * @param {bigint} elevator_ref
-     */
-    closeDoor(elevator_ref) {
-        const ret = wasm.wasmsim_closeDoor(this.__wbg_ptr, elevator_ref);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
      * Current tick counter.
      * @returns {bigint}
      */
@@ -160,23 +132,6 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Command an immediate stop on a `ServiceMode::Manual` elevator —
-     * target velocity is set to zero and the car decelerates at its
-     * configured rate.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator is not in Manual mode, does
-     * not exist, or is disabled.
-     * @param {bigint} elevator_ref
-     */
-    emergencyStop(elevator_ref) {
-        const ret = wasm.wasmsim_emergencyStop(this.__wbg_ptr, elevator_ref);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
      * Find the stop entity at `position` that's served by `line_ref`,
      * or `0` (slotmap-null) if none. Lets consumers disambiguate
      * co-located stops on different lines (sky-lobby served by
@@ -189,22 +144,6 @@ export class WasmSim {
     findStopAtPositionOnLine(position, line_ref) {
         const ret = wasm.wasmsim_findStopAtPositionOnLine(this.__wbg_ptr, position, line_ref);
         return BigInt.asUintN(64, ret);
-    }
-    /**
-     * Extend the open dwell of `elevator_ref` by `ticks`. Cumulative.
-     *
-     * # Errors
-     *
-     * Returns a JS error if `ticks` is zero, the elevator does not exist,
-     * or the elevator is disabled.
-     * @param {bigint} elevator_ref
-     * @param {number} ticks
-     */
-    holdDoor(elevator_ref, ticks) {
-        const ret = wasm.wasmsim_holdDoor(this.__wbg_ptr, elevator_ref, ticks);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
     }
     /**
      * Current aggregate metrics.
@@ -240,23 +179,6 @@ export class WasmSim {
         this.__wbg_ptr = ret[0] >>> 0;
         WasmSimFinalization.register(this, this.__wbg_ptr, this);
         return this;
-    }
-    /**
-     * Request the doors of `elevator_ref` to open.
-     *
-     * Applied when the car next reaches a stop with closed/closing
-     * doors; otherwise queued. Works in every service mode.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator does not exist or is disabled.
-     * @param {bigint} elevator_ref
-     */
-    openDoor(elevator_ref) {
-        const ret = wasm.wasmsim_openDoor(this.__wbg_ptr, elevator_ref);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
     }
     /**
      * Press a car-button (in-cab floor request) targeting `stop_ref`.
@@ -484,27 +406,6 @@ export class WasmSim {
         wasm.wasmsim_setRepositionPredictiveParking(this.__wbg_ptr, window_ticks);
     }
     /**
-     * Set an elevator's service mode.
-     *
-     * Accepts `"normal" | "independent" | "inspection" | "manual" |
-     * "outofservice"`.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator does not exist or `mode` is
-     * not a recognised name.
-     * @param {bigint} elevator_ref
-     * @param {string} mode
-     */
-    setServiceMode(elevator_ref, mode) {
-        const ptr0 = passStringToWasm0(mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsim_setServiceMode(this.__wbg_ptr, elevator_ref, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
      * Swap the dispatch strategy by name. Returns `true` on success.
      *
      * State is preserved; only the assignment policy changes. Unknown names
@@ -518,25 +419,6 @@ export class WasmSim {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmsim_setStrategy(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
-    }
-    /**
-     * Set the target velocity (m/s) for a `ServiceMode::Manual` elevator.
-     * Positive values command upward travel, negative values downward.
-     * The car ramps toward the target each tick using its configured
-     * acceleration / deceleration.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the elevator is not in Manual mode, does
-     * not exist, is disabled, or `velocity` is not finite.
-     * @param {bigint} elevator_ref
-     * @param {number} velocity
-     */
-    setTargetVelocity(elevator_ref, velocity) {
-        const ret = wasm.wasmsim_setTargetVelocity(this.__wbg_ptr, elevator_ref, velocity);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
     }
     /**
      * Record a target traffic rate (riders per minute). The playground driver
