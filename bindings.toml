@@ -350,14 +350,18 @@ ffi  = "ev_sim_reroute"
 [[methods]]
 name = "reroute_rider"
 category = "routes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+# Two convenience overloads per binding. The bindings file lists the
+# Shortest variant as the canonical name; Direct (single-leg via a named
+# group) ships alongside as `rerouteRiderDirect` / `ev_sim_reroute_rider_direct`.
+wasm = "rerouteRiderShortest"
+ffi  = "ev_sim_reroute_rider_shortest"
 
 [[methods]]
 name = "set_rider_route"
 category = "routes"
-wasm = "todo:PR-D"
-ffi  = "todo:PR-D"
+# Two convenience overloads per binding. See `reroute_rider` above.
+wasm = "setRiderRouteShortest"
+ffi  = "ev_sim_set_rider_route_shortest"
 
 [[methods]]
 name = "set_rider_access"

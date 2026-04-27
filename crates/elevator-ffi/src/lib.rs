@@ -2854,6 +2854,211 @@ pub unsafe extern "C" fn ev_sim_settle_rider(handle: *mut EvSim, rider_entity_id
     })
 }
 
+/// Replace a rider's remaining route with a single-leg route via
+/// `group_id`. Convenience wrapper for the common "send this rider via
+/// this group" case.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_rider_route_direct(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    from_stop_entity_id: u64,
+    to_stop_entity_id: u64,
+    group_id: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(from) = entity_from_u64(from_stop_entity_id) else {
+            set_last_error("from_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(to) = entity_from_u64(to_stop_entity_id) else {
+            set_last_error("to_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let route = elevator_core::components::Route::direct(from, to, GroupId(group_id));
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_rider_route(rider, route) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_rider_route_direct: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Replace a rider's remaining route with a multi-leg route built from
+/// `shortest_route(rider's current_stop → to_stop)`.
+///
+/// Returns [`EvStatus::NotFound`] if no route exists or the rider has
+/// no current stop.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_rider_route_shortest(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    to_stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(to) = entity_from_u64(to_stop_entity_id) else {
+            set_last_error("to_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        let Some(from) = ev
+            .sim
+            .world()
+            .rider(rider)
+            .and_then(elevator_core::components::Rider::current_stop)
+        else {
+            set_last_error("rider has no current stop");
+            return EvStatus::NotFound;
+        };
+        let Some(route) = ev.sim.shortest_route(from, to) else {
+            set_last_error("no route between rider's stop and to_stop");
+            return EvStatus::NotFound;
+        };
+        match ev.sim.set_rider_route(rider, route) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_rider_route_shortest: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Give a `Resident` rider a single-leg route via `group_id`,
+/// transitioning them back to `Waiting`. The route's first leg origin
+/// must match the rider's current stop.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reroute_rider_direct(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    from_stop_entity_id: u64,
+    to_stop_entity_id: u64,
+    group_id: u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(from) = entity_from_u64(from_stop_entity_id) else {
+            set_last_error("from_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(to) = entity_from_u64(to_stop_entity_id) else {
+            set_last_error("to_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let route = elevator_core::components::Route::direct(from, to, GroupId(group_id));
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.reroute_rider(rider, route) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("reroute_rider_direct: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Give a `Resident` rider a multi-leg route to `to_stop` built from
+/// `shortest_route(rider's current_stop → to_stop)`, transitioning them
+/// back to `Waiting`.
+///
+/// Returns [`EvStatus::NotFound`] if the rider has no current stop or
+/// no route exists.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_reroute_rider_shortest(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    to_stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(to) = entity_from_u64(to_stop_entity_id) else {
+            set_last_error("to_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        let Some(from) = ev
+            .sim
+            .world()
+            .rider(rider)
+            .and_then(elevator_core::components::Rider::current_stop)
+        else {
+            set_last_error("rider has no current stop");
+            return EvStatus::NotFound;
+        };
+        let Some(route) = ev.sim.shortest_route(from, to) else {
+            set_last_error("no route between rider's stop and to_stop");
+            return EvStatus::NotFound;
+        };
+        match ev.sim.reroute_rider(rider, route) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("reroute_rider_shortest: {e}"));
+                status
+            }
+        }
+    })
+}
+
 /// Replace a rider's allowed-stops set. Pass `count = 0` to clear.
 ///
 /// # Safety
