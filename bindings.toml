@@ -265,7 +265,7 @@ ffi  = "ev_sim_eta_for_call"
 name = "eta"
 category = "dispatch"
 wasm = "eta"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_eta"
 
 # ─── Buttons ──────────────────────────────────────────────────────────────
 
@@ -291,7 +291,7 @@ ffi  = "ev_sim_hall_calls_snapshot"
 name = "car_calls"
 category = "buttons"
 wasm = "carCalls"
-ffi  = "todo:PR-B"
+ffi  = "ev_sim_car_calls_snapshot"
 
 # ─── Events ───────────────────────────────────────────────────────────────
 
@@ -485,7 +485,7 @@ ffi  = "ev_sim_dt"
 name = "metrics"
 category = "metrics"
 wasm = "metrics"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_metrics"
 
 [[methods]]
 name = "time"
@@ -647,7 +647,7 @@ ffi  = "ev_sim_destination_queue"
 name = "elevators_in_phase"
 category = "introspection"
 wasm = "elevatorsInPhase"
-ffi  = "todo:PR-C"
+ffi  = "ev_sim_elevators_in_phase"
 
 [[methods]]
 name = "iter_repositioning_elevators"
@@ -886,13 +886,13 @@ ffi  = "ev_sim_untag_entity"
 name = "all_tags"
 category = "tagging"
 wasm = "allTags"
-ffi  = "todo:PR-E"
+ffi  = "ev_sim_all_tags"
 
 [[methods]]
 name = "metrics_for_tag"
 category = "metrics"
 wasm = "metricsForTag"
-ffi  = "todo:PR-E"
+ffi  = "ev_sim_metrics_for_tag"
 
 # ─── Internal — exposes &World, &mut World, internal slices ───────────────
 
