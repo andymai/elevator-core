@@ -310,7 +310,7 @@ ffi  = "todo:PR-G"
 [[methods]]
 name = "pending_events"
 category = "events"
-wasm = "todo:PR-E"
+wasm = "pendingEvents"
 ffi  = "ev_sim_pending_event_count"
 
 # ─── Riders ───────────────────────────────────────────────────────────────
