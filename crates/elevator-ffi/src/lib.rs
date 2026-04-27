@@ -1499,23 +1499,34 @@ pub struct EvAssignment {
 /// [`EvEvent::kind`] = `UNKNOWN`.
 #[allow(clippy::doc_markdown, clippy::too_long_first_doc_paragraph)]
 pub mod ev_event_kind {
-    /// `Event::HallButtonPressed`.
+    /// `Event::HallButtonPressed`. Fields: `stop`, `direction` (`1` =
+    /// up, `-1` = down), `tick`.
     pub const HALL_BUTTON_PRESSED: u8 = 1;
-    /// `Event::HallCallAcknowledged`.
+    /// `Event::HallCallAcknowledged`. Fields: `stop`, `direction`,
+    /// `tick`.
     pub const HALL_CALL_ACKNOWLEDGED: u8 = 2;
-    /// `Event::HallCallCleared`.
+    /// `Event::HallCallCleared`. Fields: `stop`, `direction`, `car`
+    /// (the elevator that cleared the call by arriving), `tick`.
     pub const HALL_CALL_CLEARED: u8 = 3;
-    /// `Event::CarButtonPressed`.
+    /// `Event::CarButtonPressed`. Fields: `car`, `floor` (the
+    /// requested stop), `rider` (or `0` for synthetic presses with no
+    /// associated rider), `tick`.
     pub const CAR_BUTTON_PRESSED: u8 = 4;
-    /// `Event::RiderSkipped`.
+    /// `Event::RiderSkipped`. Fields: `rider`, `car` (the elevator
+    /// they declined to board), `stop` (where the skip happened),
+    /// `tick`.
     pub const RIDER_SKIPPED: u8 = 5;
-    /// `Event::RiderSpawned`.
+    /// `Event::RiderSpawned`. Fields: `rider`, `stop` (origin), `floor`
+    /// (destination), `tick`.
     pub const RIDER_SPAWNED: u8 = 6;
-    /// `Event::RiderBoarded`.
+    /// `Event::RiderBoarded`. Fields: `rider`, `car` (elevator),
+    /// `tick`.
     pub const RIDER_BOARDED: u8 = 7;
-    /// `Event::RiderExited`.
+    /// `Event::RiderExited`. Fields: `rider`, `car` (elevator), `stop`
+    /// (where they exited), `tick`.
     pub const RIDER_EXITED: u8 = 8;
-    /// `Event::RiderAbandoned`.
+    /// `Event::RiderAbandoned`. Fields: `rider`, `stop` (where they
+    /// gave up), `tick`.
     pub const RIDER_ABANDONED: u8 = 9;
 
     // ── v4 additions ──────────────────────────────────────────────────
@@ -1535,7 +1546,15 @@ pub mod ev_event_kind {
     /// `tick`.
     pub const MOVEMENT_ABORTED: u8 = 15;
     /// `Event::RiderRejected`. Fields: `rider`, `car` (elevator),
-    /// `code1` (rejection reason — see [`crate::ev_rejection_reason`]), `tick`.
+    /// `code1` (rejection reason — see [`crate::ev_rejection_reason`]),
+    /// `f1` (attempted_weight in kg, or `NaN` if no `RejectionContext`
+    /// was attached), `f2` (current_load on the elevator at rejection
+    /// time in kg, or `NaN`), `tick`.
+    ///
+    /// Capacity is intentionally not duplicated here — it lives on the
+    /// elevator entity (`EvElevatorView::capacity_kg`) and rarely
+    /// changes per-tick. Combine `f2` with the elevator's capacity for
+    /// the remaining-room view.
     pub const RIDER_REJECTED: u8 = 16;
     /// `Event::RiderEjected`. Fields: `rider`, `car` (elevator), `stop`,
     /// `tick`.
@@ -1773,28 +1792,22 @@ pub struct EvEvent {
 
 /// Drain pending events into `out`.
 ///
-/// Delivers hall-call, car-call, skip, and rider lifecycle events.
 /// Every event produced by the simulation is eventually delivered
 /// exactly once, then removed from the internal queue. Call after
 /// `ev_sim_step` each tick to catch new events.
 ///
-/// Field meanings by [`EvEvent::kind`]:
-/// - `HALL_BUTTON_PRESSED` / `HALL_CALL_ACKNOWLEDGED`: `stop`,
-///   `direction`, `tick`.
-/// - `HALL_CALL_CLEARED`: `stop`, `direction`, `car`, `tick`.
-/// - `CAR_BUTTON_PRESSED`: `car`, `floor`, `rider` (or `0` for
-///   synthetic presses), `tick`.
-/// - `RIDER_SKIPPED`: `rider`, `car` (elevator), `stop`, `tick`.
-/// - `RIDER_SPAWNED`: `rider`, `stop` (origin), `floor`
-///   (destination), `tick`.
-/// - `RIDER_BOARDED`: `rider`, `car` (elevator), `tick`.
-/// - `RIDER_EXITED`: `rider`, `car` (elevator), `stop`, `tick`.
-/// - `RIDER_ABANDONED`: `rider`, `stop`, `tick`.
+/// As of ABI v4 the FFI surfaces every public core `Event` variant —
+/// 49 kinds in total. The per-kind field map (which `EvEvent` slots
+/// carry meaningful data) lives on each constant in the
+/// [`ev_event_kind`] module. Variants the FFI hasn't enumerated yet
+/// surface as [`UNKNOWN`](ev_event_kind::UNKNOWN) so consumers stay
+/// forward-compatible.
 ///
-/// Unused fields for each kind are zeroed so the caller can inspect
-/// a uniform struct layout. Other event kinds in the sim (door
-/// transitions, direction indicators, etc.) are not surfaced.
-/// Future kinds extend the discriminator.
+/// Unused fields for each kind are zeroed (numeric slots: `0`; floats:
+/// `0.0`) so the caller can inspect a uniform struct layout. Variants
+/// that carry an `Option<f64>` use `NaN` instead of `0.0` to
+/// disambiguate "no value" from "value of zero" — see the relevant
+/// kind's docs.
 ///
 /// ## Overflow handling — no silent drops
 ///
@@ -1864,13 +1877,15 @@ pub unsafe extern "C" fn ev_sim_drain_events(
 /// `handle` must be a valid pointer returned by [`ev_sim_create`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ev_sim_pending_event_count(handle: *mut EvSim) -> u32 {
-    if handle.is_null() {
-        return 0;
-    }
-    // Safety: validity guaranteed by caller.
-    let ev = unsafe { &mut *handle };
-    refill_pending_events(ev);
-    u32::try_from(ev.pending_events.len()).unwrap_or(u32::MAX)
+    guard(0, || {
+        if handle.is_null() {
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        refill_pending_events(ev);
+        u32::try_from(ev.pending_events.len()).unwrap_or(u32::MAX)
+    })
 }
 
 /// Drain the sim's event queue into `ev.pending_events`. The buffer is
@@ -2000,13 +2015,22 @@ fn refill_pending_events(ev: &mut EvSim) {
                 rider,
                 elevator,
                 reason,
+                context,
                 tick,
-                ..
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_REJECTED, tick);
                 e.car = entity_to_u64(elevator);
                 e.rider = entity_to_u64(rider);
                 e.code1 = encode_rejection_reason(reason);
+                // Surface attempted_weight + current_load for capacity-based
+                // rejections; `RejectionContext` is `None` for
+                // preference-based / access-denied rejections, in which case
+                // both floats stay NaN to signal "not applicable".
+                let (attempted, load) = context.map_or((f64::NAN, f64::NAN), |c| {
+                    (c.attempted_weight.into_inner(), c.current_load.into_inner())
+                });
+                e.f1 = attempted;
+                e.f2 = load;
                 e
             }
             Event::RiderRerouted {
@@ -6053,9 +6077,20 @@ pub unsafe extern "C" fn ev_sim_car_call_count(handle: *mut EvSim, elevator_enti
     })
 }
 
-/// Snapshot of car calls inside `elevator_entity_id`. Caller-owned
-/// buffer pattern: `out` points to a buffer of `capacity` [`EvCarCall`]s,
-/// `out_written` receives the count actually written.
+/// Snapshot of car calls inside `elevator_entity_id`.
+///
+/// Caller-owned buffer with probe-then-fill semantics: `out_written`
+/// is populated with the **required** slot count regardless of whether
+/// the buffer fits, so callers can probe with `(null, 0)` to size a
+/// real buffer.
+///
+/// Returns:
+/// - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+///   <= capacity`); the first `out_written` slots of `out` are
+///   populated.
+/// - [`EvStatus::InvalidArg`] when the buffer is too small;
+///   `out_written` carries the required slot count and no slot of
+///   `out` is written.
 ///
 /// # Safety
 ///
@@ -6089,8 +6124,17 @@ pub unsafe extern "C" fn ev_sim_car_calls_snapshot(
         let calls = ev
             .sim
             .car_calls(elevator_core::entity::ElevatorId::from(elevator));
-        let mut written: u32 = 0;
-        for call in calls.iter().take(capacity as usize) {
+        let needed = u32::try_from(calls.len()).unwrap_or(u32::MAX);
+        // Safety: validated non-null above. Surface the required size
+        // before any potential under-size return so callers can probe.
+        unsafe { *out_written = needed };
+        if needed > capacity {
+            set_last_error(format!(
+                "insufficient buffer: need {needed} slots, got {capacity}"
+            ));
+            return EvStatus::InvalidArg;
+        }
+        for (i, call) in calls.iter().enumerate() {
             let record = EvCarCall {
                 car_entity_id: entity_to_u64(call.car),
                 floor_entity_id: entity_to_u64(call.floor),
@@ -6099,14 +6143,11 @@ pub unsafe extern "C" fn ev_sim_car_calls_snapshot(
                 ack_latency_ticks: call.ack_latency_ticks,
                 pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
             };
-            // Safety: caller guarantees `out` has at least `capacity` entries.
+            // Safety: bounds-checked above (needed <= capacity, i < calls.len() == needed).
             unsafe {
-                std::ptr::write(out.add(written as usize), record);
+                std::ptr::write(out.add(i), record);
             }
-            written += 1;
         }
-        // Safety: validated non-null above.
-        unsafe { *out_written = written };
         EvStatus::Ok
     })
 }
@@ -6297,6 +6338,20 @@ pub unsafe extern "C" fn ev_sim_metrics_for_tag(
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
         let Some(m) = ev.sim.metrics_for_tag(tag_str) else {
+            // Zero out_metric on NotFound so callers that ignore the
+            // status code see a deterministic zeroed struct rather than
+            // whatever was already there. Matches the convention used by
+            // ev_sim_metrics on its own zero-state.
+            // Safety: caller guarantees out_metric is writable.
+            unsafe {
+                *out_metric = EvTaggedMetric {
+                    avg_wait_ticks: 0.0,
+                    max_wait_ticks: 0,
+                    total_delivered: 0,
+                    total_abandoned: 0,
+                    total_spawned: 0,
+                };
+            }
             set_last_error(format!("no recorded metrics for tag {tag_str:?}"));
             return EvStatus::NotFound;
         };
@@ -7369,6 +7424,106 @@ mod tests {
         let params = unsafe { params.assume_init() };
 
         let restricted = [stop2];
+        let restricted_count = u32::try_from(restricted.len()).expect("len fits u32");
+        let mut elevator: u64 = 0;
+        let status = unsafe {
+            ev_sim_add_elevator(
+                handle,
+                &raw const params,
+                restricted.as_ptr(),
+                restricted_count,
+                line,
+                0.0,
+                &raw mut elevator,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(elevator, 0);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_elevator_with_finite_bypass_thresholds() {
+        // Exercises the Some(_) branch of the NaN-as-None sentinel
+        // decode at ev_sim_add_elevator (the default-params path leaves
+        // both bypass fields NaN, so the Some(...) branch was uncovered
+        // until this test).
+        let handle = create_test_handle();
+        let line_name = CString::new("Bypass Line").unwrap();
+        let mut line: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_line(handle, 0, line_name.as_ptr(), 0.0, 100.0, 0, &raw mut line) },
+            EvStatus::Ok,
+        );
+        let stop_name = CString::new("Lobby").unwrap();
+        let mut stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, stop_name.as_ptr(), 0.0, &raw mut stop) },
+            EvStatus::Ok,
+        );
+
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let mut params = unsafe { params.assume_init() };
+        params.bypass_load_up_pct = 0.85;
+        params.bypass_load_down_pct = 0.75;
+
+        let mut elevator: u64 = 0;
+        let status = unsafe {
+            ev_sim_add_elevator(
+                handle,
+                &raw const params,
+                std::ptr::null(),
+                0,
+                line,
+                0.0,
+                &raw mut elevator,
+            )
+        };
+        assert_eq!(status, EvStatus::Ok);
+        assert_ne!(elevator, 0);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn add_elevator_dedups_duplicate_restricted_stops() {
+        // Passing the same stop id three times should land a single
+        // entry in the elevator's restricted_stops HashSet — the
+        // dedup happens at insertion time on the Rust side. Without
+        // this, the test in `add_elevator_with_restricted_stops` (which
+        // passes a single-element slice) wouldn't exercise dedup.
+        let handle = create_test_handle();
+        let line_name = CString::new("Dedup Line").unwrap();
+        let mut line: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_line(handle, 0, line_name.as_ptr(), 0.0, 100.0, 0, &raw mut line) },
+            EvStatus::Ok,
+        );
+        let stop_name = CString::new("Skip").unwrap();
+        let mut skip_stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, stop_name.as_ptr(), 50.0, &raw mut skip_stop) },
+            EvStatus::Ok,
+        );
+        // Add a second stop so the elevator has somewhere to start.
+        let lobby = CString::new("Lobby").unwrap();
+        let mut lobby_stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_add_stop(handle, line, lobby.as_ptr(), 0.0, &raw mut lobby_stop) },
+            EvStatus::Ok,
+        );
+
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let params = unsafe { params.assume_init() };
+
+        let restricted = [skip_stop, skip_stop, skip_stop];
         let restricted_count = u32::try_from(restricted.len()).expect("len fits u32");
         let mut elevator: u64 = 0;
         let status = unsafe {
