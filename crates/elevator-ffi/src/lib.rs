@@ -2616,6 +2616,56 @@ pub unsafe extern "C" fn ev_sim_stop_entity(handle: *mut EvSim, stop_id: u32) ->
     })
 }
 
+/// Snapshot of the config-time `StopId` → runtime `EntityId` map.
+///
+/// Buffer-pattern accessor; emits flat `[stop_id_as_u64, entity_id, ...]`
+/// pairs (each pair = 2 `u64` slots). The number of pairs written is
+/// `*out_written / 2`.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_stop_lookup_iter(
+    handle: *mut EvSim,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let mut written: u32 = 0;
+        for (stop_id, entity) in ev.sim.stop_lookup_iter() {
+            // Each pair takes 2 slots; stop if next pair would overflow.
+            if written + 2 > capacity {
+                break;
+            }
+            // Safety: caller guarantees `out` has at least `capacity`
+            // writable slots; bounds checked above.
+            unsafe {
+                *out.add(written as usize) = u64::from(stop_id.0);
+                *out.add(written as usize + 1) = entity_to_u64(*entity);
+            }
+            written += 2;
+        }
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
 /// Entity ids of every elevator currently repositioning.
 /// Buffer-pattern accessor.
 ///
