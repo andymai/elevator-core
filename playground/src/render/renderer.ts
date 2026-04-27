@@ -1,7 +1,6 @@
 import type { CarDto, CarBubble, Snapshot, TetherMeta } from "../types";
 import { arcPoint, easeOutNorm, hexWithAlpha } from "./color-utils";
 import {
-  drawCarHeaders,
   drawFloors,
   drawShaftChannels,
   drawShaftLabels,
@@ -392,7 +391,6 @@ export class CanvasRenderer {
     drawShaftChannels(ctx, shaftExtents);
     drawShaftLabels(ctx, shaftLabelList, s);
     drawFloors(ctx, snap, toScreenY, s, shaftCenters, w, loadingAtFloor, stopsTop, isTether);
-    drawCarHeaders(ctx, s, snap.cars, carX);
     drawWaitingFigures(ctx, snap, toScreenY, s, carQueueRegion, this.#stopAssignments);
     drawTargetMarkers(ctx, snap, carX, shaftInnerPerCar, toScreenY, s, stopIdxById);
 

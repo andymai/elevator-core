@@ -87,8 +87,14 @@ export function drawCar(
   ctx.lineWidth = 1;
   ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
 
-  if (car.riders > 0) {
-    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster);
+  // "Full" = within 5 % of weight capacity. Capacity is the weight cap
+  // (kg), not headcount, so a low-capacity VIP car packs tight even at
+  // a small rider count. The 5 % slack accounts for the next typical
+  // rider weight (~75 kg) — once load is within that envelope no more
+  // riders can board, which is the moment the F should light up.
+  const isFull = car.capacity > 0 && car.load >= car.capacity * 0.95;
+  if (car.riders > 0 || isFull) {
+    drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster, isFull);
   }
 }
 

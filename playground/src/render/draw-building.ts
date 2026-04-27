@@ -9,7 +9,7 @@ import {
   UP_COLOR,
 } from "./palette";
 import { truncate } from "./primitives";
-import type { CarDto, Snapshot } from "../types";
+import type { Snapshot } from "../types";
 
 export function drawShaftChannels(
   ctx: CanvasRenderingContext2D,
@@ -140,33 +140,6 @@ export function drawFloors(
     ctx.fillStyle = STOP_LABEL;
     ctx.textAlign = "right";
     ctx.fillText(truncate(ctx, stop.name, s.labelW - 4), labelX + s.labelW - 4, labelY);
-  }
-}
-
-/**
- * Label the waiting gutter and each car column in the top padding.
- */
-export function drawCarHeaders(
-  ctx: CanvasRenderingContext2D,
-  s: Scale,
-  cars: readonly CarDto[],
-  carX: Map<number, number>,
-): void {
-  // Sit just above the shaft top so group labels (drawn at the top of
-  // `padTop`) have clearance. Was `padTop / 2 + 1`, which collided with
-  // the group label of any single-car bank that reached the building top.
-  const y = s.padTop - s.fontSmall * 0.5 - 2;
-  ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-
-  let carNum = 1;
-  for (const car of cars) {
-    const cx = carX.get(car.id);
-    if (cx === undefined) continue;
-    ctx.fillStyle = "#a1a1aa";
-    ctx.fillText(`Car ${carNum}`, cx, y);
-    carNum++;
   }
 }
 
