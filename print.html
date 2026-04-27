@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-de61905a.js";
+            window.path_to_searchindex_js = "searchindex-4d5042ad.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -4144,14 +4144,36 @@ console.log(`tick ${snapshot.tick}, ${snapshot.cars.length} cars`);
 </table>
 </div>
 <h3 id="errors"><a class="header" href="#errors">Errors</a></h3>
-<p>Methods that can fail return <code>Result&lt;T, JsError&gt;</code> on the Rust side, which materializes as a thrown <code>Error</code> on the TS side. Wrap fallible calls in <code>try/catch</code>:</p>
-<pre><code class="language-ts">try {
-    sim.spawnRider(originId, destId, 75);
-} catch (err) {
-    console.error("spawn failed:", (err as Error).message);
+<p>Most fallible methods return a Result-shaped object — a discriminated union with a string <code>kind</code> discriminator — instead of throwing. Three concrete result types cover the surface:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Used by</th></tr>
+</thead>
+<tbody>
+<tr><td><code>WasmVoidResult</code></td><td>Mutators that return <code>()</code> on success (most methods)</td></tr>
+<tr><td><code>WasmU64Result</code></td><td>Methods that return an entity id</td></tr>
+<tr><td><code>WasmU32Result</code></td><td>Methods that return a count or code</td></tr>
+</tbody>
+</table>
+</div>
+<p>Each materializes on the TS side as:</p>
+<pre><code class="language-ts">type WasmU64Result =
+  | { kind: "ok"; value: bigint }
+  | { kind: "err"; error: string }
+</code></pre>
+<p>Usage:</p>
+<pre><code class="language-ts">const r = sim.spawnRider(originId, destId, 75);
+if (r.kind === "err") {
+    console.error("spawn failed:", r.error);
 }
 </code></pre>
-<p>This is uniform across the binding — there is no <code>null</code> / <code>undefined</code> “error sentinel” pattern to special-case.</p>
+<p>The string discriminator narrows <code>r.value</code> and <code>r.error</code> per branch without a manual cast. There is no <code>null</code> / <code>undefined</code> “error sentinel” pattern to special-case.</p>
+<p>A small set of methods still throw rather than returning a Result-shape:</p>
+<ul>
+<li>The <code>WasmSim</code> constructor (matches the JS-idiomatic “constructors throw” pattern)</li>
+<li><code>sim.assignedCarsByLine(stop, direction)</code> and <code>sim.bestEta(stop, direction)</code> — these return <code>bigint[]</code> and reusing the Result-shape would require introducing a fourth result type for one call site each. They throw on bad direction strings; wrap in <code>try/catch</code> if you can’t statically guarantee <code>"up" / "down"</code>.</li>
+</ul>
 <h3 id="events-1"><a class="header" href="#events-1">Events</a></h3>
 <p><code>sim.drainEvents()</code> returns an array of <code>EventDto</code> objects. Each has a <code>kind</code> discriminator (<code>"rider-spawned"</code>, <code>"door-opened"</code>, etc., kebab-case) plus the variant-specific fields:</p>
 <pre><code class="language-ts">for (const ev of sim.drainEvents()) {
