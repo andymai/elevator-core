@@ -1479,6 +1479,19 @@ export class WasmSim {
         return BigInt.asUintN(64, ret);
     }
     /**
+     * Snapshot of the config-time `StopId` → runtime `EntityId` map.
+     * Returns a flat `[stop_id_as_u64, entity_id, ...]` array — the
+     * `StopId` is zero-extended into the same `u64` slot the entity
+     * uses. Pair count is `array.length / 2`.
+     * @returns {BigUint64Array}
+     */
+    stopLookupIter() {
+        const ret = wasm.wasmsim_stopLookupIter(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
      * Entity ids of every stop served by `line_ref`. Order is
      * unspecified — sort by `positionAt` if you need axis order.
      * @param {bigint} line_ref
