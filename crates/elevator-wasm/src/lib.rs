@@ -1455,6 +1455,91 @@ impl WasmSim {
             .remove_reposition(elevator_core::ids::GroupId(group_id));
     }
 
+    // ── Routes + rider lifecycle ─────────────────────────────────────
+    //
+    // Per-rider mutations (reroute, settle, access) and read-only graph
+    // queries (reachability, transfer points). The route-mutating
+    // overloads that take a full `Route` value (`set_rider_route`,
+    // `reroute_rider`, `shortest_route`) are intentionally deferred —
+    // they need a `Route` DTO, which involves multi-stop sequences and
+    // cost metadata. Tracked as todo:PR-Routes-DTO.
+
+    /// Replace a rider's destination with `new_destination`. Re-routes
+    /// in-flight riders to head to the new stop after their current leg.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider or destination does not exist.
+    #[wasm_bindgen(js_name = reroute)]
+    pub fn reroute(&mut self, rider_ref: u64, new_destination_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .reroute(
+                elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
+                u64_to_entity(new_destination_ref),
+            )
+            .map_err(|e| JsError::new(&format!("reroute: {e}")))
+    }
+
+    /// Mark a rider as settled at their current stop. Settled riders
+    /// move from the waiting/riding pools into the resident pool —
+    /// useful for "tenants who arrived home" semantics.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist.
+    #[wasm_bindgen(js_name = settleRider)]
+    pub fn settle_rider(&mut self, rider_ref: u64) -> Result<(), JsError> {
+        self.inner
+            .settle_rider(elevator_core::entity::RiderId::from(u64_to_entity(
+                rider_ref,
+            )))
+            .map_err(|e| JsError::new(&format!("settle_rider: {e}")))
+    }
+
+    /// Replace a rider's allowed-stops set. Empty array clears the
+    /// restriction (rider can use any stop).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the rider does not exist.
+    #[wasm_bindgen(js_name = setRiderAccess)]
+    pub fn set_rider_access(
+        &mut self,
+        rider_ref: u64,
+        allowed_stop_refs: Vec<u64>,
+    ) -> Result<(), JsError> {
+        let allowed: std::collections::HashSet<EntityId> =
+            allowed_stop_refs.into_iter().map(u64_to_entity).collect();
+        self.inner
+            .set_rider_access(u64_to_entity(rider_ref), allowed)
+            .map_err(|e| JsError::new(&format!("set_rider_access: {e}")))
+    }
+
+    /// Stops reachable from `from_stop` via the line-graph (BFS through
+    /// shared elevators). Excludes `from_stop` itself.
+    #[wasm_bindgen(js_name = reachableStopsFrom)]
+    #[must_use]
+    pub fn reachable_stops_from(&self, from_stop_ref: u64) -> Vec<u64> {
+        self.inner
+            .reachable_stops_from(u64_to_entity(from_stop_ref))
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
+    /// Stops where multiple lines intersect — the natural transfer
+    /// candidates for multi-leg routes (e.g. sky-lobby in a tall
+    /// building, transfer station in a transit network).
+    #[wasm_bindgen(js_name = transferPoints)]
+    #[must_use]
+    pub fn transfer_points(&self) -> Vec<u64> {
+        self.inner
+            .transfer_points()
+            .into_iter()
+            .map(entity_to_u64)
+            .collect()
+    }
+
     // ── Uniform elevator-physics setters ─────────────────────────────
     //
     // Apply a single value to every elevator in the sim. Wired to the
