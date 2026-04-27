@@ -14,6 +14,7 @@ export interface ManualControlsRoots {
   spawnForm: HTMLElement;
   eventLog: HTMLElement;
   addCarBtn: HTMLButtonElement;
+  featureHint: HTMLElement;
 }
 
 export interface ManualControlsHandle {
@@ -148,6 +149,17 @@ export function mountManualControls(
   // would confuse "what just happened" given the panel re-mounts.
   roots.eventLog.replaceChildren();
 
+  // Surface the scenario's `featureHint` as a one-line orientation
+  // bar at the top of the panel. Hidden when the scenario doesn't
+  // carry one — every current manual scenario does, so this branch
+  // exists as forward-compat insurance.
+  if (scenario.featureHint && scenario.featureHint.length > 0) {
+    roots.featureHint.textContent = scenario.featureHint;
+    roots.featureHint.hidden = false;
+  } else {
+    roots.featureHint.hidden = true;
+  }
+
   // Add Car B / Remove Car B toggle. Hidden when the scenario opts
   // out via `allowAddRemoveCar: false`; otherwise toggles label
   // between "Add Car B" and "Remove Car B" based on whether we're at
@@ -198,8 +210,17 @@ export function mountManualControls(
   updateAddCarBtn();
 
   const rebuildCarControls = (): void => {
+    // Preserve user-picked modes across the remount — adding Car B
+    // shouldn't reset Car A's "Manual" pick to the scenario default.
+    const previousModes = carsHandle.serviceModes();
     initialView = sim.worldView();
-    carsHandle = mountCarControls(roots.carControls, scenario, initialView, carHandlers);
+    carsHandle = mountCarControls(
+      roots.carControls,
+      scenario,
+      initialView,
+      carHandlers,
+      previousModes,
+    );
     // If the previously selected car was removed, fall back to the
     // first remaining car so the cutaway always has a focus.
     if (SELECTED !== null && !initialView.cars.some((c) => BigInt(c.id) === SELECTED)) {
@@ -239,16 +260,27 @@ export function mountManualControls(
       // here (not in the loop) because the panel owns all three
       // sources: the dropdown values, the hall-call lamp state from
       // worldView, and the selected-car focus.
-      const hallCallsByStop = new Map<bigint, { up: boolean; down: boolean }>();
+      //
+      // Keys are u32 slots — same form as the Snapshot DTO's
+      // `CarDto.id` / `StopDto.entity_id` so the renderer can match
+      // with `===`. The full u64 refs we hold internally for the
+      // mutation API are masked to slot here once.
+      const SLOT_MASK = 0xffff_ffffn;
+      const toSlot = (ref: bigint): number => Number(ref & SLOT_MASK);
+      const hallCallsByStop = new Map<number, { up: boolean; down: boolean }>();
       for (const stop of view.stops) {
-        hallCallsByStop.set(BigInt(stop.entity_id), {
+        hallCallsByStop.set(stop.entity_id, {
           up: stop.hall_calls.up,
           down: stop.hall_calls.down,
         });
       }
+      const serviceModeByCar = new Map<number, string>();
+      for (const [carRef, mode] of carsHandle.serviceModes()) {
+        serviceModeByCar.set(toSlot(carRef), mode);
+      }
       renderer.setManualControlState({
-        selectedCarId: SELECTED,
-        serviceModeByCar: carsHandle.serviceModes(),
+        selectedCarSlot: SELECTED === null ? null : toSlot(SELECTED),
+        serviceModeByCar,
         hallCallsByStop,
       });
     },
@@ -259,6 +291,8 @@ export function mountManualControls(
       roots.carControls.replaceChildren();
       roots.spawnForm.replaceChildren();
       roots.eventLog.replaceChildren();
+      roots.featureHint.hidden = true;
+      roots.featureHint.textContent = "";
       SELECTED = null;
     },
   };

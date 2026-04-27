@@ -61,6 +61,14 @@ export function mountCarControls(
   scenario: ScenarioMeta,
   initial: WorldView,
   handlers: CarControlsHandlers,
+  /**
+   * Per-car mode to seed the dropdown with on (re)mount. Used by the
+   * panel's Add/Remove Car path to preserve user-picked modes across
+   * a rebuild — without this, adding Car B would snap Car A back to
+   * the scenario's default. Missing entries fall back to
+   * `scenario.manualControl.defaultServiceMode`.
+   */
+  initialModes?: Map<bigint, ServiceModeName>,
 ): CarControlsHandle {
   container.replaceChildren();
   const blocks: CarBlock[] = [];
@@ -84,7 +92,10 @@ export function mountCarControls(
   }
 
   for (const car of initial.cars) {
-    blocks.push(buildCarBlock(scenario, car, nameByRef, servesByCar, handlers));
+    const carRef = BigInt(car.id);
+    const initialMode =
+      initialModes?.get(carRef) ?? scenario.manualControl?.defaultServiceMode ?? "normal";
+    blocks.push(buildCarBlock(scenario, car, nameByRef, servesByCar, handlers, initialMode));
   }
   for (const block of blocks) container.append(block.root);
 
@@ -100,8 +111,13 @@ export function mountCarControls(
           selectedRef === block.carRef ? "color-mix(in srgb, var(--accent) 55%, transparent)" : "";
         // Velocity readout follows the engine's physical velocity so
         // users see the slider command vs actual motion. Manual mode
-        // keeps the slider live; other modes disable it.
-        const inManual = block.modeSelect.value === "manual";
+        // keeps the slider live; other modes disable it. The block's
+        // `data-mode` attribute drives a CSS rule that *collapses* the
+        // VEL row + E-Stop entirely outside manual mode — disabled
+        // affordances were pulling the eye toward unusable controls.
+        const mode = block.modeSelect.value;
+        const inManual = mode === "manual";
+        block.root.dataset["mode"] = mode;
         block.velocityRow.dataset["disabled"] = inManual ? "false" : "true";
         block.velocitySlider.disabled = !inManual;
         block.estopBtn.disabled = !inManual;
@@ -139,9 +155,14 @@ function buildCarBlock(
   nameByRef: Map<bigint, string>,
   servesByCar: Map<bigint, bigint[]>,
   handlers: CarControlsHandlers,
+  initialMode: ServiceModeName,
 ): CarBlock {
   const carRef = BigInt(car.id);
   const root = el("div", "manual-car-block");
+  // CSS reads `data-mode` to collapse the VEL row + E-Stop unless
+  // the block is in manual. The seeded value matches the dropdown
+  // initial selection so the first paint shows the right chrome.
+  root.dataset["mode"] = initialMode;
   root.tabIndex = 0;
   root.addEventListener("click", () => {
     handlers.selectCar(carRef);
@@ -160,9 +181,10 @@ function buildCarBlock(
     opt.textContent = m.label;
     modeSelect.appendChild(opt);
   }
-  // Default UI value follows the scenario's manualControl.defaultServiceMode;
-  // panel.ts applies the same value to the sim immediately after mount.
-  modeSelect.value = scenario.manualControl?.defaultServiceMode ?? "normal";
+  // Seeded dropdown value: caller-supplied (preserved across rebuild)
+  // or the scenario default. panel.ts applies the same value to the
+  // sim immediately after mount.
+  modeSelect.value = initialMode;
   modeSelect.addEventListener("change", () => {
     handlers.setServiceMode(carRef, modeSelect.value as ServiceModeName);
   });

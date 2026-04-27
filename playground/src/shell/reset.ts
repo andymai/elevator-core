@@ -124,6 +124,7 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
           spawnForm: ui.manualSpawnForm,
           eventLog: ui.manualEventLog,
           addCarBtn: ui.manualAddCarBtn,
+          featureHint: ui.manualFeatureHint,
         },
         paneA.renderer,
       );
