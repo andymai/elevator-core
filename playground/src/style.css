@@ -789,12 +789,33 @@
   /* Push the action buttons to the right edge of the bar. */
   .controls-bar-actions {
     display: inline-flex;
-    gap: 4px;
+    gap: 2px;
     margin-left: auto;
   }
   .controls-bar-actions button {
     padding: 3px 9px;
     font-size: 11.5px;
+  }
+  /* Icon buttons inside the status bar — square-ish, transparent
+   * background, just the glyph. The base `button` element style
+   * supplies hover/focus chrome so we don't need to re-declare it. */
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px !important;
+    line-height: 0;
+  }
+  .icon-btn svg {
+    display: block;
+  }
+  /* Play/pause toggle: both icons live in the DOM, the button's
+   * `data-state` attribute selects which one renders. Beats swapping
+   * innerHTML because it keeps the listener trivial and avoids any
+   * temptation to inject HTML strings at runtime. */
+  #play[data-state="running"] .icon-play,
+  #play[data-state="paused"] .icon-pause {
+    display: none;
   }
 
   /* Tweak panel as popover above the bottom bar. Absolutely positioned

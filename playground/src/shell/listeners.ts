@@ -121,7 +121,12 @@ export function attachListeners(state: State, ui: UiHandles): void {
 
   ui.playBtn.addEventListener("click", () => {
     state.running = !state.running;
-    ui.playBtn.textContent = state.running ? "Pause" : "Play";
+    const label = state.running ? "Pause" : "Play";
+    // Both icons sit in the DOM; CSS selects the visible one off this
+    // attribute. See `#play[data-state=…]` in `style.css`.
+    ui.playBtn.dataset["state"] = state.running ? "running" : "paused";
+    ui.playBtn.setAttribute("aria-label", label);
+    ui.playBtn.title = label;
   });
 
   ui.resetBtn.addEventListener("click", () => {

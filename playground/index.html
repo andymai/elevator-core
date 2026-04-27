@@ -430,12 +430,103 @@
           <input id="traffic" type="range" min="0.5" max="2" step="0.1" value="1" class="w-full" />
         </label>
         <div class="controls-bar-actions">
-          <button id="tweak" type="button" aria-expanded="false" aria-controls="tweak-panel" hidden>
-            Tweak
+          <button
+            id="tweak"
+            type="button"
+            class="icon-btn"
+            aria-expanded="false"
+            aria-controls="tweak-panel"
+            aria-label="Tweak parameters"
+            title="Tweak parameters"
+            hidden
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="3" y1="4" x2="13" y2="4" />
+              <circle cx="9.5" cy="4" r="1.6" fill="currentColor" />
+              <line x1="3" y1="8" x2="13" y2="8" />
+              <circle cx="5.5" cy="8" r="1.6" fill="currentColor" />
+              <line x1="3" y1="12" x2="13" y2="12" />
+              <circle cx="10.5" cy="12" r="1.6" fill="currentColor" />
+            </svg>
           </button>
-          <button id="play" type="button">Pause</button>
-          <button id="reset" type="button">Reset</button>
-          <button id="share" type="button">Share</button>
+          <button
+            id="play"
+            type="button"
+            class="icon-btn"
+            data-state="running"
+            aria-label="Pause"
+            title="Pause"
+          >
+            <svg
+              class="icon-pause"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <rect x="4" y="3" width="3" height="10" rx="0.6" />
+              <rect x="9" y="3" width="3" height="10" rx="0.6" />
+            </svg>
+            <svg
+              class="icon-play"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M5 3 13 8 5 13Z" />
+            </svg>
+          </button>
+          <button id="reset" type="button" class="icon-btn" aria-label="Reset" title="Reset">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2.5 8a5.5 5.5 0 1 0 1.7-3.95" />
+              <path d="M2.5 2.5v3h3" />
+            </svg>
+          </button>
+          <button
+            id="share"
+            type="button"
+            class="icon-btn"
+            aria-label="Copy permalink"
+            title="Copy permalink"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 3h4v4" />
+              <path d="M13 3 7 9" />
+              <path d="M13 9v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h3" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
