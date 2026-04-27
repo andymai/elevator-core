@@ -648,33 +648,44 @@ const spaceElevator: ScenarioMeta = {
 )`,
 };
 
-// ─── Manual control — small office, hands-on API showcase ───────────
+// ─── Operator cockpit — single-car hands-on driving ─────────────────
 //
-// 5-floor office where the user drives the simulation by hand: hall
-// calls, car buttons, door commands, velocity slider, service-mode
-// dropdown, on-demand rider spawn, and live add/remove of a second
-// car. TrafficDriver is disabled (`phases: []`) so the only riders are
-// the ones the user spawns. Cars boot in `Normal` so spawned riders
-// auto-board and dispatch reacts to button presses; flipping a car to
-// `Manual` via the dropdown unlocks direct velocity control.
+// 5-floor office reframed as an operator cockpit: the user drives one
+// elevator by hand from a right-rail console (vertical throttle, door
+// commands, E-Stop, quick-spawn). Riders arrive on a calm ambient
+// drift (~4/min) so there's always something to react to without
+// feeling rushed. Cars boot in `Manual` so the throttle is the
+// authoritative motion source; doors auto-open on arrival and the
+// driver decides when to close.
 //
 // Scale-wise this scenario sits below the convention burst (smaller
-// building, fewer cars, no traffic). It leads the SCENARIOS array so
-// first-time visitors land on the most approachable demo.
+// building, single car, sparse traffic). It leads the SCENARIOS array
+// so first-time visitors land on the most approachable demo.
 
-const manualOffice: ScenarioMeta = {
+const operatorCockpit: ScenarioMeta = {
+  // `id` is preserved as "manual-office" so existing share permalinks
+  // (which encode the scenario id) keep resolving to this demo.
   id: "manual-office",
-  label: "Manual control",
+  label: "Operator cockpit",
   description:
-    "5-floor office, no auto traffic. Press hall calls, car buttons, doors, and a velocity slider yourself; flip a car between Normal / Manual / Inspection / Out-of-service to see every service mode.",
+    "Drive a single elevator by hand. Riders arrive on their own; you decide when to depart, how fast to go, and when to close the doors.",
   defaultStrategy: "etd",
-  // Empty phases = TrafficDriver no-op (mirrors the convention's
-  // static post-keynote pattern). All riders are user-spawned.
-  phases: [],
+  // Single calm phase: a steady drift of riders with mild lobby skew
+  // on origins and a slight upper-floor preference on destinations.
+  // ~4 riders/min at 60 Hz = mean_interval_ticks ≈ 900 (see RON below).
+  phases: [
+    {
+      name: "Drift",
+      durationSec: 600,
+      ridersPerMin: 4,
+      originWeights: [3, 1, 1, 1, 1],
+      destWeights: [2, 1, 2, 2, 2],
+    },
+  ],
   seedSpawns: 0,
   featureHint:
-    "Press buttons by hand. Spawn a rider, watch dispatch pick the car, then flip the car to Manual and drive it yourself with the velocity slider.",
-  buildingName: "Manual Office",
+    "Drag the throttle to drive. Doors open when you arrive at a floor — press CLOSE to depart. Riders board automatically.",
+  buildingName: "Cockpit Office",
   stops: [
     { name: "Lobby", positionM: 0.0 },
     { name: "Floor 2", positionM: 4.0 },
@@ -682,9 +693,6 @@ const manualOffice: ScenarioMeta = {
     { name: "Floor 4", positionM: 12.0 },
     { name: "Floor 5", positionM: 16.0 },
   ],
-  // 1 car by default; the `Add Car B` toggle in the controls panel
-  // demos `addElevator`. Cap at 2 — beyond two cabins the cutaway
-  // renderer's right pane would have to shrink each cab.
   defaultCars: 1,
   elevatorDefaults: {
     maxSpeed: 2.0,
@@ -694,21 +702,26 @@ const manualOffice: ScenarioMeta = {
     doorOpenTicks: 240,
     doorTransitionTicks: 60,
   },
+  // Cars locked at 1: cockpit framing is "you and one cab". The tweak
+  // drawer hides the car-count stepper when min == max == default.
   tweakRanges: {
-    cars: { min: 1, max: 2, step: 1 },
+    cars: { min: 1, max: 1, step: 1 },
     maxSpeed: { min: 0.5, max: 6, step: 0.5 },
     weightCapacity: { min: 200, max: 1500, step: 100 },
     doorCycleSec: { min: 2, max: 12, step: 0.5 },
   },
-  passengerMeanIntervalTicks: 60,
+  passengerMeanIntervalTicks: 900,
   passengerWeightRange: [55.0, 100.0],
   manualControl: {
-    defaultServiceMode: "normal",
-    allowAddRemoveCar: true,
+    // Boot directly into Manual so the throttle is live on first
+    // paint. The console exposes no service-mode dropdown — Manual is
+    // the only mode this scenario surfaces.
+    defaultServiceMode: "manual",
+    allowAddRemoveCar: false,
   },
   ron: `SimConfig(
     building: BuildingConfig(
-        name: "Manual Office",
+        name: "Cockpit Office",
         stops: [
             StopConfig(id: StopId(0), name: "Lobby",   position: 0.0),
             StopConfig(id: StopId(1), name: "Floor 2", position: 4.0),
@@ -728,17 +741,17 @@ const manualOffice: ScenarioMeta = {
     ],
     simulation: SimulationParams(ticks_per_second: 60.0),
     passenger_spawning: PassengerSpawnConfig(
-        mean_interval_ticks: 60,
+        mean_interval_ticks: 900,
         weight_range: (55.0, 100.0),
     ),
 )`,
 };
 
-// Order is intentional: scale-ascending. Manual office sits first as
-// the most approachable starting point (5 stops, 1 car, hands-on);
+// Order is intentional: scale-ascending. Operator cockpit sits first
+// as the most approachable starting point (5 stops, 1 car, hands-on);
 // then a 5-stop acute burst, a 42-stop sky-lobby tower, and a 4-stop
 // tether 35 786 km tall.
-export const SCENARIOS: ScenarioMeta[] = [manualOffice, convention, skyscraper, spaceElevator];
+export const SCENARIOS: ScenarioMeta[] = [operatorCockpit, convention, skyscraper, spaceElevator];
 
 export function scenarioById(id: string): ScenarioMeta {
   const match = SCENARIOS.find((s) => s.id === id);
