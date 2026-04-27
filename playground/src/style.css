@@ -940,15 +940,6 @@
     stroke: var(--bad);
   }
 
-  /* ── Verdict ribbon (compare mode) ──────────────────────────────────── */
-
-  /* Verdict ribbon container + title + cell base moved to Tailwind utilities
- * on the HTML `<section id="verdict-ribbon">` and in `renderVerdictRibbon()`
- * (src/main.ts). The data-winner cascade that colors .verdict-cell-winner
- * through its .verdict-cell parent remains here since utilities can't
- * easily express a parent-attribute→child-color pattern cleanly. */
-  /* Verdict-cell data-winner→child color cascade moved to @layer utilities. */
-
   /* ── Shortcut sheet overlay ─────────────────────────────────────────── */
 
   /* Modal backdrop, panel layout, and dl grid moved to Tailwind utilities on
@@ -1120,7 +1111,7 @@
 } /* end @layer components */
 
 /* Utilities layer: safe-area helpers plus the state-variant overrides
- * (pane-mode, metric-row, verdict-cell) that must beat the base utility
+ * (pane-mode, metric-row) that must beat the base utility
  * classes applied to those elements. Putting them here (not in
  * @layer components) guarantees the correct cascade regardless of which
  * Tailwind utilities the element also carries. */
@@ -1184,17 +1175,6 @@
   }
   .metric-row[data-verdict="lose"] .metric-v {
     color: var(--bad);
-  }
-
-  /* Verdict cell: winner label takes the winning pane's accent. */
-  .verdict-cell[data-winner="A"] .verdict-cell-winner {
-    color: var(--pane-a);
-  }
-  .verdict-cell[data-winner="B"] .verdict-cell-winner {
-    color: var(--pane-b);
-  }
-  .verdict-cell[data-winner="tie"] .verdict-cell-winner {
-    color: var(--text-tertiary);
   }
 }
 

@@ -25,7 +25,6 @@ export interface UiHandles {
   phaseStrip: HTMLElement | null;
   phaseLabel: HTMLElement | null;
   phaseProgress: HTMLElement | null;
-  verdictRibbon: HTMLElement;
   shortcutsBtn: HTMLButtonElement;
   shortcutSheet: HTMLElement;
   shortcutSheetClose: HTMLButtonElement;
@@ -102,7 +101,6 @@ export function wireUi(): UiHandles {
     phaseStrip: qOpt("phase-strip"),
     phaseLabel: qOpt("phase-label"),
     phaseProgress: qOpt("phase-progress-fill"),
-    verdictRibbon: q("verdict-ribbon"),
     shortcutsBtn: q("shortcuts") as HTMLButtonElement,
     shortcutSheet: q("shortcut-sheet"),
     shortcutSheetClose: q("shortcut-sheet-close") as HTMLButtonElement,
