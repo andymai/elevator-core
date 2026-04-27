@@ -110,21 +110,23 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     // `configureTraffic` once the quota drains, so the scenario's
     // day-cycle clock still starts from t=0.
     state.seeding = scenario.seedSpawns > 0 ? { remaining: scenario.seedSpawns } : null;
-    // Mount the manual-controls side panel for manual-control scenarios.
-    // The panel reads `paneA.sim` for entity refs and pushes the full
-    // CabinRenderState (selected car, per-car mode, hall-call lamps)
-    // into `paneA.renderer` on every `update()` tick.
+    // Mount the cockpit console for cockpit (manual-control) scenarios.
+    // The panel reads `paneA.sim` for entity refs and pushes the
+    // CockpitRenderState (hall-call lamps + hint) into `paneA.renderer`
+    // on every `update()` tick.
     if (scenario.manualControl !== undefined) {
       state.manualControls = mountManualControls(
         paneA.sim,
         scenario,
         {
-          hallButtons: ui.manualHallButtons,
-          carControls: ui.manualCarControls,
-          spawnForm: ui.manualSpawnForm,
-          eventLog: ui.manualEventLog,
-          addCarBtn: ui.manualAddCarBtn,
-          featureHint: ui.manualFeatureHint,
+          console: ui.cockpitConsole,
+          throttle: ui.cockpitThrottle,
+          velocityReadout: ui.cockpitVelocity,
+          doorOpen: ui.cockpitDoorOpen,
+          doorClose: ui.cockpitDoorClose,
+          doorHold: ui.cockpitDoorHold,
+          emergencyStop: ui.cockpitEStop,
+          spawnRider: ui.cockpitSpawn,
         },
         paneA.renderer,
       );

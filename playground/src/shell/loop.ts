@@ -67,11 +67,9 @@ export function loop(state: State, ui: UiHandles): void {
         }
       });
 
-      // Manual-control panel: refresh hall-call lit state, per-car
-      // controls, and append the frame's events to the log. The panel
-      // pushes the full CabinRenderState (selected car, per-car
-      // service mode, hall-call lamps) into `paneA.renderer` itself,
-      // so the loop just needs to call `update()`.
+      // Cockpit panel: refresh velocity readout and push the latest
+      // CockpitRenderState (hall-call lamps + hint) into the renderer.
+      // The panel owns its own DOM listeners; the loop just ticks it.
       if (state.manualControls && state.paneA) {
         state.manualControls.update(state.paneA.sim, paneAEvents);
       }

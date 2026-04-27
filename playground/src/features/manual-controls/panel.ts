@@ -1,46 +1,45 @@
 import type { CanvasRenderer } from "../../render";
+import type { HitZone } from "../../render/draw-cockpit";
 import type { Sim } from "../../sim";
-import type { CarControlsHandlers } from "./car-controls";
-import { mountCarControls, type CarControlsHandle } from "./car-controls";
-import { mountHallButtons, type HallButtonsHandle } from "./hall-buttons";
-import { mountSpawnForm } from "./spawn-form";
-import { appendEvents } from "./event-log";
 import type { EventDto, ScenarioMeta } from "../../types";
+import { mountCockpitConsole, type CockpitConsoleHandle } from "./console";
 
-/** Containers the panel hydrates. All must exist in `index.html`. */
+/** Static DOM containers the cockpit panel hydrates. All must exist in `index.html`. */
 export interface ManualControlsRoots {
-  hallButtons: HTMLElement;
-  carControls: HTMLElement;
-  spawnForm: HTMLElement;
-  eventLog: HTMLElement;
-  addCarBtn: HTMLButtonElement;
-  featureHint: HTMLElement;
+  /** Right-rail (or bottom-bar) cockpit console root. */
+  console: HTMLElement;
+  /** Throttle host inside the console — the throttle component owns its inner markup. */
+  throttle: HTMLElement;
+  velocityReadout: HTMLElement;
+  doorOpen: HTMLButtonElement;
+  doorClose: HTMLButtonElement;
+  doorHold: HTMLButtonElement;
+  emergencyStop: HTMLButtonElement;
+  spawnRider: HTMLButtonElement;
 }
 
 export interface ManualControlsHandle {
-  /** Per-frame update with a fresh sim handle and worldView snapshot. */
+  /** Per-frame update with the live sim handle and the latest events drain. */
   update(sim: Sim, events: EventDto[]): void;
-  /** Currently focused car ref, or null if no car has been clicked yet. */
-  selectedCarRef(): bigint | null;
-  /** Tear down listeners — called when scenario switches away. */
+  /** Tear down listeners — called when the scenario switches away. */
   dispose(): void;
 }
 
-// Module-level so the cabin renderer can read the focused car without
-// threading a handle through the render loop. Reset by `dispose()`.
-let SELECTED: bigint | null = null;
-export function selectedCarId(): bigint | null {
-  return SELECTED;
-}
-
 /**
- * Mount the manual-controls side panel against `sim` for `scenario`.
- * Builds the hall-button rows, per-car blocks, spawn form, and event
- * log; applies the scenario's `defaultServiceMode` to every car. Holds
- * a `renderer` reference so each `update()` tick can push the
- * authoritative UI state (selected car, per-car mode, hall-call
- * lamps) into `CabinRenderState` — without this push the cabin badge
- * and shaft lamps stay stuck on initial values.
+ * Mount the operator cockpit panel for `scenario` against `sim`.
+ *
+ * The panel's job is small now: it hydrates the cockpit console
+ * (throttle + door buttons + spawn) and wires the canvas hit-test
+ * dispatcher in the renderer to call `sim.pressHallCall` /
+ * `sim.openDoor` / `sim.closeDoor` when the user clicks zones in the
+ * building elevation. Every frame it pushes refreshed
+ * `CockpitRenderState` (hall-call lamp map + hint copy) into the
+ * renderer so the elevation reads the engine's authoritative state.
+ *
+ * The scenario locks `cars` at 1 and disables Add/Remove (see
+ * `manualControl.allowAddRemoveCar: false`), which removes the whole
+ * "preserve service-mode picks across rebuilds" plumbing the previous
+ * implementation needed.
  */
 export function mountManualControls(
   sim: Sim,
@@ -50,81 +49,27 @@ export function mountManualControls(
 ): ManualControlsHandle {
   const meta = scenario.manualControl;
   if (!meta) {
-    throw new Error("mountManualControls called for non-manual scenario");
+    throw new Error("mountManualControls called for non-cockpit scenario");
   }
-  let initialView = sim.worldView();
+  const initialView = sim.worldView();
 
-  const hall: HallButtonsHandle = mountHallButtons(roots.hallButtons, scenario, initialView, {
-    onPress: (stopRef, dir) => {
-      try {
-        sim.pressHallCall(stopRef, dir);
-      } catch (e) {
-        // Engine rejects calls outside the served range or from cars in
-        // a non-Normal mode. Swallow — the lit-state stays unchanged
-        // since the call wasn't actually accepted.
-        console.warn("pressHallCall:", e);
-      }
-    },
+  // Cockpit console — the right-rail driver controls. The hint
+  // banner is drawn on the canvas elevation, not in the console DOM,
+  // so the console doesn't need a hint root.
+  const cockpit: CockpitConsoleHandle = mountCockpitConsole(sim, scenario, initialView, {
+    throttle: roots.throttle,
+    velocityReadout: roots.velocityReadout,
+    doorOpen: roots.doorOpen,
+    doorClose: roots.doorClose,
+    doorHold: roots.doorHold,
+    emergencyStop: roots.emergencyStop,
+    spawnRider: roots.spawnRider,
   });
 
-  // Build the handlers object once; both initial mount and the
-  // `rebuildCarControls` path on Add/Remove Car share it.
-  const carHandlers: CarControlsHandlers = {
-    setServiceMode: (carRef, mode) => {
-      safe(() => {
-        sim.setServiceMode(carRef, mode);
-      });
-    },
-    pressCarButton: (carRef, stopRef) => {
-      safe(() => {
-        sim.pressCarButton(carRef, stopRef);
-      });
-    },
-    openDoor: (carRef) => {
-      safe(() => {
-        sim.openDoor(carRef);
-      });
-    },
-    closeDoor: (carRef) => {
-      safe(() => {
-        sim.closeDoor(carRef);
-      });
-    },
-    holdDoor: (carRef, ticks) => {
-      safe(() => {
-        sim.holdDoor(carRef, ticks);
-      });
-    },
-    cancelDoorHold: (carRef) => {
-      safe(() => {
-        sim.cancelDoorHold(carRef);
-      });
-    },
-    setTargetVelocity: (carRef, velocity) => {
-      safe(() => {
-        sim.setTargetVelocity(carRef, velocity);
-      });
-    },
-    emergencyStop: (carRef) => {
-      safe(() => {
-        sim.emergencyStop(carRef);
-      });
-    },
-    selectCar: (carRef) => {
-      SELECTED = carRef;
-    },
-  };
-
-  let carsHandle: CarControlsHandle = mountCarControls(
-    roots.carControls,
-    scenario,
-    initialView,
-    carHandlers,
-  );
-
-  // Apply the scenario's default service mode to every car so the UI
-  // dropdown and the engine state agree on first paint. Skipped when
-  // the default is "normal" (the engine default) — pointless work.
+  // Apply the scenario's default service mode so the engine state
+  // matches what the cockpit assumes (Manual = throttle drives the
+  // cab). Cockpit scenarios default to "manual"; non-manual values
+  // fall through unchanged.
   if (meta.defaultServiceMode !== "normal") {
     for (const car of initialView.cars) {
       try {
@@ -135,138 +80,51 @@ export function mountManualControls(
     }
   }
 
-  mountSpawnForm(roots.spawnForm, scenario, {
-    spawn: (origin, dest, weight) => {
+  // Canvas click dispatcher: hall-call lamp zones press a hall call;
+  // door zones toggle the cab doors. The engine rejects calls that
+  // don't make sense for the current service mode (e.g.
+  // `pressHallCall` in Manual mode), which surfaces here as a thrown
+  // exception we swallow — the visual lamp state stays whatever
+  // WorldView reports next frame.
+  const onCanvasClick = (zone: HitZone): void => {
+    const carRef = cockpit.carRef();
+    if (zone.kind === "hall-up" || zone.kind === "hall-down") {
       try {
-        sim.spawnRider(origin, dest, weight);
+        sim.pressHallCall(BigInt(zone.ref), zone.kind === "hall-up" ? "up" : "down");
       } catch (e) {
-        console.warn("spawnRider:", e);
+        console.warn("pressHallCall:", e);
       }
-    },
-  });
-
-  // Initial event-log clear — leftover entries from a prior scenario
-  // would confuse "what just happened" given the panel re-mounts.
-  roots.eventLog.replaceChildren();
-
-  // Surface the scenario's `featureHint` as a one-line orientation
-  // bar at the top of the panel. Hidden when the scenario doesn't
-  // carry one — every current manual scenario does, so this branch
-  // exists as forward-compat insurance.
-  if (scenario.featureHint && scenario.featureHint.length > 0) {
-    roots.featureHint.textContent = scenario.featureHint;
-    roots.featureHint.hidden = false;
-  } else {
-    roots.featureHint.hidden = true;
-  }
-
-  // Add Car B / Remove Car B toggle. Hidden when the scenario opts
-  // out via `allowAddRemoveCar: false`; otherwise toggles label
-  // between "Add Car B" and "Remove Car B" based on whether we're at
-  // the per-scenario car cap.
-  const addCarBtn = roots.addCarBtn;
-  const updateAddCarBtn = (): void => {
-    if (!meta.allowAddRemoveCar) {
-      addCarBtn.hidden = true;
       return;
     }
+    // zone.kind === "doors" — toggle. Read the car's current phase
+    // from a fresh worldView; door-opening / loading → close;
+    // otherwise → open.
+    if (carRef === null) return;
     const view = sim.worldView();
-    const max = scenario.tweakRanges.cars.max;
-    const atMax = view.cars.length >= max;
-    addCarBtn.hidden = false;
-    addCarBtn.disabled = false;
-    addCarBtn.textContent = atMax ? "Remove Car B" : "Add Car B";
-  };
-  const onAddCar = (): void => {
-    const view = sim.worldView();
-    if (view.cars.length >= scenario.tweakRanges.cars.max) {
-      // Remove the last car. Riders aboard get ejected to the nearest
-      // enabled stop per `Simulation::remove_elevator` semantics.
-      const last = view.cars[view.cars.length - 1];
-      if (!last) return;
-      try {
-        sim.removeElevator(BigInt(last.id));
-      } catch (e) {
-        console.warn("removeElevator:", e);
+    const car = view.cars.find((c) => BigInt(c.id) === carRef);
+    const phase = car?.phase;
+    try {
+      if (phase === "loading" || phase === "door-opening") {
+        sim.closeDoor(carRef);
+      } else {
+        sim.openDoor(carRef);
       }
-    } else {
-      // Add to the first line at the lobby (position 0). Inherits the
-      // scenario's elevator-physics defaults (max_speed / capacity).
-      const firstLine = view.lines[0];
-      if (!firstLine) return;
-      try {
-        sim.addElevator(BigInt(firstLine.id), 0, {
-          maxSpeed: scenario.elevatorDefaults.maxSpeed,
-          weightCapacity: scenario.elevatorDefaults.weightCapacity,
-        });
-      } catch (e) {
-        console.warn("addElevator:", e);
-      }
-    }
-    rebuildCarControls();
-    updateAddCarBtn();
-  };
-  addCarBtn.addEventListener("click", onAddCar);
-  updateAddCarBtn();
-
-  const rebuildCarControls = (): void => {
-    // Preserve user-picked modes across the remount — adding Car B
-    // shouldn't reset Car A's "Manual" pick to the scenario default.
-    const previousModes = carsHandle.serviceModes();
-    initialView = sim.worldView();
-    carsHandle = mountCarControls(
-      roots.carControls,
-      scenario,
-      initialView,
-      carHandlers,
-      previousModes,
-    );
-    // If the previously selected car was removed, fall back to the
-    // first remaining car so the cutaway always has a focus.
-    if (SELECTED !== null && !initialView.cars.some((c) => BigInt(c.id) === SELECTED)) {
-      SELECTED = carsHandle.firstCarRef();
-    }
-    if (SELECTED === null) {
-      SELECTED = carsHandle.firstCarRef();
-    }
-    // Re-apply the default service mode to any newly added cars.
-    if (meta.defaultServiceMode !== "normal") {
-      for (const car of initialView.cars) {
-        try {
-          sim.setServiceMode(BigInt(car.id), meta.defaultServiceMode);
-        } catch {
-          /* ignore — engine validates */
-        }
-      }
+    } catch (e) {
+      console.warn("toggle door:", e);
     }
   };
-
-  // Pick the first car as the initial cutaway focus.
-  SELECTED = carsHandle.firstCarRef();
+  renderer.setCockpitClickHandler(onCanvasClick);
 
   return {
-    update(currentSim, events): void {
-      // The shell may swap `Sim` instances on a reset; rebuild
-      // controls against the new one if so.
-      if (currentSim !== sim) {
-        rebuildCarControls();
-      }
+    update(currentSim, _events): void {
+      void _events;
       const view = currentSim.worldView();
-      hall.sync(view);
-      carsHandle.sync(view, SELECTED);
-      appendEvents(roots.eventLog, events);
-      updateAddCarBtn();
-      // Push authoritative UI state to the cabin renderer. Built
-      // here (not in the loop) because the panel owns all three
-      // sources: the dropdown values, the hall-call lamp state from
-      // worldView, and the selected-car focus.
-      //
-      // Keys are u32 slots — same form as the Snapshot DTO's
-      // `CarDto.id` / `StopDto.entity_id` so the renderer can match
-      // with `===`. The full u64 refs we hold internally for the
-      // mutation API are masked to slot here once.
-      const SLOT_MASK = 0xffff_ffffn;
-      const toSlot = (ref: bigint): number => Number(ref & SLOT_MASK);
+      cockpit.update(currentSim, view);
+
+      // Push authoritative cockpit state to the renderer. Hall-call
+      // lamps come straight from `WorldView.stops[].hall_calls` (the
+      // engine's acknowledged-call lamps) so the elevation matches
+      // engine state exactly — no reflection lag.
       const hallCallsByStop = new Map<number, { up: boolean; down: boolean }>();
       for (const stop of view.stops) {
         hallCallsByStop.set(stop.entity_id, {
@@ -274,34 +132,14 @@ export function mountManualControls(
           down: stop.hall_calls.down,
         });
       }
-      const serviceModeByCar = new Map<number, string>();
-      for (const [carRef, mode] of carsHandle.serviceModes()) {
-        serviceModeByCar.set(toSlot(carRef), mode);
-      }
-      renderer.setManualControlState({
-        selectedCarSlot: SELECTED === null ? null : toSlot(SELECTED),
-        serviceModeByCar,
+      renderer.setCockpitState({
         hallCallsByStop,
+        hint: scenario.featureHint,
       });
     },
-    selectedCarRef: () => SELECTED,
     dispose(): void {
-      addCarBtn.removeEventListener("click", onAddCar);
-      roots.hallButtons.replaceChildren();
-      roots.carControls.replaceChildren();
-      roots.spawnForm.replaceChildren();
-      roots.eventLog.replaceChildren();
-      roots.featureHint.hidden = true;
-      roots.featureHint.textContent = "";
-      SELECTED = null;
+      renderer.setCockpitClickHandler(null);
+      cockpit.dispose();
     },
   };
-}
-
-function safe(fn: () => void): void {
-  try {
-    fn();
-  } catch (e) {
-    console.warn("manual-controls action:", e);
-  }
 }
