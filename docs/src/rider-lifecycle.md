@@ -1,6 +1,6 @@
 # Rider Lifecycle
 
-Riders are the demand side of the simulation. A rider is anything that rides an elevator -- the library assigns no semantics beyond that. Games add meaning (passengers, NPCs, cargo) via [extension storage](extensions.md). This chapter covers the full lifecycle, patience and preferences, access control, and population tracking.
+Riders are the demand side of the simulation. A rider is anything that rides an elevator -- the library assigns no semantics beyond that. Caller code adds meaning (office tenants, hotel guests, freight crates) via [extension storage](extensions.md). This chapter covers the full lifecycle, patience and preferences, access control, and population tracking.
 
 ## Phase diagram
 
@@ -36,9 +36,9 @@ stateDiagram-v2
 | `Riding` | Inside the elevator | Loading phase exits the rider when the elevator arrives at their destination |
 | `Exiting` | Leaving the elevator | AdvanceTransient: becomes `Arrived` (route complete), or `Walking` (multi-leg) |
 | `Walking` | Transferring between stops | Teleported immediately to the next leg's origin, then becomes `Waiting` |
-| `Arrived` | At final destination | Your game decides: `settle_rider()`, `despawn_rider()`, or leave in place |
-| `Abandoned` | Left the queue at a stop | Patience ran out or `abandon_on_full` triggered; your game can settle or despawn |
-| `Resident` | Parked at a stop, not seeking an elevator | Your game called `settle_rider()` on an Arrived or Abandoned rider |
+| `Arrived` | At final destination | Caller decides: `settle_rider()`, `despawn_rider()`, or leave in place |
+| `Abandoned` | Left the queue at a stop | Patience ran out or `abandon_on_full` triggered; caller can settle or despawn |
+| `Resident` | Parked at a stop, not seeking an elevator | Caller invoked `settle_rider()` on an Arrived or Abandoned rider |
 
 Each transition emits an event: `RiderSpawned`, `RiderBoarded`, `RiderExited`, `RiderAbandoned`, `RiderSettled`, `RiderRerouted`, `RiderDespawned`.
 
@@ -95,7 +95,7 @@ let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap();
 ```
 
-When `skip_full_elevator` is true and the load exceeds `max_crowding_factor`, the rider silently skips the car. A `RiderSkipped` event fires so game UI can animate the reaction. The rider remains `Waiting` for the next car -- unless `abandon_on_full` escalates it to `Abandoned`.
+When `skip_full_elevator` is true and the load exceeds `max_crowding_factor`, the rider silently skips the car. A `RiderSkipped` event fires so caller code or UI can react. The rider remains `Waiting` for the next car -- unless `abandon_on_full` escalates it to `Abandoned`.
 
 ## Access control
 
@@ -118,11 +118,11 @@ let rider = sim.build_rider(StopId(0), StopId(1))
 
 ## Managing arrived riders
 
-Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing them. Your game code decides what happens next using three methods:
+Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing them. Caller code decides what happens next using three methods:
 
-**`sim.settle_rider(id)`** -- transitions an `Arrived` or `Abandoned` rider to `Resident`. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for NPCs that "live" on a floor.
+**`sim.settle_rider(id)`** -- transitions an `Arrived` or `Abandoned` rider to `Resident`. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for occupants who live or work on a floor between elevator trips: a tenant in their office, a hotel guest in their room, a patient on a ward.
 
-**`sim.reroute_rider(id, route)`** -- sends a `Resident` rider back to `Waiting` with a new multi-leg route. Use this when a settled NPC needs to go somewhere.
+**`sim.reroute_rider(id, route)`** -- sends a `Resident` rider back to `Waiting` with a new multi-leg route. Use this when a settled occupant has a new destination -- a tenant heading to lunch, a guest checking out.
 
 **`sim.reroute(id, new_destination)`** -- changes a `Waiting` rider's destination. The rider stays at their stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.
 
@@ -133,11 +133,12 @@ Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing the
 # let mut sim: Simulation = todo!();
 # let rider: RiderId = todo!();
 # let new_route: Route = todo!();
-// Rider arrived at their floor -- settle them as a resident.
+// Tenant arrived at their floor -- settle them so they hold position
+// at the stop without re-entering the dispatch queue.
 sim.settle_rider(rider).unwrap();
 
-// Later, the resident wants to go somewhere else.
-// reroute_rider takes a full Route and works on Resident riders.
+// Later, the same tenant heads back down. reroute_rider takes a full
+// Route and only works on Resident riders.
 sim.reroute_rider(rider.entity(), new_route).unwrap();
 ```
 
@@ -153,10 +154,10 @@ The simulation maintains a reverse index (`RiderIndex`) for O(1) per-stop popula
 
 Each returns an iterator of `EntityId` values. Use `.count()` for totals or `.collect::<Vec<_>>()` to materialize.
 
-These queries are useful for game logic (spawn limits, crowd visualization), dispatch strategies (demand weighting), and analytics (per-floor breakdowns).
+These queries are useful for caller-side logic (spawn limits, crowd visualisation), dispatch strategies (demand weighting), and analytics (per-floor breakdowns).
 
 ## Next steps
 
 - [Door Control](door-control.md) -- understand when riders can board and exit
 - [Events and Metrics](events-metrics.md) -- track rider events and aggregate wait/ride times
-- [Extensions](extensions.md) -- attach game-specific data to riders
+- [Extensions](extensions.md) -- attach caller-defined data to riders

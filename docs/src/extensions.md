@@ -1,6 +1,6 @@
 # Extensions
 
-The core library is deliberately unopinionated -- it provides riders, elevators, and stops, but your game decides what a rider *means*. Maybe riders have a VIP status, a mood, a destination preference, or a cargo manifest. Extensions let you layer game-specific data on top of any entity without forking or wrapping the library.
+The core library is deliberately unopinionated -- it provides riders, elevators, and stops, but caller code decides what a rider *means*. A rider could be a hotel guest with a priority class, an office tenant with a tenant id, a hospital patient with a transport type, or a freight crate with a manifest. Extensions let you layer caller-defined data on top of any entity without forking or wrapping the library.
 
 ## Extension components
 
@@ -14,9 +14,13 @@ Extension types must implement `Serialize` and `DeserializeOwned` (for snapshot 
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct VipTag {
-    level: u32,
-    lounge_access: bool,
+struct GuestPriority {
+    /// 0 = standard guest, 1 = elite, 2 = top-tier suite.
+    priority_class: u8,
+    /// Floor where the guest's room lives. A custom dispatch
+    /// strategy can consult this to favour the express bank that
+    /// serves the high-floor suites.
+    suite_floor: u32,
 }
 ```
 
@@ -27,7 +31,7 @@ Call `.with_ext::<T>()` on the builder to register the extension type. The type 
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
 # #[derive(Debug, Clone, Serialize, Deserialize)]
-# struct VipTag { level: u32, lounge_access: bool }
+# struct GuestPriority { priority_class: u8, suite_floor: u32 }
 use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
@@ -37,7 +41,7 @@ fn main() -> Result<(), SimError> {
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
-        .with_ext::<VipTag>()
+        .with_ext::<GuestPriority>()
         .build()?;
     Ok(())
 }
@@ -50,20 +54,20 @@ Use `world.insert_ext()` to attach your component to an entity:
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
 # #[derive(Debug, Clone, Serialize, Deserialize)]
-# struct VipTag { level: u32, lounge_access: bool }
+# struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
 #     .stop(StopId(1), "Top", 10.0)
 #     .elevator(ElevatorConfig::default())
-#     .with_ext::<VipTag>()
+#     .with_ext::<GuestPriority>()
 #     .build()?;
 let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
     rider_id.entity(),
-    VipTag { level: 3, lounge_access: true },
+    GuestPriority { priority_class: 2, suite_floor: 47 },
     ExtKey::from_type_name(),
 );
 # Ok(())
@@ -77,17 +81,17 @@ Use `world.ext()` for a cloned value, `world.ext_ref()` for a zero-copy borrow, 
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
 # #[derive(Debug, Clone, Serialize, Deserialize)]
-# struct VipTag { level: u32, lounge_access: bool }
+# struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
 # fn run(sim: &mut Simulation, rider_id: EntityId) {
 // Read (cloned)
-if let Some(vip) = sim.world().ext::<VipTag>(rider_id) {
-    println!("VIP level: {}", vip.level);
+if let Some(guest) = sim.world().ext::<GuestPriority>(rider_id) {
+    println!("priority class: {}", guest.priority_class);
 }
 
-// Mutate
-if let Some(vip) = sim.world_mut().ext_mut::<VipTag>(rider_id) {
-    vip.level += 1;
+// Mutate -- promote the guest's class.
+if let Some(guest) = sim.world_mut().ext_mut::<GuestPriority>(rider_id) {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 }
 # }
 ```
@@ -99,18 +103,18 @@ Extensions integrate with the query builder for ECS-style iteration:
 ```rust,no_run
 # use serde::{Serialize, Deserialize};
 # #[derive(Debug, Clone, Serialize, Deserialize)]
-# struct VipTag { level: u32, lounge_access: bool }
+# struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
 # use elevator_core::query::Ext;
 # fn run(world: &mut World) {
 // Read-only iteration (cloned via Ext<T>)
-for (id, vip) in world.query::<(EntityId, &Ext<VipTag>)>().iter() {
-    println!("{:?} is VIP level {}", id, vip.level);
+for (id, guest) in world.query::<(EntityId, &Ext<GuestPriority>)>().iter() {
+    println!("{:?} is priority class {}", id, guest.priority_class);
 }
 
-// Mutable access
-world.query_ext_mut::<VipTag>().for_each_mut(|id, tag| {
-    tag.level += 1;
+// Mutable access -- promote everyone by one class (with saturation).
+world.query_ext_mut::<GuestPriority>().for_each_mut(|_id, guest| {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 });
 # }
 ```
@@ -139,14 +143,14 @@ if let Some(value) = sim.world_mut().resource_mut::<u32>() {
 # }
 ```
 
-Resources are useful for game state that hooks need to read or write -- score counters, time-of-day multipliers, spawn rate controllers, and so on.
+Resources are useful for caller-side state that hooks need to read or write -- a tick-of-day clock mirror, a peak-traffic multiplier, a spawn-rate controller, and so on.
 
 ## Extension vs. resource: which do I want?
 
 | Need | Use |
 |---|---|
-| Per-entity data that varies by rider/elevator (VIP status, mood, cargo) | **Extension** (`with_ext` + `insert_ext`) |
-| One-of value for the whole sim (score, difficulty, tick clock mirror) | **Resource** (`insert_resource`) |
+| Per-entity data that varies by rider/elevator (priority class, transport type, cargo manifest) | **Extension** (`with_ext` + `insert_ext`) |
+| One-of value for the whole sim (time-of-day, traffic profile, tick clock mirror) | **Resource** (`insert_resource`) |
 | Data that must survive snapshot save/load | **Extension** (registered by name; resources are not snapshotted) |
 | Quick scratchpad you can wipe between ticks | **Resource** |
 | Query "all entities that have X" | **Extension** (query or iterate + filter on `get_ext`) |
@@ -164,10 +168,10 @@ Extension components are serialized by their registered type name into the `Worl
 # use elevator_core::prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 # use serde::{Serialize, Deserialize};
-# #[derive(Clone, Serialize, Deserialize)] struct VipTag { level: u32 }
+# #[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # fn run(snapshot: WorldSnapshot) {
 let mut sim = snapshot.restore(None).unwrap();
-sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
+sim.world_mut().register_ext::<GuestPriority>(ExtKey::from_type_name());
 sim.load_extensions();
 # }
 ```

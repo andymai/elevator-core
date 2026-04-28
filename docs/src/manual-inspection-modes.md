@@ -104,7 +104,7 @@ Run it with `cargo run -p elevator-core --example manual_driver`.
 
 Inspection mode reduces the elevator's speed by its `inspection_speed_factor` (default: 0.25, configurable per elevator). Doors hold open indefinitely rather than auto-cycling. The elevator still participates in dispatch -- it just moves slowly.
 
-This mode is useful for maintenance scenarios or UI elements that let a building manager "ride along" at reduced speed.
+This mode is useful for maintenance walk-throughs and operator-driven inspection runs -- the cab moves slowly enough for a technician to listen for anomalies along the shaft, and the doors stay open at each stop until the operator dismisses them.
 
 ```rust,no_run
 # use elevator_core::prelude::*;

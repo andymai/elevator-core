@@ -13,9 +13,9 @@
 
 ## What can you build?
 
-The library models **stops at arbitrary distances** along a shaft axis, not uniform floors. That means you can simulate a 5-story office building where each floor is 4 meters apart, a 160-story skyscraper with sky lobbies and express zones, or -- why not -- a **space elevator** climbing 1,000 km from a ground station to an orbital platform. The `space_elevator.ron` config included in the repo does exactly that.
+The library models **stops at arbitrary distances** along a shaft axis, not uniform floors. That means you can simulate a 5-story office where each floor is 4 metres apart, a 160-story skyscraper with sky lobbies and express zones, or a 2.4 km mine shaft where a single hoist serves the surface, a mid-level, and the working face. The engine doesn't enforce any particular unit -- positions are plain `f64` values, and the bundled `assets/config/space_elevator.ron` stretches that to 1,000 distance units between two stops as an upper-bound stress test.
 
-The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Your game decides whether they are office workers, hotel guests, cargo pallets, or astronauts. You attach semantics through the [extension storage system](extensions.md), and the simulation handles the physics and logistics.
+The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Caller code decides whether they are office tenants, hotel guests, hospital patients, miners, or freight pallets. You attach semantics through the [extension storage system](extensions.md), and the simulation handles the physics and logistics.
 
 ## What elevator-core is *not*
 
