@@ -4,6 +4,13 @@
  * Opaque simulation handle for JS.
  */
 export class WasmSim {
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(WasmSim.prototype);
+        obj.__wbg_ptr = ptr;
+        WasmSimFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
@@ -557,6 +564,48 @@ export class WasmSim {
     findStopAtPositionOnLine(position, line_ref) {
         const ret = wasm.wasmsim_findStopAtPositionOnLine(this.__wbg_ptr, position, line_ref);
         return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Reconstruct a `WasmSim` from postcard bytes produced by
+     * [`Self::snapshot_bytes`].
+     *
+     * The `strategy` and `reposition` arguments restore wrapper-side
+     * labels not stored in the snapshot envelope (the underlying
+     * `Simulation` already auto-restores its built-in dispatch and
+     * reposition strategies from the postcard payload). Pass the same
+     * values used at original [`Self::new`] construction.
+     *
+     * `traffic_rate` resets to `0.0` on restore — callers that drive
+     * arrivals externally (the tower-together case) don't use this
+     * field; callers using built-in traffic should re-call
+     * `setTrafficRate` after restore.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the bytes are not a valid envelope, the
+     * crate version differs, the snapshot references a custom dispatch
+     * strategy (only built-in strategies are supported by this wrapper
+     * — use the Rust API directly for custom strategies), or
+     * `strategy` is not a recognised built-in name (matching the
+     * `new()` constructor's contract so `strategyName()` always holds
+     * a known label).
+     * @param {Uint8Array} bytes
+     * @param {string} strategy
+     * @param {string | null} [reposition]
+     * @returns {WasmSim}
+     */
+    static fromSnapshotBytes(bytes, strategy, reposition) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(strategy, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(reposition) ? 0 : passStringToWasm0(reposition, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_fromSnapshotBytes(ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return WasmSim.__wrap(ret[0]);
     }
     /**
      * Position of the next stop in `elevator_ref`'s destination queue,
@@ -1501,6 +1550,20 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Serialize the simulation to a self-describing postcard byte blob.
+     *
+     * Wraps [`Simulation::snapshot_bytes`]. The returned bytes carry a
+     * magic prefix and the `elevator-core` crate version; restore via
+     * [`Self::from_snapshot_bytes`] in the same crate version. Useful
+     * for hibernation/rehydration in serverless runtimes (Cloudflare
+     * Durable Objects) and for lockstep-checkpoint sync.
+     * @returns {WasmBytesResult}
+     */
+    snapshotBytes() {
+        const ret = wasm.wasmsim_snapshotBytes(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Spawn a single rider between two stop ids at the given weight.
      *
      * When `patience_ticks` is provided (non-zero), the rider gets a
@@ -1921,6 +1984,13 @@ function isLikeNone(x) {
 function passArray64ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 8, 8) >>> 0;
     getBigUint64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
