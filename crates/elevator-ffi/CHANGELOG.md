@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.1...elevator-ffi-v0.10.2) (2026-04-28)
+
+
+### Bug Fixes
+
+* **ffi:** harmonize ev_sim_hall_calls_snapshot probe-then-fill contract ([#517](https://github.com/andymai/elevator-core/issues/517)) ([34f6e40](https://github.com/andymai/elevator-core/commit/34f6e401ba28489eee3ef17cea16f6e4c741eff4))
+
 ## [0.10.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.0...elevator-ffi-v0.10.1) (2026-04-27)
 
 
