@@ -6941,6 +6941,36 @@ mod tests {
         handle
     }
 
+    /// Helper: get the first elevator's entity id from the frame.
+    fn first_elevator_entity(handle: *mut EvSim) -> u64 {
+        let mut frame = EvFrame {
+            elevators: std::ptr::null(),
+            elevator_count: 0,
+            stops: std::ptr::null(),
+            stop_count: 0,
+            riders: std::ptr::null(),
+            rider_count: 0,
+            metrics: EvMetricsView {
+                total_delivered: 0,
+                total_abandoned: 0,
+                avg_wait_seconds: 0.0,
+                avg_ride_seconds: 0.0,
+                current_tick: 0,
+            },
+        };
+        assert_eq!(
+            unsafe { ev_sim_frame(handle, &raw mut frame) },
+            EvStatus::Ok
+        );
+        assert!(
+            frame.elevator_count >= 1,
+            "default config should have >= 1 elevator"
+        );
+        let elevators =
+            unsafe { std::slice::from_raw_parts(frame.elevators, frame.elevator_count) };
+        elevators[0].entity_id
+    }
+
     /// Helper: get (`first_stop_entity_id`, `last_stop_entity_id`) from frame.
     fn stop_entities(handle: *mut EvSim) -> (u64, u64) {
         let mut frame = EvFrame {
@@ -7765,6 +7795,231 @@ mod tests {
             );
             assert_eq!(written2, written);
         }
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Mode + manual control + door commands ───────────────────────────
+
+    #[test]
+    fn set_service_mode_round_trips_through_getter() {
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+
+        // Default is Normal — verify before changing.
+        let mut current = EvServiceMode::Normal;
+        assert_eq!(
+            unsafe { ev_sim_service_mode(handle, elev, &raw mut current) },
+            EvStatus::Ok,
+        );
+        assert_eq!(current, EvServiceMode::Normal);
+
+        // Switch to Manual and read back.
+        assert_eq!(
+            unsafe { ev_sim_set_service_mode(handle, elev, EvServiceMode::Manual) },
+            EvStatus::Ok,
+        );
+        let mut after = EvServiceMode::Normal;
+        assert_eq!(
+            unsafe { ev_sim_service_mode(handle, elev, &raw mut after) },
+            EvStatus::Ok,
+        );
+        assert_eq!(after, EvServiceMode::Manual);
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn emergency_stop_returns_ok_on_valid_elevator() {
+        // The original concern of this whole binding push: "is emergency
+        // stop actually wired up?" — this test pins it.
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        // Switch to Manual first; emergency_stop only applies in Manual mode.
+        assert_eq!(
+            unsafe { ev_sim_set_service_mode(handle, elev, EvServiceMode::Manual) },
+            EvStatus::Ok,
+        );
+        assert_eq!(unsafe { ev_sim_emergency_stop(handle, elev) }, EvStatus::Ok,);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn set_target_velocity_returns_ok_in_manual_mode() {
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        assert_eq!(
+            unsafe { ev_sim_set_service_mode(handle, elev, EvServiceMode::Manual) },
+            EvStatus::Ok,
+        );
+        assert_eq!(
+            unsafe { ev_sim_set_target_velocity(handle, elev, 0.5) },
+            EvStatus::Ok,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn door_command_set_round_trips() {
+        // open / close / hold / cancel-hold should each return Ok on a
+        // valid elevator. A consumer driving a UI toolbar relies on these
+        // and is the original Manual-mode use case.
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        assert_eq!(
+            unsafe { ev_sim_set_service_mode(handle, elev, EvServiceMode::Manual) },
+            EvStatus::Ok,
+        );
+        assert_eq!(unsafe { ev_sim_open_door(handle, elev) }, EvStatus::Ok);
+        assert_eq!(unsafe { ev_sim_hold_door(handle, elev, 30) }, EvStatus::Ok);
+        assert_eq!(
+            unsafe { ev_sim_cancel_door_hold(handle, elev) },
+            EvStatus::Ok,
+        );
+        assert_eq!(unsafe { ev_sim_close_door(handle, elev) }, EvStatus::Ok);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn abort_movement_returns_ok_on_idle_elevator() {
+        // Aborting an idle elevator is a no-op but must not error;
+        // games script aborts unconditionally on disable.
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        assert_eq!(unsafe { ev_sim_abort_movement(handle, elev) }, EvStatus::Ok,);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn recall_to_returns_ok_on_valid_pair() {
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        let (target, _) = stop_entities(handle);
+        assert_eq!(
+            unsafe { ev_sim_recall_to(handle, elev, target) },
+            EvStatus::Ok,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Pinning ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn pin_then_unpin_assignment_round_trip() {
+        let handle = create_test_handle();
+        let elev = first_elevator_entity(handle);
+        let (bottom, _) = stop_entities(handle);
+        // pin_assignment requires an existing hall call — without one,
+        // core returns HallCallNotFound (mapped to InvalidArg). Press an
+        // up call at the bottom stop to seed it, then pin/unpin.
+        assert_eq!(
+            unsafe { ev_sim_press_hall_button(handle, bottom, 1) },
+            EvStatus::Ok,
+        );
+        assert_eq!(
+            unsafe { ev_sim_pin_assignment(handle, elev, bottom, 1) },
+            EvStatus::Ok,
+        );
+        assert_eq!(
+            unsafe { ev_sim_unpin_assignment(handle, bottom, 1) },
+            EvStatus::Ok,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Tagging + per-tag metrics round trip ────────────────────────────
+
+    #[test]
+    fn tag_entity_then_metrics_for_tag_returns_ok() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 75.0, &raw mut rider) },
+            EvStatus::Ok,
+        );
+
+        let tag = CString::new("vip").unwrap();
+        assert_eq!(
+            unsafe { ev_sim_tag_entity(handle, rider, tag.as_ptr()) },
+            EvStatus::Ok,
+        );
+
+        // Step a few times so the tagged rider's spawn is recorded in the
+        // tag-metric accumulator.
+        for _ in 0..20 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+        let mut out = std::mem::MaybeUninit::<EvTaggedMetric>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_metrics_for_tag(handle, tag.as_ptr(), out.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        let m = unsafe { out.assume_init() };
+        assert!(
+            m.total_spawned >= 1,
+            "tagged rider should be reflected in total_spawned (got {})",
+            m.total_spawned
+        );
+
+        // untag is fire-and-forget; verify it returns Ok.
+        assert_eq!(
+            unsafe { ev_sim_untag_entity(handle, rider, tag.as_ptr()) },
+            EvStatus::Ok,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Route mutators ──────────────────────────────────────────────────
+
+    #[test]
+    fn set_rider_route_shortest_returns_ok_after_spawn() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 75.0, &raw mut rider) },
+            EvStatus::Ok,
+        );
+        // Same destination is fine — we are exercising the API plumbing,
+        // not the routing algorithm.
+        assert_eq!(
+            unsafe { ev_sim_set_rider_route_shortest(handle, rider, dest) },
+            EvStatus::Ok,
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn reroute_rider_shortest_rejects_waiting_phase() {
+        // reroute_rider requires Resident phase. A freshly-spawned rider
+        // is in Waiting, so the call must fail with InvalidArg (the
+        // wrong-phase error mapped through mode_error_status).
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 75.0, &raw mut rider) },
+            EvStatus::Ok,
+        );
+        let status = unsafe { ev_sim_reroute_rider_shortest(handle, rider, origin) };
+        assert_ne!(
+            status,
+            EvStatus::Ok,
+            "reroute on Waiting rider should fail; got Ok",
+        );
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn set_rider_route_shortest_rejects_unknown_rider() {
+        let handle = create_test_handle();
+        let (_, dest) = stop_entities(handle);
+        // Sentinel `0` is invalid → InvalidArg.
+        let status = unsafe { ev_sim_set_rider_route_shortest(handle, 0, dest) };
+        assert_eq!(status, EvStatus::InvalidArg);
         unsafe { ev_sim_destroy(handle) };
     }
 }
