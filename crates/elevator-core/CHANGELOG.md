@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.27.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.26.0...elevator-core-v15.27.0) (2026-04-28)
+
+
+### Features
+
+* **tui:** bashtop-inspired chrome, onboarding, richer demo ([#525](https://github.com/andymai/elevator-core/issues/525)) ([fb549fd](https://github.com/andymai/elevator-core/commit/fb549fd010b0bd7008b4c55cb6ddfa19a11f351c))
+
 ## [15.26.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.25.1...elevator-core-v15.26.0) (2026-04-26)
 
 
