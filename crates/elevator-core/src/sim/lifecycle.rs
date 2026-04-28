@@ -1100,7 +1100,7 @@ impl Simulation {
         let vel = self.world.velocity(id)?.value;
         let car = self.world.elevator(id)?;
         let dist = crate::movement::braking_distance(vel, car.deceleration.value());
-        Some(vel.signum().mul_add(dist, pos))
+        Some(crate::fp::fma(vel.signum(), dist, pos))
     }
 
     /// Count of elevators currently in the given phase.

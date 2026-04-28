@@ -30,6 +30,13 @@ doc_markdown = "allow"
 option_if_let_else = "allow"
 manual_let_else = "allow"
 
+[features]
+default = []
+# Mirror elevator-core's `deterministic-fp` feature for Godot
+# deployments running lockstep across heterogeneous architectures
+# who need byte-exact sim outputs.
+deterministic-fp = ["elevator-core/deterministic-fp"]
+
 [dependencies]
 elevator-core = { path = "../elevator-core" }
 godot = "0.5"

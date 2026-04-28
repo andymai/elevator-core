@@ -325,7 +325,7 @@ fn tick_manual(
         vel - dv_max
     };
 
-    let new_pos = new_vel.mul_add(ctx.dt, old_pos);
+    let new_pos = crate::fp::fma(new_vel, ctx.dt, old_pos);
 
     if let Some(p) = world.position_mut(eid) {
         p.value = new_pos;

@@ -73,7 +73,7 @@ impl super::Simulation {
             alpha.clamp(0.0, 1.0)
         };
         let prev = self.world.prev_position(id).map_or(current, |p| p.value);
-        Some((current - prev).mul_add(alpha, prev))
+        Some(crate::fp::fma(current - prev, alpha, prev))
     }
 
     /// Current velocity of an entity along the shaft axis (signed: +up, -down).

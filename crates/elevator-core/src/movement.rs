@@ -70,7 +70,7 @@ pub fn tick_movement(
 
     let new_velocity = if opposing || stopping_distance >= distance_remaining - EPSILON {
         // Decelerate
-        let v = (-safe_decel * dt).mul_add(velocity.signum(), velocity);
+        let v = crate::fp::fma(-safe_decel * dt, velocity.signum(), velocity);
         // Clamp to zero if sign would flip.
         if velocity > 0.0 && v < 0.0 || velocity < 0.0 && v > 0.0 {
             0.0
@@ -79,7 +79,7 @@ pub fn tick_movement(
         }
     } else if speed < max_speed {
         // Accelerate toward target
-        let v = (acceleration * dt).mul_add(sign, velocity);
+        let v = crate::fp::fma(acceleration * dt, sign, velocity);
         // Clamp magnitude to max_speed
         if v.abs() > max_speed {
             sign * max_speed
@@ -91,7 +91,7 @@ pub fn tick_movement(
         sign * max_speed
     };
 
-    let new_pos = new_velocity.mul_add(dt, position);
+    let new_pos = crate::fp::fma(new_velocity, dt, position);
 
     // Overshoot check: did we cross the target?
     let new_displacement = target_position - new_pos;

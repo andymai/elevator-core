@@ -384,7 +384,7 @@ impl DispatchStrategy for RsrDispatch {
                 .iter()
                 .map(|r| r.wait_ticks as f64)
                 .sum();
-            cost = self.age_linear_weight.mul_add(-wait_sum, cost);
+            cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost);
         }
 
         let cost = cost.max(0.0);

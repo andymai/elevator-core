@@ -232,7 +232,7 @@ impl DispatchStrategy for EtdDispatch {
                     w * w
                 })
                 .sum();
-            cost = self.wait_squared_weight.mul_add(-wait_sq, cost).max(0.0);
+            cost = crate::fp::fma(self.wait_squared_weight, -wait_sq, cost).max(0.0);
         }
         if self.age_linear_weight > 0.0 {
             let wait_sum: f64 = ctx
@@ -241,7 +241,7 @@ impl DispatchStrategy for EtdDispatch {
                 .iter()
                 .map(|r| r.wait_ticks as f64)
                 .sum();
-            cost = self.age_linear_weight.mul_add(-wait_sum, cost).max(0.0);
+            cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost).max(0.0);
         }
         if cost.is_finite() { Some(cost) } else { None }
     }
@@ -350,11 +350,13 @@ impl EtdDispatch {
             _ => 0.0,
         };
 
-        let raw = self.wait_weight.mul_add(
+        let raw = crate::fp::fma(
+            self.wait_weight,
             travel_time,
-            self.delay_weight.mul_add(
+            crate::fp::fma(
+                self.delay_weight,
                 existing_rider_delay,
-                self.door_weight.mul_add(door_cost, direction_bonus),
+                crate::fp::fma(self.door_weight, door_cost, direction_bonus),
             ),
         );
         raw.max(0.0)

@@ -130,9 +130,11 @@ pub(crate) fn compute_tick_energy(
         return (profile.idle_cost_per_tick, 0.0);
     }
 
-    let consumed = profile
-        .weight_factor
-        .mul_add(current_load, profile.move_cost_per_tick);
+    let consumed = crate::fp::fma(
+        profile.weight_factor,
+        current_load,
+        profile.move_cost_per_tick,
+    );
     let regenerated = if velocity < 0.0 {
         consumed * profile.regen_factor
     } else {

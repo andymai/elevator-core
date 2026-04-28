@@ -32,6 +32,11 @@ default = []
 # Mirror elevator-core's `energy` feature so the FFI surfaces
 # `Event::EnergyConsumed` in the drained event stream.
 energy = ["elevator-core/energy"]
+# Mirror elevator-core's `deterministic-fp` feature for consumers
+# (Unity/.NET, .so/.dylib/.dll prebuilt natives) running lockstep
+# across heterogeneous architectures who need byte-exact sim
+# outputs. See elevator-core's docs for the full guarantee.
+deterministic-fp = ["elevator-core/deterministic-fp"]
 
 [dependencies]
 elevator-core = { path = "../elevator-core" }

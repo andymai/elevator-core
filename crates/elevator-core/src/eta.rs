@@ -42,7 +42,8 @@ pub fn travel_time(distance: f64, v0: f64, v_max: f64, accel: f64, decel: f64) -
 
     // Triangular peak velocity (no cruise): solve d_accel(v) + d_decel(v) = d
     // → v² = (2·d·a·decel + v0²·decel) / (a + decel)
-    let v_peak_sq = decel.mul_add(v0 * v0, 2.0 * distance * accel * decel) / (accel + decel);
+    let v_peak_sq =
+        crate::fp::fma(decel, v0 * v0, 2.0 * distance * accel * decel) / (accel + decel);
     let v_peak = v_peak_sq.sqrt();
 
     if v_peak <= v_max {
@@ -50,7 +51,7 @@ pub fn travel_time(distance: f64, v0: f64, v_max: f64, accel: f64, decel: f64) -
         (v_peak - v0) / accel + v_peak / decel
     } else {
         // Trapezoidal: accel v0→v_max, cruise at v_max, decel v_max→0
-        let d_accel = v_max.mul_add(v_max, -(v0 * v0)) / (2.0 * accel);
+        let d_accel = crate::fp::fma(v_max, v_max, -(v0 * v0)) / (2.0 * accel);
         let d_decel = v_max * v_max / (2.0 * decel);
         let d_cruise = distance - d_accel - d_decel;
         (v_max - v0) / accel + d_cruise / v_max + v_max / decel
