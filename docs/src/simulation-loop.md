@@ -7,13 +7,13 @@ Each call to `sim.step()` runs one simulation tick. A tick consists of eight pha
 ```mermaid
 flowchart TD
     STEP["sim.step()"] --> P1
-    P1["1. Advance Transient"] --> P2["2. Dispatch"]
-    P2 --> P3["3. Reposition"]
-    P3 --> P4["4. Advance Queue"]
-    P4 --> P5["5. Movement"]
-    P5 --> P6["6. Doors"]
-    P6 --> P7["7. Loading"]
-    P7 --> P8["8. Metrics"]
+    P1["Phase 1: Advance Transient"] --> P2["Phase 2: Dispatch"]
+    P2 --> P3["Phase 3: Reposition"]
+    P3 --> P4["Phase 4: Advance Queue"]
+    P4 --> P5["Phase 5: Movement"]
+    P5 --> P6["Phase 6: Doors"]
+    P6 --> P7["Phase 7: Loading"]
+    P7 --> P8["Phase 8: Metrics"]
     P8 --> ADV["advance_tick()
 flush events, tick += 1"]
 ```
