@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.4.0...elevator-wasm-v0.5.0) (2026-04-28)
+
+
+### Features
+
+* snapshot_checksum on Simulation + WasmSim ([#530](https://github.com/andymai/elevator-core/issues/530)) ([dbca2c4](https://github.com/andymai/elevator-core/commit/dbca2c4445b4e169803f4ee8bbf9eaa28bc8ce79))
+
 ## [0.4.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.3.0...elevator-wasm-v0.4.0) (2026-04-28)
 
 
