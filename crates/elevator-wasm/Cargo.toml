@@ -29,6 +29,13 @@ must_use_candidate = "allow"
 # non-const wrapper), so the lint produces noise across every trivial getter.
 missing_const_for_fn = "allow"
 
+[features]
+default = []
+# Mirror elevator-core's `deterministic-fp` feature for browser/server
+# lockstep consumers (e.g. tower-together) running across V8 builds
+# that may not all expose hardware FMA identically.
+deterministic-fp = ["elevator-core/deterministic-fp"]
+
 [dependencies]
 elevator-core = { path = "../elevator-core", features = ["traffic"] }
 wasm-bindgen = "0.2"

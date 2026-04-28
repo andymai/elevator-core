@@ -18,6 +18,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["traffic"]
 traffic = ["dep:rand"]
 energy = []
+# Replace `f64::mul_add` calls with the equivalent `(a * b) + c`
+# expression. The hardware-FMA path is deterministic on
+# wasm32-unknown-unknown (lowered to libm fma) but the spec doesn't
+# guarantee bit-equality across all targets — relevant for consumers
+# running lockstep across heterogeneous hosts (native + wasm32, etc.).
+# Trades one rounding step for two; the precision difference is
+# below the threshold any consumer cares about, while the
+# host-independence guarantee tightens.
+deterministic-fp = []
 
 [lints]
 workspace = true

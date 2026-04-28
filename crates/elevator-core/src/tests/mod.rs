@@ -60,6 +60,7 @@ mod eta_tests;
 mod etd_age_weight_tests;
 mod etd_mutant_tests;
 mod event_payload_tests;
+mod fp_tests;
 mod hall_call_tests;
 mod idle_with_riders_tests;
 mod invariants_tests;

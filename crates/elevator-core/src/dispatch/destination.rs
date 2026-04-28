@@ -341,7 +341,8 @@ impl DestinationDispatch {
                 .filter(|p| *p > lo + 1e-9 && *p < hi - 1e-9)
                 .count()
         });
-        let pickup_time = (intervening_committed as f64).mul_add(door_overhead, pickup_travel);
+        let pickup_time =
+            crate::fp::fma(intervening_committed as f64, door_overhead, pickup_travel);
 
         // Ride time: origin → dest travel + door overhead at origin pickup.
         let ride_dist = (origin_pos - dest_pos).abs();
