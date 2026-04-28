@@ -490,15 +490,21 @@ impl WasmSim {
     /// # Errors
     ///
     /// Returns a JS error if the bytes are not a valid envelope, the
-    /// crate version differs, or the snapshot references a custom
-    /// dispatch strategy (only built-in strategies are supported by
-    /// this wrapper — use the Rust API directly for custom strategies).
+    /// crate version differs, the snapshot references a custom dispatch
+    /// strategy (only built-in strategies are supported by this wrapper
+    /// — use the Rust API directly for custom strategies), or
+    /// `strategy` is not a recognised built-in name (matching the
+    /// `new()` constructor's contract so `strategyName()` always holds
+    /// a known label).
     #[wasm_bindgen(js_name = fromSnapshotBytes)]
     pub fn from_snapshot_bytes(
         bytes: &[u8],
         strategy: String,
         reposition: Option<String>,
     ) -> Result<Self, JsError> {
+        if strategy_id(&strategy).is_none() {
+            return Err(JsError::new(&format!("unknown strategy: {strategy}")));
+        }
         let inner = Simulation::restore_bytes(bytes, None)
             .map_err(|e| JsError::new(&format!("restore: {e}")))?;
         let reposition_name = reposition

@@ -5,10 +5,11 @@
 //! JS side). The Result-shape model lets TS consumers use exhaustive
 //! `switch (r.kind)` narrowing without try/catch wrappers.
 //!
-//! Three concrete result types cover the entire fallible surface:
+//! Four concrete result types cover the entire fallible surface:
 //! - [`WasmVoidResult`] for mutators that return `()`
 //! - [`WasmU64Result`] for entity-id returns
 //! - [`WasmU32Result`] for count returns
+//! - [`WasmBytesResult`] for byte-buffer returns
 //!
 //! On the TS side each is a discriminated union with a string `kind`
 //! discriminator:
@@ -206,7 +207,7 @@ impl WasmU32Result {
 impl WasmBytesResult {
     /// Convenience constructor for the success case.
     #[must_use]
-    pub const fn ok(value: Vec<u8>) -> Self {
+    pub fn ok(value: Vec<u8>) -> Self {
         Self::Ok { value }
     }
 
