@@ -1262,6 +1262,41 @@ impl WasmSim {
         self.inner.position_at(u64_to_entity(entity_ref), alpha)
     }
 
+    /// Batched variant of [`Self::position_at`]: writes the
+    /// interpolated position of each `entity_ref` in `refs` into the
+    /// matching slot of `out`, in one wasm-bindgen crossing.
+    ///
+    /// Designed for renderers that read N elevator positions per
+    /// frame and want to avoid the per-call boundary overhead of
+    /// calling `positionAt` in a loop. Entities without a position
+    /// component get `f64::NAN` written to their slot — caller can
+    /// `Number.isNaN(slot)` to detect.
+    ///
+    /// Both `refs` and `out` are zero-copy views of the JS caller's
+    /// typed arrays (`BigUint64Array` and `Float64Array` respectively).
+    /// wasm-bindgen does not allocate or copy on the boundary, so
+    /// this stays cheap to call every render frame.
+    ///
+    /// Returns the number of entries written, which is
+    /// `min(refs.len(), out.len())`. Callers can reuse a scratch
+    /// buffer larger than the current frame's elevator count without
+    /// re-reading lengths; when `out` is shorter than `refs`, only
+    /// `out.len()` entries are written and the remaining refs are
+    /// silently skipped — caller is responsible for sizing `out` at
+    /// least as large as `refs` if they want every position read.
+    #[wasm_bindgen(js_name = positionsAtPacked)]
+    #[must_use]
+    pub fn positions_at_packed(&self, refs: &[u64], alpha: f64, out: &mut [f64]) -> u32 {
+        let n = refs.len().min(out.len());
+        for (i, &raw) in refs.iter().enumerate().take(n) {
+            out[i] = self
+                .inner
+                .position_at(u64_to_entity(raw), alpha)
+                .unwrap_or(f64::NAN);
+        }
+        u32::try_from(n).unwrap_or(u32::MAX)
+    }
+
     /// Fraction of `elevator_ref`'s capacity currently occupied (by weight),
     /// in `[0.0, 1.0]`. Returns `undefined` for missing entities.
     #[wasm_bindgen(js_name = elevatorLoad)]
