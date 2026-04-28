@@ -1361,15 +1361,35 @@ uint32_t ev_sim_hall_call_count(struct EvSim *handle);
 /**
  * Snapshot a flat representation of every active hall call into `out`.
  *
- * The caller supplies a buffer of `capacity` [`EvHallCall`] entries;
- * the actual number written is returned in `out_written`. If
- * `capacity` is smaller than the live count, the buffer is filled
- * and the remainder is dropped.
+ * Caller-owned buffer with probe-then-fill semantics: `out_written`
+ * is populated with the **required** slot count regardless of whether
+ * the buffer fits, so callers can probe with `(null, 0)` to size a
+ * real buffer.
+ *
+ * Returns:
+ * - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+ *   <= capacity`); the first `out_written` slots of `out` are
+ *   populated.
+ * - [`EvStatus::InvalidArg`] when the buffer is too small;
+ *   `out_written` carries the required slot count and no slot of
+ *   `out` is written. [`ev_last_error`] carries a diagnostic string
+ *   **only** when `capacity > 0` — the documented `(null, 0)` probe
+ *   leaves the last-error slot clear so callers using
+ *   [`ev_last_error`] for diagnostics don't see a false "programmer
+ *   mistake" after a deliberate size query.
+ *
+ * **ABI v4 contract change:** prior versions silently truncated to
+ * `capacity` and returned `Ok` regardless. Callers that previously
+ * passed an under-sized buffer and ignored the count must now
+ * either grow the buffer or check for `InvalidArg`. Use
+ * [`ev_sim_hall_call_count`] for size-only probes when the buffer
+ * pattern feels heavyweight.
  *
  * # Safety
  *
- * `handle`, `out`, and `out_written` must be valid pointers. `out`
- * must point to a buffer of at least `capacity` `EvHallCall`s.
+ * `handle` and `out_written` must be valid pointers. `out` must point
+ * to a buffer of at least `capacity` [`EvHallCall`]s when `capacity > 0`,
+ * and may be null when `capacity == 0` (probe pass).
  */
 enum EvStatus ev_sim_hall_calls_snapshot(struct EvSim *handle,
                                          struct EvHallCall *out,
@@ -2548,6 +2568,8 @@ enum EvStatus ev_sim_riders_on(struct EvSim *handle,
  * - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
  * - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
  *   small; `out_written` contains the required slot count.
+ *   [`ev_last_error`] carries a diagnostic string only when
+ *   `capacity > 0` — the documented `(null, 0)` probe is silent.
  * - [`EvStatus::NotFound`] if no route exists.
  *
  * # Safety
@@ -2586,7 +2608,9 @@ uint32_t ev_sim_car_call_count(struct EvSim *handle, uint64_t elevator_entity_id
  *   populated.
  * - [`EvStatus::InvalidArg`] when the buffer is too small;
  *   `out_written` carries the required slot count and no slot of
- *   `out` is written.
+ *   `out` is written. [`ev_last_error`] carries a diagnostic string
+ *   only when `capacity > 0` — the documented `(null, 0)` probe is
+ *   silent.
  *
  * # Safety
  *
@@ -2661,7 +2685,11 @@ uint32_t ev_sim_tag_count(struct EvSim *handle);
  * (including null terminators).
  *
  * Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
- * `out_*` counts indicate the required sizes.
+ * `out_*` counts indicate the required sizes. [`ev_last_error`]
+ * carries a diagnostic string only when at least one capacity is
+ * non-zero — the documented `(null, 0, null, 0)` pure probe is
+ * silent so callers reading [`ev_last_error`] after a deliberate
+ * size query don't see a false "programmer mistake".
  *
  * # Safety
  *
