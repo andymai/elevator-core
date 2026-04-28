@@ -1488,6 +1488,22 @@ export class WasmSim {
      */
     snapshotBytes(): WasmBytesResult;
     /**
+     * Cheap u64 checksum of the simulation's serializable state.
+     * FNV-1a hash of the postcard snapshot bytes.
+     *
+     * Designed for divergence detection in lockstep deployments
+     * (browser vs server, multi-client multiplayer): two sims that
+     * stayed in lockstep must hash to the same value. Mismatch is a
+     * loud signal that something has drifted before the next full
+     * snapshot reconciles.
+     *
+     * Note: like raw `snapshotBytes`, the value is asymmetric on the
+     * first `fromSnapshotBytes` round-trip (restore materializes
+     * default metric-tag rows). After both sides have gone through
+     * restore once, the checksum is stable.
+     */
+    snapshotChecksum(): WasmU64Result;
+    /**
      * Spawn a single rider between two stop ids at the given weight.
      *
      * When `patience_ticks` is provided (non-zero), the rider gets a
@@ -1751,6 +1767,7 @@ export interface InitOutput {
     readonly wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_snapshot: (a: number) => any;
     readonly wasmsim_snapshotBytes: (a: number) => any;
+    readonly wasmsim_snapshotChecksum: (a: number) => any;
     readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
     readonly wasmsim_stepMany: (a: number, b: number) => void;
