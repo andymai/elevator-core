@@ -161,6 +161,22 @@ fn draw_overview(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simu
     metrics::draw(frame, chunks[3], state, sim);
 }
 
+/// Center a fixed-size rectangle inside `area`. If `area` is smaller
+/// than `(w, h)`, the modal shrinks to fit. Used by every modal
+/// overlay (help, welcome) — kept here so the geometry can't drift
+/// silently across copies.
+#[must_use]
+pub(super) fn centered_rect(area: Rect, w: u16, h: u16) -> Rect {
+    let w = w.min(area.width);
+    let h = h.min(area.height);
+    Rect {
+        x: area.x + (area.width.saturating_sub(w)) / 2,
+        y: area.y + (area.height.saturating_sub(h)) / 2,
+        width: w,
+        height: h,
+    }
+}
+
 /// Build a bracketed panel title `─┤ name · suffix ├─` styled in the
 /// palette accent. Spans render at the top-left of a bordered block.
 #[must_use]

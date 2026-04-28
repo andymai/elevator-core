@@ -17,7 +17,7 @@ use crate::ui::palette;
 
 /// Render the welcome modal over `area`.
 pub fn draw(frame: &mut Frame<'_>, area: Rect, sim: &Simulation) {
-    let modal = centered(area, 64, 18);
+    let modal = super::centered_rect(area, 64, 18);
     frame.render_widget(Clear, modal);
 
     let block = Block::default()
@@ -98,17 +98,4 @@ fn bullet(text: impl Into<String>) -> Line<'static> {
         Span::styled("• ", Style::default().fg(palette::ACCENT)),
         Span::styled(text.into(), Style::default().fg(palette::DIM_STRONG)),
     ])
-}
-
-/// Same centring helper as `help.rs` — kept local so the modules stay
-/// independent.
-fn centered(area: Rect, w: u16, h: u16) -> Rect {
-    let w = w.min(area.width);
-    let h = h.min(area.height);
-    Rect {
-        x: area.x + (area.width.saturating_sub(w)) / 2,
-        y: area.y + (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    }
 }

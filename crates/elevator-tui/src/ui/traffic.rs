@@ -36,8 +36,9 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let avg_rate = if samples.is_empty() {
         0.0
     } else {
-        f64::from(u32::try_from(samples.iter().sum::<u64>()).unwrap_or(u32::MAX))
-            / samples.len() as f64
+        // `as f64` from u64 loses precision past 2^53 spawns/window — many
+        // years of continuous traffic at 60 t/s — which we don't model.
+        samples.iter().sum::<u64>() as f64 / samples.len() as f64
     };
     let header = Line::from(vec![
         Span::styled(

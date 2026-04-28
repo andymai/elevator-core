@@ -15,7 +15,7 @@ use crate::ui::palette;
 
 /// Render a centered help modal over `area`.
 pub fn draw(frame: &mut Frame<'_>, area: Rect) {
-    let modal = centered(area, 72, 28);
+    let modal = super::centered_rect(area, 72, 28);
     frame.render_widget(Clear, modal);
 
     let block = Block::default()
@@ -104,17 +104,4 @@ fn glyph_line(glyph: &str, color: ratatui::style::Color, description: &str) -> L
             Style::default().fg(palette::DIM_STRONG),
         ),
     ])
-}
-
-/// Center a fixed-size rectangle inside `area`. If `area` is smaller
-/// than `(w, h)`, the modal shrinks to fit.
-fn centered(area: Rect, w: u16, h: u16) -> Rect {
-    let w = w.min(area.width);
-    let h = h.min(area.height);
-    Rect {
-        x: area.x + (area.width.saturating_sub(w)) / 2,
-        y: area.y + (area.height.saturating_sub(h)) / 2,
-        width: w,
-        height: h,
-    }
 }
