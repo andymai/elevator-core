@@ -8,14 +8,18 @@ fn deserialize_default_ron() {
     let config: SimConfig = ron::from_str(ron_str).expect("Failed to deserialize default.ron");
 
     assert_eq!(config.building.name, "Demo Tower");
-    assert_eq!(config.building.stops.len(), 5);
-    assert!((config.building.stops[0].position - 0.0).abs() < f64::EPSILON);
-    assert!((config.building.stops[4].position - 15.0).abs() < f64::EPSILON);
-    assert_eq!(config.elevators.len(), 1);
-    assert!((config.elevators[0].max_speed.value() - 2.0).abs() < f64::EPSILON);
-    assert!((config.elevators[0].weight_capacity.value() - 800.0).abs() < f64::EPSILON);
+    assert_eq!(config.building.stops.len(), 8);
+    let first = config.building.stops.first().expect("at least one stop");
+    let last = config.building.stops.last().expect("at least one stop");
+    assert!((first.position - 0.0).abs() < f64::EPSILON);
+    assert!((last.position - 25.0).abs() < f64::EPSILON);
+    assert_eq!(config.elevators.len(), 3);
+    let express = &config.elevators[0];
+    assert_eq!(express.name, "Express");
+    assert!((express.max_speed.value() - 3.5).abs() < f64::EPSILON);
+    assert!((express.weight_capacity.value() - 1200.0).abs() < f64::EPSILON);
     assert!((config.simulation.ticks_per_second - 60.0).abs() < f64::EPSILON);
-    assert_eq!(config.passenger_spawning.mean_interval_ticks, 120);
+    assert_eq!(config.passenger_spawning.mean_interval_ticks, 30);
 }
 
 #[test]

@@ -1,0 +1,34 @@
+---
+source: crates/elevator-tui/tests/render_snapshot.rs
+expression: frame
+---
+ elevator-tui · tick 60 · ▶ 1.00× · index · overview                                                
+ legend ▲ up  ╭┤ help · press ? or Esc to close ├────────────────────────────────────╮              
+╭┤ shaft · 1 c│                                                                      │─────────────╮
+│  Top        │  Playback                                                            │             │
+│  Ground     │    space   pause / resume                                            │             │
+│             │    . / ,   step one tick / ten ticks                                 │             │
+│             │    + / -   halve or double tick rate (0.0625× – 64×)                 │             │
+│             │                                                                      │─────────────╯
+│             │  Navigation                                                          │─────────────╮
+│             │    [ / ]   focus previous / next car                                 │             │
+│             │    f       follow focused car (event filter)                         │             │
+│             │    Enter   toggle right panel: overview ↔ drill-down                 │             │
+│             │    Esc     close drill-down or this overlay                          │             │
+│             │    m       toggle shaft layout: index ↔ distance                     │             │
+│             │                                                                      │             │
+│             │  Filters & Snapshots                                                 │             │
+│             │    1..7    toggle event categories (1 Elev, 2 Rdr, 3 Dsp,            │─────────────╯
+│             │            4 Top, 5 Rep, 6 Dir, 7 Obs)                               │─────────────╮
+│             │    s / l   save / restore in-memory snapshot                         │             │
+│             │                                                                      │             │
+│             │  Glyphs                                                              │─────────────╯
+│             │    ▲ ▼     going up / going down                                     │─────────────╮
+│             │    ■       stopped                                                   │             │
+│             │    L       loading riders                                            │             │
+│             │    O / C   doors opening / closing                                   │             │
+│             │    ↑↓      active hall call (up / down)                              │             │
+│             │    (n)     n riders waiting at this stop                             │             │
+│             │                                                                      │             │
+╰─────────────╰──────────────────────────────────────────────────────────────────────╯─────────────╯
+ ? help · space pause · [ ] car · Enter drill · q quit

@@ -2,33 +2,33 @@
 source: crates/elevator-tui/tests/render_snapshot.rs
 expression: frame
 ---
- elevator-tui   tick 120   RUNNING   rate 1.00×   shaft Index   panel Overview                      
-┌ shaft · 1 car(s) ───┐│ overview                                                                   
-│Top         10.0 │ · ││ events · filter [all]                                                      
-│Ground       0.0 │ ▲ ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││────────────────────────────────────────────────────────────────────────────
-│                     ││ dispatch                                                                   
-│                     ││Default       strategy=Scan  cars=1  waiting=0                              
-│                     ││  EntityId(4v1)  phase=MovingToStop(EntityId(2v1)) → EntityId(2v1)  queue=1 
-│                     ││                                                                            
-│                     ││                                                                            
-│                     ││────────────────────────────────────────────────────────────────────────────
-│                     ││ metrics                                                                    
-│                     ││spawned 1   delivered 0   abandoned 0 (0.0%)                                
-│                     ││wait avg 4.0t   p95 4t   max 4t                                             
-│                     ││ride avg 0.0t   throughput 0/3600t   util 100.0%                            
-│                     ││p95 wait (ticks)                                                            
-│                     ││total occupancy                                                             
-└─────────────────────┘│────────────────────────────────────────────────────────────────────────────
- space pause  . step  , step×10  +/- rate  m shaft  []car  f follow  Enter drill  s save  l load  1-
+ elevator-tui · tick 120 · ▶ 1.00× · index · overview                                               
+ legend ▲ up  ▼ down  ■ stopped  L loading  O/C doors  ↑↓ hall call  (n) waiting                    
+╭┤ shaft · 1 cars · index ├──╮╭┤ dispatch · per-car state and load ├───────────────────────────────╮
+│  Top         10.0      │ · ││Default      strategy=Scan  cars=1  waiting=0                       │
+│  Ground       0.0      │ ▲ ││  car 1    movg →Top       [█░░░░░░░░░]   75/800  q=1               │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ events · filter [all] ├───────────────────────────────────────────╮
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ traffic · arrivals/sec ├──────────────────────────────────────────╮
+│                            ││   0/s now   avg  0.0/s   total 1                                   │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ metrics · aggregate health ├──────────────────────────────────────╮
+│                            ││spawned 1   delivered 0   abandoned 0 (0.0%)                        │
+│                            ││wait avg 4.0t   p95 4t   max 4t                                     │
+│                            ││ride avg 0.0t   throughput 0/3600t   util 100%                      │
+│                            ││p95 wait (ticks)                                                    │
+│                            ││                                                                    │
+│                            ││total occupancy                                                     │
+╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
+ ? help · space pause · [ ] car · Enter drill · q quit
