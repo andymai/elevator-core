@@ -139,29 +139,32 @@ Advisory parameters for traffic generators. The core library does **not** spawn 
 | `mean_interval_ticks` | Average ticks between passenger spawns (Poisson distribution) |
 | `weight_range` | `(min, max)` for uniformly distributed rider weight |
 
-## The space elevator
+## Long shafts and arbitrary distances
 
-To demonstrate that stops are truly arbitrary, the repository includes `space_elevator.ron`:
+Stops carry arbitrary `f64` positions, so the same engine drives a five-floor office and a kilometres-deep mine. The example below treats one position unit as one metre -- the engine doesn't enforce a unit, so any internally-consistent convention works.
+
+A deep mine shaft is a useful stress test: real production hoists at sites like Mponeng run skips at 16-18 m/s over 2-3 km of vertical travel, with cage-loading dwell times measured in tens of seconds rather than the few seconds an office cab needs.
 
 ```ron
 SimConfig(
     building: BuildingConfig(
-        name: "Orbital Tether",
+        name: "Mine Shaft 1",
         stops: [
-            StopConfig(id: StopId(0), name: "Ground Station", position: 0.0),
-            StopConfig(id: StopId(1), name: "Orbital Platform", position: 1000.0),
+            StopConfig(id: StopId(0), name: "Surface",   position:     0.0),
+            StopConfig(id: StopId(1), name: "Mid-level", position: -1200.0),
+            StopConfig(id: StopId(2), name: "Bottom",    position: -2400.0),
         ],
     ),
     elevators: [
         ElevatorConfig(
             id: 0,
-            name: "Climber Alpha",
-            max_speed: 50.0,
-            acceleration: 10.0,
-            deceleration: 15.0,
-            weight_capacity: 10000.0,
+            name: "Cage A",
+            max_speed: 18.0,           // ~m/s, deep-shaft hoist class.
+            acceleration: 1.5,
+            deceleration: 2.5,
+            weight_capacity: 12000.0,  // miners + skip ore + tools.
             starting_stop: StopId(0),
-            door_open_ticks: 120,
+            door_open_ticks: 120,      // crew loading takes time.
             door_transition_ticks: 30,
         ),
     ],
@@ -169,7 +172,9 @@ SimConfig(
 )
 ```
 
-The stops are 1,000 distance units apart, the elevator has a max speed of 50, and the doors take twice as long to cycle. The same simulation engine handles both a 5-story office and an orbital tether.
+The stops sit 1,200 metres apart (under the metre convention chosen above), positions are negative (down from the surface datum), and the doors hold open six times longer than an office default. The same simulation engine handles both a five-story office and a 2.4 km mine shaft -- the only thing that changes is the config.
+
+The repository also bundles `assets/config/space_elevator.ron` -- two stops separated by 1,000 distance units (interpret the unit however you like) -- as a stress test for very high `max_speed` values and very long door cycles.
 
 ## Validation
 

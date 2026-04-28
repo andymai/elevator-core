@@ -122,9 +122,9 @@ The `before(Phase::Dispatch)` slot is a particularly convenient place to inject 
 
 ## Combining extensions and hooks: worked example
 
-The real power comes from using extensions and hooks together. This walkthrough tracks how long each rider has been waiting and prints a warning if they wait too long.
+A facilities team monitoring an office tower wants to know whenever a tenant has been waiting for an elevator for more than 90 seconds during peak traffic -- it is a service-level indicator and feeds an end-of-day report. This walkthrough flags each over-budget wait exactly once via a `SlaBreach` extension component plus an `after(Phase::Metrics)` hook.
 
-The hook closure cannot call `sim.current_tick()` directly (the simulation is borrowed during the tick), so we store the tick in a `World` resource and update it each iteration.
+The hook closure cannot call `sim.current_tick()` directly (the simulation is borrowed during the tick), so the tick is mirrored into a `World` resource that the hook reads.
 
 ```rust,no_run
 use elevator_core::prelude::*;
@@ -133,10 +133,15 @@ use elevator_core::hooks::Phase;
 use elevator_core::stop::StopId;
 use serde::{Serialize, Deserialize};
 
+/// Per-rider flag that latches the first time a tenant breaches the
+/// 90-second SLA so we report each wait at most once.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct WaitWarning {
-    warned: bool,
+struct SlaBreach {
+    reported: bool,
 }
+
+// 60 ticks/sec * 90 sec = 5_400 ticks.
+const SLA_BUDGET_TICKS: u64 = 5_400;
 
 fn main() -> Result<(), SimError> {
     let mut sim = SimulationBuilder::new()
@@ -144,9 +149,9 @@ fn main() -> Result<(), SimError> {
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
         .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
-        .with_ext::<WaitWarning>()
+        .with_ext::<SlaBreach>()
         .after(Phase::Metrics, |world| {
-            // Check all waiting riders for long waits.
+            // Scan every rider; flag the first time they cross the SLA budget.
             let rider_ids: Vec<EntityId> = world.rider_ids();
             for rid in rider_ids {
                 let Some(rider) = world.rider(rid) else { continue };
@@ -156,11 +161,14 @@ fn main() -> Result<(), SimError> {
                     .map_or(0, |t| t.0);
                 let wait = current_tick.saturating_sub(rider.spawn_tick());
 
-                if wait > 300 {
-                    if let Some(warning) = world.ext_mut::<WaitWarning>(rid) {
-                        if !warning.warned {
-                            warning.warned = true;
-                            println!("WARNING: rider {:?} has been waiting {} ticks!", rid, wait);
+                if wait > SLA_BUDGET_TICKS {
+                    if let Some(breach) = world.ext_mut::<SlaBreach>(rid) {
+                        if !breach.reported {
+                            breach.reported = true;
+                            println!(
+                                "SLA breach: rider {:?} waited {} ticks (>{} budget)",
+                                rid, wait, SLA_BUDGET_TICKS,
+                            );
                         }
                     }
                 }
@@ -171,12 +179,12 @@ fn main() -> Result<(), SimError> {
     // Seed the resource the hook reads.
     sim.world_mut().insert_resource(CurrentTick(0));
 
-    // Spawn some riders and attach extensions.
+    // Spawn a tenant and attach the SLA tracker.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
-    sim.world_mut().insert_ext(r1.entity(), WaitWarning { warned: false }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(r1.entity(), SlaBreach { reported: false }, ExtKey::from_type_name());
 
-    for _ in 0..600 {
-        // Update the current tick resource before stepping.
+    for _ in 0..6_000 {
+        // Mirror the current tick into the resource before stepping.
         let now = sim.current_tick();
         if let Some(t) = sim.world_mut().resource_mut::<CurrentTick>() {
             t.0 = now;
@@ -190,7 +198,7 @@ fn main() -> Result<(), SimError> {
 struct CurrentTick(u64);
 ```
 
-This pattern -- define a component, register it, attach it on spawn, read/write it in a hook -- is the standard way to add game-specific behavior to the simulation.
+This pattern -- define a component, register it, attach it on spawn, read/write it in a hook -- is the standard way to layer caller-defined behaviour on top of the simulation.
 
 ## Next steps
 

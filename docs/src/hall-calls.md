@@ -45,27 +45,34 @@ Car calls follow the same pattern: `CarButtonPressed` fires on the first press p
 
 ## Scripted control
 
-Games can drive the call system outside the normal rider flow:
+Game and operator code can drive the call system outside the normal rider flow. A common case: a hospital service elevator has to be commandeered for a code blue -- pull the nearest service car to the ER for a priority pickup, override dispatch so this specific car (not whichever one dispatch would have chosen) answers that hall call, then release the override once the call is served.
 
 ```rust,no_run
 # use elevator_core::prelude::*;
 # use elevator_core::components::hall_call::CallDirection;
 # fn run(
 #     sim: &mut Simulation,
-#     lobby: StopId,
-#     penthouse: EntityId,
-#     villain_car: ElevatorId,
+#     er: EntityId,
+#     service_car: ElevatorId,
 # ) -> Result<(), SimError> {
-// An NPC walks up and presses the down button.
-sim.press_hall_button(lobby, CallDirection::Down)?;
+// Code blue: the transport team presses the up button at the ER.
+sim.press_hall_button(er, CallDirection::Up)?;
 
-// Cutscene pins the villain's elevator to the penthouse.
-sim.pin_assignment(villain_car, penthouse, CallDirection::Up)?;
+// Pin the priority car to that specific (stop, direction) call so
+// dispatch commits it to the ER pickup instead of whatever it would
+// have chosen on its own.
+sim.pin_assignment(service_car, er, CallDirection::Up)?;
 
-// Player hijacks -- release the pin and hard-abort the car's trip so
-// it brakes immediately instead of finishing the current leg.
-sim.unpin_assignment(penthouse, CallDirection::Up);
-sim.abort_movement(villain_car)?;
+// The car was mid-route on a routine call -- abort it so the car
+// brakes immediately instead of finishing that leg before serving
+// the priority transport.
+sim.abort_movement(service_car)?;
+
+// The patient boards at the ER and rides to the ICU via the normal
+// car-call path -- the destination is set when the rider boards, not
+// by the pin. Once the hall call has been served, release the pin so
+// the car returns to the general dispatch pool.
+sim.unpin_assignment(er, CallDirection::Up);
 # Ok(())
 # }
 ```
