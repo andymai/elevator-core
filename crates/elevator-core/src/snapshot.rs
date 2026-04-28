@@ -1021,6 +1021,44 @@ impl crate::sim::Simulation {
             .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))
     }
 
+    /// Cheap u64 checksum of the simulation's serializable state.
+    /// Hashes [`Self::snapshot_bytes`] via inline FNV-1a — no new
+    /// dependencies. The numeric value is FNV-1a-specific and not
+    /// equivalent to other hash functions of the same bytes; consumers
+    /// computing an independent hash for comparison must use this
+    /// method (or run FNV-1a themselves with the same constants).
+    ///
+    /// Designed for divergence detection between runtimes that should
+    /// be in lockstep (browser vs server, multi-client multiplayer).
+    /// Two sims that have produced bit-identical inputs in bit-identical
+    /// order must hash to the same value.
+    ///
+    /// **Caveat — first-restore asymmetry**: like raw [`Self::snapshot_bytes`],
+    /// this checksum changes after the first `restore_bytes` round-trip
+    /// because the loader materializes default metric-tag rows that a
+    /// fresh sim only allocates lazily. After both sides have gone
+    /// through restore once, the checksum is stable across subsequent
+    /// rounds. Tracked separately for fix.
+    ///
+    /// # Errors
+    /// Same as [`Self::snapshot_bytes`]: snapshot encoding can fail in
+    /// the (unreachable for well-formed sims) postcard error path or
+    /// when called mid-tick during the substep API.
+    pub fn snapshot_checksum(&self) -> Result<u64, crate::error::SimError> {
+        // FNV-1a (64-bit). Small, allocation-free over the byte slice,
+        // well-distributed for arbitrary input. Not cryptographic;
+        // collision tolerance is fine for divergence detection.
+        const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+        const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+        let bytes = self.snapshot_bytes()?;
+        let mut h: u64 = FNV_OFFSET;
+        for byte in &bytes {
+            h ^= u64::from(*byte);
+            h = h.wrapping_mul(FNV_PRIME);
+        }
+        Ok(h)
+    }
+
     /// Restore a simulation from bytes produced by [`Self::snapshot_bytes`].
     ///
     /// Built-in dispatch strategies are auto-restored. For groups using

@@ -461,6 +461,27 @@ impl WasmSim {
         dto::Snapshot::build(&self.inner)
     }
 
+    /// Cheap u64 checksum of the simulation's serializable state.
+    /// FNV-1a hash of the postcard snapshot bytes.
+    ///
+    /// Designed for divergence detection in lockstep deployments
+    /// (browser vs server, multi-client multiplayer): two sims that
+    /// stayed in lockstep must hash to the same value. Mismatch is a
+    /// loud signal that something has drifted before the next full
+    /// snapshot reconciles.
+    ///
+    /// Note: like raw `snapshotBytes`, the value is asymmetric on the
+    /// first `fromSnapshotBytes` round-trip (restore materializes
+    /// default metric-tag rows). After both sides have gone through
+    /// restore once, the checksum is stable.
+    #[wasm_bindgen(js_name = snapshotChecksum)]
+    pub fn snapshot_checksum(&self) -> WasmU64Result {
+        match self.inner.snapshot_checksum() {
+            Ok(value) => WasmU64Result::ok(value),
+            Err(e) => WasmU64Result::err(e.to_string()),
+        }
+    }
+
     /// Serialize the simulation to a self-describing postcard byte blob.
     ///
     /// Wraps [`Simulation::snapshot_bytes`]. The returned bytes carry a
