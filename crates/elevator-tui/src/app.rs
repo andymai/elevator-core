@@ -13,7 +13,7 @@ use elevator_core::sim::Simulation;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
-use crate::state::{AppState, ShaftMode};
+use crate::state::{AppState, RightPanel, ShaftMode, Sparkline};
 use crate::ui;
 
 /// Run the interactive TUI until the user quits.
@@ -121,12 +121,16 @@ fn event_loop(
     }
 }
 
-/// Drive a single sim tick and drain its events into the rolling log.
+/// Drive a single sim tick, drain its events, and update sparklines.
 fn step_once(sim: &mut Simulation, state: &mut AppState) {
     sim.step();
     let tick = sim.current_tick();
     let drained = sim.drain_events();
     state.push_events(tick, drained);
+
+    state.wait_sparkline.push(sim.metrics().p95_wait_time());
+    let total_occupancy: usize = ui::shaft::cars_iter(sim).map(|car| car.riders.len()).sum();
+    state.occupancy_sparkline.push(total_occupancy as u64);
 }
 
 /// Map a single keypress to a state transition (and possibly a sim
@@ -193,6 +197,33 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
                 state.flash(format!("toggle {category:?}"));
             }
         }
+        KeyCode::Enter => {
+            state.right_panel = match state.right_panel {
+                RightPanel::Overview => RightPanel::DrillDown,
+                RightPanel::DrillDown => RightPanel::Overview,
+            };
+        }
+        KeyCode::Esc => {
+            state.right_panel = RightPanel::Overview;
+        }
+        KeyCode::Char('s') => {
+            state.snapshot_slot = Some(sim.snapshot());
+            state.flash(format!("snapshot saved @ tick {}", sim.current_tick()));
+        }
+        KeyCode::Char('l') => match state.snapshot_slot.clone() {
+            Some(snap) => match snap.restore(None) {
+                Ok(restored) => {
+                    *sim = restored;
+                    state.event_log.clear();
+                    state.wait_sparkline = Sparkline::new(state.wait_sparkline.capacity);
+                    state.occupancy_sparkline = Sparkline::new(state.occupancy_sparkline.capacity);
+                    state.focused_car_idx = 0;
+                    state.flash(format!("restored @ tick {}", sim.current_tick()));
+                }
+                Err(e) => state.flash(format!("restore failed: {e}")),
+            },
+            None => state.flash("no snapshot saved"),
+        },
         _ => {}
     }
 }
@@ -286,6 +317,34 @@ mod tests {
         let before = state.category_filter.len();
         handle_key(&mut state, &mut sim, KeyCode::Char('2'), KeyModifiers::NONE);
         assert_eq!(state.category_filter.len(), before - 1);
+    }
+
+    #[test]
+    fn save_then_load_restores_tick() {
+        let mut state = AppState::new(1.0);
+        let mut sim = demo_sim();
+        for _ in 0..5 {
+            sim.step();
+        }
+        handle_key(&mut state, &mut sim, KeyCode::Char('s'), KeyModifiers::NONE);
+        let saved_tick = sim.current_tick();
+        for _ in 0..5 {
+            sim.step();
+        }
+        assert_eq!(sim.current_tick(), saved_tick + 5);
+        handle_key(&mut state, &mut sim, KeyCode::Char('l'), KeyModifiers::NONE);
+        assert_eq!(sim.current_tick(), saved_tick);
+    }
+
+    #[test]
+    fn enter_toggles_drilldown() {
+        let mut state = AppState::new(1.0);
+        let mut sim = demo_sim();
+        assert_eq!(state.right_panel, RightPanel::Overview);
+        handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
+        assert_eq!(state.right_panel, RightPanel::DrillDown);
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert_eq!(state.right_panel, RightPanel::Overview);
     }
 
     #[test]
