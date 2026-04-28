@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -271,7 +271,7 @@ fn main() {
 <p>Run it with <code>cargo run -p elevator-core --example manual_driver</code>.</p>
 <h2 id="inspection-mode"><a class="header" href="#inspection-mode">Inspection mode</a></h2>
 <p>Inspection mode reduces the elevator’s speed by its <code>inspection_speed_factor</code> (default: 0.25, configurable per elevator). Doors hold open indefinitely rather than auto-cycling. The elevator still participates in dispatch – it just moves slowly.</p>
-<p>This mode is useful for maintenance scenarios or UI elements that let a building manager “ride along” at reduced speed.</p>
+<p>This mode is useful for maintenance walk-throughs and operator-driven inspection runs – the cab moves slowly enough for a technician to listen for anomalies along the shaft, and the doors stay open at each stop until the operator dismisses them.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
