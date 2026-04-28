@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 elevator-core = { path = "../elevator-core", features = ["traffic"] }
-ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
+ratatui = { version = "0.30", default-features = false, features = ["crossterm_0_28"] }
 crossterm = "0.28"
 clap = { version = "4.5", features = ["derive"] }
 ron.workspace = true
