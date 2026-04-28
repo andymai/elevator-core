@@ -106,3 +106,27 @@ fn invalid_value_returns_err() {
         WasmVoidResult::Ok {} => panic!("zero ticks should have failed"),
     }
 }
+
+#[test]
+fn set_max_speed_rejects_non_positive() {
+    let mut sim = WasmSim::new(SCENARIO, "look", None).expect("construct sim");
+    let r = elevator_ref(&sim);
+    for bad in [0.0_f64, -1.0, f64::NAN, f64::INFINITY] {
+        match sim.set_max_speed(r, bad) {
+            WasmVoidResult::Err { .. } => {}
+            WasmVoidResult::Ok {} => panic!("speed={bad} should have failed"),
+        }
+    }
+}
+
+#[test]
+fn set_weight_capacity_rejects_non_positive() {
+    let mut sim = WasmSim::new(SCENARIO, "look", None).expect("construct sim");
+    let r = elevator_ref(&sim);
+    for bad in [0.0_f64, -1.0, f64::NAN, f64::INFINITY] {
+        match sim.set_weight_capacity(r, bad) {
+            WasmVoidResult::Err { .. } => {}
+            WasmVoidResult::Ok {} => panic!("capacity={bad} should have failed"),
+        }
+    }
+}
