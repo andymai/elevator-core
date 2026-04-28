@@ -57,7 +57,7 @@ fn batched_writes_match_individual_calls() {
     assert_eq!(refs.len(), 2, "scenario has 2 elevators");
 
     let mut packed = vec![0.0_f64; refs.len()];
-    let written = sim.positions_at_packed(refs.clone(), 0.0, &mut packed);
+    let written = sim.positions_at_packed(&refs, 0.0, &mut packed);
     assert_eq!(written, 2);
 
     // Compare against per-call values.
@@ -85,7 +85,7 @@ fn unknown_refs_get_nan() {
     refs.push(0xdead_beef_dead_beef);
 
     let mut packed = vec![0.0_f64; refs.len()];
-    let written = sim.positions_at_packed(refs, 0.0, &mut packed);
+    let written = sim.positions_at_packed(&refs, 0.0, &mut packed);
     assert_eq!(written, 3);
     assert!(packed[0].is_finite());
     assert!(packed[1].is_finite());
@@ -102,7 +102,7 @@ fn writes_count_caps_at_min_of_refs_and_out() {
 
     // out smaller than refs — only out.len() slots get written.
     let mut short = [SENTINEL; 1];
-    let written = sim.positions_at_packed(refs.clone(), 0.0, &mut short);
+    let written = sim.positions_at_packed(&refs, 0.0, &mut short);
     assert_eq!(written, 1);
     assert!(short[0].is_finite());
 
@@ -110,7 +110,7 @@ fn writes_count_caps_at_min_of_refs_and_out() {
     // Strict equality on the sentinel is safe: those slots are
     // untouched memory, not the result of any FP arithmetic.
     let mut long = [SENTINEL; 5];
-    let written = sim.positions_at_packed(refs, 0.0, &mut long);
+    let written = sim.positions_at_packed(&refs, 0.0, &mut long);
     assert_eq!(written, 2);
     assert!(long[0].is_finite());
     assert!(long[1].is_finite());
@@ -125,7 +125,7 @@ fn empty_inputs_write_nothing() {
     let mut sim = WasmSim::new(SCENARIO, "look", None).expect("construct sim");
     sim.step_many(1);
     let mut packed = [SENTINEL; 4];
-    let written = sim.positions_at_packed(vec![], 0.0, &mut packed);
+    let written = sim.positions_at_packed(&[], 0.0, &mut packed);
     assert_eq!(written, 0);
     assert_eq!(packed, [SENTINEL, SENTINEL, SENTINEL, SENTINEL]);
 }

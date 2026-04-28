@@ -1272,16 +1272,21 @@ impl WasmSim {
     /// component get `f64::NAN` written to their slot — caller can
     /// `Number.isNaN(slot)` to detect.
     ///
-    /// `out` must be at least as long as `refs`; the wasm-bindgen
-    /// generated TS signature accepts a `Float64Array`. Excess slots
-    /// past `refs.len()` are left unmodified so callers can reuse a
-    /// scratch buffer larger than the current frame's elevator count.
+    /// Both `refs` and `out` are zero-copy views of the JS caller's
+    /// typed arrays (`BigUint64Array` and `Float64Array` respectively).
+    /// wasm-bindgen does not allocate or copy on the boundary, so
+    /// this stays cheap to call every render frame.
     ///
-    /// Returns the number of entries written (always `refs.len()`)
-    /// so JS callers can use it as a `for (let i = 0; i < n; i++)`
-    /// bound without re-reading the input length.
+    /// Returns the number of entries written, which is
+    /// `min(refs.len(), out.len())`. Callers can reuse a scratch
+    /// buffer larger than the current frame's elevator count without
+    /// re-reading lengths; when `out` is shorter than `refs`, only
+    /// `out.len()` entries are written and the remaining refs are
+    /// silently skipped — caller is responsible for sizing `out` at
+    /// least as large as `refs` if they want every position read.
     #[wasm_bindgen(js_name = positionsAtPacked)]
-    pub fn positions_at_packed(&self, refs: Vec<u64>, alpha: f64, out: &mut [f64]) -> u32 {
+    #[must_use]
+    pub fn positions_at_packed(&self, refs: &[u64], alpha: f64, out: &mut [f64]) -> u32 {
         let n = refs.len().min(out.len());
         for (i, &raw) in refs.iter().enumerate().take(n) {
             out[i] = self
