@@ -116,22 +116,30 @@ internal static class Native
     public const byte EV_RIDER_EXITED = 8;
     public const byte EV_RIDER_ABANDONED = 9;
 
-    // Explicit layout so the 6 bytes of padding before `tick`
-    // (natural u64 alignment on the Rust #[repr(C)] side) are
-    // reserved here too, rather than relying on the CLR's default
-    // Sequential packing rules matching by coincidence across all
-    // three target ABIs.
-    [StructLayout(LayoutKind.Explicit, Size = 48)]
+    // Explicit layout mirrors the Rust #[repr(C)] EvEvent at ABI v4
+    // (80 bytes). The first 8 bytes pack four single-byte fields and
+    // a u32 group id; bytes 8..80 are eight u64/f64 slots in their
+    // natural order. Relying on the CLR's default Sequential packing
+    // could match by coincidence on one platform but skew on
+    // another, so explicit FieldOffsets are spelled out for every
+    // platform target.
+    [StructLayout(LayoutKind.Explicit, Size = 80)]
     public struct EvEvent
     {
         [FieldOffset(0)] public byte kind;
         [FieldOffset(1)] public sbyte direction;
-        // bytes 2..8 are padding (reserved for alignment)
+        [FieldOffset(2)] public byte code1;
+        [FieldOffset(3)] public byte code2;
+        [FieldOffset(4)] public uint group;
         [FieldOffset(8)] public ulong tick;
         [FieldOffset(16)] public ulong stop;
         [FieldOffset(24)] public ulong car;
         [FieldOffset(32)] public ulong rider;
         [FieldOffset(40)] public ulong floor;
+        [FieldOffset(48)] public ulong entity;
+        [FieldOffset(56)] public ulong count;
+        [FieldOffset(64)] public double f1;
+        [FieldOffset(72)] public double f2;
     }
 
     [DllImport(Lib)] public static extern uint ev_abi_version();
@@ -172,7 +180,7 @@ internal static class Native
 internal static class Program
 {
     private const int TICKS = 600;
-    private const uint EXPECTED_ABI = 2;
+    private const uint EXPECTED_ABI = 4;
 
     private static int Main(string[] args)
     {
