@@ -1,0 +1,34 @@
+---
+source: crates/elevator-tui/tests/render_snapshot.rs
+expression: frame
+---
+ elevator-tui   tick 120   RUNNING   rate 1.00×   shaft Index                                       
+┌ shaft · 1 car(s) ───┐│ overview                                                                   
+│Top         10.0 │ · ││ events · filter [all]                                                      
+│Ground       0.0 │ ▲ ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││────────────────────────────────────────────────────────────────────────────
+│                     ││ dispatch                                                                   
+│                     ││Default       strategy=Scan  cars=1  waiting=0                              
+│                     ││  EntityId(4v1)  phase=MovingToStop(EntityId(2v1)) → EntityId(2v1)  queue=1 
+│                     ││                                                                            
+│                     ││                                                                            
+│                     ││────────────────────────────────────────────────────────────────────────────
+│                     ││ metrics                                                                    
+│                     ││spawned 1   delivered 0   abandoned 0 (0.0%)                                
+│                     ││wait avg 4.0t   p95 4t   max 4t                                             
+│                     ││ride avg 0.0t   throughput 0/3600t   util 100.0%                            
+│                     ││                                                                            
+│                     ││                                                                            
+└─────────────────────┘│────────────────────────────────────────────────────────────────────────────
+ space pause  . step  , step×10  +/- rate  m shaft  []car  f follow  1-7 filter  q quit

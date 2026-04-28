@@ -14,14 +14,19 @@
 #   category  = "<category>"           # required — see `[categories]` below
 #   wasm      = "<status>"             # required — see status values
 #   ffi       = "<status>"             # required — see status values
+#   tui       = "<status>"             # required — see status values
 #
 # Status values
 # -------------
-#   "<exported>"        — the method is exposed under this exported name
-#                         (e.g. "stepMany" for wasm, "ev_sim_step" for ffi)
+#   "<exported>"        — the method is exposed under this exported name.
+#                         For wasm/ffi this is the binding name (e.g.
+#                         "stepMany", "ev_sim_step"). For tui this is
+#                         the user-facing capability that uses it (e.g.
+#                         "events_panel", "metrics_panel").
 #   "skip:<reason>"     — intentionally not bound. Reason is mandatory and
 #                         must explain *why* (lifetimes, internal detail,
-#                         covered by another binding, etc.)
+#                         covered by another binding, read-only viewer,
+#                         etc.)
 #   "todo:<phase>"      — planned for binding in the named phase. Allowed
 #                         during phased rollout; CI emits a warning, not
 #                         an error. Once `phase` ships the entry must
@@ -35,6 +40,10 @@
 #   PR-E   Wasm error-rewrite + log callback + metrics + tagging
 #   PR-F   Persistence — snapshot bytes/JSON, seed control
 #   PR-G   AsyncIterator event stream
+#
+# TUI phase markers
+# -----------------
+#   tui-pr2  Polish wave: snapshot save/load, sparklines, per-car drill-down
 
 [categories]
 lifecycle     = "Construction, ticking"
@@ -60,24 +69,28 @@ name = "new"
 category = "lifecycle"
 wasm = "constructor"
 ffi  = "ev_sim_create"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "step"
 category = "lifecycle"
 wasm = "stepMany"  # exposes batched step, internally calls step in loop
 ffi  = "ev_sim_step"
+tui  = "auto_tick_or_dot_hotkey"
 
 [[methods]]
 name = "advance_tick"
 category = "lifecycle"
 wasm = "skip:internal — driven by step()"
 ffi  = "skip:internal — driven by step()"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_until_quiet"
 category = "lifecycle"
 wasm = "runUntilQuiet"
 ffi  = "ev_sim_run_until_quiet"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Substep / phase-by-phase ticking ─────────────────────────────────────
 # Internal — exposing these would let consumers run an out-of-order tick
@@ -88,48 +101,56 @@ name = "run_advance_transient"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_dispatch"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_advance_queue"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_doors"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_loading"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_metrics"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_movement"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "run_reposition"
 category = "internal"
 wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Modes (the original concern: \"emergency stop doesn't work\") ────────
 
@@ -138,48 +159,56 @@ name = "set_service_mode"
 category = "modes"
 wasm = "setServiceMode"
 ffi  = "ev_sim_set_service_mode"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "service_mode"
 category = "modes"
 wasm = "serviceMode"
 ffi  = "ev_sim_service_mode"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_target_velocity"
 category = "modes"
 wasm = "setTargetVelocity"
 ffi  = "ev_sim_set_target_velocity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "emergency_stop"
 category = "modes"
 wasm = "emergencyStop"
 ffi  = "ev_sim_emergency_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "open_door"
 category = "modes"
 wasm = "openDoor"
 ffi  = "ev_sim_open_door"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "close_door"
 category = "modes"
 wasm = "closeDoor"
 ffi  = "ev_sim_close_door"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "hold_door"
 category = "modes"
 wasm = "holdDoor"
 ffi  = "ev_sim_hold_door"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "cancel_door_hold"
 category = "modes"
 wasm = "cancelDoorHold"
 ffi  = "ev_sim_cancel_door_hold"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Dispatch ─────────────────────────────────────────────────────────────
 
@@ -188,84 +217,98 @@ name = "set_dispatch"
 category = "dispatch"
 wasm = "setStrategy"
 ffi  = "ev_sim_set_strategy"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "strategy_id"
 category = "dispatch"
 wasm = "strategyName"
 ffi  = "ev_sim_strategy_id"
+tui  = "dispatch_panel"
 
 [[methods]]
 name = "set_reposition"
 category = "dispatch"
 wasm = "setReposition"
 ffi  = "ev_sim_set_reposition"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "remove_reposition"
 category = "dispatch"
 wasm = "removeReposition"
 ffi  = "ev_sim_remove_reposition"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "reposition_id"
 category = "dispatch"
 wasm = "repositionStrategyName"
 ffi  = "ev_sim_reposition_id"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "build_dispatch_manifest"
 category = "internal"
 wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
+tui  = "dispatch_panel"
 
 [[methods]]
 name = "peek_dispatch_manifest"
 category = "internal"
 wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
+tui  = "dispatch_panel"
 
 [[methods]]
 name = "pin_assignment"
 category = "dispatch"
 wasm = "pinAssignment"
 ffi  = "ev_sim_pin_assignment"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "unpin_assignment"
 category = "dispatch"
 wasm = "unpinAssignment"
 ffi  = "ev_sim_unpin_assignment"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "assigned_car"
 category = "dispatch"
 wasm = "assignedCar"
 ffi  = "ev_sim_assigned_car"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "assigned_cars_by_line"
 category = "dispatch"
 wasm = "assignedCarsByLine"
 ffi  = "ev_sim_assigned_cars_by_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "best_eta"
 category = "dispatch"
 wasm = "bestEta"
 ffi  = "ev_sim_best_eta"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "eta_for_call"
 category = "dispatch"
 wasm = "etaForCall"
 ffi  = "ev_sim_eta_for_call"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "eta"
 category = "dispatch"
 wasm = "eta"
 ffi  = "ev_sim_eta"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Buttons ──────────────────────────────────────────────────────────────
 
@@ -274,24 +317,28 @@ name = "press_hall_button"
 category = "buttons"
 wasm = "pressHallCall"
 ffi  = "ev_sim_press_hall_button"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "press_car_button"
 category = "buttons"
 wasm = "pressCarButton"
 ffi  = "ev_sim_press_car_button"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "hall_calls"
 category = "buttons"
 wasm = "hallCalls"
 ffi  = "ev_sim_hall_calls_snapshot"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "car_calls"
 category = "buttons"
 wasm = "carCalls"
 ffi  = "ev_sim_car_calls_snapshot"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Events ───────────────────────────────────────────────────────────────
 
@@ -300,18 +347,21 @@ name = "drain_events"
 category = "events"
 wasm = "drainEvents"
 ffi  = "ev_sim_drain_events"
+tui  = "events_panel"
 
 [[methods]]
 name = "drain_events_where"
 category = "events"
 wasm = "skip:closure marshaling — JS consumers filter drainEvents() output client-side"
 ffi  = "skip:closure marshaling — C consumers filter drain_events output"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "pending_events"
 category = "events"
 wasm = "pendingEvents"
 ffi  = "ev_sim_pending_event_count"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Riders ───────────────────────────────────────────────────────────────
 
@@ -320,24 +370,28 @@ name = "spawn_rider"
 category = "riders"
 wasm = "spawnRider"
 ffi  = "ev_sim_spawn_rider"
+tui  = "headless_poisson_traffic"
 
 [[methods]]
 name = "build_rider"
 category = "riders"
 wasm = "spawnRiderByRef"
 ffi  = "ev_sim_spawn_rider_ex"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "despawn_rider"
 category = "riders"
 wasm = "despawnRider"
 ffi  = "ev_sim_despawn_rider"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "settle_rider"
 category = "riders"
 wasm = "settleRider"
 ffi  = "ev_sim_settle_rider"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Routes ───────────────────────────────────────────────────────────────
 
@@ -346,6 +400,7 @@ name = "reroute"
 category = "routes"
 wasm = "reroute"
 ffi  = "ev_sim_reroute"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "reroute_rider"
@@ -355,6 +410,7 @@ category = "routes"
 # group) ships alongside as `rerouteRiderDirect` / `ev_sim_reroute_rider_direct`.
 wasm = "rerouteRiderShortest"
 ffi  = "ev_sim_reroute_rider_shortest"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_rider_route"
@@ -362,30 +418,35 @@ category = "routes"
 # Two convenience overloads per binding. See `reroute_rider` above.
 wasm = "setRiderRouteShortest"
 ffi  = "ev_sim_set_rider_route_shortest"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_rider_access"
 category = "routes"
 wasm = "setRiderAccess"
 ffi  = "ev_sim_set_rider_access"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "shortest_route"
 category = "routes"
 wasm = "shortestRoute"
 ffi  = "ev_sim_shortest_route"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "transfer_points"
 category = "routes"
 wasm = "transferPoints"
 ffi  = "ev_sim_transfer_points"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "reachable_stops_from"
 category = "routes"
 wasm = "reachableStopsFrom"
 ffi  = "ev_sim_reachable_stops_from"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Topology ─────────────────────────────────────────────────────────────
 
@@ -394,78 +455,91 @@ name = "add_group"
 category = "topology"
 wasm = "addGroup"
 ffi  = "ev_sim_add_group"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_line"
 category = "topology"
 wasm = "addLine"
 ffi  = "ev_sim_add_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_stop"
 category = "topology"
 wasm = "addStop"
 ffi  = "ev_sim_add_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_stop_to_line"
 category = "topology"
 wasm = "addStopToLine"
 ffi  = "ev_sim_add_stop_to_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_elevator"
 category = "topology"
 wasm = "addElevator"
 ffi  = "ev_sim_add_elevator"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "remove_elevator"
 category = "topology"
 wasm = "removeElevator"
 ffi  = "ev_sim_remove_elevator"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "remove_line"
 category = "topology"
 wasm = "removeLine"
 ffi  = "ev_sim_remove_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "remove_stop"
 category = "topology"
 wasm = "removeStop"
 ffi  = "ev_sim_remove_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "remove_stop_from_line"
 category = "topology"
 wasm = "removeStopFromLine"
 ffi  = "ev_sim_remove_stop_from_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_line_range"
 category = "topology"
 wasm = "setLineRange"
 ffi  = "ev_sim_set_line_range"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "assign_line_to_group"
 category = "topology"
 wasm = "assignLineToGroup"
 ffi  = "ev_sim_assign_line_to_group"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "reassign_elevator_to_line"
 category = "topology"
 wasm = "reassignElevatorToLine"
 ffi  = "ev_sim_reassign_elevator_to_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_elevator_restricted_stops"
 category = "topology"
 wasm = "setElevatorRestrictedStops"
 ffi  = "ev_sim_set_elevator_restricted_stops"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Introspection ────────────────────────────────────────────────────────
 
@@ -474,270 +548,315 @@ name = "current_tick"
 category = "introspection"
 wasm = "currentTick"
 ffi  = "ev_sim_current_tick"
+tui  = "title_bar"
 
 [[methods]]
 name = "dt"
 category = "introspection"
 wasm = "dt"
 ffi  = "ev_sim_dt"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "metrics"
 category = "metrics"
 wasm = "metrics"
 ffi  = "ev_sim_metrics"
+tui  = "metrics_panel"
 
 [[methods]]
 name = "time"
 category = "internal"
 wasm = "skip:returns &TimeAdapter — internal layout"
 ffi  = "skip:returns &TimeAdapter — internal layout"
+tui  = "tick_rate_calc"
 
 [[methods]]
 name = "events_mut"
 category = "internal"
 wasm = "skip:returns &mut EventBus — never bound"
 ffi  = "skip:returns &mut EventBus — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "metrics_mut"
 category = "internal"
 wasm = "skip:returns &mut Metrics — never bound"
 ffi  = "skip:returns &mut Metrics — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "phase_context"
 category = "internal"
 wasm = "skip:returns PhaseContext — internal scheduling helper"
 ffi  = "skip:returns PhaseContext — internal scheduling helper"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevators_on_line"
 category = "introspection"
 wasm = "elevatorsOnLine"
 ffi  = "ev_sim_elevators_on_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "groups_serving_stop"
 category = "introspection"
 wasm = "groupsServingStop"
 ffi  = "ev_sim_groups_serving_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "lines_in_group"
 category = "introspection"
 wasm = "linesInGroup"
 ffi  = "ev_sim_lines_in_group"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "lines_serving_stop"
 category = "introspection"
 wasm = "linesServingStop"
 ffi  = "ev_sim_lines_serving_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "stops_served_by_line"
 category = "introspection"
 wasm = "stopsServedByLine"
 ffi  = "ev_sim_stops_served_by_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "line_for_elevator"
 category = "introspection"
 wasm = "lineForElevator"
 ffi  = "ev_sim_line_for_elevator"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "all_lines"
 category = "introspection"
 wasm = "allLines"
 ffi  = "ev_sim_all_lines"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "line_count"
 category = "introspection"
 wasm = "lineCount"
 ffi  = "ev_sim_line_count"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "stop_lookup_iter"
 category = "introspection"
 wasm = "stopLookupIter"
 ffi  = "ev_sim_stop_lookup_iter"
+tui  = "shaft_view"
 
 [[methods]]
 name = "stop_entity"
 category = "introspection"
 wasm = "stopEntity"
 ffi  = "ev_sim_stop_entity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "find_stop_at_position_on_line"
 category = "introspection"
 wasm = "findStopAtPositionOnLine"
 ffi  = "ev_sim_find_stop_at_position_on_line"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "velocity"
 category = "introspection"
 wasm = "velocity"
 ffi  = "ev_sim_velocity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "position_at"
 category = "introspection"
 wasm = "positionAt"
 ffi  = "ev_sim_position_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevator_load"
 category = "introspection"
 wasm = "elevatorLoad"
 ffi  = "ev_sim_elevator_load"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "occupancy"
 category = "introspection"
 wasm = "occupancy"
 ffi  = "ev_sim_occupancy"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevator_direction"
 category = "introspection"
 wasm = "elevatorDirection"
 ffi  = "ev_sim_elevator_direction"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevator_going_up"
 category = "introspection"
 wasm = "elevatorGoingUp"
 ffi  = "ev_sim_elevator_going_up"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevator_going_down"
 category = "introspection"
 wasm = "elevatorGoingDown"
 ffi  = "ev_sim_elevator_going_down"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "elevator_move_count"
 category = "introspection"
 wasm = "elevatorMoveCount"
 ffi  = "ev_sim_elevator_move_count"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "braking_distance"
 category = "introspection"
 wasm = "brakingDistance"
 ffi  = "ev_sim_braking_distance"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "future_stop_position"
 category = "introspection"
 wasm = "futureStopPosition"
 ffi  = "ev_sim_future_stop_position"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "destination_queue"
 category = "introspection"
 wasm = "destinationQueue"
 ffi  = "ev_sim_destination_queue"
+tui  = "todo:tui-pr2 — drill-down panel ships in PR2"
 
 [[methods]]
 name = "elevators_in_phase"
 category = "introspection"
 wasm = "elevatorsInPhase"
 ffi  = "ev_sim_elevators_in_phase"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "iter_repositioning_elevators"
 category = "introspection"
 wasm = "iterRepositioningElevators"
 ffi  = "ev_sim_iter_repositioning_elevators"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "idle_elevator_count"
 category = "introspection"
 wasm = "idleElevatorCount"
 ffi  = "ev_sim_idle_elevator_count"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "is_elevator"
 category = "introspection"
 wasm = "isElevator"
 ffi  = "ev_sim_is_elevator"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "is_rider"
 category = "introspection"
 wasm = "isRider"
 ffi  = "ev_sim_is_rider"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "is_stop"
 category = "introspection"
 wasm = "isStop"
 ffi  = "ev_sim_is_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "is_disabled"
 category = "introspection"
 wasm = "isDisabled"
 ffi  = "ev_sim_is_disabled"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "waiting_at"
 category = "introspection"
 wasm = "waitingAt"
 ffi  = "ev_sim_waiting_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "waiting_count_at"
 category = "introspection"
 wasm = "waitingCountAt"
 ffi  = "ev_sim_waiting_count_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "waiting_counts_by_line_at"
 category = "introspection"
 wasm = "waitingCountsByLineAt"
 ffi  = "ev_sim_waiting_counts_by_line_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "waiting_direction_counts_at"
 category = "introspection"
 wasm = "waitingDirectionCountsAt"
 ffi  = "ev_sim_waiting_direction_counts_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "residents_at"
 category = "introspection"
 wasm = "residentsAt"
 ffi  = "ev_sim_residents_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "resident_count_at"
 category = "introspection"
 wasm = "residentCountAt"
 ffi  = "ev_sim_resident_count_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "abandoned_at"
 category = "introspection"
 wasm = "abandonedAt"
 ffi  = "ev_sim_abandoned_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "abandoned_count_at"
 category = "introspection"
 wasm = "abandonedCountAt"
 ffi  = "ev_sim_abandoned_count_at"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "riders_on"
 category = "introspection"
 wasm = "ridersOn"
 ffi  = "ev_sim_riders_on"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Destinations ─────────────────────────────────────────────────────────
 
@@ -746,30 +865,35 @@ name = "push_destination"
 category = "destinations"
 wasm = "pushDestination"
 ffi  = "ev_sim_push_destination"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "push_destination_front"
 category = "destinations"
 wasm = "pushDestinationFront"
 ffi  = "ev_sim_push_destination_front"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "clear_destinations"
 category = "destinations"
 wasm = "clearDestinations"
 ffi  = "ev_sim_clear_destinations"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "abort_movement"
 category = "destinations"
 wasm = "abortMovement"
 ffi  = "ev_sim_abort_movement"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "recall_to"
 category = "destinations"
 wasm = "recallTo"
 ffi  = "ev_sim_recall_to"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Parameters ───────────────────────────────────────────────────────────
 # Note: wasm exposes "*All" sweeping helpers (setMaxSpeedAll, etc.) that
@@ -781,54 +905,63 @@ name = "set_max_speed"
 category = "parameters"
 wasm = "setMaxSpeedAll"
 ffi  = "ev_sim_set_max_speed"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_acceleration"
 category = "parameters"
 wasm = "setAcceleration"
 ffi  = "ev_sim_set_acceleration"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_deceleration"
 category = "parameters"
 wasm = "setDeceleration"
 ffi  = "ev_sim_set_deceleration"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_door_open_ticks"
 category = "parameters"
 wasm = "setDoorOpenTicksAll"
 ffi  = "ev_sim_set_door_open_ticks"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_door_transition_ticks"
 category = "parameters"
 wasm = "setDoorTransitionTicksAll"
 ffi  = "ev_sim_set_door_transition_ticks"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_weight_capacity"
 category = "parameters"
 wasm = "setWeightCapacityAll"
 ffi  = "ev_sim_set_weight_capacity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_arrival_log_retention_ticks"
 category = "parameters"
 wasm = "setArrivalLogRetentionTicks"
 ffi  = "ev_sim_set_arrival_log_retention_ticks"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "enable"
 category = "parameters"
 wasm = "enable"
 ffi  = "ev_sim_enable"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "disable"
 category = "parameters"
 wasm = "disable"
 ffi  = "ev_sim_disable"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Hooks (closures don't survive the binding boundary) ──────────────────
 
@@ -837,36 +970,42 @@ name = "add_after_hook"
 category = "hooks"
 wasm = "skip:closures don't survive the wasm boundary — use streaming events"
 ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_before_hook"
 category = "hooks"
 wasm = "skip:closures don't survive the wasm boundary — use streaming events"
 ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_after_group_hook"
 category = "hooks"
 wasm = "skip:closures don't survive the wasm boundary"
 ffi  = "skip:closures don't survive the FFI boundary"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "add_before_group_hook"
 category = "hooks"
 wasm = "skip:closures don't survive the wasm boundary"
 ffi  = "skip:closures don't survive the FFI boundary"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "load_extensions"
 category = "hooks"
 wasm = "skip:builder-pattern entry point — runs at construction"
 ffi  = "skip:builder-pattern entry point — runs at construction"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "load_extensions_with"
 category = "hooks"
 wasm = "skip:takes a generic closure"
 ffi  = "skip:takes a generic closure"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Tagging + per-tag metrics ────────────────────────────────────────────
 
@@ -875,24 +1014,28 @@ name = "tag_entity"
 category = "tagging"
 wasm = "tagEntity"
 ffi  = "ev_sim_tag_entity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "untag_entity"
 category = "tagging"
 wasm = "untagEntity"
 ffi  = "ev_sim_untag_entity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "all_tags"
 category = "tagging"
 wasm = "allTags"
 ffi  = "ev_sim_all_tags"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "metrics_for_tag"
 category = "metrics"
 wasm = "metricsForTag"
 ffi  = "ev_sim_metrics_for_tag"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 # ─── Internal — exposes &World, &mut World, internal slices ───────────────
 
@@ -901,33 +1044,39 @@ name = "world"
 category = "internal"
 wasm = "skip:returns &World — consumers use snapshot/worldView DTOs"
 ffi  = "skip:returns &World — consumers use ev_sim_frame"
+tui  = "shaft_view"
 
 [[methods]]
 name = "world_mut"
 category = "internal"
 wasm = "skip:returns &mut World — never bound"
 ffi  = "skip:returns &mut World — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "dispatchers"
 category = "internal"
 wasm = "skip:returns trait-object slice — never bound"
 ffi  = "skip:returns trait-object slice — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "dispatchers_mut"
 category = "internal"
 wasm = "skip:returns &mut trait-object slice — never bound"
 ffi  = "skip:returns &mut trait-object slice — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "groups"
 category = "internal"
 wasm = "skip:returns &[ElevatorGroup] — internal layout"
 ffi  = "skip:returns &[ElevatorGroup] — internal layout"
+tui  = "shaft_view"
 
 [[methods]]
 name = "groups_mut"
 category = "internal"
 wasm = "skip:returns &mut [ElevatorGroup] — never bound"
 ffi  = "skip:returns &mut [ElevatorGroup] — never bound"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
