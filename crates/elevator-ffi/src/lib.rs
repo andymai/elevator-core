@@ -7007,6 +7007,18 @@ mod tests {
         all
     }
 
+    /// Helper: return a fully-populated `EvElevatorParams` initialised from the
+    /// core defaults. Wraps the three-line `MaybeUninit` pattern so tests don't
+    /// repeat it.
+    fn default_params() -> EvElevatorParams {
+        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
+        assert_eq!(
+            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
+            EvStatus::Ok,
+        );
+        unsafe { params.assume_init() }
+    }
+
     #[test]
     fn spawn_rider_roundtrip() {
         let handle = create_test_handle();
@@ -7345,12 +7357,7 @@ mod tests {
             EvStatus::Ok,
         );
 
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let params = unsafe { params.assume_init() };
+        let params = default_params();
 
         let mut elevator: u64 = 0;
         let status = unsafe {
@@ -7372,12 +7379,7 @@ mod tests {
     #[test]
     fn add_elevator_rejects_invalid_line() {
         let handle = create_test_handle();
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let params = unsafe { params.assume_init() };
+        let params = default_params();
         let mut elevator: u64 = 0;
         let status = unsafe {
             ev_sim_add_elevator(
@@ -7416,12 +7418,7 @@ mod tests {
             EvStatus::Ok,
         );
 
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let params = unsafe { params.assume_init() };
+        let params = default_params();
 
         let restricted = [stop2];
         let restricted_count = u32::try_from(restricted.len()).expect("len fits u32");
@@ -7462,12 +7459,7 @@ mod tests {
             EvStatus::Ok,
         );
 
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let mut params = unsafe { params.assume_init() };
+        let mut params = default_params();
         params.bypass_load_up_pct = 0.85;
         params.bypass_load_down_pct = 0.75;
 
@@ -7516,12 +7508,7 @@ mod tests {
             EvStatus::Ok,
         );
 
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let params = unsafe { params.assume_init() };
+        let params = default_params();
 
         let restricted = [skip_stop, skip_stop, skip_stop];
         let restricted_count = u32::try_from(restricted.len()).expect("len fits u32");
@@ -7545,12 +7532,7 @@ mod tests {
     #[test]
     fn add_elevator_null_args_rejected() {
         let handle = create_test_handle();
-        let mut params = std::mem::MaybeUninit::<EvElevatorParams>::uninit();
-        assert_eq!(
-            unsafe { ev_sim_default_elevator_params(params.as_mut_ptr()) },
-            EvStatus::Ok,
-        );
-        let params = unsafe { params.assume_init() };
+        let params = default_params();
         let mut elevator: u64 = 0;
         // Null params pointer.
         assert_eq!(
