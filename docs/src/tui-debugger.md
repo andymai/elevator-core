@@ -97,6 +97,8 @@ The shaft has two modes you can toggle at runtime with `m`:
 | `m`       | Cycle shaft mode (Index <-> Distance)                               |
 | `]`, `[`  | Focus next / previous car                                           |
 | `f`       | Toggle follow mode -- filters the events panel to the focused car  |
+| `Enter`   | Open the per-car drill-down panel for the focused car              |
+| `Esc`     | Close drill-down                                                    |
 
 ### Event filtering
 
@@ -109,6 +111,13 @@ The shaft has two modes you can toggle at runtime with `m`:
 | `5` | Reposition        |
 | `6` | Direction         |
 | `7` | Observability     |
+
+### Snapshot
+
+| Key | Action                                              |
+| --- | ---                                                 |
+| `s` | Save the current sim state to an in-memory slot     |
+| `l` | Restore the saved sim state (clears event/sparkline) |
 
 ### Quit
 
@@ -123,9 +132,13 @@ The shaft has two modes you can toggle at runtime with `m`:
 
 1. Press `space` to pause as soon as you see the car about to skip.
 2. Press `[` / `]` until the car is focused (its glyph reverses).
-3. Press `f` to filter events to the car -- you can scroll back
+3. Press `Enter` to open the drill-down -- the destination queue
+   reveals what stops dispatch put on its route.
+4. Press `f` to filter events to the car -- you can scroll back
    through `Assigned`, `PassingFloor`, and door events to see the
    bypass decision in context.
+5. Press `s` to save the snapshot at the suspicious tick. Press `l`
+   later to come back to this exact moment.
 
 ### Reproducing a bug from a headless trace
 
@@ -173,11 +186,10 @@ render layer (`ui/`) only reads from the state and a borrowed
 
 ## Next steps
 
-- The v1 viewer is intentionally read-only. If you want to spawn
+- The viewer is intentionally read-only. If you want to spawn
   riders, change strategies, or pin assignments interactively, those
-  would land in a controller mode.
-- A polish wave (tracked in `bindings.toml` as `tui-pr2`) adds
-  snapshot save/load on a hotkey, sparkline trends in the metrics
-  panel, and a per-car drill-down panel.
+  would land in a follow-up controller mode.
+- For richer event introspection (regex search, structured query),
+  the event log could grow a slash-command bar -- not needed yet.
 - See [Snapshots and Determinism](snapshots-determinism.md) for the
-  semantics of the underlying `Simulation::snapshot()` API.
+  semantics of the `s`/`l` hotkeys and what restoration preserves.

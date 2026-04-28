@@ -20,6 +20,15 @@ pub enum ShaftMode {
     Distance,
 }
 
+/// Which side panel currently dominates the right column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RightPanel {
+    /// Events / Dispatch / Metrics stack (default).
+    Overview,
+    /// Per-car drill-down (queue, riders, recent car-touching events).
+    DrillDown,
+}
+
 /// A captured event plus the tick it was drained on.
 ///
 /// Tagged with the drain tick because [`Event`] variants don't all
@@ -31,6 +40,41 @@ pub struct LoggedEvent {
     pub tick: u64,
     /// The event itself.
     pub event: Event,
+}
+
+/// Bounded ring of recent samples used by sparkline panels.
+#[derive(Debug, Clone)]
+pub struct Sparkline {
+    /// Samples in insertion order; oldest at front.
+    pub samples: std::collections::VecDeque<u64>,
+    /// Maximum sample count retained.
+    pub capacity: usize,
+}
+
+impl Sparkline {
+    /// New empty sparkline of the given capacity.
+    #[must_use]
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            samples: std::collections::VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
+
+    /// Push a sample, dropping the oldest if at capacity.
+    pub fn push(&mut self, value: u64) {
+        if self.samples.len() == self.capacity {
+            self.samples.pop_front();
+        }
+        self.samples.push_back(value);
+    }
+
+    /// Slice view of the buffered samples (oldest first), suitable for
+    /// `ratatui::widgets::Sparkline::data`.
+    #[must_use]
+    pub fn as_slice(&self) -> Vec<u64> {
+        self.samples.iter().copied().collect()
+    }
 }
 
 /// Top-level interactive app state.
@@ -49,10 +93,18 @@ pub struct AppState {
     /// Whether to filter the events panel to events touching the
     /// focused car's entity id.
     pub follow_focused: bool,
+    /// Right-column mode: overview vs. per-car drill-down.
+    pub right_panel: RightPanel,
     /// Bounded ring of drained events (newest at end).
     pub event_log: std::collections::VecDeque<LoggedEvent>,
     /// Cap for `event_log`.
     pub event_log_cap: usize,
+    /// p95 wait-time samples per tick.
+    pub wait_sparkline: Sparkline,
+    /// Total occupancy across all cars per tick.
+    pub occupancy_sparkline: Sparkline,
+    /// In-memory snapshot slot (`s` saves, `l` restores).
+    pub snapshot_slot: Option<elevator_core::snapshot::WorldSnapshot>,
     /// Status banner (transient feedback after a hotkey action).
     pub status: Option<String>,
     /// Monotonically incrementing counter bumped each time [`flash`] is
@@ -78,8 +130,12 @@ impl AppState {
             category_filter: all_categories(),
             focused_car_idx: 0,
             follow_focused: false,
+            right_panel: RightPanel::Overview,
             event_log: std::collections::VecDeque::with_capacity(EVENT_LOG_CAP),
             event_log_cap: EVENT_LOG_CAP,
+            wait_sparkline: Sparkline::new(SPARKLINE_CAP),
+            occupancy_sparkline: Sparkline::new(SPARKLINE_CAP),
+            snapshot_slot: None,
             status: None,
             status_seq: 0,
             quit: false,
@@ -198,6 +254,8 @@ pub fn event_touches(event: &Event, target: elevator_core::entity::EntityId) -> 
 
 /// Cap on retained events in the rolling log.
 const EVENT_LOG_CAP: usize = 1024;
+/// Cap on retained sparkline samples.
+const SPARKLINE_CAP: usize = 256;
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
@@ -231,6 +289,16 @@ mod tests {
             Event::ElevatorIdle { tick, .. } => assert_eq!(*tick, 9),
             other => panic!("unexpected event variant: {other:?}"),
         }
+    }
+
+    #[test]
+    fn sparkline_pushes_drop_oldest() {
+        let mut spark = Sparkline::new(3);
+        spark.push(1);
+        spark.push(2);
+        spark.push(3);
+        spark.push(4);
+        assert_eq!(spark.as_slice(), vec![2, 3, 4]);
     }
 
     #[test]

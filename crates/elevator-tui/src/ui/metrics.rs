@@ -1,19 +1,31 @@
-//! Metrics panel — aggregate counters from `Simulation::metrics()`.
+//! Metrics panel — aggregate counters plus rolling sparklines for p95
+//! wait time and total occupancy.
 
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph, Sparkline};
+
+use crate::state::AppState;
 
 /// Render the metrics panel.
-pub fn draw(frame: &mut Frame<'_>, area: Rect, sim: &Simulation) {
+pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
     let block = Block::default()
         .borders(Borders::BOTTOM)
         .title(Line::from(" metrics ").style(Style::default().add_modifier(Modifier::BOLD)));
     let inner = block.inner(area);
     frame.render_widget(block, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(5), // counter text
+            Constraint::Length(2), // wait sparkline
+            Constraint::Length(2), // occupancy sparkline
+        ])
+        .split(inner);
 
     let m = sim.metrics();
     let counters = vec![
@@ -38,5 +50,21 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, sim: &Simulation) {
             ut = m.avg_utilization() * 100.0,
         )),
     ];
-    frame.render_widget(Paragraph::new(counters), inner);
+    frame.render_widget(Paragraph::new(counters), chunks[0]);
+
+    let wait = state.wait_sparkline.as_slice();
+    frame.render_widget(
+        Sparkline::default()
+            .block(Block::default().title("p95 wait (ticks)"))
+            .data(&wait),
+        chunks[1],
+    );
+
+    let occ = state.occupancy_sparkline.as_slice();
+    frame.render_widget(
+        Sparkline::default()
+            .block(Block::default().title("total occupancy"))
+            .data(&occ),
+        chunks[2],
+    );
 }
