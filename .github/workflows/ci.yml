@@ -83,8 +83,18 @@ jobs:
 
   ffi-harness:
     name: FFI smoke test (${{ matrix.os }})
-    # Cross-platform FFI builds are slow — only run after merge to main.
-    if: github.event_name == 'push'
+    # Runs on every push and every PR. The push-only gate that lived
+    # here previously let two ABI bumps (#499 v3, #504 v4) land
+    # without updating the C# harness, leaving main red for hours
+    # before #514 caught it. The cost is real (3 cross-platform
+    # cdylib builds + dotnet build) but cheaper than reverting a
+    # broken main; rust-cache amortizes the cdylib build to ~30 s
+    # warm. Skip on release-please PRs (machine-generated version
+    # bumps don't change the FFI surface).
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'release-kun[bot]' ||
+      !startsWith(github.event.pull_request.title, 'chore(main): release')
     strategy:
       fail-fast: false
       matrix:
