@@ -1372,7 +1372,11 @@ uint32_t ev_sim_hall_call_count(struct EvSim *handle);
  *   populated.
  * - [`EvStatus::InvalidArg`] when the buffer is too small;
  *   `out_written` carries the required slot count and no slot of
- *   `out` is written.
+ *   `out` is written. [`ev_last_error`] carries a diagnostic string
+ *   **only** when `capacity > 0` — the documented `(null, 0)` probe
+ *   leaves the last-error slot clear so callers using
+ *   [`ev_last_error`] for diagnostics don't see a false "programmer
+ *   mistake" after a deliberate size query.
  *
  * **ABI v4 contract change:** prior versions silently truncated to
  * `capacity` and returned `Ok` regardless. Callers that previously
@@ -2564,6 +2568,8 @@ enum EvStatus ev_sim_riders_on(struct EvSim *handle,
  * - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
  * - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
  *   small; `out_written` contains the required slot count.
+ *   [`ev_last_error`] carries a diagnostic string only when
+ *   `capacity > 0` — the documented `(null, 0)` probe is silent.
  * - [`EvStatus::NotFound`] if no route exists.
  *
  * # Safety
@@ -2602,7 +2608,9 @@ uint32_t ev_sim_car_call_count(struct EvSim *handle, uint64_t elevator_entity_id
  *   populated.
  * - [`EvStatus::InvalidArg`] when the buffer is too small;
  *   `out_written` carries the required slot count and no slot of
- *   `out` is written.
+ *   `out` is written. [`ev_last_error`] carries a diagnostic string
+ *   only when `capacity > 0` — the documented `(null, 0)` probe is
+ *   silent.
  *
  * # Safety
  *
@@ -2677,7 +2685,11 @@ uint32_t ev_sim_tag_count(struct EvSim *handle);
  * (including null terminators).
  *
  * Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
- * `out_*` counts indicate the required sizes.
+ * `out_*` counts indicate the required sizes. [`ev_last_error`]
+ * carries a diagnostic string only when at least one capacity is
+ * non-zero — the documented `(null, 0, null, 0)` pure probe is
+ * silent so callers reading [`ev_last_error`] after a deliberate
+ * size query don't see a false "programmer mistake".
  *
  * # Safety
  *
