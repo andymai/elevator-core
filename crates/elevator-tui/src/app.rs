@@ -49,6 +49,7 @@ fn event_loop(
     let mut accumulator = 0.0_f64;
     let mut last = Instant::now();
     let mut status_set_at = Instant::now();
+    let mut last_status_seq = state.status_seq;
 
     loop {
         // Drain any input that arrived during the frame.
@@ -100,11 +101,18 @@ fn event_loop(
         }
 
         // Auto-clear the status banner after a couple of seconds so it
-        // doesn't drift indefinitely on the footer.
+        // doesn't drift indefinitely on the footer. The wall-clock
+        // timer is reset whenever `state.flash()` ran since the last
+        // frame (detected via `status_seq`), so a back-to-back
+        // replacement gets the full display window — fixing the bug
+        // where a 1.9 s-old flash being replaced would vanish ~0.1 s
+        // later.
+        if state.status_seq != last_status_seq {
+            status_set_at = Instant::now();
+            last_status_seq = state.status_seq;
+        }
         if state.status.is_some() && status_set_at.elapsed() > Duration::from_secs(2) {
             state.status = None;
-        } else if state.status.is_none() {
-            status_set_at = Instant::now();
         }
 
         terminal

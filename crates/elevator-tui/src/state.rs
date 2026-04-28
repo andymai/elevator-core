@@ -55,6 +55,14 @@ pub struct AppState {
     pub event_log_cap: usize,
     /// Status banner (transient feedback after a hotkey action).
     pub status: Option<String>,
+    /// Monotonically incrementing counter bumped each time [`flash`] is
+    /// called. The event loop watches this to reset its wall-clock
+    /// timer when one flash *replaces* another, so a new banner gets
+    /// its full display time even when the previous one was still
+    /// showing. (See `Self::flash`.)
+    ///
+    /// [`flash`]: Self::flash
+    pub status_seq: u64,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -73,6 +81,7 @@ impl AppState {
             event_log: std::collections::VecDeque::with_capacity(EVENT_LOG_CAP),
             event_log_cap: EVENT_LOG_CAP,
             status: None,
+            status_seq: 0,
             quit: false,
         }
     }
@@ -112,8 +121,13 @@ impl AppState {
     }
 
     /// Set a transient status banner.
+    ///
+    /// Increments [`status_seq`](Self::status_seq) so the event loop
+    /// can detect a back-to-back replacement and reset its display
+    /// timer.
     pub fn flash(&mut self, msg: impl Into<String>) {
         self.status = Some(msg.into());
+        self.status_seq = self.status_seq.wrapping_add(1);
     }
 }
 
@@ -217,6 +231,19 @@ mod tests {
             Event::ElevatorIdle { tick, .. } => assert_eq!(*tick, 9),
             other => panic!("unexpected event variant: {other:?}"),
         }
+    }
+
+    #[test]
+    fn flash_increments_status_seq_each_call() {
+        let mut state = AppState::new(1.0);
+        assert_eq!(state.status_seq, 0);
+        state.flash("first");
+        assert_eq!(state.status_seq, 1);
+        state.flash("second"); // replaces the first while still set
+        assert_eq!(state.status_seq, 2);
+        // The event loop in app.rs uses this counter to reset its
+        // wall-clock display timer; a stale counter would let the
+        // second flash inherit the first's age and disappear early.
     }
 
     #[test]
