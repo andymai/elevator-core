@@ -111,6 +111,7 @@ export const wasmsim_settleRider: (a: number, b: bigint) => any;
 export const wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_snapshot: (a: number) => any;
 export const wasmsim_snapshotBytes: (a: number) => any;
+export const wasmsim_snapshotChecksum: (a: number) => any;
 export const wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => any;
 export const wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
 export const wasmsim_stepMany: (a: number, b: number) => void;
