@@ -9,6 +9,10 @@
 #   5. No heading-level skips (e.g., ## then ####)
 #   6. No references to deleted files (old chapter names)
 #   7. Every chapter (except SUMMARY.md) has a "Next steps" section
+#   8. Mermaid node labels don't open with a markdown list/blockquote/heading
+#      marker -- mermaid renders those as the literal text
+#      "Unsupported markdown: list/blockquote/heading" instead of the
+#      intended label.
 #
 # Usage:
 #   scripts/lint-docs.sh          # run all checks
@@ -125,6 +129,25 @@ STALE_PATTERNS="\bapi-reference\.md\b|\bcore-concepts\.md\b|\bextensions-and-hoo
 while IFS=: read -r file line content; do
     err "$(basename "$file"):$line: stale reference: $content"
 done < <(grep -Pn "$STALE_PATTERNS" "$DOCS_SRC"/*.md 2>/dev/null || true)
+
+# ── 8. Mermaid label markdown-marker mangling ────────────────────
+# Inside ```mermaid fences, mermaid 10+/11 runs HTML-label text
+# through a markdown parser. A label that opens with `N.`, `N)`, `-`,
+# `*`, `+`, `>`, or `#` (each followed by a space) is interpreted as a
+# list/blockquote/heading and replaced with the literal text
+# "Unsupported markdown: list/blockquote/heading". Catch the family of
+# regressions before it hits the rendered docs.
+echo "checking mermaid node labels..."
+while IFS=: read -r file line content; do
+    err "$(basename "$file"):$line: mermaid label opens with a markdown marker (renders as 'Unsupported markdown: ...'): $content"
+done < <(awk '
+    FNR == 1                   { in_m=0 }
+    /^```mermaid[[:space:]]*$/ { in_m=1; next }
+    /^```/                     { in_m=0; next }
+    in_m && match($0, /"([0-9]+[.)]|[-*+]|>|#) /) {
+        printf "%s:%d:%s\n", FILENAME, FNR, $0
+    }
+' "$DOCS_SRC"/*.md)
 
 # ── Summary ──────────────────────────────────────────────────────
 echo ""
