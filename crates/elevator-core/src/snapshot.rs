@@ -1022,9 +1022,11 @@ impl crate::sim::Simulation {
     }
 
     /// Cheap u64 checksum of the simulation's serializable state.
-    /// Equivalent to `xxhash` of [`Self::snapshot_bytes`] but routed
-    /// through a stable inline FNV-1a so consumers don't take on the
-    /// `xxhash` dependency.
+    /// Hashes [`Self::snapshot_bytes`] via inline FNV-1a — no new
+    /// dependencies. The numeric value is FNV-1a-specific and not
+    /// equivalent to other hash functions of the same bytes; consumers
+    /// computing an independent hash for comparison must use this
+    /// method (or run FNV-1a themselves with the same constants).
     ///
     /// Designed for divergence detection between runtimes that should
     /// be in lockstep (browser vs server, multi-client multiplayer).
