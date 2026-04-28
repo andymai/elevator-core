@@ -49,5 +49,6 @@
 
 - [Bevy Integration](bevy-integration.md)
 - [Headless and Non-Bevy Usage](headless-non-bevy.md)
+- [TUI Debugger](tui-debugger.md)
 - [Using the Bindings](using-the-bindings.md)
 - [Performance](performance.md)
