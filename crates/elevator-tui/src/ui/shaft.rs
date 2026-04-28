@@ -287,8 +287,13 @@ fn car_style(car: &CarView<'_>, focused: Option<EntityId>) -> Style {
 }
 
 /// Trim a string to `max` chars, padding with spaces if shorter.
+///
+/// Compares by character count, not byte length: a stop name like
+/// "Café" is 4 chars but 5 bytes, and would otherwise hit the
+/// truncation branch unnecessarily and emit a misaligned row.
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    let char_count = s.chars().count();
+    if char_count <= max {
         format!("{s:<max$}")
     } else {
         s.chars().take(max).collect()

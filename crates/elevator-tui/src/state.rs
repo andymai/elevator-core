@@ -117,8 +117,14 @@ impl AppState {
     }
 }
 
-/// Every known [`EventCategory`] variant. Updated when new categories
-/// land in core; tests pin the expected count.
+/// Every known [`EventCategory`] variant.
+///
+/// `EventCategory` is `#[non_exhaustive]`, so a downstream crate can't
+/// write an exhaustive `match` against it — adding a new variant in
+/// `elevator-core` would not be a compile error here. The test
+/// `all_categories_set_size_matches_known_variants` pins the count at
+/// runtime; if it fails after a core update, add the new variant
+/// here and a matching digit hotkey in `app::digit_to_category`.
 #[must_use]
 pub fn all_categories() -> HashSet<EventCategory> {
     HashSet::from([

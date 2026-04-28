@@ -75,15 +75,27 @@ fn event_loop(
             accumulator = 0.0;
         } else {
             accumulator += dt * state.tick_rate * cfg_tps;
-            // Soft-cap to avoid runaway catch-up after a long pause or
-            // very-high rate setting; without this a 100x rate on a
-            // slow terminal could spin for seconds inside one frame.
+            // Cap how many ticks we'll run inside one frame, then
+            // discard any leftover backlog. Without this two failure
+            // modes appear:
+            //   1. Spin: a 100× rate on a slow terminal would queue
+            //      seconds of work into a single frame's loop.
+            //   2. Catch-up after a long pause: even with a per-frame
+            //      cap, deferred ticks accumulate and the sim races
+            //      forward over the next several frames trying to
+            //      "catch up" wall time. Discarding the leftover
+            //      keeps wall-clock and sim time loosely synced; a
+            //      rate slider, not a backlog, is how the user asks
+            //      for fast playback.
             let max_per_frame = (cfg_tps * state.tick_rate * 0.1).max(1.0).ceil();
             let mut budget = max_per_frame as u64;
             while accumulator >= 1.0 && budget > 0 {
                 step_once(&mut sim, &mut state);
                 accumulator -= 1.0;
                 budget -= 1;
+            }
+            if accumulator > max_per_frame {
+                accumulator = 0.0;
             }
         }
 
