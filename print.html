@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-4d5042ad.js";
+            window.path_to_searchindex_js = "searchindex-914a44d0.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -1111,13 +1111,13 @@ sim.abort_movement(villain_car)?;
 <h2 id="the-8-phase-tick"><a class="header" href="#the-8-phase-tick">The 8-phase tick</a></h2>
 <pre class="mermaid">flowchart TD
     STEP["sim.step()"] --&gt; P1
-    P1["1. Advance Transient"] --&gt; P2["2. Dispatch"]
-    P2 --&gt; P3["3. Reposition"]
-    P3 --&gt; P4["4. Advance Queue"]
-    P4 --&gt; P5["5. Movement"]
-    P5 --&gt; P6["6. Doors"]
-    P6 --&gt; P7["7. Loading"]
-    P7 --&gt; P8["8. Metrics"]
+    P1["Phase 1: Advance Transient"] --&gt; P2["Phase 2: Dispatch"]
+    P2 --&gt; P3["Phase 3: Reposition"]
+    P3 --&gt; P4["Phase 4: Advance Queue"]
+    P4 --&gt; P5["Phase 5: Movement"]
+    P5 --&gt; P6["Phase 6: Doors"]
+    P6 --&gt; P7["Phase 7: Loading"]
+    P7 --&gt; P8["Phase 8: Metrics"]
     P8 --&gt; ADV["advance_tick()
 flush events, tick += 1"]
 </pre>
