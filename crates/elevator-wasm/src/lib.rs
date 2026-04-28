@@ -2262,6 +2262,78 @@ impl WasmSim {
         .into()
     }
 
+    /// Set `door_open_ticks` (dwell duration) on a single elevator.
+    ///
+    /// Takes effect on the **next** door cycle — an in-progress dwell
+    /// completes its original timing to avoid visual glitches. See
+    /// [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` if `elevator_ref` is unknown
+    /// or the value is invalid (zero `ticks`).
+    #[wasm_bindgen(js_name = setDoorOpenTicks)]
+    pub fn set_door_open_ticks(&mut self, elevator_ref: u64, ticks: u32) -> WasmVoidResult {
+        self.inner
+            .set_door_open_ticks(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                ticks,
+            )
+            .into()
+    }
+
+    /// Set `door_transition_ticks` (open/close transition duration) on
+    /// a single elevator. Takes effect on the next door cycle.
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` if `elevator_ref` is unknown
+    /// or the value is invalid (zero `ticks`).
+    #[wasm_bindgen(js_name = setDoorTransitionTicks)]
+    pub fn set_door_transition_ticks(&mut self, elevator_ref: u64, ticks: u32) -> WasmVoidResult {
+        self.inner
+            .set_door_transition_ticks(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                ticks,
+            )
+            .into()
+    }
+
+    /// Set `max_speed` (m/s) on a single elevator. Applied immediately.
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` if `elevator_ref` is unknown
+    /// or `speed` is non-positive / non-finite.
+    #[wasm_bindgen(js_name = setMaxSpeed)]
+    pub fn set_max_speed(&mut self, elevator_ref: u64, speed: f64) -> WasmVoidResult {
+        self.inner
+            .set_max_speed(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                speed,
+            )
+            .into()
+    }
+
+    /// Set `weight_capacity` (kg) on a single elevator. A new cap
+    /// below `current_load` leaves the car temporarily overweight
+    /// (no riders ejected); subsequent boarding rejects further
+    /// additions.
+    ///
+    /// # Errors
+    ///
+    /// Surfaces the underlying `SimError` if `elevator_ref` is unknown
+    /// or `capacity` is non-positive / non-finite.
+    #[wasm_bindgen(js_name = setWeightCapacity)]
+    pub fn set_weight_capacity(&mut self, elevator_ref: u64, capacity: f64) -> WasmVoidResult {
+        self.inner
+            .set_weight_capacity(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                capacity,
+            )
+            .into()
+    }
+
     /// Set `door_open_ticks` (dwell duration) on every elevator.
     ///
     /// Takes effect on the **next** door cycle — an in-progress dwell
