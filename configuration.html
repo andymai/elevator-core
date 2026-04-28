@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -307,33 +307,36 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 </tbody>
 </table>
 </div>
-<h2 id="the-space-elevator"><a class="header" href="#the-space-elevator">The space elevator</a></h2>
-<p>To demonstrate that stops are truly arbitrary, the repository includes <code>space_elevator.ron</code>:</p>
+<h2 id="long-shafts-and-arbitrary-distances"><a class="header" href="#long-shafts-and-arbitrary-distances">Long shafts and arbitrary distances</a></h2>
+<p>Stops carry arbitrary <code>f64</code> positions, so the same engine drives a five-floor office and a kilometres-deep mine. The example below treats one position unit as one metre – the engine doesn’t enforce a unit, so any internally-consistent convention works.</p>
+<p>A deep mine shaft is a useful stress test: real production hoists at sites like Mponeng run skips at 16-18 m/s over 2-3 km of vertical travel, with cage-loading dwell times measured in tens of seconds rather than the few seconds an office cab needs.</p>
 <pre><code class="language-ron">SimConfig(
     building: BuildingConfig(
-        name: "Orbital Tether",
+        name: "Mine Shaft 1",
         stops: [
-            StopConfig(id: StopId(0), name: "Ground Station", position: 0.0),
-            StopConfig(id: StopId(1), name: "Orbital Platform", position: 1000.0),
+            StopConfig(id: StopId(0), name: "Surface",   position:     0.0),
+            StopConfig(id: StopId(1), name: "Mid-level", position: -1200.0),
+            StopConfig(id: StopId(2), name: "Bottom",    position: -2400.0),
         ],
     ),
     elevators: [
         ElevatorConfig(
             id: 0,
-            name: "Climber Alpha",
-            max_speed: 50.0,
-            acceleration: 10.0,
-            deceleration: 15.0,
-            weight_capacity: 10000.0,
+            name: "Cage A",
+            max_speed: 18.0,           // ~m/s, deep-shaft hoist class.
+            acceleration: 1.5,
+            deceleration: 2.5,
+            weight_capacity: 12000.0,  // miners + skip ore + tools.
             starting_stop: StopId(0),
-            door_open_ticks: 120,
+            door_open_ticks: 120,      // crew loading takes time.
             door_transition_ticks: 30,
         ),
     ],
     // ...
 )
 </code></pre>
-<p>The stops are 1,000 distance units apart, the elevator has a max speed of 50, and the doors take twice as long to cycle. The same simulation engine handles both a 5-story office and an orbital tether.</p>
+<p>The stops sit 1,200 metres apart (under the metre convention chosen above), positions are negative (down from the surface datum), and the doors hold open six times longer than an office default. The same simulation engine handles both a five-story office and a 2.4 km mine shaft – the only thing that changes is the config.</p>
+<p>The repository also bundles <code>assets/config/space_elevator.ron</code> – two stops separated by 1,000 distance units (interpret the unit however you like) – as a stress test for very high <code>max_speed</code> values and very long door cycles.</p>
 <h2 id="validation"><a class="header" href="#validation">Validation</a></h2>
 <p>Config is validated at construction time (in <code>SimulationBuilder::build()</code>). Invalid configs produce a <code>SimError::InvalidConfig</code> with a descriptive message. Validation checks include:</p>
 <ul>

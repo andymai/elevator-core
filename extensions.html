@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -182,7 +182,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="extensions"><a class="header" href="#extensions">Extensions</a></h1>
-<p>The core library is deliberately unopinionated – it provides riders, elevators, and stops, but your game decides what a rider <em>means</em>. Maybe riders have a VIP status, a mood, a destination preference, or a cargo manifest. Extensions let you layer game-specific data on top of any entity without forking or wrapping the library.</p>
+<p>The core library is deliberately unopinionated – it provides riders, elevators, and stops, but caller code decides what a rider <em>means</em>. A rider could be a hotel guest with a priority class, an office tenant with a tenant id, a hospital patient with a transport type, or a freight crate with a manifest. Extensions let you layer caller-defined data on top of any entity without forking or wrapping the library.</p>
 <h2 id="extension-components"><a class="header" href="#extension-components">Extension components</a></h2>
 <p>Extension components attach arbitrary typed data to any entity. They work like the built-in components (<code>Rider</code>, <code>Elevator</code>, etc.) but are defined by your code.</p>
 <h3 id="define-your-type"><a class="header" href="#define-your-type">Define your type</a></h3>
@@ -192,16 +192,20 @@
 </span>use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct VipTag {
-    level: u32,
-    lounge_access: bool,
+struct GuestPriority {
+    /// 0 = standard guest, 1 = elite, 2 = top-tier suite.
+    priority_class: u8,
+    /// Floor where the guest's room lives. A custom dispatch
+    /// strategy can consult this to favour the express bank that
+    /// serves the high-floor suites.
+    suite_floor: u32,
 }
 <span class="boring">}</span></code></pre>
 <h3 id="register-with-the-builder"><a class="header" href="#register-with-the-builder">Register with the builder</a></h3>
 <p>Call <code>.with_ext::&lt;T&gt;()</code> on the builder to register the extension type. The type name is used automatically for snapshot serialization:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span>use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
@@ -211,7 +215,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
-        .with_ext::&lt;VipTag&gt;()
+        .with_ext::&lt;GuestPriority&gt;()
         .build()?;
     Ok(())
 }</code></pre>
@@ -219,20 +223,20 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <p>Use <code>world.insert_ext()</code> to attach your component to an entity:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
 </span><span class="boring">    .stop(StopId(1), "Top", 10.0)
 </span><span class="boring">    .elevator(ElevatorConfig::default())
-</span><span class="boring">    .with_ext::&lt;VipTag&gt;()
+</span><span class="boring">    .with_ext::&lt;GuestPriority&gt;()
 </span><span class="boring">    .build()?;
 </span>let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
     rider_id.entity(),
-    VipTag { level: 3, lounge_access: true },
+    GuestPriority { priority_class: 2, suite_floor: 47 },
     ExtKey::from_type_name(),
 );
 <span class="boring">Ok(())
@@ -243,17 +247,17 @@ sim.world_mut().insert_ext(
 </span><span class="boring">fn main() {
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, rider_id: EntityId) {
 </span>// Read (cloned)
-if let Some(vip) = sim.world().ext::&lt;VipTag&gt;(rider_id) {
-    println!("VIP level: {}", vip.level);
+if let Some(guest) = sim.world().ext::&lt;GuestPriority&gt;(rider_id) {
+    println!("priority class: {}", guest.priority_class);
 }
 
-// Mutate
-if let Some(vip) = sim.world_mut().ext_mut::&lt;VipTag&gt;(rider_id) {
-    vip.level += 1;
+// Mutate -- promote the guest's class.
+if let Some(guest) = sim.world_mut().ext_mut::&lt;GuestPriority&gt;(rider_id) {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 }
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -263,18 +267,18 @@ if let Some(vip) = sim.world_mut().ext_mut::&lt;VipTag&gt;(rider_id) {
 </span><span class="boring">fn main() {
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::query::Ext;
 </span><span class="boring">fn run(world: &amp;mut World) {
 </span>// Read-only iteration (cloned via Ext&lt;T&gt;)
-for (id, vip) in world.query::&lt;(EntityId, &amp;Ext&lt;VipTag&gt;)&gt;().iter() {
-    println!("{:?} is VIP level {}", id, vip.level);
+for (id, guest) in world.query::&lt;(EntityId, &amp;Ext&lt;GuestPriority&gt;)&gt;().iter() {
+    println!("{:?} is priority class {}", id, guest.priority_class);
 }
 
-// Mutable access
-world.query_ext_mut::&lt;VipTag&gt;().for_each_mut(|id, tag| {
-    tag.level += 1;
+// Mutable access -- promote everyone by one class (with saturation).
+world.query_ext_mut::&lt;GuestPriority&gt;().for_each_mut(|_id, guest| {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 });
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -299,7 +303,7 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 }
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
-<p>Resources are useful for game state that hooks need to read or write – score counters, time-of-day multipliers, spawn rate controllers, and so on.</p>
+<p>Resources are useful for caller-side state that hooks need to read or write – a tick-of-day clock mirror, a peak-traffic multiplier, a spawn-rate controller, and so on.</p>
 <h2 id="extension-vs-resource-which-do-i-want"><a class="header" href="#extension-vs-resource-which-do-i-want">Extension vs. resource: which do I want?</a></h2>
 <div class="table-wrapper">
 <table>
@@ -307,8 +311,8 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 <tr><th>Need</th><th>Use</th></tr>
 </thead>
 <tbody>
-<tr><td>Per-entity data that varies by rider/elevator (VIP status, mood, cargo)</td><td><strong>Extension</strong> (<code>with_ext</code> + <code>insert_ext</code>)</td></tr>
-<tr><td>One-of value for the whole sim (score, difficulty, tick clock mirror)</td><td><strong>Resource</strong> (<code>insert_resource</code>)</td></tr>
+<tr><td>Per-entity data that varies by rider/elevator (priority class, transport type, cargo manifest)</td><td><strong>Extension</strong> (<code>with_ext</code> + <code>insert_ext</code>)</td></tr>
+<tr><td>One-of value for the whole sim (time-of-day, traffic profile, tick clock mirror)</td><td><strong>Resource</strong> (<code>insert_resource</code>)</td></tr>
 <tr><td>Data that must survive snapshot save/load</td><td><strong>Extension</strong> (registered by name; resources are not snapshotted)</td></tr>
 <tr><td>Quick scratchpad you can wipe between ticks</td><td><strong>Resource</strong></td></tr>
 <tr><td>Query “all entities that have X”</td><td><strong>Extension</strong> (query or iterate + filter on <code>get_ext</code>)</td></tr>
@@ -327,10 +331,10 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
-</span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct VipTag { level: u32 }
+</span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
 </span>let mut sim = snapshot.restore(None).unwrap();
-sim.world_mut().register_ext::&lt;VipTag&gt;(ExtKey::from_type_name());
+sim.world_mut().register_ext::&lt;GuestPriority&gt;(ExtKey::from_type_name());
 sim.load_extensions();
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>

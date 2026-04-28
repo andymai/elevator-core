@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -223,27 +223,34 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </ol>
 <p>Car calls follow the same pattern: <code>CarButtonPressed</code> fires on the first press per <code>(car, floor)</code>, and the loading phase removes a <code>CarCall</code> when the last pending rider for that floor exits.</p>
 <h2 id="scripted-control"><a class="header" href="#scripted-control">Scripted control</a></h2>
-<p>Games can drive the call system outside the normal rider flow:</p>
+<p>Game and operator code can drive the call system outside the normal rider flow. A common case: a hospital service elevator has to be commandeered for a code blue – pull the nearest service car to the ER for a priority pickup, override dispatch so this specific car (not whichever one dispatch would have chosen) answers that hall call, then release the override once the call is served.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::components::hall_call::CallDirection;
 </span><span class="boring">fn run(
 </span><span class="boring">    sim: &amp;mut Simulation,
-</span><span class="boring">    lobby: StopId,
-</span><span class="boring">    penthouse: EntityId,
-</span><span class="boring">    villain_car: ElevatorId,
+</span><span class="boring">    er: EntityId,
+</span><span class="boring">    service_car: ElevatorId,
 </span><span class="boring">) -&gt; Result&lt;(), SimError&gt; {
-</span>// An NPC walks up and presses the down button.
-sim.press_hall_button(lobby, CallDirection::Down)?;
+</span>// Code blue: the transport team presses the up button at the ER.
+sim.press_hall_button(er, CallDirection::Up)?;
 
-// Cutscene pins the villain's elevator to the penthouse.
-sim.pin_assignment(villain_car, penthouse, CallDirection::Up)?;
+// Pin the priority car to that specific (stop, direction) call so
+// dispatch commits it to the ER pickup instead of whatever it would
+// have chosen on its own.
+sim.pin_assignment(service_car, er, CallDirection::Up)?;
 
-// Player hijacks -- release the pin and hard-abort the car's trip so
-// it brakes immediately instead of finishing the current leg.
-sim.unpin_assignment(penthouse, CallDirection::Up);
-sim.abort_movement(villain_car)?;
+// The car was mid-route on a routine call -- abort it so the car
+// brakes immediately instead of finishing that leg before serving
+// the priority transport.
+sim.abort_movement(service_car)?;
+
+// The patient boards at the ER and rides to the ICU via the normal
+// car-call path -- the destination is set when the rider boards, not
+// by the pin. Once the hall call has been served, release the pin so
+// the car returns to the general dispatch pool.
+sim.unpin_assignment(er, CallDirection::Up);
 <span class="boring">Ok(())
 </span><span class="boring">}
 </span><span class="boring">}</span></code></pre>

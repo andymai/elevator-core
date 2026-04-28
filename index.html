@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -194,8 +194,8 @@
 <li><strong>Hobbyists</strong> who just think elevators are neat.</li>
 </ul>
 <h2 id="what-can-you-build"><a class="header" href="#what-can-you-build">What can you build?</a></h2>
-<p>The library models <strong>stops at arbitrary distances</strong> along a shaft axis, not uniform floors. That means you can simulate a 5-story office building where each floor is 4 meters apart, a 160-story skyscraper with sky lobbies and express zones, or – why not – a <strong>space elevator</strong> climbing 1,000 km from a ground station to an orbital platform. The <code>space_elevator.ron</code> config included in the repo does exactly that.</p>
-<p>The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Your game decides whether they are office workers, hotel guests, cargo pallets, or astronauts. You attach semantics through the <a href="extensions.html">extension storage system</a>, and the simulation handles the physics and logistics.</p>
+<p>The library models <strong>stops at arbitrary distances</strong> along a shaft axis, not uniform floors. That means you can simulate a 5-story office where each floor is 4 metres apart, a 160-story skyscraper with sky lobbies and express zones, or a 2.4 km mine shaft where a single hoist serves the surface, a mid-level, and the working face. The engine doesn’t enforce any particular unit – positions are plain <code>f64</code> values, and the bundled <code>assets/config/space_elevator.ron</code> stretches that to 1,000 distance units between two stops as an upper-bound stress test.</p>
+<p>The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Caller code decides whether they are office tenants, hotel guests, hospital patients, miners, or freight pallets. You attach semantics through the <a href="extensions.html">extension storage system</a>, and the simulation handles the physics and logistics.</p>
 <h2 id="what-elevator-core-is-not"><a class="header" href="#what-elevator-core-is-not">What elevator-core is <em>not</em></a></h2>
 <ul>
 <li><strong>Not a renderer.</strong> No graphics, no windowing, no audio. The core crate is headless; see <a href="bevy-integration.html">Bevy Integration</a> for a 2D visual wrapper.</li>

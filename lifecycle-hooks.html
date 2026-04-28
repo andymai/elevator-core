@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -284,18 +284,23 @@ before(Metrics)          -&gt; [Metrics]          -&gt; after(Metrics)
 <p>Hooks operate on <code>&amp;mut World</code>, so you can use <code>world.spawn()</code> plus direct component inserts to create entities. However, the recommended pattern is to queue spawn requests into a resource and drain them after <code>sim.step()</code> returns.</p>
 <p>The <code>before(Phase::Dispatch)</code> slot is a particularly convenient place to inject riders, because the dispatch phase runs immediately after and will see the newly added riders in the manifest.</p>
 <h2 id="combining-extensions-and-hooks-worked-example"><a class="header" href="#combining-extensions-and-hooks-worked-example">Combining extensions and hooks: worked example</a></h2>
-<p>The real power comes from using extensions and hooks together. This walkthrough tracks how long each rider has been waiting and prints a warning if they wait too long.</p>
-<p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so we store the tick in a <code>World</code> resource and update it each iteration.</p>
+<p>A facilities team monitoring an office tower wants to know whenever a tenant has been waiting for an elevator for more than 90 seconds during peak traffic – it is a service-level indicator and feeds an end-of-day report. This walkthrough flags each over-budget wait exactly once via a <code>SlaBreach</code> extension component plus an <code>after(Phase::Metrics)</code> hook.</p>
+<p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so the tick is mirrored into a <code>World</code> resource that the hook reads.</p>
 <pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::hooks::Phase;
 use elevator_core::stop::StopId;
 use serde::{Serialize, Deserialize};
 
+/// Per-rider flag that latches the first time a tenant breaches the
+/// 90-second SLA so we report each wait at most once.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct WaitWarning {
-    warned: bool,
+struct SlaBreach {
+    reported: bool,
 }
+
+// 60 ticks/sec * 90 sec = 5_400 ticks.
+const SLA_BUDGET_TICKS: u64 = 5_400;
 
 fn main() -&gt; Result&lt;(), SimError&gt; {
     let mut sim = SimulationBuilder::new()
@@ -303,9 +308,9 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
         .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
-        .with_ext::&lt;WaitWarning&gt;()
+        .with_ext::&lt;SlaBreach&gt;()
         .after(Phase::Metrics, |world| {
-            // Check all waiting riders for long waits.
+            // Scan every rider; flag the first time they cross the SLA budget.
             let rider_ids: Vec&lt;EntityId&gt; = world.rider_ids();
             for rid in rider_ids {
                 let Some(rider) = world.rider(rid) else { continue };
@@ -315,11 +320,14 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
                     .map_or(0, |t| t.0);
                 let wait = current_tick.saturating_sub(rider.spawn_tick());
 
-                if wait &gt; 300 {
-                    if let Some(warning) = world.ext_mut::&lt;WaitWarning&gt;(rid) {
-                        if !warning.warned {
-                            warning.warned = true;
-                            println!("WARNING: rider {:?} has been waiting {} ticks!", rid, wait);
+                if wait &gt; SLA_BUDGET_TICKS {
+                    if let Some(breach) = world.ext_mut::&lt;SlaBreach&gt;(rid) {
+                        if !breach.reported {
+                            breach.reported = true;
+                            println!(
+                                "SLA breach: rider {:?} waited {} ticks (&gt;{} budget)",
+                                rid, wait, SLA_BUDGET_TICKS,
+                            );
                         }
                     }
                 }
@@ -330,12 +338,12 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
     // Seed the resource the hook reads.
     sim.world_mut().insert_resource(CurrentTick(0));
 
-    // Spawn some riders and attach extensions.
+    // Spawn a tenant and attach the SLA tracker.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
-    sim.world_mut().insert_ext(r1.entity(), WaitWarning { warned: false }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(r1.entity(), SlaBreach { reported: false }, ExtKey::from_type_name());
 
-    for _ in 0..600 {
-        // Update the current tick resource before stepping.
+    for _ in 0..6_000 {
+        // Mirror the current tick into the resource before stepping.
         let now = sim.current_tick();
         if let Some(t) = sim.world_mut().resource_mut::&lt;CurrentTick&gt;() {
             t.0 = now;
@@ -347,7 +355,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 }
 
 struct CurrentTick(u64);</code></pre>
-<p>This pattern – define a component, register it, attach it on spawn, read/write it in a hook – is the standard way to add game-specific behavior to the simulation.</p>
+<p>This pattern – define a component, register it, attach it on spawn, read/write it in a hook – is the standard way to layer caller-defined behaviour on top of the simulation.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <ul>
 <li><a href="extensions.html">Extensions</a> – the extension system that hooks read and write.</li>

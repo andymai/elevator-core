@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-914a44d0.js";
+            window.path_to_searchindex_js = "searchindex-8ffcd867.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6bbf9923.js"></script>
@@ -192,8 +192,8 @@
 <li><strong>Hobbyists</strong> who just think elevators are neat.</li>
 </ul>
 <h2 id="what-can-you-build"><a class="header" href="#what-can-you-build">What can you build?</a></h2>
-<p>The library models <strong>stops at arbitrary distances</strong> along a shaft axis, not uniform floors. That means you can simulate a 5-story office building where each floor is 4 meters apart, a 160-story skyscraper with sky lobbies and express zones, or – why not – a <strong>space elevator</strong> climbing 1,000 km from a ground station to an orbital platform. The <code>space_elevator.ron</code> config included in the repo does exactly that.</p>
-<p>The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Your game decides whether they are office workers, hotel guests, cargo pallets, or astronauts. You attach semantics through the <a href="#extensions">extension storage system</a>, and the simulation handles the physics and logistics.</p>
+<p>The library models <strong>stops at arbitrary distances</strong> along a shaft axis, not uniform floors. That means you can simulate a 5-story office where each floor is 4 metres apart, a 160-story skyscraper with sky lobbies and express zones, or a 2.4 km mine shaft where a single hoist serves the surface, a mid-level, and the working face. The engine doesn’t enforce any particular unit – positions are plain <code>f64</code> values, and the bundled <code>assets/config/space_elevator.ron</code> stretches that to 1,000 distance units between two stops as an upper-bound stress test.</p>
+<p>The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Caller code decides whether they are office tenants, hotel guests, hospital patients, miners, or freight pallets. You attach semantics through the <a href="#extensions">extension storage system</a>, and the simulation handles the physics and logistics.</p>
 <h2 id="what-elevator-core-is-not"><a class="header" href="#what-elevator-core-is-not">What elevator-core is <em>not</em></a></h2>
 <ul>
 <li><strong>Not a renderer.</strong> No graphics, no windowing, no audio. The core crate is headless; see <a href="#bevy-integration">Bevy Integration</a> for a 2D visual wrapper.</li>
@@ -520,33 +520,36 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 </tbody>
 </table>
 </div>
-<h2 id="the-space-elevator"><a class="header" href="#the-space-elevator">The space elevator</a></h2>
-<p>To demonstrate that stops are truly arbitrary, the repository includes <code>space_elevator.ron</code>:</p>
+<h2 id="long-shafts-and-arbitrary-distances"><a class="header" href="#long-shafts-and-arbitrary-distances">Long shafts and arbitrary distances</a></h2>
+<p>Stops carry arbitrary <code>f64</code> positions, so the same engine drives a five-floor office and a kilometres-deep mine. The example below treats one position unit as one metre – the engine doesn’t enforce a unit, so any internally-consistent convention works.</p>
+<p>A deep mine shaft is a useful stress test: real production hoists at sites like Mponeng run skips at 16-18 m/s over 2-3 km of vertical travel, with cage-loading dwell times measured in tens of seconds rather than the few seconds an office cab needs.</p>
 <pre><code class="language-ron">SimConfig(
     building: BuildingConfig(
-        name: "Orbital Tether",
+        name: "Mine Shaft 1",
         stops: [
-            StopConfig(id: StopId(0), name: "Ground Station", position: 0.0),
-            StopConfig(id: StopId(1), name: "Orbital Platform", position: 1000.0),
+            StopConfig(id: StopId(0), name: "Surface",   position:     0.0),
+            StopConfig(id: StopId(1), name: "Mid-level", position: -1200.0),
+            StopConfig(id: StopId(2), name: "Bottom",    position: -2400.0),
         ],
     ),
     elevators: [
         ElevatorConfig(
             id: 0,
-            name: "Climber Alpha",
-            max_speed: 50.0,
-            acceleration: 10.0,
-            deceleration: 15.0,
-            weight_capacity: 10000.0,
+            name: "Cage A",
+            max_speed: 18.0,           // ~m/s, deep-shaft hoist class.
+            acceleration: 1.5,
+            deceleration: 2.5,
+            weight_capacity: 12000.0,  // miners + skip ore + tools.
             starting_stop: StopId(0),
-            door_open_ticks: 120,
+            door_open_ticks: 120,      // crew loading takes time.
             door_transition_ticks: 30,
         ),
     ],
     // ...
 )
 </code></pre>
-<p>The stops are 1,000 distance units apart, the elevator has a max speed of 50, and the doors take twice as long to cycle. The same simulation engine handles both a 5-story office and an orbital tether.</p>
+<p>The stops sit 1,200 metres apart (under the metre convention chosen above), positions are negative (down from the surface datum), and the doors hold open six times longer than an office default. The same simulation engine handles both a five-story office and a 2.4 km mine shaft – the only thing that changes is the config.</p>
+<p>The repository also bundles <code>assets/config/space_elevator.ron</code> – two stops separated by 1,000 distance units (interpret the unit however you like) – as a stress test for very high <code>max_speed</code> values and very long door cycles.</p>
 <h2 id="validation"><a class="header" href="#validation">Validation</a></h2>
 <p>Config is validated at construction time (in <code>SimulationBuilder::build()</code>). Invalid configs produce a <code>SimError::InvalidConfig</code> with a descriptive message. Validation checks include:</p>
 <ul>
@@ -1034,27 +1037,34 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </ol>
 <p>Car calls follow the same pattern: <code>CarButtonPressed</code> fires on the first press per <code>(car, floor)</code>, and the loading phase removes a <code>CarCall</code> when the last pending rider for that floor exits.</p>
 <h2 id="scripted-control"><a class="header" href="#scripted-control">Scripted control</a></h2>
-<p>Games can drive the call system outside the normal rider flow:</p>
+<p>Game and operator code can drive the call system outside the normal rider flow. A common case: a hospital service elevator has to be commandeered for a code blue – pull the nearest service car to the ER for a priority pickup, override dispatch so this specific car (not whichever one dispatch would have chosen) answers that hall call, then release the override once the call is served.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::components::hall_call::CallDirection;
 </span><span class="boring">fn run(
 </span><span class="boring">    sim: &amp;mut Simulation,
-</span><span class="boring">    lobby: StopId,
-</span><span class="boring">    penthouse: EntityId,
-</span><span class="boring">    villain_car: ElevatorId,
+</span><span class="boring">    er: EntityId,
+</span><span class="boring">    service_car: ElevatorId,
 </span><span class="boring">) -&gt; Result&lt;(), SimError&gt; {
-</span>// An NPC walks up and presses the down button.
-sim.press_hall_button(lobby, CallDirection::Down)?;
+</span>// Code blue: the transport team presses the up button at the ER.
+sim.press_hall_button(er, CallDirection::Up)?;
 
-// Cutscene pins the villain's elevator to the penthouse.
-sim.pin_assignment(villain_car, penthouse, CallDirection::Up)?;
+// Pin the priority car to that specific (stop, direction) call so
+// dispatch commits it to the ER pickup instead of whatever it would
+// have chosen on its own.
+sim.pin_assignment(service_car, er, CallDirection::Up)?;
 
-// Player hijacks -- release the pin and hard-abort the car's trip so
-// it brakes immediately instead of finishing the current leg.
-sim.unpin_assignment(penthouse, CallDirection::Up);
-sim.abort_movement(villain_car)?;
+// The car was mid-route on a routine call -- abort it so the car
+// brakes immediately instead of finishing that leg before serving
+// the priority transport.
+sim.abort_movement(service_car)?;
+
+// The patient boards at the ER and rides to the ICU via the normal
+// car-call path -- the destination is set when the rider boards, not
+// by the pin. Once the hall call has been served, release the pin so
+// the car returns to the general dispatch pool.
+sim.unpin_assignment(er, CallDirection::Up);
 <span class="boring">Ok(())
 </span><span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -1421,7 +1431,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="rider-lifecycle"><a class="header" href="#rider-lifecycle">Rider Lifecycle</a></h1>
-<p>Riders are the demand side of the simulation. A rider is anything that rides an elevator – the library assigns no semantics beyond that. Games add meaning (passengers, NPCs, cargo) via <a href="#extensions">extension storage</a>. This chapter covers the full lifecycle, patience and preferences, access control, and population tracking.</p>
+<p>Riders are the demand side of the simulation. A rider is anything that rides an elevator – the library assigns no semantics beyond that. Caller code adds meaning (office tenants, hotel guests, freight crates) via <a href="#extensions">extension storage</a>. This chapter covers the full lifecycle, patience and preferences, access control, and population tracking.</p>
 <h2 id="phase-diagram"><a class="header" href="#phase-diagram">Phase diagram</a></h2>
 <p>Every rider moves through a sequence of phases from spawn to final disposition:</p>
 <pre class="mermaid">stateDiagram-v2
@@ -1456,9 +1466,9 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <tr><td><code>Riding</code></td><td>Inside the elevator</td><td>Loading phase exits the rider when the elevator arrives at their destination</td></tr>
 <tr><td><code>Exiting</code></td><td>Leaving the elevator</td><td>AdvanceTransient: becomes <code>Arrived</code> (route complete), or <code>Walking</code> (multi-leg)</td></tr>
 <tr><td><code>Walking</code></td><td>Transferring between stops</td><td>Teleported immediately to the next leg’s origin, then becomes <code>Waiting</code></td></tr>
-<tr><td><code>Arrived</code></td><td>At final destination</td><td>Your game decides: <code>settle_rider()</code>, <code>despawn_rider()</code>, or leave in place</td></tr>
-<tr><td><code>Abandoned</code></td><td>Left the queue at a stop</td><td>Patience ran out or <code>abandon_on_full</code> triggered; your game can settle or despawn</td></tr>
-<tr><td><code>Resident</code></td><td>Parked at a stop, not seeking an elevator</td><td>Your game called <code>settle_rider()</code> on an Arrived or Abandoned rider</td></tr>
+<tr><td><code>Arrived</code></td><td>At final destination</td><td>Caller decides: <code>settle_rider()</code>, <code>despawn_rider()</code>, or leave in place</td></tr>
+<tr><td><code>Abandoned</code></td><td>Left the queue at a stop</td><td>Patience ran out or <code>abandon_on_full</code> triggered; caller can settle or despawn</td></tr>
+<tr><td><code>Resident</code></td><td>Parked at a stop, not seeking an elevator</td><td>Caller invoked <code>settle_rider()</code> on an Arrived or Abandoned rider</td></tr>
 </tbody>
 </table>
 </div>
@@ -1515,7 +1525,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
     .spawn()
     .unwrap();
 <span class="boring">}</span></code></pre>
-<p>When <code>skip_full_elevator</code> is true and the load exceeds <code>max_crowding_factor</code>, the rider silently skips the car. A <code>RiderSkipped</code> event fires so game UI can animate the reaction. The rider remains <code>Waiting</code> for the next car – unless <code>abandon_on_full</code> escalates it to <code>Abandoned</code>.</p>
+<p>When <code>skip_full_elevator</code> is true and the load exceeds <code>max_crowding_factor</code>, the rider silently skips the car. A <code>RiderSkipped</code> event fires so caller code or UI can react. The rider remains <code>Waiting</code> for the next car – unless <code>abandon_on_full</code> escalates it to <code>Abandoned</code>.</p>
 <h2 id="access-control"><a class="header" href="#access-control">Access control</a></h2>
 <p>The <code>AccessControl</code> component restricts which stops a rider may visit. If a rider’s destination is not in their allowlist, boarding is rejected with <code>RejectionReason::AccessDenied</code>:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
@@ -1534,9 +1544,9 @@ let rider = sim.build_rider(StopId(0), StopId(1))
     .unwrap();
 <span class="boring">}</span></code></pre>
 <h2 id="managing-arrived-riders"><a class="header" href="#managing-arrived-riders">Managing arrived riders</a></h2>
-<p>Once a rider reaches <code>Arrived</code> or <code>Abandoned</code>, the simulation stops managing them. Your game code decides what happens next using three methods:</p>
-<p><strong><code>sim.settle_rider(id)</code></strong> – transitions an <code>Arrived</code> or <code>Abandoned</code> rider to <code>Resident</code>. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for NPCs that “live” on a floor.</p>
-<p><strong><code>sim.reroute_rider(id, route)</code></strong> – sends a <code>Resident</code> rider back to <code>Waiting</code> with a new multi-leg route. Use this when a settled NPC needs to go somewhere.</p>
+<p>Once a rider reaches <code>Arrived</code> or <code>Abandoned</code>, the simulation stops managing them. Caller code decides what happens next using three methods:</p>
+<p><strong><code>sim.settle_rider(id)</code></strong> – transitions an <code>Arrived</code> or <code>Abandoned</code> rider to <code>Resident</code>. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for occupants who live or work on a floor between elevator trips: a tenant in their office, a hotel guest in their room, a patient on a ward.</p>
+<p><strong><code>sim.reroute_rider(id, route)</code></strong> – sends a <code>Resident</code> rider back to <code>Waiting</code> with a new multi-leg route. Use this when a settled occupant has a new destination – a tenant heading to lunch, a guest checking out.</p>
 <p><strong><code>sim.reroute(id, new_destination)</code></strong> – changes a <code>Waiting</code> rider’s destination. The rider stays at their stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.</p>
 <p><strong><code>sim.despawn_rider(id)</code></strong> – removes the rider from the simulation entirely. Always use this instead of <code>world.despawn()</code> directly – it keeps the stop index consistent.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
@@ -1545,11 +1555,12 @@ let rider = sim.build_rider(StopId(0), StopId(1))
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let rider: RiderId = todo!();
 </span><span class="boring">let new_route: Route = todo!();
-</span>// Rider arrived at their floor -- settle them as a resident.
+</span>// Tenant arrived at their floor -- settle them so they hold position
+// at the stop without re-entering the dispatch queue.
 sim.settle_rider(rider).unwrap();
 
-// Later, the resident wants to go somewhere else.
-// reroute_rider takes a full Route and works on Resident riders.
+// Later, the same tenant heads back down. reroute_rider takes a full
+// Route and only works on Resident riders.
 sim.reroute_rider(rider.entity(), new_route).unwrap();
 <span class="boring">}</span></code></pre>
 <h2 id="population-tracking-1"><a class="header" href="#population-tracking-1">Population tracking</a></h2>
@@ -1567,12 +1578,12 @@ sim.reroute_rider(rider.entity(), new_route).unwrap();
 </table>
 </div>
 <p>Each returns an iterator of <code>EntityId</code> values. Use <code>.count()</code> for totals or <code>.collect::&lt;Vec&lt;_&gt;&gt;()</code> to materialize.</p>
-<p>These queries are useful for game logic (spawn limits, crowd visualization), dispatch strategies (demand weighting), and analytics (per-floor breakdowns).</p>
+<p>These queries are useful for caller-side logic (spawn limits, crowd visualisation), dispatch strategies (demand weighting), and analytics (per-floor breakdowns).</p>
 <h2 id="next-steps-9"><a class="header" href="#next-steps-9">Next steps</a></h2>
 <ul>
 <li><a href="#door-control">Door Control</a> – understand when riders can board and exit</li>
 <li><a href="#events-and-metrics">Events and Metrics</a> – track rider events and aggregate wait/ride times</li>
-<li><a href="#extensions">Extensions</a> – attach game-specific data to riders</li>
+<li><a href="#extensions">Extensions</a> – attach caller-defined data to riders</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="door-control"><a class="header" href="#door-control">Door Control</a></h1>
@@ -2573,7 +2584,7 @@ fn custom_strategy_assigns_nearest_car() {
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="extensions"><a class="header" href="#extensions">Extensions</a></h1>
-<p>The core library is deliberately unopinionated – it provides riders, elevators, and stops, but your game decides what a rider <em>means</em>. Maybe riders have a VIP status, a mood, a destination preference, or a cargo manifest. Extensions let you layer game-specific data on top of any entity without forking or wrapping the library.</p>
+<p>The core library is deliberately unopinionated – it provides riders, elevators, and stops, but caller code decides what a rider <em>means</em>. A rider could be a hotel guest with a priority class, an office tenant with a tenant id, a hospital patient with a transport type, or a freight crate with a manifest. Extensions let you layer caller-defined data on top of any entity without forking or wrapping the library.</p>
 <h2 id="extension-components"><a class="header" href="#extension-components">Extension components</a></h2>
 <p>Extension components attach arbitrary typed data to any entity. They work like the built-in components (<code>Rider</code>, <code>Elevator</code>, etc.) but are defined by your code.</p>
 <h3 id="define-your-type"><a class="header" href="#define-your-type">Define your type</a></h3>
@@ -2583,16 +2594,20 @@ fn custom_strategy_assigns_nearest_car() {
 </span>use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct VipTag {
-    level: u32,
-    lounge_access: bool,
+struct GuestPriority {
+    /// 0 = standard guest, 1 = elite, 2 = top-tier suite.
+    priority_class: u8,
+    /// Floor where the guest's room lives. A custom dispatch
+    /// strategy can consult this to favour the express bank that
+    /// serves the high-floor suites.
+    suite_floor: u32,
 }
 <span class="boring">}</span></code></pre>
 <h3 id="register-with-the-builder"><a class="header" href="#register-with-the-builder">Register with the builder</a></h3>
 <p>Call <code>.with_ext::&lt;T&gt;()</code> on the builder to register the extension type. The type name is used automatically for snapshot serialization:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span>use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::stop::StopId;
@@ -2602,7 +2617,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .stop(StopId(0), "Ground", 0.0)
         .stop(StopId(1), "Top", 10.0)
         .elevator(ElevatorConfig::default())
-        .with_ext::&lt;VipTag&gt;()
+        .with_ext::&lt;GuestPriority&gt;()
         .build()?;
     Ok(())
 }</code></pre>
@@ -2610,20 +2625,20 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <p>Use <code>world.insert_ext()</code> to attach your component to an entity:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
 </span><span class="boring">    .stop(StopId(1), "Top", 10.0)
 </span><span class="boring">    .elevator(ElevatorConfig::default())
-</span><span class="boring">    .with_ext::&lt;VipTag&gt;()
+</span><span class="boring">    .with_ext::&lt;GuestPriority&gt;()
 </span><span class="boring">    .build()?;
 </span>let rider_id = sim.spawn_rider(StopId(0), StopId(1), 75.0)?;
 
 sim.world_mut().insert_ext(
     rider_id.entity(),
-    VipTag { level: 3, lounge_access: true },
+    GuestPriority { priority_class: 2, suite_floor: 47 },
     ExtKey::from_type_name(),
 );
 <span class="boring">Ok(())
@@ -2634,17 +2649,17 @@ sim.world_mut().insert_ext(
 </span><span class="boring">fn main() {
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, rider_id: EntityId) {
 </span>// Read (cloned)
-if let Some(vip) = sim.world().ext::&lt;VipTag&gt;(rider_id) {
-    println!("VIP level: {}", vip.level);
+if let Some(guest) = sim.world().ext::&lt;GuestPriority&gt;(rider_id) {
+    println!("priority class: {}", guest.priority_class);
 }
 
-// Mutate
-if let Some(vip) = sim.world_mut().ext_mut::&lt;VipTag&gt;(rider_id) {
-    vip.level += 1;
+// Mutate -- promote the guest's class.
+if let Some(guest) = sim.world_mut().ext_mut::&lt;GuestPriority&gt;(rider_id) {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 }
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -2654,18 +2669,18 @@ if let Some(vip) = sim.world_mut().ext_mut::&lt;VipTag&gt;(rider_id) {
 </span><span class="boring">fn main() {
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
-</span><span class="boring">struct VipTag { level: u32, lounge_access: bool }
+</span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::query::Ext;
 </span><span class="boring">fn run(world: &amp;mut World) {
 </span>// Read-only iteration (cloned via Ext&lt;T&gt;)
-for (id, vip) in world.query::&lt;(EntityId, &amp;Ext&lt;VipTag&gt;)&gt;().iter() {
-    println!("{:?} is VIP level {}", id, vip.level);
+for (id, guest) in world.query::&lt;(EntityId, &amp;Ext&lt;GuestPriority&gt;)&gt;().iter() {
+    println!("{:?} is priority class {}", id, guest.priority_class);
 }
 
-// Mutable access
-world.query_ext_mut::&lt;VipTag&gt;().for_each_mut(|id, tag| {
-    tag.level += 1;
+// Mutable access -- promote everyone by one class (with saturation).
+world.query_ext_mut::&lt;GuestPriority&gt;().for_each_mut(|_id, guest| {
+    guest.priority_class = guest.priority_class.saturating_add(1);
 });
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -2690,7 +2705,7 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 }
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
-<p>Resources are useful for game state that hooks need to read or write – score counters, time-of-day multipliers, spawn rate controllers, and so on.</p>
+<p>Resources are useful for caller-side state that hooks need to read or write – a tick-of-day clock mirror, a peak-traffic multiplier, a spawn-rate controller, and so on.</p>
 <h2 id="extension-vs-resource-which-do-i-want"><a class="header" href="#extension-vs-resource-which-do-i-want">Extension vs. resource: which do I want?</a></h2>
 <div class="table-wrapper">
 <table>
@@ -2698,8 +2713,8 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 <tr><th>Need</th><th>Use</th></tr>
 </thead>
 <tbody>
-<tr><td>Per-entity data that varies by rider/elevator (VIP status, mood, cargo)</td><td><strong>Extension</strong> (<code>with_ext</code> + <code>insert_ext</code>)</td></tr>
-<tr><td>One-of value for the whole sim (score, difficulty, tick clock mirror)</td><td><strong>Resource</strong> (<code>insert_resource</code>)</td></tr>
+<tr><td>Per-entity data that varies by rider/elevator (priority class, transport type, cargo manifest)</td><td><strong>Extension</strong> (<code>with_ext</code> + <code>insert_ext</code>)</td></tr>
+<tr><td>One-of value for the whole sim (time-of-day, traffic profile, tick clock mirror)</td><td><strong>Resource</strong> (<code>insert_resource</code>)</td></tr>
 <tr><td>Data that must survive snapshot save/load</td><td><strong>Extension</strong> (registered by name; resources are not snapshotted)</td></tr>
 <tr><td>Quick scratchpad you can wipe between ticks</td><td><strong>Resource</strong></td></tr>
 <tr><td>Query “all entities that have X”</td><td><strong>Extension</strong> (query or iterate + filter on <code>get_ext</code>)</td></tr>
@@ -2718,10 +2733,10 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 </span><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
-</span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct VipTag { level: u32 }
+</span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
 </span>let mut sim = snapshot.restore(None).unwrap();
-sim.world_mut().register_ext::&lt;VipTag&gt;(ExtKey::from_type_name());
+sim.world_mut().register_ext::&lt;GuestPriority&gt;(ExtKey::from_type_name());
 sim.load_extensions();
 <span class="boring">}
 </span><span class="boring">}</span></code></pre>
@@ -2840,18 +2855,23 @@ before(Metrics)          -&gt; [Metrics]          -&gt; after(Metrics)
 <p>Hooks operate on <code>&amp;mut World</code>, so you can use <code>world.spawn()</code> plus direct component inserts to create entities. However, the recommended pattern is to queue spawn requests into a resource and drain them after <code>sim.step()</code> returns.</p>
 <p>The <code>before(Phase::Dispatch)</code> slot is a particularly convenient place to inject riders, because the dispatch phase runs immediately after and will see the newly added riders in the manifest.</p>
 <h2 id="combining-extensions-and-hooks-worked-example"><a class="header" href="#combining-extensions-and-hooks-worked-example">Combining extensions and hooks: worked example</a></h2>
-<p>The real power comes from using extensions and hooks together. This walkthrough tracks how long each rider has been waiting and prints a warning if they wait too long.</p>
-<p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so we store the tick in a <code>World</code> resource and update it each iteration.</p>
+<p>A facilities team monitoring an office tower wants to know whenever a tenant has been waiting for an elevator for more than 90 seconds during peak traffic – it is a service-level indicator and feeds an end-of-day report. This walkthrough flags each over-budget wait exactly once via a <code>SlaBreach</code> extension component plus an <code>after(Phase::Metrics)</code> hook.</p>
+<p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so the tick is mirrored into a <code>World</code> resource that the hook reads.</p>
 <pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
 use elevator_core::config::ElevatorConfig;
 use elevator_core::hooks::Phase;
 use elevator_core::stop::StopId;
 use serde::{Serialize, Deserialize};
 
+/// Per-rider flag that latches the first time a tenant breaches the
+/// 90-second SLA so we report each wait at most once.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct WaitWarning {
-    warned: bool,
+struct SlaBreach {
+    reported: bool,
 }
+
+// 60 ticks/sec * 90 sec = 5_400 ticks.
+const SLA_BUDGET_TICKS: u64 = 5_400;
 
 fn main() -&gt; Result&lt;(), SimError&gt; {
     let mut sim = SimulationBuilder::new()
@@ -2859,9 +2879,9 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .stop(StopId(1), "Floor 2", 4.0)
         .stop(StopId(2), "Floor 3", 8.0)
         .elevator(ElevatorConfig { starting_stop: StopId(0), ..Default::default() })
-        .with_ext::&lt;WaitWarning&gt;()
+        .with_ext::&lt;SlaBreach&gt;()
         .after(Phase::Metrics, |world| {
-            // Check all waiting riders for long waits.
+            // Scan every rider; flag the first time they cross the SLA budget.
             let rider_ids: Vec&lt;EntityId&gt; = world.rider_ids();
             for rid in rider_ids {
                 let Some(rider) = world.rider(rid) else { continue };
@@ -2871,11 +2891,14 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
                     .map_or(0, |t| t.0);
                 let wait = current_tick.saturating_sub(rider.spawn_tick());
 
-                if wait &gt; 300 {
-                    if let Some(warning) = world.ext_mut::&lt;WaitWarning&gt;(rid) {
-                        if !warning.warned {
-                            warning.warned = true;
-                            println!("WARNING: rider {:?} has been waiting {} ticks!", rid, wait);
+                if wait &gt; SLA_BUDGET_TICKS {
+                    if let Some(breach) = world.ext_mut::&lt;SlaBreach&gt;(rid) {
+                        if !breach.reported {
+                            breach.reported = true;
+                            println!(
+                                "SLA breach: rider {:?} waited {} ticks (&gt;{} budget)",
+                                rid, wait, SLA_BUDGET_TICKS,
+                            );
                         }
                     }
                 }
@@ -2886,12 +2909,12 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
     // Seed the resource the hook reads.
     sim.world_mut().insert_resource(CurrentTick(0));
 
-    // Spawn some riders and attach extensions.
+    // Spawn a tenant and attach the SLA tracker.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
-    sim.world_mut().insert_ext(r1.entity(), WaitWarning { warned: false }, ExtKey::from_type_name());
+    sim.world_mut().insert_ext(r1.entity(), SlaBreach { reported: false }, ExtKey::from_type_name());
 
-    for _ in 0..600 {
-        // Update the current tick resource before stepping.
+    for _ in 0..6_000 {
+        // Mirror the current tick into the resource before stepping.
         let now = sim.current_tick();
         if let Some(t) = sim.world_mut().resource_mut::&lt;CurrentTick&gt;() {
             t.0 = now;
@@ -2903,7 +2926,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 }
 
 struct CurrentTick(u64);</code></pre>
-<p>This pattern – define a component, register it, attach it on spawn, read/write it in a hook – is the standard way to add game-specific behavior to the simulation.</p>
+<p>This pattern – define a component, register it, attach it on spawn, read/write it in a hook – is the standard way to layer caller-defined behaviour on top of the simulation.</p>
 <h2 id="next-steps-16"><a class="header" href="#next-steps-16">Next steps</a></h2>
 <ul>
 <li><a href="#extensions">Extensions</a> – the extension system that hooks read and write.</li>
@@ -3001,7 +3024,7 @@ fn main() {
 <p>Run it with <code>cargo run -p elevator-core --example manual_driver</code>.</p>
 <h2 id="inspection-mode"><a class="header" href="#inspection-mode">Inspection mode</a></h2>
 <p>Inspection mode reduces the elevator’s speed by its <code>inspection_speed_factor</code> (default: 0.25, configurable per elevator). Doors hold open indefinitely rather than auto-cycling. The elevator still participates in dispatch – it just moves slowly.</p>
-<p>This mode is useful for maintenance scenarios or UI elements that let a building manager “ride along” at reduced speed.</p>
+<p>This mode is useful for maintenance walk-throughs and operator-driven inspection runs – the cab moves slowly enough for a technician to listen for anomalies along the shaft, and the doors stay open at each stop until the operator dismisses them.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
