@@ -1,0 +1,34 @@
+---
+source: crates/elevator-tui/tests/render_snapshot.rs
+expression: frame
+---
+ elevator-tui · tick 60 · ▶ 1.00× · index · overview                                                
+ legend ▲ up  ▼ down  ■ stopped  L loading  O/C doors  ↑↓ hall call  (n) waiting                    
+╭┤ shaft · 1 cars · index ├──╮╭┤ dispatch · per-car state and load ├───────────────────────────────╮
+│  Top         10.0      │ · ││Default      strategy=Scan  cars=1  waiting=0                       │
+│  Ground       0.0      │ ▲ ││  car 1    movg →Top       [█░░░░░░░░░]   75/800  q=1               │
+│                            ││                                                                    │
+│                 ╭┤ welcome · press any key to continue ├───────────────────────╮                 │
+│                 │                                                              │─────────────────╯
+│                 │                                                              │─────────────────╮
+│                 │                        elevator-tui                          │                 │
+│                 │         live debugger for the elevator-core engine           │                 │
+│                 │                                                              │                 │
+│                 │    • loaded sim · 1 car(s) · 2 stop(s) · 60 t/s              │                 │
+│                 │    • the shaft on the left shows each car against its served │                 │
+│                 │    • the right column streams events, dispatch, traffic, and │                 │
+│                 │    • color-coded gauges fill up as cars get crowded — green→y│                 │
+│                 │                                                              │─────────────────╯
+│                 │      press ? at any time for the full keybinding list        │─────────────────╮
+│                 │                                                              │                 │
+│                 │                      any key to begin                        │                 │
+│                 │                                                              │─────────────────╯
+│                 │                                                              │─────────────────╮
+│                 │                                                              │                 │
+│                 ╰──────────────────────────────────────────────────────────────╯                 │
+│                            ││ride avg 0.0t   throughput 0/3600t   util 100%                      │
+│                            ││p95 wait (ticks)                                                    │
+│                            ││                                                                    │
+│                            ││total occupancy                                                     │
+╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
+ ? help · space pause · [ ] car · Enter drill · q quit

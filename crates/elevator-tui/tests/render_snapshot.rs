@@ -58,7 +58,7 @@ fn demo_sim(steps: u64) -> Simulation {
 #[test]
 fn frame_renders_after_a_few_ticks() {
     let sim = demo_sim(120);
-    let state = AppState::new(1.0);
+    let state = AppState::new(1.0).without_welcome();
     let frame = render(&sim, &state, 100, 30);
     insta::assert_snapshot!("default_after_120_ticks", frame);
 }
@@ -66,8 +66,25 @@ fn frame_renders_after_a_few_ticks() {
 #[test]
 fn frame_in_distance_mode() {
     let sim = demo_sim(60);
-    let mut state = AppState::new(1.0);
+    let mut state = AppState::new(1.0).without_welcome();
     state.shaft_mode = ShaftMode::Distance;
     let frame = render(&sim, &state, 100, 30);
     insta::assert_snapshot!("distance_mode_after_60_ticks", frame);
+}
+
+#[test]
+fn frame_with_welcome_overlay() {
+    let sim = demo_sim(60);
+    let state = AppState::new(1.0); // welcome shown by default
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("welcome_overlay", frame);
+}
+
+#[test]
+fn frame_with_help_overlay() {
+    let sim = demo_sim(60);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.show_help = true;
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("help_overlay", frame);
 }

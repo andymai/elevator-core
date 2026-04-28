@@ -8,8 +8,10 @@ use anyhow::{Context as _, Result};
 use crossterm::event::{self, Event as TermEvent, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
+use elevator_core::config::SimConfig;
 use elevator_core::events::EventCategory;
 use elevator_core::sim::Simulation;
+use elevator_core::traffic::{PoissonSource, TrafficSource as _};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
@@ -20,18 +22,29 @@ use crate::ui;
 ///
 /// `initial_tick_rate` is multiplied by the sim's configured
 /// `ticks_per_second`; `1.0` runs the sim in real wall-clock time.
+/// When `show_welcome` is `false`, the first-launch welcome overlay is
+/// suppressed (e.g. `--no-welcome`).
+///
+/// `config` is required so the interactive loop can drive a
+/// [`PoissonSource`] each tick — without it the sim has no built-in
+/// spawner and the TUI sits forever on an empty event stream.
 ///
 /// # Errors
 ///
 /// Returns the underlying I/O error if terminal setup, polling, or
 /// rendering fails. The terminal is always restored on the way out
 /// (success, error, or panic via `Drop`).
-pub fn run(sim: Simulation, initial_tick_rate: f64) -> Result<()> {
+pub fn run(
+    sim: Simulation,
+    config: &SimConfig,
+    initial_tick_rate: f64,
+    show_welcome: bool,
+) -> Result<()> {
     let mut terminal = setup_terminal().context("setting up terminal")?;
     // RAII: the terminal is restored when `_guard` drops, whether
     // `event_loop` returns Ok, returns Err, or panics.
     let _guard = TerminalGuard;
-    event_loop(&mut terminal, sim, initial_tick_rate)
+    event_loop(&mut terminal, sim, config, initial_tick_rate, show_welcome)
 }
 
 /// Frame budget — caps render rate at ~30 fps.
@@ -42,9 +55,13 @@ const FRAME_BUDGET: Duration = Duration::from_millis(33);
 fn event_loop(
     terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     mut sim: Simulation,
+    config: &SimConfig,
     initial_tick_rate: f64,
+    show_welcome: bool,
 ) -> Result<()> {
     let mut state = AppState::new(initial_tick_rate);
+    state.show_welcome = show_welcome;
+    let mut traffic = PoissonSource::from_config(config);
     let cfg_tps = sim.time().ticks_per_second();
     let mut accumulator = 0.0_f64;
     let mut last = Instant::now();
@@ -91,7 +108,7 @@ fn event_loop(
             let max_per_frame = (cfg_tps * state.tick_rate * 0.1).max(1.0).ceil();
             let mut budget = max_per_frame as u64;
             while accumulator >= 1.0 && budget > 0 {
-                step_once(&mut sim, &mut state);
+                step_once(&mut sim, &mut traffic, &mut state);
                 accumulator -= 1.0;
                 budget -= 1;
             }
@@ -121,38 +138,87 @@ fn event_loop(
     }
 }
 
-/// Drive a single sim tick, drain its events, and update sparklines.
-fn step_once(sim: &mut Simulation, state: &mut AppState) {
+/// Drive a single sim tick (with Poisson spawning), drain events,
+/// update sparklines.
+///
+/// Spawn requests are issued *before* the step so each new rider is in
+/// place before the dispatcher runs its planning pass. Failed spawns
+/// are silently dropped — they generally point at a config/topology
+/// mismatch and the next tick's request will tell the same story
+/// without us spamming the events panel.
+fn step_once(sim: &mut Simulation, traffic: &mut PoissonSource, state: &mut AppState) {
+    for req in traffic.generate(sim.current_tick()) {
+        let _ = sim.spawn_rider(req.origin, req.destination, req.weight);
+    }
     sim.step();
+    record_step(sim, state);
+}
+
+/// Step variant used when no traffic source is in scope (manual `.`
+/// stepping in unit tests, primarily). Doesn't spawn riders.
+fn step_no_traffic(sim: &mut Simulation, state: &mut AppState) {
+    sim.step();
+    record_step(sim, state);
+}
+
+/// Post-step bookkeeping: drain events into the log, update sparklines,
+/// roll the spawn bucket. Runs after every step — auto or manual.
+fn record_step(sim: &mut Simulation, state: &mut AppState) {
     let tick = sim.current_tick();
     let drained = sim.drain_events();
+    let spawned: u64 = drained
+        .iter()
+        .filter(|e| matches!(e, elevator_core::events::Event::RiderSpawned { .. }))
+        .count() as u64;
+    for _ in 0..spawned {
+        state.observe_spawn();
+    }
     state.push_events(tick, drained);
 
     state.wait_sparkline.push(sim.metrics().p95_wait_time());
     let total_occupancy: usize = ui::shaft::cars_iter(sim).map(|car| car.riders.len()).sum();
     state.occupancy_sparkline.push(total_occupancy as u64);
+    state.advance_spawn_bucket(tick, sim.time().ticks_per_second());
 }
 
 /// Map a single keypress to a state transition (and possibly a sim
 /// mutation, for single-step).
+#[allow(clippy::too_many_lines)]
 fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifiers: KeyModifiers) {
     if matches!(code, KeyCode::Char('c')) && modifiers.contains(KeyModifiers::CONTROL) {
         state.quit = true;
         return;
     }
+    // Welcome overlay swallows the first keypress, no matter what it is —
+    // including `q`, so a user who hits q-then-q doesn't accidentally
+    // quit while reading. Ctrl-C is checked above and still escapes.
+    if state.show_welcome {
+        state.show_welcome = false;
+        return;
+    }
+    // Help overlay closes on `?`, Esc, or `q` (and any of the explicit
+    // toggles below by re-pressing). `q` here means "close help", not
+    // "quit the app" — same justification as welcome above.
+    if state.show_help {
+        if matches!(code, KeyCode::Char('?' | 'q') | KeyCode::Esc) {
+            state.show_help = false;
+        }
+        return;
+    }
     match code {
+        KeyCode::Char('?') => state.show_help = true,
         KeyCode::Char('q') => state.quit = true,
         KeyCode::Char(' ') => {
             state.paused = !state.paused;
             state.flash(if state.paused { "paused" } else { "running" });
         }
         KeyCode::Char('.') => {
-            step_once(sim, state);
+            step_no_traffic(sim, state);
             state.flash(format!("step → tick {}", sim.current_tick()));
         }
         KeyCode::Char(',') => {
             for _ in 0..10 {
-                step_once(sim, state);
+                step_no_traffic(sim, state);
             }
             state.flash(format!("step ×10 → tick {}", sim.current_tick()));
         }
@@ -278,7 +344,7 @@ mod tests {
 
     #[test]
     fn space_toggles_pause() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         assert!(!state.paused);
         handle_key(&mut state, &mut sim, KeyCode::Char(' '), KeyModifiers::NONE);
@@ -289,7 +355,7 @@ mod tests {
 
     #[test]
     fn dot_advances_one_tick() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         let before = sim.current_tick();
         handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
@@ -298,7 +364,7 @@ mod tests {
 
     #[test]
     fn rate_clamps_to_safe_bounds() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         for _ in 0..20 {
             handle_key(&mut state, &mut sim, KeyCode::Char('+'), KeyModifiers::NONE);
@@ -312,7 +378,7 @@ mod tests {
 
     #[test]
     fn category_digit_keys_toggle_filters() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         let before = state.category_filter.len();
         handle_key(&mut state, &mut sim, KeyCode::Char('2'), KeyModifiers::NONE);
@@ -321,7 +387,7 @@ mod tests {
 
     #[test]
     fn save_then_load_restores_tick() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         for _ in 0..5 {
             sim.step();
@@ -338,7 +404,7 @@ mod tests {
 
     #[test]
     fn enter_toggles_drilldown() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         assert_eq!(state.right_panel, RightPanel::Overview);
         handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
@@ -349,7 +415,7 @@ mod tests {
 
     #[test]
     fn ctrl_c_quits() {
-        let mut state = AppState::new(1.0);
+        let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
         handle_key(
             &mut state,

@@ -11,6 +11,6 @@ fn main() -> anyhow::Result<()> {
     if cli.headless {
         headless::run(sim, &config, cli.until, cli.emit.as_deref(), cli.no_traffic)
     } else {
-        app::run(sim, cli.tick_rate)
+        app::run(sim, &config, cli.tick_rate, !cli.no_welcome)
     }
 }

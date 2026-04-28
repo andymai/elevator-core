@@ -36,4 +36,10 @@ pub struct Cli {
     /// with new arrivals. Ignored when interactive.
     #[arg(long)]
     pub no_traffic: bool,
+
+    /// Suppress the first-launch welcome overlay. Ignored in headless
+    /// mode; intended for scripted demos / screen recordings where the
+    /// overlay would obscure the first frames.
+    #[arg(long)]
+    pub no_welcome: bool,
 }
