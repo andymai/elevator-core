@@ -5,10 +5,11 @@
 //! JS side). The Result-shape model lets TS consumers use exhaustive
 //! `switch (r.kind)` narrowing without try/catch wrappers.
 //!
-//! Three concrete result types cover the entire fallible surface:
+//! Four concrete result types cover the entire fallible surface:
 //! - [`WasmVoidResult`] for mutators that return `()`
 //! - [`WasmU64Result`] for entity-id returns
 //! - [`WasmU32Result`] for count returns
+//! - [`WasmBytesResult`] for byte-buffer returns
 //!
 //! On the TS side each is a discriminated union with a string `kind`
 //! discriminator:
@@ -92,6 +93,25 @@ pub enum WasmU32Result {
     },
 }
 
+/// Result shape for `Vec<u8>`-typed returns (snapshot bytes, etc.).
+/// On the TS side:
+/// `{ kind: "ok"; value: Uint8Array } | { kind: "err"; error: string }`.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum WasmBytesResult {
+    /// Operation succeeded; `value` carries the byte buffer.
+    Ok {
+        /// The byte buffer.
+        value: Vec<u8>,
+    },
+    /// Operation failed; `error` carries the human-readable message.
+    Err {
+        /// The error message.
+        error: String,
+    },
+}
+
 impl<E: std::fmt::Display> From<Result<(), E>> for WasmVoidResult {
     fn from(r: Result<(), E>) -> Self {
         match r {
@@ -116,6 +136,17 @@ impl<E: std::fmt::Display> From<Result<u64, E>> for WasmU64Result {
 
 impl<E: std::fmt::Display> From<Result<u32, E>> for WasmU32Result {
     fn from(r: Result<u32, E>) -> Self {
+        match r {
+            Ok(value) => Self::Ok { value },
+            Err(e) => Self::Err {
+                error: e.to_string(),
+            },
+        }
+    }
+}
+
+impl<E: std::fmt::Display> From<Result<Vec<u8>, E>> for WasmBytesResult {
+    fn from(r: Result<Vec<u8>, E>) -> Self {
         match r {
             Ok(value) => Self::Ok { value },
             Err(e) => Self::Err {
@@ -161,6 +192,22 @@ impl WasmU32Result {
     /// Convenience constructor for the success case.
     #[must_use]
     pub const fn ok(value: u32) -> Self {
+        Self::Ok { value }
+    }
+
+    /// Convenience constructor for the failure case.
+    #[must_use]
+    pub fn err(message: impl Into<String>) -> Self {
+        Self::Err {
+            error: message.into(),
+        }
+    }
+}
+
+impl WasmBytesResult {
+    /// Convenience constructor for the success case.
+    #[must_use]
+    pub fn ok(value: Vec<u8>) -> Self {
         Self::Ok { value }
     }
 

@@ -29,7 +29,7 @@ mod dto;
 mod result;
 mod world_view;
 
-pub use result::{WasmU32Result, WasmU64Result, WasmVoidResult};
+pub use result::{WasmBytesResult, WasmU32Result, WasmU64Result, WasmVoidResult};
 
 /// Encode an `EntityId` for the JS boundary as a `u64` (`BigInt` in JS).
 /// Carries slotmap's full FFI encoding (slot + version) so stale
@@ -459,6 +459,64 @@ impl WasmSim {
     /// Pull a cheap snapshot for rendering.
     pub fn snapshot(&self) -> dto::Snapshot {
         dto::Snapshot::build(&self.inner)
+    }
+
+    /// Serialize the simulation to a self-describing postcard byte blob.
+    ///
+    /// Wraps [`Simulation::snapshot_bytes`]. The returned bytes carry a
+    /// magic prefix and the `elevator-core` crate version; restore via
+    /// [`Self::from_snapshot_bytes`] in the same crate version. Useful
+    /// for hibernation/rehydration in serverless runtimes (Cloudflare
+    /// Durable Objects) and for lockstep-checkpoint sync.
+    #[wasm_bindgen(js_name = snapshotBytes)]
+    pub fn snapshot_bytes(&self) -> WasmBytesResult {
+        self.inner.snapshot_bytes().into()
+    }
+
+    /// Reconstruct a `WasmSim` from postcard bytes produced by
+    /// [`Self::snapshot_bytes`].
+    ///
+    /// The `strategy` and `reposition` arguments restore wrapper-side
+    /// labels not stored in the snapshot envelope (the underlying
+    /// `Simulation` already auto-restores its built-in dispatch and
+    /// reposition strategies from the postcard payload). Pass the same
+    /// values used at original [`Self::new`] construction.
+    ///
+    /// `traffic_rate` resets to `0.0` on restore — callers that drive
+    /// arrivals externally (the tower-together case) don't use this
+    /// field; callers using built-in traffic should re-call
+    /// `setTrafficRate` after restore.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the bytes are not a valid envelope, the
+    /// crate version differs, the snapshot references a custom dispatch
+    /// strategy (only built-in strategies are supported by this wrapper
+    /// — use the Rust API directly for custom strategies), or
+    /// `strategy` is not a recognised built-in name (matching the
+    /// `new()` constructor's contract so `strategyName()` always holds
+    /// a known label).
+    #[wasm_bindgen(js_name = fromSnapshotBytes)]
+    pub fn from_snapshot_bytes(
+        bytes: &[u8],
+        strategy: String,
+        reposition: Option<String>,
+    ) -> Result<Self, JsError> {
+        if strategy_id(&strategy).is_none() {
+            return Err(JsError::new(&format!("unknown strategy: {strategy}")));
+        }
+        let inner = Simulation::restore_bytes(bytes, None)
+            .map_err(|e| JsError::new(&format!("restore: {e}")))?;
+        let reposition_name = reposition
+            .as_deref()
+            .map_or("adaptive", |s| if s.is_empty() { "adaptive" } else { s })
+            .to_string();
+        Ok(Self {
+            inner,
+            strategy_name: strategy,
+            reposition_name,
+            traffic_rate: 0.0,
+        })
     }
 
     /// Pull a richer game-facing view: door progress, direction lamps,
