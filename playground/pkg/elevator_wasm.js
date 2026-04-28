@@ -877,6 +877,42 @@ export class WasmSim {
         return ret[0] === 0 ? undefined : ret[1];
     }
     /**
+     * Batched variant of [`Self::position_at`]: writes the
+     * interpolated position of each `entity_ref` in `refs` into the
+     * matching slot of `out`, in one wasm-bindgen crossing.
+     *
+     * Designed for renderers that read N elevator positions per
+     * frame and want to avoid the per-call boundary overhead of
+     * calling `positionAt` in a loop. Entities without a position
+     * component get `f64::NAN` written to their slot — caller can
+     * `Number.isNaN(slot)` to detect.
+     *
+     * Both `refs` and `out` are zero-copy views of the JS caller's
+     * typed arrays (`BigUint64Array` and `Float64Array` respectively).
+     * wasm-bindgen does not allocate or copy on the boundary, so
+     * this stays cheap to call every render frame.
+     *
+     * Returns the number of entries written, which is
+     * `min(refs.len(), out.len())`. Callers can reuse a scratch
+     * buffer larger than the current frame's elevator count without
+     * re-reading lengths; when `out` is shorter than `refs`, only
+     * `out.len()` entries are written and the remaining refs are
+     * silently skipped — caller is responsible for sizing `out` at
+     * least as large as `refs` if they want every position read.
+     * @param {BigUint64Array} refs
+     * @param {number} alpha
+     * @param {Float64Array} out
+     * @returns {number}
+     */
+    positionsAtPacked(refs, alpha, out) {
+        const ptr0 = passArray64ToWasm0(refs, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = passArrayF64ToWasm0(out, wasm.__wbindgen_malloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_positionsAtPacked(this.__wbg_ptr, ptr0, len0, alpha, ptr1, len1, out);
+        return ret >>> 0;
+    }
+    /**
      * Press a car-button (in-cab floor request) targeting `stop_ref`.
      *
      * # Errors
@@ -1867,6 +1903,9 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
+        __wbg___wbindgen_copy_to_typed_array_9e08990f20659111: function(arg0, arg1, arg2) {
+            new Uint8Array(arg2.buffer, arg2.byteOffset, arg2.byteLength).set(getArrayU8FromWasm0(arg0, arg1));
+        },
         __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
@@ -1940,6 +1979,11 @@ function getArrayU64FromWasm0(ptr, len) {
     return getBigUint64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
+function getArrayU8FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
+}
+
 let cachedBigUint64ArrayMemory0 = null;
 function getBigUint64ArrayMemory0() {
     if (cachedBigUint64ArrayMemory0 === null || cachedBigUint64ArrayMemory0.byteLength === 0) {
@@ -1954,6 +1998,14 @@ function getDataViewMemory0() {
         cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
     }
     return cachedDataViewMemory0;
+}
+
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -1991,6 +2043,13 @@ function passArray64ToWasm0(arg, malloc) {
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -2073,6 +2132,7 @@ function __wbg_finalize_init(instance, module) {
     wasmModule = module;
     cachedBigUint64ArrayMemory0 = null;
     cachedDataViewMemory0 = null;
+    cachedFloat64ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();

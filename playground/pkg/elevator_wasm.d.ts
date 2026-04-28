@@ -1047,6 +1047,31 @@ export class WasmSim {
      */
     positionAt(entity_ref: bigint, alpha: number): number | undefined;
     /**
+     * Batched variant of [`Self::position_at`]: writes the
+     * interpolated position of each `entity_ref` in `refs` into the
+     * matching slot of `out`, in one wasm-bindgen crossing.
+     *
+     * Designed for renderers that read N elevator positions per
+     * frame and want to avoid the per-call boundary overhead of
+     * calling `positionAt` in a loop. Entities without a position
+     * component get `f64::NAN` written to their slot — caller can
+     * `Number.isNaN(slot)` to detect.
+     *
+     * Both `refs` and `out` are zero-copy views of the JS caller's
+     * typed arrays (`BigUint64Array` and `Float64Array` respectively).
+     * wasm-bindgen does not allocate or copy on the boundary, so
+     * this stays cheap to call every render frame.
+     *
+     * Returns the number of entries written, which is
+     * `min(refs.len(), out.len())`. Callers can reuse a scratch
+     * buffer larger than the current frame's elevator count without
+     * re-reading lengths; when `out` is shorter than `refs`, only
+     * `out.len()` entries are written and the remaining refs are
+     * silently skipped — caller is responsible for sizing `out` at
+     * least as large as `refs` if they want every position read.
+     */
+    positionsAtPacked(refs: BigUint64Array, alpha: number, out: Float64Array): number;
+    /**
      * Press a car-button (in-cab floor request) targeting `stop_ref`.
      *
      * # Errors
@@ -1679,6 +1704,7 @@ export interface InitOutput {
     readonly wasmsim_pendingEvents: (a: number) => [number, number];
     readonly wasmsim_pinAssignment: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
     readonly wasmsim_positionAt: (a: number, b: bigint, c: number) => [number, number];
+    readonly wasmsim_positionsAtPacked: (a: number, b: number, c: number, d: number, e: number, f: number, g: any) => number;
     readonly wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_pushDestination: (a: number, b: bigint, c: bigint) => any;

@@ -64,6 +64,7 @@ export const wasmsim_openDoor: (a: number, b: bigint) => any;
 export const wasmsim_pendingEvents: (a: number) => [number, number];
 export const wasmsim_pinAssignment: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
 export const wasmsim_positionAt: (a: number, b: bigint, c: number) => [number, number];
+export const wasmsim_positionsAtPacked: (a: number, b: number, c: number, d: number, e: number, f: number, g: any) => number;
 export const wasmsim_pressCarButton: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_pressHallCall: (a: number, b: bigint, c: number, d: number) => any;
 export const wasmsim_pushDestination: (a: number, b: bigint, c: bigint) => any;
