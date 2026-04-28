@@ -97,8 +97,8 @@ The shaft has two modes you can toggle at runtime with `m`:
 | `m`       | Cycle shaft mode (Index <-> Distance)                               |
 | `]`, `[`  | Focus next / previous car                                           |
 | `f`       | Toggle follow mode -- filters the events panel to the focused car  |
-| `Enter`   | Open the per-car drill-down panel for the focused car              |
-| `Esc`     | Close drill-down                                                    |
+| `Enter`   | Toggle the per-car drill-down panel for the focused car            |
+| `Esc`     | Close drill-down (no-op when already closed)                       |
 
 ### Event filtering
 

@@ -18,10 +18,15 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    // The metrics panel only gets ~5 inner rows in a default 30-row
+    // terminal. The earlier `Length(5) + Length(2) + Length(2)` was 9
+    // rows; ratatui scaled them proportionally and silently dropped
+    // the third counter line. Use `Min(3)` so the counters always
+    // get their full text but collapse last when the panel is tight.
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5), // counter text
+            Constraint::Min(3),    // 3 counter lines — full or shrink under pressure
             Constraint::Length(2), // wait sparkline
             Constraint::Length(2), // occupancy sparkline
         ])
@@ -52,19 +57,16 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     ];
     frame.render_widget(Paragraph::new(counters), chunks[0]);
 
-    let wait = state.wait_sparkline.as_slice();
     frame.render_widget(
         Sparkline::default()
             .block(Block::default().title("p95 wait (ticks)"))
-            .data(&wait),
+            .data(state.wait_sparkline.as_slice()),
         chunks[1],
     );
-
-    let occ = state.occupancy_sparkline.as_slice();
     frame.render_widget(
         Sparkline::default()
             .block(Block::default().title("total occupancy"))
-            .data(&occ),
+            .data(state.occupancy_sparkline.as_slice()),
         chunks[2],
     );
 }

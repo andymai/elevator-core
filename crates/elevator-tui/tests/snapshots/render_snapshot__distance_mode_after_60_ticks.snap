@@ -27,8 +27,8 @@ expression: frame
 │             2.0 │ · ││ metrics                                                                    
 │             1.6 │ · ││spawned 1   delivered 0   abandoned 0 (0.0%)                                
 │             1.2 │ · ││wait avg 4.0t   p95 4t   max 4t                                             
-│             0.8 │ · ││p95 wait (ticks)                                                            
-│             0.4 │ * ││total occupancy                                                             
-│Ground       0.0 │ · ││                                                                            
+│             0.8 │ · ││ride avg 0.0t   throughput 0/3600t   util 100.0%                            
+│             0.4 │ * ││p95 wait (ticks)                                                            
+│Ground       0.0 │ · ││total occupancy                                                             
 └─────────────────────┘│────────────────────────────────────────────────────────────────────────────
  space pause  . step  , step×10  +/- rate  m shaft  []car  f follow  Enter drill  s save  l load  1-

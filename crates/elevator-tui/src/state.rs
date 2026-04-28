@@ -43,10 +43,18 @@ pub struct LoggedEvent {
 }
 
 /// Bounded ring of recent samples used by sparkline panels.
+///
+/// Backed by a contiguous `Vec` (not `VecDeque`) so the renderer can
+/// borrow the buffer as `&[u64]` without allocating per frame. When
+/// the ring is full, `push` shifts existing samples down by one slot
+/// — O(n) but n ≤ `SPARKLINE_CAP` (256) is a single cache line and
+/// happens at most once per tick, dwarfed by the surrounding sim work.
+/// The trade is worth it: render runs at ~30 Hz and reads the slice
+/// twice per frame, so a per-render `collect` adds up.
 #[derive(Debug, Clone)]
 pub struct Sparkline {
-    /// Samples in insertion order; oldest at front.
-    pub samples: std::collections::VecDeque<u64>,
+    /// Samples in insertion order; oldest at index 0.
+    pub samples: Vec<u64>,
     /// Maximum sample count retained.
     pub capacity: usize,
 }
@@ -56,7 +64,7 @@ impl Sparkline {
     #[must_use]
     pub fn new(capacity: usize) -> Self {
         Self {
-            samples: std::collections::VecDeque::with_capacity(capacity),
+            samples: Vec::with_capacity(capacity),
             capacity,
         }
     }
@@ -64,16 +72,19 @@ impl Sparkline {
     /// Push a sample, dropping the oldest if at capacity.
     pub fn push(&mut self, value: u64) {
         if self.samples.len() == self.capacity {
-            self.samples.pop_front();
+            // Shift everything down by one. See struct doc for the
+            // rationale (small cap, infrequent calls, alloc-free reads).
+            self.samples.copy_within(1.., 0);
+            self.samples.pop();
         }
-        self.samples.push_back(value);
+        self.samples.push(value);
     }
 
     /// Slice view of the buffered samples (oldest first), suitable for
-    /// `ratatui::widgets::Sparkline::data`.
+    /// `ratatui::widgets::Sparkline::data`. Zero-cost; no allocation.
     #[must_use]
-    pub fn as_slice(&self) -> Vec<u64> {
-        self.samples.iter().copied().collect()
+    pub fn as_slice(&self) -> &[u64] {
+        &self.samples
     }
 }
 
@@ -298,7 +309,7 @@ mod tests {
         spark.push(2);
         spark.push(3);
         spark.push(4);
-        assert_eq!(spark.as_slice(), vec![2, 3, 4]);
+        assert_eq!(spark.as_slice(), &[2, 3, 4]);
     }
 
     #[test]
