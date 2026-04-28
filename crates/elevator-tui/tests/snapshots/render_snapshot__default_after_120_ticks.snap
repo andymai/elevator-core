@@ -2,7 +2,7 @@
 source: crates/elevator-tui/tests/render_snapshot.rs
 expression: frame
 ---
- elevator-tui   tick 120   RUNNING   rate 1.00×   shaft Index                                       
+ elevator-tui   tick 120   RUNNING   rate 1.00×   shaft Index   panel Overview                      
 ┌ shaft · 1 car(s) ───┐│ overview                                                                   
 │Top         10.0 │ · ││ events · filter [all]                                                      
 │Ground       0.0 │ ▲ ││                                                                            
@@ -28,7 +28,7 @@ expression: frame
 │                     ││spawned 1   delivered 0   abandoned 0 (0.0%)                                
 │                     ││wait avg 4.0t   p95 4t   max 4t                                             
 │                     ││ride avg 0.0t   throughput 0/3600t   util 100.0%                            
-│                     ││                                                                            
-│                     ││                                                                            
+│                     ││p95 wait (ticks)                                                            
+│                     ││total occupancy                                                             
 └─────────────────────┘│────────────────────────────────────────────────────────────────────────────
- space pause  . step  , step×10  +/- rate  m shaft  []car  f follow  1-7 filter  q quit
+ space pause  . step  , step×10  +/- rate  m shaft  []car  f follow  Enter drill  s save  l load  1-
