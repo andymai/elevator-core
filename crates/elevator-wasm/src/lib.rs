@@ -1262,6 +1262,36 @@ impl WasmSim {
         self.inner.position_at(u64_to_entity(entity_ref), alpha)
     }
 
+    /// Batched variant of [`Self::position_at`]: writes the
+    /// interpolated position of each `entity_ref` in `refs` into the
+    /// matching slot of `out`, in one wasm-bindgen crossing.
+    ///
+    /// Designed for renderers that read N elevator positions per
+    /// frame and want to avoid the per-call boundary overhead of
+    /// calling `positionAt` in a loop. Entities without a position
+    /// component get `f64::NAN` written to their slot — caller can
+    /// `Number.isNaN(slot)` to detect.
+    ///
+    /// `out` must be at least as long as `refs`; the wasm-bindgen
+    /// generated TS signature accepts a `Float64Array`. Excess slots
+    /// past `refs.len()` are left unmodified so callers can reuse a
+    /// scratch buffer larger than the current frame's elevator count.
+    ///
+    /// Returns the number of entries written (always `refs.len()`)
+    /// so JS callers can use it as a `for (let i = 0; i < n; i++)`
+    /// bound without re-reading the input length.
+    #[wasm_bindgen(js_name = positionsAtPacked)]
+    pub fn positions_at_packed(&self, refs: Vec<u64>, alpha: f64, out: &mut [f64]) -> u32 {
+        let n = refs.len().min(out.len());
+        for (i, &raw) in refs.iter().enumerate().take(n) {
+            out[i] = self
+                .inner
+                .position_at(u64_to_entity(raw), alpha)
+                .unwrap_or(f64::NAN);
+        }
+        u32::try_from(n).unwrap_or(u32::MAX)
+    }
+
     /// Fraction of `elevator_ref`'s capacity currently occupied (by weight),
     /// in `[0.0, 1.0]`. Returns `undefined` for missing entities.
     #[wasm_bindgen(js_name = elevatorLoad)]
