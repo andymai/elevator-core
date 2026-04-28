@@ -93,6 +93,15 @@ cargo run                                       # default 5-stop building
 cargo run -- assets/config/space_elevator.ron    # 1,000 km orbital tether
 ```
 
+## TUI debugger
+
+For tick-by-tick debugging or headless smoke runs, the workspace also ships [`elevator-tui`](crates/elevator-tui) — a terminal viewer with pause/step controls, event log, dispatch summary, and snapshot save/load on a hotkey. See the [TUI Debugger guide](https://andymai.github.io/elevator-core/tui-debugger.html).
+
+```sh
+cargo run -p elevator-tui -- assets/config/default.ron                    # interactive
+cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  # CI smoke
+```
+
 ## Feature flags
 
 | Flag | Default | Adds |
