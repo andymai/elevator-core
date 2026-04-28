@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.5.0...elevator-wasm-v0.6.0) (2026-04-28)
+
+
+### Features
+
+* **core:** deterministic-fp feature flag for cross-host bit equality ([#532](https://github.com/andymai/elevator-core/issues/532)) ([02ea743](https://github.com/andymai/elevator-core/commit/02ea743cc07bc31473cba8b2db51232983e74599))
+
 ## [0.5.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.4.0...elevator-wasm-v0.5.0) (2026-04-28)
 
 

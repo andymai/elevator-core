@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.2...elevator-ffi-v0.11.0) (2026-04-28)
+
+
+### Features
+
+* **core:** deterministic-fp feature flag for cross-host bit equality ([#532](https://github.com/andymai/elevator-core/issues/532)) ([02ea743](https://github.com/andymai/elevator-core/commit/02ea743cc07bc31473cba8b2db51232983e74599))
+
 ## [0.10.2](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.1...elevator-ffi-v0.10.2) (2026-04-28)
 
 
