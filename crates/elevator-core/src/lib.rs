@@ -380,6 +380,8 @@ pub mod energy;
 pub mod eta;
 /// Simulation event bus and event types.
 pub mod events;
+/// Floating-point helpers gated by the `deterministic-fp` feature.
+pub(crate) mod fp;
 /// Lifecycle hooks for injecting logic before/after simulation phases.
 pub mod hooks;
 /// Aggregate simulation metrics.
