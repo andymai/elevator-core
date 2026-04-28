@@ -1390,15 +1390,35 @@ pub unsafe extern "C" fn ev_sim_hall_call_count(handle: *mut EvSim) -> u32 {
 
 /// Snapshot a flat representation of every active hall call into `out`.
 ///
-/// The caller supplies a buffer of `capacity` [`EvHallCall`] entries;
-/// the actual number written is returned in `out_written`. If
-/// `capacity` is smaller than the live count, the buffer is filled
-/// and the remainder is dropped.
+/// Caller-owned buffer with probe-then-fill semantics: `out_written`
+/// is populated with the **required** slot count regardless of whether
+/// the buffer fits, so callers can probe with `(null, 0)` to size a
+/// real buffer.
+///
+/// Returns:
+/// - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+///   <= capacity`); the first `out_written` slots of `out` are
+///   populated.
+/// - [`EvStatus::InvalidArg`] when the buffer is too small;
+///   `out_written` carries the required slot count and no slot of
+///   `out` is written. [`ev_last_error`] carries a diagnostic string
+///   **only** when `capacity > 0` — the documented `(null, 0)` probe
+///   leaves the last-error slot clear so callers using
+///   [`ev_last_error`] for diagnostics don't see a false "programmer
+///   mistake" after a deliberate size query.
+///
+/// **ABI v4 contract change:** prior versions silently truncated to
+/// `capacity` and returned `Ok` regardless. Callers that previously
+/// passed an under-sized buffer and ignored the count must now
+/// either grow the buffer or check for `InvalidArg`. Use
+/// [`ev_sim_hall_call_count`] for size-only probes when the buffer
+/// pattern feels heavyweight.
 ///
 /// # Safety
 ///
-/// `handle`, `out`, and `out_written` must be valid pointers. `out`
-/// must point to a buffer of at least `capacity` `EvHallCall`s.
+/// `handle` and `out_written` must be valid pointers. `out` must point
+/// to a buffer of at least `capacity` [`EvHallCall`]s when `capacity > 0`,
+/// and may be null when `capacity == 0` (probe pass).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
     handle: *mut EvSim,
@@ -1408,13 +1428,36 @@ pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
 ) -> EvStatus {
     guard(EvStatus::Panic, || {
         clear_last_error();
-        if handle.is_null() || out.is_null() || out_written.is_null() {
-            set_last_error("null argument");
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
             return EvStatus::NullArg;
         }
         let ev = unsafe { &*handle };
-        let mut written: u32 = 0;
-        for call in ev.sim.hall_calls().take(capacity as usize) {
+        // Materialize once so we can write the needed count before any
+        // potential under-size return. `hall_calls()` returns an iter
+        // (not a slice) so collect to count without re-iterating.
+        let calls: Vec<&_> = ev.sim.hall_calls().collect();
+        let needed = u32::try_from(calls.len()).unwrap_or(u32::MAX);
+        // Safety: validated non-null above. Surface the required size
+        // before any potential under-size return so callers can probe.
+        unsafe { *out_written = needed };
+        if needed > capacity {
+            // capacity == 0 is the documented probe call — return
+            // InvalidArg silently so callers reading
+            // ev_sim_last_error() don't see a false "programmer
+            // mistake" message after a deliberate size query.
+            if capacity > 0 {
+                set_last_error(format!(
+                    "insufficient buffer: need {needed} slots, got {capacity}"
+                ));
+            }
+            return EvStatus::InvalidArg;
+        }
+        for (i, call) in calls.iter().enumerate() {
             let record = EvHallCall {
                 stop_entity_id: entity_to_u64(call.stop),
                 direction: match call.direction {
@@ -1436,15 +1479,11 @@ pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
                 pinned: u8::from(call.pinned),
                 pending_rider_count: u32::try_from(call.pending_riders.len()).unwrap_or(u32::MAX),
             };
-            // Safety: caller guarantees `out` has at least `capacity` entries
-            // and we wrote fewer than `capacity` before this increment.
+            // Safety: bounds-checked above (needed <= capacity, i < calls.len() == needed).
             unsafe {
-                std::ptr::write(out.add(written as usize), record);
+                std::ptr::write(out.add(i), record);
             }
-            written += 1;
         }
-        // Safety: validated non-null above.
-        unsafe { std::ptr::write(out_written, written) };
         EvStatus::Ok
     })
 }
@@ -5957,6 +5996,8 @@ pub unsafe extern "C" fn ev_sim_riders_on(
 /// - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
 /// - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
 ///   small; `out_written` contains the required slot count.
+///   [`ev_last_error`] carries a diagnostic string only when
+///   `capacity > 0` — the documented `(null, 0)` probe is silent.
 /// - [`EvStatus::NotFound`] if no route exists.
 ///
 /// # Safety
@@ -6005,7 +6046,10 @@ pub unsafe extern "C" fn ev_sim_shortest_route(
         // Safety: out_written non-null per check above.
         unsafe { *out_written = needed };
         if needed > capacity {
-            set_last_error(format!("insufficient buffer: need {needed} stop slots"));
+            // capacity == 0 is a probe — see ev_sim_hall_calls_snapshot.
+            if capacity > 0 {
+                set_last_error(format!("insufficient buffer: need {needed} stop slots"));
+            }
             return EvStatus::InvalidArg;
         }
         // Safety: bounds-checked: needed <= capacity, and out_stops is
@@ -6090,7 +6134,9 @@ pub unsafe extern "C" fn ev_sim_car_call_count(handle: *mut EvSim, elevator_enti
 ///   populated.
 /// - [`EvStatus::InvalidArg`] when the buffer is too small;
 ///   `out_written` carries the required slot count and no slot of
-///   `out` is written.
+///   `out` is written. [`ev_last_error`] carries a diagnostic string
+///   only when `capacity > 0` — the documented `(null, 0)` probe is
+///   silent.
 ///
 /// # Safety
 ///
@@ -6129,9 +6175,12 @@ pub unsafe extern "C" fn ev_sim_car_calls_snapshot(
         // before any potential under-size return so callers can probe.
         unsafe { *out_written = needed };
         if needed > capacity {
-            set_last_error(format!(
-                "insufficient buffer: need {needed} slots, got {capacity}"
-            ));
+            // capacity == 0 is a probe — see ev_sim_hall_calls_snapshot.
+            if capacity > 0 {
+                set_last_error(format!(
+                    "insufficient buffer: need {needed} slots, got {capacity}"
+                ));
+            }
             return EvStatus::InvalidArg;
         }
         for (i, call) in calls.iter().enumerate() {
@@ -6396,7 +6445,11 @@ pub unsafe extern "C" fn ev_sim_tag_count(handle: *mut EvSim) -> u32 {
 /// (including null terminators).
 ///
 /// Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
-/// `out_*` counts indicate the required sizes.
+/// `out_*` counts indicate the required sizes. [`ev_last_error`]
+/// carries a diagnostic string only when at least one capacity is
+/// non-zero — the documented `(null, 0, null, 0)` pure probe is
+/// silent so callers reading [`ev_last_error`] after a deliberate
+/// size query don't see a false "programmer mistake".
 ///
 /// # Safety
 ///
@@ -6439,10 +6492,17 @@ pub unsafe extern "C" fn ev_sim_all_tags(
             *out_scratch_used = needed_scratch_u32;
         }
         if needed_count > capacity || needed_scratch_u32 > scratch_capacity {
-            set_last_error(format!(
-                "insufficient buffer: need {needed_count} tag slots and \
-                 {needed_scratch_u32} scratch bytes"
-            ));
+            // (capacity == 0 && scratch_capacity == 0) is the documented
+            // pure probe — silent so callers reading ev_sim_last_error()
+            // don't see a false mistake message. Any partial-size call
+            // (one buffer sized, the other zero) still surfaces, so a
+            // genuine under-allocation is reported.
+            if capacity > 0 || scratch_capacity > 0 {
+                set_last_error(format!(
+                    "insufficient buffer: need {needed_count} tag slots and \
+                     {needed_scratch_u32} scratch bytes"
+                ));
+            }
             return EvStatus::InvalidArg;
         }
         let mut scratch_offset: usize = 0;
@@ -8020,6 +8080,105 @@ mod tests {
         // Sentinel `0` is invalid → InvalidArg.
         let status = unsafe { ev_sim_set_rider_route_shortest(handle, 0, dest) };
         assert_eq!(status, EvStatus::InvalidArg);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    // ── Hall-calls snapshot probe-then-fill ─────────────────────────────
+
+    #[test]
+    fn hall_calls_snapshot_probe_then_fill() {
+        let handle = create_test_handle();
+        let (bottom, _) = stop_entities(handle);
+        // Seed two calls so the probe count is meaningfully > 0.
+        assert_eq!(
+            unsafe { ev_sim_press_hall_button(handle, bottom, 1) },
+            EvStatus::Ok,
+        );
+        // Press at a different stop in the opposite direction so the
+        // (stop, direction) pair is distinct.
+        let mut frame = EvFrame {
+            elevators: std::ptr::null(),
+            elevator_count: 0,
+            stops: std::ptr::null(),
+            stop_count: 0,
+            riders: std::ptr::null(),
+            rider_count: 0,
+            metrics: EvMetricsView {
+                total_delivered: 0,
+                total_abandoned: 0,
+                avg_wait_seconds: 0.0,
+                avg_ride_seconds: 0.0,
+                current_tick: 0,
+            },
+        };
+        assert_eq!(
+            unsafe { ev_sim_frame(handle, &raw mut frame) },
+            EvStatus::Ok,
+        );
+        let stops = unsafe { std::slice::from_raw_parts(frame.stops, frame.stop_count) };
+        let mid = stops[stops.len() / 2].entity_id;
+        assert_eq!(
+            unsafe { ev_sim_press_hall_button(handle, mid, -1) },
+            EvStatus::Ok,
+        );
+
+        // Probe pass: zero capacity reports needed slots without writing.
+        let mut needed: u32 = 0;
+        let probe =
+            unsafe { ev_sim_hall_calls_snapshot(handle, std::ptr::null_mut(), 0, &raw mut needed) };
+        assert_eq!(probe, EvStatus::InvalidArg);
+        assert_eq!(needed, 2, "two distinct hall calls were pressed");
+        // The probe is the documented happy path — the last-error
+        // slot must stay clear so a caller inspecting it after a
+        // size query does not see a false "programmer mistake".
+        assert!(
+            ev_last_error().is_null(),
+            "probe (capacity == 0) must not set last_error",
+        );
+
+        // An undersized but non-zero buffer is a real mistake — the
+        // last-error string must surface so callers can diagnose.
+        let mut small_written: u32 = 0;
+        let mut small = [EvHallCall {
+            stop_entity_id: 0,
+            direction: 0,
+            press_tick: 0,
+            acknowledged_at: 0,
+            assigned_car: 0,
+            destination_entity_id: 0,
+            pinned: 0,
+            pending_rider_count: 0,
+        }; 1];
+        assert_eq!(
+            unsafe {
+                ev_sim_hall_calls_snapshot(handle, small.as_mut_ptr(), 1, &raw mut small_written)
+            },
+            EvStatus::InvalidArg,
+        );
+        assert_eq!(small_written, 2);
+        assert!(
+            !ev_last_error().is_null(),
+            "undersized buffer (capacity > 0) must set last_error",
+        );
+
+        // Fill pass: adequate buffer reports same count and Ok.
+        let mut buf = [EvHallCall {
+            stop_entity_id: 0,
+            direction: 0,
+            press_tick: 0,
+            acknowledged_at: 0,
+            assigned_car: 0,
+            destination_entity_id: 0,
+            pinned: 0,
+            pending_rider_count: 0,
+        }; 4];
+        let mut written: u32 = 0;
+        let cap = u32::try_from(buf.len()).expect("buffer len fits u32");
+        assert_eq!(
+            unsafe { ev_sim_hall_calls_snapshot(handle, buf.as_mut_ptr(), cap, &raw mut written) },
+            EvStatus::Ok,
+        );
+        assert_eq!(written, 2);
         unsafe { ev_sim_destroy(handle) };
     }
 }
