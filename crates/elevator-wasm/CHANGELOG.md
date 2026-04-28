@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.3.0...elevator-wasm-v0.4.0) (2026-04-28)
+
+
+### Features
+
+* **wasm:** add positions_at_packed batched readout ([#528](https://github.com/andymai/elevator-core/issues/528)) ([672d5d0](https://github.com/andymai/elevator-core/commit/672d5d05db0d2306d884760ef20537afa860b45b))
+
 ## [0.3.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.2.0...elevator-wasm-v0.3.0) (2026-04-27)
 
 
