@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3f40ffa1.js";
+            window.path_to_searchindex_js = "searchindex-4ed6c0ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -4205,6 +4205,8 @@ space when stops are clumped.</li>
 <tr><td><code>m</code></td><td>Cycle shaft mode (Index &lt;-&gt; Distance)</td></tr>
 <tr><td><code>]</code>, <code>[</code></td><td>Focus next / previous car</td></tr>
 <tr><td><code>f</code></td><td>Toggle follow mode – filters the events panel to the focused car</td></tr>
+<tr><td><code>Enter</code></td><td>Toggle the per-car drill-down panel for the focused car</td></tr>
+<tr><td><code>Esc</code></td><td>Close drill-down (no-op when already closed)</td></tr>
 </tbody>
 </table>
 </div>
@@ -4225,6 +4227,18 @@ space when stops are clumped.</li>
 </tbody>
 </table>
 </div>
+<h3 id="snapshot"><a class="header" href="#snapshot">Snapshot</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>s</code></td><td>Save the current sim state to an in-memory slot</td></tr>
+<tr><td><code>l</code></td><td>Restore the saved sim state (clears event/sparkline)</td></tr>
+</tbody>
+</table>
+</div>
 <h3 id="quit"><a class="header" href="#quit">Quit</a></h3>
 <div class="table-wrapper">
 <table>
@@ -4242,9 +4256,13 @@ space when stops are clumped.</li>
 <ol>
 <li>Press <code>space</code> to pause as soon as you see the car about to skip.</li>
 <li>Press <code>[</code> / <code>]</code> until the car is focused (its glyph reverses).</li>
+<li>Press <code>Enter</code> to open the drill-down – the destination queue
+reveals what stops dispatch put on its route.</li>
 <li>Press <code>f</code> to filter events to the car – you can scroll back
 through <code>Assigned</code>, <code>PassingFloor</code>, and door events to see the
 bypass decision in context.</li>
+<li>Press <code>s</code> to save the snapshot at the suspicious tick. Press <code>l</code>
+later to come back to this exact moment.</li>
 </ol>
 <h3 id="reproducing-a-bug-from-a-headless-trace"><a class="header" href="#reproducing-a-bug-from-a-headless-trace">Reproducing a bug from a headless trace</a></h3>
 <pre><code class="language-bash">cargo run -p elevator-tui --release -- \
@@ -4279,14 +4297,13 @@ render layer (<code>ui/</code>) only reads from the state and a borrowed
 <code>&amp;Simulation</code> – it never mutates either.</p>
 <h2 id="next-steps-24"><a class="header" href="#next-steps-24">Next steps</a></h2>
 <ul>
-<li>The v1 viewer is intentionally read-only. If you want to spawn
+<li>The viewer is intentionally read-only. If you want to spawn
 riders, change strategies, or pin assignments interactively, those
-would land in a controller mode.</li>
-<li>A polish wave (tracked in <code>bindings.toml</code> as <code>tui-pr2</code>) adds
-snapshot save/load on a hotkey, sparkline trends in the metrics
-panel, and a per-car drill-down panel.</li>
+would land in a follow-up controller mode.</li>
+<li>For richer event introspection (regex search, structured query),
+the event log could grow a slash-command bar – not needed yet.</li>
 <li>See <a href="#snapshots-and-determinism">Snapshots and Determinism</a> for the
-semantics of the underlying <code>Simulation::snapshot()</code> API.</li>
+semantics of the <code>s</code>/<code>l</code> hotkeys and what restoration preserves.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="using-the-bindings"><a class="header" href="#using-the-bindings">Using the Bindings</a></h1>
