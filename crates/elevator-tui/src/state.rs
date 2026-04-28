@@ -90,6 +90,7 @@ impl Sparkline {
 
 /// Top-level interactive app state.
 #[derive(Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AppState {
     /// Sim is paused (no auto-stepping). `space` toggles, `.` single-steps.
     pub paused: bool,
@@ -114,6 +115,15 @@ pub struct AppState {
     pub wait_sparkline: Sparkline,
     /// Total occupancy across all cars per tick.
     pub occupancy_sparkline: Sparkline,
+    /// Spawns-per-second samples, one per second of sim time.
+    /// Updated from the spawn counter every `ticks_per_second` ticks.
+    pub spawn_rate_sparkline: Sparkline,
+    /// Spawns observed in the current 1-second bucket. Reset to 0 each
+    /// time we push to [`spawn_rate_sparkline`](Self::spawn_rate_sparkline).
+    pub spawn_bucket: u64,
+    /// Tick at which the current spawn-rate bucket started; rolled over
+    /// once `current_tick - bucket_started_at >= ticks_per_second`.
+    pub bucket_started_at: u64,
     /// In-memory snapshot slot (`s` saves, `l` restores).
     pub snapshot_slot: Option<elevator_core::snapshot::WorldSnapshot>,
     /// Status banner (transient feedback after a hotkey action).
@@ -126,6 +136,11 @@ pub struct AppState {
     ///
     /// [`flash`]: Self::flash
     pub status_seq: u64,
+    /// Help overlay is visible (toggled by `?`).
+    pub show_help: bool,
+    /// First-launch welcome overlay is visible. Dismissed by any key.
+    /// Default `true` unless suppressed by `--no-welcome`.
+    pub show_welcome: bool,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -146,11 +161,46 @@ impl AppState {
             event_log_cap: EVENT_LOG_CAP,
             wait_sparkline: Sparkline::new(SPARKLINE_CAP),
             occupancy_sparkline: Sparkline::new(SPARKLINE_CAP),
+            spawn_rate_sparkline: Sparkline::new(SPARKLINE_CAP),
+            spawn_bucket: 0,
+            bucket_started_at: 0,
             snapshot_slot: None,
             status: None,
             status_seq: 0,
+            show_help: false,
+            show_welcome: true,
             quit: false,
         }
+    }
+
+    /// Suppress the first-launch welcome overlay. Honoured by `--no-welcome`.
+    #[must_use]
+    pub const fn without_welcome(mut self) -> Self {
+        self.show_welcome = false;
+        self
+    }
+
+    /// Roll the 1-second spawn-rate bucket forward, pushing samples to
+    /// [`spawn_rate_sparkline`](Self::spawn_rate_sparkline) every full
+    /// second of sim time. Called once per `step_once`.
+    pub fn advance_spawn_bucket(&mut self, current_tick: u64, ticks_per_second: f64) {
+        let window = ticks_per_second.max(1.0).round() as u64;
+        // Push at most one sample per call: even if `current_tick` jumps
+        // (`,` step×10), the bucket math is monotonic — leftover ticks
+        // roll into the next iteration. We don't backfill missed
+        // buckets because the metric is "spawns observed per real
+        // second", not "rate at every wall-clock second".
+        if current_tick.saturating_sub(self.bucket_started_at) >= window {
+            self.spawn_rate_sparkline.push(self.spawn_bucket);
+            self.spawn_bucket = 0;
+            self.bucket_started_at = current_tick;
+        }
+    }
+
+    /// Increment the rolling spawn bucket. Call once per `RiderSpawned`
+    /// event drained from the sim.
+    pub const fn observe_spawn(&mut self) {
+        self.spawn_bucket = self.spawn_bucket.saturating_add(1);
     }
 
     /// Append events drained from the sim, capped at `event_log_cap`.

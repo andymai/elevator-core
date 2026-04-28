@@ -4,20 +4,26 @@ use elevator_core::events::{Event, EventCategory};
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, List, ListItem};
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, BorderType, Borders, List, ListItem};
 
 use crate::state::AppState;
-use crate::ui::shaft;
+use crate::ui::{palette, shaft};
 
 /// Render the events panel.
 pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
     let cars: Vec<_> = shaft::cars_iter(sim).collect();
     let focused = cars.get(state.focused_car_idx).map(|c| c.id);
 
-    let title = build_title(state, focused);
-    let block = Block::default().borders(Borders::BOTTOM).title(title);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .title(super::bracketed_title(
+            "events",
+            Some(filter_summary(state, focused)),
+        ));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -26,17 +32,26 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
         .visible_events(focused)
         .rev() // newest at the top
         .take(visible_height)
-        .map(|logged| ListItem::new(Line::from(format_event_line(logged.tick, &logged.event))))
+        .map(|logged| {
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    format!("t={:>6} ", logged.tick),
+                    Style::default().fg(palette::DIM),
+                ),
+                Span::styled(
+                    format_event_body(&logged.event),
+                    Style::default().fg(category_color(logged.event.category())),
+                ),
+            ]))
+        })
         .collect();
 
     frame.render_widget(List::new(items), inner);
 }
 
-/// Compose the panel title with the active filter summary.
-fn build_title(
-    state: &AppState,
-    focused: Option<elevator_core::entity::EntityId>,
-) -> Line<'static> {
+/// Build the suffix shown in the bracketed panel title — filter and
+/// optional follow target.
+fn filter_summary(state: &AppState, focused: Option<elevator_core::entity::EntityId>) -> String {
     let cats: Vec<&'static str> = ALL_CATEGORIES_ORDERED
         .iter()
         .copied()
@@ -50,12 +65,25 @@ fn build_title(
         cats.join("·")
     };
     let follow = match (state.follow_focused, focused) {
-        (true, Some(id)) => format!(" follow={id:?}"),
-        (true, None) => " follow=(no car)".to_string(),
+        (true, Some(id)) => format!(" · follow={id:?}"),
+        (true, None) => " · follow=(no car)".to_string(),
         (false, _) => String::new(),
     };
-    Line::from(format!(" events · filter [{cats_str}]{follow} "))
-        .style(Style::default().add_modifier(Modifier::BOLD))
+    format!("filter [{cats_str}]{follow}")
+}
+
+/// Pick a tint per event category so the rolling log reads at a glance.
+const fn category_color(category: EventCategory) -> ratatui::style::Color {
+    match category {
+        EventCategory::Elevator => palette::TITLE,
+        EventCategory::Rider => palette::SUCCESS,
+        EventCategory::Dispatch => palette::ACCENT,
+        EventCategory::Reposition => palette::WARN,
+        EventCategory::Direction => palette::UP,
+        EventCategory::Observability => palette::DIM,
+        // Topology + future variants share the muted body tint.
+        _ => palette::DIM_STRONG,
+    }
 }
 
 /// Categories in the same order as the digit hotkeys (1 = first).
@@ -69,13 +97,18 @@ const ALL_CATEGORIES_ORDERED: &[(EventCategory, &str)] = &[
     (EventCategory::Observability, "Obs"),
 ];
 
-/// Compact one-line representation of an event for the rolling log.
-///
-/// Only the stable fields (tick, primary entity references, key
-/// state-change values) are rendered — full debug forms are too noisy
-/// to be useful in a scrolling stream.
+/// Tick-prefixed one-line representation; preserved for callers that
+/// want a single string (e.g. drilldown panel reuses this rendering).
 #[must_use]
 pub fn format_event_line(drain_tick: u64, event: &Event) -> String {
+    format!("t={drain_tick:>6}  {}", format_event_body(event))
+}
+
+/// Compact body-only representation (no tick prefix) used by the
+/// rolling-log renderer, which prints the tick in a separate `Span`
+/// so the prefix can be dimmed.
+#[must_use]
+pub fn format_event_body(event: &Event) -> String {
     use Event::{
         CapacityChanged, DoorClosed, DoorCommandApplied, DoorCommandQueued, DoorOpened,
         ElevatorArrived, ElevatorAssigned, ElevatorDeparted, ElevatorIdle, ElevatorRecalled,
@@ -83,7 +116,7 @@ pub fn format_event_line(drain_tick: u64, event: &Event) -> String {
         RiderBoarded, RiderEjected, RiderExited, RiderRejected, RiderRerouted, RiderSettled,
         RiderSpawned, ServiceModeChanged,
     };
-    let body = match event {
+    match event {
         ElevatorDeparted {
             elevator,
             from_stop,
@@ -162,6 +195,5 @@ pub fn format_event_line(drain_tick: u64, event: &Event) -> String {
         // above cover the common-case noise; long-tail variants are
         // still legible just less aligned.
         other => format!("{other:?}"),
-    };
-    format!("t={drain_tick:>6}  {body}")
+    }
 }
