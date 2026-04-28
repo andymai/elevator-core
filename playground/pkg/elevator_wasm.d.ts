@@ -503,6 +503,13 @@ export interface TaggedMetricDto {
 }
 
 /**
+ * Result shape for `Vec<u8>`-typed returns (snapshot bytes, etc.).
+ * On the TS side:
+ * `{ kind: \"ok\"; value: Uint8Array } | { kind: \"err\"; error: string }`.
+ */
+export type WasmBytesResult = { kind: "ok"; value: number[] } | { kind: "err"; error: string };
+
+/**
  * Result shape for `u32`-typed returns (counts, ticks, codes).
  * On the TS side:
  * `{ kind: \"ok\"; value: number } | { kind: \"err\"; error: string }`.
@@ -880,6 +887,32 @@ export class WasmSim {
      * without offset hacks.
      */
     findStopAtPositionOnLine(position: number, line_ref: bigint): bigint;
+    /**
+     * Reconstruct a `WasmSim` from postcard bytes produced by
+     * [`Self::snapshot_bytes`].
+     *
+     * The `strategy` and `reposition` arguments restore wrapper-side
+     * labels not stored in the snapshot envelope (the underlying
+     * `Simulation` already auto-restores its built-in dispatch and
+     * reposition strategies from the postcard payload). Pass the same
+     * values used at original [`Self::new`] construction.
+     *
+     * `traffic_rate` resets to `0.0` on restore — callers that drive
+     * arrivals externally (the tower-together case) don't use this
+     * field; callers using built-in traffic should re-call
+     * `setTrafficRate` after restore.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the bytes are not a valid envelope, the
+     * crate version differs, the snapshot references a custom dispatch
+     * strategy (only built-in strategies are supported by this wrapper
+     * — use the Rust API directly for custom strategies), or
+     * `strategy` is not a recognised built-in name (matching the
+     * `new()` constructor's contract so `strategyName()` always holds
+     * a known label).
+     */
+    static fromSnapshotBytes(bytes: Uint8Array, strategy: string, reposition?: string | null): WasmSim;
     /**
      * Position of the next stop in `elevator_ref`'s destination queue,
      * or current target if mid-trip. Returns `undefined` if the queue
@@ -1420,6 +1453,16 @@ export class WasmSim {
      */
     snapshot(): Snapshot;
     /**
+     * Serialize the simulation to a self-describing postcard byte blob.
+     *
+     * Wraps [`Simulation::snapshot_bytes`]. The returned bytes carry a
+     * magic prefix and the `elevator-core` crate version; restore via
+     * [`Self::from_snapshot_bytes`] in the same crate version. Useful
+     * for hibernation/rehydration in serverless runtimes (Cloudflare
+     * Durable Objects) and for lockstep-checkpoint sync.
+     */
+    snapshotBytes(): WasmBytesResult;
+    /**
      * Spawn a single rider between two stop ids at the given weight.
      *
      * When `patience_ticks` is provided (non-zero), the rider gets a
@@ -1613,6 +1656,7 @@ export interface InitOutput {
     readonly wasmsim_eta: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_findStopAtPositionOnLine: (a: number, b: number, c: bigint) => bigint;
+    readonly wasmsim_fromSnapshotBytes: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmsim_futureStopPosition: (a: number, b: bigint) => [number, number];
     readonly wasmsim_groupsServingStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_hallCalls: (a: number) => [number, number];
@@ -1680,6 +1724,7 @@ export interface InitOutput {
     readonly wasmsim_settleRider: (a: number, b: bigint) => any;
     readonly wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_snapshot: (a: number) => any;
+    readonly wasmsim_snapshotBytes: (a: number) => any;
     readonly wasmsim_spawnRider: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly wasmsim_spawnRiderByRef: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
     readonly wasmsim_stepMany: (a: number, b: number) => void;
