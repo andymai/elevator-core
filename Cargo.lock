@@ -2587,7 +2587,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-core"
-version = "15.28.0"
+version = "15.29.0"
 dependencies = [
  "criterion",
  "ordered-float",
@@ -2604,7 +2604,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-ffi"
-version = "0.10.2"
+version = "0.11.0"
 dependencies = [
  "cbindgen",
  "elevator-core",
@@ -2642,7 +2642,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-wasm"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "elevator-core",
  "getrandom 0.4.2",

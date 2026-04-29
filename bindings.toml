@@ -899,7 +899,10 @@ tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 [[methods]]
 name = "set_max_speed"
 category = "parameters"
-wasm = "setMaxSpeedAll"
+# Wasm exposes both per-elevator (`setMaxSpeed`) and bulk
+# (`setMaxSpeedAll`); the per-elevator mapping is the canonical
+# 1:1 with Rust's per-elevator signature.
+wasm = "setMaxSpeed"
 ffi  = "ev_sim_set_max_speed"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
@@ -920,21 +923,25 @@ tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 [[methods]]
 name = "set_door_open_ticks"
 category = "parameters"
-wasm = "setDoorOpenTicksAll"
+# Per-elevator (`setDoorOpenTicks`) is the 1:1 mapping;
+# `setDoorOpenTicksAll` is also exposed as a bulk convenience.
+wasm = "setDoorOpenTicks"
 ffi  = "ev_sim_set_door_open_ticks"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_door_transition_ticks"
 category = "parameters"
-wasm = "setDoorTransitionTicksAll"
+# Per-elevator + bulk wasm exports; per-elevator is canonical.
+wasm = "setDoorTransitionTicks"
 ffi  = "ev_sim_set_door_transition_ticks"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
 name = "set_weight_capacity"
 category = "parameters"
-wasm = "setWeightCapacityAll"
+# Per-elevator + bulk wasm exports; per-elevator is canonical.
+wasm = "setWeightCapacity"
 ffi  = "ev_sim_set_weight_capacity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
