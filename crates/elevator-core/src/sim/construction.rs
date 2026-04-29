@@ -242,6 +242,18 @@ impl Simulation {
 
         world.insert_resource(crate::tagged_metrics::MetricTags::default());
 
+        // Auto-register dispatch-internal extension types the sim itself
+        // owns. The same registration runs in `from_parts` (the
+        // snapshot-restore path); doing it here too means snapshot bytes
+        // taken from a fresh sim and from a restored sim agree on the
+        // extensions BTreeMap shape (#534's review surfaced this
+        // asymmetry: pre-fix, fresh sims had no `assigned_car` extension
+        // entry while restored sims did, breaking byte-equality of the
+        // snapshot bytes round-trip and the lockstep checksum).
+        world.register_ext::<crate::dispatch::destination::AssignedCar>(
+            crate::dispatch::destination::ASSIGNED_CAR_KEY,
+        );
+
         // Collect line tag info (entity + name + elevator entities) before
         // borrowing world mutably for MetricTags.
         let line_tag_info: Vec<(EntityId, String, Vec<EntityId>)> = groups

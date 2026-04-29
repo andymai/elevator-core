@@ -68,14 +68,15 @@ fn checksum_changes_after_step() {
     assert_ne!(before, after, "stepping must change the checksum");
 }
 
-/// The lockstep property: two sims that both went through
-/// `from_snapshot_bytes` from the same source bytes, then took
-/// identical step counts, must hash identically. This is the
-/// scenario that real lockstep deployments encounter — server and
-/// client both restore from the initial checkpoint, then step the
-/// same input batches.
+/// The lockstep property: a fresh sim and two sims that went
+/// through `from_snapshot_bytes` from the same source bytes —
+/// stepped identically — must all hash identically. The fresh-vs-
+/// restored equality is the post-fix property; earlier code had
+/// an asymmetry where restore materialized the `AssignedCar`
+/// extension type that fresh sims didn't, breaking byte equality
+/// of the snapshot bytes round-trip.
 #[test]
-fn parallel_restored_sims_hash_equal_under_identical_steps() {
+fn fresh_and_restored_sims_hash_equal_under_identical_steps() {
     let mut source = WasmSim::new(SCENARIO, "look", None).expect("source");
     source.step_many(100);
     let bytes = unwrap_bytes(source.snapshot_bytes());
@@ -84,37 +85,37 @@ fn parallel_restored_sims_hash_equal_under_identical_steps() {
     let mut b = WasmSim::from_snapshot_bytes(&bytes, "look".to_string(), None).expect("restore b");
 
     for tick in 0..50 {
+        source.step_many(1);
         a.step_many(1);
         b.step_many(1);
+        let h_source = unwrap_u64(source.snapshot_checksum());
+        let h_a = unwrap_u64(a.snapshot_checksum());
+        let h_b = unwrap_u64(b.snapshot_checksum());
+        assert_eq!(h_a, h_b, "two restored sims diverged at tick {tick}");
         assert_eq!(
-            unwrap_u64(a.snapshot_checksum()),
-            unwrap_u64(b.snapshot_checksum()),
-            "checksums diverged at tick {tick} after restore"
+            h_source, h_a,
+            "fresh sim diverged from restored at tick {tick}"
         );
     }
 }
 
-/// Pre-restore checksum and post-restore checksum differ for the
-/// SAME source bytes — this is the documented first-restore
-/// asymmetry. Lockstep consumers should rely on this only after
-/// both sides have been restored at least once. Test pins the
-/// behavior so any future fix surfaces here loudly.
+/// Snapshot/restore is now byte-symmetric: bytes from a fresh sim
+/// equal bytes from a restored sim with the same logical state.
+/// Pinned by this test — earlier code couldn't make this guarantee
+/// because `Simulation::from_parts` registered the `AssignedCar`
+/// extension type while `Simulation::new` didn't, yielding
+/// different `extensions` `BTreeMap` shapes in the snapshot.
 #[test]
-fn first_restore_changes_checksum_documented_asymmetry() {
+fn snapshot_round_trip_is_byte_symmetric() {
     let sim = WasmSim::new(SCENARIO, "look", None).expect("source");
-    let pre_restore = unwrap_u64(sim.snapshot_checksum());
+    let pre_restore_bytes = unwrap_bytes(sim.snapshot_bytes());
 
-    let bytes = unwrap_bytes(sim.snapshot_bytes());
-    let restored = WasmSim::from_snapshot_bytes(&bytes, "look".to_string(), None).expect("restore");
-    let post_restore = unwrap_u64(restored.snapshot_checksum());
+    let restored = WasmSim::from_snapshot_bytes(&pre_restore_bytes, "look".to_string(), None)
+        .expect("restore");
+    let post_restore_bytes = unwrap_bytes(restored.snapshot_bytes());
 
-    // Asymmetry exists today. If/when someone fixes the underlying
-    // metric-tag materialization (mentioned in PR #527's tests),
-    // delete this test and tighten parallel_restored_sims_hash_equal
-    // to also include a freshly-constructed sim alongside two
-    // restored ones.
-    assert_ne!(
-        pre_restore, post_restore,
-        "first-restore asymmetry pinned — see PR #527's restore-tag note"
+    assert_eq!(
+        pre_restore_bytes, post_restore_bytes,
+        "snapshot bytes diverged across the first restore"
     );
 }

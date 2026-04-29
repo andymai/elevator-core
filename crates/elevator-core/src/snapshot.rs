@@ -1028,6 +1028,11 @@ impl crate::sim::Simulation {
     /// computing an independent hash for comparison must use this
     /// method (or run FNV-1a themselves with the same constants).
     ///
+    /// Snapshot/restore is byte-symmetric: a fresh sim and a restored
+    /// sim with the same logical state hash equal. (Earlier code had
+    /// a first-restore asymmetry from the `AssignedCar` extension
+    /// type registering on restore but not `new`; that was fixed.)
+    ///
     /// Designed for divergence detection between runtimes that should
     /// be in lockstep (browser vs server, multi-client multiplayer).
     /// Two sims that have produced bit-identical inputs in bit-identical
