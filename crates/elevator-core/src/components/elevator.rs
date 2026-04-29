@@ -190,6 +190,15 @@ pub struct Elevator {
     /// to skip the next stop. `None` disables the bypass.
     #[serde(default)]
     pub(crate) bypass_load_down_pct: Option<f64>,
+    /// Per-elevator home stop. When `Some(stop)`, the reposition phase
+    /// hard-pins this car to that stop: any time the car is idle and
+    /// off-position, it is routed home regardless of the group's
+    /// reposition strategy. Useful for express cars assigned to a
+    /// dedicated lobby or service cars that should park in a
+    /// loading bay between requests. `None` (the default) leaves
+    /// reposition decisions entirely to the group strategy.
+    #[serde(default)]
+    pub(crate) home_stop: Option<EntityId>,
 }
 
 /// Default inspection speed factor (25% of normal speed).
@@ -316,6 +325,16 @@ impl Elevator {
     /// Mutator for the downward full-load bypass threshold.
     pub const fn set_bypass_load_down_pct(&mut self, pct: Option<f64>) {
         self.bypass_load_down_pct = pct;
+    }
+
+    /// Per-elevator hard-pinned home stop. When `Some(stop)`, the
+    /// reposition phase routes this car to `stop` whenever it is
+    /// idle and off-position, regardless of the group's reposition
+    /// strategy. `None` (the default) leaves reposition decisions
+    /// entirely to the group strategy.
+    #[must_use]
+    pub const fn home_stop(&self) -> Option<EntityId> {
+        self.home_stop
     }
 
     /// Whether this car's up-direction indicator lamp is lit.

@@ -3462,6 +3462,135 @@ pub unsafe extern "C" fn ev_sim_set_elevator_restricted_stops(
     })
 }
 
+/// Pin `elevator_entity_id` to a hard-coded home stop. Whenever the
+/// car is idle and off-position, the reposition phase routes it to
+/// `home_stop_entity_id` regardless of the group's reposition strategy.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_elevator_home_stop(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    home_stop_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        let Some(stop) = entity_from_u64(home_stop_entity_id) else {
+            set_last_error("home_stop_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .set_elevator_home_stop(elevator_core::entity::ElevatorId::from(elevator), stop)
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_elevator_home_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Remove the home-stop pin from `elevator_entity_id`. Reposition
+/// decisions return to the group's reposition strategy. Idempotent.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_clear_elevator_home_stop(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev
+            .sim
+            .clear_elevator_home_stop(elevator_core::entity::ElevatorId::from(elevator))
+        {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("clear_elevator_home_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Read the home-stop pin for `elevator_entity_id`. Writes the stop
+/// entity id (or `0` for unpinned) into `*out_stop_id` and returns
+/// [`EvStatus::Ok`].
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_stop_id` must be a valid, writable pointer to a `u64`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_elevator_home_stop(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out_stop_id: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        if out_stop_id.is_null() {
+            set_last_error("out_stop_id is null");
+            return EvStatus::NullArg;
+        }
+        let Some(elevator) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("elevator_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        match ev
+            .sim
+            .elevator_home_stop(elevator_core::entity::ElevatorId::from(elevator))
+        {
+            Ok(stop) => {
+                let raw = stop.map_or(0, entity_to_u64);
+                // Safety: caller-provided writable u64 pointer.
+                unsafe { *out_stop_id = raw };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("elevator_home_stop: {e}"));
+                status
+            }
+        }
+    })
+}
+
 // ── Tagging ──────────────────────────────────────────────────────────────
 //
 // Attach string tags to entities for grouped metrics. Mirrors wasm's
@@ -7387,6 +7516,97 @@ mod tests {
         );
         assert_eq!(
             unsafe { ev_sim_rider_tag(handle, rider_id, std::ptr::null_mut()) },
+            EvStatus::NullArg,
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn elevator_home_stop_round_trips_and_validates() {
+        // Default 0 (unpinned), set/get round-trips, clear returns
+        // 0, errors propagate from the Rust API for unknown elevators
+        // and unknown stops, and the null-arg gates fire.
+        let handle = create_test_handle();
+        let elevator_id = first_elevator_entity(handle);
+        let (stop_a, _stop_b) = stop_entities(handle);
+
+        // Default is the 0 sentinel — no pin set on a fresh sim.
+        let mut out: u64 = 0xFFFF_FFFF_FFFF_FFFF;
+        assert_eq!(
+            unsafe { ev_sim_elevator_home_stop(handle, elevator_id, &raw mut out) },
+            EvStatus::Ok,
+        );
+        assert_eq!(out, 0, "fresh elevator must default to unpinned (0)");
+
+        // Set + read-back.
+        assert_eq!(
+            unsafe { ev_sim_set_elevator_home_stop(handle, elevator_id, stop_a) },
+            EvStatus::Ok,
+        );
+        let mut roundtrip: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_elevator_home_stop(handle, elevator_id, &raw mut roundtrip) },
+            EvStatus::Ok,
+        );
+        assert_eq!(roundtrip, stop_a);
+
+        // Clear → back to 0.
+        assert_eq!(
+            unsafe { ev_sim_clear_elevator_home_stop(handle, elevator_id) },
+            EvStatus::Ok,
+        );
+        let mut after_clear: u64 = 0xFFFF;
+        assert_eq!(
+            unsafe { ev_sim_elevator_home_stop(handle, elevator_id, &raw mut after_clear) },
+            EvStatus::Ok,
+        );
+        assert_eq!(after_clear, 0);
+
+        // Pin to an undecodable stop id — the FFI's `entity_from_u64`
+        // gate rejects this with InvalidArg before reaching the Rust
+        // API. (A *decodable* but stale id would surface NotFound from
+        // the inner `resolve_stop`; that path is exercised by the Rust
+        // `pin_to_unknown_stop_id_returns_stop_not_found` test.)
+        let bogus_stop: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_set_elevator_home_stop(handle, elevator_id, bogus_stop) },
+            EvStatus::InvalidArg,
+        );
+
+        // Pin a non-elevator entity — `require_elevator` raises
+        // `NotAnElevator`, which the FFI maps through `mode_error_status`
+        // to NotFound (the same status games already handle for stale
+        // refs).
+        let not_an_elevator = stop_a; // Stop entity, not an elevator.
+        assert_eq!(
+            unsafe { ev_sim_set_elevator_home_stop(handle, not_an_elevator, stop_a) },
+            EvStatus::NotFound,
+        );
+
+        // Null-arg gates — verify each null pointer slot produces
+        // NullArg rather than dereferencing.
+        assert_eq!(
+            unsafe { ev_sim_set_elevator_home_stop(std::ptr::null_mut(), elevator_id, stop_a) },
+            EvStatus::NullArg,
+        );
+        assert_eq!(
+            unsafe { ev_sim_clear_elevator_home_stop(std::ptr::null_mut(), elevator_id) },
+            EvStatus::NullArg,
+        );
+        let mut null_handle_stop: u64 = 0;
+        assert_eq!(
+            unsafe {
+                ev_sim_elevator_home_stop(
+                    std::ptr::null_mut(),
+                    elevator_id,
+                    &raw mut null_handle_stop,
+                )
+            },
+            EvStatus::NullArg,
+        );
+        assert_eq!(
+            unsafe { ev_sim_elevator_home_stop(handle, elevator_id, std::ptr::null_mut()) },
             EvStatus::NullArg,
         );
 

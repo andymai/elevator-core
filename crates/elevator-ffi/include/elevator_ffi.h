@@ -1706,6 +1706,43 @@ enum EvStatus ev_sim_set_elevator_restricted_stops(struct EvSim *handle,
                                                    uint32_t count);
 
 /**
+ * Pin `elevator_entity_id` to a hard-coded home stop. Whenever the
+ * car is idle and off-position, the reposition phase routes it to
+ * `home_stop_entity_id` regardless of the group's reposition strategy.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_elevator_home_stop(struct EvSim *handle,
+                                            uint64_t elevator_entity_id,
+                                            uint64_t home_stop_entity_id);
+
+/**
+ * Remove the home-stop pin from `elevator_entity_id`. Reposition
+ * decisions return to the group's reposition strategy. Idempotent.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_clear_elevator_home_stop(struct EvSim *handle, uint64_t elevator_entity_id);
+
+/**
+ * Read the home-stop pin for `elevator_entity_id`. Writes the stop
+ * entity id (or `0` for unpinned) into `*out_stop_id` and returns
+ * [`EvStatus::Ok`].
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_stop_id` must be a valid, writable pointer to a `u64`.
+ */
+enum EvStatus ev_sim_elevator_home_stop(struct EvSim *handle,
+                                        uint64_t elevator_entity_id,
+                                        uint64_t *out_stop_id);
+
+/**
  * Attach `tag` to `entity_id`.
  *
  * # Safety

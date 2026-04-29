@@ -187,6 +187,7 @@ impl Simulation {
                 manual_target_velocity: None,
                 bypass_load_up_pct: params.bypass_load_up_pct,
                 bypass_load_down_pct: params.bypass_load_down_pct,
+                home_stop: None,
             },
         );
         self.world

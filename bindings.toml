@@ -551,6 +551,27 @@ wasm = "setElevatorRestrictedStops"
 ffi  = "ev_sim_set_elevator_restricted_stops"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
+[[methods]]
+name = "set_elevator_home_stop"
+category = "dispatch"
+wasm = "setElevatorHomeStop"
+ffi  = "ev_sim_set_elevator_home_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+
+[[methods]]
+name = "clear_elevator_home_stop"
+category = "dispatch"
+wasm = "clearElevatorHomeStop"
+ffi  = "ev_sim_clear_elevator_home_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+
+[[methods]]
+name = "elevator_home_stop"
+category = "dispatch"
+wasm = "elevatorHomeStop"
+ffi  = "ev_sim_elevator_home_stop"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+
 # ─── Introspection ────────────────────────────────────────────────────────
 
 [[methods]]
