@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.7.0...elevator-wasm-v0.8.0) (2026-04-29)
+
+
+### Features
+
+* **wasm:** spawnRider returns the rider ref (matches spawnRiderByRef) ([#537](https://github.com/andymai/elevator-core/issues/537)) ([685fb8b](https://github.com/andymai/elevator-core/commit/685fb8bcc8240c6d3b1a1786806d1928db2dac54))
+
 ## [0.7.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.6.0...elevator-wasm-v0.7.0) (2026-04-29)
 
 
