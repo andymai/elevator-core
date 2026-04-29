@@ -1028,17 +1028,15 @@ impl crate::sim::Simulation {
     /// computing an independent hash for comparison must use this
     /// method (or run FNV-1a themselves with the same constants).
     ///
+    /// Snapshot/restore is byte-symmetric: a fresh sim and a restored
+    /// sim with the same logical state hash equal. (Earlier code had
+    /// a first-restore asymmetry from the `AssignedCar` extension
+    /// type registering on restore but not `new`; that was fixed.)
+    ///
     /// Designed for divergence detection between runtimes that should
     /// be in lockstep (browser vs server, multi-client multiplayer).
     /// Two sims that have produced bit-identical inputs in bit-identical
     /// order must hash to the same value.
-    ///
-    /// **Caveat — first-restore asymmetry**: like raw [`Self::snapshot_bytes`],
-    /// this checksum changes after the first `restore_bytes` round-trip
-    /// because the loader materializes default metric-tag rows that a
-    /// fresh sim only allocates lazily. After both sides have gone
-    /// through restore once, the checksum is stable across subsequent
-    /// rounds. Tracked separately for fix.
     ///
     /// # Errors
     /// Same as [`Self::snapshot_bytes`]: snapshot encoding can fail in

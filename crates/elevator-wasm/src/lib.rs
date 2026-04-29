@@ -470,10 +470,9 @@ impl WasmSim {
     /// loud signal that something has drifted before the next full
     /// snapshot reconciles.
     ///
-    /// Note: like raw `snapshotBytes`, the value is asymmetric on the
-    /// first `fromSnapshotBytes` round-trip (restore materializes
-    /// default metric-tag rows). After both sides have gone through
-    /// restore once, the checksum is stable.
+    /// Snapshot/restore is byte-symmetric: a fresh sim and a restored
+    /// sim with the same logical state hash equal. (Earlier first-
+    /// restore asymmetry was fixed.)
     #[wasm_bindgen(js_name = snapshotChecksum)]
     pub fn snapshot_checksum(&self) -> WasmU64Result {
         match self.inner.snapshot_checksum() {
