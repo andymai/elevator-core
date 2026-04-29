@@ -95,6 +95,7 @@ fn rider_query() {
             phase: RiderPhase::Waiting,
             current_stop: Some(origin),
             spawn_tick: 0,
+            tag: 0,
             board_tick: None,
         },
     );

@@ -216,6 +216,7 @@ fn scan_serves_rider_destination() {
             phase: RiderPhase::Riding(elev),
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: Some(0),
         },
     );

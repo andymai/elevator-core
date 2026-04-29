@@ -1800,6 +1800,42 @@ impl WasmSim {
             .into()
     }
 
+    /// Attach an opaque tag to a rider. The engine doesn't interpret
+    /// the value — JS consumers use it to correlate a `RiderId` with an
+    /// external id (e.g. a game-side sim id) without maintaining a
+    /// parallel `Map<RiderId, u32>`. Pass `0n` to clear (`0` is the
+    /// reserved "untagged" sentinel).
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `rider_ref` is not a rider entity.
+    #[wasm_bindgen(js_name = setRiderTag)]
+    pub fn set_rider_tag(&mut self, rider_ref: u64, tag: u64) -> WasmVoidResult {
+        self.inner
+            .set_rider_tag(
+                elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
+                tag,
+            )
+            .map_err(|e| format!("set_rider_tag: {e}"))
+            .into()
+    }
+
+    /// Read the opaque tag attached to a rider. Returns `0n` for the
+    /// default "untagged" state.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `rider_ref` is not a rider entity.
+    #[wasm_bindgen(js_name = riderTag)]
+    pub fn rider_tag(&self, rider_ref: u64) -> WasmU64Result {
+        self.inner
+            .rider_tag(elevator_core::entity::RiderId::from(u64_to_entity(
+                rider_ref,
+            )))
+            .map_err(|e| format!("rider_tag: {e}"))
+            .into()
+    }
+
     /// Step the simulation forward up to `max_ticks` ticks, stopping
     /// early if the world becomes "quiet" (no in-flight riders, no
     /// pending hall calls, all cars idle). Returns the number of ticks

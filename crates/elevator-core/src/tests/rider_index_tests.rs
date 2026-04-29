@@ -35,6 +35,7 @@ fn rider_in_phase(world: &mut World, at: EntityId, phase: RiderPhase) -> EntityI
             phase,
             current_stop: Some(at),
             spawn_tick: 0,
+            tag: 0,
             board_tick: None,
         },
     );
