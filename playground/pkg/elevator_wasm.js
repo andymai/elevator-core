@@ -1278,6 +1278,25 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Set `door_open_ticks` (dwell duration) on a single elevator.
+     *
+     * Takes effect on the **next** door cycle — an in-progress dwell
+     * completes its original timing to avoid visual glitches. See
+     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or the value is invalid (zero `ticks`).
+     * @param {bigint} elevator_ref
+     * @param {number} ticks
+     * @returns {WasmVoidResult}
+     */
+    setDoorOpenTicks(elevator_ref, ticks) {
+        const ret = wasm.wasmsim_setDoorOpenTicks(this.__wbg_ptr, elevator_ref, ticks);
+        return ret;
+    }
+    /**
      * Set `door_open_ticks` (dwell duration) on every elevator.
      *
      * Takes effect on the **next** door cycle — an in-progress dwell
@@ -1293,6 +1312,22 @@ export class WasmSim {
      */
     setDoorOpenTicksAll(ticks) {
         const ret = wasm.wasmsim_setDoorOpenTicksAll(this.__wbg_ptr, ticks);
+        return ret;
+    }
+    /**
+     * Set `door_transition_ticks` (open/close transition duration) on
+     * a single elevator. Takes effect on the next door cycle.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or the value is invalid (zero `ticks`).
+     * @param {bigint} elevator_ref
+     * @param {number} ticks
+     * @returns {WasmVoidResult}
+     */
+    setDoorTransitionTicks(elevator_ref, ticks) {
+        const ret = wasm.wasmsim_setDoorTransitionTicks(this.__wbg_ptr, elevator_ref, ticks);
         return ret;
     }
     /**
@@ -1364,6 +1399,21 @@ export class WasmSim {
      */
     setLineRange(line_ref, min_position, max_position) {
         const ret = wasm.wasmsim_setLineRange(this.__wbg_ptr, line_ref, min_position, max_position);
+        return ret;
+    }
+    /**
+     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `speed` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} speed
+     * @returns {WasmVoidResult}
+     */
+    setMaxSpeed(elevator_ref, speed) {
+        const ret = wasm.wasmsim_setMaxSpeed(this.__wbg_ptr, elevator_ref, speed);
         return ret;
     }
     /**
@@ -1528,6 +1578,24 @@ export class WasmSim {
      */
     setTrafficRate(riders_per_minute) {
         wasm.wasmsim_setTrafficRate(this.__wbg_ptr, riders_per_minute);
+    }
+    /**
+     * Set `weight_capacity` (kg) on a single elevator. A new cap
+     * below `current_load` leaves the car temporarily overweight
+     * (no riders ejected); subsequent boarding rejects further
+     * additions.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `capacity` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} capacity
+     * @returns {WasmVoidResult}
+     */
+    setWeightCapacity(elevator_ref, capacity) {
+        const ret = wasm.wasmsim_setWeightCapacity(this.__wbg_ptr, elevator_ref, capacity);
+        return ret;
     }
     /**
      * Set `weight_capacity` (kg) on every elevator in the sim.
