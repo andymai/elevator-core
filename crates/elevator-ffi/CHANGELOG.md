@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.13.0...elevator-ffi-v0.14.0) (2026-04-29)
+
+
+### Features
+
+* **events:** emit Rider.tag on every rider-bearing event ([#545](https://github.com/andymai/elevator-core/issues/545)) ([0456239](https://github.com/andymai/elevator-core/commit/045623914954e8a66ac0517a2708a200828c7e99))
+
 ## [0.13.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.12.0...elevator-ffi-v0.13.0) (2026-04-29)
 
 
