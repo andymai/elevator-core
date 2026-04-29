@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.6.0...elevator-wasm-v0.7.0) (2026-04-29)
+
+
+### Features
+
+* **wasm:** per-elevator setters for door/speed/capacity ([#534](https://github.com/andymai/elevator-core/issues/534)) ([0df6be0](https://github.com/andymai/elevator-core/commit/0df6be040655737d1edafa7a1f345f2c7c69999d))
+
 ## [0.6.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.5.0...elevator-wasm-v0.6.0) (2026-04-28)
 
 
