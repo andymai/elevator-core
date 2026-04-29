@@ -1038,13 +1038,6 @@ impl crate::sim::Simulation {
     /// Two sims that have produced bit-identical inputs in bit-identical
     /// order must hash to the same value.
     ///
-    /// **Caveat — first-restore asymmetry**: like raw [`Self::snapshot_bytes`],
-    /// this checksum changes after the first `restore_bytes` round-trip
-    /// because the loader materializes default metric-tag rows that a
-    /// fresh sim only allocates lazily. After both sides have gone
-    /// through restore once, the checksum is stable across subsequent
-    /// rounds. Tracked separately for fix.
-    ///
     /// # Errors
     /// Same as [`Self::snapshot_bytes`]: snapshot encoding can fail in
     /// the (unreachable for well-formed sims) postcard error path or
