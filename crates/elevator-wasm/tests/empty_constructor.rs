@@ -1,13 +1,72 @@
 //! Tests for `WasmSim::empty` — the entity-free constructor.
 
-use elevator_wasm::WasmSim;
+use elevator_wasm::{WasmBytesResult, WasmSim};
 
 #[test]
 fn empty_has_no_lines_or_elevators_or_stops() {
     let sim = WasmSim::empty("look", None).expect("construct empty sim");
+    // Direct: no lines.
     assert!(
         sim.all_lines().is_empty(),
         "empty() should leave the topology with no lines"
+    );
+    // Indirect: no idle elevators (and no busy ones either, since
+    // there's nothing to dispatch). idle_elevator_count counts every
+    // elevator currently in the Idle phase; with no elevators at all,
+    // it must be 0.
+    assert_eq!(
+        sim.idle_elevator_count(),
+        0,
+        "empty() should leave no elevators in any phase"
+    );
+    // Indirect: snapshot bytes from a freshly-constructed empty sim
+    // should be substantially smaller than a populated one. The
+    // populated 3-stop/1-elevator scenario from other tests
+    // produces ~310 bytes; an empty sim is dominated by the
+    // envelope + default resources and lands around 250 bytes
+    // regardless of strategy choice.
+    let empty_bytes = match sim.snapshot_bytes() {
+        WasmBytesResult::Ok { value } => value,
+        WasmBytesResult::Err { error } => panic!("snapshot: {error}"),
+    };
+    let populated = WasmSim::new(
+        r#"SimConfig(
+            building: BuildingConfig(
+                name: "P",
+                stops: [
+                    StopConfig(id: StopId(0), name: "L", position: 0.0),
+                    StopConfig(id: StopId(1), name: "F2", position: 4.0),
+                    StopConfig(id: StopId(2), name: "F3", position: 8.0),
+                ],
+            ),
+            elevators: [
+                ElevatorConfig(
+                    id: 0, name: "C1",
+                    max_speed: 2.2, acceleration: 1.5, deceleration: 2.0,
+                    weight_capacity: 800.0,
+                    starting_stop: StopId(0),
+                    door_open_ticks: 55, door_transition_ticks: 14,
+                ),
+            ],
+            simulation: SimulationParams(ticks_per_second: 60.0),
+            passenger_spawning: PassengerSpawnConfig(
+                mean_interval_ticks: 90,
+                weight_range: (50.0, 100.0),
+            ),
+        )"#,
+        "look",
+        None,
+    )
+    .expect("populated");
+    let populated_bytes = match populated.snapshot_bytes() {
+        WasmBytesResult::Ok { value } => value,
+        WasmBytesResult::Err { error } => panic!("snapshot: {error}"),
+    };
+    assert!(
+        empty_bytes.len() < populated_bytes.len(),
+        "empty sim snapshot ({} bytes) should be smaller than populated ({} bytes)",
+        empty_bytes.len(),
+        populated_bytes.len(),
     );
 }
 
