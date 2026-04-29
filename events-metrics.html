@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-4ed6c0ef.js";
+            window.path_to_searchindex_js = "searchindex-1d2481f9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -219,19 +219,20 @@
 <tr><th>Event</th><th>When it fires</th></tr>
 </thead>
 <tbody>
-<tr><td><code>RiderSpawned { rider, origin, destination, tick }</code></td><td>A new rider appears at a stop</td></tr>
-<tr><td><code>RiderBoarded { rider, elevator, tick }</code></td><td>A rider enters an elevator</td></tr>
-<tr><td><code>RiderExited { rider, elevator, stop, tick }</code></td><td>A rider exits at their destination</td></tr>
-<tr><td><code>RiderRejected { rider, elevator, reason, context, tick }</code></td><td>A rider was refused boarding</td></tr>
-<tr><td><code>RiderAbandoned { rider, stop, tick }</code></td><td>A rider gave up waiting</td></tr>
-<tr><td><code>RiderSkipped { rider, elevator, at_stop, tick }</code></td><td>A rider skipped a crowded car (may still board the next)</td></tr>
-<tr><td><code>RiderEjected { rider, elevator, stop, tick }</code></td><td>A rider was ejected (elevator disabled)</td></tr>
-<tr><td><code>RiderSettled { rider, stop, tick }</code></td><td>A rider settled as a resident</td></tr>
-<tr><td><code>RiderDespawned { rider, tick }</code></td><td>A rider was removed from the simulation</td></tr>
-<tr><td><code>RiderRerouted { rider, new_destination, tick }</code></td><td>A rider was rerouted to a new destination</td></tr>
+<tr><td><code>RiderSpawned { rider, origin, destination, tag, tick }</code></td><td>A new rider appears at a stop</td></tr>
+<tr><td><code>RiderBoarded { rider, elevator, tag, tick }</code></td><td>A rider enters an elevator</td></tr>
+<tr><td><code>RiderExited { rider, elevator, stop, tag, tick }</code></td><td>A rider exits at their destination</td></tr>
+<tr><td><code>RiderRejected { rider, elevator, reason, context, tag, tick }</code></td><td>A rider was refused boarding</td></tr>
+<tr><td><code>RiderAbandoned { rider, stop, tag, tick }</code></td><td>A rider gave up waiting</td></tr>
+<tr><td><code>RiderSkipped { rider, elevator, at_stop, tag, tick }</code></td><td>A rider skipped a crowded car (may still board the next)</td></tr>
+<tr><td><code>RiderEjected { rider, elevator, stop, tag, tick }</code></td><td>A rider was ejected (elevator disabled)</td></tr>
+<tr><td><code>RiderSettled { rider, stop, tag, tick }</code></td><td>A rider settled as a resident</td></tr>
+<tr><td><code>RiderDespawned { rider, tag, tick }</code></td><td>A rider was removed from the simulation</td></tr>
+<tr><td><code>RiderRerouted { rider, new_destination, tag, tick }</code></td><td>A rider was rerouted to a new destination</td></tr>
 </tbody>
 </table>
 </div>
+<p>Every rider-bearing variant carries a <code>tag: u64</code> that mirrors the rider’s opaque consumer tag at emit time (see <code>set_rider_tag</code>). It is <code>0</code> for untagged riders and is sampled before the rider is freed on <code>RiderExited</code> / <code>RiderDespawned</code>, so consumers can correlate the event with their own object space without an extra lookup.</p>
 <h3 id="topology-events"><a class="header" href="#topology-events">Topology events</a></h3>
 <div class="table-wrapper">
 <table>
@@ -243,7 +244,7 @@
 <tr><td><code>ElevatorAdded { elevator, line, group, tick }</code></td><td>An elevator was added at runtime</td></tr>
 <tr><td><code>EntityDisabled { entity, tick }</code></td><td>An entity was disabled</td></tr>
 <tr><td><code>EntityEnabled { entity, tick }</code></td><td>An entity was re-enabled</td></tr>
-<tr><td><code>RouteInvalidated { rider, affected_stop, reason, tick }</code></td><td>A rider’s route was broken by a topology change</td></tr>
+<tr><td><code>RouteInvalidated { rider, affected_stop, reason, tag, tick }</code></td><td>A rider’s route was broken by a topology change</td></tr>
 <tr><td><code>LineAdded { line, group, tick }</code></td><td>A line was added</td></tr>
 <tr><td><code>LineRemoved { line, group, tick }</code></td><td>A line was removed</td></tr>
 <tr><td><code>LineReassigned { line, old_group, new_group, tick }</code></td><td>A line moved between groups</td></tr>
@@ -263,7 +264,7 @@
 <tr><td><code>HallButtonPressed { stop, direction, tick }</code></td><td>First press per (stop, direction)</td></tr>
 <tr><td><code>HallCallAcknowledged { stop, direction, tick }</code></td><td>Ack-latency window elapsed</td></tr>
 <tr><td><code>HallCallCleared { stop, direction, car, tick }</code></td><td>Assigned car opened doors at stop</td></tr>
-<tr><td><code>CarButtonPressed { car, floor, rider: Option, tick }</code></td><td>Floor button pressed inside a car</td></tr>
+<tr><td><code>CarButtonPressed { car, floor, rider: Option, tag: Option, tick }</code></td><td>Floor button pressed inside a car</td></tr>
 </tbody>
 </table>
 </div>
@@ -277,7 +278,7 @@
 
 for event in sim.drain_events() {
     match event {
-        Event::RiderBoarded { rider, elevator, tick } =&gt; {
+        Event::RiderBoarded { rider, elevator, tick, .. } =&gt; {
             println!("[{tick}] {rider:?} boarded {elevator:?}");
         }
         Event::ElevatorArrived { elevator, at_stop, tick } =&gt; {

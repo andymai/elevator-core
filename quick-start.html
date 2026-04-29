@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-4ed6c0ef.js";
+            window.path_to_searchindex_js = "searchindex-1d2481f9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -259,7 +259,7 @@ while !arrived {
 
     for event in sim.drain_events() {
         match event {
-            Event::RiderBoarded { rider, elevator, tick } =&gt; {
+            Event::RiderBoarded { rider, elevator, tick, .. } =&gt; {
                 println!("Tick {tick}: rider {rider:?} boarded elevator {elevator:?}");
             }
             Event::ElevatorArrived { elevator, at_stop, tick } =&gt; {
@@ -304,7 +304,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 
         for event in sim.drain_events() {
             match event {
-                Event::RiderBoarded { rider, elevator, tick } =&gt; {
+                Event::RiderBoarded { rider, elevator, tick, .. } =&gt; {
                     println!("Tick {tick}: rider {rider:?} boarded elevator {elevator:?}");
                 }
                 Event::ElevatorArrived { elevator, at_stop, tick } =&gt; {
