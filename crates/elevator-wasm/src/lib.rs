@@ -243,6 +243,80 @@ impl WasmSim {
         })
     }
 
+    /// Construct an effectively-empty simulation with no stops,
+    /// elevators, or lines. Internally constructs from a tiny seed
+    /// config (one stop, one elevator) to satisfy
+    /// [`Simulation::new`]'s non-empty validation, then removes the
+    /// seed entities before returning. The default (auto-created)
+    /// group remains — `Simulation` requires at least one group
+    /// to exist; consumers typically add their own groups via
+    /// [`addGroup`](Self::add_group) on top.
+    ///
+    /// Useful for consumers that build the building topology
+    /// dynamically at runtime (e.g. game engines where the player
+    /// edits the floor plan) and don't want the seed-and-ignore
+    /// boilerplate.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if `strategy` is not a recognised built-in.
+    /// The internal seed config is well-formed by construction.
+    #[wasm_bindgen(js_name = empty)]
+    pub fn empty(strategy: &str, reposition: Option<String>) -> Result<Self, JsError> {
+        const MINIMAL: &str = r#"SimConfig(
+            building: BuildingConfig(
+                name: "Empty",
+                stops: [StopConfig(id: StopId(0), name: "_seed", position: 0.0)],
+            ),
+            elevators: [
+                ElevatorConfig(
+                    id: 0, name: "_seed",
+                    max_speed: 1.0, acceleration: 1.0, deceleration: 1.0,
+                    weight_capacity: 1.0,
+                    starting_stop: StopId(0),
+                    door_open_ticks: 1, door_transition_ticks: 1,
+                ),
+            ],
+            simulation: SimulationParams(ticks_per_second: 60.0),
+            passenger_spawning: PassengerSpawnConfig(
+                mean_interval_ticks: 1,
+                weight_range: (1.0, 1.0),
+            ),
+        )"#;
+
+        let mut sim = Self::new(MINIMAL, strategy, reposition)?;
+
+        // Remove seed entities in dependency order: elevators first,
+        // then stops, then lines. Each removal can fail in principle
+        // (e.g. unknown ref), but the seed shape is fixed and the
+        // refs we just queried are guaranteed valid; we propagate any
+        // error as a JsError for completeness.
+        let line_refs = sim.inner.all_lines();
+        for line_ref in &line_refs {
+            let elevator_refs = sim.inner.elevators_on_line(*line_ref);
+            for elev_ref in elevator_refs {
+                sim.inner
+                    .remove_elevator(elev_ref)
+                    .map_err(|e| JsError::new(&format!("seed cleanup: {e}")))?;
+            }
+        }
+        for line_ref in &line_refs {
+            let stop_refs = sim.inner.stops_served_by_line(*line_ref);
+            for stop_ref in stop_refs {
+                sim.inner
+                    .remove_stop(stop_ref)
+                    .map_err(|e| JsError::new(&format!("seed cleanup: {e}")))?;
+            }
+        }
+        for line_ref in line_refs {
+            sim.inner
+                .remove_line(line_ref)
+                .map_err(|e| JsError::new(&format!("seed cleanup: {e}")))?;
+        }
+
+        Ok(sim)
+    }
+
     /// Step the simulation forward `n` ticks.
     #[wasm_bindgen(js_name = stepMany)]
     pub fn step_many(&mut self, n: u32) {
