@@ -447,7 +447,7 @@ pub enum EventDto {
     // ── Rider lifecycle ─────────────────────────────────────────────
     /// A new rider appeared at a stop. `tag` mirrors the rider's opaque
     /// consumer tag at emit time (`0` means untagged); set via
-    /// [`WasmSim::set_rider_tag`] for the back-pointer pattern.
+    /// [`crate::WasmSim::set_rider_tag`] for the back-pointer pattern.
     RiderSpawned {
         /// Engine tick the event was emitted on.
         tick: u64,
