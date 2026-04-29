@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.8.0...elevator-wasm-v0.9.0) (2026-04-29)
+
+
+### Features
+
+* **wasm:** empty() static constructor for entity-free sims ([#539](https://github.com/andymai/elevator-core/issues/539)) ([892aebc](https://github.com/andymai/elevator-core/commit/892aebc1f687c148ed80b2eb8af0a002a2602a7e))
+
 ## [0.8.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.7.0...elevator-wasm-v0.8.0) (2026-04-29)
 
 
