@@ -2642,7 +2642,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-wasm"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "elevator-core",
  "getrandom 0.4.2",
