@@ -157,7 +157,7 @@ Rider rejections are not Rust errors -- they are events. The simulation continue
 sim.step();
 
 for event in sim.drain_events() {
-    if let Event::RiderRejected { rider, elevator, reason, context, tick } = event {
+    if let Event::RiderRejected { rider, elevator, reason, context, tick, .. } = event {
         match reason {
             RejectionReason::OverCapacity => {
                 // Show "elevator full" indicator in game UI.

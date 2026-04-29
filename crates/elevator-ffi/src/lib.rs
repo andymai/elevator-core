@@ -49,10 +49,17 @@ use slotmap::{Key, KeyData};
 
 /// Current ABI version. Bumped for any breaking change to the C layout.
 ///
+/// **v5:** [`EvEvent`] gained a `tag` field carrying the opaque
+/// per-rider tag (`Rider.tag`) for every rider-bearing event variant.
+/// Consumers that want the back-pointer pattern this enables (set via
+/// [`ev_sim_set_rider_tag`], read on [`ev_event_kind::RIDER_EXITED`] /
+/// [`ev_event_kind::RIDER_DESPAWNED`] without re-querying a freed
+/// rider) need to rebuild against v5.
+///
 /// **v4** widened [`EvEvent`] from 7 fields to 14 to carry the full
 /// payload of every core `Event` variant in a single drain pass. The
 /// kind discriminator was extended from 9 known kinds to 49.
-pub const EV_ABI_VERSION: u32 = 4;
+pub const EV_ABI_VERSION: u32 = 5;
 
 /// Return the ABI version compiled into this shared library.
 #[unsafe(no_mangle)]
@@ -1827,6 +1834,17 @@ pub struct EvEvent {
     /// Secondary float payload. Used by `EnergyConsumed` (regenerated
     /// kJ) and `CapacityChanged` (capacity).
     pub f2: f64,
+    /// Opaque consumer tag for the rider involved in this event,
+    /// mirroring [`Rider::tag()`](elevator_core::components::Rider::tag).
+    /// Populated for every rider-bearing variant — `RiderSpawned`,
+    /// `RiderBoarded`, `RiderExited`, `RiderRejected`, `RiderAbandoned`,
+    /// `RiderEjected`, `RiderSettled`, `RiderDespawned`, `RiderRerouted`,
+    /// `RiderSkipped`, `RouteInvalidated`, plus `CarButtonPressed` when
+    /// the press came from a real rider. `0` when not applicable
+    /// (non-rider event, or rider untagged, or synthetic
+    /// [`CarButtonPressed`](ev_event_kind::CAR_BUTTON_PRESSED) with no
+    /// associated rider).
+    pub tag: u64,
 }
 
 /// Drain pending events into `out`.
@@ -1977,12 +1995,14 @@ fn refill_pending_events(ev: &mut EvSim) {
                 car,
                 floor,
                 rider,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::CAR_BUTTON_PRESSED, tick);
                 e.car = entity_to_u64(car);
                 e.rider = rider.map_or(0, entity_to_u64);
                 e.floor = entity_to_u64(floor);
+                e.tag = tag.unwrap_or(0);
                 e
             }
             // ── Rider lifecycle ──────────────────────────────────────
@@ -1990,64 +2010,80 @@ fn refill_pending_events(ev: &mut EvSim) {
                 rider,
                 elevator,
                 at_stop,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_SKIPPED, tick);
                 e.stop = entity_to_u64(at_stop);
                 e.car = entity_to_u64(elevator);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
             Event::RiderSpawned {
                 rider,
                 origin,
                 destination,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_SPAWNED, tick);
                 e.stop = entity_to_u64(origin);
                 e.rider = entity_to_u64(rider);
                 e.floor = entity_to_u64(destination);
+                e.tag = tag;
                 e
             }
             Event::RiderBoarded {
                 rider,
                 elevator,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_BOARDED, tick);
                 e.car = entity_to_u64(elevator);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
             Event::RiderExited {
                 rider,
                 elevator,
                 stop,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_EXITED, tick);
                 e.stop = entity_to_u64(stop);
                 e.car = entity_to_u64(elevator);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
-            Event::RiderAbandoned { rider, stop, tick } => {
+            Event::RiderAbandoned {
+                rider,
+                stop,
+                tag,
+                tick,
+            } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_ABANDONED, tick);
                 e.stop = entity_to_u64(stop);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
             Event::RiderEjected {
                 rider,
                 elevator,
                 stop,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_EJECTED, tick);
                 e.stop = entity_to_u64(stop);
                 e.car = entity_to_u64(elevator);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
             Event::RiderRejected {
@@ -2055,6 +2091,7 @@ fn refill_pending_events(ev: &mut EvSim) {
                 elevator,
                 reason,
                 context,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_REJECTED, tick);
@@ -2070,39 +2107,51 @@ fn refill_pending_events(ev: &mut EvSim) {
                 });
                 e.f1 = attempted;
                 e.f2 = load;
+                e.tag = tag;
                 e
             }
             Event::RiderRerouted {
                 rider,
                 new_destination,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_REROUTED, tick);
                 e.rider = entity_to_u64(rider);
                 e.floor = entity_to_u64(new_destination);
+                e.tag = tag;
                 e
             }
-            Event::RiderSettled { rider, stop, tick } => {
+            Event::RiderSettled {
+                rider,
+                stop,
+                tag,
+                tick,
+            } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_SETTLED, tick);
                 e.stop = entity_to_u64(stop);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
-            Event::RiderDespawned { rider, tick } => {
+            Event::RiderDespawned { rider, tag, tick } => {
                 let mut e = ev_event_skeleton(ev_event_kind::RIDER_DESPAWNED, tick);
                 e.rider = entity_to_u64(rider);
+                e.tag = tag;
                 e
             }
             Event::RouteInvalidated {
                 rider,
                 affected_stop,
                 reason,
+                tag,
                 tick,
             } => {
                 let mut e = ev_event_skeleton(ev_event_kind::ROUTE_INVALIDATED, tick);
                 e.rider = entity_to_u64(rider);
                 e.stop = entity_to_u64(affected_stop);
                 e.code1 = encode_route_invalid_reason(reason);
+                e.tag = tag;
                 e
             }
             // ── Elevator motion ──────────────────────────────────────
@@ -2729,6 +2778,7 @@ const fn ev_event_skeleton(kind: u8, tick: u64) -> EvEvent {
         count: 0,
         f1: 0.0,
         f2: 0.0,
+        tag: 0,
     }
 }
 
@@ -6866,7 +6916,7 @@ mod tests {
     #[test]
     fn abi_version_matches_constant() {
         assert_eq!(ev_abi_version(), EV_ABI_VERSION);
-        assert_eq!(EV_ABI_VERSION, 4);
+        assert_eq!(EV_ABI_VERSION, 5);
     }
 
     #[test]
@@ -7064,6 +7114,7 @@ mod tests {
                 count: 0,
                 f1: 0.0,
                 f2: 0.0,
+                tag: 0,
             }; 64];
             let mut written: u32 = 0;
             let status = unsafe {
@@ -7136,6 +7187,7 @@ mod tests {
             count: 0,
             f1: 0.0,
             f2: 0.0,
+            tag: 0,
         }; 2];
         let mut first_written: u32 = 0;
         assert_eq!(
@@ -7169,6 +7221,7 @@ mod tests {
                 count: 0,
                 f1: 0.0,
                 f2: 0.0,
+                tag: 0,
             };
             (still_pending + 8) as usize
         ];
@@ -7286,6 +7339,7 @@ mod tests {
                 count: 0,
                 f1: 0.0,
                 f2: 0.0,
+                tag: 0,
             }; 128];
             let mut written: u32 = 0;
             assert_eq!(
@@ -7655,6 +7709,59 @@ mod tests {
                 .iter()
                 .any(|e| e.kind == ev_event_kind::RIDER_EXITED && e.rider == rider_id),
             "should see RIDER_EXITED",
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    /// `EvEvent.tag` (ABI v5) carries `Rider.tag` for every rider event,
+    /// sampled before the rider's slot is freed. Pin the contract from
+    /// the C side: set a tag, drain across a full lifecycle, assert it
+    /// shows up on every rider-bearing event we observe.
+    #[test]
+    fn drained_events_carry_rider_tag() {
+        const SENTINEL: u64 = 0xCAFE_F00D;
+
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+
+        // Tag *after* spawn — RiderSpawned fired with tag = 0; every
+        // subsequent rider-bearing event must surface SENTINEL.
+        assert_eq!(
+            unsafe { ev_sim_set_rider_tag(handle, rider_id, SENTINEL) },
+            EvStatus::Ok,
+        );
+
+        for _ in 0..3000 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+        let events = drain_all_events(handle);
+
+        let rider_kinds = [
+            ev_event_kind::RIDER_BOARDED,
+            ev_event_kind::RIDER_EXITED,
+            ev_event_kind::CAR_BUTTON_PRESSED,
+        ];
+        let mut saw_any_with_tag = false;
+        for event in &events {
+            if event.rider == rider_id && rider_kinds.contains(&event.kind) {
+                assert_eq!(
+                    event.tag, SENTINEL,
+                    "rider-bearing event kind {} for our rider must carry the sentinel tag",
+                    event.kind,
+                );
+                saw_any_with_tag = true;
+            }
+        }
+        assert!(
+            saw_any_with_tag,
+            "should observe at least one rider-bearing event for our rider",
         );
 
         unsafe { ev_sim_destroy(handle) };

@@ -487,6 +487,7 @@ impl ElevatorSim {
                     rider,
                     origin,
                     destination,
+                    tag,
                     tick,
                 } => dict! {
                     "kind" => "RiderSpawned",
@@ -494,21 +495,25 @@ impl ElevatorSim {
                     "rider" => rider.data().as_ffi() as i64,
                     "stop" => origin.data().as_ffi() as i64,
                     "destination" => destination.data().as_ffi() as i64,
+                    "tag" => tag as i64,
                 },
                 Event::RiderBoarded {
                     rider,
                     elevator,
+                    tag,
                     tick,
                 } => dict! {
                     "kind" => "RiderBoarded",
                     "tick" => tick as i64,
                     "rider" => rider.data().as_ffi() as i64,
                     "elevator" => elevator.data().as_ffi() as i64,
+                    "tag" => tag as i64,
                 },
                 Event::RiderExited {
                     rider,
                     elevator,
                     stop,
+                    tag,
                     tick,
                 } => dict! {
                     "kind" => "RiderExited",
@@ -516,17 +521,25 @@ impl ElevatorSim {
                     "rider" => rider.data().as_ffi() as i64,
                     "elevator" => elevator.data().as_ffi() as i64,
                     "stop" => stop.data().as_ffi() as i64,
+                    "tag" => tag as i64,
                 },
-                Event::RiderAbandoned { rider, stop, tick } => dict! {
+                Event::RiderAbandoned {
+                    rider,
+                    stop,
+                    tag,
+                    tick,
+                } => dict! {
                     "kind" => "RiderAbandoned",
                     "tick" => tick as i64,
                     "rider" => rider.data().as_ffi() as i64,
                     "stop" => stop.data().as_ffi() as i64,
+                    "tag" => tag as i64,
                 },
                 Event::RiderSkipped {
                     rider,
                     elevator,
                     at_stop,
+                    tag,
                     tick,
                 } => dict! {
                     "kind" => "RiderSkipped",
@@ -534,6 +547,7 @@ impl ElevatorSim {
                     "rider" => rider.data().as_ffi() as i64,
                     "elevator" => elevator.data().as_ffi() as i64,
                     "stop" => at_stop.data().as_ffi() as i64,
+                    "tag" => tag as i64,
                 },
                 Event::HallButtonPressed { stop, tick, .. } => dict! {
                     "kind" => "HallButtonPressed",

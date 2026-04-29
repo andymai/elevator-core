@@ -443,73 +443,102 @@ impl From<&elevator_core::components::CarCall> for CarCallDto {
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum EventDto {
     // ── Rider lifecycle ─────────────────────────────────────────────
+    /// `tag` mirrors the rider's opaque consumer tag at emit time. `0`
+    /// means untagged. Set via [`WasmSim::set_rider_tag`] —
+    /// see that method for the back-pointer pattern this enables.
     RiderSpawned {
         tick: u64,
         rider: u32,
         origin: u32,
         destination: u32,
+        tag: u64,
     },
+    /// `tag` mirrors the rider's opaque consumer tag at emit time. `0`
+    /// means untagged.
     RiderBoarded {
         tick: u64,
         rider: u32,
         elevator: u32,
+        tag: u64,
     },
+    /// `tag` mirrors the rider's opaque consumer tag, sampled before the
+    /// rider is freed so consumers can correlate the exit with external
+    /// state. `0` means untagged.
     RiderExited {
         tick: u64,
         rider: u32,
         elevator: u32,
         stop: u32,
+        tag: u64,
     },
     /// A rider was rejected from boarding (e.g., over capacity, access
     /// denied). `reason` is a kebab-case label drawn from
-    /// [`elevator_core::error::RejectionReason`].
+    /// [`elevator_core::error::RejectionReason`]. `tag` mirrors the
+    /// rider's opaque consumer tag; `0` means untagged.
     RiderRejected {
         tick: u64,
         rider: u32,
         elevator: u32,
         reason: String,
+        tag: u64,
     },
+    /// `tag` mirrors the rider's opaque consumer tag, sampled before the
+    /// rider is freed. `0` means untagged.
     RiderAbandoned {
         tick: u64,
         rider: u32,
         stop: u32,
+        tag: u64,
     },
-    /// A rider was ejected from a disabled / removed elevator.
+    /// A rider was ejected from a disabled / removed elevator. `tag`
+    /// mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderEjected {
         tick: u64,
         rider: u32,
         elevator: u32,
         stop: u32,
+        tag: u64,
     },
+    /// `tag` mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderSettled {
         tick: u64,
         rider: u32,
         stop: u32,
+        tag: u64,
     },
+    /// `tag` mirrors the rider's opaque consumer tag, sampled before the
+    /// rider is freed. `0` means untagged.
     RiderDespawned {
         tick: u64,
         rider: u32,
+        tag: u64,
     },
     /// A rider was rerouted via `sim.reroute()` or `sim.reroute_rider()`.
+    /// `tag` mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderRerouted {
         tick: u64,
         rider: u32,
         new_destination: u32,
+        tag: u64,
     },
-    /// A rider skipped a car they considered too crowded.
+    /// A rider skipped a car they considered too crowded. `tag` mirrors
+    /// the rider's opaque consumer tag; `0` means untagged.
     RiderSkipped {
         tick: u64,
         rider: u32,
         elevator: u32,
         at_stop: u32,
+        tag: u64,
     },
     /// A rider's route was invalidated by topology change. `reason` is
-    /// `"stop-disabled"`, `"stop-removed"`, or `"no-alternative"`.
+    /// `"stop-disabled"`, `"stop-removed"`, or `"no-alternative"`. `tag`
+    /// mirrors the rider's opaque consumer tag; `0` means untagged.
     RouteInvalidated {
         tick: u64,
         rider: u32,
         affected_stop: u32,
         reason: String,
+        tag: u64,
     },
 
     // ── Elevator motion + doors ─────────────────────────────────────
@@ -590,11 +619,15 @@ pub enum EventDto {
         car: u32,
     },
     /// `rider` is `None` when the press is synthetic (scripted).
+    /// `tag` mirrors the pressing rider's opaque consumer tag and is
+    /// `None` whenever `rider` is `None`. `Some(0)` means a present but
+    /// untagged rider.
     CarButtonPressed {
         tick: u64,
         car: u32,
         floor: u32,
         rider: Option<u32>,
+        tag: Option<u64>,
     },
     DestinationQueued {
         tick: u64,
@@ -778,99 +811,128 @@ impl From<Event> for EventDto {
                 rider,
                 origin,
                 destination,
+                tag,
             } => Self::RiderSpawned {
                 tick,
                 rider: entity_to_u32(rider),
                 origin: entity_to_u32(origin),
                 destination: entity_to_u32(destination),
+                tag,
             },
             Event::RiderBoarded {
                 tick,
                 rider,
                 elevator,
+                tag,
             } => Self::RiderBoarded {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
+                tag,
             },
             Event::RiderExited {
                 tick,
                 rider,
                 elevator,
                 stop,
+                tag,
             } => Self::RiderExited {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
+                tag,
             },
             Event::RiderRejected {
                 tick,
                 rider,
                 elevator,
                 reason,
+                tag,
                 ..
             } => Self::RiderRejected {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 reason: rejection_label(reason).to_string(),
+                tag,
             },
-            Event::RiderAbandoned { tick, rider, stop } => Self::RiderAbandoned {
+            Event::RiderAbandoned {
+                tick,
+                rider,
+                stop,
+                tag,
+            } => Self::RiderAbandoned {
                 tick,
                 rider: entity_to_u32(rider),
                 stop: entity_to_u32(stop),
+                tag,
             },
             Event::RiderEjected {
                 tick,
                 rider,
                 elevator,
                 stop,
+                tag,
             } => Self::RiderEjected {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
+                tag,
             },
-            Event::RiderSettled { tick, rider, stop } => Self::RiderSettled {
+            Event::RiderSettled {
+                tick,
+                rider,
+                stop,
+                tag,
+            } => Self::RiderSettled {
                 tick,
                 rider: entity_to_u32(rider),
                 stop: entity_to_u32(stop),
+                tag,
             },
-            Event::RiderDespawned { tick, rider } => Self::RiderDespawned {
+            Event::RiderDespawned { tick, rider, tag } => Self::RiderDespawned {
                 tick,
                 rider: entity_to_u32(rider),
+                tag,
             },
             Event::RiderRerouted {
                 tick,
                 rider,
                 new_destination,
+                tag,
             } => Self::RiderRerouted {
                 tick,
                 rider: entity_to_u32(rider),
                 new_destination: entity_to_u32(new_destination),
+                tag,
             },
             Event::RiderSkipped {
                 tick,
                 rider,
                 elevator,
                 at_stop,
+                tag,
             } => Self::RiderSkipped {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 at_stop: entity_to_u32(at_stop),
+                tag,
             },
             Event::RouteInvalidated {
                 tick,
                 rider,
                 affected_stop,
                 reason,
+                tag,
             } => Self::RouteInvalidated {
                 tick,
                 rider: entity_to_u32(rider),
                 affected_stop: entity_to_u32(affected_stop),
                 reason: route_invalid_label(reason).to_string(),
+                tag,
             },
 
             // ── Elevator motion + doors ─────────────────────────────
@@ -992,11 +1054,13 @@ impl From<Event> for EventDto {
                 car,
                 floor,
                 rider,
+                tag,
             } => Self::CarButtonPressed {
                 tick,
                 car: entity_to_u32(car),
                 floor: entity_to_u32(floor),
                 rider: rider.map(entity_to_u32),
+                tag,
             },
             Event::DestinationQueued {
                 tick,

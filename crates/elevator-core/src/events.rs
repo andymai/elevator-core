@@ -88,6 +88,13 @@ pub enum Event {
         origin: EntityId,
         /// The stop the rider wants to reach.
         destination: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged. See [`Simulation::set_rider_tag`]
+        /// for the back-pointer pattern this enables.
+        ///
+        /// [`Simulation::set_rider_tag`]: crate::sim::Simulation::set_rider_tag
+        #[serde(default)]
+        tag: u64,
         /// The tick when the rider spawned.
         tick: u64,
     },
@@ -97,6 +104,10 @@ pub enum Event {
         rider: EntityId,
         /// The elevator the rider boarded.
         elevator: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when boarding occurred.
         tick: u64,
     },
@@ -109,6 +120,12 @@ pub enum Event {
         elevator: EntityId,
         /// The stop where the rider exited.
         stop: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged. Sampled before the rider is freed
+        /// so consumers can correlate the exit with external state even
+        /// after the [`RiderId`](crate::entity::RiderId) becomes stale.
+        #[serde(default)]
+        tag: u64,
         /// The tick when exiting occurred.
         tick: u64,
     },
@@ -122,6 +139,10 @@ pub enum Event {
         reason: RejectionReason,
         /// Additional numeric context for the rejection.
         context: Option<RejectionContext>,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when rejection occurred.
         tick: u64,
     },
@@ -131,6 +152,10 @@ pub enum Event {
         rider: EntityId,
         /// The stop the rider left.
         stop: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged. Sampled before the rider is freed.
+        #[serde(default)]
+        tag: u64,
         /// The tick when abandonment occurred.
         tick: u64,
     },
@@ -145,6 +170,10 @@ pub enum Event {
         elevator: EntityId,
         /// The stop the rider was placed at.
         stop: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when ejection occurred.
         tick: u64,
     },
@@ -208,6 +237,10 @@ pub enum Event {
         affected_stop: EntityId,
         /// Why the route was invalidated.
         reason: RouteInvalidReason,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when invalidation occurred.
         tick: u64,
     },
@@ -217,6 +250,10 @@ pub enum Event {
         rider: EntityId,
         /// The new destination stop.
         new_destination: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when rerouting occurred.
         tick: u64,
     },
@@ -227,6 +264,10 @@ pub enum Event {
         rider: EntityId,
         /// The stop where the rider settled.
         stop: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// The tick when settlement occurred.
         tick: u64,
     },
@@ -234,6 +275,10 @@ pub enum Event {
     RiderDespawned {
         /// The rider that was removed.
         rider: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged. Sampled before the rider is freed.
+        #[serde(default)]
+        tag: u64,
         /// The tick when despawn occurred.
         tick: u64,
     },
@@ -567,6 +612,12 @@ pub enum Event {
         /// for scripted events, player input, or cutscene cues with no
         /// associated rider entity.
         rider: Option<EntityId>,
+        /// Opaque consumer tag attached to the pressing rider, mirroring
+        /// the optionality of [`rider`](Self::CarButtonPressed::rider).
+        /// `Some(0)` for a present-but-untagged rider; `None` for a
+        /// synthetic press with no rider entity.
+        #[serde(default)]
+        tag: Option<u64>,
         /// Tick of the press.
         tick: u64,
     },
@@ -581,6 +632,10 @@ pub enum Event {
         elevator: EntityId,
         /// Stop where the skip happened.
         at_stop: EntityId,
+        /// Opaque consumer tag attached to the rider at emit time. `0`
+        /// when the rider is untagged.
+        #[serde(default)]
+        tag: u64,
         /// Tick of the skip.
         tick: u64,
     },

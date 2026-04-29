@@ -147,9 +147,14 @@ impl Simulation {
         self.world
             .set_route(rider, Route::direct(origin, new_destination, group));
 
+        let tag = self
+            .world
+            .rider(rider)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RiderRerouted {
             rider,
             new_destination,
+            tag,
             tick: self.tick,
         });
 
@@ -213,9 +218,14 @@ impl Simulation {
         }
 
         self.metrics.record_settle();
+        let tag = self
+            .world
+            .rider(id)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RiderSettled {
             rider: id,
             stop,
+            tag,
             tick: self.tick,
         });
         Ok(())
@@ -291,9 +301,14 @@ impl Simulation {
         }
 
         self.metrics.record_reroute();
+        let tag = self
+            .world
+            .rider(id)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RiderRerouted {
             rider: id,
             new_destination,
+            tag,
             tick: self.tick,
         });
         Ok(())
@@ -314,6 +329,7 @@ impl Simulation {
     pub fn despawn_rider(&mut self, id: RiderId) -> Result<(), SimError> {
         let id = id.entity();
         let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+        let tag = rider.tag();
 
         // Targeted index removal based on current phase (O(1) vs O(n) scan).
         if let Some(stop) = rider.current_stop {
@@ -342,6 +358,7 @@ impl Simulation {
 
         self.events.emit(Event::RiderDespawned {
             rider: id,
+            tag,
             tick: self.tick,
         });
         Ok(())
@@ -581,6 +598,10 @@ impl Simulation {
             }
 
             for rid in &rider_ids {
+                let tag = self
+                    .world
+                    .rider(*rid)
+                    .map_or(0, crate::components::Rider::tag);
                 if let Some(r) = self.world.rider_mut(*rid) {
                     r.phase = RiderPhase::Waiting;
                     r.current_stop = nearest_stop;
@@ -592,6 +613,7 @@ impl Simulation {
                         rider: *rid,
                         elevator: id,
                         stop,
+                        tag,
                         tick: self.tick,
                     });
                 }
@@ -669,12 +691,17 @@ impl Simulation {
         for rid in resident_ids {
             self.rider_index.remove_resident(id, rid);
             self.rider_index.insert_abandoned(id, rid);
+            let tag = self
+                .world
+                .rider(rid)
+                .map_or(0, crate::components::Rider::tag);
             if let Some(r) = self.world.rider_mut(rid) {
                 r.phase = RiderPhase::Abandoned;
             }
             self.events.emit(Event::RiderAbandoned {
                 rider: rid,
                 stop: id,
+                tag,
                 tick: self.tick,
             });
         }
@@ -802,10 +829,15 @@ impl Simulation {
         let group = self.group_from_route(self.world.route(rid));
         self.world
             .set_route(rid, Route::direct(origin, alt_stop, group));
+        let tag = self
+            .world
+            .rider(rid)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RouteInvalidated {
             rider: rid,
             affected_stop: disabled_stop,
             reason: reroute_reason,
+            tag,
             tick: self.tick,
         });
         // For in-car riders, the car's target_stop was just nulled by
@@ -842,10 +874,15 @@ impl Simulation {
             .min_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)))
             .map(|(eid, _)| eid);
 
+        let tag = self
+            .world
+            .rider(rid)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RouteInvalidated {
             rider: rid,
             affected_stop: disabled_stop,
             reason: reroute_reason,
+            tag,
             tick: self.tick,
         });
 
@@ -877,6 +914,7 @@ impl Simulation {
                 rider: rid,
                 elevator: car_eid,
                 stop,
+                tag,
                 tick: self.tick,
             });
         } else {
@@ -892,6 +930,7 @@ impl Simulation {
             self.events.emit(Event::RiderAbandoned {
                 rider: rid,
                 stop: disabled_stop,
+                tag,
                 tick: self.tick,
             });
         }
@@ -926,10 +965,15 @@ impl Simulation {
         reroute_reason: crate::events::RouteInvalidReason,
     ) {
         let abandon_stop = rider_current_stop.unwrap_or(disabled_stop);
+        let tag = self
+            .world
+            .rider(rid)
+            .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RouteInvalidated {
             rider: rid,
             affected_stop: disabled_stop,
             reason: reroute_reason,
+            tag,
             tick: self.tick,
         });
         if let Some(r) = self.world.rider_mut(rid) {
@@ -946,6 +990,7 @@ impl Simulation {
         self.events.emit(Event::RiderAbandoned {
             rider: rid,
             stop: abandon_stop,
+            tag,
             tick: self.tick,
         });
     }
