@@ -20,6 +20,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             phase: RiderPhase::Waiting,
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: None,
         },
     );

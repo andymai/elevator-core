@@ -998,6 +998,7 @@ fn etd_rider_delay_penalizes() {
             weight: Weight::from(70.0),
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: Some(0),
         },
     );
@@ -1080,6 +1081,7 @@ fn etd_custom_weights() {
             weight: Weight::from(70.0),
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: Some(0),
         },
     );

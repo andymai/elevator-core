@@ -3626,6 +3626,87 @@ pub unsafe extern "C" fn ev_sim_settle_rider(handle: *mut EvSim, rider_entity_id
     })
 }
 
+/// Attach an opaque tag to a rider. Stored verbatim — the engine never
+/// interprets the value. Pass `0` to clear (the reserved "untagged"
+/// sentinel). Survives snapshot round-trip.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_set_rider_tag(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    tag: u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        match ev.sim.set_rider_tag(RiderId::from(rider), tag) {
+            Ok(()) => EvStatus::Ok,
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("set_rider_tag: {e}"));
+                status
+            }
+        }
+    })
+}
+
+/// Read the opaque tag attached to a rider. Writes the value into
+/// `*out_tag` and returns [`EvStatus::Ok`]. Returns `0` for the default
+/// "untagged" state.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+/// `out_tag` must be a valid, writable pointer to a `u64`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_rider_tag(
+    handle: *mut EvSim,
+    rider_entity_id: u64,
+    out_tag: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return EvStatus::NullArg;
+        }
+        if out_tag.is_null() {
+            set_last_error("out_tag is null");
+            return EvStatus::NullArg;
+        }
+        let Some(rider) = entity_from_u64(rider_entity_id) else {
+            set_last_error("rider_entity_id is invalid");
+            return EvStatus::InvalidArg;
+        };
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        match ev.sim.rider_tag(RiderId::from(rider)) {
+            Ok(tag) => {
+                // Safety: caller-provided writable u64 pointer.
+                unsafe { *out_tag = tag };
+                EvStatus::Ok
+            }
+            Err(e) => {
+                let status = mode_error_status(&e);
+                set_last_error(format!("rider_tag: {e}"));
+                status
+            }
+        }
+    })
+}
+
 /// Replace a rider's remaining route with a single-leg route via
 /// `group_id`. Convenience wrapper for the common "send this rider via
 /// this group" case.
@@ -7242,6 +7323,66 @@ mod tests {
         assert_eq!(
             unsafe { ev_sim_despawn_rider(handle, rider_id) },
             EvStatus::NotFound,
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn rider_tag_round_trips_and_errors_on_stale_id() {
+        // Default 0, set/get round-trips, despawned id returns
+        // NotFound. The 6-line null-arg checks exercise the safety
+        // gates without needing a live sim.
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+
+        let mut tag: u64 = 0xFFFF_FFFF_FFFF_FFFF;
+        assert_eq!(
+            unsafe { ev_sim_rider_tag(handle, rider_id, &raw mut tag) },
+            EvStatus::Ok,
+        );
+        assert_eq!(tag, 0, "fresh rider must default to untagged sentinel");
+
+        assert_eq!(
+            unsafe { ev_sim_set_rider_tag(handle, rider_id, 0xDEAD_BEEF) },
+            EvStatus::Ok,
+        );
+        let mut roundtrip: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_rider_tag(handle, rider_id, &raw mut roundtrip) },
+            EvStatus::Ok,
+        );
+        assert_eq!(roundtrip, 0xDEAD_BEEF);
+
+        // Stale id after despawn — both accessors must return NotFound.
+        assert_eq!(
+            unsafe { ev_sim_despawn_rider(handle, rider_id) },
+            EvStatus::Ok,
+        );
+        assert_eq!(
+            unsafe { ev_sim_set_rider_tag(handle, rider_id, 1) },
+            EvStatus::NotFound,
+        );
+        let mut after_despawn: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_rider_tag(handle, rider_id, &raw mut after_despawn) },
+            EvStatus::NotFound,
+        );
+
+        // Null-arg gates.
+        assert_eq!(
+            unsafe { ev_sim_set_rider_tag(std::ptr::null_mut(), rider_id, 1) },
+            EvStatus::NullArg,
+        );
+        assert_eq!(
+            unsafe { ev_sim_rider_tag(handle, rider_id, std::ptr::null_mut()) },
+            EvStatus::NullArg,
         );
 
         unsafe { ev_sim_destroy(handle) };

@@ -424,6 +424,20 @@ ffi  = "ev_sim_set_rider_access"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]
+name = "set_rider_tag"
+category = "riders"
+wasm = "setRiderTag"
+ffi  = "ev_sim_set_rider_tag"
+tui  = "skip:opaque consumer-attached id — TUI viewer has no concept of an external tag space"
+
+[[methods]]
+name = "rider_tag"
+category = "riders"
+wasm = "riderTag"
+ffi  = "ev_sim_rider_tag"
+tui  = "skip:opaque consumer-attached id — TUI viewer has no concept of an external tag space"
+
+[[methods]]
 name = "shortest_route"
 category = "routes"
 wasm = "shortestRoute"
