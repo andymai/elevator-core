@@ -1702,17 +1702,21 @@ export class WasmSim {
      * abandonment for this rider — preserves the pre-patience
      * behavior for scenarios that want bounded queues.
      *
+     * Returns the spawned rider's entity ref on success so consumers
+     * can correlate with subsequent `rider-*` events. Symmetric with
+     * [`Self::spawn_rider_by_ref`].
+     *
      * # Errors
      *
-     * Returns a Result-shaped object: `{ kind: "ok" }` on success, or
-     * `{ kind: "err", error: "..." }` if either stop id is unknown,
-     * the rider is rejected by the sim, or the `(origin, destination)`
-     * route can't be auto-detected.
+     * Returns a Result-shaped object: `{ kind: "ok", value: bigint }`
+     * on success, or `{ kind: "err", error: "..." }` if either stop
+     * id is unknown, the rider is rejected by the sim, or the
+     * `(origin, destination)` route can't be auto-detected.
      * @param {number} origin
      * @param {number} destination
      * @param {number} weight
      * @param {number | null} [patience_ticks]
-     * @returns {WasmVoidResult}
+     * @returns {WasmU64Result}
      */
     spawnRider(origin, destination, weight, patience_ticks) {
         const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
