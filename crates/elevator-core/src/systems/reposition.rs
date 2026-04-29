@@ -162,17 +162,19 @@ fn apply_home_stop_overrides(
 ) -> Vec<(EntityId, f64)> {
     let mut strategy_pool: Vec<(EntityId, f64)> = Vec::with_capacity(idle_elevators.len());
     for &(elev_eid, elev_pos) in idle_elevators {
-        let pinned = world
+        // Fold "is this car pinned?" and "where is the pinned stop?"
+        // into one lookup: if the home stop is missing from
+        // `stop_positions` (e.g. removed since the pin was set), the
+        // car silently falls back to the strategy pool rather than
+        // emitting a dangling decision the rest of the pipeline can't
+        // act on.
+        let pinned: Option<(EntityId, f64)> = world
             .elevator(elev_eid)
             .and_then(crate::components::Elevator::home_stop)
-            .filter(|sid| stop_positions.iter().any(|(s, _)| s == sid));
+            .and_then(|home_eid| stop_positions.iter().find(|(s, _)| *s == home_eid).copied());
 
         match pinned {
-            Some(home_eid) => {
-                let home_pos = stop_positions
-                    .iter()
-                    .find(|(s, _)| *s == home_eid)
-                    .map_or(elev_pos, |(_, p)| *p);
+            Some((home_eid, home_pos)) => {
                 // Only emit a reposition decision if the car isn't
                 // already parked at home — matches `ReturnToLobby`'s
                 // 1e-6 epsilon to avoid a no-op reposition cycle.
