@@ -1215,6 +1215,20 @@ export class WasmSim {
         return v1;
     }
     /**
+     * Read the opaque tag attached to a rider. Returns `0n` for the
+     * default "untagged" state.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     * @param {bigint} rider_ref
+     * @returns {WasmU64Result}
+     */
+    riderTag(rider_ref) {
+        const ret = wasm.wasmsim_riderTag(this.__wbg_ptr, rider_ref);
+        return ret;
+    }
+    /**
      * Riders currently aboard `elevator_ref`. Empty if the cab is
      * empty or `elevator_ref` is not an elevator.
      * @param {bigint} elevator_ref
@@ -1546,6 +1560,24 @@ export class WasmSim {
      */
     setRiderRouteShortest(rider_ref, to_stop_ref) {
         const ret = wasm.wasmsim_setRiderRouteShortest(this.__wbg_ptr, rider_ref, to_stop_ref);
+        return ret;
+    }
+    /**
+     * Attach an opaque tag to a rider. The engine doesn't interpret
+     * the value — JS consumers use it to correlate a `RiderId` with an
+     * external id (e.g. a game-side sim id) without maintaining a
+     * parallel `Map<RiderId, u32>`. Pass `0n` to clear (`0` is the
+     * reserved "untagged" sentinel).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     * @param {bigint} rider_ref
+     * @param {bigint} tag
+     * @returns {WasmVoidResult}
+     */
+    setRiderTag(rider_ref, tag) {
+        const ret = wasm.wasmsim_setRiderTag(this.__wbg_ptr, rider_ref, tag);
         return ret;
     }
     /**

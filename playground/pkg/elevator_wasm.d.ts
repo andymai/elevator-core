@@ -1248,6 +1248,15 @@ export class WasmSim {
      */
     residentsAt(stop_ref: bigint): BigUint64Array;
     /**
+     * Read the opaque tag attached to a rider. Returns `0n` for the
+     * default "untagged" state.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     */
+    riderTag(rider_ref: bigint): WasmU64Result;
+    /**
      * Riders currently aboard `elevator_ref`. Empty if the cab is
      * empty or `elevator_ref` is not an elevator.
      */
@@ -1453,6 +1462,18 @@ export class WasmSim {
      * stop, or no route to `to_stop` exists.
      */
     setRiderRouteShortest(rider_ref: bigint, to_stop_ref: bigint): WasmVoidResult;
+    /**
+     * Attach an opaque tag to a rider. The engine doesn't interpret
+     * the value — JS consumers use it to correlate a `RiderId` with an
+     * external id (e.g. a game-side sim id) without maintaining a
+     * parallel `Map<RiderId, u32>`. Pass `0n` to clear (`0` is the
+     * reserved "untagged" sentinel).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `rider_ref` is not a rider entity.
+     */
+    setRiderTag(rider_ref: bigint, tag: bigint): WasmVoidResult;
     /**
      * Set the operational mode of an elevator.
      *
@@ -1808,6 +1829,7 @@ export interface InitOutput {
     readonly wasmsim_rerouteRiderShortest: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_residentCountAt: (a: number, b: bigint) => number;
     readonly wasmsim_residentsAt: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_riderTag: (a: number, b: bigint) => any;
     readonly wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
     readonly wasmsim_runUntilQuiet: (a: number, b: bigint) => any;
     readonly wasmsim_serviceMode: (a: number, b: bigint) => [number, number];
@@ -1830,6 +1852,7 @@ export interface InitOutput {
     readonly wasmsim_setRiderAccess: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_setRiderRouteDirect: (a: number, b: bigint, c: bigint, d: bigint, e: number) => any;
     readonly wasmsim_setRiderRouteShortest: (a: number, b: bigint, c: bigint) => any;
+    readonly wasmsim_setRiderTag: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_setStrategy: (a: number, b: number, c: number) => number;
     readonly wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => any;
