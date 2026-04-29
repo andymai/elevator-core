@@ -374,12 +374,16 @@ impl WasmSim {
     /// abandonment for this rider — preserves the pre-patience
     /// behavior for scenarios that want bounded queues.
     ///
+    /// Returns the spawned rider's entity ref on success so consumers
+    /// can correlate with subsequent `rider-*` events. Symmetric with
+    /// [`Self::spawn_rider_by_ref`].
+    ///
     /// # Errors
     ///
-    /// Returns a Result-shaped object: `{ kind: "ok" }` on success, or
-    /// `{ kind: "err", error: "..." }` if either stop id is unknown,
-    /// the rider is rejected by the sim, or the `(origin, destination)`
-    /// route can't be auto-detected.
+    /// Returns a Result-shaped object: `{ kind: "ok", value: bigint }`
+    /// on success, or `{ kind: "err", error: "..." }` if either stop
+    /// id is unknown, the rider is rejected by the sim, or the
+    /// `(origin, destination)` route can't be auto-detected.
     #[wasm_bindgen(js_name = spawnRider)]
     pub fn spawn_rider(
         &mut self,
@@ -387,8 +391,8 @@ impl WasmSim {
         destination: u32,
         weight: f64,
         patience_ticks: Option<u32>,
-    ) -> WasmVoidResult {
-        (|| -> Result<(), String> {
+    ) -> WasmU64Result {
+        (|| -> Result<u64, String> {
             let mut builder = self
                 .inner
                 .build_rider(StopId(origin), StopId(destination))
@@ -397,10 +401,8 @@ impl WasmSim {
             if let Some(ticks) = patience_ticks.filter(|&t| t > 0) {
                 builder = builder.patience(u64::from(ticks));
             }
-            builder
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("spawn: {e}"))
+            let rider = builder.spawn().map_err(|e| format!("spawn: {e}"))?;
+            Ok(entity_to_u64(rider.entity()))
         })()
         .into()
     }
