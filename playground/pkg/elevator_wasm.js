@@ -313,6 +313,20 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Remove an elevator's home-stop pin. Reposition decisions return
+     * to the group's reposition strategy. Idempotent.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     * @param {bigint} elevator_ref
+     * @returns {WasmVoidResult}
+     */
+    clearElevatorHomeStop(elevator_ref) {
+        const ret = wasm.wasmsim_clearElevatorHomeStop(this.__wbg_ptr, elevator_ref);
+        return ret;
+    }
+    /**
      * Request the doors to close now. Forces an early close unless a
      * rider is mid-boarding/exiting.
      *
@@ -430,6 +444,20 @@ export class WasmSim {
     elevatorGoingUp(elevator_ref) {
         const ret = wasm.wasmsim_elevatorGoingUp(this.__wbg_ptr, elevator_ref);
         return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * Read the home-stop pin for an elevator. Returns `0n` when the
+     * car has no pin set; otherwise the stop entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     * @param {bigint} elevator_ref
+     * @returns {WasmU64Result}
+     */
+    elevatorHomeStop(elevator_ref) {
+        const ret = wasm.wasmsim_elevatorHomeStop(this.__wbg_ptr, elevator_ref);
+        return ret;
     }
     /**
      * Fraction of `elevator_ref`'s capacity currently occupied (by weight),
@@ -1394,6 +1422,26 @@ export class WasmSim {
      */
     setDoorTransitionTicksAll(ticks) {
         const ret = wasm.wasmsim_setDoorTransitionTicksAll(this.__wbg_ptr, ticks);
+        return ret;
+    }
+    /**
+     * Pin an elevator to a hard-coded home stop. Whenever the car is
+     * idle and off-position, the reposition phase routes it to the
+     * pinned stop regardless of the group's reposition strategy.
+     * Useful for express cars assigned to a dedicated lobby or
+     * service cars that should park in a loading bay between
+     * requests.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or stop does not exist, or
+     * if the elevator's line does not serve the requested stop.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     * @returns {WasmVoidResult}
+     */
+    setElevatorHomeStop(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_setElevatorHomeStop(this.__wbg_ptr, elevator_ref, stop_ref);
         return ret;
     }
     /**
