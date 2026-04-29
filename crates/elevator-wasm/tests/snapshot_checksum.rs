@@ -2,13 +2,12 @@
 //! by lockstep consumers to detect divergence between runtimes that
 //! should be stepping the same state.
 //!
-//! The checksum has the same first-restore asymmetry as raw
-//! `snapshot_bytes` (restore materializes default metric-tag rows
-//! that fresh sims lazy-allocate), so we don't compare two
-//! independently-constructed sims here. The lockstep use case is:
-//! both runtimes start from the same snapshot bytes (initial
-//! checkpoint) and step identically — that's what these tests
-//! validate.
+//! Snapshot/restore is byte-symmetric: a fresh sim and a restored
+//! sim with the same logical state hash equal. (Earlier first-
+//! restore asymmetry was fixed by registering the `AssignedCar`
+//! extension type during `Simulation::new` to match the restore
+//! path.) These tests pin both the same-sim and fresh-vs-restored
+//! equality properties.
 
 use elevator_wasm::{WasmBytesResult, WasmSim, WasmU64Result};
 
