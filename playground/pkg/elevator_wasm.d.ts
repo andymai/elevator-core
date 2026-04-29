@@ -1281,6 +1281,19 @@ export class WasmSim {
      */
     setDeceleration(elevator_ref: bigint, deceleration: number): WasmVoidResult;
     /**
+     * Set `door_open_ticks` (dwell duration) on a single elevator.
+     *
+     * Takes effect on the **next** door cycle — an in-progress dwell
+     * completes its original timing to avoid visual glitches. See
+     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or the value is invalid (zero `ticks`).
+     */
+    setDoorOpenTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
+    /**
      * Set `door_open_ticks` (dwell duration) on every elevator.
      *
      * Takes effect on the **next** door cycle — an in-progress dwell
@@ -1293,6 +1306,16 @@ export class WasmSim {
      * is zero.
      */
     setDoorOpenTicksAll(ticks: number): WasmVoidResult;
+    /**
+     * Set `door_transition_ticks` (open/close transition duration) on
+     * a single elevator. Takes effect on the next door cycle.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or the value is invalid (zero `ticks`).
+     */
+    setDoorTransitionTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
     /**
      * Set `door_transition_ticks` (open- and close-transition duration)
      * on every elevator.
@@ -1339,6 +1362,15 @@ export class WasmSim {
      * non-finite or inverted.
      */
     setLineRange(line_ref: bigint, min_position: number, max_position: number): WasmVoidResult;
+    /**
+     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `speed` is non-positive / non-finite.
+     */
+    setMaxSpeed(elevator_ref: bigint, speed: number): WasmVoidResult;
     /**
      * Set `max_speed` (m/s) on every elevator in the sim.
      *
@@ -1441,6 +1473,18 @@ export class WasmSim {
      * [`spawn_rider`]: Self::spawn_rider
      */
     setTrafficRate(riders_per_minute: number): void;
+    /**
+     * Set `weight_capacity` (kg) on a single elevator. A new cap
+     * below `current_load` leaves the car temporarily overweight
+     * (no riders ejected); subsequent boarding rejects further
+     * additions.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `capacity` is non-positive / non-finite.
+     */
+    setWeightCapacity(elevator_ref: bigint, capacity: number): WasmVoidResult;
     /**
      * Set `weight_capacity` (kg) on every elevator in the sim.
      *
@@ -1746,12 +1790,15 @@ export interface InitOutput {
     readonly wasmsim_setArrivalLogRetentionTicks: (a: number, b: bigint) => void;
     readonly wasmsim_setDcsWithCommitmentWindow: (a: number, b: bigint) => void;
     readonly wasmsim_setDeceleration: (a: number, b: bigint, c: number) => any;
+    readonly wasmsim_setDoorOpenTicks: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => any;
+    readonly wasmsim_setDoorTransitionTicks: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => any;
     readonly wasmsim_setElevatorRestrictedStops: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_setEtdWithWaitSquaredWeight: (a: number, b: number) => void;
     readonly wasmsim_setHallCallModeDestination: (a: number) => void;
     readonly wasmsim_setLineRange: (a: number, b: bigint, c: number, d: number) => any;
+    readonly wasmsim_setMaxSpeed: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setMaxSpeedAll: (a: number, b: number) => any;
     readonly wasmsim_setReposition: (a: number, b: number, c: number) => number;
     readonly wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => void;
@@ -1762,6 +1809,7 @@ export interface InitOutput {
     readonly wasmsim_setStrategy: (a: number, b: number, c: number) => number;
     readonly wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setTrafficRate: (a: number, b: number) => void;
+    readonly wasmsim_setWeightCapacity: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setWeightCapacityAll: (a: number, b: number) => any;
     readonly wasmsim_settleRider: (a: number, b: bigint) => any;
     readonly wasmsim_shortestRoute: (a: number, b: bigint, c: bigint) => any;
