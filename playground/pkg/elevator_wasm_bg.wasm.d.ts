@@ -37,6 +37,7 @@ export const wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigin
 export const wasmsim_elevatorsInPhase: (a: number, b: number, c: number) => any;
 export const wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];
 export const wasmsim_emergencyStop: (a: number, b: bigint) => any;
+export const wasmsim_empty: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const wasmsim_enable: (a: number, b: bigint) => any;
 export const wasmsim_eta: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) => any;

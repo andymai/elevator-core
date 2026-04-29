@@ -499,6 +499,40 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Construct an effectively-empty simulation with no stops,
+     * elevators, or lines. Internally constructs from a tiny seed
+     * config (one stop, one elevator) to satisfy
+     * [`Simulation::new`]'s non-empty validation, then removes the
+     * seed entities before returning. The default (auto-created)
+     * group remains — `Simulation` requires at least one group
+     * to exist; consumers typically add their own groups via
+     * [`addGroup`](Self::add_group) on top.
+     *
+     * Useful for consumers that build the building topology
+     * dynamically at runtime (e.g. game engines where the player
+     * edits the floor plan) and don't want the seed-and-ignore
+     * boilerplate.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `strategy` is not a recognised built-in.
+     * The internal seed config is well-formed by construction.
+     * @param {string} strategy
+     * @param {string | null} [reposition]
+     * @returns {WasmSim}
+     */
+    static empty(strategy, reposition) {
+        const ptr0 = passStringToWasm0(strategy, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(reposition) ? 0 : passStringToWasm0(reposition, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_empty(ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return WasmSim.__wrap(ret[0]);
+    }
+    /**
      * Re-enable a previously-disabled entity (elevator or stop).
      *
      * # Errors
