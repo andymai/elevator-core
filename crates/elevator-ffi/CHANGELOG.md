@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.11.0...elevator-ffi-v0.12.0) (2026-04-29)
+
+
+### Features
+
+* **core:** per-rider opaque tag for consumer back-pointers ([#541](https://github.com/andymai/elevator-core/issues/541)) ([68524a5](https://github.com/andymai/elevator-core/commit/68524a55c625398fc9d9bf114942c26ca6c43b2a))
+
 ## [0.11.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.10.2...elevator-ffi-v0.11.0) (2026-04-28)
 
 
