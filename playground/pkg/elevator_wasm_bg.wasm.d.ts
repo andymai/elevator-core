@@ -84,6 +84,7 @@ export const wasmsim_rerouteRiderDirect: (a: number, b: bigint, c: bigint, d: bi
 export const wasmsim_rerouteRiderShortest: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_residentCountAt: (a: number, b: bigint) => number;
 export const wasmsim_residentsAt: (a: number, b: bigint) => [number, number];
+export const wasmsim_riderTag: (a: number, b: bigint) => any;
 export const wasmsim_ridersOn: (a: number, b: bigint) => [number, number];
 export const wasmsim_runUntilQuiet: (a: number, b: bigint) => any;
 export const wasmsim_serviceMode: (a: number, b: bigint) => [number, number];
@@ -106,6 +107,7 @@ export const wasmsim_setRepositionPredictiveParking: (a: number, b: bigint) => v
 export const wasmsim_setRiderAccess: (a: number, b: bigint, c: number, d: number) => any;
 export const wasmsim_setRiderRouteDirect: (a: number, b: bigint, c: bigint, d: bigint, e: number) => any;
 export const wasmsim_setRiderRouteShortest: (a: number, b: bigint, c: bigint) => any;
+export const wasmsim_setRiderTag: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => any;
 export const wasmsim_setStrategy: (a: number, b: number, c: number) => number;
 export const wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => any;
