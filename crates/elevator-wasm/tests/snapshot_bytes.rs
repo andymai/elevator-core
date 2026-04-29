@@ -6,16 +6,11 @@
 //! functions, which call into wasm-bindgen imports — those tests must
 //! run under `wasm-pack test`.
 //!
-//! ## Known asymmetry
-//!
-//! `snapshot_bytes(s) == snapshot_bytes(from_snapshot_bytes(snapshot_bytes(s)))`
-//! does *not* hold in general: the restore path materializes default
-//! metric-tag rows (e.g. `assigned_car`) that the original sim only
-//! lazy-allocates on first write. Once a sim has been restored once,
-//! subsequent snapshot/restore round-trips ARE byte-stable. Lockstep
-//! consumers that diff snapshots across runtimes should either both
-//! sides go through restore at least once before diffing, or rely on
-//! a higher-level equivalence (state-checksum API, not byte equality).
+//! Snapshot/restore is byte-symmetric: bytes from a fresh sim equal
+//! bytes from a restored sim with the same logical state. The
+//! earlier first-restore asymmetry (`assigned_car` extension type
+//! materialized on restore but not on `Simulation::new`) was fixed by
+//! registering the type on both paths.
 
 use elevator_wasm::{WasmBytesResult, WasmSim};
 
@@ -52,12 +47,12 @@ fn unwrap_bytes(r: WasmBytesResult) -> Vec<u8> {
     }
 }
 
-/// `snapshot → restore → snapshot → restore → snapshot` is idempotent
-/// after the first restore. The first cycle is asymmetric because
-/// restore materializes default metric-tag rows; once those are present,
-/// further snapshots are byte-stable.
+/// `snapshot → restore → snapshot` is idempotent — the first cycle
+/// (and every cycle) is byte-stable. The earlier asymmetry was
+/// fixed by registering the `AssignedCar` extension type during
+/// `Simulation::new` to match the restore path.
 #[test]
-fn round_trip_is_idempotent_after_first_restore() {
+fn round_trip_is_idempotent_from_the_first_restore() {
     let mut sim = WasmSim::new(SCENARIO, "look", None).expect("construct sim");
     sim.step_many(500);
 
@@ -67,13 +62,18 @@ fn round_trip_is_idempotent_after_first_restore() {
         WasmSim::from_snapshot_bytes(&initial, "look".to_string(), None).expect("first restore");
     let primed_bytes = unwrap_bytes(primed.snapshot_bytes());
 
+    assert_eq!(
+        initial, primed_bytes,
+        "first-restore byte symmetry: snapshot(restore(snapshot(s))) == snapshot(s)"
+    );
+
     let rebound = WasmSim::from_snapshot_bytes(&primed_bytes, "look".to_string(), None)
         .expect("second restore");
     let rebound_bytes = unwrap_bytes(rebound.snapshot_bytes());
 
     assert_eq!(
         primed_bytes, rebound_bytes,
-        "snapshots taken after the first restore must be byte-stable"
+        "second-restore byte symmetry: still bit-stable after multiple cycles"
     );
 }
 
