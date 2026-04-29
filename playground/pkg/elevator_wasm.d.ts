@@ -745,6 +745,15 @@ export class WasmSim {
      */
     clearDestinations(elevator_ref: bigint): WasmVoidResult;
     /**
+     * Remove an elevator's home-stop pin. Reposition decisions return
+     * to the group's reposition strategy. Idempotent.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     */
+    clearElevatorHomeStop(elevator_ref: bigint): WasmVoidResult;
+    /**
      * Request the doors to close now. Forces an early close unless a
      * rider is mid-boarding/exiting.
      *
@@ -807,6 +816,15 @@ export class WasmSim {
      * reports `false` here and `false` in `elevatorGoingDown`.
      */
     elevatorGoingUp(elevator_ref: bigint): boolean | undefined;
+    /**
+     * Read the home-stop pin for an elevator. Returns `0n` when the
+     * car has no pin set; otherwise the stop entity ref.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator does not exist.
+     */
+    elevatorHomeStop(elevator_ref: bigint): WasmU64Result;
     /**
      * Fraction of `elevator_ref`'s capacity currently occupied (by weight),
      * in `[0.0, 1.0]`. Returns `undefined` for missing entities.
@@ -1360,6 +1378,20 @@ export class WasmSim {
      */
     setDoorTransitionTicksAll(ticks: number): WasmVoidResult;
     /**
+     * Pin an elevator to a hard-coded home stop. Whenever the car is
+     * idle and off-position, the reposition phase routes it to the
+     * pinned stop regardless of the group's reposition strategy.
+     * Useful for express cars assigned to a dedicated lobby or
+     * service cars that should park in a loading bay between
+     * requests.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the elevator or stop does not exist, or
+     * if the elevator's line does not serve the requested stop.
+     */
+    setElevatorHomeStop(elevator_ref: bigint, stop_ref: bigint): WasmVoidResult;
+    /**
      * Replace an elevator's forbidden-stops set. Pass an empty array to
      * clear all restrictions.
      *
@@ -1767,6 +1799,7 @@ export interface InitOutput {
     readonly wasmsim_cancelDoorHold: (a: number, b: bigint) => any;
     readonly wasmsim_carCalls: (a: number, b: bigint) => [number, number];
     readonly wasmsim_clearDestinations: (a: number, b: bigint) => any;
+    readonly wasmsim_clearElevatorHomeStop: (a: number, b: bigint) => any;
     readonly wasmsim_closeDoor: (a: number, b: bigint) => any;
     readonly wasmsim_currentTick: (a: number) => bigint;
     readonly wasmsim_despawnRider: (a: number, b: bigint) => any;
@@ -1777,6 +1810,7 @@ export interface InitOutput {
     readonly wasmsim_elevatorDirection: (a: number, b: bigint) => [number, number];
     readonly wasmsim_elevatorGoingDown: (a: number, b: bigint) => number;
     readonly wasmsim_elevatorGoingUp: (a: number, b: bigint) => number;
+    readonly wasmsim_elevatorHomeStop: (a: number, b: bigint) => any;
     readonly wasmsim_elevatorLoad: (a: number, b: bigint) => [number, number];
     readonly wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigint];
     readonly wasmsim_elevatorsInPhase: (a: number, b: number, c: number) => any;
@@ -1841,6 +1875,7 @@ export interface InitOutput {
     readonly wasmsim_setDoorOpenTicksAll: (a: number, b: number) => any;
     readonly wasmsim_setDoorTransitionTicks: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setDoorTransitionTicksAll: (a: number, b: number) => any;
+    readonly wasmsim_setElevatorHomeStop: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_setElevatorRestrictedStops: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_setEtdWithWaitSquaredWeight: (a: number, b: number) => void;
     readonly wasmsim_setHallCallModeDestination: (a: number) => void;
