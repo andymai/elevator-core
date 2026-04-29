@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.12.0...elevator-ffi-v0.13.0) (2026-04-29)
+
+
+### Features
+
+* **core:** per-elevator home_stop pin overrides reposition strategy ([#543](https://github.com/andymai/elevator-core/issues/543)) ([842daa0](https://github.com/andymai/elevator-core/commit/842daa0a142d1d1d05b5eba5f741cc340d190a9b))
+
 ## [0.12.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.11.0...elevator-ffi-v0.12.0) (2026-04-29)
 
 
