@@ -17,11 +17,18 @@
 /**
  * Current ABI version. Bumped for any breaking change to the C layout.
  *
+ * **v5:** [`EvEvent`] gained a `tag` field carrying the opaque
+ * per-rider tag (`Rider.tag`) for every rider-bearing event variant.
+ * Consumers that want the back-pointer pattern this enables (set via
+ * [`ev_sim_set_rider_tag`], read on [`ev_event_kind::RIDER_EXITED`] /
+ * [`ev_event_kind::RIDER_DESPAWNED`] without re-querying a freed
+ * rider) need to rebuild against v5.
+ *
  * **v4** widened [`EvEvent`] from 7 fields to 14 to carry the full
  * payload of every core `Event` variant in a single drain pass. The
  * kind discriminator was extended from 9 known kinds to 49.
  */
-#define EV_ABI_VERSION 4
+#define EV_ABI_VERSION 5
 
 /**
  * `Event::HallButtonPressed`. Fields: `stop`, `direction` (`1` =
@@ -894,6 +901,19 @@ typedef struct EvEvent {
      * kJ) and `CapacityChanged` (capacity).
      */
     double f2;
+    /**
+     * Opaque consumer tag for the rider involved in this event,
+     * mirroring [`Rider::tag()`](elevator_core::components::Rider::tag).
+     * Populated for every rider-bearing variant — `RiderSpawned`,
+     * `RiderBoarded`, `RiderExited`, `RiderRejected`, `RiderAbandoned`,
+     * `RiderEjected`, `RiderSettled`, `RiderDespawned`, `RiderRerouted`,
+     * `RiderSkipped`, `RouteInvalidated`, plus `CarButtonPressed` when
+     * the press came from a real rider. `0` when not applicable
+     * (non-rider event, or rider untagged, or synthetic
+     * [`CarButtonPressed`](ev_event_kind::CAR_BUTTON_PRESSED) with no
+     * associated rider).
+     */
+    uint64_t tag;
 } EvEvent;
 
 /**

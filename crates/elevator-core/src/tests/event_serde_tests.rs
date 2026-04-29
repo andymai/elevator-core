@@ -33,17 +33,20 @@ fn roundtrip_sim_event_ron() {
             rider: e2,
             origin: e1,
             destination: e3,
+            tag: 0,
             tick: 1,
         },
         Event::RiderBoarded {
             rider: e2,
             elevator: e1,
+            tag: 0,
             tick: 15,
         },
         Event::RiderExited {
             rider: e2,
             elevator: e1,
             stop: e3,
+            tag: 0xDEAD_BEEF,
             tick: 30,
         },
         Event::RiderRejected {
@@ -51,11 +54,13 @@ fn roundtrip_sim_event_ron() {
             elevator: e1,
             reason: RejectionReason::OverCapacity,
             context: None,
+            tag: 0,
             tick: 99,
         },
         Event::RiderAbandoned {
             rider: e2,
             stop: e1,
+            tag: 0xCAFE,
             tick: 50,
         },
     ];

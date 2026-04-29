@@ -434,171 +434,314 @@ impl From<&elevator_core::components::CarCall> for CarCallDto {
     }
 }
 
-/// Flattened event DTO. Every variant includes a `kind` discriminator and the
-/// engine tick at which it was emitted; the remaining fields vary by kind.
-/// Unknown variants (added to core later) fall back to `{ kind: "unknown" }`
+/// Flattened event DTO.
+///
+/// Every variant includes a `kind` discriminator and the engine tick at
+/// which it was emitted; the remaining fields vary by kind. Unknown
+/// variants (added to core later) fall back to `{ kind: "unknown" }`
 /// so the UI stays forward-compatible.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum EventDto {
     // ── Rider lifecycle ─────────────────────────────────────────────
+    /// A new rider appeared at a stop. `tag` mirrors the rider's opaque
+    /// consumer tag at emit time (`0` means untagged); set via
+    /// [`crate::WasmSim::set_rider_tag`] for the back-pointer pattern.
     RiderSpawned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the origin stop.
         origin: u32,
+        /// Slotmap slot id of the destination stop.
         destination: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
+    /// A rider boarded an elevator. `tag` mirrors the rider's opaque
+    /// consumer tag; `0` means untagged.
     RiderBoarded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the elevator boarded.
         elevator: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
+    /// A rider exited an elevator at their destination. `tag` is
+    /// sampled before the rider is freed so consumers can correlate
+    /// the exit with external state; `0` means untagged.
     RiderExited {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity (now stale).
         rider: u32,
+        /// Slotmap slot id of the elevator the rider exited.
         elevator: u32,
+        /// Slotmap slot id of the stop the rider exited at.
         stop: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
     /// A rider was rejected from boarding (e.g., over capacity, access
-    /// denied). `reason` is a kebab-case label drawn from
-    /// [`elevator_core::error::RejectionReason`].
+    /// denied). `tag` mirrors the rider's opaque consumer tag; `0`
+    /// means untagged.
     RiderRejected {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the elevator that rejected the rider.
         elevator: u32,
+        /// Kebab-case label drawn from
+        /// [`elevator_core::error::RejectionReason`].
         reason: String,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
+    /// A rider gave up waiting and left the stop. `tag` is sampled
+    /// before the rider is freed; `0` means untagged.
     RiderAbandoned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity (now stale).
         rider: u32,
+        /// Slotmap slot id of the stop the rider abandoned.
         stop: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
-    /// A rider was ejected from a disabled / removed elevator.
+    /// A rider was ejected from a disabled / removed elevator. `tag`
+    /// mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderEjected {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the elevator the rider was ejected from.
         elevator: u32,
+        /// Slotmap slot id of the stop the rider was placed at.
         stop: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
+    /// A rider settled at a stop, becoming a resident. `tag` mirrors
+    /// the rider's opaque consumer tag; `0` means untagged.
     RiderSettled {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the stop the rider settled at.
         stop: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
+    /// A rider was removed from the simulation. `tag` is sampled
+    /// before the rider is freed; `0` means untagged.
     RiderDespawned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity (now stale).
         rider: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
     /// A rider was rerouted via `sim.reroute()` or `sim.reroute_rider()`.
+    /// `tag` mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderRerouted {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the new destination stop.
         new_destination: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
-    /// A rider skipped a car they considered too crowded.
+    /// A rider skipped a car they considered too crowded. `tag`
+    /// mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderSkipped {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the rider entity.
         rider: u32,
+        /// Slotmap slot id of the elevator they declined to board.
         elevator: u32,
+        /// Slotmap slot id of the stop where the skip happened.
         at_stop: u32,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
-    /// A rider's route was invalidated by topology change. `reason` is
-    /// `"stop-disabled"`, `"stop-removed"`, or `"no-alternative"`.
+    /// A rider's route was invalidated by topology change. `tag`
+    /// mirrors the rider's opaque consumer tag; `0` means untagged.
     RouteInvalidated {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the affected rider.
         rider: u32,
+        /// Slotmap slot id of the stop that caused the invalidation.
         affected_stop: u32,
+        /// One of `"stop-disabled"`, `"stop-removed"`, or
+        /// `"no-alternative"`.
         reason: String,
+        /// Opaque consumer tag carried by the rider; `0` if untagged.
+        tag: u64,
     },
 
     // ── Elevator motion + doors ─────────────────────────────────────
+    /// An elevator arrived at a stop.
     ElevatorArrived {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that arrived.
         elevator: u32,
+        /// Slotmap slot id of the stop arrived at.
         stop: u32,
     },
+    /// An elevator departed from a stop.
     ElevatorDeparted {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that departed.
         elevator: u32,
+        /// Slotmap slot id of the stop departed from.
         stop: u32,
     },
+    /// An elevator's doors finished opening.
     DoorOpened {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose doors opened.
         elevator: u32,
     },
+    /// An elevator's doors finished closing.
     DoorClosed {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose doors closed.
         elevator: u32,
     },
-    /// `command` is one of `"open"`, `"close"`, `"hold-open"`,
-    /// `"cancel-hold"` (kebab-case from
-    /// [`elevator_core::door::DoorCommand`]).
+    /// A manual door-control command was queued for later application.
     DoorCommandQueued {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator targeted by the command.
         elevator: u32,
+        /// One of `"open"`, `"close"`, `"hold-open"`, `"cancel-hold"`
+        /// (kebab-case from [`elevator_core::door::DoorCommand`]).
         command: String,
     },
-    /// Same `command` set as [`EventDto::DoorCommandQueued`].
+    /// A queued door-control command actually took effect.
     DoorCommandApplied {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator the command applied to.
         elevator: u32,
+        /// Same label set as [`EventDto::DoorCommandQueued::command`].
         command: String,
     },
-    /// An elevator passes a stop without stopping.
+    /// An elevator passed a stop without stopping.
     PassingFloor {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator passing by.
         elevator: u32,
+        /// Slotmap slot id of the stop being passed.
         stop: u32,
+        /// `true` = moving up, `false` = moving down.
         moving_up: bool,
     },
     /// An in-flight movement was aborted; the car decelerates to
     /// `brake_target`.
     MovementAborted {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose trip was aborted.
         elevator: u32,
+        /// Slotmap slot id of the stop the car will brake to.
         brake_target: u32,
     },
+    /// An elevator became idle (no assignments or repositioning).
     ElevatorIdle {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that became idle.
         elevator: u32,
-        /// `None` if the car is not currently parked at a stop.
+        /// Slotmap slot id of the stop the car is parked at, or `None`
+        /// if it is not currently parked at a stop.
         at_stop: Option<u32>,
     },
 
     // ── Dispatch / calls ────────────────────────────────────────────
+    /// An elevator was assigned to serve a stop by the dispatcher.
     ElevatorAssigned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator assigned.
         elevator: u32,
+        /// Slotmap slot id of the stop it was assigned to serve.
         stop: u32,
     },
-    /// `direction` is `"up"` or `"down"`.
+    /// A hall button was pressed.
     HallButtonPressed {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the stop where the press occurred.
         stop: u32,
+        /// `"up"` or `"down"`.
         direction: String,
     },
+    /// A hall call passed its ack-latency window and is now visible to
+    /// dispatch.
     HallCallAcknowledged {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the stop the call was placed at.
         stop: u32,
+        /// `"up"` or `"down"`.
         direction: String,
     },
+    /// A hall call was cleared by an arriving car.
     HallCallCleared {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the stop whose call was cleared.
         stop: u32,
+        /// `"up"` or `"down"`.
         direction: String,
+        /// Slotmap slot id of the car that cleared the call.
         car: u32,
     },
-    /// `rider` is `None` when the press is synthetic (scripted).
+    /// A floor button was pressed inside a car. `rider` is `None` when
+    /// the press is synthetic (scripted); `tag` mirrors the pressing
+    /// rider's opaque consumer tag and is `None` whenever `rider` is
+    /// `None`. `Some(0)` means a present but untagged rider.
     CarButtonPressed {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator the button was pressed in.
         car: u32,
+        /// Slotmap slot id of the floor the rider requested.
         floor: u32,
+        /// Slotmap slot id of the rider who pressed, or `None` for a
+        /// synthetic press.
         rider: Option<u32>,
+        /// Opaque consumer tag of the pressing rider, mirroring the
+        /// optionality of `rider`.
+        tag: Option<u64>,
     },
+    /// A stop was queued as a destination for an elevator.
     DestinationQueued {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose queue was updated.
         elevator: u32,
+        /// Slotmap slot id of the stop that was queued.
         stop: u32,
     },
 
@@ -606,83 +749,135 @@ pub enum EventDto {
     /// Idle elevator has been sent to a new parking position by the
     /// group's reposition strategy.
     ElevatorRepositioning {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator being repositioned.
         elevator: u32,
+        /// Slotmap slot id of the stop it is being sent to.
         stop: u32,
     },
     /// An elevator completed repositioning at its target stop.
     ElevatorRepositioned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that finished repositioning.
         elevator: u32,
+        /// Slotmap slot id of the stop it arrived at.
         stop: u32,
     },
     /// The elevator was recalled to a stop via `sim.recall_to()`.
     ElevatorRecalled {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that was recalled.
         elevator: u32,
+        /// Slotmap slot id of the stop the elevator is being sent to.
         to_stop: u32,
     },
 
     // ── Topology lifecycle ──────────────────────────────────────────
+    /// A new stop was added to the simulation at runtime.
     StopAdded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the new stop entity.
         stop: u32,
+        /// Slotmap slot id of the line the stop was added to.
         line: u32,
+        /// Group id the stop was added to.
         group: u32,
     },
+    /// A stop was permanently removed from the simulation.
     StopRemoved {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the stop that was removed.
         stop: u32,
     },
+    /// A new elevator was added to the simulation at runtime.
     ElevatorAdded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the new elevator entity.
         elevator: u32,
+        /// Slotmap slot id of the line the elevator was added to.
         line: u32,
+        /// Group id the elevator was added to.
         group: u32,
     },
+    /// An elevator was permanently removed from the simulation.
     ElevatorRemoved {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that was removed.
         elevator: u32,
+        /// Slotmap slot id of the line it belonged to.
         line: u32,
+        /// Group id it belonged to.
         group: u32,
     },
+    /// A line was added to the simulation.
     LineAdded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the new line entity.
         line: u32,
+        /// Group id the line was added to.
         group: u32,
     },
+    /// A line was removed from the simulation.
     LineRemoved {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the removed line entity.
         line: u32,
+        /// Group id the line belonged to.
         group: u32,
     },
+    /// A line was reassigned to a different group.
     LineReassigned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the line entity that was reassigned.
         line: u32,
+        /// Group id the line was previously in.
         old_group: u32,
+        /// Group id the line was moved to.
         new_group: u32,
     },
+    /// An elevator was reassigned to a different line.
     ElevatorReassigned {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator that was reassigned.
         elevator: u32,
+        /// Slotmap slot id of the line the elevator was previously on.
         old_line: u32,
+        /// Slotmap slot id of the line the elevator was moved to.
         new_line: u32,
     },
+    /// An entity was disabled.
     EntityDisabled {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the entity that was disabled.
         entity: u32,
     },
+    /// An entity was re-enabled.
     EntityEnabled {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the entity that was re-enabled.
         entity: u32,
     },
     /// A stop was removed while resident riders were still attached;
     /// the consumer must relocate or despawn them.
     ResidentsAtRemovedStop {
-        /// `tick` is `0` for this variant (it is not carried by the
-        /// underlying core event).
+        /// `0` for this variant — the underlying core event carries no tick.
         tick: u64,
+        /// Slotmap slot id of the removed stop.
         stop: u32,
+        /// Slotmap slot ids of the riders that were resident at the stop.
         residents: Vec<u32>,
     },
 
@@ -691,69 +886,102 @@ pub enum EventDto {
     /// `"normal"`, `"independent"`, `"inspection"`, `"manual"`,
     /// `"out-of-service"`.
     ServiceModeChanged {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose mode changed.
         elevator: u32,
+        /// Previous service mode (kebab-case label).
         from: String,
+        /// New service mode (kebab-case label).
         to: String,
     },
     /// A velocity command on a Manual-mode elevator. `target_velocity`
     /// is `null` when the command clears the target (emergency stop).
     ManualVelocityCommanded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator targeted.
         elevator: u32,
+        /// Target velocity clamped to `[-max_speed, max_speed]`, or
+        /// `None` to clear the target.
         target_velocity: Option<f64>,
     },
+    /// An elevator's load changed (rider boarded or exited).
     CapacityChanged {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose load changed.
         elevator: u32,
+        /// Total weight aboard after the change.
         current_load: f64,
+        /// Maximum weight capacity of the elevator.
         capacity: f64,
     },
+    /// An elevator's direction indicator lamps changed state.
     DirectionIndicatorChanged {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose lamps changed.
         elevator: u32,
+        /// New state of the up-direction lamp.
         going_up: bool,
+        /// New state of the down-direction lamp.
         going_down: bool,
     },
     /// An elevator parameter was upgraded at runtime. `field` is one of
     /// `"max-speed"`, `"acceleration"`, `"deceleration"`,
     /// `"weight-capacity"`, `"door-transition-ticks"`,
-    /// `"door-open-ticks"`. `old`/`new` are the value as f64 (tick
+    /// `"door-open-ticks"`. `old`/`new` are the value as `f64` (tick
     /// counts cast losslessly into the ~2^53 safe range).
     ElevatorUpgraded {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator whose parameter changed.
         elevator: u32,
+        /// Kebab-case label of the field that changed.
         field: String,
+        /// Previous value as `f64`.
         old: f64,
+        /// New value as `f64`.
         new: f64,
     },
     /// Energy consumed/regenerated this tick. Only emitted with the
     /// `energy` feature on core; absent otherwise.
     EnergyConsumed {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Slotmap slot id of the elevator the reading is for.
         elevator: u32,
+        /// Energy consumed this tick.
         consumed: f64,
+        /// Energy regenerated this tick.
         regenerated: f64,
     },
     /// Snapshot restore encountered an entity reference that could not
     /// be remapped — signals snapshot corruption.
     SnapshotDanglingReference {
+        /// Engine tick from the snapshot at restore time.
         tick: u64,
+        /// The entity slot id from the snapshot that had no mapping.
         stale_id: u32,
     },
     /// Snapshot restore could not re-instantiate the reposition
     /// strategy for a group.
     RepositionStrategyNotRestored {
-        /// Always `0` — the underlying event carries no tick.
+        /// `0` for this variant — the underlying core event carries no tick.
         tick: u64,
+        /// Group id whose strategy was lost.
         group: u32,
     },
     /// Snapshot restore failed to replay tunable dispatch config; the
     /// strategy runs with its default weights.
     DispatchConfigNotRestored {
-        /// Always `0` — the underlying event carries no tick.
+        /// `0` for this variant — the underlying core event carries no tick.
         tick: u64,
+        /// Group id whose dispatcher ran with defaults.
         group: u32,
+        /// Parse error from
+        /// [`DispatchStrategy::restore_config`](elevator_core::dispatch::DispatchStrategy::restore_config).
         reason: String,
     },
 
@@ -763,7 +991,9 @@ pub enum EventDto {
     /// Consumers should treat this as "event was emitted but the shape
     /// is unknown" — `label` carries the variant name.
     Unknown {
+        /// Engine tick the event was emitted on.
         tick: u64,
+        /// Variant name from the core `Event` enum.
         label: String,
     },
 }
@@ -778,99 +1008,128 @@ impl From<Event> for EventDto {
                 rider,
                 origin,
                 destination,
+                tag,
             } => Self::RiderSpawned {
                 tick,
                 rider: entity_to_u32(rider),
                 origin: entity_to_u32(origin),
                 destination: entity_to_u32(destination),
+                tag,
             },
             Event::RiderBoarded {
                 tick,
                 rider,
                 elevator,
+                tag,
             } => Self::RiderBoarded {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
+                tag,
             },
             Event::RiderExited {
                 tick,
                 rider,
                 elevator,
                 stop,
+                tag,
             } => Self::RiderExited {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
+                tag,
             },
             Event::RiderRejected {
                 tick,
                 rider,
                 elevator,
                 reason,
+                tag,
                 ..
             } => Self::RiderRejected {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 reason: rejection_label(reason).to_string(),
+                tag,
             },
-            Event::RiderAbandoned { tick, rider, stop } => Self::RiderAbandoned {
+            Event::RiderAbandoned {
+                tick,
+                rider,
+                stop,
+                tag,
+            } => Self::RiderAbandoned {
                 tick,
                 rider: entity_to_u32(rider),
                 stop: entity_to_u32(stop),
+                tag,
             },
             Event::RiderEjected {
                 tick,
                 rider,
                 elevator,
                 stop,
+                tag,
             } => Self::RiderEjected {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 stop: entity_to_u32(stop),
+                tag,
             },
-            Event::RiderSettled { tick, rider, stop } => Self::RiderSettled {
+            Event::RiderSettled {
+                tick,
+                rider,
+                stop,
+                tag,
+            } => Self::RiderSettled {
                 tick,
                 rider: entity_to_u32(rider),
                 stop: entity_to_u32(stop),
+                tag,
             },
-            Event::RiderDespawned { tick, rider } => Self::RiderDespawned {
+            Event::RiderDespawned { tick, rider, tag } => Self::RiderDespawned {
                 tick,
                 rider: entity_to_u32(rider),
+                tag,
             },
             Event::RiderRerouted {
                 tick,
                 rider,
                 new_destination,
+                tag,
             } => Self::RiderRerouted {
                 tick,
                 rider: entity_to_u32(rider),
                 new_destination: entity_to_u32(new_destination),
+                tag,
             },
             Event::RiderSkipped {
                 tick,
                 rider,
                 elevator,
                 at_stop,
+                tag,
             } => Self::RiderSkipped {
                 tick,
                 rider: entity_to_u32(rider),
                 elevator: entity_to_u32(elevator),
                 at_stop: entity_to_u32(at_stop),
+                tag,
             },
             Event::RouteInvalidated {
                 tick,
                 rider,
                 affected_stop,
                 reason,
+                tag,
             } => Self::RouteInvalidated {
                 tick,
                 rider: entity_to_u32(rider),
                 affected_stop: entity_to_u32(affected_stop),
                 reason: route_invalid_label(reason).to_string(),
+                tag,
             },
 
             // ── Elevator motion + doors ─────────────────────────────
@@ -992,11 +1251,13 @@ impl From<Event> for EventDto {
                 car,
                 floor,
                 rider,
+                tag,
             } => Self::CarButtonPressed {
                 tick,
                 car: entity_to_u32(car),
                 floor: entity_to_u32(floor),
                 rider: rider.map(entity_to_u32),
+                tag,
             },
             Event::DestinationQueued {
                 tick,
