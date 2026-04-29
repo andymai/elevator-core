@@ -154,6 +154,7 @@ fn dispatch_manifest_wait_ticks_grows_with_time() {
             phase: RiderPhase::Waiting,
             current_stop: Some(stops[1]),
             spawn_tick: 0,
+            tag: 0,
             board_tick: None,
         },
     );

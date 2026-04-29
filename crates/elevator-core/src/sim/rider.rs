@@ -165,6 +165,7 @@ impl super::Simulation {
                 current_stop: Some(origin),
                 spawn_tick: self.tick,
                 board_tick: None,
+                tag: 0,
             },
         );
         self.world.set_route(eid, route);
@@ -281,6 +282,49 @@ impl super::Simulation {
         }
         self.pending_output = remaining;
         matched
+    }
+
+    // ── Rider tag (opaque consumer-attached id) ──────────────────────
+
+    /// Read the opaque tag attached to a rider.
+    ///
+    /// Consumers use [`set_rider_tag`](Self::set_rider_tag) to stash an
+    /// external identifier on the rider (a game-side sim id, a player
+    /// id, a freight shipment id) and read it back here without keeping
+    /// a parallel `RiderId → u64` map. The engine never interprets the
+    /// value; it survives snapshot round-trip.
+    ///
+    /// Returns `0` for the default "untagged" state.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not correspond
+    /// to a live rider.
+    pub fn rider_tag(&self, id: RiderId) -> Result<u64, SimError> {
+        let eid = id.entity();
+        self.world
+            .rider(eid)
+            .map(Rider::tag)
+            .ok_or(SimError::EntityNotFound(eid))
+    }
+
+    /// Attach an opaque tag to a rider. The engine doesn't interpret the
+    /// value — pick whatever encoding your consumer needs (e.g. a 32-bit
+    /// external id zero-extended to `u64`, or two 32-bit half-words).
+    /// Pass `0` to clear the tag (the reserved "untagged" sentinel).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::EntityNotFound`] if `id` does not correspond
+    /// to a live rider.
+    pub fn set_rider_tag(&mut self, id: RiderId, tag: u64) -> Result<(), SimError> {
+        let eid = id.entity();
+        let rider = self
+            .world
+            .rider_mut(eid)
+            .ok_or(SimError::EntityNotFound(eid))?;
+        rider.tag = tag;
+        Ok(())
     }
 
     /// Register (or aggregate) a hall call on behalf of a specific

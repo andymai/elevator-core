@@ -130,6 +130,14 @@ pub struct Rider {
     pub(crate) spawn_tick: u64,
     /// Tick when this rider boarded (for ride-time metrics).
     pub(crate) board_tick: Option<u64>,
+    /// Opaque consumer-attached tag. The engine doesn't interpret
+    /// this value — it survives snapshot round-trip so consumers
+    /// can correlate riders with external identifiers (e.g. a
+    /// game-side sim id, a player id, a freight-shipment id) without
+    /// maintaining a parallel map keyed by `RiderId`. Defaults to 0
+    /// (no tag); `0` is reserved by convention for "untagged."
+    #[serde(default)]
+    pub(crate) tag: u64,
 }
 
 impl Rider {
@@ -161,5 +169,15 @@ impl Rider {
     #[must_use]
     pub const fn board_tick(&self) -> Option<u64> {
         self.board_tick
+    }
+
+    /// Opaque consumer-attached tag. The engine doesn't interpret this
+    /// value; consumers use it to correlate riders with external
+    /// identifiers (e.g. a game-side sim id, a player id, a freight
+    /// shipment id) without maintaining a parallel `RiderId → u64` map.
+    /// Defaults to `0`, which is reserved by convention for "untagged."
+    #[must_use]
+    pub const fn tag(&self) -> u64 {
+        self.tag
     }
 }

@@ -1747,6 +1747,29 @@ enum EvStatus ev_sim_reroute(struct EvSim *handle,
 enum EvStatus ev_sim_settle_rider(struct EvSim *handle, uint64_t rider_entity_id);
 
 /**
+ * Attach an opaque tag to a rider. Stored verbatim — the engine never
+ * interprets the value. Pass `0` to clear (the reserved "untagged"
+ * sentinel). Survives snapshot round-trip.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+enum EvStatus ev_sim_set_rider_tag(struct EvSim *handle, uint64_t rider_entity_id, uint64_t tag);
+
+/**
+ * Read the opaque tag attached to a rider. Writes the value into
+ * `*out_tag` and returns [`EvStatus::Ok`]. Returns `0` for the default
+ * "untagged" state.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ * `out_tag` must be a valid, writable pointer to a `u64`.
+ */
+enum EvStatus ev_sim_rider_tag(struct EvSim *handle, uint64_t rider_entity_id, uint64_t *out_tag);
+
+/**
  * Replace a rider's remaining route with a single-leg route via
  * `group_id`. Convenience wrapper for the common "send this rider via
  * this group" case.

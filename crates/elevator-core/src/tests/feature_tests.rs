@@ -707,6 +707,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             phase: RiderPhase::Riding(elev),
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: Some(1),
         },
     );
@@ -794,6 +795,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             phase: RiderPhase::Riding(elev),
             current_stop: None,
             spawn_tick: 0,
+            tag: 0,
             board_tick: Some(1),
         },
     );
@@ -846,6 +848,7 @@ fn route_direct_current_returns_single_leg() {
             phase: RiderPhase::Waiting,
             current_stop: Some(from),
             spawn_tick: 0,
+            tag: 0,
             board_tick: None,
         },
     );
