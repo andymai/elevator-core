@@ -695,6 +695,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             manual_target_velocity: None,
             bypass_load_up_pct: None,
             bypass_load_down_pct: None,
+            home_stop: None,
         },
     );
 
@@ -784,6 +785,7 @@ fn despawn_rider_mid_transit_removes_from_elevator_load() {
             manual_target_velocity: None,
             bypass_load_up_pct: None,
             bypass_load_down_pct: None,
+            home_stop: None,
         },
     );
 

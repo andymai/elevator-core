@@ -55,6 +55,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             manual_target_velocity: None,
             bypass_load_up_pct: None,
             bypass_load_down_pct: None,
+            home_stop: None,
         },
     );
 

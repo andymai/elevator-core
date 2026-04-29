@@ -62,6 +62,7 @@ mod etd_mutant_tests;
 mod event_payload_tests;
 mod fp_tests;
 mod hall_call_tests;
+mod home_stop_tests;
 mod idle_with_riders_tests;
 mod invariants_tests;
 mod manual_mode_tests;

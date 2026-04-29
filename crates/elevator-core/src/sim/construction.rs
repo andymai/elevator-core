@@ -365,6 +365,7 @@ impl Simulation {
                 manual_target_velocity: None,
                 bypass_load_up_pct: ec.bypass_load_up_pct,
                 bypass_load_down_pct: ec.bypass_load_down_pct,
+                home_stop: None,
             },
         );
         #[cfg(feature = "energy")]

@@ -5,8 +5,9 @@
 //! overarching essential-API summary.
 
 use crate::components::{Accel, Speed, Weight};
-use crate::entity::ElevatorId;
+use crate::entity::{ElevatorId, EntityId};
 use crate::error::SimError;
+use crate::stop::StopRef;
 
 impl super::Simulation {
     // ── Runtime elevator upgrades ────────────────────────────────────
@@ -270,5 +271,84 @@ impl super::Simulation {
             crate::events::UpgradeValue::ticks(ticks),
         );
         Ok(())
+    }
+
+    // ── Per-elevator home stop ───────────────────────────────────────
+
+    /// Pin an elevator to a specific home stop. Whenever the car is
+    /// idle and off-position, the reposition phase routes it to
+    /// `home_stop` regardless of the group's reposition strategy. Pass
+    /// any `Into<StopRef>` (e.g. [`StopId`](crate::stop::StopId) or
+    /// [`EntityId`]).
+    ///
+    /// Use [`clear_elevator_home_stop`](Self::clear_elevator_home_stop)
+    /// to remove the pin and let the strategy own the decision again.
+    ///
+    /// # Errors
+    ///
+    /// - [`SimError::NotAnElevator`] if `elevator` is not an elevator
+    ///   entity.
+    /// - [`SimError::StopNotFound`] if the resolved stop does not
+    ///   exist in the building.
+    /// - [`SimError::InvalidConfig`] if the resolved stop is not
+    ///   served by the elevator's line — pinning a car to a stop it
+    ///   physically can't reach is almost always a bug, so we surface
+    ///   it loudly.
+    pub fn set_elevator_home_stop(
+        &mut self,
+        elevator: ElevatorId,
+        home_stop: impl Into<StopRef>,
+    ) -> Result<(), SimError> {
+        let elevator = elevator.entity();
+        let home_stop_eid = self.resolve_stop(home_stop.into())?;
+        // Reject pinning to a stop the elevator's line can't serve.
+        let line = self.require_elevator(elevator)?.line;
+        let line_serves = self
+            .groups
+            .iter()
+            .flat_map(|g| g.lines().iter())
+            .find(|li| li.entity() == line)
+            .is_some_and(|li| li.serves().contains(&home_stop_eid));
+        if !line_serves {
+            return Err(SimError::InvalidConfig {
+                field: "home_stop",
+                reason: "home stop is not served by this elevator's line".into(),
+            });
+        }
+        if let Some(car) = self.world.elevator_mut(elevator) {
+            car.home_stop = Some(home_stop_eid);
+        }
+        Ok(())
+    }
+
+    /// Remove the home-stop pin from an elevator. Reposition decisions
+    /// for this car return to the group's reposition strategy.
+    ///
+    /// Idempotent — calling on an unpinned car is a no-op.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::NotAnElevator`] if `elevator` is not an
+    /// elevator entity.
+    pub fn clear_elevator_home_stop(&mut self, elevator: ElevatorId) -> Result<(), SimError> {
+        let elevator = elevator.entity();
+        self.require_elevator(elevator)?;
+        if let Some(car) = self.world.elevator_mut(elevator) {
+            car.home_stop = None;
+        }
+        Ok(())
+    }
+
+    /// Read the home-stop pin (if any) for an elevator. Returns
+    /// `Ok(None)` when the car has no pin set, `Ok(Some(stop))` when it
+    /// does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::NotAnElevator`] if `elevator` is not an
+    /// elevator entity.
+    pub fn elevator_home_stop(&self, elevator: ElevatorId) -> Result<Option<EntityId>, SimError> {
+        let elevator = elevator.entity();
+        Ok(self.require_elevator(elevator)?.home_stop)
     }
 }
