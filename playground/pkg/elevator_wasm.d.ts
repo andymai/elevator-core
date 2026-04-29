@@ -846,6 +846,27 @@ export class WasmSim {
      */
     emergencyStop(elevator_ref: bigint): WasmVoidResult;
     /**
+     * Construct an effectively-empty simulation with no stops,
+     * elevators, or lines. Internally constructs from a tiny seed
+     * config (one stop, one elevator) to satisfy
+     * [`Simulation::new`]'s non-empty validation, then removes the
+     * seed entities before returning. The default (auto-created)
+     * group remains — `Simulation` requires at least one group
+     * to exist; consumers typically add their own groups via
+     * [`addGroup`](Self::add_group) on top.
+     *
+     * Useful for consumers that build the building topology
+     * dynamically at runtime (e.g. game engines where the player
+     * edits the floor plan) and don't want the seed-and-ignore
+     * boilerplate.
+     *
+     * # Errors
+     *
+     * Returns a JS error if `strategy` is not a recognised built-in.
+     * The internal seed config is well-formed by construction.
+     */
+    static empty(strategy: string, reposition?: string | null): WasmSim;
+    /**
      * Re-enable a previously-disabled entity (elevator or stop).
      *
      * # Errors
@@ -1740,6 +1761,7 @@ export interface InitOutput {
     readonly wasmsim_elevatorsInPhase: (a: number, b: number, c: number) => any;
     readonly wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];
     readonly wasmsim_emergencyStop: (a: number, b: bigint) => any;
+    readonly wasmsim_empty: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasmsim_enable: (a: number, b: bigint) => any;
     readonly wasmsim_eta: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_etaForCall: (a: number, b: bigint, c: number, d: number) => any;
