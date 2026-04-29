@@ -356,6 +356,7 @@ fn apply_actions(
                     car.riders.retain(|r| *r != rider);
                     car.current_load -= rider_weight;
                 }
+                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 if let Some(rd) = world.rider_mut(rider) {
                     rd.phase = RiderPhase::Exiting(elevator);
                     rd.current_stop = Some(stop);
@@ -364,6 +365,7 @@ fn apply_actions(
                     rider,
                     elevator,
                     stop,
+                    tag,
                     tick: ctx.tick,
                 });
                 // Clear the rider from any CarCall's pending list; drop
@@ -405,6 +407,7 @@ fn apply_actions(
                     car.current_load += crate::components::Weight::from(weight);
                     car.riders.push(rider);
                 }
+                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 if let Some(rd) = world.rider_mut(rider) {
                     rd.phase = RiderPhase::Boarding(elevator);
                     rd.board_tick = Some(ctx.tick);
@@ -413,6 +416,7 @@ fn apply_actions(
                 events.emit(Event::RiderBoarded {
                     rider,
                     elevator,
+                    tag,
                     tick: ctx.tick,
                 });
                 if let Some(car) = world.elevator(elevator) {
@@ -442,11 +446,13 @@ fn apply_actions(
                 reason,
                 context,
             } => {
+                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 events.emit(Event::RiderRejected {
                     rider,
                     elevator,
                     reason,
                     context,
+                    tag,
                     tick: ctx.tick,
                 });
             }
@@ -458,10 +464,12 @@ fn apply_actions(
                 elevator,
                 at_stop,
             } => {
+                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 events.emit(Event::RiderSkipped {
                     rider,
                     elevator,
                     at_stop,
+                    tag,
                     tick: ctx.tick,
                 });
                 // Honor `Preferences::abandon_on_full`: the rider doesn't
@@ -482,6 +490,7 @@ fn apply_actions(
                     events.emit(Event::RiderAbandoned {
                         rider,
                         stop: at_stop,
+                        tag,
                         tick: ctx.tick,
                     });
                 }
@@ -517,10 +526,12 @@ fn register_car_call(
     // signal). CarCall latency can be plumbed through later.
     call.acknowledged_at = Some(tick);
     calls.push(call);
+    let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
     events.emit(Event::CarButtonPressed {
         car,
         floor,
         rider: Some(rider),
+        tag: Some(tag),
         tick,
     });
 }

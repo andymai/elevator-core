@@ -183,6 +183,7 @@ impl super::Simulation {
             rider: eid,
             origin,
             destination,
+            tag: 0,
             tick: self.tick,
         });
 

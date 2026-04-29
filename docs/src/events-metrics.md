@@ -31,16 +31,18 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 
 | Event | When it fires |
 |---|---|
-| `RiderSpawned { rider, origin, destination, tick }` | A new rider appears at a stop |
-| `RiderBoarded { rider, elevator, tick }` | A rider enters an elevator |
-| `RiderExited { rider, elevator, stop, tick }` | A rider exits at their destination |
-| `RiderRejected { rider, elevator, reason, context, tick }` | A rider was refused boarding |
-| `RiderAbandoned { rider, stop, tick }` | A rider gave up waiting |
-| `RiderSkipped { rider, elevator, at_stop, tick }` | A rider skipped a crowded car (may still board the next) |
-| `RiderEjected { rider, elevator, stop, tick }` | A rider was ejected (elevator disabled) |
-| `RiderSettled { rider, stop, tick }` | A rider settled as a resident |
-| `RiderDespawned { rider, tick }` | A rider was removed from the simulation |
-| `RiderRerouted { rider, new_destination, tick }` | A rider was rerouted to a new destination |
+| `RiderSpawned { rider, origin, destination, tag, tick }` | A new rider appears at a stop |
+| `RiderBoarded { rider, elevator, tag, tick }` | A rider enters an elevator |
+| `RiderExited { rider, elevator, stop, tag, tick }` | A rider exits at their destination |
+| `RiderRejected { rider, elevator, reason, context, tag, tick }` | A rider was refused boarding |
+| `RiderAbandoned { rider, stop, tag, tick }` | A rider gave up waiting |
+| `RiderSkipped { rider, elevator, at_stop, tag, tick }` | A rider skipped a crowded car (may still board the next) |
+| `RiderEjected { rider, elevator, stop, tag, tick }` | A rider was ejected (elevator disabled) |
+| `RiderSettled { rider, stop, tag, tick }` | A rider settled as a resident |
+| `RiderDespawned { rider, tag, tick }` | A rider was removed from the simulation |
+| `RiderRerouted { rider, new_destination, tag, tick }` | A rider was rerouted to a new destination |
+
+Every rider-bearing variant carries a `tag: u64` that mirrors the rider's opaque consumer tag at emit time (see `set_rider_tag`). It is `0` for untagged riders and is sampled before the rider is freed on `RiderExited` / `RiderDespawned`, so consumers can correlate the event with their own object space without an extra lookup.
 
 ### Topology events
 
@@ -50,7 +52,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `ElevatorAdded { elevator, line, group, tick }` | An elevator was added at runtime |
 | `EntityDisabled { entity, tick }` | An entity was disabled |
 | `EntityEnabled { entity, tick }` | An entity was re-enabled |
-| `RouteInvalidated { rider, affected_stop, reason, tick }` | A rider's route was broken by a topology change |
+| `RouteInvalidated { rider, affected_stop, reason, tag, tick }` | A rider's route was broken by a topology change |
 | `LineAdded { line, group, tick }` | A line was added |
 | `LineRemoved { line, group, tick }` | A line was removed |
 | `LineReassigned { line, old_group, new_group, tick }` | A line moved between groups |
@@ -65,7 +67,7 @@ Every significant moment in the simulation -- a rider boarding, an elevator arri
 | `HallButtonPressed { stop, direction, tick }` | First press per (stop, direction) |
 | `HallCallAcknowledged { stop, direction, tick }` | Ack-latency window elapsed |
 | `HallCallCleared { stop, direction, car, tick }` | Assigned car opened doors at stop |
-| `CarButtonPressed { car, floor, rider: Option, tick }` | Floor button pressed inside a car |
+| `CarButtonPressed { car, floor, rider: Option, tag: Option, tick }` | Floor button pressed inside a car |
 
 ## Draining events
 
@@ -78,7 +80,7 @@ sim.step();
 
 for event in sim.drain_events() {
     match event {
-        Event::RiderBoarded { rider, elevator, tick } => {
+        Event::RiderBoarded { rider, elevator, tick, .. } => {
             println!("[{tick}] {rider:?} boarded {elevator:?}");
         }
         Event::ElevatorArrived { elevator, at_stop, tick } => {

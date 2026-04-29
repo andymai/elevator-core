@@ -1,6 +1,6 @@
 //! Phase 1: advance transient rider states and tick patience.
 
-use crate::components::{Patience, RiderPhase, Route, TransportMode};
+use crate::components::{Patience, Rider, RiderPhase, Route, TransportMode};
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::rider_index::RiderIndex;
@@ -109,10 +109,12 @@ fn handle_exit(
         && let Some(dest) = route.current_destination()
         && world.is_disabled(dest)
     {
+        let tag = world.rider(id).map_or(0, Rider::tag);
         events.emit(Event::RouteInvalidated {
             rider: id,
             affected_stop: dest,
             reason: crate::events::RouteInvalidReason::StopDisabled,
+            tag,
             tick: ctx.tick,
         });
     }
@@ -126,6 +128,7 @@ fn handle_exit(
 ///
 /// These transient states last exactly one tick so they're
 /// visible for one frame in the visualization.
+#[allow(clippy::too_many_lines)]
 pub fn run(
     world: &mut World,
     events: &mut EventBus,
@@ -207,6 +210,7 @@ pub fn run(
         events.emit(Event::RiderAbandoned {
             rider: id,
             stop,
+            tag: world.rider(id).map_or(0, Rider::tag),
             tick: ctx.tick,
         });
     }
@@ -249,6 +253,7 @@ pub fn run(
         events.emit(Event::RiderAbandoned {
             rider: id,
             stop,
+            tag: world.rider(id).map_or(0, Rider::tag),
             tick: ctx.tick,
         });
     }

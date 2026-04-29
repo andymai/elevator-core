@@ -320,10 +320,16 @@ impl super::Simulation {
             queue.push(call);
         }
         if fresh {
+            let tag = rider.map(|rid| {
+                self.world
+                    .rider(rid)
+                    .map_or(0, crate::components::Rider::tag)
+            });
             self.events.emit(Event::CarButtonPressed {
                 car,
                 floor,
                 rider,
+                tag,
                 tick: press_tick,
             });
         }

@@ -104,6 +104,7 @@ fn event_category_classifies_representative_variants() {
         Event::RiderBoarded {
             rider: e,
             elevator: e,
+            tag: 0,
             tick: 0
         }
         .category(),

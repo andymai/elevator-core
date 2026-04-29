@@ -116,14 +116,18 @@ internal static class Native
     public const byte EV_RIDER_EXITED = 8;
     public const byte EV_RIDER_ABANDONED = 9;
 
-    // Explicit layout mirrors the Rust #[repr(C)] EvEvent at ABI v4
-    // (80 bytes). The first 8 bytes pack four single-byte fields and
-    // a u32 group id; bytes 8..80 are eight u64/f64 slots in their
+    // Explicit layout mirrors the Rust #[repr(C)] EvEvent at ABI v5
+    // (88 bytes). The first 8 bytes pack four single-byte fields and
+    // a u32 group id; bytes 8..88 are nine u64/f64 slots in their
     // natural order. Relying on the CLR's default Sequential packing
     // could match by coincidence on one platform but skew on
     // another, so explicit FieldOffsets are spelled out for every
     // platform target.
-    [StructLayout(LayoutKind.Explicit, Size = 80)]
+    //
+    // ABI v5 added the `tag` field (offset 80) carrying `Rider.tag`
+    // for every rider-bearing variant; consumers that don't use the
+    // tag can simply ignore the new slot.
+    [StructLayout(LayoutKind.Explicit, Size = 88)]
     public struct EvEvent
     {
         [FieldOffset(0)] public byte kind;
@@ -140,6 +144,7 @@ internal static class Native
         [FieldOffset(56)] public ulong count;
         [FieldOffset(64)] public double f1;
         [FieldOffset(72)] public double f2;
+        [FieldOffset(80)] public ulong tag;
     }
 
     [DllImport(Lib)] public static extern uint ev_abi_version();
@@ -180,7 +185,7 @@ internal static class Native
 internal static class Program
 {
     private const int TICKS = 600;
-    private const uint EXPECTED_ABI = 4;
+    private const uint EXPECTED_ABI = 5;
 
     private static int Main(string[] args)
     {

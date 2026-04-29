@@ -29,6 +29,7 @@ mod dto;
 mod result;
 mod world_view;
 
+pub use dto::EventDto;
 pub use result::{WasmBytesResult, WasmU32Result, WasmU64Result, WasmVoidResult};
 
 /// Encode an `EntityId` for the JS boundary as a `u64` (`BigInt` in JS).

@@ -94,7 +94,7 @@ while !arrived {
 
     for event in sim.drain_events() {
         match event {
-            Event::RiderBoarded { rider, elevator, tick } => {
+            Event::RiderBoarded { rider, elevator, tick, .. } => {
                 println!("Tick {tick}: rider {rider:?} boarded elevator {elevator:?}");
             }
             Event::ElevatorArrived { elevator, at_stop, tick } => {
@@ -144,7 +144,7 @@ fn main() -> Result<(), SimError> {
 
         for event in sim.drain_events() {
             match event {
-                Event::RiderBoarded { rider, elevator, tick } => {
+                Event::RiderBoarded { rider, elevator, tick, .. } => {
                     println!("Tick {tick}: rider {rider:?} boarded elevator {elevator:?}");
                 }
                 Event::ElevatorArrived { elevator, at_stop, tick } => {
