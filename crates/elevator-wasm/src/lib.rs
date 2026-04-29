@@ -853,6 +853,61 @@ impl WasmSim {
             .into()
     }
 
+    /// Pin an elevator to a hard-coded home stop. Whenever the car is
+    /// idle and off-position, the reposition phase routes it to the
+    /// pinned stop regardless of the group's reposition strategy.
+    /// Useful for express cars assigned to a dedicated lobby or
+    /// service cars that should park in a loading bay between
+    /// requests.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator or stop does not exist, or
+    /// if the elevator's line does not serve the requested stop.
+    #[wasm_bindgen(js_name = setElevatorHomeStop)]
+    pub fn set_elevator_home_stop(&mut self, elevator_ref: u64, stop_ref: u64) -> WasmVoidResult {
+        self.inner
+            .set_elevator_home_stop(
+                elevator_core::entity::ElevatorId::from(u64_to_entity(elevator_ref)),
+                u64_to_entity(stop_ref),
+            )
+            .map_err(|e| format!("set_elevator_home_stop: {e}"))
+            .into()
+    }
+
+    /// Remove an elevator's home-stop pin. Reposition decisions return
+    /// to the group's reposition strategy. Idempotent.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist.
+    #[wasm_bindgen(js_name = clearElevatorHomeStop)]
+    pub fn clear_elevator_home_stop(&mut self, elevator_ref: u64) -> WasmVoidResult {
+        self.inner
+            .clear_elevator_home_stop(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map_err(|e| format!("clear_elevator_home_stop: {e}"))
+            .into()
+    }
+
+    /// Read the home-stop pin for an elevator. Returns `0n` when the
+    /// car has no pin set; otherwise the stop entity ref.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JS error if the elevator does not exist.
+    #[wasm_bindgen(js_name = elevatorHomeStop)]
+    pub fn elevator_home_stop(&self, elevator_ref: u64) -> WasmU64Result {
+        self.inner
+            .elevator_home_stop(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map(|opt| opt.map_or(0u64, entity_to_u64))
+            .map_err(|e| format!("elevator_home_stop: {e}"))
+            .into()
+    }
+
     /// Replace an elevator's forbidden-stops set. Pass an empty array to
     /// clear all restrictions.
     ///

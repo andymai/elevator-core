@@ -69,6 +69,7 @@ fn elevator_query_returns_entities_with_both_components() {
             manual_target_velocity: None,
             bypass_load_up_pct: None,
             bypass_load_down_pct: None,
+            home_stop: None,
         },
     );
 
@@ -319,6 +320,7 @@ fn despawn_cleans_up_hall_and_car_calls() {
             manual_target_velocity: None,
             bypass_load_up_pct: None,
             bypass_load_down_pct: None,
+            home_stop: None,
         },
     );
 

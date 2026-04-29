@@ -221,6 +221,7 @@ fn spawn_elev(world: &mut World, pos: f64, n: usize) -> Vec<EntityId> {
                     manual_target_velocity: None,
                     bypass_load_up_pct: None,
                     bypass_load_down_pct: None,
+                    home_stop: None,
                 },
             );
             eid

@@ -83,7 +83,16 @@ pub fn run(
         }
 
         decisions.clear();
-        strategy.reposition(&idle_elevators, &stop_positions, group, world, decisions);
+
+        // Apply per-elevator home-stop overrides first. Cars with a
+        // hard-pinned home stop are routed there directly and removed
+        // from the pool the strategy sees, so the strategy stays
+        // single-purpose (no per-car override branch in N different
+        // implementations) and a future strategy gets the behavior for
+        // free.
+        let strategy_pool =
+            apply_home_stop_overrides(world, &idle_elevators, &stop_positions, decisions);
+        strategy.reposition(&strategy_pool, &stop_positions, group, world, decisions);
 
         for &(elev_eid, target_stop) in decisions.iter() {
             if let Some(car) = world.elevator_mut(elev_eid) {
@@ -135,4 +144,44 @@ pub fn run(
             }
         }
     }
+}
+
+/// Pull pinned cars out of the idle pool and emit reposition decisions
+/// straight to `decisions` for any pinned car that isn't already at
+/// home. Returns the residual pool for the group's reposition strategy.
+///
+/// A pin is only honored when the home stop is in this group's served
+/// set; a dangling `EntityId` (e.g. from a stop removal) silently falls
+/// back to the strategy rather than emitting a decision the rest of
+/// the pipeline can't act on.
+fn apply_home_stop_overrides(
+    world: &World,
+    idle_elevators: &[(EntityId, f64)],
+    stop_positions: &[(EntityId, f64)],
+    decisions: &mut Vec<(EntityId, EntityId)>,
+) -> Vec<(EntityId, f64)> {
+    let mut strategy_pool: Vec<(EntityId, f64)> = Vec::with_capacity(idle_elevators.len());
+    for &(elev_eid, elev_pos) in idle_elevators {
+        let pinned = world
+            .elevator(elev_eid)
+            .and_then(crate::components::Elevator::home_stop)
+            .filter(|sid| stop_positions.iter().any(|(s, _)| s == sid));
+
+        match pinned {
+            Some(home_eid) => {
+                let home_pos = stop_positions
+                    .iter()
+                    .find(|(s, _)| *s == home_eid)
+                    .map_or(elev_pos, |(_, p)| *p);
+                // Only emit a reposition decision if the car isn't
+                // already parked at home — matches `ReturnToLobby`'s
+                // 1e-6 epsilon to avoid a no-op reposition cycle.
+                if (elev_pos - home_pos).abs() > 1e-6 {
+                    decisions.push((elev_eid, home_eid));
+                }
+            }
+            None => strategy_pool.push((elev_eid, elev_pos)),
+        }
+    }
+    strategy_pool
 }
