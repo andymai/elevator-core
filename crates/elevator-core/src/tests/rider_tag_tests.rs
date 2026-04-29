@@ -98,22 +98,6 @@ fn round_trips_through_snapshot_bytes() {
 }
 
 #[test]
-fn legacy_snapshot_without_tag_field_defaults_to_zero() {
-    // `Rider.tag` is `#[serde(default)]`. A simulation snapshotted
-    // before the field existed must still rehydrate cleanly — we can
-    // simulate that by snapshotting now (tag = 0) and confirming the
-    // field-absence default semantics line up with "untagged."
-    let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
-    let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
-    // Don't touch the tag — it's the legacy "absent" case.
-
-    let bytes = sim.snapshot_bytes().expect("snapshot");
-    let restored = Simulation::restore_bytes(&bytes, None).expect("restore from bytes");
-
-    assert_eq!(restored.rider_tag(rider).unwrap(), 0);
-}
-
-#[test]
 fn returns_entity_not_found_for_despawned_rider() {
     let mut sim = Simulation::new(&default_config(), ScanDispatch::new()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();

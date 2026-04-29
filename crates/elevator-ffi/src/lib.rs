@@ -7380,6 +7380,11 @@ mod tests {
             unsafe { ev_sim_set_rider_tag(std::ptr::null_mut(), rider_id, 1) },
             EvStatus::NullArg,
         );
+        let mut null_handle_tag: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_rider_tag(std::ptr::null_mut(), rider_id, &raw mut null_handle_tag) },
+            EvStatus::NullArg,
+        );
         assert_eq!(
             unsafe { ev_sim_rider_tag(handle, rider_id, std::ptr::null_mut()) },
             EvStatus::NullArg,
