@@ -840,3 +840,121 @@ fn destination_tuned_config_survives_snapshot_round_trip() {
         "restored config matched defaults — tuning was lost: {serialized}",
     );
 }
+
+// ── Wire-format byte-stable regressions ─────────────────────────────────────
+//
+// The snapshot uses `BTreeMap` (not `HashMap`) throughout precisely so
+// serialization is order-deterministic — see the `Determinism` note on
+// `WorldSnapshot`. These tests pin that promise: once a snapshot is in
+// memory, two consecutive serializations of it must produce identical
+// bytes, and a deserialize-then-reserialize round-trip must also be
+// byte-identical. This catches:
+//
+// - any future field that switches to a non-deterministic container
+//   (e.g., a `HashMap` accidentally introduced through a derive),
+// - any custom `Serialize` impl that emits state-dependent output (e.g.,
+//   reading from an iterator with non-stable order),
+// - any field whose deserialize path produces a value that re-serializes
+//   differently than the original (a "drifting" round-trip).
+//
+// We exercise both the postcard binary path (`snapshot_bytes`) and the
+// RON text path (used by snapshot tests, debugging, and external tools).
+
+/// Build a fixture sim with riders in a mix of lifecycle phases.
+///
+/// The harder the snapshot is to round-trip, the more likely a future
+/// regression surfaces here rather than in production. Diversifying the
+/// rider phases exercises the most variant-rich field of the snapshot.
+fn diverse_phase_sim() -> crate::sim::Simulation {
+    let config = helpers::default_config();
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    // r1 will run all the way to Arrived, then settle as Resident.
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    // r2 will be aboard / mid-ride at snapshot time.
+    let _r2 = sim.spawn_rider(StopId(0), StopId(2), 80.0).unwrap();
+    // r3 spawns later so it's still Waiting.
+    for _ in 0..200 {
+        sim.step();
+        if matches!(
+            sim.world().rider(r1.entity()).map(|r| r.phase),
+            Some(RiderPhase::Arrived)
+        ) {
+            break;
+        }
+    }
+    if matches!(
+        sim.world().rider(r1.entity()).map(|r| r.phase),
+        Some(RiderPhase::Arrived)
+    ) {
+        sim.settle_rider(r1).unwrap();
+    }
+    let _r3 = sim.spawn_rider(StopId(1), StopId(2), 65.0).unwrap();
+    // Step a couple more ticks so r2/r3 land in interesting phases
+    // (Boarding/Riding/Waiting) and the metric counters have non-zero
+    // values.
+    for _ in 0..3 {
+        sim.step();
+    }
+    sim
+}
+
+/// Two consecutive `snapshot_bytes()` calls on the same simulation must
+/// produce identical bytes. If they don't, something in the snapshot
+/// pipeline is reading a non-deterministic source.
+#[test]
+fn snapshot_bytes_serialization_is_deterministic() {
+    let sim = diverse_phase_sim();
+    let bytes_a = sim.snapshot_bytes().expect("snapshot_bytes A");
+    let bytes_b = sim.snapshot_bytes().expect("snapshot_bytes B");
+    assert_eq!(
+        bytes_a.len(),
+        bytes_b.len(),
+        "two snapshots of the same sim must serialize to the same length"
+    );
+    assert_eq!(
+        bytes_a, bytes_b,
+        "two snapshots of the same sim must serialize to identical bytes"
+    );
+}
+
+/// `snapshot_bytes -> restore_bytes -> snapshot_bytes` must round-trip
+/// byte-identically. The version string (carried by the envelope) is
+/// the same across both serializations since we're in the same process,
+/// so version drift can't paper over a wire-format change.
+#[test]
+fn snapshot_bytes_roundtrip_is_byte_stable() {
+    let sim = diverse_phase_sim();
+    let bytes_before = sim.snapshot_bytes().expect("initial snapshot_bytes");
+
+    let restored =
+        crate::sim::Simulation::restore_bytes(&bytes_before, None).expect("restore_bytes");
+    let bytes_after = restored
+        .snapshot_bytes()
+        .expect("post-restore snapshot_bytes");
+
+    assert_eq!(
+        bytes_before, bytes_after,
+        "snapshot_bytes -> restore_bytes -> snapshot_bytes must be byte-stable; \
+         a difference here means a field's serialize/deserialize pair has drifted"
+    );
+}
+
+/// RON text format must also be byte-stable across a deserialize +
+/// reserialize cycle. RON has no envelope, so this isolates the
+/// `WorldSnapshot` `Serialize` / `Deserialize` impls themselves —
+/// catching drift the binary test would attribute to envelope changes.
+#[test]
+fn snapshot_ron_roundtrip_is_byte_stable() {
+    let sim = diverse_phase_sim();
+    let snap = sim.snapshot();
+
+    let ron_a = ron::to_string(&snap).expect("RON serialize A");
+    let parsed: crate::snapshot::WorldSnapshot = ron::from_str(&ron_a).expect("RON deserialize");
+    let ron_b = ron::to_string(&parsed).expect("RON serialize B");
+
+    assert_eq!(
+        ron_a, ron_b,
+        "WorldSnapshot RON: serialize -> deserialize -> serialize must be byte-stable"
+    );
+}
