@@ -182,13 +182,14 @@ impl World {
     ///   the elevator's rider list and `current_load` is adjusted.
     ///
     /// **Despawning an elevator with aboard riders is the caller's
-    /// responsibility to clean up.** Use [`Simulation::remove_elevator`]
-    /// (which calls [`Simulation::disable`] first to transition aboard
-    /// riders to `Waiting` via the transition gateway). Calling this method
-    /// directly on a populated elevator leaves aboard riders pointing at
-    /// a now-dead `EntityId` in their `phase` — a footgun this method
-    /// no longer attempts to paper over, since any reset it produced
-    /// would silently desync `RiderIndex`.
+    /// responsibility to clean up.** Use
+    /// [`Simulation::remove_elevator`](crate::sim::Simulation::remove_elevator)
+    /// (which calls [`Simulation::disable`](crate::sim::Simulation::disable)
+    /// first to transition aboard riders to `Waiting` via the transition
+    /// gateway). Calling this method directly on a populated elevator leaves
+    /// aboard riders pointing at a now-dead `EntityId` in their `phase` —
+    /// a footgun this method no longer attempts to paper over, since any
+    /// reset it produced would silently desync `RiderIndex`.
     pub fn despawn(&mut self, id: EntityId) {
         // Clean up rider → elevator cross-references.
         if let Some(rider) = self.riders.get(id) {
