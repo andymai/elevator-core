@@ -1,5 +1,5 @@
 use crate::components::RiderPhase;
-use crate::components::{Accel, Speed, Weight};
+use crate::components::{Accel, Route, Speed, Weight};
 use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -7,6 +7,7 @@ use crate::dispatch::scan::ScanDispatch;
 use crate::entity::RiderId;
 use crate::error::SimError;
 use crate::events::{Event, RouteInvalidReason};
+use crate::ids::GroupId;
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
 
@@ -73,8 +74,10 @@ fn reroute_changes_rider_destination() {
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     // Reroute to stop 1 instead.
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
-    sim.reroute(rider, stop1).unwrap();
+    sim.reroute(rider, Route::direct(stop0, stop1, GroupId(0)))
+        .unwrap();
 
     let route = sim.world().route(rider.entity()).unwrap();
     assert_eq!(route.current_destination(), Some(stop1));
@@ -256,7 +259,7 @@ fn set_rider_route_replaces_route() {
         ],
         current_leg: 0,
     };
-    sim.set_rider_route(rider.entity(), route).unwrap();
+    sim.reroute(rider, route).unwrap();
 
     let r = sim.world().route(rider.entity()).unwrap();
     assert_eq!(r.legs.len(), 2);
@@ -279,8 +282,9 @@ fn reroute_rejects_non_waiting_rider() {
         }
     }
 
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
-    let result = sim.reroute(rider, stop1);
+    let result = sim.reroute(rider, Route::direct(stop0, stop1, GroupId(0)));
 
     // Should fail if rider is not Waiting.
     let phase = sim.world().rider(rider.entity()).unwrap().phase;
@@ -298,9 +302,13 @@ fn reroute_nonexistent_rider_returns_error() {
     let config = three_stop_config();
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
+    let stop0 = sim.stop_entity(StopId(0)).unwrap();
     let stop1 = sim.stop_entity(StopId(1)).unwrap();
     // Use a stop entity as a fake rider — it's a valid EntityId but not a rider.
-    let result = sim.reroute(RiderId::from(stop1), stop1);
+    let result = sim.reroute(
+        RiderId::from(stop1),
+        Route::direct(stop0, stop1, GroupId(0)),
+    );
     assert!(result.is_err());
 }
 

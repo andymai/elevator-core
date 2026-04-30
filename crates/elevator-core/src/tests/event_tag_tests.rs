@@ -12,10 +12,11 @@
 //! the tag came through. `0` is the reserved untagged sentinel for
 //! riders that never had `set_rider_tag` called on them.
 
-use crate::components::Patience;
+use crate::components::{Patience, Route};
 use crate::dispatch::scan::ScanDispatch;
 use crate::entity::ElevatorId;
 use crate::events::{Event, RouteInvalidReason};
+use crate::ids::GroupId;
 use crate::sim::Simulation;
 use crate::stop::StopId;
 use crate::tests::helpers::default_config;
@@ -184,8 +185,10 @@ fn rider_rerouted_carries_tag() {
 
     // Reroute mid-Waiting (rider hasn't boarded yet — they're still at
     // the origin stop).
+    let stop_0 = sim.stop_entity(StopId(0)).unwrap();
     let stop_1 = sim.stop_entity(StopId(1)).unwrap();
-    sim.reroute(rider, stop_1).unwrap();
+    sim.reroute(rider, Route::direct(stop_0, stop_1, GroupId(0)))
+        .unwrap();
     let rerouted = sim
         .drain_events()
         .into_iter()

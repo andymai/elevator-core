@@ -112,65 +112,114 @@ impl Simulation {
 
     // ── Re-routing ───────────────────────────────────────────────────
 
-    /// Change a rider's destination mid-route.
+    /// Replace a rider's remaining route, transitioning Resident → Waiting if
+    /// needed.
     ///
-    /// Replaces remaining route legs with a single direct leg to `new_destination`,
-    /// keeping the rider's current stop as origin.
+    /// Dispatches on the rider's current phase:
+    /// - **`Waiting`**: the route is replaced in place; the rider stays
+    ///   `Waiting` at the same stop.
+    /// - **`Resident`**: the rider transitions Resident → Waiting via the
+    ///   transition gateway, the route is set, `spawn_tick` and
+    ///   `Patience::waited_ticks` are reset, and arrival/destination logs
+    ///   are recorded so dispatch sees the rider as fresh demand.
+    /// - **Any other phase**: returns [`SimError::WrongRiderPhase`].
     ///
-    /// Returns `Err` if the rider does not exist or is not in `Waiting` phase
-    /// (riding/boarding riders cannot be rerouted until they exit).
+    /// Replaces the prior `reroute(RiderId, EntityId)` /
+    /// `reroute_rider(EntityId, Route)` / `set_rider_route(EntityId, Route)`
+    /// trio. Callers that previously passed only a destination should
+    /// construct a `Route::direct(rider_current_stop, destination, group)`.
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::EntityNotFound`] if `rider` does not exist.
-    /// Returns [`SimError::WrongRiderPhase`] if the rider is not in
-    /// [`RiderPhase::Waiting`], or [`SimError::RiderHasNoStop`] if the
-    /// rider has no current stop.
-    pub fn reroute(&mut self, rider: RiderId, new_destination: EntityId) -> Result<(), SimError> {
-        let rider = rider.entity();
-        let r = self
-            .world
-            .rider(rider)
-            .ok_or(SimError::EntityNotFound(rider))?;
+    /// - [`SimError::EntityNotFound`] if `rider` does not exist.
+    /// - [`SimError::WrongRiderPhase`] if the rider is not `Waiting` or
+    ///   `Resident`.
+    /// - [`SimError::RiderHasNoStop`] if the rider has no current stop.
+    /// - [`SimError::EmptyRoute`] if `route` has no legs.
+    /// - [`SimError::RouteOriginMismatch`] if the route's first leg origin
+    ///   does not match the rider's current stop.
+    pub fn reroute(&mut self, rider: RiderId, route: Route) -> Result<(), SimError> {
+        let id = rider.entity();
+        let r = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+        let phase = r.phase;
 
-        if r.phase != RiderPhase::Waiting {
-            return Err(SimError::WrongRiderPhase {
-                rider,
-                expected: RiderPhaseKind::Waiting,
-                actual: r.phase.kind(),
+        // Phase precondition takes priority over the missing-stop check —
+        // a non-Waiting/Resident rider is the more actionable error for
+        // callers, and `Riding` riders intentionally carry
+        // `current_stop = None`.
+        let was_resident = match phase {
+            RiderPhase::Waiting => false,
+            RiderPhase::Resident => true,
+            _ => {
+                return Err(SimError::WrongRiderPhase {
+                    rider: id,
+                    expected: RiderPhaseKind::Waiting,
+                    actual: phase.kind(),
+                });
+            }
+        };
+
+        let stop = r.current_stop.ok_or(SimError::RiderHasNoStop(id))?;
+
+        let new_destination = route.final_destination().ok_or(SimError::EmptyRoute)?;
+
+        // Validate that the route departs from the rider's current stop.
+        if let Some(leg) = route.current()
+            && leg.from != stop
+        {
+            return Err(SimError::RouteOriginMismatch {
+                expected_origin: stop,
+                route_origin: leg.from,
             });
         }
 
-        let origin = r.current_stop.ok_or(SimError::RiderHasNoStop(rider))?;
+        if was_resident {
+            // Gateway moves Resident -> Waiting and re-buckets the index
+            // entry (residents -> waiting) atomically.
+            self.transition_rider(
+                id,
+                crate::components::rider_state::InternalRiderPhase::Waiting { stop },
+            )?;
+            // spawn_tick is reroute-specific so it lives outside the
+            // gateway. Resetting it ensures manifest wait_ticks measures
+            // time since the reroute, not the original spawn-as-Resident.
+            if let Some(r) = self.world.rider_mut(id) {
+                r.spawn_tick = self.tick;
+            }
+        }
 
-        let group = self.group_from_route(self.world.route(rider));
-        self.world
-            .set_route(rider, Route::direct(origin, new_destination, group));
+        self.world.set_route(id, route);
+
+        if was_resident {
+            // A rerouted resident is indistinguishable from a fresh arrival
+            // — record it so predictive parking and `arrivals_at` see the
+            // demand. Mirror into the destination log so down-peak
+            // classification stays coherent for multi-leg riders.
+            if let Some(p) = self.world.patience_mut(id) {
+                p.waited_ticks = 0;
+            }
+            if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
+                log.record(self.tick, stop);
+            }
+            if let Some(log) = self
+                .world
+                .resource_mut::<crate::arrival_log::DestinationLog>()
+            {
+                log.record(self.tick, new_destination);
+            }
+            self.metrics.record_reroute();
+        }
 
         let tag = self
             .world
-            .rider(rider)
+            .rider(id)
             .map_or(0, crate::components::Rider::tag);
         self.events.emit(Event::RiderRerouted {
-            rider,
+            rider: id,
             new_destination,
             tag,
             tick: self.tick,
         });
-
-        Ok(())
-    }
-
-    /// Replace a rider's entire remaining route.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::EntityNotFound`] if `rider` does not exist.
-    pub fn set_rider_route(&mut self, rider: EntityId, route: Route) -> Result<(), SimError> {
-        if self.world.rider(rider).is_none() {
-            return Err(SimError::EntityNotFound(rider));
-        }
-        self.world.set_route(rider, route);
         Ok(())
     }
 
@@ -181,7 +230,7 @@ impl Simulation {
     ///
     /// Resident riders are parked — invisible to dispatch and loading, but
     /// queryable via [`residents_at()`](Self::residents_at). They can later
-    /// be given a new route via [`reroute_rider()`](Self::reroute_rider).
+    /// be given a new route via [`reroute()`](Self::reroute).
     ///
     /// # Errors
     ///
@@ -222,91 +271,6 @@ impl Simulation {
         self.events.emit(Event::RiderSettled {
             rider: id,
             stop,
-            tag,
-            tick: self.tick,
-        });
-        Ok(())
-    }
-
-    /// Give a `Resident` rider a new route, transitioning them to `Waiting`.
-    ///
-    /// The rider begins waiting at their current stop for an elevator
-    /// matching the route's transport mode. If the rider has a
-    /// [`Patience`](crate::components::Patience) component, its
-    /// `waited_ticks` is reset to zero.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SimError::EntityNotFound`] if `id` does not exist.
-    /// Returns [`SimError::WrongRiderPhase`] if the rider is not in `Resident`
-    /// phase, [`SimError::EmptyRoute`] if the route has no legs, or
-    /// [`SimError::RouteOriginMismatch`] if the route's first leg origin does
-    /// not match the rider's current stop.
-    pub fn reroute_rider(&mut self, id: EntityId, route: Route) -> Result<(), SimError> {
-        let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
-
-        if rider.phase != RiderPhase::Resident {
-            return Err(SimError::WrongRiderPhase {
-                rider: id,
-                expected: RiderPhaseKind::Resident,
-                actual: rider.phase.kind(),
-            });
-        }
-
-        let stop = rider.current_stop.ok_or(SimError::RiderHasNoStop(id))?;
-
-        let new_destination = route.final_destination().ok_or(SimError::EmptyRoute)?;
-
-        // Validate that the route departs from the rider's current stop.
-        if let Some(leg) = route.current()
-            && leg.from != stop
-        {
-            return Err(SimError::RouteOriginMismatch {
-                expected_origin: stop,
-                route_origin: leg.from,
-            });
-        }
-
-        // Gateway handles `RiderIndex` (Resident -> Waiting) and the phase
-        // write. spawn_tick is rerouter-specific so it's reset directly after.
-        self.transition_rider(
-            id,
-            crate::components::rider_state::InternalRiderPhase::Waiting { stop },
-        )?;
-        if let Some(r) = self.world.rider_mut(id) {
-            // Reset spawn_tick so manifest wait_ticks measures time since
-            // reroute, not time since the original spawn as a Resident.
-            r.spawn_tick = self.tick;
-        }
-        self.world.set_route(id, route);
-
-        // Reset patience if present.
-        if let Some(p) = self.world.patience_mut(id) {
-            p.waited_ticks = 0;
-        }
-
-        // A rerouted resident is indistinguishable from a fresh arrival —
-        // record it so predictive parking and `arrivals_at` see the demand.
-        // Mirror into the destination log so down-peak classification stays
-        // coherent for multi-leg riders.
-        if let Some(log) = self.world.resource_mut::<crate::arrival_log::ArrivalLog>() {
-            log.record(self.tick, stop);
-        }
-        if let Some(log) = self
-            .world
-            .resource_mut::<crate::arrival_log::DestinationLog>()
-        {
-            log.record(self.tick, new_destination);
-        }
-
-        self.metrics.record_reroute();
-        let tag = self
-            .world
-            .rider(id)
-            .map_or(0, crate::components::Rider::tag);
-        self.events.emit(Event::RiderRerouted {
-            rider: id,
-            new_destination,
             tag,
             tick: self.tick,
         });

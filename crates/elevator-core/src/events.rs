@@ -244,7 +244,7 @@ pub enum Event {
         /// The tick when invalidation occurred.
         tick: u64,
     },
-    /// A rider was manually rerouted via `sim.reroute()` or `sim.reroute_rider()`.
+    /// A rider was manually rerouted via `sim.reroute()`.
     RiderRerouted {
         /// The rerouted rider.
         rider: EntityId,

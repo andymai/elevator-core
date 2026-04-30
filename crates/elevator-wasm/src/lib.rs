@@ -1936,11 +1936,25 @@ impl WasmSim {
     /// Returns a JS error if the rider or destination does not exist.
     #[wasm_bindgen(js_name = reroute)]
     pub fn reroute(&mut self, rider_ref: u64, new_destination_ref: u64) -> WasmVoidResult {
+        let rider_eid = u64_to_entity(rider_ref);
+        // The unified `Simulation::reroute` takes a `Route`; build a
+        // single-leg direct route from the rider's current stop. The
+        // multi-leg variants are exposed separately (see below).
+        let Some(origin) = self
+            .inner
+            .world()
+            .rider(rider_eid)
+            .and_then(elevator_core::components::Rider::current_stop)
+        else {
+            return Err("reroute: rider has no current stop".to_string()).into();
+        };
+        let route = elevator_core::components::Route::direct(
+            origin,
+            u64_to_entity(new_destination_ref),
+            elevator_core::ids::GroupId(0),
+        );
         self.inner
-            .reroute(
-                elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
-                u64_to_entity(new_destination_ref),
-            )
+            .reroute(elevator_core::entity::RiderId::from(rider_eid), route)
             .map_err(|e| format!("reroute: {e}"))
             .into()
     }
@@ -2044,7 +2058,10 @@ impl WasmSim {
                 elevator_core::ids::GroupId(group_id),
             );
             self.inner
-                .set_rider_route(u64_to_entity(rider_ref), route)
+                .reroute(
+                    elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
+                    route,
+                )
                 .map_err(|e| format!("set_rider_route_direct: {e}"))
         })()
         .into()
@@ -2073,7 +2090,7 @@ impl WasmSim {
                 "set_rider_route_shortest: no route between rider's stop and to_stop".to_owned()
             })?;
             self.inner
-                .set_rider_route(rider_eid, route)
+                .reroute(elevator_core::entity::RiderId::from(rider_eid), route)
                 .map_err(|e| format!("set_rider_route_shortest: {e}"))
         })()
         .into()
@@ -2104,7 +2121,10 @@ impl WasmSim {
                 elevator_core::ids::GroupId(group_id),
             );
             self.inner
-                .reroute_rider(u64_to_entity(rider_ref), route)
+                .reroute(
+                    elevator_core::entity::RiderId::from(u64_to_entity(rider_ref)),
+                    route,
+                )
                 .map_err(|e| format!("reroute_rider_direct: {e}"))
         })()
         .into()
@@ -2133,7 +2153,7 @@ impl WasmSim {
                 "reroute_rider_shortest: no route between rider's stop and to_stop".to_owned()
             })?;
             self.inner
-                .reroute_rider(rider_eid, route)
+                .reroute(elevator_core::entity::RiderId::from(rider_eid), route)
                 .map_err(|e| format!("reroute_rider_shortest: {e}"))
         })()
         .into()
