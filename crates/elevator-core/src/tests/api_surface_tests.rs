@@ -85,6 +85,129 @@ fn remove_elevator_ejects_riders_aboard() {
     );
 }
 
+/// `remove_elevator` must keep the rider population index coherent: any rider
+/// transitioned back to `Waiting` as part of the ejection must be discoverable
+/// via `waiting_at(stop)` for the stop they were placed at. Without this
+/// guarantee, dispatch and `RiderIndex` queries would silently miss them and
+/// the rider becomes a "ghost" — phase says Waiting but they're absent from
+/// every per-stop population query.
+#[test]
+fn remove_elevator_keeps_rider_index_coherent() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Advance until the rider is mid-ride.
+    for _ in 0..300 {
+        sim.step();
+        if matches!(
+            sim.world().rider(rider_id.entity()).unwrap().phase,
+            RiderPhase::Riding(_)
+        ) {
+            break;
+        }
+    }
+    assert!(
+        matches!(
+            sim.world().rider(rider_id.entity()).unwrap().phase,
+            RiderPhase::Riding(_)
+        ),
+        "rider should have boarded within 300 ticks"
+    );
+
+    let elevator_id = sim.groups()[0].elevator_entities()[0];
+    sim.remove_elevator(elevator_id).unwrap();
+    sim.drain_events();
+
+    // Rider must now be Waiting at some stop with a coherent current_stop.
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
+    assert!(
+        matches!(rider.phase, RiderPhase::Waiting),
+        "rider phase should be Waiting, got {:?}",
+        rider.phase
+    );
+    let stop = rider
+        .current_stop
+        .expect("ejected rider must land at a stop, not nowhere");
+
+    // The invariant: phase==Waiting + current_stop==Some(s) implies the
+    // rider is in `waiting_at(s)`. The population index is the canonical
+    // source of truth for dispatch.
+    let waiting: Vec<EntityId> = sim.waiting_at(stop).collect();
+    assert!(
+        waiting.contains(&rider_id.entity()),
+        "rider {:?} is Waiting at stop {:?} but missing from waiting_at; \
+         rider_index drifted from rider.phase \
+         (waiting_at returned {:?})",
+        rider_id.entity(),
+        stop,
+        waiting
+    );
+}
+
+/// Direct-`World::despawn` regression: when an elevator is despawned without
+/// going through `Simulation::disable` first, `World::despawn` resets aboard
+/// riders to `RiderPhase::Waiting` (world.rs ~204) but cannot touch the
+/// `RiderIndex` (which lives on `Simulation`). Result: rider phase says
+/// Waiting, rider has a `current_stop`, but they're absent from
+/// `waiting_at(stop)`. Until the gateway routes this reset, the assertion
+/// below fails. After the lockdown of `World::despawn` to `pub(crate)`, this
+/// test continues to guard against internal misuse from new sim code paths.
+///
+/// TODO(rider-lifecycle-arch): un-ignore once `transition_rider` routes the
+/// elevator-despawn rider reset through the gateway.
+#[test]
+#[ignore = "exposes a known footgun; un-ignore when transition gateway lands"]
+fn world_despawn_elevator_with_aboard_riders_keeps_index_coherent() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    for _ in 0..300 {
+        sim.step();
+        if matches!(
+            sim.world().rider(rider_id.entity()).unwrap().phase,
+            RiderPhase::Riding(_)
+        ) {
+            break;
+        }
+    }
+    assert!(
+        matches!(
+            sim.world().rider(rider_id.entity()).unwrap().phase,
+            RiderPhase::Riding(_)
+        ),
+        "rider should have boarded within 300 ticks"
+    );
+
+    let elevator_id = sim.groups()[0].elevator_entities()[0];
+
+    // Bypass `Simulation::disable`/`remove_elevator`. This is the path the
+    // gateway must take responsibility for: even raw despawns must leave
+    // `RiderIndex` consistent with `Rider::phase`.
+    sim.world_mut().despawn(elevator_id);
+
+    let rider = sim.world().rider(rider_id.entity()).unwrap();
+    assert!(
+        matches!(rider.phase, RiderPhase::Waiting),
+        "rider phase should be Waiting after raw despawn, got {:?}",
+        rider.phase
+    );
+    let stop = rider
+        .current_stop
+        .expect("raw despawn placed rider at nearest stop");
+
+    let waiting: Vec<EntityId> = sim.waiting_at(stop).collect();
+    assert!(
+        waiting.contains(&rider_id.entity()),
+        "rider {:?} is Waiting at stop {:?} but missing from waiting_at \
+         after raw World::despawn — rider_index drifted from rider.phase",
+        rider_id.entity(),
+        stop
+    );
+}
+
 #[test]
 fn remove_elevator_ejects_rider_emits_event() {
     let config = default_config();
