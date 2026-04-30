@@ -207,15 +207,12 @@ impl Simulation {
 
         let stop = rider.current_stop.ok_or(SimError::RiderHasNoStop(id))?;
 
-        // Update index: remove from old partition (only Abandoned is indexed).
-        if old_phase == RiderPhase::Abandoned {
-            self.rider_index.remove_abandoned(stop, id);
-        }
-        self.rider_index.insert_resident(stop, id);
-
-        if let Some(r) = self.world.rider_mut(id) {
-            r.phase = RiderPhase::Resident;
-        }
+        // Gateway handles `RiderIndex` (remove-from-Abandoned where
+        // applicable, insert-into-Resident) and the phase write atomically.
+        self.transition_rider(
+            id,
+            crate::components::rider_state::RiderState::Resident { stop },
+        )?;
 
         self.metrics.record_settle();
         let tag = self
@@ -270,11 +267,13 @@ impl Simulation {
             });
         }
 
-        self.rider_index.remove_resident(stop, id);
-        self.rider_index.insert_waiting(stop, id);
-
+        // Gateway handles `RiderIndex` (Resident -> Waiting) and the phase
+        // write. spawn_tick is rerouter-specific so it's reset directly after.
+        self.transition_rider(
+            id,
+            crate::components::rider_state::RiderState::Waiting { stop },
+        )?;
         if let Some(r) = self.world.rider_mut(id) {
-            r.phase = RiderPhase::Waiting;
             // Reset spawn_tick so manifest wait_ticks measures time since
             // reroute, not time since the original spawn as a Resident.
             r.spawn_tick = self.tick;
@@ -602,21 +601,25 @@ impl Simulation {
                     .world
                     .rider(*rid)
                     .map_or(0, crate::components::Rider::tag);
-                if let Some(r) = self.world.rider_mut(*rid) {
-                    r.phase = RiderPhase::Waiting;
-                    r.current_stop = nearest_stop;
-                    r.board_tick = None;
-                }
-                if let Some(stop) = nearest_stop {
-                    self.rider_index.insert_waiting(stop, *rid);
-                    self.events.emit(Event::RiderEjected {
-                        rider: *rid,
-                        elevator: id,
-                        stop,
-                        tag,
-                        tick: self.tick,
-                    });
-                }
+                // No stop to eject toward (zero-stop simulations) — leave
+                // the rider in their current phase rather than producing a
+                // ghost (Waiting with no current_stop). The elevator's
+                // `riders.clear()` below detaches them from the cab.
+                let Some(stop) = nearest_stop else { continue };
+                // Gateway routes the Riding/Boarding/Exiting -> Waiting rescue
+                // and updates `RiderIndex` atomically. board_tick is cleared
+                // because the new state is non-aboard.
+                self.transition_rider(
+                    *rid,
+                    crate::components::rider_state::RiderState::Waiting { stop },
+                )?;
+                self.events.emit(Event::RiderEjected {
+                    rider: *rid,
+                    elevator: id,
+                    stop,
+                    tag,
+                    tick: self.tick,
+                });
             }
 
             let had_load = self
@@ -689,15 +692,19 @@ impl Simulation {
         let resident_ids: Vec<EntityId> =
             self.rider_index.residents_at(id).iter().copied().collect();
         for rid in resident_ids {
-            self.rider_index.remove_resident(id, rid);
-            self.rider_index.insert_abandoned(id, rid);
             let tag = self
                 .world
                 .rider(rid)
                 .map_or(0, crate::components::Rider::tag);
-            if let Some(r) = self.world.rider_mut(rid) {
-                r.phase = RiderPhase::Abandoned;
-            }
+            // Gateway moves Resident -> Abandoned at the same stop and
+            // re-buckets the index entry (residents -> abandoned). We
+            // ignore the result: a transition error here would only fire
+            // on bookkeeping divergence we'd otherwise want to surface
+            // upstream, and `disable_stop_inner` has no return type.
+            let _ = self.transition_rider(
+                rid,
+                crate::components::rider_state::RiderState::Abandoned { stop: id },
+            );
             self.events.emit(Event::RiderAbandoned {
                 rider: rid,
                 stop: id,
@@ -892,11 +899,12 @@ impl Simulation {
             .map_or(crate::components::Weight::ZERO, |r| r.weight);
 
         if let Some(stop) = eject_stop {
-            if let Some(r) = self.world.rider_mut(rid) {
-                r.phase = RiderPhase::Waiting;
-                r.current_stop = Some(stop);
-                r.board_tick = None;
-            }
+            // Gateway routes the Riding -> Waiting rescue: phase, current_stop,
+            // board_tick, and the rider_index waiting bucket are updated atomically.
+            let _ = self.transition_rider(
+                rid,
+                crate::components::rider_state::RiderState::Waiting { stop },
+            );
             if let Some(car) = self.world.elevator_mut(car_eid) {
                 car.riders.retain(|r| *r != rid);
                 car.current_load -= rider_weight;
@@ -908,7 +916,6 @@ impl Simulation {
             // decide what to do next (game-side respawn, refund, etc.).
             let group = self.group_from_route(self.world.route(rid));
             self.world.set_route(rid, Route::direct(stop, stop, group));
-            self.rider_index.insert_waiting(stop, rid);
             self.emit_capacity_changed(car_eid);
             self.events.emit(Event::RiderEjected {
                 rider: rid,
@@ -918,9 +925,16 @@ impl Simulation {
                 tick: self.tick,
             });
         } else {
-            if let Some(r) = self.world.rider_mut(rid) {
-                r.phase = RiderPhase::Abandoned;
-            }
+            // Gateway routes the Riding -> Abandoned rescue, using the
+            // disabled stop as the abandonment anchor. Pre-refactor this
+            // path left current_stop=None — a "ghost" rider absent from
+            // every population query. The gateway forces an at-stop home.
+            let _ = self.transition_rider(
+                rid,
+                crate::components::rider_state::RiderState::Abandoned {
+                    stop: disabled_stop,
+                },
+            );
             if let Some(car) = self.world.elevator_mut(car_eid) {
                 car.riders.retain(|r| *r != rid);
                 car.current_load -= rider_weight;
@@ -976,17 +990,15 @@ impl Simulation {
             tag,
             tick: self.tick,
         });
-        if let Some(r) = self.world.rider_mut(rid) {
-            r.phase = RiderPhase::Abandoned;
-        }
-        // Fourth abandonment site (alongside the two in
-        // `advance_transient`); same stale-ID hazard. Scrub the rider
-        // from every hall/car-call pending list.
+        // Gateway routes Waiting -> Abandoned: re-buckets the index entry
+        // (waiting -> abandoned) and updates phase/current_stop. Same
+        // stale-ID hazard as the other three abandonment sites — scrub
+        // hall/car-call pending lists alongside.
+        let _ = self.transition_rider(
+            rid,
+            crate::components::rider_state::RiderState::Abandoned { stop: abandon_stop },
+        );
         self.world.scrub_rider_from_pending_calls(rid);
-        if let Some(stop) = rider_current_stop {
-            self.rider_index.remove_waiting(stop, rid);
-            self.rider_index.insert_abandoned(stop, rid);
-        }
         self.events.emit(Event::RiderAbandoned {
             rider: rid,
             stop: abandon_stop,

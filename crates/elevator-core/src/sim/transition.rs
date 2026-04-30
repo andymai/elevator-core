@@ -26,77 +26,103 @@ use crate::components::rider_state::RiderState;
 use crate::entity::EntityId;
 use crate::error::SimError;
 use crate::rider_index::RiderIndex;
+use crate::world::World;
 
-#[allow(dead_code)] // call sites migrate in the next commit
 impl Simulation {
     /// Transition a rider to a new lifecycle state, updating all dependent
     /// bookkeeping atomically.
     ///
-    /// On success the rider's `phase`, `current_stop`, and `board_tick`
-    /// fields and the `RiderIndex` partitioning are guaranteed consistent.
-    /// On error nothing is mutated.
+    /// Sole legitimate pathway for mutating `Rider::phase`,
+    /// `Rider::current_stop`, and `Rider::board_tick` after the rider is
+    /// alive. See [`transition_rider`] for the full contract.
     ///
     /// # Errors
     ///
     /// - [`SimError::EntityNotFound`] if `id` is not a live rider.
-    /// - [`SimError::IllegalTransition`] if moving from the rider's current
-    ///   phase to `new_state` is rejected by the legality matrix
-    ///   ([`is_legal_transition`]).
+    /// - [`SimError::IllegalTransition`] if the move is rejected by the
+    ///   legality matrix.
     pub(crate) fn transition_rider(
         &mut self,
         id: EntityId,
         new_state: RiderState,
     ) -> Result<(), SimError> {
-        // Snapshot old state into Copy locals so the immutable borrow on
-        // `self.world` ends before we touch `self.rider_index` /
-        // `self.world.rider_mut`.
-        let (old_phase, old_stop, was_aboard) = {
-            let rider = self.world.rider(id).ok_or(SimError::EntityNotFound(id))?;
-            (rider.phase, rider.current_stop, rider.phase.is_aboard())
-        };
-
-        let from_kind = old_phase.kind();
-        let to_kind = new_state.kind();
-        if !is_legal_transition(from_kind, to_kind) {
-            return Err(SimError::IllegalTransition {
-                rider: id,
-                from: from_kind,
-                to: to_kind,
-            });
-        }
-
-        // Sync the rider_index: remove from the old at-stop bucket (if any),
-        // insert into the new one (if any). When neither old nor new state
-        // is indexed, this is a no-op.
-        let old_bucket = indexed_bucket(from_kind).zip(old_stop);
-        let new_bucket = indexed_bucket(to_kind).zip(new_state.at_stop());
-        if old_bucket != new_bucket {
-            if let Some((bucket, stop)) = old_bucket {
-                bucket.remove_from(&mut self.rider_index, stop, id);
-            }
-            if let Some((bucket, stop)) = new_bucket {
-                bucket.insert_into(&mut self.rider_index, stop, id);
-            }
-        }
-
-        // Apply the state to the rider record.
-        let now_aboard = matches!(
-            to_kind,
-            RiderPhaseKind::Boarding | RiderPhaseKind::Riding | RiderPhaseKind::Exiting
-        );
-        let tick = self.tick;
-        if let Some(r) = self.world.rider_mut(id) {
-            r.phase = new_state.as_phase();
-            r.current_stop = new_state.at_stop();
-            if !was_aboard && now_aboard {
-                r.board_tick = Some(tick);
-            } else if was_aboard && !now_aboard {
-                r.board_tick = None;
-            }
-        }
-
-        Ok(())
+        transition_rider(
+            &mut self.world,
+            &mut self.rider_index,
+            self.tick,
+            id,
+            new_state,
+        )
     }
+}
+
+/// Free-function form of the transition gateway, callable from system
+/// contexts (`systems/loading.rs`, `systems/advance_transient.rs`, etc.) that
+/// hold separate `&mut World` and `&mut RiderIndex` borrows rather than the
+/// full `&mut Simulation`.
+///
+/// On success the rider's four state fields and the `RiderIndex`
+/// partitioning are guaranteed consistent. On error nothing is mutated.
+///
+/// # Errors
+///
+/// - [`SimError::EntityNotFound`] if `id` is not a live rider.
+/// - [`SimError::IllegalTransition`] if moving from the rider's current
+///   phase to `new_state` is rejected by [`is_legal_transition`].
+pub(crate) fn transition_rider(
+    world: &mut World,
+    rider_index: &mut RiderIndex,
+    tick: u64,
+    id: EntityId,
+    new_state: RiderState,
+) -> Result<(), SimError> {
+    // Snapshot old state into Copy locals so the immutable borrow on
+    // `world` ends before we touch `rider_index` / `world.rider_mut`.
+    let (old_phase, old_stop, was_aboard) = {
+        let rider = world.rider(id).ok_or(SimError::EntityNotFound(id))?;
+        (rider.phase, rider.current_stop, rider.phase.is_aboard())
+    };
+
+    let from_kind = old_phase.kind();
+    let to_kind = new_state.kind();
+    if !is_legal_transition(from_kind, to_kind) {
+        return Err(SimError::IllegalTransition {
+            rider: id,
+            from: from_kind,
+            to: to_kind,
+        });
+    }
+
+    // Sync the rider_index: remove from the old at-stop bucket (if any),
+    // insert into the new one (if any). When neither old nor new state
+    // is indexed, this is a no-op.
+    let old_bucket = indexed_bucket(from_kind).zip(old_stop);
+    let new_bucket = indexed_bucket(to_kind).zip(new_state.at_stop());
+    if old_bucket != new_bucket {
+        if let Some((bucket, stop)) = old_bucket {
+            bucket.remove_from(rider_index, stop, id);
+        }
+        if let Some((bucket, stop)) = new_bucket {
+            bucket.insert_into(rider_index, stop, id);
+        }
+    }
+
+    // Apply the state to the rider record.
+    let now_aboard = matches!(
+        to_kind,
+        RiderPhaseKind::Boarding | RiderPhaseKind::Riding | RiderPhaseKind::Exiting
+    );
+    if let Some(r) = world.rider_mut(id) {
+        r.phase = new_state.as_phase();
+        r.current_stop = new_state.at_stop();
+        if !was_aboard && now_aboard {
+            r.board_tick = Some(tick);
+        } else if was_aboard && !now_aboard {
+            r.board_tick = None;
+        }
+    }
+
+    Ok(())
 }
 
 /// Index buckets exposed by [`RiderIndex`].
@@ -115,7 +141,6 @@ enum IndexBucket {
     Abandoned,
 }
 
-#[allow(dead_code)] // call sites migrate in the next commit
 impl IndexBucket {
     /// Add `rider` to this bucket at `stop`.
     fn insert_into(self, idx: &mut RiderIndex, stop: EntityId, rider: EntityId) {
@@ -137,7 +162,6 @@ impl IndexBucket {
 }
 
 /// Map a phase kind to its index bucket, or `None` for unindexed phases.
-#[allow(dead_code)] // consumed by transition_rider in the next commit
 const fn indexed_bucket(kind: RiderPhaseKind) -> Option<IndexBucket> {
     match kind {
         RiderPhaseKind::Waiting => Some(IndexBucket::Waiting),
@@ -147,7 +171,6 @@ const fn indexed_bucket(kind: RiderPhaseKind) -> Option<IndexBucket> {
     }
 }
 
-#[allow(dead_code)] // consumed by transition_rider in the next commit
 /// Pragmatic transition legality matrix.
 ///
 /// Rejects only the transitions that would skip a required intermediate

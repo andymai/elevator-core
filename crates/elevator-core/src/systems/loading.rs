@@ -354,10 +354,14 @@ fn apply_actions(
                     car.riders.retain(|r| *r != rider);
                     car.current_load -= rider_weight;
                 }
-                if let Some(rd) = world.rider_mut(rider) {
-                    rd.phase = RiderPhase::Exiting(elevator);
-                    rd.current_stop = Some(stop);
-                }
+                // Gateway routes Riding -> Exiting at the arrival stop.
+                let _ = crate::sim::transition::transition_rider(
+                    world,
+                    rider_index,
+                    ctx.tick,
+                    rider,
+                    crate::components::rider_state::RiderState::Exiting { elevator, stop },
+                );
                 events.emit(Event::RiderExited {
                     rider,
                     elevator,
@@ -398,16 +402,21 @@ fn apply_actions(
                     },
                     _ => continue,
                 };
-                rider_index.remove_waiting(stop, rider);
                 if let Some(car) = world.elevator_mut(elevator) {
                     car.current_load += crate::components::Weight::from(weight);
                     car.riders.push(rider);
                 }
-                if let Some(rd) = world.rider_mut(rider) {
-                    rd.phase = RiderPhase::Boarding(elevator);
-                    rd.board_tick = Some(ctx.tick);
-                    rd.current_stop = None;
-                }
+                // Gateway routes Waiting -> Boarding: removes from
+                // waiting_at(stop), sets phase/board_tick/current_stop.
+                // The Boarding state carries the boarding stop so the
+                // index transition is atomic with the phase change.
+                let _ = crate::sim::transition::transition_rider(
+                    world,
+                    rider_index,
+                    ctx.tick,
+                    rider,
+                    crate::components::rider_state::RiderState::Boarding { elevator, stop },
+                );
                 events.emit(Event::RiderBoarded {
                     rider,
                     elevator,
@@ -478,11 +487,15 @@ fn apply_actions(
                         .preferences(rider)
                         .is_some_and(Preferences::abandon_on_full)
                 {
-                    if let Some(r) = world.rider_mut(rider) {
-                        r.phase = RiderPhase::Abandoned;
-                    }
-                    rider_index.remove_waiting(at_stop, rider);
-                    rider_index.insert_abandoned(at_stop, rider);
+                    // Gateway routes Waiting -> Abandoned at the same stop and
+                    // re-buckets the index entry (waiting -> abandoned).
+                    let _ = crate::sim::transition::transition_rider(
+                        world,
+                        rider_index,
+                        ctx.tick,
+                        rider,
+                        crate::components::rider_state::RiderState::Abandoned { stop: at_stop },
+                    );
                     events.emit(Event::RiderAbandoned {
                         rider,
                         stop: at_stop,
