@@ -78,6 +78,8 @@ mod runtime;
 mod substep;
 mod tagging;
 mod topology;
+#[allow(clippy::redundant_pub_crate)]
+pub(crate) mod transition;
 
 use crate::components::{
     Accel, AccessControl, Orientation, Patience, Preferences, Route, SpatialPosition, Speed, Weight,

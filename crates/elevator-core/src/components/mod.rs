@@ -18,6 +18,8 @@ pub mod patience;
 pub mod position;
 /// Rider (passenger/cargo) core data.
 pub mod rider;
+/// Internal rider lifecycle state with location data bundled into variants.
+pub(crate) mod rider_state;
 /// Multi-leg route planning.
 pub mod route;
 /// Service mode component for elevator operational modes.

@@ -40,6 +40,28 @@ impl RiderPhase {
     pub const fn is_aboard(&self) -> bool {
         matches!(self, Self::Boarding(_) | Self::Riding(_) | Self::Exiting(_))
     }
+
+    /// True when the rider is currently at a stop — i.e., one of the
+    /// phases for which [`Rider::current_stop`] is expected to be `Some`:
+    /// [`Waiting`](Self::Waiting), [`Boarding`](Self::Boarding),
+    /// [`Exiting`](Self::Exiting), [`Arrived`](Self::Arrived),
+    /// [`Abandoned`](Self::Abandoned), or [`Resident`](Self::Resident).
+    ///
+    /// Companion to [`is_aboard`](Self::is_aboard). Note `Boarding` and
+    /// `Exiting` are *both* aboard and at a stop: the rider is mid-transfer
+    /// between a stop and an elevator cab.
+    #[must_use]
+    pub const fn is_at_stop(&self) -> bool {
+        matches!(
+            self,
+            Self::Waiting
+                | Self::Boarding(_)
+                | Self::Exiting(_)
+                | Self::Arrived
+                | Self::Abandoned
+                | Self::Resident
+        )
+    }
 }
 
 /// Data-less companion to [`RiderPhase`] for error messages and pattern matching
