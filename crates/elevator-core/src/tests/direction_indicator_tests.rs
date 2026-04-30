@@ -73,7 +73,7 @@ fn dispatch_downward_sets_going_down_only() {
 
 /// Regression: a car that just delivered a down-bound rider and
 /// closed its doors must have both indicators lit *before* the next
-/// dispatch tick runs. Without this, `pair_can_do_work` rejects a
+/// dispatch tick runs. Without this, `pair_is_useful` rejects a
 /// fresh up-bound rider at that same stop on direction mismatch, and
 /// Hungarian picks a farther car to serve them while the just-
 /// delivered car sits idle (the lobby-idle bug).
@@ -114,7 +114,7 @@ fn indicators_reset_at_door_close_not_at_next_dispatch() {
     // On the very tick the doors closed, indicators must read both-lit.
     // Without the fix, `going_up` would still be `false` from the
     // delivery trip and a subsequent up-bound rider at this stop would
-    // be rejected by `pair_can_do_work`.
+    // be rejected by `pair_is_useful`.
     assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
     assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
 }
