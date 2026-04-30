@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.32.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.32.0...elevator-core-v15.32.1) (2026-04-30)
+
+
+### Performance Improvements
+
+* **loading:** fold rider tag read into existing borrows ([#548](https://github.com/andymai/elevator-core/issues/548)) ([e0c18a1](https://github.com/andymai/elevator-core/commit/e0c18a1f19a473c0a9c781aa2896a53273e12ccb))
+
 ## [15.32.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.31.0...elevator-core-v15.32.0) (2026-04-29)
 
 
