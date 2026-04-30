@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -210,6 +210,7 @@
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>// World accessors return Option -- unwrap when you know the entity exists.
 let pos: f64 = sim.world().position(elevator_id).unwrap().value();
@@ -248,6 +249,7 @@ let capacity = elev.weight_capacity();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>let going_up = sim.elevator_going_up(elevator_id);
 let going_down = sim.elevator_going_down(elevator_id);
@@ -258,6 +260,7 @@ let going_down = sim.elevator_going_down(elevator_id);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>let elev = sim.world().elevator(elevator_id).unwrap();
 let going_up = elev.going_up();
@@ -298,6 +301,7 @@ let going_down = elev.going_down();
 </table>
 </div>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -323,6 +327,7 @@ let going_down = elev.going_down();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_max_speed(elev, 4.0)?;
 sim.set_acceleration(elev, 2.5)?;

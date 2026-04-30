@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -273,6 +273,7 @@
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>sim.step();
 
@@ -303,6 +304,7 @@ for event in sim.drain_events() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let m = sim.metrics();
 
@@ -351,6 +353,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>println!("{}", sim.metrics());
 // Output: "42 delivered, avg wait 87.3t, 65% util"
@@ -374,6 +377,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let idle = sim.idle_elevator_count();
 let loading = sim.elevators_in_phase(ElevatorPhase::Loading);
@@ -385,6 +389,7 @@ println!("{idle} idle, {loading} loading");
 <p>For per-zone or per-label breakdowns, tag entities with string labels and query metrics scoped to those tags.</p>
 <h3 id="tagging-entities"><a class="header" href="#tagging-entities">Tagging entities</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -406,6 +411,7 @@ sim.tag_entity(rider.entity(), "priority:vip")?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>if let Some(m) = sim.metrics_for_tag("zone:lobby") {
     println!("Lobby avg wait:  {:.1} ticks", m.avg_wait_time());
@@ -420,6 +426,7 @@ sim.tag_entity(rider.entity(), "priority:vip")?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let time = sim.time();
 let avg_wait_seconds = time.ticks_to_seconds(sim.metrics().avg_wait_time() as u64);

@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -255,6 +255,7 @@ fn replay_is_deterministic() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span>#[test]
 fn snapshot_roundtrip_preserves_state() {
@@ -289,6 +290,7 @@ fn snapshot_roundtrip_preserves_state() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(restored: &amp;Simulation, elev_id: EntityId) {
 </span>let restored_phase = restored.world().elevator(elev_id).unwrap().phase();
 match restored_phase {
@@ -419,6 +421,7 @@ proptest! {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(events: Vec&lt;Event&gt;, metrics: &amp;Metrics, expected_minimum: u64) {
 </span>assert!(events.iter().any(|e| matches!(e, Event::RiderBoarded { .. })));
 assert!(metrics.total_delivered() &gt;= expected_minimum);

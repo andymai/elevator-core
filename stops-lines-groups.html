@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -186,6 +186,7 @@
 <h2 id="stops"><a class="header" href="#stops">Stops</a></h2>
 <p>A <strong>stop</strong> is a named position along a 1D shaft axis. Unlike traditional elevator simulators that assume uniform floor spacing, elevator-core places stops at arbitrary distances. A 5-story office might have stops at 0.0, 3.5, 7.0, 10.5, and 14.0. A space elevator might have stops at 0.0 and 35,786,000.0. The engine does not care – the physics just scale.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let sim = SimulationBuilder::new()
     .stop(StopId(0), "Basement", -3.0)
@@ -201,6 +202,7 @@
 <p>A <strong>line</strong> represents a physical path: a shaft, a tether, a track. Every elevator belongs to exactly one line, and a line defines which stops its elevators can reach.</p>
 <p>For simple single-shaft buildings, you never need to think about lines. The builder auto-creates a default line that includes all stops and all elevators:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>// This implicitly creates one line containing both elevators and all stops.
 SimulationBuilder::new()
@@ -264,6 +266,7 @@ SimulationBuilder::new()
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let lobby_entity: Option&lt;EntityId&gt; = sim.stop_entity(StopId(0));
 <span class="boring">let _ = lobby_entity;
@@ -281,6 +284,7 @@ SimulationBuilder::new()
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let seconds = sim.time().ticks_to_seconds(120);  // 120 ticks -&gt; seconds
 <span class="boring">let _ = seconds;

@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -240,12 +240,12 @@
 <pre><code class="language-bash">cargo add elevator-core
 </code></pre>
 <h2 id="import-the-prelude"><a class="header" href="#import-the-prelude">Import the prelude</a></h2>
-<p>The prelude re-exports everything you need for typical usage:</p>
+<p>The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::prelude::*;
 <span class="boring">}</span></code></pre>
-<p>This brings in the builder, simulation runner, all component types, dispatch traits, identity types, error types, and events. Types not in the prelude (concrete dispatch strategies, config structs, traffic module) are imported explicitly when needed.</p>
+<p>This brings in <code>Simulation</code>, <code>SimulationBuilder</code>, <code>RiderBuilder</code>, <code>SimConfig</code>, <code>ElevatorConfig</code>, <code>StopConfig</code>, the typed IDs (<code>StopId</code>, <code>ElevatorId</code>, <code>RiderId</code>, <code>EntityId</code>, <code>GroupId</code>), <code>Event</code>, <code>SimError</code>, <code>RejectionReason</code>, the phase + direction enums (<code>ElevatorPhase</code>, <code>RiderPhase</code>, <code>Direction</code>), the dispatch trait + presets (<code>DispatchStrategy</code>, <code>BuiltinStrategy</code>, <code>BuiltinReposition</code>), and <code>World</code> + <code>Metrics</code>. Fine-grained component types (<code>Position</code>, <code>Speed</code>, <code>Route</code>, <code>Patience</code>, …), per-strategy structs (<code>ScanDispatch</code>, <code>EtdDispatch</code>, …), extension keys (<code>ExtKey</code>), and traffic types are imported explicitly from their sub-modules when needed.</p>
 <h3 id="feature-flags"><a class="header" href="#feature-flags">Feature flags</a></h3>
 <div class="table-wrapper">
 <table>
@@ -279,6 +279,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="spawn-a-rider"><a class="header" href="#spawn-a-rider">Spawn a rider</a></h2>
 <p>A rider is anything that rides an elevator. Provide an origin stop, a destination stop, and a weight:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Lobby", 0.0)
@@ -297,6 +298,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="run-the-simulation-loop"><a class="header" href="#run-the-simulation-loop">Run the simulation loop</a></h2>
 <p>Each call to <code>sim.step()</code> advances the simulation by one tick, running all <a href="#the-simulation-loop">eight phases</a> of the tick loop. After stepping, drain events to see what happened:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Lobby", 0.0)
@@ -572,6 +574,7 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 <h2 id="stops"><a class="header" href="#stops">Stops</a></h2>
 <p>A <strong>stop</strong> is a named position along a 1D shaft axis. Unlike traditional elevator simulators that assume uniform floor spacing, elevator-core places stops at arbitrary distances. A 5-story office might have stops at 0.0, 3.5, 7.0, 10.5, and 14.0. A space elevator might have stops at 0.0 and 35,786,000.0. The engine does not care – the physics just scale.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let sim = SimulationBuilder::new()
     .stop(StopId(0), "Basement", -3.0)
@@ -587,6 +590,7 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 <p>A <strong>line</strong> represents a physical path: a shaft, a tether, a track. Every elevator belongs to exactly one line, and a line defines which stops its elevators can reach.</p>
 <p>For simple single-shaft buildings, you never need to think about lines. The builder auto-creates a default line that includes all stops and all elevators:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>// This implicitly creates one line containing both elevators and all stops.
 SimulationBuilder::new()
@@ -650,6 +654,7 @@ SimulationBuilder::new()
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let lobby_entity: Option&lt;EntityId&gt; = sim.stop_entity(StopId(0));
 <span class="boring">let _ = lobby_entity;
@@ -667,6 +672,7 @@ SimulationBuilder::new()
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let seconds = sim.time().ticks_to_seconds(120);  // 120 ticks -&gt; seconds
 <span class="boring">let _ = seconds;
@@ -709,6 +715,7 @@ SimulationBuilder::new()
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>// World accessors return Option -- unwrap when you know the entity exists.
 let pos: f64 = sim.world().position(elevator_id).unwrap().value();
@@ -747,6 +754,7 @@ let capacity = elev.weight_capacity();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>let going_up = sim.elevator_going_up(elevator_id);
 let going_down = sim.elevator_going_down(elevator_id);
@@ -757,6 +765,7 @@ let going_down = sim.elevator_going_down(elevator_id);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, elevator_id: EntityId) {
 </span>let elev = sim.world().elevator(elevator_id).unwrap();
 let going_up = elev.going_up();
@@ -797,6 +806,7 @@ let going_down = elev.going_down();
 </table>
 </div>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -822,6 +832,7 @@ let going_down = elev.going_down();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_max_speed(elev, 4.0)?;
 sim.set_acceleration(elev, 2.5)?;
@@ -857,6 +868,7 @@ sim.set_door_transition_ticks(elev, 8)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) -&gt; Result&lt;(), SimError&gt; {
 </span>let rider_id = sim.spawn_rider(StopId(0), StopId(3), 75.0)?;
 <span class="boring">let _ = rider_id;
@@ -868,6 +880,7 @@ sim.set_door_transition_ticks(elev, 8)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) -&gt; Result&lt;(), SimError&gt; {
 </span>let rider_id = sim.build_rider(StopId(0), StopId(3))?
     .weight(80.0)
@@ -916,6 +929,7 @@ sim.set_door_transition_ticks(elev, 8)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, lobby_entity: EntityId, floor_10: EntityId, stop_entity: EntityId) {
 </span>// Who is waiting at the lobby?
 let waiting: Vec&lt;EntityId&gt; = sim.waiting_at(lobby_entity).collect();
@@ -946,6 +960,7 @@ let abandoned: Vec&lt;EntityId&gt; = sim.abandoned_at(stop_entity).collect();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation, id: EntityId) {
 </span>if sim.is_rider(id) {
     // handle rider
@@ -975,6 +990,7 @@ let abandoned: Vec&lt;EntityId&gt; = sim.abandoned_at(stop_entity).collect();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, rider_id: RiderId, new_route: Route) -&gt; Result&lt;(), SimError&gt; {
 </span>// A rider arrives at their destination. Settle them as a resident.
 sim.settle_rider(rider_id)?;
@@ -1042,6 +1058,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::components::hall_call::CallDirection;
 </span><span class="boring">fn run(
 </span><span class="boring">    sim: &amp;mut Simulation,
@@ -1223,6 +1240,7 @@ flush events, tick += 1"]
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::hooks::Phase;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>sim.add_before_hook(Phase::Loading, |world| {
@@ -1234,6 +1252,7 @@ flush events, tick += 1"]
 <h2 id="sub-stepping"><a class="header" href="#sub-stepping">Sub-stepping</a></h2>
 <p>For advanced use cases, you can run individual phases instead of calling <code>step()</code>:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -1275,6 +1294,7 @@ sim.advance_tick(); // flush events and increment tick counter
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let elev: ElevatorId = todo!();
 </span><span class="boring">let stop_a: EntityId = todo!();
@@ -1480,6 +1500,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span>let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap()
@@ -1513,6 +1534,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span>let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap()
@@ -1532,6 +1554,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use std::collections::HashSet;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let lobby: EntityId = todo!();
@@ -1552,6 +1575,7 @@ let rider = sim.build_rider(StopId(0), StopId(1))
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let rider: RiderId = todo!();
 </span><span class="boring">let new_route: Route = todo!();
@@ -1633,6 +1657,7 @@ sim.reroute(rider, new_route).unwrap();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let elev: ElevatorId = todo!();
 </span>sim.set_door_transition_ticks(elev, 3).unwrap();
@@ -1659,6 +1684,7 @@ sim.set_door_open_ticks(elev, 15).unwrap();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let elev: ElevatorId = todo!();
 </span>// A friend is running for the elevator -- hold the doors.
@@ -1743,6 +1769,7 @@ let distance = braking_distance(2.5, 1.0);  // v=2.5, decel=1.0
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let sim: Simulation = todo!();
 </span><span class="boring">let elev: EntityId = todo!();
 </span>// alpha = 0.0 is the position at tick start, 1.0 at tick end.
@@ -1754,6 +1781,7 @@ let p_end   = sim.position_at(elev, 1.0).unwrap();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span><span class="boring">let elev: EntityId = todo!();
 </span>sim.step();
@@ -1773,6 +1801,7 @@ for i in 0..4 {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let sim: Simulation = todo!();
 </span><span class="boring">let elev: ElevatorId = todo!();
 </span><span class="boring">let lobby: EntityId = todo!();
@@ -1793,6 +1822,7 @@ if let Some((car, eta)) = sim.best_eta(lobby, Direction::Down) {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn handle(event: Event) {
 </span>if let Event::PassingFloor { elevator, stop, moving_up, tick } = event {
     let _ = (elevator, stop, moving_up, tick);
@@ -1906,6 +1936,7 @@ if let Some((car, eta)) = sim.best_eta(lobby, Direction::Down) {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>sim.step();
 
@@ -1936,6 +1967,7 @@ for event in sim.drain_events() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let m = sim.metrics();
 
@@ -1984,6 +2016,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>println!("{}", sim.metrics());
 // Output: "42 delivered, avg wait 87.3t, 65% util"
@@ -2007,6 +2040,7 @@ println!("Total distance:    {:.1} units", m.total_distance());
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let idle = sim.idle_elevator_count();
 let loading = sim.elevators_in_phase(ElevatorPhase::Loading);
@@ -2018,6 +2052,7 @@ println!("{idle} idle, {loading} loading");
 <p>For per-zone or per-label breakdowns, tag entities with string labels and query metrics scoped to those tags.</p>
 <h3 id="tagging-entities"><a class="header" href="#tagging-entities">Tagging entities</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -2039,6 +2074,7 @@ sim.tag_entity(rider.entity(), "priority:vip")?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>if let Some(m) = sim.metrics_for_tag("zone:lobby") {
     println!("Lobby avg wait:  {:.1} ticks", m.avg_wait_time());
@@ -2053,6 +2089,7 @@ sim.tag_entity(rider.entity(), "priority:vip")?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;Simulation) {
 </span>let time = sim.time();
 let avg_wait_seconds = time.ticks_to_seconds(sim.metrics().avg_wait_time() as u64);
@@ -2174,6 +2211,7 @@ println!("Avg wait: {avg_wait_seconds:.1}s");
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span>use ordered_float::OrderedFloat;
 
 let context = RejectionContext {
@@ -2187,6 +2225,7 @@ let context = RejectionContext {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use ordered_float::OrderedFloat;
 </span><span class="boring">let context = RejectionContext {
 </span><span class="boring">    attempted_weight: OrderedFloat(80.0),
@@ -2218,6 +2257,7 @@ println!("{}", context);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span>match sim.spawn_rider(StopId(0), StopId(5), 75.0) {
     Ok(rider) =&gt; {
@@ -2246,6 +2286,7 @@ println!("{}", context);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>sim.step();
 
@@ -2546,6 +2587,7 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">struct BusyStopNearest;
 </span><span class="boring">impl DispatchStrategy for BusyStopNearest {
 </span><span class="boring">    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
@@ -2628,6 +2670,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -2652,6 +2695,7 @@ sim.world_mut().insert_ext(
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, rider_id: EntityId) {
 </span>// Read (cloned)
 if let Some(guest) = sim.world().ext::&lt;GuestPriority&gt;(rider_id) {
@@ -2672,6 +2716,7 @@ if let Some(guest) = sim.world_mut().ext_mut::&lt;GuestPriority&gt;(rider_id) {
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::query::Ext;
 </span><span class="boring">fn run(world: &amp;mut World) {
 </span>// Read-only iteration (cloned via Ext&lt;T&gt;)
@@ -2691,6 +2736,7 @@ world.query_ext_mut::&lt;GuestPriority&gt;().for_each_mut(|_id, guest| {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>// Insert a resource
 sim.world_mut().insert_resource(42u32);
@@ -2732,6 +2778,7 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
@@ -2780,6 +2827,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="registering-hooks-after-build"><a class="header" href="#registering-hooks-after-build">Registering hooks after build</a></h2>
 <p>You can add hooks to a running simulation. This is useful when hook logic depends on runtime state that isn’t available at build time:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::hooks::Phase;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
@@ -2795,6 +2843,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="group-specific-hooks"><a class="header" href="#group-specific-hooks">Group-specific hooks</a></h2>
 <p>For multi-group buildings, you can register hooks that only fire for a specific elevator group:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::hooks::Phase;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let sim = SimulationBuilder::new()
@@ -2858,10 +2907,9 @@ before(Metrics)          -&gt; [Metrics]          -&gt; after(Metrics)
 <h2 id="combining-extensions-and-hooks-worked-example"><a class="header" href="#combining-extensions-and-hooks-worked-example">Combining extensions and hooks: worked example</a></h2>
 <p>A facilities team monitoring an office tower wants to know whenever a tenant has been waiting for an elevator for more than 90 seconds during peak traffic – it is a service-level indicator and feeds an end-of-day report. This walkthrough flags each over-budget wait exactly once via a <code>SlaBreach</code> extension component plus an <code>after(Phase::Metrics)</code> hook.</p>
 <p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so the tick is mirrored into a <code>World</code> resource that the hook reads.</p>
-<pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
-use elevator_core::config::ElevatorConfig;
-use elevator_core::hooks::Phase;
-use elevator_core::stop::StopId;
+<pre class="playground"><code class="language-rust no_run">use elevator_core::hooks::Phase;
+use elevator_core::prelude::*;
+use elevator_core::world::ExtKey;
 use serde::{Serialize, Deserialize};
 
 /// Per-rider flag that latches the first time a tenant breaches the
@@ -2956,6 +3004,7 @@ struct CurrentTick(u64);</code></pre>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev, ServiceMode::Manual)?;
 <span class="boring">Ok(())
@@ -2969,6 +3018,7 @@ struct CurrentTick(u64);</code></pre>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>// Command the elevator upward.
 sim.set_target_velocity(elev, 2.0)?;
@@ -2987,6 +3037,7 @@ sim.set_target_velocity(elev, 0.0)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.emergency_stop(elev)?;
 <span class="boring">Ok(())
@@ -2996,6 +3047,7 @@ sim.set_target_velocity(elev, 0.0)?;
 <h3 id="complete-example"><a class="header" href="#complete-example">Complete example</a></h3>
 <p>This example puts an elevator into manual mode, commands it upward, then triggers an emergency stop halfway through:</p>
 <pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
+use elevator_core::components::ServiceMode;
 
 fn main() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -3029,6 +3081,7 @@ fn main() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev, ServiceMode::Inspection)?;
 // The elevator now moves at 25% of its normal max speed.
@@ -3042,6 +3095,7 @@ fn main() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev.entity(), ServiceMode::Independent)?;
 // Now manually send it somewhere.
@@ -3062,6 +3116,7 @@ sim.abort_movement(elev)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>// Take out of service.
 sim.disable(elev)?;
@@ -3076,6 +3131,7 @@ sim.enable(elev)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn handle(event: Event) {
 </span>if let Event::ServiceModeChanged { elevator, from, to, tick } = event {
     let _ = (elevator, from, to, tick); // use the fields in your game
@@ -3197,6 +3253,7 @@ let source = PoissonSource::new(
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::traffic::PoissonSource;
 </span><span class="boring">fn run(config: &amp;SimConfig) {
 </span>let source = PoissonSource::from_config(config);
@@ -3291,6 +3348,7 @@ impl TrafficSource for VipSpawn {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::traffic::SpawnRequest;
 </span>// Constructing a SpawnRequest to feed into the simulation:
 let req = SpawnRequest {
@@ -3304,6 +3362,7 @@ let req = SpawnRequest {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::traffic::SpawnRequest;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, req: SpawnRequest) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.build_rider(req.origin, req.destination)?
@@ -3352,6 +3411,7 @@ TrafficSchedule(
 <p>A <code>WorldSnapshot</code> captures the full simulation state – all entities, components, groups, lines, metrics, tagged metrics, tick counter – in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are <strong>not</strong> captured.</p>
 <h3 id="saving"><a class="header" href="#saving">Saving</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -3368,6 +3428,7 @@ std::fs::write("save.ron", bytes).unwrap();
 <p>The snapshot struct is <code>Serialize + Deserialize</code> – choose any serde format (RON, JSON, bincode, postcard).</p>
 <h3 id="loading"><a class="header" href="#loading">Loading</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let bytes = std::fs::read_to_string("save.ron").unwrap();
@@ -3385,6 +3446,7 @@ let sim = snapshot.restore(None)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">struct HighestFirstDispatch;
 </span><span class="boring">impl DispatchStrategy for HighestFirstDispatch {
@@ -3403,6 +3465,7 @@ let sim = snapshot.restore(None)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct VipTag;
@@ -3426,6 +3489,7 @@ sim.load_extensions();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, expected: &amp;str) {
 </span>let snap = sim.snapshot();
 let actual = ron::to_string(&amp;snap).unwrap();
@@ -3440,6 +3504,7 @@ assert_eq!(actual, expected);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn build_sim(dispatch: impl DispatchStrategy + 'static) -&gt; Simulation {
 </span><span class="boring">  SimulationBuilder::new()
 </span><span class="boring">      .stop(StopId(0), "Ground", 0.0)
@@ -3538,6 +3603,7 @@ fn replay_is_deterministic() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span>#[test]
 fn snapshot_roundtrip_preserves_state() {
@@ -3572,6 +3638,7 @@ fn snapshot_roundtrip_preserves_state() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(restored: &amp;Simulation, elev_id: EntityId) {
 </span>let restored_phase = restored.world().elevator(elev_id).unwrap().phase();
 match restored_phase {
@@ -3702,6 +3769,7 @@ proptest! {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(events: Vec&lt;Event&gt;, metrics: &amp;Metrics, expected_minimum: u64) {
 </span>assert!(events.iter().any(|e| matches!(e, Event::RiderBoarded { .. })));
 assert!(metrics.total_delivered() &gt;= expected_minimum);
@@ -3776,6 +3844,7 @@ impl Plugin for ElevatorSimPlugin {
 </span><span class="boring">fn main() {
 </span><span class="boring">use bevy::prelude::*;
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span>#[derive(Resource)]
 pub struct SimulationRes {
     pub sim: Simulation,
@@ -3947,6 +4016,7 @@ fn print_metrics(sim: Res&lt;SimulationRes&gt;) {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use std::io::Write;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, out: &amp;mut impl Write, ticks: u64) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 </span>for _ in 0..ticks {

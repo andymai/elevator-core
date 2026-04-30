@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -288,6 +288,7 @@
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span>use ordered_float::OrderedFloat;
 
 let context = RejectionContext {
@@ -301,6 +302,7 @@ let context = RejectionContext {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use ordered_float::OrderedFloat;
 </span><span class="boring">let context = RejectionContext {
 </span><span class="boring">    attempted_weight: OrderedFloat(80.0),
@@ -332,6 +334,7 @@ println!("{}", context);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">let mut sim: Simulation = todo!();
 </span>match sim.spawn_rider(StopId(0), StopId(5), 75.0) {
     Ok(rider) =&gt; {
@@ -360,6 +363,7 @@ println!("{}", context);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>sim.step();
 
