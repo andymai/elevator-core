@@ -49,6 +49,7 @@ Game and operator code can drive the call system outside the normal rider flow. 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::components::hall_call::CallDirection;
 # fn run(
 #     sim: &mut Simulation,

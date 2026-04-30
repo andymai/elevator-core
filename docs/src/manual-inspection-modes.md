@@ -17,6 +17,7 @@ Use `sim.set_service_mode()` to change an elevator's mode at any time. The metho
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: EntityId) -> Result<(), SimError> {
 sim.set_service_mode(elev, ServiceMode::Manual)?;
 # Ok(())
@@ -35,6 +36,7 @@ Set the target velocity with `sim.set_target_velocity()`. The elevator accelerat
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
 // Command the elevator upward.
 sim.set_target_velocity(elev, 2.0)?;
@@ -56,6 +58,7 @@ Trigger an immediate deceleration to zero:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
 sim.emergency_stop(elev)?;
 # Ok(())
@@ -70,6 +73,7 @@ This example puts an elevator into manual mode, commands it upward, then trigger
 
 ```rust,no_run
 use elevator_core::prelude::*;
+use elevator_core::components::ServiceMode;
 
 fn main() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -108,6 +112,7 @@ This mode is useful for maintenance walk-throughs and operator-driven inspection
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: EntityId) -> Result<(), SimError> {
 sim.set_service_mode(elev, ServiceMode::Inspection)?;
 // The elevator now moves at 25% of its normal max speed.
@@ -125,6 +130,7 @@ This is useful for freight elevators, service lifts, or any elevator that should
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
 sim.set_service_mode(elev.entity(), ServiceMode::Independent)?;
 // Now manually send it somewhere.
@@ -147,6 +153,7 @@ Re-enable with `sim.enable()`, which emits `EntityEnabled`. Most `Simulation` me
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: EntityId) -> Result<(), SimError> {
 // Take out of service.
 sim.disable(elev)?;
@@ -163,6 +170,7 @@ The `Event::ServiceModeChanged` event fires whenever `set_service_mode` changes 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn handle(event: Event) {
 if let Event::ServiceModeChanged { elevator, from, to, tick } = event {
     let _ = (elevator, from, to, tick); // use the fields in your game

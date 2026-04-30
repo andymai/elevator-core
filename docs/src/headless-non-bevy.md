@@ -36,6 +36,7 @@ The body of the main loop is small enough to inline here:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use std::io::Write;
 # fn run(sim: &mut Simulation, out: &mut impl Write, ticks: u64) -> Result<(), Box<dyn std::error::Error>> {
 for _ in 0..ticks {

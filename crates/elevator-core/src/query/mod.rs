@@ -3,8 +3,10 @@
 //! # Examples
 //!
 //! ```
+//! use elevator_core::components::{Position, Rider, Route};
 //! use elevator_core::prelude::*;
 //! use elevator_core::query::{Ext, With, Without};
+//! use elevator_core::world::ExtKey;
 //!
 //! use serde::{Serialize, Deserialize};
 //!

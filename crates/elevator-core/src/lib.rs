@@ -158,6 +158,7 @@
 //!
 //! ```rust,no_run
 //! # use elevator_core::prelude::*;
+//! # use elevator_core::__doctest_prelude::*;
 //! # use elevator_core::query::Ext;
 //! # use serde::{Serialize, Deserialize};
 //! # #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -462,112 +463,97 @@ macro_rules! register_extensions {
 
 /// Common imports for consumers of this library.
 ///
-/// `use elevator_core::prelude::*;` pulls in the types you need for the vast
-/// majority of simulations — building a sim, stepping it, spawning riders,
-/// reading events and metrics, and writing custom dispatch strategies.
+/// `use elevator_core::prelude::*;` pulls in the 22 names that cover the
+/// vast majority of usage: building a sim, stepping it, querying world
+/// state, writing custom dispatch, and reading aggregate metrics. Anything
+/// beyond that — fine-grained component types, per-strategy structs,
+/// extension keys, traffic generation — is imported explicitly from its
+/// sub-module.
 ///
 /// # Contents
 ///
-/// - **Builder & simulation:** [`SimulationBuilder`](crate::builder::SimulationBuilder),
-///   [`Simulation`](crate::sim::Simulation),
+/// - **Sim & builder:** [`Simulation`](crate::sim::Simulation),
+///   [`SimulationBuilder`](crate::builder::SimulationBuilder),
 ///   [`RiderBuilder`](crate::sim::RiderBuilder)
-/// - **Components:** [`Rider`](crate::components::Rider),
-///   [`RiderPhase`](crate::components::RiderPhase),
-///   [`RiderPhaseKind`](crate::components::RiderPhaseKind),
-///   [`Elevator`](crate::components::Elevator),
-///   [`ElevatorPhase`](crate::components::ElevatorPhase),
-///   [`Stop`](crate::components::Stop), [`Line`](crate::components::Line),
-///   [`Position`](crate::components::Position),
-///   [`Velocity`](crate::components::Velocity),
-///   [`SpatialPosition`](crate::components::SpatialPosition),
-///   [`Route`](crate::components::Route),
-///   [`Patience`](crate::components::Patience),
-///   [`Preferences`](crate::components::Preferences),
-///   [`AccessControl`](crate::components::AccessControl),
-///   [`DestinationQueue`](crate::components::DestinationQueue),
-///   [`Direction`](crate::components::Direction),
-///   [`Orientation`](crate::components::Orientation),
-///   [`ServiceMode`](crate::components::ServiceMode)
 /// - **Config:** [`SimConfig`](crate::config::SimConfig),
 ///   [`ElevatorConfig`](crate::config::ElevatorConfig),
-///   [`GroupConfig`](crate::config::GroupConfig),
-///   [`LineConfig`](crate::config::LineConfig),
 ///   [`StopConfig`](crate::stop::StopConfig)
-/// - **Dispatch:** [`DispatchStrategy`](crate::dispatch::DispatchStrategy),
-///   [`RepositionStrategy`](crate::dispatch::RepositionStrategy),
-///   [`DispatchDecision`](crate::dispatch::DispatchDecision),
-///   [`DispatchManifest`](crate::dispatch::DispatchManifest),
-///   [`ElevatorGroup`](crate::dispatch::ElevatorGroup),
-///   [`AssignedCar`](crate::dispatch::AssignedCar),
-///   [`RankContext`](crate::dispatch::RankContext),
-///   [`DestinationDispatch`](crate::dispatch::DestinationDispatch),
-///   [`ScanDispatch`](crate::dispatch::ScanDispatch),
-///   [`LookDispatch`](crate::dispatch::LookDispatch),
-///   [`NearestCarDispatch`](crate::dispatch::NearestCarDispatch),
-///   [`EtdDispatch`](crate::dispatch::EtdDispatch),
-///   [`RsrDispatch`](crate::dispatch::RsrDispatch),
-///   [`BuiltinStrategy`](crate::dispatch::BuiltinStrategy),
-///   [`BuiltinReposition`](crate::dispatch::BuiltinReposition),
-///   plus the built-in reposition strategies
-///   [`NearestIdle`](crate::dispatch::reposition::NearestIdle),
-///   [`ReturnToLobby`](crate::dispatch::reposition::ReturnToLobby),
-///   [`SpreadEvenly`](crate::dispatch::reposition::SpreadEvenly),
-///   [`DemandWeighted`](crate::dispatch::reposition::DemandWeighted),
-///   [`PredictiveParking`](crate::dispatch::reposition::PredictiveParking),
-///   [`AdaptiveParking`](crate::dispatch::reposition::AdaptiveParking)
-/// - **Traffic observation:** [`TrafficDetector`](crate::traffic_detector::TrafficDetector),
-///   [`TrafficMode`](crate::traffic_detector::TrafficMode),
-///   [`ArrivalLog`](crate::arrival_log::ArrivalLog),
-///   [`DestinationLog`](crate::arrival_log::DestinationLog),
-///   [`CurrentTick`](crate::arrival_log::CurrentTick),
-///   [`ArrivalLogRetention`](crate::arrival_log::ArrivalLogRetention)
-/// - **Identity:** [`EntityId`](crate::entity::EntityId),
-///   [`StopId`](crate::stop::StopId), [`StopRef`](crate::stop::StopRef),
+/// - **Identity:** [`StopId`](crate::stop::StopId),
+///   [`ElevatorId`](crate::entity::ElevatorId),
+///   [`RiderId`](crate::entity::RiderId),
+///   [`EntityId`](crate::entity::EntityId),
 ///   [`GroupId`](crate::ids::GroupId)
 /// - **Errors & events:** [`SimError`](crate::error::SimError),
-///   [`EtaError`](crate::error::EtaError),
 ///   [`RejectionReason`](crate::error::RejectionReason),
-///   [`RejectionContext`](crate::error::RejectionContext),
-///   [`Event`](crate::events::Event),
-///   [`EventBus`](crate::events::EventBus),
-///   [`EventCategory`](crate::events::EventCategory)
-/// - **World & misc:** [`World`](crate::world::World),
-///   [`Metrics`](crate::metrics::Metrics),
-///   [`TimeAdapter`](crate::time::TimeAdapter),
-///   [`ExtKey`](crate::world::ExtKey)
+///   [`Event`](crate::events::Event)
+/// - **Phase & direction enums:** [`ElevatorPhase`](crate::components::ElevatorPhase),
+///   [`RiderPhase`](crate::components::RiderPhase),
+///   [`Direction`](crate::components::Direction)
+/// - **Dispatch:** [`DispatchStrategy`](crate::dispatch::DispatchStrategy),
+///   [`BuiltinStrategy`](crate::dispatch::BuiltinStrategy),
+///   [`BuiltinReposition`](crate::dispatch::BuiltinReposition)
+/// - **World & metrics:** [`World`](crate::world::World),
+///   [`Metrics`](crate::metrics::Metrics)
 ///
 /// # Not included (import explicitly)
 ///
+/// - Fine-grained component types (`Position`, `Velocity`, `Speed`, `Accel`,
+///   `Weight`, `Route`, `Patience`, `ServiceMode`, etc.) → [`crate::components`]
+/// - Per-strategy structs (`ScanDispatch`, `LookDispatch`,
+///   `NearestCarDispatch`, `EtdDispatch`, `RsrDispatch`, `DestinationDispatch`),
+///   `RankContext`, `DispatchManifest`, reposition strategies → [`crate::dispatch`]
+/// - Extension storage (`ExtKey`) → [`crate::world`]
+/// - Traffic detection, arrival logs, time adapters, event bus,
+///   group/line config, and `StopRef` → their respective modules
 /// - Traffic generation types from [`crate::traffic`] (feature-gated)
 /// - Snapshot types from [`crate::snapshot`]
 pub mod prelude {
-    pub use crate::arrival_log::{ArrivalLog, ArrivalLogRetention, CurrentTick, DestinationLog};
     pub use crate::builder::SimulationBuilder;
+    pub use crate::components::{Direction, ElevatorPhase, RiderPhase};
+    pub use crate::config::{ElevatorConfig, SimConfig};
+    pub use crate::dispatch::{BuiltinReposition, BuiltinStrategy, DispatchStrategy};
+    pub use crate::entity::{ElevatorId, EntityId, RiderId};
+    pub use crate::error::{RejectionReason, SimError};
+    pub use crate::events::Event;
+    pub use crate::ids::GroupId;
+    pub use crate::metrics::Metrics;
+    pub use crate::sim::{RiderBuilder, Simulation};
+    pub use crate::stop::{StopConfig, StopId};
+    pub use crate::world::World;
+}
+
+/// Internal-only re-exports used by hidden doc-test setup lines
+/// (`# use elevator_core::__doctest_prelude::*;`) so each chapter's
+/// fenced blocks compile without per-block import surgery while the
+/// public [`prelude`] stays small. Hidden from `cargo doc` and
+/// considered an implementation detail — not part of the public API.
+///
+/// Names already in [`prelude`] are deliberately omitted to avoid
+/// glob-import ambiguity errors when both modules are wildcarded.
+#[doc(hidden)]
+pub mod __doctest_prelude {
+    pub use crate::arrival_log::{ArrivalLog, ArrivalLogRetention, CurrentTick, DestinationLog};
     pub use crate::components::{
-        Accel, AccessControl, DestinationQueue, Direction, Elevator, ElevatorPhase, Line,
-        Orientation, Patience, Position, Preferences, Rider, RiderPhase, RiderPhaseKind, Route,
-        ServiceMode, SpatialPosition, Speed, Stop, UnitError, Velocity, Weight,
+        Accel, AccessControl, DestinationQueue, Elevator, Line, Orientation, Patience, Position,
+        Preferences, Rider, RiderPhaseKind, Route, ServiceMode, SpatialPosition, Speed, Stop,
+        UnitError, Velocity, Weight,
     };
-    pub use crate::config::{ElevatorConfig, GroupConfig, LineConfig, SimConfig};
+    pub use crate::config::{GroupConfig, LineConfig};
     pub use crate::dispatch::reposition::{
         AdaptiveParking, DemandWeighted, NearestIdle, PredictiveParking, ReturnToLobby,
         SpreadEvenly,
     };
     pub use crate::dispatch::{
-        AssignedCar, BuiltinReposition, BuiltinStrategy, DestinationDispatch, DispatchDecision,
-        DispatchManifest, DispatchStrategy, ElevatorGroup, EtdDispatch, LookDispatch,
-        NearestCarDispatch, RankContext, RepositionStrategy, RsrDispatch, ScanDispatch,
+        AssignedCar, DestinationDispatch, DispatchDecision, DispatchManifest, ElevatorGroup,
+        EtdDispatch, LookDispatch, NearestCarDispatch, RankContext, RepositionStrategy,
+        RsrDispatch, ScanDispatch,
     };
-    pub use crate::entity::{ElevatorId, EntityId, RiderId};
-    pub use crate::error::{EtaError, RejectionContext, RejectionReason, SimError};
-    pub use crate::events::{Event, EventBus, EventCategory};
-    pub use crate::ids::GroupId;
-    pub use crate::metrics::Metrics;
-    pub use crate::sim::{RiderBuilder, Simulation};
-    pub use crate::stop::{StopConfig, StopId, StopRef};
+    pub use crate::error::{EtaError, RejectionContext};
+    pub use crate::events::{EventBus, EventCategory};
+    pub use crate::stop::StopRef;
     pub use crate::time::TimeAdapter;
     pub use crate::traffic_detector::{TrafficDetector, TrafficMode};
-    pub use crate::world::{ExtKey, World};
+    pub use crate::world::ExtKey;
 }
 
 #[cfg(test)]

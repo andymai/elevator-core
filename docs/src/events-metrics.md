@@ -75,6 +75,7 @@ Events are buffered during each tick and made available via `sim.drain_events()`
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation) {
 sim.step();
 
@@ -109,6 +110,7 @@ The `Metrics` struct aggregates key performance indicators across the entire sim
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 let m = sim.metrics();
 
@@ -155,6 +157,7 @@ Metrics are updated during the Metrics phase each tick. They are always availabl
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 println!("{}", sim.metrics());
 // Output: "42 delivered, avg wait 87.3t, 65% util"
@@ -174,6 +177,7 @@ The `Simulation` exposes read-only query helpers for game UIs and dispatch logic
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 let idle = sim.idle_elevator_count();
 let loading = sim.elevators_in_phase(ElevatorPhase::Loading);
@@ -191,6 +195,7 @@ For per-zone or per-label breakdowns, tag entities with string labels and query 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -214,6 +219,7 @@ sim.tag_entity(rider.entity(), "priority:vip")?;
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 if let Some(m) = sim.metrics_for_tag("zone:lobby") {
     println!("Lobby avg wait:  {:.1} ticks", m.avg_wait_time());
@@ -231,6 +237,7 @@ Metrics are reported in ticks. Convert to wall-clock seconds via the `TimeAdapte
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 let time = sim.time();
 let avg_wait_seconds = time.ticks_to_seconds(sim.metrics().avg_wait_time() as u64);

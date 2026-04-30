@@ -48,6 +48,7 @@ The core simulation is wrapped in a Bevy resource:
 ```rust,no_run
 # use bevy::prelude::*;
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 #[derive(Resource)]
 pub struct SimulationRes {
     pub sim: Simulation,

@@ -1,8 +1,10 @@
 //! Using extension components for game-specific data.
 #![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items)]
 
+use elevator_core::entity::EntityId;
 use elevator_core::prelude::*;
 use elevator_core::query::Ext;
+use elevator_core::world::ExtKey;
 use serde::{Deserialize, Serialize};
 
 /// A custom VIP tag attached to riders.

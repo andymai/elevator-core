@@ -17,11 +17,13 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use elevator_core::components::{Accel, Route, Speed, Weight};
 use elevator_core::dispatch::{
     BuiltinReposition, DispatchStrategy, EtdDispatch, LookDispatch, NearestCarDispatch,
     ScanDispatch,
 };
 use elevator_core::prelude::*;
+use elevator_core::stop::StopConfig;
 
 fn three_car_sim_with<D: DispatchStrategy + 'static>(dispatch: D) -> Simulation {
     let stops: Vec<StopConfig> = (0..13)

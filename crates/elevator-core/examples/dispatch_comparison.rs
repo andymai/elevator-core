@@ -32,6 +32,7 @@
     clippy::print_stdout
 )]
 
+use elevator_core::components::{Accel, Speed, Weight};
 use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -45,6 +46,7 @@ use elevator_core::stop::StopConfig;
 use elevator_core::traffic::{
     PoissonSource, SpawnRequest, TrafficPattern, TrafficSchedule, TrafficSource,
 };
+use elevator_core::world::ExtKey;
 use rand::SeedableRng;
 
 const WARMUP_TICKS: u64 = 1000;

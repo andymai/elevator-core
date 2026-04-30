@@ -3,9 +3,10 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use elevator_core::components::{Preferences, RiderPhase, Route, RouteLeg, TransportMode};
+use elevator_core::components::{Preferences, Rider, RiderPhase, Route, RouteLeg, TransportMode};
 use elevator_core::dispatch::ScanDispatch;
 use elevator_core::entity::EntityId;
+use elevator_core::ids::GroupId;
 use elevator_core::prelude::*;
 
 #[path = "common/mod.rs"]

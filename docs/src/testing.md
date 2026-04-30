@@ -78,6 +78,7 @@ Save a snapshot, serialize it, deserialize it, restore, and verify the state mat
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 #[test]
 fn snapshot_roundtrip_preserves_state() {
@@ -114,6 +115,7 @@ For elevators in non-trivial phases (e.g., `Repositioning`), verify that the pha
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(restored: &Simulation, elev_id: EntityId) {
 let restored_phase = restored.world().elevator(elev_id).unwrap().phase();
 match restored_phase {
@@ -251,6 +253,7 @@ Criterion generates HTML reports in `target/criterion/` with statistical analysi
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(events: Vec<Event>, metrics: &Metrics, expected_minimum: u64) {
 assert!(events.iter().any(|e| matches!(e, Event::RiderBoarded { .. })));
 assert!(metrics.total_delivered() >= expected_minimum);

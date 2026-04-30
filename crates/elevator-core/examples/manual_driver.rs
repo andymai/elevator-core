@@ -13,6 +13,7 @@
 //! ```
 #![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items)]
 
+use elevator_core::components::ServiceMode;
 use elevator_core::prelude::*;
 
 fn main() {

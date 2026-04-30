@@ -11,8 +11,10 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use elevator_core::components::{Accel, Speed, Weight};
 use elevator_core::config::ElevatorConfig;
 use elevator_core::dispatch::etd::EtdDispatch;
+use elevator_core::metrics::Metrics;
 use elevator_core::prelude::*;
 
 /// A rider spawn scheduled at a specific tick.
