@@ -54,6 +54,19 @@ pub enum SimError {
         /// The rider's current phase.
         actual: RiderPhaseKind,
     },
+    /// An attempted lifecycle transition is not allowed by the legality matrix.
+    ///
+    /// Emitted by the transition gateway when the requested move from
+    /// `from` to `to` would skip a required intermediate state — e.g.
+    /// `Resident` → `Riding` (must go via `Waiting`/`Boarding` first).
+    IllegalTransition {
+        /// The rider whose transition was rejected.
+        rider: EntityId,
+        /// The rider's current phase.
+        from: RiderPhaseKind,
+        /// The phase the caller attempted to move into.
+        to: RiderPhaseKind,
+    },
     /// A rider has no current stop when one is required.
     RiderHasNoStop(EntityId),
     /// A route has no legs.
@@ -149,6 +162,12 @@ impl fmt::Display for SimError {
                 write!(
                     f,
                     "rider {rider:?} is in {actual} phase, expected {expected}"
+                )
+            }
+            Self::IllegalTransition { rider, from, to } => {
+                write!(
+                    f,
+                    "rider {rider:?} cannot transition {from} -> {to}: not in legality matrix"
                 )
             }
             Self::RiderHasNoStop(id) => write!(f, "rider {id:?} has no current stop"),

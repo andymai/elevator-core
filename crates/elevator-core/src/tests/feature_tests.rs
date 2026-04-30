@@ -651,11 +651,21 @@ fn remove_elevator_notifies_dispatcher_exactly_once() {
 
 // ── 6. Despawn cleanup ───────────────────────────────────────────────────────
 
+/// `World::despawn` is now a low-level entity removal: it does not transition
+/// aboard riders. Callers that despawn an elevator with riders aboard must
+/// transition them first (via `Simulation::disable` / `remove_elevator`,
+/// which route through the transition gateway). This test pins down that
+/// new contract — the elevator entity is removed and the rider's stale
+/// `Riding(eid)` reference points at a dead `EntityId`, but no silent
+/// rider-phase rewrite happens behind the caller's back. The previous
+/// behaviour (set rider to Waiting + nearest stop) couldn't keep
+/// `RiderIndex` consistent, so it produced "ghost" riders. See
+/// `api_surface_tests::remove_elevator_keeps_rider_index_coherent` for the
+/// proper full-stack flow.
 #[test]
-fn despawn_elevator_resets_rider_to_waiting() {
+fn despawn_elevator_does_not_silently_reset_aboard_riders() {
     let mut world = World::new();
 
-    // Create a stop for the rider to land at.
     let stop = world.spawn();
     world.set_stop(
         stop,
@@ -666,7 +676,6 @@ fn despawn_elevator_resets_rider_to_waiting() {
     );
     world.set_position(stop, Position { value: 0.0 });
 
-    // Create the elevator at the stop's position.
     let elev = world.spawn();
     world.set_position(elev, Position { value: 0.0 });
     world.set_velocity(elev, Velocity { value: 0.0 });
@@ -680,7 +689,7 @@ fn despawn_elevator_resets_rider_to_waiting() {
             deceleration: Accel::from(2.0),
             weight_capacity: Weight::from(800.0),
             current_load: Weight::from(70.0),
-            riders: vec![], // filled below after rider is known
+            riders: vec![],
             target_stop: None,
             door_transition_ticks: 5,
             door_open_ticks: 10,
@@ -699,7 +708,6 @@ fn despawn_elevator_resets_rider_to_waiting() {
         },
     );
 
-    // Create the rider and put them aboard.
     let rider = world.spawn();
     world.set_rider(
         rider,
@@ -712,36 +720,22 @@ fn despawn_elevator_resets_rider_to_waiting() {
             board_tick: Some(1),
         },
     );
-
-    // Update the elevator's rider list.
     world.elevator_mut(elev).unwrap().riders.push(rider);
 
-    // Precondition: rider is Riding, current_stop is None.
-    assert_eq!(
-        world.rider(rider).map(|r| r.phase),
-        Some(RiderPhase::Riding(elev))
-    );
-    assert_eq!(world.rider(rider).and_then(|r| r.current_stop), None);
-
-    // Despawn the elevator.
     world.despawn(elev);
 
-    assert!(!world.is_alive(elev), "elevator should no longer be alive");
+    assert!(!world.is_alive(elev));
 
-    // Rider should now be Waiting.
+    // The rider's phase is *not* silently rewritten by `World::despawn`;
+    // it still says Riding(elev) (now a dead EntityId). The rider is
+    // alive — only the elevator was removed. Cleaning this up is
+    // `Simulation::remove_elevator`'s job, not `World::despawn`'s.
     assert_eq!(
         world.rider(rider).map(|r| r.phase),
-        Some(RiderPhase::Waiting),
-        "rider should be reset to Waiting after elevator is despawned"
+        Some(RiderPhase::Riding(elev)),
+        "World::despawn must not silently rewrite rider phase"
     );
-
-    // Rider should have a valid current_stop pointing to the stop near position 0.0.
-    let current_stop = world.rider(rider).and_then(|r| r.current_stop);
-    assert_eq!(
-        current_stop,
-        Some(stop),
-        "rider's current_stop should be set to the nearest stop after elevator despawn"
-    );
+    assert_eq!(world.rider(rider).and_then(|r| r.current_stop), None);
 }
 
 #[test]
