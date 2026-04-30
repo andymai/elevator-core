@@ -230,7 +230,7 @@ impl Simulation {
     ///
     /// Resident riders are parked — invisible to dispatch and loading, but
     /// queryable via [`residents_at()`](Self::residents_at). They can later
-    /// be given a new route via [`reroute_rider()`](Self::reroute_rider).
+    /// be given a new route via [`reroute()`](Self::reroute).
     ///
     /// # Errors
     ///
