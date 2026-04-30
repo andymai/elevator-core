@@ -38,15 +38,24 @@ fn main() -> Result<(), SimError> {
 
     sim.spawn_rider(StopId(0), StopId(2), 75.0)?;
 
-    loop {
+    for _ in 0..1000 {
         sim.step();
         for event in sim.drain_events() {
-            if let Event::RiderExited { rider, tick, .. } = event {
-                println!("Tick {tick}: rider {rider:?} delivered!");
-                return Ok(());
+            match event {
+                Event::RiderExited { rider, tick, .. } => {
+                    println!("Tick {tick}: rider {rider:?} delivered!");
+                    return Ok(());
+                }
+                Event::RiderAbandoned { rider, stop, tick, .. } => {
+                    eprintln!("Tick {tick}: rider {rider:?} abandoned at {stop:?}");
+                    return Ok(());
+                }
+                _ => {}
             }
         }
     }
+    eprintln!("timed out after 1000 ticks");
+    Ok(())
 }
 ```
 
