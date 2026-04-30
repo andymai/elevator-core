@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -208,6 +208,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="registering-hooks-after-build"><a class="header" href="#registering-hooks-after-build">Registering hooks after build</a></h2>
 <p>You can add hooks to a running simulation. This is useful when hook logic depends on runtime state that isn’t available at build time:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::hooks::Phase;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
@@ -223,6 +224,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="group-specific-hooks"><a class="header" href="#group-specific-hooks">Group-specific hooks</a></h2>
 <p>For multi-group buildings, you can register hooks that only fire for a specific elevator group:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::hooks::Phase;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let sim = SimulationBuilder::new()
@@ -286,10 +288,9 @@ before(Metrics)          -&gt; [Metrics]          -&gt; after(Metrics)
 <h2 id="combining-extensions-and-hooks-worked-example"><a class="header" href="#combining-extensions-and-hooks-worked-example">Combining extensions and hooks: worked example</a></h2>
 <p>A facilities team monitoring an office tower wants to know whenever a tenant has been waiting for an elevator for more than 90 seconds during peak traffic – it is a service-level indicator and feeds an end-of-day report. This walkthrough flags each over-budget wait exactly once via a <code>SlaBreach</code> extension component plus an <code>after(Phase::Metrics)</code> hook.</p>
 <p>The hook closure cannot call <code>sim.current_tick()</code> directly (the simulation is borrowed during the tick), so the tick is mirrored into a <code>World</code> resource that the hook reads.</p>
-<pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
-use elevator_core::config::ElevatorConfig;
-use elevator_core::hooks::Phase;
-use elevator_core::stop::StopId;
+<pre class="playground"><code class="language-rust no_run">use elevator_core::hooks::Phase;
+use elevator_core::prelude::*;
+use elevator_core::world::ExtKey;
 use serde::{Serialize, Deserialize};
 
 /// Per-rider flag that latches the first time a tenant breaches the

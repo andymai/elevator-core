@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -187,12 +187,12 @@
 <pre><code class="language-bash">cargo add elevator-core
 </code></pre>
 <h2 id="import-the-prelude"><a class="header" href="#import-the-prelude">Import the prelude</a></h2>
-<p>The prelude re-exports everything you need for typical usage:</p>
+<p>The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::prelude::*;
 <span class="boring">}</span></code></pre>
-<p>This brings in the builder, simulation runner, all component types, dispatch traits, identity types, error types, and events. Types not in the prelude (concrete dispatch strategies, config structs, traffic module) are imported explicitly when needed.</p>
+<p>This brings in <code>Simulation</code>, <code>SimulationBuilder</code>, <code>RiderBuilder</code>, <code>SimConfig</code>, <code>ElevatorConfig</code>, <code>StopConfig</code>, the typed IDs (<code>StopId</code>, <code>ElevatorId</code>, <code>RiderId</code>, <code>EntityId</code>, <code>GroupId</code>), <code>Event</code>, <code>SimError</code>, <code>RejectionReason</code>, the phase + direction enums (<code>ElevatorPhase</code>, <code>RiderPhase</code>, <code>Direction</code>), the dispatch trait + presets (<code>DispatchStrategy</code>, <code>BuiltinStrategy</code>, <code>BuiltinReposition</code>), and <code>World</code> + <code>Metrics</code>. Fine-grained component types (<code>Position</code>, <code>Speed</code>, <code>Route</code>, <code>Patience</code>, …), per-strategy structs (<code>ScanDispatch</code>, <code>EtdDispatch</code>, …), extension keys (<code>ExtKey</code>), and traffic types are imported explicitly from their sub-modules when needed.</p>
 <h3 id="feature-flags"><a class="header" href="#feature-flags">Feature flags</a></h3>
 <div class="table-wrapper">
 <table>
@@ -226,6 +226,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="spawn-a-rider"><a class="header" href="#spawn-a-rider">Spawn a rider</a></h2>
 <p>A rider is anything that rides an elevator. Provide an origin stop, a destination stop, and a weight:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Lobby", 0.0)
@@ -244,6 +245,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <h2 id="run-the-simulation-loop"><a class="header" href="#run-the-simulation-loop">Run the simulation loop</a></h2>
 <p>Each call to <code>sim.step()</code> advances the simulation by one tick, running all <a href="simulation-loop.html">eight phases</a> of the tick loop. After stepping, drain events to see what happened:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Lobby", 0.0)

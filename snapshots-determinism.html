@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -201,6 +201,7 @@
 <p>A <code>WorldSnapshot</code> captures the full simulation state – all entities, components, groups, lines, metrics, tagged metrics, tick counter – in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are <strong>not</strong> captured.</p>
 <h3 id="saving"><a class="header" href="#saving">Saving</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -217,6 +218,7 @@ std::fs::write("save.ron", bytes).unwrap();
 <p>The snapshot struct is <code>Serialize + Deserialize</code> – choose any serde format (RON, JSON, bincode, postcard).</p>
 <h3 id="loading"><a class="header" href="#loading">Loading</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let bytes = std::fs::read_to_string("save.ron").unwrap();
@@ -234,6 +236,7 @@ let sim = snapshot.restore(None)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">struct HighestFirstDispatch;
 </span><span class="boring">impl DispatchStrategy for HighestFirstDispatch {
@@ -252,6 +255,7 @@ let sim = snapshot.restore(None)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct VipTag;
@@ -275,6 +279,7 @@ sim.load_extensions();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, expected: &amp;str) {
 </span>let snap = sim.snapshot();
 let actual = ron::to_string(&amp;snap).unwrap();
@@ -289,6 +294,7 @@ assert_eq!(actual, expected);
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn build_sim(dispatch: impl DispatchStrategy + 'static) -&gt; Simulation {
 </span><span class="boring">  SimulationBuilder::new()
 </span><span class="boring">      .stop(StopId(0), "Ground", 0.0)

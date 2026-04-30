@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -225,6 +225,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">let mut sim = SimulationBuilder::new()
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
@@ -249,6 +250,7 @@ sim.world_mut().insert_ext(
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, rider_id: EntityId) {
 </span>// Read (cloned)
 if let Some(guest) = sim.world().ext::&lt;GuestPriority&gt;(rider_id) {
@@ -269,6 +271,7 @@ if let Some(guest) = sim.world_mut().ext_mut::&lt;GuestPriority&gt;(rider_id) {
 </span><span class="boring">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="boring">struct GuestPriority { priority_class: u8, suite_floor: u32 }
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::query::Ext;
 </span><span class="boring">fn run(world: &amp;mut World) {
 </span>// Read-only iteration (cloned via Ext&lt;T&gt;)
@@ -288,6 +291,7 @@ world.query_ext_mut::&lt;GuestPriority&gt;().for_each_mut(|_id, guest| {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation) {
 </span>// Insert a resource
 sim.world_mut().insert_resource(42u32);
@@ -329,6 +333,7 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }

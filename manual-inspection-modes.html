@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
+            window.path_to_searchindex_js = "searchindex-f61f3491.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -202,6 +202,7 @@
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev, ServiceMode::Manual)?;
 <span class="boring">Ok(())
@@ -215,6 +216,7 @@
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>// Command the elevator upward.
 sim.set_target_velocity(elev, 2.0)?;
@@ -233,6 +235,7 @@ sim.set_target_velocity(elev, 0.0)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.emergency_stop(elev)?;
 <span class="boring">Ok(())
@@ -242,6 +245,7 @@ sim.set_target_velocity(elev, 0.0)?;
 <h3 id="complete-example"><a class="header" href="#complete-example">Complete example</a></h3>
 <p>This example puts an elevator into manual mode, commands it upward, then triggers an emergency stop halfway through:</p>
 <pre class="playground"><code class="language-rust no_run">use elevator_core::prelude::*;
+use elevator_core::components::ServiceMode;
 
 fn main() {
     let mut sim = SimulationBuilder::demo().build().unwrap();
@@ -275,6 +279,7 @@ fn main() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev, ServiceMode::Inspection)?;
 // The elevator now moves at 25% of its normal max speed.
@@ -288,6 +293,7 @@ fn main() {
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: ElevatorId) -&gt; Result&lt;(), SimError&gt; {
 </span>sim.set_service_mode(elev.entity(), ServiceMode::Independent)?;
 // Now manually send it somewhere.
@@ -308,6 +314,7 @@ sim.abort_movement(elev)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn run(sim: &amp;mut Simulation, elev: EntityId) -&gt; Result&lt;(), SimError&gt; {
 </span>// Take out of service.
 sim.disable(elev)?;
@@ -322,6 +329,7 @@ sim.enable(elev)?;
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
+</span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn handle(event: Event) {
 </span>if let Event::ServiceModeChanged { elevator, from, to, tick } = event {
     let _ = (elevator, from, to, tick); // use the fields in your game
