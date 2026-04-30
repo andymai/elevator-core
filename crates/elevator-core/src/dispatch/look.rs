@@ -16,7 +16,7 @@ use crate::entity::EntityId;
 use crate::world::World;
 
 use super::sweep::{self, SweepDirection, SweepMode};
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_is_useful};
 
 /// Elevator dispatch using the LOOK algorithm. See module docs.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -86,7 +86,7 @@ impl DispatchStrategy for LookDispatch {
         // Same guard as SCAN: deny un-servable pairs so an over-capacity
         // waiting rider at the car's own stop can't pull the car into a
         // cost-0 self-assignment during the Lenient reversal tick.
-        if !pair_can_do_work(ctx) {
+        if !pair_is_useful(ctx, false) {
             return None;
         }
         sweep::rank(

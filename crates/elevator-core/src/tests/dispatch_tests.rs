@@ -204,7 +204,7 @@ fn scan_serves_rider_destination() {
     // earlier form of this test faked aboard demand by only populating
     // `riding_to_stop` — a fixture that can't occur in production since
     // `build_manifest` derives `riding_to_stop` from each group car's
-    // `riders` list. Once `pair_can_do_work` started rejecting
+    // `riders` list. Once `pair_is_useful` started rejecting
     // unservable self-pairs (to close the cross-car stall), the faked
     // form became unreachable and the test asserted on a Hungarian
     // fallback. Boarding the rider on this car restores the intent:

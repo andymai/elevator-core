@@ -67,21 +67,36 @@ use crate::ids::GroupId;
 use crate::world::World;
 use std::collections::{BTreeMap, HashSet};
 
-/// Whether assigning `ctx.car` to `ctx.stop` can perform useful work.
+/// Whether assigning `ctx.car` to `ctx.stop` is worth ranking.
 ///
-/// "Useful" here means one of: exit an aboard rider, board a waiting
-/// rider that fits, or answer a rider-less hall call with at least some
-/// spare capacity. A pair that can do none of those is a no-op move —
-/// and worse, a zero-cost one when the car is already parked at the
-/// stop — which dispatch strategies must exclude to avoid door-cycle
-/// stalls against unservable demand.
+/// Combines two checks every dispatch strategy needs at the top of its
+/// `rank` implementation:
 ///
-/// Built-in strategies use this as a universal floor; delivery-safety
-/// guarantees are only as strong as this guard. Custom strategies
-/// should call it at the top of their `rank` implementations when
-/// capacity-based stalls are a concern.
+/// 1. **Servability** — capacity, full-load bypass, and the loading-phase
+///    boarding filter. A pair that can't exit an aboard rider, board a
+///    waiter, or answer a rider-less hall call is a no-op move (and a
+///    zero-cost one when the car is already parked there) which would
+///    otherwise stall doors against unservable demand.
+/// 2. **Path discipline** (only when `respect_aboard_path` is `true`) —
+///    refuses pickups that would pull a car carrying routed riders off
+///    the direct path to every aboard rider's destination. Without it, a
+///    stream of closer-destination hall calls can indefinitely preempt a
+///    farther aboard rider's delivery (the "never reaches the
+///    passenger's desired stop" loop).
+///
+/// Strategies with their own direction discipline (SCAN, LOOK, ETD,
+/// Destination) pass `respect_aboard_path: false` because their
+/// sweep/direction terms already rule out backtracks. Strategies without
+/// it (`NearestCar`, RSR) pass `respect_aboard_path: true`. Custom
+/// strategies should pass `true` unless they enforce direction
+/// discipline themselves.
+///
+/// Aboard riders without a published route (game-managed manual riders)
+/// don't constrain the path — any pickup is trivially on-the-way for
+/// them, so the path check trivially passes when no aboard rider has a
+/// `Route::current_destination`.
 #[must_use]
-pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
+pub fn pair_is_useful(ctx: &RankContext<'_>, respect_aboard_path: bool) -> bool {
     let Some(car) = ctx.world.elevator(ctx.car) else {
         return false;
     };
@@ -107,66 +122,39 @@ pub fn pair_can_do_work(ctx: &RankContext<'_>) -> bool {
         return false;
     }
     let waiting = ctx.manifest.waiting_riders_at(ctx.stop);
-    if !waiting.is_empty() {
-        return waiting
+    let servable = if waiting.is_empty() {
+        // No waiters at the stop, and no aboard rider of ours exits here
+        // (the `can_exit_here` short-circuit ruled that out above).
+        // Demand must therefore come from either another car's
+        // `riding_to_stop` (not work this car can perform) or a
+        // rider-less hall call (someone pressed a button with no rider
+        // attached yet — a press from `press_hall_button` or one whose
+        // riders have since been fulfilled or abandoned). Only the
+        // latter is actionable; without this filter an idle car parked
+        // at the stop collapses to cost 0, the Hungarian picks the
+        // self-pair every tick, and doors cycle open/close indefinitely
+        // while the other car finishes its trip.
+        ctx.manifest
+            .hall_calls_at_stop
+            .get(&ctx.stop)
+            .is_some_and(|calls| calls.iter().any(|c| c.pending_riders.is_empty()))
+    } else {
+        waiting
             .iter()
-            .any(|r| rider_can_board(r, car, ctx, remaining_capacity));
-    }
-    // No waiters at the stop, and no aboard rider of ours exits here
-    // (the `can_exit_here` short-circuit ruled that out above). Demand
-    // must therefore come from either another car's `riding_to_stop`
-    // (not work this car can perform) or a rider-less hall call
-    // (someone pressed a button with no rider attached yet — a press
-    // from `press_hall_button` or one whose riders have since been
-    // fulfilled or abandoned). Only the latter is actionable; without
-    // this filter an idle car parked at the stop collapses to cost 0,
-    // the Hungarian picks the self-pair every tick, and doors cycle
-    // open/close indefinitely while the other car finishes its trip.
-    ctx.manifest
-        .hall_calls_at_stop
-        .get(&ctx.stop)
-        .is_some_and(|calls| calls.iter().any(|c| c.pending_riders.is_empty()))
-}
-
-/// Stronger servability predicate: [`pair_can_do_work`] *plus* a path
-/// check guaranteeing the pickup doesn't strand aboard riders.
-///
-/// A car carrying riders with committed destinations refuses pickups
-/// that would pull it off the path to every aboard rider's destination.
-/// Without this guard, a stream of closer-destination hall calls can
-/// indefinitely preempt a farther aboard rider's delivery — the
-/// "never reaches the passenger's desired stop" loop. `NearestCar` and
-/// `Rsr` both call this at the top of `rank`; strategies with their
-/// own direction discipline (SCAN/LOOK/ETD) use [`pair_can_do_work`]
-/// because their sweep/direction terms already rule out backtracks.
-///
-/// Aboard riders without a published route (game-managed manual
-/// riders) don't constrain the path — any pickup is trivially
-/// on-the-way for them, so the predicate falls back to the base
-/// [`pair_can_do_work`] check.
-#[must_use]
-pub fn pair_is_useful(ctx: &RankContext<'_>) -> bool {
-    if !pair_can_do_work(ctx) {
-        return false;
-    }
-
-    let Some(car) = ctx.world.elevator(ctx.car) else {
-        return false;
+            .any(|r| rider_can_board(r, car, ctx, remaining_capacity))
     };
-    // Exiting an aboard rider is always on-the-way for that rider.
-    let can_exit_here = car
-        .riders()
-        .iter()
-        .any(|&rid| ctx.world.route(rid).and_then(Route::current_destination) == Some(ctx.stop));
-    if can_exit_here || car.riders().is_empty() {
+    if !servable {
+        return false;
+    }
+    if !respect_aboard_path || car.riders().is_empty() {
         return true;
     }
 
     // Route-less aboard riders (game-managed manual riders) don't
     // publish a destination, so there's no committed path to protect.
-    // Any pickup is trivially on-the-way — fall back to the raw
-    // servability check. Otherwise we'd refuse every pickup the moment
-    // the car carried its first manually-managed passenger.
+    // Any pickup is trivially on-the-way — let it through. Otherwise
+    // we'd refuse every pickup the moment the car carried its first
+    // manually-managed passenger.
     let has_routed_rider = car.riders().iter().any(|&rid| {
         ctx.world
             .route(rid)
@@ -194,7 +182,7 @@ pub fn pair_is_useful(ctx: &RankContext<'_>) -> bool {
 }
 
 /// Whether a waiting rider could actually board this car, matching the
-/// same filters the loading phase applies. Prevents `pair_can_do_work`
+/// same filters the loading phase applies. Prevents `pair_is_useful`
 /// from approving a pickup whose only demand is direction-filtered or
 /// over-capacity — the loading phase would reject the rider, doors
 /// would cycle, and dispatch would re-pick the zero-cost self-pair.

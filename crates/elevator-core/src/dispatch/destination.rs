@@ -32,7 +32,7 @@ use crate::components::{DestinationQueue, Direction, ElevatorPhase};
 use crate::entity::EntityId;
 use crate::world::{ExtKey, World};
 
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_is_useful};
 
 /// Sticky rider → car assignment produced by [`DestinationDispatch`].
 ///
@@ -262,7 +262,7 @@ impl DispatchStrategy for DestinationDispatch {
         // car, so the Hungarian assignment reduces to the identity match
         // between each car and the stop it has already committed to.
         //
-        // The `pair_can_do_work` gate guards against the same full-car
+        // The `pair_is_useful` gate guards against the same full-car
         // self-assign stall the other built-ins close: a sticky DCS
         // assignment whose car has filled up with earlier riders and
         // whose queue front is still the *pickup* for an un-boarded
@@ -272,7 +272,7 @@ impl DispatchStrategy for DestinationDispatch {
             .world
             .destination_queue(ctx.car)
             .and_then(DestinationQueue::front)?;
-        if front == ctx.stop && pair_can_do_work(ctx) {
+        if front == ctx.stop && pair_is_useful(ctx, false) {
             Some(0.0)
         } else {
             None

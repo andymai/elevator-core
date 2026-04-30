@@ -102,7 +102,7 @@ fn down_peak_8_floor_2_car_delivers_within_budget() {
 /// 20 riders at the lobby, all heading to the top floor, with a
 /// single under-capacity car. Forces at least three round-trips.
 /// Exercises the full-load self-assign guard (see
-/// [`crate::dispatch::pair_can_do_work`]); regression here was
+/// [`crate::dispatch::pair_is_useful`]); regression here was
 /// previously a doors-cycle-forever bug (#317).
 #[test]
 fn full_load_cycle_delivers_all_in_bounded_trips() {

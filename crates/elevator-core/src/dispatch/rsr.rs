@@ -77,7 +77,7 @@ pub struct RsrDispatch {
     /// (`load_penalty_coeff · load_ratio`).
     ///
     /// Fires for partially loaded cars below the `bypass_load_*_pct`
-    /// threshold enforced by [`pair_can_do_work`](super::pair_can_do_work);
+    /// threshold enforced by [`pair_is_useful`];
     /// lets you prefer emptier cars for new pickups without an on/off cliff.
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
@@ -305,14 +305,15 @@ impl Default for RsrDispatch {
 
 impl DispatchStrategy for RsrDispatch {
     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
-        // `pair_is_useful` subsumes `pair_can_do_work` and adds the
-        // aboard-rider path guard. Without it, a loaded RSR car gets
-        // pulled off the path to its aboard riders' destinations by
-        // closer pickups — the same "never reaches the passenger's
-        // desired stop" loop that NearestCar specifically fixes. RSR's
-        // `wrong_direction_penalty` can mitigate this when configured,
-        // but the guard is a correctness floor independent of tuning.
-        if !pair_is_useful(ctx) {
+        // `pair_is_useful(ctx, true)` enables the aboard-rider path
+        // guard on top of the servability check. Without it, a loaded
+        // RSR car gets pulled off the path to its aboard riders'
+        // destinations by closer pickups — the same "never reaches
+        // the passenger's desired stop" loop that NearestCar
+        // specifically fixes. RSR's `wrong_direction_penalty` can
+        // mitigate this when configured, but the guard is a
+        // correctness floor independent of tuning.
+        if !pair_is_useful(ctx, true) {
             return None;
         }
         let car = ctx.world.elevator(ctx.car)?;
@@ -361,7 +362,7 @@ impl DispatchStrategy for RsrDispatch {
             cost -= self.coincident_car_call_bonus;
         }
 
-        // Smooth load-fraction penalty. `pair_can_do_work` has already
+        // Smooth load-fraction penalty. `pair_is_useful` has already
         // filtered over-capacity and bypass-threshold cases; this term
         // shapes preference among the survivors so emptier cars win
         // pickups when all else is equal. Idle cars contribute zero.

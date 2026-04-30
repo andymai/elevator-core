@@ -12,7 +12,7 @@ use crate::components::{ElevatorPhase, Route};
 use crate::entity::EntityId;
 use crate::world::World;
 
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_is_useful};
 
 /// Estimated Time to Destination (ETD) dispatch algorithm.
 ///
@@ -218,7 +218,7 @@ impl DispatchStrategy for EtdDispatch {
         // the car is already at the stop). Dispatch then re-selects that
         // stop every tick — doors cycle open, reject, close, repeat — and
         // the aboard riders are never carried to their destinations.
-        if !pair_can_do_work(ctx) {
+        if !pair_is_useful(ctx, false) {
             return None;
         }
         let mut cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);

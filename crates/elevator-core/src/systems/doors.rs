@@ -67,7 +67,7 @@ pub fn run(
                 // car is at a stop and free for reassignment. Also
                 // reset direction lamps so any stale state from the
                 // just-finished leg (e.g., `going_up=false` after a
-                // down-trip) doesn't make `pair_can_do_work` reject
+                // down-trip) doesn't make `pair_is_useful` reject
                 // opposite-direction pickup in the next dispatch tick.
                 // Without this, a car that dropped a down-bound rider
                 // at the lobby sits idle while an up-bound rider

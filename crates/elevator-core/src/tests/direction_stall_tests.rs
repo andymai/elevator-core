@@ -3,7 +3,7 @@
 //! A car carrying riders with downward destinations has direction
 //! indicator Down. At a waypoint where a waiting rider wants Up, the
 //! loading phase silently direction-filters the rider and no boarding
-//! happens. Pre-fix, `pair_can_do_work` looked only at weight fit and
+//! happens. Pre-fix, `pair_is_useful` looked only at weight fit and
 //! approved the pair — cost collapsed to 0 at the self-pair, the
 //! Hungarian picked it every tick, doors cycled open → filter →
 //! close forever, and aboard riders never reached their destinations.
@@ -74,7 +74,7 @@ fn etd_skips_pickup_whose_riders_are_all_direction_filtered() {
     );
 }
 
-/// Same scenario on `NearestCar` — the `pair_can_do_work` guard is
+/// Same scenario on `NearestCar` — the `pair_is_useful` guard is
 /// shared, so the fix must apply uniformly.
 #[test]
 fn nearest_car_skips_pickup_whose_riders_are_all_direction_filtered() {
@@ -285,7 +285,7 @@ fn etd_approves_self_pair_for_riderless_hall_call() {
 }
 
 /// Cross-car stall mirrored onto `NearestCar` — the fix lives in
-/// shared `pair_can_do_work`, so it applies uniformly across every
+/// shared `pair_is_useful`, so it applies uniformly across every
 /// built-in strategy that uses the guard. This test is an explicit
 /// regression for that contract, matching the paired-strategy
 /// pattern the direction-filter stall tests (above) already follow.
@@ -326,7 +326,7 @@ fn nearest_car_skips_self_pair_when_only_demand_is_another_cars_riding() {
     assert_eq!(
         decisions[0].1,
         DispatchDecision::Idle,
-        "NearestCar must honor the cross-car stall fix — pair_can_do_work is \
+        "NearestCar must honor the cross-car stall fix — pair_is_useful is \
          shared, so regressions here would surface in both strategies"
     );
 }

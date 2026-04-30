@@ -38,7 +38,7 @@ impl Default for NearestCarDispatch {
 
 impl DispatchStrategy for NearestCarDispatch {
     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
-        if !pair_is_useful(ctx) {
+        if !pair_is_useful(ctx, true) {
             return None;
         }
         Some((ctx.car_position - ctx.stop_position).abs())
