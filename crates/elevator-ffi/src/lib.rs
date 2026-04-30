@@ -3764,7 +3764,20 @@ pub unsafe extern "C" fn ev_sim_reroute(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &mut *handle };
-        match ev.sim.reroute(RiderId::from(rider), dest) {
+        // The unified `reroute` takes a `Route`; construct a single-leg
+        // direct route from the rider's current stop to the new destination.
+        // Mirrors the prior `reroute(RiderId, EntityId)` semantics.
+        let Some(origin) = ev
+            .sim
+            .world()
+            .rider(rider)
+            .and_then(elevator_core::components::Rider::current_stop)
+        else {
+            set_last_error("rider has no current stop");
+            return EvStatus::NotFound;
+        };
+        let route = elevator_core::components::Route::direct(origin, dest, GroupId(0));
+        match ev.sim.reroute(RiderId::from(rider), route) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 let status = mode_error_status(&e);
@@ -3922,7 +3935,7 @@ pub unsafe extern "C" fn ev_sim_set_rider_route_direct(
         let route = elevator_core::components::Route::direct(from, to, GroupId(group_id));
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &mut *handle };
-        match ev.sim.set_rider_route(rider, route) {
+        match ev.sim.reroute(RiderId::from(rider), route) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 let status = mode_error_status(&e);
@@ -3977,7 +3990,7 @@ pub unsafe extern "C" fn ev_sim_set_rider_route_shortest(
             set_last_error("no route between rider's stop and to_stop");
             return EvStatus::NotFound;
         };
-        match ev.sim.set_rider_route(rider, route) {
+        match ev.sim.reroute(RiderId::from(rider), route) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 let status = mode_error_status(&e);
@@ -4024,7 +4037,7 @@ pub unsafe extern "C" fn ev_sim_reroute_rider_direct(
         let route = elevator_core::components::Route::direct(from, to, GroupId(group_id));
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &mut *handle };
-        match ev.sim.reroute_rider(rider, route) {
+        match ev.sim.reroute(RiderId::from(rider), route) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 let status = mode_error_status(&e);
@@ -4080,7 +4093,7 @@ pub unsafe extern "C" fn ev_sim_reroute_rider_shortest(
             set_last_error("no route between rider's stop and to_stop");
             return EvStatus::NotFound;
         };
-        match ev.sim.reroute_rider(rider, route) {
+        match ev.sim.reroute(RiderId::from(rider), route) {
             Ok(()) => EvStatus::Ok,
             Err(e) => {
                 let status = mode_error_status(&e);

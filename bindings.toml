@@ -394,26 +394,22 @@ tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 [[methods]]
 name = "reroute"
 category = "routes"
+# Unified API: dispatches on phase (Waiting -> set route in place;
+# Resident -> transition to Waiting + set route). The previous trio
+# (`reroute(RiderId, EntityId)` / `reroute_rider(EntityId, Route)` /
+# `set_rider_route(EntityId, Route)`) was collapsed into this single
+# method. The bindings expose multiple convenience overloads for the
+# common single-leg/shortest-path patterns:
+#   - WASM: `reroute` (single-leg from current_stop), `setRiderRouteDirect`,
+#     `setRiderRouteShortest`, `rerouteRiderDirect`, `rerouteRiderShortest`.
+#   - FFI: `ev_sim_reroute`, `ev_sim_set_rider_route_direct`,
+#     `ev_sim_set_rider_route_shortest`, `ev_sim_reroute_rider_direct`,
+#     `ev_sim_reroute_rider_shortest`.
+# The canonical names below are the simplest variants; the others are
+# convenience wrappers that build a `Route` and forward to the same
+# underlying `Simulation::reroute`.
 wasm = "reroute"
 ffi  = "ev_sim_reroute"
-tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
-
-[[methods]]
-name = "reroute_rider"
-category = "routes"
-# Two convenience overloads per binding. The bindings file lists the
-# Shortest variant as the canonical name; Direct (single-leg via a named
-# group) ships alongside as `rerouteRiderDirect` / `ev_sim_reroute_rider_direct`.
-wasm = "rerouteRiderShortest"
-ffi  = "ev_sim_reroute_rider_shortest"
-tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
-
-[[methods]]
-name = "set_rider_route"
-category = "routes"
-# Two convenience overloads per binding. See `reroute_rider` above.
-wasm = "setRiderRouteShortest"
-ffi  = "ev_sim_set_rider_route_shortest"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 
 [[methods]]

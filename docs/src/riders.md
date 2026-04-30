@@ -117,7 +117,7 @@ Three methods manage rider state transitions after arrival or abandonment:
 | Method | Effect |
 |---|---|
 | `sim.settle_rider(id)` | Transitions an `Arrived` or `Abandoned` rider to `Resident` at their current stop |
-| `sim.reroute_rider(id, route)` | Sends a `Resident` rider back to `Waiting` with a new route |
+| `sim.reroute(id, route)` | Replaces a `Waiting` or `Resident` rider's route (Resident -> Waiting transition included) |
 | `sim.despawn_rider(id)` | Removes the rider entity and updates all indexes |
 
 Always use `sim.despawn_rider(id)` instead of calling `world.despawn()` directly -- it keeps the population index consistent and emits a `RiderDespawned` event.
@@ -128,9 +128,10 @@ Always use `sim.despawn_rider(id)` instead of calling `world.despawn()` directly
 // A rider arrives at their destination. Settle them as a resident.
 sim.settle_rider(rider_id)?;
 
-// Later, they want to go back down. Reroute them.
-// (`reroute_rider` takes an `EntityId`; the sibling calls take `RiderId`.)
-sim.reroute_rider(rider_id.entity(), new_route)?;
+// Later, they want to go back down. Reroute them with a new route —
+// the gateway dispatches on phase: Waiting riders get the route in
+// place; Resident riders transition back to Waiting first.
+sim.reroute(rider_id, new_route)?;
 
 // Or remove them entirely.
 sim.despawn_rider(rider_id)?;

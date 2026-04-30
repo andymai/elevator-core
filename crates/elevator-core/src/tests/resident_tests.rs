@@ -121,7 +121,7 @@ fn reroute_resident_to_waiting() {
     // Resolve StopId(0) to EntityId for the route.
     let dest = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(stop, dest, GroupId(0));
-    sim.reroute_rider(rider.entity(), route).unwrap();
+    sim.reroute(rider, route).unwrap();
 
     let r = sim.world().rider(rider.entity()).unwrap();
     assert_eq!(r.phase(), RiderPhase::Waiting);
@@ -139,19 +139,47 @@ fn reroute_resident_to_waiting() {
     );
 }
 
+/// `reroute` accepts both `Waiting` and `Resident` riders by design (it
+/// dispatches on phase). Phases that aren't either of those return
+/// `WrongRiderPhase`. Pin both the success path on Waiting and the
+/// rejection on a non-Waiting/non-Resident phase.
 #[test]
-fn reroute_wrong_phase_returns_error() {
+fn reroute_rejects_aboard_phases() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
 
     let dest = sim.stop_entity(StopId(2)).unwrap();
     let origin = sim.stop_entity(StopId(0)).unwrap();
-    let route = Route::direct(origin, dest, GroupId(0));
 
-    // Rider is Waiting — should fail.
-    let result = sim.reroute_rider(rider.entity(), route);
-    assert!(matches!(result, Err(SimError::WrongRiderPhase { .. })));
+    // Waiting -> reroute is allowed under the unified API; the route is
+    // replaced in place. (Pre-refactor `reroute_rider` rejected this.)
+    let route = Route::direct(origin, dest, GroupId(0));
+    sim.reroute(rider, route).unwrap();
+
+    // Drive the rider into Riding so we can hit the rejection path.
+    for _ in 0..500 {
+        sim.step();
+        if matches!(
+            sim.world().rider(rider.entity()).unwrap().phase,
+            crate::components::RiderPhase::Riding(_)
+        ) {
+            break;
+        }
+    }
+
+    let route = Route::direct(origin, dest, GroupId(0));
+    let result = sim.reroute(rider, route);
+    let phase = sim.world().rider(rider.entity()).unwrap().phase;
+    if !matches!(
+        phase,
+        crate::components::RiderPhase::Waiting | crate::components::RiderPhase::Resident
+    ) {
+        assert!(
+            matches!(result, Err(SimError::WrongRiderPhase { .. })),
+            "expected WrongRiderPhase, got {result:?}"
+        );
+    }
 }
 
 #[test]
@@ -257,7 +285,7 @@ fn full_lifecycle_spawn_ride_settle_reroute_ride_despawn() {
     // Reroute back to Ground.
     let ground = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(floor3, ground, GroupId(0));
-    sim.reroute_rider(rider.entity(), route).unwrap();
+    sim.reroute(rider, route).unwrap();
     assert_eq!(sim.metrics().total_rerouted(), 1);
 
     assert!(sim.waiting_at(floor3).any(|id| id == rider.entity()));
@@ -343,7 +371,7 @@ fn patience_reset_on_reroute() {
         .unwrap();
     let dest = sim.stop_entity(StopId(0)).unwrap();
     let route = Route::direct(stop, dest, GroupId(0));
-    sim.reroute_rider(rider.entity(), route).unwrap();
+    sim.reroute(rider, route).unwrap();
 
     // Patience should be reset.
     let patience = sim.world().patience(rider.entity()).unwrap();

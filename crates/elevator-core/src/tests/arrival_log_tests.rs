@@ -180,7 +180,7 @@ fn reroute_records_arrival_and_resets_spawn_tick() {
 
     // Reroute: head back down to StopId(0).
     let route = Route::direct(stop2, stop0, GroupId(0));
-    sim.reroute_rider(rider.entity(), route).unwrap();
+    sim.reroute(rider, route).unwrap();
 
     // ArrivalLog must have a fresh entry at StopId(2) — this is where
     // the rider "appeared" as waiting demand.

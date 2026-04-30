@@ -551,7 +551,7 @@ pub enum EventDto {
         /// Opaque consumer tag carried by the rider; `0` if untagged.
         tag: u64,
     },
-    /// A rider was rerouted via `sim.reroute()` or `sim.reroute_rider()`.
+    /// A rider was rerouted via `sim.reroute()`.
     /// `tag` mirrors the rider's opaque consumer tag; `0` means untagged.
     RiderRerouted {
         /// Engine tick the event was emitted on.

@@ -122,9 +122,7 @@ Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing the
 
 **`sim.settle_rider(id)`** -- transitions an `Arrived` or `Abandoned` rider to `Resident`. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for occupants who live or work on a floor between elevator trips: a tenant in their office, a hotel guest in their room, a patient on a ward.
 
-**`sim.reroute_rider(id, route)`** -- sends a `Resident` rider back to `Waiting` with a new multi-leg route. Use this when a settled occupant has a new destination -- a tenant heading to lunch, a guest checking out.
-
-**`sim.reroute(id, new_destination)`** -- changes a `Waiting` rider's destination. The rider stays at their stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.
+**`sim.reroute(id, route)`** -- replaces the rider's route. Dispatches on phase: a `Waiting` rider gets the new route in place; a `Resident` rider is transitioned back to `Waiting` and the route is set. Use this for mid-wait plan changes (Waiting riders) or for settled occupants who have a new destination -- a tenant heading to lunch, a guest checking out (Resident riders).
 
 **`sim.despawn_rider(id)`** -- removes the rider from the simulation entirely. Always use this instead of `world.despawn()` directly -- it keeps the stop index consistent.
 
@@ -137,9 +135,9 @@ Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing the
 // at the stop without re-entering the dispatch queue.
 sim.settle_rider(rider).unwrap();
 
-// Later, the same tenant heads back down. reroute_rider takes a full
-// Route and only works on Resident riders.
-sim.reroute_rider(rider.entity(), new_route).unwrap();
+// Later, the same tenant heads back down. `reroute` accepts a full
+// Route and works for both Waiting and Resident riders.
+sim.reroute(rider, new_route).unwrap();
 ```
 
 ## Population tracking
