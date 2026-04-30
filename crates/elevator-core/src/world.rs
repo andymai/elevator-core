@@ -172,10 +172,23 @@ impl World {
 
     /// Remove an entity and all its components (built-in and extensions).
     ///
-    /// Cross-references are cleaned up automatically:
-    /// - If the entity is a rider aboard an elevator, it is removed from the
-    ///   elevator's rider list and `current_load` is adjusted.
-    /// - If the entity is an elevator, its riders' phases are reset to `Waiting`.
+    /// `World::despawn` is a low-level operation: it removes the entity's
+    /// arena entries and performs the cross-references that `World` can
+    /// safely maintain on its own. It does **not** perform rider lifecycle
+    /// transitions (which require `RiderIndex`, owned by `Simulation`).
+    ///
+    /// Cross-references handled here:
+    /// - If the entity is a rider aboard an elevator, it is removed from
+    ///   the elevator's rider list and `current_load` is adjusted.
+    ///
+    /// **Despawning an elevator with aboard riders is the caller's
+    /// responsibility to clean up.** Use [`Simulation::remove_elevator`]
+    /// (which calls [`Simulation::disable`] first to transition aboard
+    /// riders to `Waiting` via the transition gateway). Calling this method
+    /// directly on a populated elevator leaves aboard riders pointing at
+    /// a now-dead `EntityId` in their `phase` — a footgun this method
+    /// no longer attempts to paper over, since any reset it produced
+    /// would silently desync `RiderIndex`.
     pub fn despawn(&mut self, id: EntityId) {
         // Clean up rider → elevator cross-references.
         if let Some(rider) = self.riders.get(id) {
@@ -191,19 +204,6 @@ impl World {
                     }
                 }
                 _ => {}
-            }
-        }
-
-        // Clean up elevator → rider cross-references.
-        if let Some(car) = self.elevators.get(id) {
-            let rider_ids: Vec<EntityId> = car.riders.clone();
-            let elev_pos = self.positions.get(id).map(|p| p.value);
-            let nearest_stop = elev_pos.and_then(|p| self.find_nearest_stop(p));
-            for rid in rider_ids {
-                if let Some(rider) = self.riders.get_mut(rid) {
-                    rider.phase = crate::components::RiderPhase::Waiting;
-                    rider.current_stop = nearest_stop;
-                }
             }
         }
 
