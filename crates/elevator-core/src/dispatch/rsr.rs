@@ -77,7 +77,7 @@ pub struct RsrDispatch {
     /// (`load_penalty_coeff · load_ratio`).
     ///
     /// Fires for partially loaded cars below the `bypass_load_*_pct`
-    /// threshold enforced by [`pair_is_useful`](super::pair_is_useful);
+    /// threshold enforced by [`pair_is_useful`];
     /// lets you prefer emptier cars for new pickups without an on/off cliff.
     /// Default `0.0`.
     pub load_penalty_coeff: f64,
