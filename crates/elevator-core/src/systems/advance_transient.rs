@@ -198,9 +198,12 @@ pub fn run(
 
     // Apply abandonments.
     for &(id, stop) in &abandon {
-        if let Some(r) = world.rider_mut(id) {
+        // Read the tag from the same mutable borrow we use to flip the
+        // phase, instead of doing a second arena lookup at emit time.
+        let tag = world.rider_mut(id).map_or(0, |r| {
             r.phase = RiderPhase::Abandoned;
-        }
+            r.tag()
+        });
         // An abandoned rider is not a waiter any more; leaving their
         // ID in `pending_riders` would spuriously hold car calls open
         // and count them in mode-detection `is_empty()` checks.
@@ -210,7 +213,7 @@ pub fn run(
         events.emit(Event::RiderAbandoned {
             rider: id,
             stop,
-            tag: world.rider(id).map_or(0, Rider::tag),
+            tag,
             tick: ctx.tick,
         });
     }
@@ -244,16 +247,17 @@ pub fn run(
         })
         .collect();
     for (id, stop) in time_abandon {
-        if let Some(r) = world.rider_mut(id) {
+        let tag = world.rider_mut(id).map_or(0, |r| {
             r.phase = RiderPhase::Abandoned;
-        }
+            r.tag()
+        });
         world.scrub_rider_from_pending_calls(id);
         rider_index.remove_waiting(stop, id);
         rider_index.insert_abandoned(stop, id);
         events.emit(Event::RiderAbandoned {
             rider: id,
             stop,
-            tag: world.rider(id).map_or(0, Rider::tag),
+            tag,
             tick: ctx.tick,
         });
     }

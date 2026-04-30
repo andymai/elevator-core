@@ -343,20 +343,17 @@ fn apply_actions(
             } => {
                 // Guard: skip if rider is no longer Riding this elevator (another
                 // elevator may have already exited them in an earlier action).
-                if world
-                    .rider(rider)
-                    .is_none_or(|r| r.phase != RiderPhase::Riding(elevator))
-                {
-                    continue;
-                }
-                let rider_weight = world
-                    .rider(rider)
-                    .map_or(crate::components::Weight::ZERO, |rd| rd.weight);
+                // Fold the phase guard, weight read, and tag read into a single
+                // arena lookup — emitted per rider per exit, so the `SecondaryMap`
+                // traversals compound on rider-heavy ticks.
+                let (rider_weight, tag) = match world.rider(rider) {
+                    Some(r) if r.phase == RiderPhase::Riding(elevator) => (r.weight, r.tag()),
+                    _ => continue,
+                };
                 if let Some(car) = world.elevator_mut(elevator) {
                     car.riders.retain(|r| *r != rider);
                     car.current_load -= rider_weight;
                 }
-                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 if let Some(rd) = world.rider_mut(rider) {
                     rd.phase = RiderPhase::Exiting(elevator);
                     rd.current_stop = Some(stop);
@@ -392,22 +389,20 @@ fn apply_actions(
             } => {
                 // Guard: skip if rider is no longer Waiting (another elevator at
                 // the same stop may have already boarded them in an earlier action).
-                let boarding_stop = world.rider(rider).and_then(|r| {
-                    if r.phase == RiderPhase::Waiting {
-                        r.current_stop
-                    } else {
-                        None
-                    }
-                });
-                let Some(stop) = boarding_stop else {
-                    continue;
+                // Fold the phase guard, current_stop read, and tag read into a
+                // single arena lookup.
+                let (stop, tag) = match world.rider(rider) {
+                    Some(r) if r.phase == RiderPhase::Waiting => match r.current_stop {
+                        Some(s) => (s, r.tag()),
+                        None => continue,
+                    },
+                    _ => continue,
                 };
                 rider_index.remove_waiting(stop, rider);
                 if let Some(car) = world.elevator_mut(elevator) {
                     car.current_load += crate::components::Weight::from(weight);
                     car.riders.push(rider);
                 }
-                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
                 if let Some(rd) = world.rider_mut(rider) {
                     rd.phase = RiderPhase::Boarding(elevator);
                     rd.board_tick = Some(ctx.tick);
@@ -437,7 +432,7 @@ fn apply_actions(
                     .route(rider)
                     .and_then(crate::components::Route::current_destination)
                 {
-                    register_car_call(world, events, elevator, dest, rider, ctx.tick);
+                    register_car_call(world, events, elevator, dest, rider, tag, ctx.tick);
                 }
             }
             LoadAction::Reject {
@@ -464,7 +459,11 @@ fn apply_actions(
                 elevator,
                 at_stop,
             } => {
-                let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
+                // Fold the tag read and the abandon-eligibility phase guard
+                // into a single arena lookup.
+                let (tag, phase_is_waiting) = world
+                    .rider(rider)
+                    .map_or((0, false), |r| (r.tag(), r.phase == RiderPhase::Waiting));
                 events.emit(Event::RiderSkipped {
                     rider,
                     elevator,
@@ -474,13 +473,10 @@ fn apply_actions(
                 });
                 // Honor `Preferences::abandon_on_full`: the rider doesn't
                 // wait for another car — they abandon immediately.
-                let escalate = world
-                    .preferences(rider)
-                    .is_some_and(Preferences::abandon_on_full);
-                if escalate
+                if phase_is_waiting
                     && world
-                        .rider(rider)
-                        .is_some_and(|r| r.phase == RiderPhase::Waiting)
+                        .preferences(rider)
+                        .is_some_and(Preferences::abandon_on_full)
                 {
                     if let Some(r) = world.rider_mut(rider) {
                         r.phase = RiderPhase::Abandoned;
@@ -507,6 +503,7 @@ fn register_car_call(
     car: EntityId,
     floor: EntityId,
     rider: EntityId,
+    rider_tag: u64,
     tick: u64,
 ) {
     let Some(calls) = world.car_calls_mut(car) else {
@@ -526,12 +523,11 @@ fn register_car_call(
     // signal). CarCall latency can be plumbed through later.
     call.acknowledged_at = Some(tick);
     calls.push(call);
-    let tag = world.rider(rider).map_or(0, crate::components::Rider::tag);
     events.emit(Event::CarButtonPressed {
         car,
         floor,
         rider: Some(rider),
-        tag: Some(tag),
+        tag: Some(rider_tag),
         tick,
     });
 }
