@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1d2481f9.js";
+            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -297,7 +297,7 @@ let abandoned: Vec&lt;EntityId&gt; = sim.abandoned_at(stop_entity).collect();
 </thead>
 <tbody>
 <tr><td><code>sim.settle_rider(id)</code></td><td>Transitions an <code>Arrived</code> or <code>Abandoned</code> rider to <code>Resident</code> at their current stop</td></tr>
-<tr><td><code>sim.reroute_rider(id, route)</code></td><td>Sends a <code>Resident</code> rider back to <code>Waiting</code> with a new route</td></tr>
+<tr><td><code>sim.reroute(id, route)</code></td><td>Replaces a <code>Waiting</code> or <code>Resident</code> rider’s route (Resident -&gt; Waiting transition included)</td></tr>
 <tr><td><code>sim.despawn_rider(id)</code></td><td>Removes the rider entity and updates all indexes</td></tr>
 </tbody>
 </table>
@@ -310,9 +310,10 @@ let abandoned: Vec&lt;EntityId&gt; = sim.abandoned_at(stop_entity).collect();
 </span>// A rider arrives at their destination. Settle them as a resident.
 sim.settle_rider(rider_id)?;
 
-// Later, they want to go back down. Reroute them.
-// (`reroute_rider` takes an `EntityId`; the sibling calls take `RiderId`.)
-sim.reroute_rider(rider_id.entity(), new_route)?;
+// Later, they want to go back down. Reroute them with a new route —
+// the gateway dispatches on phase: Waiting riders get the route in
+// place; Resident riders transition back to Waiting first.
+sim.reroute(rider_id, new_route)?;
 
 // Or remove them entirely.
 sim.despawn_rider(rider_id)?;

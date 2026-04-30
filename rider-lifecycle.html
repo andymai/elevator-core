@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1d2481f9.js";
+            window.path_to_searchindex_js = "searchindex-ce8235a6.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6039030d.js"></script>
@@ -297,8 +297,7 @@ let rider = sim.build_rider(StopId(0), StopId(1))
 <h2 id="managing-arrived-riders"><a class="header" href="#managing-arrived-riders">Managing arrived riders</a></h2>
 <p>Once a rider reaches <code>Arrived</code> or <code>Abandoned</code>, the simulation stops managing them. Caller code decides what happens next using three methods:</p>
 <p><strong><code>sim.settle_rider(id)</code></strong> – transitions an <code>Arrived</code> or <code>Abandoned</code> rider to <code>Resident</code>. Residents are parked at a stop, tracked by the population index, and invisible to dispatch. Use this for occupants who live or work on a floor between elevator trips: a tenant in their office, a hotel guest in their room, a patient on a ward.</p>
-<p><strong><code>sim.reroute_rider(id, route)</code></strong> – sends a <code>Resident</code> rider back to <code>Waiting</code> with a new multi-leg route. Use this when a settled occupant has a new destination – a tenant heading to lunch, a guest checking out.</p>
-<p><strong><code>sim.reroute(id, new_destination)</code></strong> – changes a <code>Waiting</code> rider’s destination. The rider stays at their stop and waits for an elevator serving the new route. Useful for mid-wait plan changes.</p>
+<p><strong><code>sim.reroute(id, route)</code></strong> – replaces the rider’s route. Dispatches on phase: a <code>Waiting</code> rider gets the new route in place; a <code>Resident</code> rider is transitioned back to <code>Waiting</code> and the route is set. Use this for mid-wait plan changes (Waiting riders) or for settled occupants who have a new destination – a tenant heading to lunch, a guest checking out (Resident riders).</p>
 <p><strong><code>sim.despawn_rider(id)</code></strong> – removes the rider from the simulation entirely. Always use this instead of <code>world.despawn()</code> directly – it keeps the stop index consistent.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -310,9 +309,9 @@ let rider = sim.build_rider(StopId(0), StopId(1))
 // at the stop without re-entering the dispatch queue.
 sim.settle_rider(rider).unwrap();
 
-// Later, the same tenant heads back down. reroute_rider takes a full
-// Route and only works on Resident riders.
-sim.reroute_rider(rider.entity(), new_route).unwrap();
+// Later, the same tenant heads back down. `reroute` accepts a full
+// Route and works for both Waiting and Resident riders.
+sim.reroute(rider, new_route).unwrap();
 <span class="boring">}</span></code></pre>
 <h2 id="population-tracking"><a class="header" href="#population-tracking">Population tracking</a></h2>
 <p>The simulation maintains a reverse index (<code>RiderIndex</code>) for O(1) per-stop population queries without scanning the full entity list:</p>
