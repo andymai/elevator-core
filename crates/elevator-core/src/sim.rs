@@ -78,6 +78,7 @@ mod runtime;
 mod substep;
 mod tagging;
 mod topology;
+mod transition;
 
 use crate::components::{
     Accel, AccessControl, Orientation, Patience, Preferences, Route, SpatialPosition, Speed, Weight,
