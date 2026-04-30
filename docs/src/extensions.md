@@ -56,6 +56,7 @@ Use `world.insert_ext()` to attach your component to an entity:
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -83,6 +84,7 @@ Use `world.ext()` for a cloned value, `world.ext_ref()` for a zero-copy borrow, 
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, rider_id: EntityId) {
 // Read (cloned)
 if let Some(guest) = sim.world().ext::<GuestPriority>(rider_id) {
@@ -105,6 +107,7 @@ Extensions integrate with the query builder for ECS-style iteration:
 # #[derive(Debug, Clone, Serialize, Deserialize)]
 # struct GuestPriority { priority_class: u8, suite_floor: u32 }
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::query::Ext;
 # fn run(world: &mut World) {
 // Read-only iteration (cloned via Ext<T>)
@@ -127,6 +130,7 @@ For global data that is not attached to a specific entity, use **resources**. Re
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation) {
 // Insert a resource
 sim.world_mut().insert_resource(42u32);
@@ -166,6 +170,7 @@ Extension components are serialized by their registered type name into the `Worl
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 # use serde::{Serialize, Deserialize};
 # #[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }

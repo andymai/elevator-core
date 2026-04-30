@@ -30,6 +30,7 @@ Access elevator data through the simulation or the world directly:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation, elevator_id: EntityId) {
 // World accessors return Option -- unwrap when you know the entity exists.
 let pos: f64 = sim.world().position(elevator_id).unwrap().value();
@@ -65,6 +66,7 @@ Read the lamps through the simulation API:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation, elevator_id: EntityId) {
 let going_up = sim.elevator_going_up(elevator_id);
 let going_down = sim.elevator_going_down(elevator_id);
@@ -76,6 +78,7 @@ Or directly from the component:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation, elevator_id: EntityId) {
 let elev = sim.world().elevator(elevator_id).unwrap();
 let going_up = elev.going_up();
@@ -116,6 +119,7 @@ When constructing elevators, use `ElevatorConfig` to set initial parameters:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -145,6 +149,7 @@ Physics parameters, capacity, and door timing can be changed on a running elevat
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, elev: ElevatorId) -> Result<(), SimError> {
 sim.set_max_speed(elev, 4.0)?;
 sim.set_acceleration(elev, 2.5)?;

@@ -19,6 +19,7 @@ If you want to tell an elevator exactly where to go -- bypassing strategy logic 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 # let elev: ElevatorId = todo!();
 # let stop_a: EntityId = todo!();

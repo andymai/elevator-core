@@ -34,6 +34,7 @@ You can add hooks to a running simulation. This is useful when hook logic depend
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::hooks::Phase;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
@@ -54,6 +55,7 @@ For multi-group buildings, you can register hooks that only fire for a specific 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::hooks::Phase;
 # fn main() -> Result<(), SimError> {
 let sim = SimulationBuilder::new()
@@ -127,10 +129,9 @@ A facilities team monitoring an office tower wants to know whenever a tenant has
 The hook closure cannot call `sim.current_tick()` directly (the simulation is borrowed during the tick), so the tick is mirrored into a `World` resource that the hook reads.
 
 ```rust,no_run
-use elevator_core::prelude::*;
-use elevator_core::config::ElevatorConfig;
 use elevator_core::hooks::Phase;
-use elevator_core::stop::StopId;
+use elevator_core::prelude::*;
+use elevator_core::world::ExtKey;
 use serde::{Serialize, Deserialize};
 
 /// Per-rider flag that latches the first time a tenant breaches the

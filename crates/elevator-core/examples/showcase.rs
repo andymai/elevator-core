@@ -12,6 +12,7 @@
     clippy::must_use_candidate
 )]
 
+use elevator_core::components::{Accel, Speed, Weight};
 use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
@@ -19,6 +20,7 @@ use elevator_core::dispatch::etd::EtdDispatch;
 use elevator_core::hooks::Phase;
 use elevator_core::prelude::*;
 use elevator_core::stop::StopConfig;
+use elevator_core::world::ExtKey;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

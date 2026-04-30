@@ -290,6 +290,7 @@ Two levels of test coverage work well:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # struct BusyStopNearest;
 # impl DispatchStrategy for BusyStopNearest {
 #     fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }

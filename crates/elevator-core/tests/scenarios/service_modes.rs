@@ -4,7 +4,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use elevator_core::components::{RiderPhase, ServiceMode};
+use elevator_core::components::{Rider, RiderPhase, ServiceMode};
 use elevator_core::dispatch::{EtdDispatch, ScanDispatch};
 use elevator_core::entity::EntityId;
 use elevator_core::events::Event;

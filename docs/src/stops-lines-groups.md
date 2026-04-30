@@ -8,6 +8,7 @@ A **stop** is a named position along a 1D shaft axis. Unlike traditional elevato
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 let sim = SimulationBuilder::new()
     .stop(StopId(0), "Basement", -3.0)
@@ -30,6 +31,7 @@ For simple single-shaft buildings, you never need to think about lines. The buil
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 // This implicitly creates one line containing both elevators and all stops.
 SimulationBuilder::new()
@@ -98,6 +100,7 @@ The library uses three identity types. Knowing which to reach for saves confusio
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 let lobby_entity: Option<EntityId> = sim.stop_entity(StopId(0));
 # let _ = lobby_entity;
@@ -118,6 +121,7 @@ Convert between ticks and seconds using the time API:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation) {
 let seconds = sim.time().ticks_to_seconds(120);  // 120 ticks -> seconds
 # let _ = seconds;

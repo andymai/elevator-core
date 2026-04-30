@@ -50,6 +50,7 @@ Game renderers typically run at a higher framerate than the simulation tick rate
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let sim: Simulation = todo!();
 # let elev: EntityId = todo!();
 // alpha = 0.0 is the position at tick start, 1.0 at tick end.
@@ -62,6 +63,7 @@ A typical render loop at 4x the sim rate samples at `alpha = 0.0, 0.25, 0.5, 0.7
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 # let elev: EntityId = todo!();
 sim.step();
@@ -86,6 +88,7 @@ Two methods estimate arrival times for UI countdown displays and dispatch logic:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let sim: Simulation = todo!();
 # let elev: ElevatorId = todo!();
 # let lobby: EntityId = todo!();
@@ -109,6 +112,7 @@ When an elevator passes a stop without stopping, a `PassingFloor` event fires:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn handle(event: Event) {
 if let Event::PassingFloor { elevator, stop, moving_up, tick } = event {
     let _ = (elevator, stop, moving_up, tick);

@@ -80,6 +80,7 @@ Every `RiderRejected` event includes a `RejectionContext` with the numeric detai
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 use ordered_float::OrderedFloat;
 
 let context = RejectionContext {
@@ -94,6 +95,7 @@ let context = RejectionContext {
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use ordered_float::OrderedFloat;
 # let context = RejectionContext {
 #     attempted_weight: OrderedFloat(80.0),
@@ -123,6 +125,7 @@ The most common error path in game code is spawning riders. Here are the key fai
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 match sim.spawn_rider(StopId(0), StopId(5), 75.0) {
     Ok(rider) => {
@@ -153,6 +156,7 @@ Rider rejections are not Rust errors -- they are events. The simulation continue
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation) {
 sim.step();
 

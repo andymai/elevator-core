@@ -4,7 +4,7 @@
 //!
 //! ```rust
 //! use elevator_core::prelude::*;
-//! use elevator_core::dispatch::BuiltinReposition;
+//! use elevator_core::dispatch::reposition::SpreadEvenly;
 //!
 //! let sim = SimulationBuilder::demo()
 //!     .reposition(SpreadEvenly, BuiltinReposition::SpreadEvenly)

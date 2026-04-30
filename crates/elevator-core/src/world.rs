@@ -1012,6 +1012,7 @@ impl World {
     /// Create a query builder for iterating entities by component composition.
     ///
     /// ```
+    /// use elevator_core::components::{Position, Rider};
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();

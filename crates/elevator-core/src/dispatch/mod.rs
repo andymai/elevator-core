@@ -11,6 +11,7 @@
 //! # Example: custom dispatch strategy
 //!
 //! ```rust
+//! use elevator_core::dispatch::RankContext;
 //! use elevator_core::prelude::*;
 //!
 //! struct AlwaysFirstStop;

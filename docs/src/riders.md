@@ -8,6 +8,7 @@ The simplest way to create a rider is `spawn_rider`, which takes an origin stop,
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation) -> Result<(), SimError> {
 let rider_id = sim.spawn_rider(StopId(0), StopId(3), 75.0)?;
 # let _ = rider_id;
@@ -21,6 +22,7 @@ For more control, use the `RiderBuilder` fluent API:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation) -> Result<(), SimError> {
 let rider_id = sim.build_rider(StopId(0), StopId(3))?
     .weight(80.0)
@@ -70,6 +72,7 @@ The simulation maintains a reverse index (`RiderIndex`) that tracks riders at ea
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation, lobby_entity: EntityId, floor_10: EntityId, stop_entity: EntityId) {
 // Who is waiting at the lobby?
 let waiting: Vec<EntityId> = sim.waiting_at(lobby_entity).collect();
@@ -97,6 +100,7 @@ When you have an `EntityId` and need to know what it refers to, use the type-che
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &Simulation, id: EntityId) {
 if sim.is_rider(id) {
     // handle rider
@@ -124,6 +128,7 @@ Always use `sim.despawn_rider(id)` instead of calling `world.despawn()` directly
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, rider_id: RiderId, new_route: Route) -> Result<(), SimError> {
 // A rider arrives at their destination. Settle them as a resident.
 sim.settle_rider(rider_id)?;

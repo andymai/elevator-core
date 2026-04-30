@@ -26,6 +26,7 @@ A `WorldSnapshot` captures the full simulation state -- all entities, components
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
@@ -47,6 +48,7 @@ The snapshot struct is `Serialize + Deserialize` -- choose any serde format (RON
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 # fn main() -> Result<(), SimError> {
 let bytes = std::fs::read_to_string("save.ron").unwrap();
@@ -69,6 +71,7 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`, `Rsr`, `Destination`) 
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
@@ -90,6 +93,7 @@ Extensions are serialized by their registered name. Dispatch-internal extensions
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
 # use serde::{Serialize, Deserialize};
 # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
@@ -118,6 +122,7 @@ Run a seeded scenario for N ticks, snapshot, and diff against a golden snapshot:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn run(sim: &mut Simulation, expected: &str) {
 let snap = sim.snapshot();
 let actual = ron::to_string(&snap).unwrap();
@@ -135,6 +140,7 @@ To compare dispatch strategies fairly, use identical seeded traffic across runs:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn build_sim(dispatch: impl DispatchStrategy + 'static) -> Simulation {
 #   SimulationBuilder::new()
 #       .stop(StopId(0), "Ground", 0.0)
