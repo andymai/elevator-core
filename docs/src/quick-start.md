@@ -10,13 +10,13 @@ cargo add elevator-core
 
 ## Import the prelude
 
-The prelude re-exports everything you need for typical usage:
+The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:
 
 ```rust
 use elevator_core::prelude::*;
 ```
 
-This brings in the builder, simulation runner, all component types, dispatch traits, identity types, error types, and events. Types not in the prelude (concrete dispatch strategies, config structs, traffic module) are imported explicitly when needed.
+This brings in `Simulation`, `SimulationBuilder`, `RiderBuilder`, `SimConfig`, `ElevatorConfig`, `StopConfig`, the typed IDs (`StopId`, `ElevatorId`, `RiderId`, `EntityId`, `GroupId`), `Event`, `SimError`, `RejectionReason`, the phase + direction enums (`ElevatorPhase`, `RiderPhase`, `Direction`), the dispatch trait + presets (`DispatchStrategy`, `BuiltinStrategy`, `BuiltinReposition`), and `World` + `Metrics`. Fine-grained component types (`Position`, `Speed`, `Route`, `Patience`, …), per-strategy structs (`ScanDispatch`, `EtdDispatch`, …), extension keys (`ExtKey`), and traffic types are imported explicitly from their sub-modules when needed.
 
 ### Feature flags
 
@@ -55,6 +55,7 @@ A rider is anything that rides an elevator. Provide an origin stop, a destinatio
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)
@@ -79,6 +80,7 @@ Each call to `sim.step()` advances the simulation by one tick, running all [eigh
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Lobby", 0.0)

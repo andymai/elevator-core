@@ -9,6 +9,7 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 
+use elevator_core::components::{Elevator, Position, Rider, Route};
 use elevator_core::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };

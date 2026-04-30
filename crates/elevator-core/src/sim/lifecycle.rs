@@ -52,6 +52,7 @@ impl Simulation {
     ///
     /// ```no_run
     /// # use elevator_core::prelude::*;
+    /// # use elevator_core::__doctest_prelude::*;
     /// # use elevator_core::register_extensions;
     /// # use elevator_core::snapshot::WorldSnapshot;
     /// # use serde::{Serialize, Deserialize};

@@ -50,6 +50,7 @@ Riders can have a patience budget that causes automatic abandonment. Attach a `P
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap()
@@ -81,6 +82,7 @@ Whichever condition fires first wins. Setting `abandon_on_full = true` with `aba
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 let rider = sim.build_rider(StopId(0), StopId(2))
     .unwrap()
@@ -103,6 +105,7 @@ The `AccessControl` component restricts which stops a rider may visit. If a ride
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use std::collections::HashSet;
 # let mut sim: Simulation = todo!();
 # let lobby: EntityId = todo!();
@@ -128,6 +131,7 @@ Once a rider reaches `Arrived` or `Abandoned`, the simulation stops managing the
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 # let rider: RiderId = todo!();
 # let new_route: Route = todo!();

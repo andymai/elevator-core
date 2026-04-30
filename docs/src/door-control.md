@@ -42,6 +42,7 @@ You can change these at runtime:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 # let elev: ElevatorId = todo!();
 sim.set_door_transition_ticks(elev, 3).unwrap();
@@ -67,6 +68,7 @@ Here is a practical example -- hold doors for a late arrival, then force them sh
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # let mut sim: Simulation = todo!();
 # let elev: ElevatorId = todo!();
 // A friend is running for the elevator -- hold the doors.

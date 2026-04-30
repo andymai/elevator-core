@@ -116,6 +116,7 @@ If your `SimConfig` already has `passenger_spawning` populated, use `from_config
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::traffic::PoissonSource;
 # fn run(config: &SimConfig) {
 let source = PoissonSource::from_config(config);
@@ -221,6 +222,7 @@ A `SpawnRequest` is the minimal description of a rider to spawn:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::traffic::SpawnRequest;
 // Constructing a SpawnRequest to feed into the simulation:
 let req = SpawnRequest {
@@ -235,6 +237,7 @@ For riders that need patience, preferences, or access control, spawn through the
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::traffic::SpawnRequest;
 # fn run(sim: &mut Simulation, req: SpawnRequest) -> Result<(), SimError> {
 sim.build_rider(req.origin, req.destination)?

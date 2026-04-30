@@ -3,6 +3,7 @@
 
 use elevator_core::prelude::*;
 use elevator_core::query::Ext;
+use elevator_core::world::ExtKey;
 use serde::{Deserialize, Serialize};
 
 /// A custom VIP tag attached to riders.

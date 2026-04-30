@@ -17,6 +17,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use elevator_core::components::{Accel, Route, Speed, Weight};
 use elevator_core::dispatch::{
     BuiltinReposition, DispatchStrategy, EtdDispatch, LookDispatch, NearestCarDispatch,
     ScanDispatch,

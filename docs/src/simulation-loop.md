@@ -140,6 +140,7 @@ Each phase supports before/after lifecycle hooks, letting you inject custom logi
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # use elevator_core::hooks::Phase;
 # fn run(sim: &mut Simulation) {
 sim.add_before_hook(Phase::Loading, |world| {
@@ -156,6 +157,7 @@ For advanced use cases, you can run individual phases instead of calling `step()
 
 ```rust,no_run
 # use elevator_core::prelude::*;
+# use elevator_core::__doctest_prelude::*;
 # fn main() -> Result<(), SimError> {
 # let mut sim = SimulationBuilder::new()
 #     .stop(StopId(0), "Ground", 0.0)
