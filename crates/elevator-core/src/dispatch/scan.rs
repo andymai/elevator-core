@@ -11,7 +11,7 @@ use crate::entity::EntityId;
 use crate::world::World;
 
 use super::sweep::{self, SweepDirection, SweepMode};
-use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_can_do_work};
+use super::{DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext, pair_is_useful};
 
 /// Elevator dispatch using the SCAN (elevator) algorithm.
 ///
@@ -92,7 +92,7 @@ impl DispatchStrategy for ScanDispatch {
         // it out of the self-stop within one tick (strict-ahead excludes
         // the current position), but the Lenient transition tick would
         // still rank the self-pair at cost 0 without this guard.
-        if !pair_can_do_work(ctx) {
+        if !pair_is_useful(ctx, false) {
             return None;
         }
         sweep::rank(

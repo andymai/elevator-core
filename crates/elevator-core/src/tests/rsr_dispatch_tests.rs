@@ -652,12 +652,13 @@ fn peak_direction_multiplier_tolerates_missing_detector() {
 // ── Aboard-rider path guard ─────────────────────────────────────────
 //
 // These two tests lock in the correctness fix routing RSR through
-// `pair_is_useful` (the shared NearestCar path guard). With only
-// `pair_can_do_work`, an unconfigured RSR (all weights at their
-// `new()` defaults — i.e. effectively NearestCar) would be pulled off
-// its aboard riders' path by closer pickups, indefinitely deferring
-// delivery. Tests mirror `nearest_car_*` regression tests so any
-// future drift shows up on both strategies simultaneously.
+// `pair_is_useful(ctx, true)` (the same path guard NearestCar uses).
+// Without `respect_aboard_path: true`, an unconfigured RSR (all
+// weights at their `new()` defaults — i.e. effectively NearestCar)
+// would be pulled off its aboard riders' path by closer pickups,
+// indefinitely deferring delivery. Tests mirror `nearest_car_*`
+// regression tests so any future drift shows up on both strategies
+// simultaneously.
 
 /// Full-car self-pair: a saturated RSR car parked at a pickup stop
 /// whose only waiter it cannot board must still be dispatched to its

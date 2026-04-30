@@ -223,7 +223,7 @@ pub fn run(
                 // advance_queue), but once the car is parked with no
                 // committed work the lamps should read "both" — otherwise
                 // the next dispatch tick rejects opposite-direction hall
-                // calls at this stop via `pair_can_do_work`, and the
+                // calls at this stop via `pair_is_useful`, and the
                 // Hungarian picks a different, farther car to serve
                 // them while this one sits there.
                 let indicators_dirty = !(car.going_up && car.going_down);
