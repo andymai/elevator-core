@@ -1,5 +1,18 @@
 # Changelog
 
+## [16.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.32.1...elevator-core-v16.0.0) (2026-04-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **dispatch:** pair_can_do_work is removed.
+* **prelude:** Names removed from the prelude are now imported explicitly from their sub-modules.
+
+### Code Refactoring
+
+* **dispatch:** merge pair_can_do_work into pair_is_useful ([#555](https://github.com/andymai/elevator-core/issues/555)) ([572faa6](https://github.com/andymai/elevator-core/commit/572faa6e46e824562eaf41c3a56ed51f824c71ce))
+* **prelude:** trim from ~70 names to a 22-name starter kit ([#554](https://github.com/andymai/elevator-core/issues/554)) ([23a24e8](https://github.com/andymai/elevator-core/commit/23a24e8fada06c233971cbead741364922c12668))
+
 ## [15.32.1](https://github.com/andymai/elevator-core/compare/elevator-core-v15.32.0...elevator-core-v15.32.1) (2026-04-30)
 
 
