@@ -360,7 +360,7 @@ fn apply_actions(
                     rider_index,
                     ctx.tick,
                     rider,
-                    crate::components::rider_state::RiderState::Exiting { elevator, stop },
+                    crate::components::rider_state::InternalRiderPhase::Exiting { elevator, stop },
                 );
                 events.emit(Event::RiderExited {
                     rider,
@@ -415,7 +415,7 @@ fn apply_actions(
                     rider_index,
                     ctx.tick,
                     rider,
-                    crate::components::rider_state::RiderState::Boarding { elevator, stop },
+                    crate::components::rider_state::InternalRiderPhase::Boarding { elevator, stop },
                 );
                 events.emit(Event::RiderBoarded {
                     rider,
@@ -494,7 +494,9 @@ fn apply_actions(
                         rider_index,
                         ctx.tick,
                         rider,
-                        crate::components::rider_state::RiderState::Abandoned { stop: at_stop },
+                        crate::components::rider_state::InternalRiderPhase::Abandoned {
+                            stop: at_stop,
+                        },
                     );
                     events.emit(Event::RiderAbandoned {
                         rider,

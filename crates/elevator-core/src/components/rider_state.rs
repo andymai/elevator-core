@@ -1,26 +1,29 @@
-//! Internal lifecycle state for riders, with location data bundled into
+//! Internal lifecycle phase for riders, with location data bundled into
 //! variants.
 //!
-//! [`RiderState`] is the engine's source of truth for "where a rider is and
-//! what they're doing." It mirrors the public [`RiderPhase`] enum but lifts
-//! the rider's `current_stop` (and the elevator they're aboard, where
+//! [`InternalRiderPhase`] is the engine's source of truth for "where a rider
+//! is and what they're doing." It mirrors the public [`RiderPhase`] enum but
+//! lifts the rider's `current_stop` (and the elevator they're aboard, where
 //! applicable) into the variant payload — making "phase + location" a single
 //! atomic value rather than two fields the caller has to keep coherent.
 //!
-//! The transition gateway (`sim::transition`) accepts a `RiderState`,
-//! ensuring every phase change carries its location data. Public API
-//! surfaces continue to expose [`RiderPhase`] (the data-less-ish projection)
-//! and the snapshot wire format remains byte-stable: see [`From`] impls.
+//! The transition gateway (`sim::transition`) accepts an
+//! [`InternalRiderPhase`], ensuring every phase change carries its location
+//! data. Public API surfaces continue to expose [`RiderPhase`] (the
+//! data-less-ish projection); the snapshot wire format remains byte-stable
+//! by serializing through `RiderPhase + Option<EntityId> current_stop` and
+//! reconstructing internally via [`InternalRiderPhase::from_phase`].
 //!
 //! # Invariants
 //!
-//! - `RiderState::Waiting`, `Arrived`, `Abandoned`, `Resident` always carry
-//!   a `stop: EntityId`.
-//! - `RiderState::Boarding` and `Exiting` carry both an elevator and the
-//!   stop the rider is transferring at.
-//! - `RiderState::Riding` carries only an elevator (no stop while in transit).
-//! - `RiderState::Walking` carries neither — riders walking between transfer
-//!   stops are effectively "in transit on foot."
+//! - `InternalRiderPhase::Waiting`, `Arrived`, `Abandoned`, `Resident` always
+//!   carry a `stop: EntityId`.
+//! - `InternalRiderPhase::Boarding` and `Exiting` carry both an elevator and
+//!   the stop the rider is transferring at.
+//! - `InternalRiderPhase::Riding` carries only an elevator (no stop while in
+//!   transit).
+//! - `InternalRiderPhase::Walking` carries neither — riders walking between
+//!   transfer stops are effectively "in transit on foot."
 //!
 //! These are unrepresentable invalid states by construction, replacing the
 //! soft `Option<EntityId>` invariant on `Rider::current_stop`.
@@ -30,13 +33,14 @@ use serde::{Deserialize, Serialize};
 use super::rider::{RiderPhase, RiderPhaseKind};
 use crate::entity::EntityId;
 
-/// Engine-internal lifecycle state for a rider.
+/// Engine-internal lifecycle phase for a rider.
 ///
 /// See module docs for the relationship with [`RiderPhase`] and the
-/// per-variant invariants.
+/// per-variant invariants. Named `InternalRiderPhase` (rather than
+/// `RiderState`) to follow the codebase's `*Phase` naming convention
+/// documented in `CLAUDE.md`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[allow(dead_code)] // wired up by the transition gateway in a follow-up commit
-pub enum RiderState {
+pub enum InternalRiderPhase {
     /// Waiting at a stop for an elevator.
     Waiting {
         /// The stop the rider is waiting at.
@@ -80,8 +84,7 @@ pub enum RiderState {
     },
 }
 
-#[allow(dead_code)] // consumed by the transition gateway in a follow-up commit
-impl RiderState {
+impl InternalRiderPhase {
     /// The stop this rider is currently *at*, if any.
     ///
     /// `Some(stop)` for `Waiting`, `Boarding`, `Exiting`, `Arrived`,
@@ -105,6 +108,7 @@ impl RiderState {
     /// `Some(elev)` for `Boarding`, `Riding`, `Exiting`. `None` for the
     /// at-stop and walking variants.
     #[must_use]
+    #[allow(dead_code)] // exposed for gateway helpers; only used by tests today
     pub const fn aboard(&self) -> Option<EntityId> {
         match *self {
             Self::Boarding { elevator, .. }
@@ -152,6 +156,7 @@ impl RiderState {
     /// no stop, or `Boarding` with no stop. The caller should treat such
     /// inputs as the "ghost rider" footgun and refuse to proceed.
     #[must_use]
+    #[allow(dead_code)] // exposed for snapshot/restore reconstruction; tests cover today
     pub const fn from_phase(phase: RiderPhase, current_stop: Option<EntityId>) -> Option<Self> {
         match (phase, current_stop) {
             (RiderPhase::Waiting, Some(stop)) => Some(Self::Waiting { stop }),
@@ -181,12 +186,12 @@ mod tests {
     #[test]
     fn at_stop_returns_stop_for_at_stop_variants() {
         let (stop, elev, _) = ids();
-        assert_eq!(RiderState::Waiting { stop }.at_stop(), Some(stop));
-        assert_eq!(RiderState::Arrived { stop }.at_stop(), Some(stop));
-        assert_eq!(RiderState::Abandoned { stop }.at_stop(), Some(stop));
-        assert_eq!(RiderState::Resident { stop }.at_stop(), Some(stop));
+        assert_eq!(InternalRiderPhase::Waiting { stop }.at_stop(), Some(stop));
+        assert_eq!(InternalRiderPhase::Arrived { stop }.at_stop(), Some(stop));
+        assert_eq!(InternalRiderPhase::Abandoned { stop }.at_stop(), Some(stop));
+        assert_eq!(InternalRiderPhase::Resident { stop }.at_stop(), Some(stop));
         assert_eq!(
-            RiderState::Boarding {
+            InternalRiderPhase::Boarding {
                 elevator: elev,
                 stop
             }
@@ -194,7 +199,7 @@ mod tests {
             Some(stop)
         );
         assert_eq!(
-            RiderState::Exiting {
+            InternalRiderPhase::Exiting {
                 elevator: elev,
                 stop
             }
@@ -206,93 +211,106 @@ mod tests {
     #[test]
     fn at_stop_returns_none_for_in_transit_variants() {
         let (_, elev, _) = ids();
-        assert_eq!(RiderState::Riding { elevator: elev }.at_stop(), None);
-        assert_eq!(RiderState::Walking.at_stop(), None);
+        assert_eq!(
+            InternalRiderPhase::Riding { elevator: elev }.at_stop(),
+            None
+        );
+        assert_eq!(InternalRiderPhase::Walking.at_stop(), None);
     }
 
     #[test]
     fn aboard_returns_elevator_for_aboard_variants() {
         let (stop, elev, _) = ids();
         assert_eq!(
-            RiderState::Boarding {
+            InternalRiderPhase::Boarding {
                 elevator: elev,
                 stop
             }
             .aboard(),
             Some(elev)
         );
-        assert_eq!(RiderState::Riding { elevator: elev }.aboard(), Some(elev));
         assert_eq!(
-            RiderState::Exiting {
+            InternalRiderPhase::Riding { elevator: elev }.aboard(),
+            Some(elev)
+        );
+        assert_eq!(
+            InternalRiderPhase::Exiting {
                 elevator: elev,
                 stop
             }
             .aboard(),
             Some(elev)
         );
-        assert_eq!(RiderState::Waiting { stop }.aboard(), None);
-        assert_eq!(RiderState::Walking.aboard(), None);
+        assert_eq!(InternalRiderPhase::Waiting { stop }.aboard(), None);
+        assert_eq!(InternalRiderPhase::Walking.aboard(), None);
     }
 
     #[test]
     fn round_trip_through_phase_preserves_state() {
         let (stop, elev, _) = ids();
         let cases = [
-            RiderState::Waiting { stop },
-            RiderState::Boarding {
+            InternalRiderPhase::Waiting { stop },
+            InternalRiderPhase::Boarding {
                 elevator: elev,
                 stop,
             },
-            RiderState::Riding { elevator: elev },
-            RiderState::Exiting {
+            InternalRiderPhase::Riding { elevator: elev },
+            InternalRiderPhase::Exiting {
                 elevator: elev,
                 stop,
             },
-            RiderState::Walking,
-            RiderState::Arrived { stop },
-            RiderState::Abandoned { stop },
-            RiderState::Resident { stop },
+            InternalRiderPhase::Walking,
+            InternalRiderPhase::Arrived { stop },
+            InternalRiderPhase::Abandoned { stop },
+            InternalRiderPhase::Resident { stop },
         ];
         for state in cases {
             let phase = state.as_phase();
             let stop_back = state.at_stop();
-            let reconstructed = RiderState::from_phase(phase, stop_back).unwrap_or_else(|| {
-                panic!("from_phase rejected legal pair: phase={phase:?}, stop={stop_back:?}")
-            });
-            assert_eq!(reconstructed, state, "round-trip mismatch for {state:?}");
+            // Compare against `Some(state)` so a `None` result fails the
+            // assertion without needing `unwrap()` or `panic!` (both of
+            // which are forbidden by the workspace clippy gate).
+            assert_eq!(
+                InternalRiderPhase::from_phase(phase, stop_back),
+                Some(state),
+                "round-trip mismatch for {state:?} (phase={phase:?}, stop={stop_back:?})"
+            );
         }
     }
 
     #[test]
     fn riderphase_kind_matches_state_kind() {
-        // Sanity: the public RiderPhase::kind() and RiderState::kind() must
+        // Sanity: the public RiderPhase::kind() and InternalRiderPhase::kind() must
         // agree for every variant. Catches drift if either enum gains a
         // case without updating the other.
         let (stop, elev, _) = ids();
-        let pairs: &[(RiderState, RiderPhase)] = &[
-            (RiderState::Waiting { stop }, RiderPhase::Waiting),
+        let pairs: &[(InternalRiderPhase, RiderPhase)] = &[
+            (InternalRiderPhase::Waiting { stop }, RiderPhase::Waiting),
             (
-                RiderState::Boarding {
+                InternalRiderPhase::Boarding {
                     elevator: elev,
                     stop,
                 },
                 RiderPhase::Boarding(elev),
             ),
             (
-                RiderState::Riding { elevator: elev },
+                InternalRiderPhase::Riding { elevator: elev },
                 RiderPhase::Riding(elev),
             ),
             (
-                RiderState::Exiting {
+                InternalRiderPhase::Exiting {
                     elevator: elev,
                     stop,
                 },
                 RiderPhase::Exiting(elev),
             ),
-            (RiderState::Walking, RiderPhase::Walking),
-            (RiderState::Arrived { stop }, RiderPhase::Arrived),
-            (RiderState::Abandoned { stop }, RiderPhase::Abandoned),
-            (RiderState::Resident { stop }, RiderPhase::Resident),
+            (InternalRiderPhase::Walking, RiderPhase::Walking),
+            (InternalRiderPhase::Arrived { stop }, RiderPhase::Arrived),
+            (
+                InternalRiderPhase::Abandoned { stop },
+                RiderPhase::Abandoned,
+            ),
+            (InternalRiderPhase::Resident { stop }, RiderPhase::Resident),
         ];
         for (state, phase) in pairs {
             assert_eq!(state.kind(), phase.kind(), "kind mismatch for {state:?}");
@@ -303,12 +321,18 @@ mod tests {
     fn from_phase_rejects_inconsistent_inputs() {
         let (_, elev, _) = ids();
         // Waiting without a stop — the "ghost rider" footgun.
-        assert_eq!(RiderState::from_phase(RiderPhase::Waiting, None), None);
         assert_eq!(
-            RiderState::from_phase(RiderPhase::Boarding(elev), None),
+            InternalRiderPhase::from_phase(RiderPhase::Waiting, None),
             None
         );
-        assert_eq!(RiderState::from_phase(RiderPhase::Arrived, None), None);
+        assert_eq!(
+            InternalRiderPhase::from_phase(RiderPhase::Boarding(elev), None),
+            None
+        );
+        assert_eq!(
+            InternalRiderPhase::from_phase(RiderPhase::Arrived, None),
+            None
+        );
     }
 
     #[test]
@@ -317,30 +341,51 @@ mod tests {
         // before they boarded. We accept the phase regardless and produce
         // the canonical no-stop Riding state.
         let (stale_stop, elev, _) = ids();
-        let s = RiderState::from_phase(RiderPhase::Riding(elev), Some(stale_stop)).unwrap();
-        assert_eq!(s, RiderState::Riding { elevator: elev });
+        assert_eq!(
+            InternalRiderPhase::from_phase(RiderPhase::Riding(elev), Some(stale_stop)),
+            Some(InternalRiderPhase::Riding { elevator: elev }),
+        );
     }
 
     #[test]
     fn kind_matches_phase_kind() {
         let (stop, elev, _) = ids();
-        let pairs: &[(RiderState, RiderPhaseKind)] = &[
-            (RiderState::Waiting { stop }, RiderPhaseKind::Waiting),
+        let pairs: &[(InternalRiderPhase, RiderPhaseKind)] = &[
             (
-                RiderState::Boarding {
+                InternalRiderPhase::Waiting { stop },
+                RiderPhaseKind::Waiting,
+            ),
+            (
+                InternalRiderPhase::Boarding {
                     elevator: elev,
                     stop,
                 },
                 RiderPhaseKind::Boarding,
             ),
             (
-                RiderState::Riding { elevator: elev },
+                InternalRiderPhase::Riding { elevator: elev },
                 RiderPhaseKind::Riding,
             ),
-            (RiderState::Walking, RiderPhaseKind::Walking),
-            (RiderState::Arrived { stop }, RiderPhaseKind::Arrived),
-            (RiderState::Abandoned { stop }, RiderPhaseKind::Abandoned),
-            (RiderState::Resident { stop }, RiderPhaseKind::Resident),
+            (
+                InternalRiderPhase::Exiting {
+                    elevator: elev,
+                    stop,
+                },
+                RiderPhaseKind::Exiting,
+            ),
+            (InternalRiderPhase::Walking, RiderPhaseKind::Walking),
+            (
+                InternalRiderPhase::Arrived { stop },
+                RiderPhaseKind::Arrived,
+            ),
+            (
+                InternalRiderPhase::Abandoned { stop },
+                RiderPhaseKind::Abandoned,
+            ),
+            (
+                InternalRiderPhase::Resident { stop },
+                RiderPhaseKind::Resident,
+            ),
         ];
         for (state, expected_kind) in pairs {
             assert_eq!(state.kind(), *expected_kind);

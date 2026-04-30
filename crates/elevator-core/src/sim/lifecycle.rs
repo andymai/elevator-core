@@ -211,7 +211,7 @@ impl Simulation {
         // applicable, insert-into-Resident) and the phase write atomically.
         self.transition_rider(
             id,
-            crate::components::rider_state::RiderState::Resident { stop },
+            crate::components::rider_state::InternalRiderPhase::Resident { stop },
         )?;
 
         self.metrics.record_settle();
@@ -271,7 +271,7 @@ impl Simulation {
         // write. spawn_tick is rerouter-specific so it's reset directly after.
         self.transition_rider(
             id,
-            crate::components::rider_state::RiderState::Waiting { stop },
+            crate::components::rider_state::InternalRiderPhase::Waiting { stop },
         )?;
         if let Some(r) = self.world.rider_mut(id) {
             // Reset spawn_tick so manifest wait_ticks measures time since
@@ -611,7 +611,7 @@ impl Simulation {
                 // because the new state is non-aboard.
                 self.transition_rider(
                     *rid,
-                    crate::components::rider_state::RiderState::Waiting { stop },
+                    crate::components::rider_state::InternalRiderPhase::Waiting { stop },
                 )?;
                 self.events.emit(Event::RiderEjected {
                     rider: *rid,
@@ -703,7 +703,7 @@ impl Simulation {
             // upstream, and `disable_stop_inner` has no return type.
             let _ = self.transition_rider(
                 rid,
-                crate::components::rider_state::RiderState::Abandoned { stop: id },
+                crate::components::rider_state::InternalRiderPhase::Abandoned { stop: id },
             );
             self.events.emit(Event::RiderAbandoned {
                 rider: rid,
@@ -903,7 +903,7 @@ impl Simulation {
             // board_tick, and the rider_index waiting bucket are updated atomically.
             let _ = self.transition_rider(
                 rid,
-                crate::components::rider_state::RiderState::Waiting { stop },
+                crate::components::rider_state::InternalRiderPhase::Waiting { stop },
             );
             if let Some(car) = self.world.elevator_mut(car_eid) {
                 car.riders.retain(|r| *r != rid);
@@ -931,7 +931,7 @@ impl Simulation {
             // every population query. The gateway forces an at-stop home.
             let _ = self.transition_rider(
                 rid,
-                crate::components::rider_state::RiderState::Abandoned {
+                crate::components::rider_state::InternalRiderPhase::Abandoned {
                     stop: disabled_stop,
                 },
             );
@@ -996,7 +996,7 @@ impl Simulation {
         // hall/car-call pending lists alongside.
         let _ = self.transition_rider(
             rid,
-            crate::components::rider_state::RiderState::Abandoned { stop: abandon_stop },
+            crate::components::rider_state::InternalRiderPhase::Abandoned { stop: abandon_stop },
         );
         self.world.scrub_rider_from_pending_calls(rid);
         self.events.emit(Event::RiderAbandoned {

@@ -43,9 +43,26 @@ fn handle_exit(
 
             let walk_dest = world.route(id).and_then(Route::current_destination);
             if let Some(dest) = walk_dest {
-                if let Some(r) = world.rider_mut(id) {
-                    r.current_stop = Some(dest);
-                }
+                // Route the within-Exiting `current_stop` advance through
+                // the gateway too, even though `Exiting` isn't an indexed
+                // phase and the desync risk is zero today. Keeping the
+                // gateway as the *sole* writer of `Rider::current_stop`
+                // means the rest of the file (including the
+                // `Exiting -> Waiting` call below at line 88) doesn't
+                // have to assume "well, this one direct mutation is OK."
+                let Some(RiderPhase::Exiting(elevator)) = world.rider(id).map(|r| r.phase) else {
+                    break;
+                };
+                let _ = crate::sim::transition::transition_rider(
+                    world,
+                    rider_index,
+                    ctx.tick,
+                    id,
+                    crate::components::rider_state::InternalRiderPhase::Exiting {
+                        elevator,
+                        stop: dest,
+                    },
+                );
                 let more = world.route_mut(id).is_some_and(Route::advance);
                 if !more {
                     // Gateway routes Exiting -> Arrived at the walk destination.
@@ -54,7 +71,7 @@ fn handle_exit(
                         rider_index,
                         ctx.tick,
                         id,
-                        crate::components::rider_state::RiderState::Arrived { stop: dest },
+                        crate::components::rider_state::InternalRiderPhase::Arrived { stop: dest },
                     );
                     // Route complete after walk — skip to invalidation check.
                     break;
@@ -85,7 +102,7 @@ fn handle_exit(
                     rider_index,
                     ctx.tick,
                     id,
-                    crate::components::rider_state::RiderState::Waiting { stop },
+                    crate::components::rider_state::InternalRiderPhase::Waiting { stop },
                 );
                 if let Some(r) = world.rider_mut(id) {
                     r.spawn_tick = ctx.tick;
@@ -115,7 +132,7 @@ fn handle_exit(
             rider_index,
             ctx.tick,
             id,
-            crate::components::rider_state::RiderState::Arrived { stop },
+            crate::components::rider_state::InternalRiderPhase::Arrived { stop },
         );
     }
 
@@ -181,7 +198,7 @@ pub fn run(
                     rider_index,
                     ctx.tick,
                     id,
-                    crate::components::rider_state::RiderState::Riding { elevator: eid },
+                    crate::components::rider_state::InternalRiderPhase::Riding { elevator: eid },
                 );
             }
             TransientAction::Exit => handle_exit(id, world, events, ctx, rider_index),
@@ -233,7 +250,7 @@ pub fn run(
             rider_index,
             ctx.tick,
             id,
-            crate::components::rider_state::RiderState::Abandoned { stop },
+            crate::components::rider_state::InternalRiderPhase::Abandoned { stop },
         );
         // An abandoned rider is not a waiter any more; leaving their
         // ID in `pending_riders` would spuriously hold car calls open
@@ -284,7 +301,7 @@ pub fn run(
             rider_index,
             ctx.tick,
             id,
-            crate::components::rider_state::RiderState::Abandoned { stop },
+            crate::components::rider_state::InternalRiderPhase::Abandoned { stop },
         );
         world.scrub_rider_from_pending_calls(id);
         events.emit(Event::RiderAbandoned {

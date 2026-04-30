@@ -22,7 +22,7 @@
 
 use super::Simulation;
 use crate::components::RiderPhaseKind;
-use crate::components::rider_state::RiderState;
+use crate::components::rider_state::InternalRiderPhase;
 use crate::entity::EntityId;
 use crate::error::SimError;
 use crate::rider_index::RiderIndex;
@@ -44,7 +44,7 @@ impl Simulation {
     pub(crate) fn transition_rider(
         &mut self,
         id: EntityId,
-        new_state: RiderState,
+        new_state: InternalRiderPhase,
     ) -> Result<(), SimError> {
         transition_rider(
             &mut self.world,
@@ -74,7 +74,7 @@ pub(crate) fn transition_rider(
     rider_index: &mut RiderIndex,
     tick: u64,
     id: EntityId,
-    new_state: RiderState,
+    new_state: InternalRiderPhase,
 ) -> Result<(), SimError> {
     // Snapshot old state into Copy locals so the immutable borrow on
     // `world` ends before we touch `rider_index` / `world.rider_mut`.
@@ -220,7 +220,7 @@ mod tests {
     //! Tests that exercise the gateway through real `Simulation` flows live
     //! in the integration-style test files (`api_surface_tests.rs`,
     //! `lifecycle_tests.rs`); these unit tests cover the pure legality
-    //! helper and IndexBucket dispatch.
+    //! helper and `IndexBucket` dispatch.
 
     use super::*;
     use crate::components::RiderPhaseKind::*;
