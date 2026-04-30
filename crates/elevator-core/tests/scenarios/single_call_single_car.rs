@@ -23,7 +23,6 @@ use elevator_core::dispatch::{
     ScanDispatch,
 };
 use elevator_core::prelude::*;
-use elevator_core::stop::StopConfig;
 
 fn three_car_sim_with<D: DispatchStrategy + 'static>(dispatch: D) -> Simulation {
     let stops: Vec<StopConfig> = (0..13)
