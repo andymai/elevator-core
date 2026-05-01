@@ -1,5 +1,12 @@
 # Changelog
 
+## [16.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.0...elevator-core-v16.0.1) (2026-05-01)
+
+
+### Performance Improvements
+
+* **transition:** fold rider arena lookups into a single mut borrow ([#558](https://github.com/andymai/elevator-core/issues/558)) ([7c70d0e](https://github.com/andymai/elevator-core/commit/7c70d0eb99ca8c13270af8948a257e287e13d331))
+
 ## [16.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v15.32.1...elevator-core-v16.0.0) (2026-04-30)
 
 
