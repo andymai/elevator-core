@@ -18,7 +18,9 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 
 </div>
 
-<!-- Drop a GIF of the Bevy demo here when you have one -->
+<p align="center">
+  <img src="https://raw.githubusercontent.com/andymai/elevator-core/main/media/demo.gif" alt="elevator-core web playground: two dispatch strategies racing on identical traffic" width="720" />
+</p>
 
 ## What it does
 
