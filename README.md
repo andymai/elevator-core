@@ -120,10 +120,6 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 | `traffic` | yes | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
 | `energy` | no | Per-elevator energy/regen modeling. |
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md).
-
 ## License
 
 [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE), at your option.
