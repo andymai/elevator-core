@@ -76,12 +76,10 @@ pub(crate) fn transition_rider(
     id: EntityId,
     new_state: InternalRiderPhase,
 ) -> Result<(), SimError> {
-    // Snapshot old state into Copy locals so the immutable borrow on
-    // `world` ends before we touch `rider_index` / `world.rider_mut`.
-    let (old_phase, old_stop, was_aboard) = {
-        let rider = world.rider(id).ok_or(SimError::EntityNotFound(id))?;
-        (rider.phase, rider.current_stop, rider.phase.is_aboard())
-    };
+    let r = world.rider_mut(id).ok_or(SimError::EntityNotFound(id))?;
+    let old_phase = r.phase;
+    let old_stop = r.current_stop;
+    let was_aboard = old_phase.is_aboard();
 
     let from_kind = old_phase.kind();
     let to_kind = new_state.kind();
@@ -91,6 +89,18 @@ pub(crate) fn transition_rider(
             from: from_kind,
             to: to_kind,
         });
+    }
+
+    let now_aboard = matches!(
+        to_kind,
+        RiderPhaseKind::Boarding | RiderPhaseKind::Riding | RiderPhaseKind::Exiting
+    );
+    r.phase = new_state.as_phase();
+    r.current_stop = new_state.at_stop();
+    if !was_aboard && now_aboard {
+        r.board_tick = Some(tick);
+    } else if was_aboard && !now_aboard {
+        r.board_tick = None;
     }
 
     // Sync the rider_index: remove from the old at-stop bucket (if any),
@@ -104,21 +114,6 @@ pub(crate) fn transition_rider(
         }
         if let Some((bucket, stop)) = new_bucket {
             bucket.insert_into(rider_index, stop, id);
-        }
-    }
-
-    // Apply the state to the rider record.
-    let now_aboard = matches!(
-        to_kind,
-        RiderPhaseKind::Boarding | RiderPhaseKind::Riding | RiderPhaseKind::Exiting
-    );
-    if let Some(r) = world.rider_mut(id) {
-        r.phase = new_state.as_phase();
-        r.current_stop = new_state.at_stop();
-        if !was_aboard && now_aboard {
-            r.board_tick = Some(tick);
-        } else if was_aboard && !now_aboard {
-            r.board_tick = None;
         }
     }
 
