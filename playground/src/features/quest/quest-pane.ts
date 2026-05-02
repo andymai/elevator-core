@@ -154,15 +154,24 @@ async function executeRun(
     // for honest setup work, short enough that an infinite loop
     // bubbles up as a timeout instead of blocking indefinitely.
     const result = await runStage(stage, editor.getValue(), { timeoutMs: 1000 });
-    handles.result.textContent = "";
+    // Always grade — a passed run earns its stars even if the player
+    // navigated to a different stage during the run window. Only
+    // surface the modal/inline status if the player is still looking
+    // at the same stage; otherwise hijacking their context with an
+    // old result is more confusing than silently banking the score.
     onGraded(stage, result);
-    showResults(modal, result, retry);
+    if (handles.select.value === stage.id) {
+      handles.result.textContent = "";
+      showResults(modal, result, retry);
+    }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Errors stay inline — the modal is for graded outcomes.
-    // A controller throw is a code bug the player needs to see in
-    // place, not a result to celebrate or retry.
-    handles.result.textContent = `Error: ${msg}`;
+    if (handles.select.value === stage.id) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Errors stay inline — the modal is for graded outcomes.
+      // A controller throw is a code bug the player needs to see in
+      // place, not a result to celebrate or retry.
+      handles.result.textContent = `Error: ${msg}`;
+    }
   } finally {
     handles.runBtn.disabled = false;
   }
@@ -223,15 +232,16 @@ export async function bootQuestPane(opts: {
     () => activeStage,
     (stage, result) => {
       // Persist a new high score and refresh the picker labels so the
-      // ★ glyphs reflect the win without waiting for a remount. The
-      // saved selection has to be restored after `populateStageSelect`
-      // since it rebuilds the option list and resets the value.
+      // ★ glyphs reflect the win without waiting for a remount. After
+      // rebuilding the options we restore `activeStage.id` (not the
+      // graded stage's id) — if the player navigated mid-run, the
+      // dropdown should track wherever they landed, not snap back.
       if (result.passed) {
         const previous = loadBestStars(stage.id);
         if (result.stars > previous) {
           saveBestStars(stage.id, result.stars);
           populateStageSelect(handles);
-          handles.select.value = stage.id;
+          handles.select.value = activeStage.id;
         }
       }
     },
