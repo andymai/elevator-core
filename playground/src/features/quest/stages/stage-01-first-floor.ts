@@ -5,10 +5,10 @@ import type { Stage } from "./types";
  *
  * The simplest possible introduction: one car, three stops, five
  * riders waiting at the lobby who all want to go up. The player calls
- * `sim.addDestination(carId, stopId)` once per rider's destination
+ * `sim.pushDestination(carId, stopId)` once per rider's destination
  * and watches dispatch carry them.
  *
- * Unlocks: `addDestination`. Everything else throws "method locked".
+ * Unlocks: `pushDestination`. Everything else throws "method locked".
  */
 const STAGE_01_RON = `SimConfig(
     building: BuildingConfig(
@@ -40,7 +40,7 @@ export const STAGE_01_FIRST_FLOOR: Stage = {
   title: "First Floor",
   brief: "Five riders at the lobby. Pick destinations and dispatch the car.",
   configRon: STAGE_01_RON,
-  unlockedApi: ["addDestination"],
+  unlockedApi: ["pushDestination"],
   baseline: "none",
   // Pass: at least 5 riders delivered, no abandons.
   passFn: ({ delivered, abandoned }) => delivered >= 5 && abandoned === 0,
@@ -53,15 +53,15 @@ export const STAGE_01_FIRST_FLOOR: Stage = {
   starterCode: `// Stage 1 — First Floor
 //
 // Five riders at the lobby want to go up to Floor 2 or Floor 3.
-// Use \`sim.addDestination(carId, stopId)\` to send the car after them.
+// Use \`sim.pushDestination(carId, stopId)\` to send the car after them.
 //
 // Stop ids: 0 (Lobby), 1 (Floor 2), 2 (Floor 3).
 
 // Send the car to Floor 3 first:
-sim.addDestination(0n, 2n);
+sim.pushDestination(0n, 2n);
 `,
   hints: [
-    "`sim.addDestination(carId, stopId)` queues a destination. Both ids are bigints — pass them with the `n` suffix.",
+    "`sim.pushDestination(carId, stopId)` queues a destination. Both ids are bigints — pass them with the `n` suffix.",
     "There's only one car (id 0n). Queue it to visit each floor riders are waiting for.",
     "Pass: deliver all five riders. 3★: do it before tick 400 — back-to-back destinations beat one-at-a-time.",
   ],

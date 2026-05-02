@@ -45,10 +45,10 @@ describe("quest: stage registry", () => {
   });
 
   it("stage 1 (first-floor) is the curriculum entry point", () => {
-    // Stage 1 must exist and unlock `addDestination`. Removing it
+    // Stage 1 must exist and unlock `pushDestination`. Removing it
     // would break onboarding from Q-12+.
     const stage1 = stageById("first-floor");
     expect(stage1).toBeDefined();
-    expect(stage1?.unlockedApi).toContain("addDestination");
+    expect(stage1?.unlockedApi).toContain("pushDestination");
   });
 });
