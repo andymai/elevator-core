@@ -81,25 +81,21 @@ function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string
 }
 
 /**
- * Show the Quest pane and hide the existing compare layout.
- *
- * Compare mode keeps its DOM intact — we toggle visibility rather
- * than tear it down so the user can flip back via permalink without
- * a remount cost.
+ * Show / hide the Quest pane only — the compare-mode chrome (layout,
+ * scenario picker, controls bar, cabin legend) is owned by
+ * `applyPlaygroundMode` in `mode-toggle.ts`, which boot calls before
+ * first paint. These helpers stay around so callers that want to flip
+ * the Quest pane independently still can, but the cross-mode chrome
+ * concerns live in one place.
  */
 export function showQuestPane(handles: QuestPaneHandles): void {
-  const layout = document.getElementById("layout");
-  if (layout) layout.classList.add("hidden");
   handles.root.classList.remove("hidden");
   handles.root.classList.add("flex");
 }
 
-/** Inverse of `showQuestPane`. */
 export function hideQuestPane(handles: QuestPaneHandles): void {
   handles.root.classList.add("hidden");
   handles.root.classList.remove("flex");
-  const layout = document.getElementById("layout");
-  if (layout) layout.classList.remove("hidden");
 }
 
 /**

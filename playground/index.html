@@ -29,6 +29,34 @@
           >
         </h1>
 
+        <div
+          id="mode-toggle"
+          role="tablist"
+          aria-label="Playground mode"
+          class="md:order-1 inline-flex items-center gap-0 rounded-md bg-surface-secondary border border-stroke-subtle p-0.5 shrink-0"
+        >
+          <button
+            type="button"
+            role="tab"
+            data-mode="compare"
+            data-active="true"
+            aria-selected="true"
+            class="px-2.5 py-1 rounded-sm bg-transparent border-0 text-[11.5px] font-semibold tracking-[0.02em] cursor-pointer transition-colors duration-fast text-content-tertiary hover:text-content data-[active=true]:text-content data-[active=true]:bg-surface-elevated focus-visible:outline-none focus-visible:text-content"
+          >
+            Compare
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-mode="quest"
+            data-active="false"
+            aria-selected="false"
+            class="px-2.5 py-1 rounded-sm bg-transparent border-0 text-[11.5px] font-semibold tracking-[0.02em] cursor-pointer transition-colors duration-fast text-content-tertiary hover:text-content data-[active=true]:text-content data-[active=true]:bg-surface-elevated focus-visible:outline-none focus-visible:text-content"
+          >
+            Quest
+          </button>
+        </div>
+
         <nav
           class="ml-auto md:order-3 flex items-center gap-4 shrink-0 max-md:gap-3"
           aria-label="External links"
@@ -55,6 +83,7 @@
         </nav>
 
         <div
+          id="cabin-legend"
           class="md:order-2 flex max-lg:hidden items-center gap-x-3 gap-y-1 flex-wrap text-[10.5px] text-content-tertiary min-w-0"
           aria-label="Cabin color legend"
         >
@@ -80,6 +109,7 @@
     </header>
 
     <section
+      id="scenario-picker"
       aria-label="Scenario picker"
       class="scenario-cards flex flex-row items-center gap-3 px-5 py-1.5 border-b border-stroke-subtle max-md:gap-2 max-md:px-3.5 max-md:py-1.5"
     >
