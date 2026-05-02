@@ -449,18 +449,29 @@ impl WasmSim {
     /// [`strategy_name`](Self::strategy_name) as `custom:<name>`.
     /// Re-installs are allowed; the previous callback is dropped.
     ///
+    /// Returns `true` when at least one group's dispatcher was swapped.
+    /// `false` indicates a no-op — the sim has no groups yet (e.g.
+    /// constructed via `empty()` before any `addGroup` call), so the
+    /// callback was discarded. `strategy_name` is left untouched in
+    /// that case so it doesn't claim a strategy is active when none
+    /// has actually been installed.
+    ///
     /// Designed for the Quest curriculum's `setStrategyJs` unlock: it
     /// lets a player author `rank()` directly in JavaScript and have
     /// elevator-core treat their code exactly like a built-in strategy.
     #[wasm_bindgen(js_name = setStrategyJs)]
-    pub fn set_strategy_js(&mut self, name: String, callback: js_sys::Function) {
-        let id = BuiltinStrategy::Custom(name.clone());
+    pub fn set_strategy_js(&mut self, name: String, callback: js_sys::Function) -> bool {
         let group_ids: Vec<_> = self.inner.dispatchers().keys().copied().collect();
+        if group_ids.is_empty() {
+            return false;
+        }
+        let id = BuiltinStrategy::Custom(name.clone());
         for gid in group_ids {
             let strategy = js_dispatch::JsDispatchStrategy::new(name.clone(), callback.clone());
             self.inner.set_dispatch(gid, Box::new(strategy), id.clone());
         }
         self.strategy_name = format!("custom:{name}");
+        true
     }
 
     /// Spawn a single rider between two stop ids at the given weight.

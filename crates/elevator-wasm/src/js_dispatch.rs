@@ -75,7 +75,14 @@ impl DispatchStrategy for JsDispatchStrategy {
             stop: ctx.stop.data().as_ffi(),
             stop_position: ctx.stop_position,
         };
-        let arg = serde_wasm_bindgen::to_value(&dto).ok()?;
+        // `to_value` defaults to f64 numbers for `u64`, which truncates
+        // any slotmap key above 2^53. Switching to bigint preserves
+        // the full `(generation << 32) | index` encoding so stale
+        // references fail the next world lookup instead of aliasing
+        // a reused slot.
+        let serializer =
+            serde_wasm_bindgen::Serializer::new().serialize_large_number_types_as_bigints(true);
+        let arg = dto.serialize(&serializer).ok()?;
         let ret = self.callback.call1(&JsValue::NULL, &arg).ok()?;
         if ret.is_null() || ret.is_undefined() {
             return None;
