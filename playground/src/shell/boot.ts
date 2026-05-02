@@ -89,9 +89,10 @@ export async function boot(): Promise<void> {
   state.ready = true;
   loop(state, ui);
   // Quest mode swaps the compare layout for the curriculum banner.
-  // The handle is held only for future re-renders; nothing in this
-  // PR drives stage navigation yet, so we drop it after mount.
+  // `bootQuestPane` lazy-loads Monaco, so the await is genuine —
+  // the controls bar stays interactive in the meantime because boot
+  // already completed the synchronous wiring above.
   if (state.permalink.mode === "quest") {
-    bootQuestPane();
+    await bootQuestPane();
   }
 }

@@ -546,15 +546,25 @@
         </div>
         <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
       </header>
-      <pre
-        id="quest-starter-code"
-        class="m-0 px-3 py-3 bg-surface-elevated border border-stroke-subtle rounded-md text-[12.5px] leading-snug font-mono whitespace-pre overflow-x-auto"
-      ></pre>
-      <p class="text-content-tertiary text-[11px] m-0">
-        The editor and run button mount here in the next iteration. For now this banner is the proof
-        that <code class="font-mono">?m=quest</code> is wired through the permalink and the stage
-        registry.
-      </p>
+      <div
+        id="quest-editor"
+        class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
+        aria-label="Quest controller editor"
+      ></div>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          id="quest-run"
+          class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Run
+        </button>
+        <span
+          id="quest-result"
+          class="text-content-secondary text-[12.5px] tracking-[0.01em]"
+          aria-live="polite"
+        ></span>
+      </div>
     </section>
 
     <div
