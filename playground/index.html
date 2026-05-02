@@ -13,8 +13,8 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-91QohMAB.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-bTFE0qQQ.css">
+    <script type="module" crossorigin src="./assets/index-is47o6Ot.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-qkvjh0GZ.css">
   </head>
   <body>
     <header
@@ -562,6 +562,7 @@
         class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
         aria-label="Quest controller editor"
       ></div>
+      <div id="quest-snippets" class="flex flex-wrap gap-1.5" aria-label="Insert API call"></div>
       <div class="flex items-center gap-3">
         <button
           type="button"
@@ -625,6 +626,50 @@
       class="toast fixed bottom-[calc(var(--controls-bar-h,52px)+16px)] left-1/2 -translate-x-1/2 translate-y-2.5 scale-95 px-3.5 py-2 bg-surface-elevated border border-stroke rounded-lg shadow-lg text-content text-[12.5px] font-medium tracking-[0.01em] pointer-events-none z-[55] opacity-0 transition-all duration-normal ease-spring [&.show]:opacity-100 [&.show]:translate-y-0 [&.show]:scale-100"
       role="status"
     ></div>
+
+    <div
+      id="quest-results-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quest-results-title"
+      class="fixed inset-0 hidden items-center justify-center bg-[color-mix(in_srgb,var(--bg-primary)_70%,transparent)] backdrop-blur-[4px] backdrop-saturate-[120%] z-[95] [&.show]:flex"
+    >
+      <div
+        class="w-[min(420px,90vw)] bg-gradient-to-b from-surface-hover to-surface-secondary border border-stroke rounded-lg shadow-lg p-[18px_20px_20px] text-content-secondary"
+      >
+        <header class="flex flex-col gap-1 mb-4">
+          <h2
+            id="quest-results-title"
+            class="m-0 text-content text-base font-semibold tracking-[0.01em]"
+          ></h2>
+          <div
+            id="quest-results-stars"
+            class="text-accent text-xl tracking-[0.18em] leading-none"
+            aria-live="polite"
+          ></div>
+        </header>
+        <p
+          id="quest-results-detail"
+          class="m-0 text-[12.5px] text-content-tertiary tracking-[0.01em]"
+        ></p>
+        <div class="flex items-center justify-end gap-2 mt-5">
+          <button
+            type="button"
+            id="quest-results-close"
+            class="inline-flex items-center px-2.5 py-1.5 rounded-sm bg-surface-elevated border border-stroke-subtle text-content-secondary text-[12px] tracking-[0.01em] cursor-pointer transition-colors duration-fast hover:text-content hover:border-stroke"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            id="quest-results-retry"
+            class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90"
+          >
+            Run again
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div
       id="shortcut-sheet"
