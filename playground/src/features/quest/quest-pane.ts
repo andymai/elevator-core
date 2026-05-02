@@ -19,6 +19,11 @@ import { runStage, type StageResult } from "./stage-runner";
 import { nextStage, STAGES, stageById } from "./stages";
 import type { StarCount, Stage } from "./stages";
 import { clearCode, loadBestStars, loadCode, saveBestStars, saveCode } from "./storage";
+import { CanvasRenderer } from "../../render";
+import type { Snapshot } from "../../types";
+
+/** Accent for car bodies in the Quest shaft visualization. */
+const QUEST_SHAFT_ACCENT = "#f59e0b";
 
 export interface QuestPaneHandles {
   readonly root: HTMLElement;
@@ -36,6 +41,10 @@ export interface QuestPaneHandles {
    * spammed by the per-batch update stream.
    */
   readonly progress: HTMLElement;
+  /** Canvas for the live shaft visualization. */
+  readonly shaft: HTMLCanvasElement;
+  /** Idle-state overlay shown when no run is in flight. */
+  readonly shaftIdle: HTMLElement;
 }
 
 /**
@@ -55,6 +64,8 @@ export function wireQuestPane(): QuestPaneHandles {
     resetBtn: requireElement("quest-reset", m) as HTMLButtonElement,
     result: requireElement("quest-result", m),
     progress: requireElement("quest-progress", m),
+    shaft: requireElement("quest-shaft", m) as HTMLCanvasElement,
+    shaftIdle: requireElement("quest-shaft-idle", m),
   };
 }
 
@@ -99,11 +110,12 @@ function attachRunButton(
   handles: QuestPaneHandles,
   modal: ResultsModalHandles,
   editor: QuestEditor,
+  renderer: CanvasRenderer,
   getStage: () => Stage,
   onGraded: (stage: Stage, result: StageResult) => void,
 ): void {
   const runOnce = (): void => {
-    void executeRun(handles, modal, editor, getStage(), runOnce, onGraded);
+    void executeRun(handles, modal, editor, renderer, getStage(), runOnce, onGraded);
   };
   handles.runBtn.addEventListener("click", runOnce);
 }
@@ -112,6 +124,7 @@ async function executeRun(
   handles: QuestPaneHandles,
   modal: ResultsModalHandles,
   editor: QuestEditor,
+  renderer: CanvasRenderer,
   stage: Stage,
   retry: () => void,
   onGraded: (stage: Stage, result: StageResult) => void,
@@ -119,6 +132,33 @@ async function executeRun(
   handles.runBtn.disabled = true;
   handles.result.textContent = "Running…";
   handles.progress.textContent = "";
+
+  // Live shaft loop: snapshots arrive from the worker every batch
+  // (~3-5 Hz). Cache the latest one and let an rAF loop redraw
+  // every animation frame so the renderer's tweens fill the
+  // gaps between server-side updates. Without rAF, the picture
+  // would stutter at the worker's batch cadence rather than
+  // animating smoothly.
+  //
+  // `loopActive` gates the recursive `requestAnimationFrame` instead
+  // of tracking a `rafId` we'd then have to cancel — at most one
+  // extra frame fires after the run ends, vs the bookkeeping the
+  // alternative would need across the closure boundary.
+  let latestSnap: Snapshot | null = null;
+  let snapshotsRendered = 0;
+  let loopActive = true;
+  const renderTick = (): void => {
+    if (!loopActive) return;
+    if (latestSnap !== null) {
+      renderer.draw(latestSnap, 1);
+    }
+    requestAnimationFrame(renderTick);
+  };
+  // Hide the idle overlay the moment we kick off — the canvas
+  // takes over the space until the run ends.
+  handles.shaftIdle.hidden = true;
+  requestAnimationFrame(renderTick);
+
   try {
     // Cap the controller's initial run at one second — long enough
     // for honest setup work, short enough that an infinite loop
@@ -131,6 +171,13 @@ async function executeRun(
         // stage's fresh state isn't overwritten by stale text.
         if (handles.select.value !== stage.id) return;
         handles.progress.textContent = formatProgress(grade);
+      },
+      onSnapshot: (snap) => {
+        // Snapshot stream stays live even if the player navigated
+        // away — the rAF loop is what gates rendering, and we stop
+        // it in the finally below for that case anyway.
+        latestSnap = snap;
+        snapshotsRendered += 1;
       },
     });
     // Always grade — a passed run earns its stars even if the player
@@ -171,6 +218,16 @@ async function executeRun(
     }
   } finally {
     handles.runBtn.disabled = false;
+    // Stop the rAF loop. The canvas keeps its last drawn frame so
+    // the player can study the final state — we don't clear it.
+    loopActive = false;
+    // Bring the idle overlay back only if no snapshot ever rendered
+    // (e.g. the controller threw before the first batch resolved).
+    // Once a snapshot has rendered, leaving the canvas exposed is
+    // the more useful state.
+    if (snapshotsRendered === 0) {
+      handles.shaftIdle.hidden = false;
+    }
   }
 }
 
@@ -207,6 +264,14 @@ export async function bootQuestPane(opts: {
   const hints: HintsDrawerHandles = wireHintsDrawer();
   renderHints(hints, activeStage);
 
+  // Live shaft renderer. Reuses the compare-mode CanvasRenderer so
+  // car kinematics, door cycles, and rider tweens look identical to
+  // the rest of the playground — the player learns one visual
+  // language across modes. Tether scenarios don't apply in Quest
+  // (the curriculum is all building configs), so we leave the
+  // tether-config null.
+  const shaftRenderer = new CanvasRenderer(handles.shaft, QUEST_SHAFT_ACCENT);
+
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
   handles.runBtn.disabled = true;
@@ -225,6 +290,7 @@ export async function bootQuestPane(opts: {
     handles,
     modal,
     editor,
+    shaftRenderer,
     () => activeStage,
     (stage, result) => {
       // Persist a new high score and refresh the picker labels so the
@@ -316,6 +382,13 @@ export async function bootQuestPane(opts: {
     // changed. Without this clear, the last "Tick X · N delivered"
     // readout from the orphaned run sticks on the new stage's UI.
     handles.progress.textContent = "";
+    // Restore the idle overlay and clear any frozen frame from the
+    // previous stage's run — the next stage gets a fresh canvas so
+    // the player isn't looking at stale cars from a different
+    // building config.
+    handles.shaftIdle.hidden = false;
+    const ctx = handles.shaft.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, handles.shaft.width, handles.shaft.height);
     opts.onStageChange?.(next.id);
   });
 
