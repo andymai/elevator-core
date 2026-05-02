@@ -44,13 +44,13 @@ const SNIPPETS: Record<string, string> = {
   cancelDoorHold: "sim.cancelDoorHold(0n);",
   emergencyStop: "sim.emergencyStop(0n);",
   shortestRoute: "const route = sim.shortestRoute(0n, 4n);",
-  reroute: "sim.reroute(riderRef, [0n, 4n]);",
+  reroute: "sim.reroute(/* riderRef */, [0n, 4n]);",
   transferPoints: "const transfers = sim.transferPoints();",
   reachableStopsFrom: "const reachable = sim.reachableStopsFrom(0n);",
   addStop: 'const newStop = sim.addStop("F6", 20.0);',
-  addStopToLine: "sim.addStopToLine(lineRef, newStop);",
-  assignLineToGroup: "sim.assignLineToGroup(lineRef, groupRef);",
-  reassignElevatorToLine: "sim.reassignElevatorToLine(0n, lineRef);",
+  addStopToLine: "sim.addStopToLine(/* lineRef */, /* stopRef */);",
+  assignLineToGroup: "sim.assignLineToGroup(/* lineRef */, /* groupRef */);",
+  reassignElevatorToLine: "sim.reassignElevatorToLine(0n, /* lineRef */);",
 };
 
 function snippetFor(name: string): string {
