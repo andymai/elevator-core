@@ -215,13 +215,27 @@ function attachKeyboardShortcuts(
   switchHooks: ScenarioSwitchHooks,
 ): void {
   window.addEventListener("keydown", (ev) => {
+    // Quest mode is its own surface. Every shortcut here drives the
+    // compare-mode chrome (Pause sim, Reset sim, Compare toggle, Share,
+    // Tweak, scenario cards) — none of which exist in Quest. Worse:
+    // single-letter shortcuts like `s`, `r`, `c`, `t`, `?` collide
+    // with characters the player needs to type into the Monaco editor,
+    // and the global handler intercepts the keydown in the bubble
+    // phase and `preventDefault`s the input even though the textarea
+    // already received it. Bail out wholesale in Quest mode.
+    if (state.permalink.mode === "quest") return;
     if (ev.target instanceof HTMLElement) {
       const tag = ev.target.tagName;
       if (
         tag === "INPUT" ||
         tag === "TEXTAREA" ||
         tag === "SELECT" ||
-        ev.target.isContentEditable
+        ev.target.isContentEditable ||
+        // Defensive belt for any future Monaco mount in compare mode:
+        // the editor's hidden `<textarea>` already trips the tag check
+        // above, but the wider monaco-editor surface includes a
+        // contenteditable child for IME composition.
+        ev.target.closest(".monaco-editor")
       ) {
         return;
       }
