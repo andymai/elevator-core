@@ -17,6 +17,14 @@ export type PlaygroundMode = "compare" | "quest";
 export interface PermalinkState {
   /** Top-level playground mode. */
   mode: PlaygroundMode;
+  /**
+   * Active Quest stage id. Ignored in compare mode. Encoded as `?qs=`
+   * because `s` is already taken by the scenario picker. Unknown
+   * stage ids fall back to the first stage in the registry — keeps
+   * stale share-links loading cleanly when the curriculum's id set
+   * shifts.
+   */
+  questStage: string;
   scenario: string;
   strategyA: StrategyName;
   strategyB: StrategyName;
@@ -69,6 +77,10 @@ export const DEFAULT_STATE: PermalinkState = {
   // Cold-boot mode: compare. The Quest curriculum mode lights up via
   // an explicit `?m=quest` until its UI shell lands (Q-04+).
   mode: "compare",
+  // Cold-boot Quest stage: the curriculum's first entry. The
+  // `?qs=` URL key only emits when this differs from the default,
+  // so compare-mode share-links don't carry a stale Quest stage id.
+  questStage: "first-floor",
   // First-impression tuning: skyscraper is the visually richest
   // scenario (3 cars, 12 floors, bypass feature firing during morning
   // rush). Unknown scenario ids still resolve through
@@ -164,6 +176,11 @@ export function encodePermalink(state: PermalinkState): string {
   if (state.mode !== DEFAULT_STATE.mode) {
     p.set("m", state.mode);
   }
+  // Quest stage id — only emit when not default and only meaningful
+  // in quest mode. Compare-mode URLs stay clean.
+  if (state.mode === "quest" && state.questStage !== DEFAULT_STATE.questStage) {
+    p.set("qs", state.questStage);
+  }
   p.set("s", state.scenario);
   p.set("a", state.strategyA);
   // Always persist `b` so a shared non-compare URL still remembers the B
@@ -216,6 +233,10 @@ export function decodePermalink(search: string): PermalinkState {
   }
   return {
     mode: parseMode(p.get("m"), DEFAULT_STATE.mode),
+    // Stage id is freeform — the registry validates it at lookup
+    // time. An unknown id round-trips here but the consumer should
+    // fall back when `stageById` returns `undefined`.
+    questStage: (p.get("qs") ?? "").trim() || DEFAULT_STATE.questStage,
     scenario: p.get("s") ?? DEFAULT_STATE.scenario,
     strategyA: parseStrategy(p.get("a") ?? p.get("d"), DEFAULT_STATE.strategyA),
     strategyB: parseStrategy(p.get("b"), DEFAULT_STATE.strategyB),

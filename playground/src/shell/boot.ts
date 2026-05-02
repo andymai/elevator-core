@@ -93,6 +93,18 @@ export async function boot(): Promise<void> {
   // the controls bar stays interactive in the meantime because boot
   // already completed the synchronous wiring above.
   if (state.permalink.mode === "quest") {
-    await bootQuestPane();
+    await bootQuestPane({
+      initialStageId: state.permalink.questStage,
+      onStageChange: (stageId) => {
+        state.permalink.questStage = stageId;
+        const url = new URL(window.location.href);
+        if (stageId === DEFAULT_STATE.questStage) {
+          url.searchParams.delete("qs");
+        } else {
+          url.searchParams.set("qs", stageId);
+        }
+        window.history.replaceState(null, "", url.toString());
+      },
+    });
   }
 }
