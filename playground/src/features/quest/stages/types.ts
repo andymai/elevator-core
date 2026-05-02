@@ -78,4 +78,16 @@ export interface Stage {
   readonly hints: readonly string[];
   /** Reference solution — unlocked after a 1★ pass. */
   readonly referenceSolution?: string;
+  /**
+   * Optional stage-authored explanation of *what specifically failed*
+   * for a given grade. The results modal renders this in place of its
+   * generic "pass condition wasn't met" line, so a player who just
+   * failed sees the missed threshold and their actual number — e.g.
+   * "Need 30 delivered, you got 12 — try setStrategy('etd')."
+   *
+   * Only invoked when `passFn` returns `false`. Stages without a
+   * `failHint` keep the generic fallback so the schema stays
+   * non-breaking.
+   */
+  readonly failHint?: (grade: GradeInputs) => string;
 }

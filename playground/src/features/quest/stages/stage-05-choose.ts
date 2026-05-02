@@ -73,4 +73,6 @@ sim.setStrategy("etd");
     "RSR (Relative System Response) factors direction and load-share into the cost; try it under heavier traffic.",
     "3★ requires under 16s average wait. The choice between ETD and RSR is the closest call here.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 30. Up-peak rewards ETD or RSR — \`sim.setStrategy("etd")\` is a strong starting point.`,
 };

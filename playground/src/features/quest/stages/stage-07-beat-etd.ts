@@ -91,4 +91,6 @@ sim.setStrategyJs("rival-etd", (ctx) => {
     "Load awareness needs more context than this surface exposes today. Distance + direction is enough to land 2★; future curriculum stages add load and pending-call context.",
     "ETD is not invincible — its weakness is uniform-cost ties on lightly-loaded cars. Find that and you'll edge it.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 40. Heavy traffic over three cars — distance alone isn't enough. Layer in a direction penalty so cars don't reverse mid-sweep.`,
 };

@@ -85,4 +85,6 @@ export const STAGE_08_EVENTS: Stage = {
     "The rank function runs many times per tick. Storing per-stop age in an outer Map and reading it inside `rank()` lets you penalise stale calls.",
     "3★ requires sub-18s average. The trick: at equal distances, prefer the stop that's been waiting longer.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 25. Capture a closure-local Map at load time; \`rank()\` reads it on each call to penalise older pending hall calls.`,
 };

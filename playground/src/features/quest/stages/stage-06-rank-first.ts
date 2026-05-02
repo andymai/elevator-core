@@ -81,4 +81,6 @@ export const STAGE_06_RANK_FIRST: Stage = {
     "Returning `null` excludes the pair from assignment — useful for capacity limits or wrong-direction stops once you unlock those.",
     "3★ requires beating the nearest baseline. Try penalising backward moves: add a constant if `car` would have to reverse direction to reach `stop`.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 20. Verify your \`rank()\` signature: \`(ctx) => number | null\` — returning \`undefined\` or a string drops the pair from assignment.`,
 };

@@ -142,7 +142,7 @@ async function executeRun(
     if (handles.select.value === stage.id) {
       handles.result.textContent = "";
       handles.progress.textContent = "";
-      showResults(modal, result, retry);
+      showResults(modal, result, retry, stage.failHint);
     }
   } catch (err) {
     if (handles.select.value === stage.id) {
