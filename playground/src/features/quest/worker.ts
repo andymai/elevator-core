@@ -122,11 +122,15 @@ function handleSetStrategy(id: number, strategy: string): void {
     post({ kind: "error", id, message: "set-strategy before init" });
     return;
   }
-  const ok = sim.setStrategy(strategy);
-  if (ok) {
-    post({ kind: "ok", id });
-  } else {
-    post({ kind: "error", id, message: `unknown strategy: ${strategy}` });
+  try {
+    const ok = sim.setStrategy(strategy);
+    if (ok) {
+      post({ kind: "ok", id });
+    } else {
+      post({ kind: "error", id, message: `unknown strategy: ${strategy}` });
+    }
+  } catch (err) {
+    post({ kind: "error", id, message: errorMessage(err) });
   }
 }
 

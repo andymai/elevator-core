@@ -94,6 +94,39 @@ describe("quest: protocol shape", () => {
     expect(typeof createWorkerSim).toBe("function");
   });
 
+  it("WorkerSim rejects pending requests when the worker errors", async () => {
+    // Mock Worker that captures listeners so we can fire `error`
+    // ourselves. Without `onerror` wiring, an unhandled worker
+    // exception would leave every pending promise hanging forever.
+    const listeners = new Map<string, EventListener>();
+    const mock = {
+      addEventListener(type: string, fn: EventListener) {
+        listeners.set(type, fn);
+      },
+      removeEventListener(type: string, _fn: EventListener) {
+        listeners.delete(type);
+      },
+      postMessage(_msg: unknown) {},
+      terminate() {},
+    } as unknown as Worker;
+
+    const sim = new WorkerSim(mock);
+    const pending = sim.tick(1);
+
+    // Synthesize a worker error. The listener duck-types `.message`
+    // rather than checking `instanceof ErrorEvent`, so a plain object
+    // shaped like an `ErrorEvent` is enough to drive the path.
+    const errorListener = listeners.get("error");
+    expect(errorListener).toBeDefined();
+    errorListener!({ message: "wasm panic" } as unknown as Event);
+
+    await expect(pending).rejects.toThrow(/wasm panic/);
+
+    // After an error, future requests reject immediately because the
+    // handle marks itself disposed.
+    await expect(sim.tick(1)).rejects.toThrow(/disposed/);
+  });
+
   it("spawn-result encodes success with riderId and failure with error", () => {
     const success: WorkerToHost = {
       kind: "spawn-result",

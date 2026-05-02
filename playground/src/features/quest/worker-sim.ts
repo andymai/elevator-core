@@ -41,6 +41,13 @@ export class WorkerSim {
   constructor(worker: Worker) {
     this.#worker = worker;
     this.#worker.addEventListener("message", this.#onMessage);
+    // A wasm panic or unhandled worker exception fires `error` /
+    // `messageerror` on the `Worker` object itself, not `message`. Without
+    // these listeners every pending promise hangs forever instead of
+    // rejecting — and the next request silently posts into a worker
+    // that's already dead.
+    this.#worker.addEventListener("error", this.#onWorkerError);
+    this.#worker.addEventListener("messageerror", this.#onWorkerError);
   }
 
   async init(opts: WorkerSimOptions): Promise<void> {
@@ -98,10 +105,15 @@ export class WorkerSim {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#worker.removeEventListener("message", this.#onMessage);
+    this.#worker.removeEventListener("error", this.#onWorkerError);
+    this.#worker.removeEventListener("messageerror", this.#onWorkerError);
     this.#worker.terminate();
-    const err = new Error("WorkerSim disposed");
+    this.#rejectAllPending(new Error("WorkerSim disposed"));
+  }
+
+  #rejectAllPending(reason: Error): void {
     for (const resolver of this.#pending.values()) {
-      resolver.reject(err);
+      resolver.reject(reason);
     }
     this.#pending.clear();
   }
@@ -138,6 +150,21 @@ export class WorkerSim {
       this.#worker.postMessage(msg);
     });
   }
+
+  readonly #onWorkerError = (event: Event): void => {
+    // `ErrorEvent.message` is the most useful detail. Duck-type the
+    // property instead of `instanceof ErrorEvent` so the same code
+    // path works in node-based test envs that don't ship the DOM
+    // class as a global.
+    const candidate: unknown = (event as { message?: unknown }).message;
+    const message =
+      typeof candidate === "string" && candidate.length > 0
+        ? candidate
+        : "worker errored before responding";
+    this.#disposed = true;
+    this.#worker.terminate();
+    this.#rejectAllPending(new Error(message));
+  };
 
   readonly #onMessage = (event: MessageEvent<WorkerToHost>): void => {
     const msg = event.data;
