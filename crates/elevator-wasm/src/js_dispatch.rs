@@ -26,11 +26,13 @@ pub struct JsRankContext {
     /// Elevator entity. Encoded with [`slotmap::KeyData::as_ffi`] so
     /// stale references fail the next world lookup instead of aliasing
     /// reused slots. Surfaces as `bigint` in JS.
+    #[tsify(type = "bigint")]
     pub car: u64,
     /// Position of the car along the shaft axis, in core's distance
     /// units (typically metres).
     pub car_position: f64,
     /// Candidate stop entity, encoded the same way as `car`.
+    #[tsify(type = "bigint")]
     pub stop: u64,
     /// Position of the candidate stop.
     pub stop_position: f64,
