@@ -74,12 +74,33 @@ export interface ResetRequest {
   readonly payload: InitPayload;
 }
 
+/**
+ * Run player-authored controller code against the wasm sim.
+ *
+ * The worker compiles `source` as a function body that receives `sim`
+ * as its only argument and executes it once. Stage code can call any
+ * sim method (`sim.addDestination`, `sim.setStrategyJs`, etc.) and any
+ * registered callbacks fire on subsequent ticks. Untrusted code is
+ * isolated in the worker thread — the worker has no DOM access and
+ * can't reach the host's wasm directly except through the sim handle
+ * passed in.
+ *
+ * Method-locking by `unlockedApi` lands in Q-06 alongside the stage
+ * schema — for now the source has the full unlocked surface.
+ */
+export interface LoadControllerRequest {
+  readonly kind: "load-controller";
+  readonly id: number;
+  readonly source: string;
+}
+
 export type HostToWorker =
   | InitRequest
   | TickRequest
   | SpawnRiderRequest
   | SetStrategyRequest
-  | ResetRequest;
+  | ResetRequest
+  | LoadControllerRequest;
 
 // ─── Worker → Host ──────────────────────────────────────────────────
 
