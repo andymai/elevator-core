@@ -77,8 +77,10 @@ export const STAGE_10_HOLD_DOORS: Stage = {
     "Holding too long stalls dispatch — try a 30–60 tick hold, not the whole boarding cycle.",
     "3★ requires no abandons + sub-30s average wait. Tighter timing on the hold/cancel pair pays off.",
   ],
-  failHint: ({ delivered, abandoned }) =>
-    abandoned > 1
-      ? `${abandoned} abandoned (max 1 allowed). The 30-tick door cycle is tight — call \`holdDoor(carRef, 60)\` on each \`door-opened\` event so slow riders board.`
-      : `Delivered ${delivered} of 6. Watch \`drainEvents()\` for \`door-opened\` and call \`holdDoor\` briefly so passengers make it in.`,
+  failHint: ({ delivered, abandoned }) => {
+    const issues: string[] = [];
+    if (delivered < 6) issues.push(`delivered ${delivered} of 6`);
+    if (abandoned > 1) issues.push(`${abandoned} abandoned (max 1)`);
+    return `Run short — ${issues.join(", ")}. The 30-tick door cycle is tight — call \`holdDoor(carRef, 60)\` on each \`door-opened\` event so slow riders board.`;
+  },
 };

@@ -65,8 +65,10 @@ sim.pushDestination(0n, 2n);
     "There's only one car (id 0n). Queue it to visit each floor riders are waiting for.",
     "Pass: deliver all five riders. 3★: do it before tick 400 — back-to-back destinations beat one-at-a-time.",
   ],
-  failHint: ({ delivered, abandoned }) =>
-    abandoned > 0
-      ? `${abandoned} rider${abandoned === 1 ? "" : "s"} abandoned. Queue every waiting floor with \`pushDestination\` so nobody times out.`
-      : `Delivered ${delivered} of 5. Call \`sim.pushDestination(0n, stopId)\` for each floor riders are heading to.`,
+  failHint: ({ delivered, abandoned }) => {
+    const issues: string[] = [];
+    if (delivered < 5) issues.push(`delivered ${delivered} of 5`);
+    if (abandoned > 0) issues.push(`${abandoned} abandoned`);
+    return `Run short — ${issues.join(", ")}. Call \`sim.pushDestination(0n, stopId)\` for each floor riders are heading to so nobody times out.`;
+  },
 };

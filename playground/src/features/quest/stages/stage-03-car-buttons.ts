@@ -80,8 +80,10 @@ for (const stop of inside) {
     "Combine hall calls (riders waiting outside) and car calls (riders inside) into a single dispatch sweep — bouncing back and forth burns time.",
     "3★ requires sub-30s max wait. Look at events with `sim.drainEvents()` to react the moment a call lands instead of polling stale state.",
   ],
-  failHint: ({ delivered, abandoned }) =>
-    abandoned > 0
-      ? `${abandoned} abandoned. Combine hall calls and \`carCalls()\` into one sweep so the car doesn't miss riders inside the cab.`
-      : `Delivered ${delivered} of 15. Don't forget \`sim.carCalls(carId)\` for floors riders pressed after boarding.`,
+  failHint: ({ delivered, abandoned }) => {
+    const issues: string[] = [];
+    if (delivered < 15) issues.push(`delivered ${delivered} of 15`);
+    if (abandoned > 0) issues.push(`${abandoned} abandoned`);
+    return `Run short — ${issues.join(", ")}. Combine \`hallCalls()\` and \`carCalls(carId)\` into one sweep so the car serves riders inside the cab too.`;
+  },
 };

@@ -100,4 +100,28 @@ describe("quest: every stage ships a failHint", () => {
       expect(hint, `stage ${stage.id} returned empty failHint`).toBeTruthy();
     }
   });
+
+  // Stages whose `passFn` gates on both `delivered` and `abandoned` must
+  // mention every threshold the run missed — branching on one and
+  // silently dropping the other lets a player fix one issue, run again,
+  // and re-fail without warning.
+  it.each([
+    ["first-floor", 5, 0],
+    ["listen-up", 10, 0],
+    ["car-buttons", 15, 0],
+    ["hold-doors", 6, 1],
+    ["fire-alarm", 12, 2],
+  ] as const)(
+    "%s reports both shortfalls when the run misses both",
+    (id, deliveredTarget, abandonedMax) => {
+      const stage = STAGES.find((s) => s.id === id);
+      expect(stage).toBeDefined();
+      if (!stage?.failHint) return;
+      const out = stage.failHint(
+        grade({ delivered: deliveredTarget - 2, abandoned: abandonedMax + 1 }),
+      );
+      expect(out).toContain(`${deliveredTarget - 2}`);
+      expect(out).toContain(`${abandonedMax + 1}`);
+    },
+  );
 });
