@@ -590,7 +590,7 @@
         aria-label="Quest controller editor"
       ></div>
       <div id="quest-snippets" class="flex flex-wrap gap-1.5" aria-label="Insert API call"></div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
           type="button"
           id="quest-run"
@@ -610,6 +610,11 @@
           id="quest-result"
           class="text-content-secondary text-[12.5px] tracking-[0.01em]"
           aria-live="polite"
+        ></span>
+        <span
+          id="quest-progress"
+          class="text-content-tertiary text-[11.5px] tabular-nums tracking-[0.01em] ml-auto"
+          aria-hidden="true"
         ></span>
       </div>
       <aside

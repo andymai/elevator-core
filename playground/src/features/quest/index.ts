@@ -13,6 +13,7 @@ export {
   type UnlockedApi,
 } from "./stages";
 export { runStage, type StageResult, type RunStageOptions } from "./stage-runner";
+export { formatProgress } from "./stage-progress";
 export { bootQuestPane, renderStage, wireQuestPane, type QuestPaneHandles } from "./quest-pane";
 export {
   hideResults,
