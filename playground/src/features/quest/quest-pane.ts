@@ -12,6 +12,11 @@ import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel"
 import { clearChildren, requireElement } from "./dom-utils";
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
+import {
+  renderReferencePanel,
+  wireReferencePanel,
+  type ReferencePanelHandles,
+} from "./reference-panel";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./snippet-picker";
 import { formatProgress } from "./stage-progress";
@@ -206,6 +211,12 @@ export async function bootQuestPane(opts: {
   // Hints drawer: collapsed-by-default progressive nudges.
   const hints: HintsDrawerHandles = wireHintsDrawer();
   renderHints(hints, activeStage);
+  // Reference solution: hidden until the player passes the active
+  // stage at least once. Re-rendered on stage change and after a
+  // successful grade so a fresh win unlocks the panel without a
+  // page reload.
+  const reference: ReferencePanelHandles = wireReferencePanel();
+  renderReferencePanel(reference, activeStage);
 
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
@@ -238,6 +249,13 @@ export async function bootQuestPane(opts: {
           saveBestStars(stage.id, result.stars);
           populateStageSelect(handles);
           handles.select.value = activeStage.id;
+        }
+        // Always re-render the reference panel on a passing grade —
+        // even if the score didn't improve, the player may be seeing
+        // their first pass on this stage in this session, in which
+        // case the panel transitions from hidden to unlocked here.
+        if (stage.id === activeStage.id) {
+          renderReferencePanel(reference, activeStage);
         }
       }
     },
@@ -307,6 +325,7 @@ export async function bootQuestPane(opts: {
     renderStage(handles, next);
     renderApiPanel(apiPanel, next);
     renderHints(hints, next);
+    renderReferencePanel(reference, next);
     renderSnippets(snippets, next, editor);
     setEditorSilently(loadCode(next.id) ?? next.starterCode);
     handles.result.textContent = "";
