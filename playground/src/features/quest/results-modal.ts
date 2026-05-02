@@ -20,6 +20,14 @@ export interface ResultsModalHandles {
   readonly detail: HTMLElement;
   readonly close: HTMLButtonElement;
   readonly retry: HTMLButtonElement;
+  /**
+   * "Next stage" CTA. Hidden by default and only revealed when the
+   * caller supplies an `onNext` handler — i.e. the run passed and a
+   * later stage exists in the registry. When visible the retry button
+   * gets demoted (via `data-demoted=true`) so the dialog has one
+   * primary action, not two competing accents.
+   */
+  readonly next: HTMLButtonElement;
 }
 
 export function wireResultsModal(): ResultsModalHandles {
@@ -31,13 +39,19 @@ export function wireResultsModal(): ResultsModalHandles {
     detail: requireElement("quest-results-detail", m),
     close: requireElement("quest-results-close", m) as HTMLButtonElement,
     retry: requireElement("quest-results-retry", m) as HTMLButtonElement,
+    next: requireElement("quest-results-next", m) as HTMLButtonElement,
   };
 }
 
 /**
- * Show the modal with a graded `StageResult` payload. The retry
- * button's behaviour is wired by the caller via `onRetry` so the
- * modal stays decoupled from the run mechanics.
+ * Show the modal with a graded `StageResult` payload. Caller-supplied
+ * callbacks decouple the modal from run mechanics:
+ *
+ *   - `onRetry` fires on the Run again button.
+ *   - `onNext`, when supplied, fires on the Next stage button. Pass
+ *     `undefined` (or omit) to hide the button entirely — typical for
+ *     fails, the last stage in the registry, or any case where there's
+ *     no obvious "next" target.
  *
  * `failHint` is the active stage's optional diagnostic — when the
  * grade fails, the modal renders this in place of the generic "pass
@@ -49,6 +63,7 @@ export function showResults(
   result: StageResult,
   onRetry: () => void,
   failHint?: (grade: GradeInputs) => string,
+  onNext?: () => void,
 ): void {
   if (result.passed) {
     handles.title.textContent = result.stars === 3 ? "Mastered!" : "Passed";
@@ -71,10 +86,31 @@ export function showResults(
     hideResults(handles);
   };
 
+  // Next-stage CTA is the success-path primary action. When shown,
+  // demote Run again to the secondary slot so the dialog reads with
+  // a single accented button.
+  const nextHandler = result.passed ? onNext : undefined;
+  if (nextHandler) {
+    handles.next.hidden = false;
+    handles.next.onclick = () => {
+      hideResults(handles);
+      nextHandler();
+    };
+    handles.retry.dataset["demoted"] = "true";
+  } else {
+    handles.next.hidden = true;
+    handles.next.onclick = null;
+    delete handles.retry.dataset["demoted"];
+  }
+
   handles.root.classList.add("show");
-  // Focus the close button so keyboard users can dismiss without
-  // hunting for the dialog's tabbable surface.
-  handles.close.focus();
+  // Focus the success-path primary if it's there, otherwise fall back
+  // to Close so keyboard users can always dismiss with Enter / Esc.
+  if (nextHandler) {
+    handles.next.focus();
+  } else {
+    handles.close.focus();
+  }
 }
 
 export function hideResults(handles: ResultsModalHandles): void {

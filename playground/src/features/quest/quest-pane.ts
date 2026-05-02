@@ -16,7 +16,7 @@ import { showResults, wireResultsModal, type ResultsModalHandles } from "./resul
 import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./snippet-picker";
 import { formatProgress } from "./stage-progress";
 import { runStage, type StageResult } from "./stage-runner";
-import { STAGES, stageById } from "./stages";
+import { nextStage, STAGES, stageById } from "./stages";
 import type { StarCount, Stage } from "./stages";
 import { clearCode, loadBestStars, loadCode, saveBestStars, saveCode } from "./storage";
 
@@ -142,7 +142,19 @@ async function executeRun(
     if (handles.select.value === stage.id) {
       handles.result.textContent = "";
       handles.progress.textContent = "";
-      showResults(modal, result, retry, stage.failHint);
+      // Build a Next-stage handler when the run passed AND the
+      // registry has a stage after this one. The select-driven swap
+      // path already handles flushSave / re-render / URL sync, so we
+      // route the click through a programmatic "change" event rather
+      // than re-implementing the swap inline.
+      const next = result.passed ? nextStage(stage.id) : undefined;
+      const onNext = next
+        ? () => {
+            handles.select.value = next.id;
+            handles.select.dispatchEvent(new Event("change"));
+          }
+        : undefined;
+      showResults(modal, result, retry, stage.failHint, onNext);
     }
   } catch (err) {
     if (handles.select.value === stage.id) {

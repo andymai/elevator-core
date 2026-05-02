@@ -695,9 +695,17 @@
           <button
             type="button"
             id="quest-results-retry"
-            class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90"
+            class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90 data-[demoted=true]:bg-surface-elevated data-[demoted=true]:border data-[demoted=true]:border-stroke-subtle data-[demoted=true]:text-content-secondary data-[demoted=true]:font-medium data-[demoted=true]:text-[12px] data-[demoted=true]:px-2.5"
           >
             Run again
+          </button>
+          <button
+            type="button"
+            id="quest-results-next"
+            hidden
+            class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90"
+          >
+            Next stage
           </button>
         </div>
       </div>
