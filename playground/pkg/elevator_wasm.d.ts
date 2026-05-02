@@ -532,6 +532,37 @@ export type WasmU64Result = { kind: "ok"; value: number } | { kind: "err"; error
 export type WasmVoidResult = { kind: "ok" } | { kind: "err"; error: string };
 
 /**
+ * Subset of [`RankContext`] forwarded to a JS rank callback.
+ *
+ * Field set is deliberately small for v1 — enough for distance-based
+ * heuristics (nearest-car and friends). [`RankContext`] in core is
+ * `#[non_exhaustive]`; new fields can be added here later without
+ * breaking existing callbacks because JS reads only the keys it cares
+ * about.
+ */
+export interface JsRankContext {
+    /**
+     * Elevator entity. Encoded with [`slotmap::KeyData::as_ffi`] so
+     * stale references fail the next world lookup instead of aliasing
+     * reused slots. Surfaces as `bigint` in JS.
+     */
+    car: bigint;
+    /**
+     * Position of the car along the shaft axis, in core\'s distance
+     * units (typically metres).
+     */
+    carPosition: number;
+    /**
+     * Candidate stop entity, encoded the same way as `car`.
+     */
+    stop: bigint;
+    /**
+     * Position of the candidate stop.
+     */
+    stopPosition: number;
+}
+
+/**
  * Top-level game-facing view returned by [`crate::WasmSim::world_view`].
  */
 export interface WorldView {
@@ -1531,6 +1562,33 @@ export class WasmSim {
      */
     setStrategy(name: string): boolean;
     /**
+     * Install a JS function as the dispatch strategy for every group.
+     *
+     * `callback` is invoked once per `(car, stop)` pair the dispatch
+     * system considers, receiving a `JsRankContext` and returning a
+     * score (lower is better) or `null`/`undefined` to mark the pair
+     * unavailable. Non-finite or negative numbers are also treated as
+     * `null` so a buggy callback degrades to "this pair is excluded"
+     * rather than destabilizing the underlying assignment solver.
+     *
+     * `name` becomes the strategy's `BuiltinStrategy::Custom(name)`
+     * identity for snapshot round-trips and is reflected in
+     * [`strategy_name`](Self::strategy_name) as `custom:<name>`.
+     * Re-installs are allowed; the previous callback is dropped.
+     *
+     * Returns `true` when at least one group's dispatcher was swapped.
+     * `false` indicates a no-op — the sim has no groups yet (e.g.
+     * constructed via `empty()` before any `addGroup` call), so the
+     * callback was discarded. `strategy_name` is left untouched in
+     * that case so it doesn't claim a strategy is active when none
+     * has actually been installed.
+     *
+     * Designed for the Quest curriculum's `setStrategyJs` unlock: it
+     * lets a player author `rank()` directly in JavaScript and have
+     * elevator-core treat their code exactly like a built-in strategy.
+     */
+    setStrategyJs(name: string, callback: Function): boolean;
+    /**
      * Set the target velocity for a Manual-mode elevator (distance/tick).
      * Positive = up, negative = down. The car ramps toward the target
      * using its configured acceleration / deceleration.
@@ -1892,6 +1950,7 @@ export interface InitOutput {
     readonly wasmsim_setRiderTag: (a: number, b: bigint, c: bigint) => any;
     readonly wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => any;
     readonly wasmsim_setStrategy: (a: number, b: number, c: number) => number;
+    readonly wasmsim_setStrategyJs: (a: number, b: number, c: number, d: any) => number;
     readonly wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => any;
     readonly wasmsim_setTrafficRate: (a: number, b: number) => void;
     readonly wasmsim_setWeightCapacity: (a: number, b: bigint, c: number) => any;
@@ -1922,6 +1981,8 @@ export interface InitOutput {
     readonly wasmsim_worldView: (a: number) => any;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_exn_store: (a: number) => void;
+    readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __externref_drop_slice: (a: number, b: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

@@ -1666,6 +1666,41 @@ export class WasmSim {
         return ret !== 0;
     }
     /**
+     * Install a JS function as the dispatch strategy for every group.
+     *
+     * `callback` is invoked once per `(car, stop)` pair the dispatch
+     * system considers, receiving a `JsRankContext` and returning a
+     * score (lower is better) or `null`/`undefined` to mark the pair
+     * unavailable. Non-finite or negative numbers are also treated as
+     * `null` so a buggy callback degrades to "this pair is excluded"
+     * rather than destabilizing the underlying assignment solver.
+     *
+     * `name` becomes the strategy's `BuiltinStrategy::Custom(name)`
+     * identity for snapshot round-trips and is reflected in
+     * [`strategy_name`](Self::strategy_name) as `custom:<name>`.
+     * Re-installs are allowed; the previous callback is dropped.
+     *
+     * Returns `true` when at least one group's dispatcher was swapped.
+     * `false` indicates a no-op — the sim has no groups yet (e.g.
+     * constructed via `empty()` before any `addGroup` call), so the
+     * callback was discarded. `strategy_name` is left untouched in
+     * that case so it doesn't claim a strategy is active when none
+     * has actually been installed.
+     *
+     * Designed for the Quest curriculum's `setStrategyJs` unlock: it
+     * lets a player author `rank()` directly in JavaScript and have
+     * elevator-core treat their code exactly like a built-in strategy.
+     * @param {string} name
+     * @param {Function} callback
+     * @returns {boolean}
+     */
+    setStrategyJs(name, callback) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_setStrategyJs(this.__wbg_ptr, ptr0, len0, callback);
+        return ret !== 0;
+    }
+    /**
      * Set the target velocity for a Manual-mode elevator (distance/tick).
      * Positive = up, negative = down. The car ramps toward the target
      * using its configured acceleration / deceleration.
@@ -2111,9 +2146,27 @@ function __wbg_get_imports() {
         __wbg___wbindgen_copy_to_typed_array_9e08990f20659111: function(arg0, arg1, arg2) {
             new Uint8Array(arg2.buffer, arg2.byteOffset, arg2.byteLength).set(getArrayU8FromWasm0(arg0, arg1));
         },
+        __wbg___wbindgen_is_null_52ff4ec04186736f: function(arg0) {
+            const ret = arg0 === null;
+            return ret;
+        },
+        __wbg___wbindgen_is_undefined_29a43b4d42920abd: function(arg0) {
+            const ret = arg0 === undefined;
+            return ret;
+        },
+        __wbg___wbindgen_number_get_c7f42aed0525c451: function(arg0, arg1) {
+            const obj = arg1;
+            const ret = typeof(obj) === 'number' ? obj : undefined;
+            getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
+        },
         __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
+        __wbg_call_a24592a6f349a97e: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.call(arg1, arg2);
+            return ret;
+        }, arguments); },
         __wbg_new_682678e2f47e32bc: function() {
             const ret = new Array();
             return ret;
@@ -2162,6 +2215,12 @@ function __wbg_get_imports() {
 const WasmSimFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmsim_free(ptr >>> 0, 1));
+
+function addToExternrefTable0(obj) {
+    const idx = wasm.__externref_table_alloc();
+    wasm.__wbindgen_externrefs.set(idx, obj);
+    return idx;
+}
 
 function getArrayJsValueFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
@@ -2232,6 +2291,15 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_exn_store(idx);
+    }
 }
 
 function isLikeNone(x) {
