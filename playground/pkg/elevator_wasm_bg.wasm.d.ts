@@ -113,6 +113,7 @@ export const wasmsim_setRiderRouteShortest: (a: number, b: bigint, c: bigint) =>
 export const wasmsim_setRiderTag: (a: number, b: bigint, c: bigint) => any;
 export const wasmsim_setServiceMode: (a: number, b: bigint, c: number, d: number) => any;
 export const wasmsim_setStrategy: (a: number, b: number, c: number) => number;
+export const wasmsim_setStrategyJs: (a: number, b: number, c: number, d: any) => number;
 export const wasmsim_setTargetVelocity: (a: number, b: bigint, c: number) => any;
 export const wasmsim_setTrafficRate: (a: number, b: number) => void;
 export const wasmsim_setWeightCapacity: (a: number, b: bigint, c: number) => any;
@@ -143,6 +144,8 @@ export const wasmsim_waitingDirectionCountsAt: (a: number, b: bigint) => [number
 export const wasmsim_worldView: (a: number) => any;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_exn_store: (a: number) => void;
+export const __externref_table_alloc: () => number;
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __externref_drop_slice: (a: number, b: number) => void;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;
