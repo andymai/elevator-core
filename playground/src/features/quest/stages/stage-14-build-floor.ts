@@ -59,6 +59,7 @@ export const STAGE_14_BUILD_FLOOR: Stage = {
   id: "build-floor",
   title: "Build a Floor",
   brief: "Add a stop mid-run. The new floor must join the line dispatch sees.",
+  section: "topology",
   configRon: STAGE_14_RON,
   unlockedApi: ["setStrategy", "addStop", "addStopToLine"],
   baseline: "none",

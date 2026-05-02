@@ -64,6 +64,7 @@ export const STAGE_09_MANUAL: Stage = {
   id: "manual",
   title: "Take the Wheel",
   brief: "Switch a car to manual control. Drive it yourself.",
+  section: "events-manual",
   configRon: STAGE_09_RON,
   unlockedApi: ["setStrategy", "setServiceMode", "setTargetVelocity"],
   baseline: "self-autopilot",

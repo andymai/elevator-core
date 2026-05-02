@@ -40,6 +40,7 @@ export const STAGE_03_CAR_BUTTONS: Stage = {
   id: "car-buttons",
   title: "Car Buttons",
   brief: "Riders board and press destination floors. Read the buttons and serve them.",
+  section: "basics",
   configRon: STAGE_03_RON,
   unlockedApi: ["pushDestination", "hallCalls", "carCalls", "drainEvents"],
   baseline: "nearest",

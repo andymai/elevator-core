@@ -49,6 +49,7 @@ export const STAGE_04_BUILTIN: Stage = {
   id: "builtin",
   title: "Stand on Shoulders",
   brief: "Two cars, eight stops, lunchtime rush. Pick a built-in dispatch strategy.",
+  section: "basics",
   configRon: STAGE_04_RON,
   unlockedApi: ["setStrategy"],
   baseline: "scan",
