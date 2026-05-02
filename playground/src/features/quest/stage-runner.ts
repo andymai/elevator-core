@@ -18,11 +18,8 @@
  */
 
 import { createWorkerSim } from "./worker-sim";
-import type { GradeInputs, Stage } from "./stages";
+import type { GradeInputs, StarCount, Stage } from "./stages";
 import type { MetricsDto } from "../../types";
-
-/** Star count awarded for a run. 0 = failed pass condition. */
-export type StarCount = 0 | 1 | 2 | 3;
 
 export interface StageResult {
   /** `true` iff the stage's `passFn` returned `true` for the final grade. */
