@@ -96,7 +96,9 @@ export class WorkerSim {
   /**
    * Run player-authored controller code against the worker's sim.
    *
-   * The source is compiled and executed once with `sim` in scope; any
+   * The source is compiled and executed once with `sim` in scope.
+   * `unlockedApi` lists method names the controller is allowed to
+   * call on `sim`; pass `null` to disable gating entirely. Any
    * registered callbacks (e.g. `sim.setStrategyJs(name, rank)`) fire
    * on subsequent ticks. Throws if the source fails to compile or
    * the controller throws during execution.
@@ -104,16 +106,19 @@ export class WorkerSim {
    * Pass `timeoutMs` to bound how long the controller's initial run
    * may take. On timeout the host promise rejects; the worker thread
    * itself is still alive but blocked, so the stage runner that wraps
-   * this call should `dispose()` and re-spawn the handle. Callers
-   * that don't supply a timeout get the underlying request's
-   * unbounded wait — fine for trusted controllers but unsafe for
-   * student-facing stages.
+   * this call should `dispose()` and re-spawn the handle.
    */
-  async loadController(source: string, timeoutMs?: number): Promise<void> {
+  async loadController(
+    source: string,
+    options?: { timeoutMs?: number; unlockedApi?: readonly string[] | null },
+  ): Promise<void> {
+    const unlockedApi = options?.unlockedApi ?? null;
+    const timeoutMs = options?.timeoutMs;
     const request = this.#request<undefined>({
       kind: "load-controller",
       id: this.#takeId(),
       source,
+      unlockedApi,
     });
     if (timeoutMs === undefined) {
       await request;

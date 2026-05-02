@@ -81,11 +81,16 @@ export async function runStage(
   });
 
   try {
-    if (opts.timeoutMs !== undefined) {
-      await sim.loadController(source, opts.timeoutMs);
-    } else {
-      await sim.loadController(source);
-    }
+    // Forward the stage's unlocked API list so the worker's sim
+    // proxy throws on calls outside the curriculum's current step.
+    // `Stage.unlockedApi` is `readonly` and the protocol's field
+    // is also readonly — the reference passes straight through
+    // structured-clone, no copy involved.
+    const loadOptions: { timeoutMs?: number; unlockedApi: readonly string[] } = {
+      unlockedApi: stage.unlockedApi,
+    };
+    if (opts.timeoutMs !== undefined) loadOptions.timeoutMs = opts.timeoutMs;
+    await sim.loadController(source, loadOptions);
 
     let lastMetrics: MetricsDto | null = null;
     let endTick = 0;

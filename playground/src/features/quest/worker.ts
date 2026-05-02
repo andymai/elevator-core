@@ -191,7 +191,47 @@ function lockdownWorkerGlobals(): void {
   }
 }
 
-function handleLoadController(id: number, source: string): void {
+/**
+ * Wrap the wasm sim in a Proxy that gates method access by the
+ * stage's `unlockedApi`. A locked method throws a stage-aware error
+ * pointing the player at what their stage actually unlocks; a name
+ * that doesn't exist on the underlying sim falls through unchanged
+ * (typo'd properties read as `undefined`, matching the bare wasm
+ * surface). `null` skips gating entirely — the controller sees the
+ * full sim, matching pre-Q-16 behaviour.
+ */
+function gatedSim(
+  realSim: WasmSimInstance,
+  unlockedApi: readonly string[] | null,
+): WasmSimInstance {
+  if (unlockedApi === null) return realSim;
+  const allowed = new Set(unlockedApi);
+  const proxy = new Proxy(realSim as unknown as Record<string, unknown>, {
+    get(target, prop, receiver) {
+      if (typeof prop !== "string") return Reflect.get(target, prop, receiver);
+      const raw = Reflect.get(target, prop, receiver);
+      // Non-functions (snapshots, fields) and unlocked methods both
+      // pass through. Unknown properties also pass through —
+      // returning `undefined` matches what plain wasm would do and
+      // surfaces typos as `not a function` from the call site.
+      if (typeof raw !== "function" || allowed.has(prop)) {
+        return typeof raw === "function" ? raw.bind(target) : raw;
+      }
+      return () => {
+        throw new Error(
+          `sim.${prop} is locked at this stage. Unlocked methods: ${[...allowed].sort().join(", ") || "(none)"}.`,
+        );
+      };
+    },
+  });
+  return proxy as unknown as WasmSimInstance;
+}
+
+function handleLoadController(
+  id: number,
+  source: string,
+  unlockedApi: readonly string[] | null,
+): void {
   if (!sim) {
     post({ kind: "error", id, message: "load-controller before init" });
     return;
@@ -199,23 +239,20 @@ function handleLoadController(id: number, source: string): void {
   lockdownWorkerGlobals();
   try {
     // Compile the player's source as a function body and run it once
-    // against the live sim handle. Combined with the lockdown above,
-    // the worker thread is now meaningfully isolated: no DOM, no
-    // network, no script-loading. The `sim` argument is the only
-    // engine-side surface the controller can touch. Strict mode keeps
-    // user code from polluting the worker scope via implicit globals.
+    // against a gated sim handle. Combined with the worker thread's
+    // global lockdown, the controller is now bounded both by the
+    // worker boundary (no DOM, no network) and by the per-stage
+    // unlockedApi list (only the methods the curriculum has
+    // introduced so far).
     //
     // No timeout in this PR — `Function`-compiled code can't be
-    // interrupted from inside the worker (synchronous infinite loops
-    // block the message loop). The host-side `loadController` adds a
-    // race-against-timeout that rejects on the host side; tearing
-    // down + re-spawning the worker on timeout is the stage-runner's
-    // job once it ships in Q-09+.
+    // interrupted from inside the worker. The host-side
+    // `loadController` adds a race-against-timeout.
     const FunctionCtor = Function;
     const factory = FunctionCtor("sim", `"use strict";\n${source}`) as (
       simArg: WasmSimInstance,
     ) => void;
-    factory(sim);
+    factory(gatedSim(sim, unlockedApi));
     post({ kind: "ok", id });
   } catch (err) {
     post({ kind: "error", id, message: errorMessage(err) });
@@ -241,7 +278,7 @@ self.addEventListener("message", (event: MessageEvent<HostToWorker>) => {
       handleSetStrategy(msg.id, msg.strategy);
       return;
     case "load-controller":
-      handleLoadController(msg.id, msg.source);
+      handleLoadController(msg.id, msg.source, msg.unlockedApi);
       return;
   }
 });
