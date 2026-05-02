@@ -12,3 +12,11 @@ export {
   type UnlockedApi,
 } from "./stages";
 export { runStage, type StageResult, type RunStageOptions, type StarCount } from "./stage-runner";
+export {
+  bootQuestPane,
+  hideQuestPane,
+  renderStage,
+  showQuestPane,
+  wireQuestPane,
+  type QuestPaneHandles,
+} from "./quest-pane";
