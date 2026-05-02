@@ -51,6 +51,7 @@
     "vitest": "^4.1.4"
   },
   "dependencies": {
+    "monaco-editor": "^0.55.1",
     "random-words": "^2.0.1"
   }
 }
