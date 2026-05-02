@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -81,6 +82,23 @@ export const STAGE_15_SKY_LOBBY: Stage = {
   section: "topology",
   configRon: STAGE_15_RON,
   unlockedApi: ["setStrategy", "assignLineToGroup", "reassignElevatorToLine"],
+  // Three-car building with two zones. Heavy lobby-up traffic
+  // exercises both halves: low-floor demand keeps Low busy, high-
+  // floor demand routes through Sky to High, with Floater filling
+  // in either side. 36 riders gives margin over the 30-pass.
+  seedRiders: [
+    ...arrivals(20, {
+      origin: 0,
+      destinations: [2, 3, 4, 1, 3, 2],
+      intervalTicks: 25,
+    }),
+    ...arrivals(16, {
+      origin: 0,
+      destinations: [5, 6, 7, 8, 5, 7],
+      startTick: 120,
+      intervalTicks: 35,
+    }),
+  ],
   baseline: "etd",
   passFn: ({ delivered }) => delivered >= 30,
   starFns: [

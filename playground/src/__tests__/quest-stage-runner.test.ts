@@ -30,6 +30,7 @@ describe("quest: stage runner surface", () => {
       section: "basics",
       configRon: "",
       unlockedApi: ["addDestination"],
+      seedRiders: [],
       baseline: "none",
       passFn: ({ delivered }: GradeInputs) => delivered > 0,
       starFns: [],

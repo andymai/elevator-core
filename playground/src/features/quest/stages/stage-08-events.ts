@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -74,6 +75,23 @@ export const STAGE_08_EVENTS: Stage = {
   section: "strategies",
   configRon: STAGE_08_RON,
   unlockedApi: ["setStrategyJs", "drainEvents"],
+  // Two waves: an early up-peak burst, then a late top-floor wave
+  // that lingers — exactly the case where age-aware ranks (the
+  // lesson) outperform pure-distance dispatch. 30 riders across
+  // both waves to clear the 25-delivery pass.
+  seedRiders: [
+    ...arrivals(18, {
+      origin: 0,
+      destinations: [3, 5, 7, 4, 6, 2],
+      intervalTicks: 25,
+    }),
+    ...arrivals(12, {
+      origin: 7,
+      destinations: [0, 1, 2],
+      startTick: 360,
+      intervalTicks: 35,
+    }),
+  ],
   baseline: "scan",
   passFn: ({ delivered }) => delivered >= 25,
   starFns: [

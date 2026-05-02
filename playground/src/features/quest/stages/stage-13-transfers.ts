@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -70,6 +71,30 @@ export const STAGE_13_TRANSFERS: Stage = {
   section: "topology",
   configRon: STAGE_13_RON,
   unlockedApi: ["setStrategy", "transferPoints", "reachableStopsFrom", "shortestRoute"],
+  // Riders split across the low/high halves: lobby-to-low (no
+  // transfer), lobby-to-high (transfer at id 3), and a few high-to-
+  // low returns. The engine routes through the transfer floor
+  // automatically; this stage's job is just to demonstrate that
+  // multi-line topology still grades cleanly. 22 riders, 18-pass.
+  seedRiders: [
+    ...arrivals(8, {
+      origin: 0,
+      destinations: [1, 2, 1, 2],
+      intervalTicks: 40,
+    }),
+    ...arrivals(10, {
+      origin: 0,
+      destinations: [4, 5, 6, 4, 5],
+      startTick: 60,
+      intervalTicks: 50,
+    }),
+    ...arrivals(4, {
+      origin: 5,
+      destinations: [0, 1],
+      startTick: 480,
+      intervalTicks: 60,
+    }),
+  ],
   baseline: "scan",
   passFn: ({ delivered }) => delivered >= 18,
   starFns: [
