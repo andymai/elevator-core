@@ -3,9 +3,10 @@ import type { Stage } from "./types";
 /**
  * Stage 10 — Patient Boarding.
  *
- * holdDoor(carRef) extends the door-open window. cancelDoorHold
- * releases it. Useful when a slow rider is boarding, or when you
- * want the car to wait at a stop for a brief moment longer.
+ * holdDoor(carRef, ticks) extends the door-open window by that
+ * many ticks. cancelDoorHold(carRef) releases the hold early.
+ * Useful when a slow rider is boarding or when you want the car
+ * to wait at a stop for a brief moment longer.
  *
  * The scenario stages a single mobility-impaired rider whose
  * boarding takes longer than the default door-open window. Without
@@ -40,9 +41,9 @@ const STAGE_10_RON = `SimConfig(
 
 const STAGE_10_STARTER = `// Stage 10 — Patient Boarding
 //
-// holdDoor(carRef) keeps the doors open past the configured cycle.
-// cancelDoorHold(carRef) releases the hold so doors close on the
-// next loading-complete tick. The door cycle in this stage is
+// holdDoor(carRef, ticks) keeps the doors open for that many extra
+// ticks. cancelDoorHold(carRef) releases the hold early so doors
+// close on the next loading-complete tick. The door cycle in this stage is
 // deliberately tight (30 ticks instead of 55) — without holdDoor,
 // passengers can't always board in time.
 //
@@ -72,7 +73,7 @@ export const STAGE_10_HOLD_DOORS: Stage = {
   ],
   starterCode: STAGE_10_STARTER,
   hints: [
-    "`holdDoor(carRef)` keeps doors open indefinitely until you call `cancelDoorHold(carRef)`. Watch for `door-opened` events and hold briefly there.",
+    "`holdDoor(carRef, ticks)` extends the open phase by that many ticks; a fresh call resets the timer, and `cancelDoorHold(carRef)` ends it early. Watch for `door-opened` events and hold briefly there.",
     "Holding too long stalls dispatch — try a 30–60 tick hold, not the whole boarding cycle.",
     "3★ requires no abandons + sub-30s average wait. Tighter timing on the hold/cancel pair pays off.",
   ],

@@ -67,8 +67,9 @@ export const API_REFERENCE: readonly ApiEntry[] = [
   },
   {
     name: "holdDoor",
-    signature: "holdDoor(carRef): void",
-    description: "Keep the car's doors open past the configured cycle until cancelDoorHold.",
+    signature: "holdDoor(carRef, ticks): void",
+    description:
+      "Hold the car's doors open for the given number of extra ticks. Calling again before the timer elapses extends the hold; cancelDoorHold clears it.",
   },
   {
     name: "cancelDoorHold",
@@ -87,8 +88,9 @@ export const API_REFERENCE: readonly ApiEntry[] = [
   },
   {
     name: "reroute",
-    signature: "reroute(riderRef, route): boolean",
-    description: "Replace a rider's route. Useful when a stop on their route was removed.",
+    signature: "reroute(riderRef, newDestStop): void",
+    description:
+      "Send a rider to a new destination stop from wherever they currently are. Useful when their original destination is no longer reachable.",
   },
   {
     name: "transferPoints",
@@ -103,9 +105,9 @@ export const API_REFERENCE: readonly ApiEntry[] = [
   },
   {
     name: "addStop",
-    signature: "addStop(name, position): bigint",
+    signature: "addStop(lineRef, name, position): bigint",
     description:
-      "Create a new stop. Returns the new stop's ref. Add to a line before dispatch will use it.",
+      "Create a new stop on a line. Returns the new stop's ref. Dispatch starts routing to it on the next tick.",
   },
   {
     name: "addStopToLine",
@@ -114,9 +116,9 @@ export const API_REFERENCE: readonly ApiEntry[] = [
   },
   {
     name: "assignLineToGroup",
-    signature: "assignLineToGroup(lineRef, groupRef): void",
+    signature: "assignLineToGroup(lineRef, groupId): number",
     description:
-      "Put a line under a group's dispatcher. Two groups means two independent dispatch passes.",
+      "Put a line under a group's dispatcher (groupId is a plain number). Two groups means two independent dispatch passes; the call returns the new dispatcher's id.",
   },
   {
     name: "reassignElevatorToLine",
