@@ -151,6 +151,12 @@ function registerWarmDarkTheme(monaco: typeof Monaco): void {
       "editorSuggestWidget.foreground": "#fafafa",
       "editorSuggestWidget.selectedBackground": "#323240",
       "editorSuggestWidget.highlightForeground": "#f59e0b",
+      // Monaco draws the matched-prefix highlight in two states:
+      // `highlightForeground` for unfocused rows, and a separate
+      // `focusHighlightForeground` for the active row. Without the
+      // focused variant, the focused row falls back to vs-dark's
+      // cool-blue and breaks the warm-accent guarantee.
+      "editorSuggestWidget.focusHighlightForeground": "#fbbf24", // --accent-up
       "editorHoverWidget.background": "#1a1a1f",
       "editorHoverWidget.border": "#3a3a45",
     },
