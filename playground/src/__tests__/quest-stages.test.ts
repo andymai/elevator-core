@@ -21,11 +21,12 @@ describe("quest: stage registry", () => {
     expect(stageById("does-not-exist")).toBeUndefined();
   });
 
-  it("each stage has at most three star tiers", () => {
-    // The grading UX (Q-09) renders 1–3 stars; tiers beyond that
-    // would be invisible to the player.
+  it("each stage has at most two star tiers", () => {
+    // 1★ comes from `passFn`; `starFns` covers the 2★ and 3★ bonus
+    // tiers only. Anything beyond that would be invisible to the
+    // player — the grading UX (Q-09) renders 1–3 stars total.
     for (const stage of STAGES) {
-      expect(stage.starFns.length).toBeLessThanOrEqual(3);
+      expect(stage.starFns.length).toBeLessThanOrEqual(2);
     }
   });
 

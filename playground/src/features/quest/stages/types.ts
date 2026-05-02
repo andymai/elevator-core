@@ -33,14 +33,24 @@ export interface GradeInputs {
   readonly abandoned: number;
 }
 
-/** Pass condition for a stage — `true` means the player cleared it. */
+/**
+ * Pass condition for a stage. `true` means the player cleared it —
+ * which equals **1★** in the grading UX. `false` means the run failed
+ * the stage outright (no stars awarded, retry required).
+ */
 export type PassFn = (inputs: GradeInputs) => boolean;
 
 /**
- * Star tier predicates. Length is at most 3 — the tiers are evaluated
- * in order (`starFns[0]` → 1★, `[1]` → 2★, `[2]` → 3★) and stop at
- * the first one that returns `false`. A stage with no star tiers is
- * pass/fail only.
+ * Bonus star-tier predicates evaluated only after `passFn` returns
+ * `true`. They map to **2★ and 3★** in the grading UX:
+ *
+ *   - `starFns[0]` → 2★
+ *   - `starFns[1]` → 3★
+ *
+ * Length is at most 2. Tiers are evaluated in order and stop at the
+ * first one that returns `false`, so a stage that only defines a 2★
+ * bonus has no 3★ tier and players cap at 2★. A stage with no entries
+ * is pass-or-fail only (max 1★).
  */
 export type StarFn = (inputs: GradeInputs) => boolean;
 
