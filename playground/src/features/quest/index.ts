@@ -20,3 +20,9 @@ export {
   wireQuestPane,
   type QuestPaneHandles,
 } from "./quest-pane";
+export {
+  hideResults,
+  showResults,
+  wireResultsModal,
+  type ResultsModalHandles,
+} from "./results-modal";
