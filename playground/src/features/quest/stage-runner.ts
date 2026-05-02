@@ -100,7 +100,7 @@ export async function runStage(
       endTick = result.tick;
       const grade = makeGrade(lastMetrics, endTick);
       if (stage.passFn(grade)) {
-        return finalize(stage, grade);
+        return finalize(stage, grade, true);
       }
     }
 
@@ -109,7 +109,7 @@ export async function runStage(
       // guard so the type narrows below.
       throw new Error("runStage: maxTicks must be positive");
     }
-    return finalize(stage, makeGrade(lastMetrics, endTick));
+    return finalize(stage, makeGrade(lastMetrics, endTick), null);
   } finally {
     sim.dispose();
   }
@@ -124,8 +124,14 @@ function makeGrade(metrics: MetricsDto, endTick: number): GradeInputs {
   };
 }
 
-function finalize(stage: Stage, grade: GradeInputs): StageResult {
-  const passed = stage.passFn(grade);
+/**
+ * Build the final `StageResult` from a grade. `passedHint` lets the
+ * caller skip a redundant `passFn` call when it already knows the
+ * outcome (the early-exit path in `runStage` does); pass `null` to
+ * have `finalize` evaluate `passFn` itself.
+ */
+function finalize(stage: Stage, grade: GradeInputs, passedHint: boolean | null): StageResult {
+  const passed = passedHint ?? stage.passFn(grade);
   if (!passed) {
     return { passed: false, stars: 0, grade };
   }

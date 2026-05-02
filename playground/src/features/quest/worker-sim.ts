@@ -58,11 +58,21 @@ export class WorkerSim {
     });
   }
 
-  async tick(ticks: number): Promise<TickResultPayload> {
+  /**
+   * Step the sim by `ticks` ticks and return the post-step bundle.
+   *
+   * `wantVisuals` defaults to `false` — the worker skips the wasm
+   * `snapshot()` and `drainEvents()` calls when nobody on the host
+   * will read them. Visualizers / replay UIs pass `true` to receive
+   * the full bundle.
+   */
+  async tick(ticks: number, options?: { wantVisuals?: boolean }): Promise<TickResultPayload> {
+    const wantVisuals = options?.wantVisuals ?? false;
     return this.#request<TickResultPayload>({
       kind: "tick",
       id: this.#takeId(),
       ticks,
+      ...(wantVisuals ? { wantVisuals: true } : {}),
     });
   }
 
