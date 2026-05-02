@@ -19,7 +19,7 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/andymai/elevator-core/main/media/demo.gif" alt="elevator-core web playground: two dispatch strategies racing on identical traffic" width="720" />
+  <video src="https://raw.githubusercontent.com/andymai/elevator-core/main/media/demo.mp4" autoplay loop muted playsinline></video>
 </p>
 
 ## What it does
@@ -119,10 +119,6 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 |------|---------|------|
 | `traffic` | yes | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
 | `energy` | no | Per-elevator energy/regen modeling. |
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
