@@ -40,12 +40,30 @@ function storage(): Storage | null {
   }
 }
 
-/** Read saved code for a stage, or `null` if no entry / unavailable. */
+/**
+ * Read saved code for a stage, or `null` if no entry / unavailable.
+ *
+ * Mirrors the `MAX_CODE_LENGTH` cap on the read path: if storage
+ * holds an oversized entry (a different tab, a manual devtools poke,
+ * or a future cap change), evict it and return `null`. Otherwise the
+ * editor would load a value that subsequent saves silently refuse,
+ * making edits *appear* to persist while every refresh reverts them.
+ */
 export function loadCode(stageId: string): string | null {
   const s = storage();
   if (!s) return null;
   try {
-    return s.getItem(CODE_PREFIX + stageId);
+    const raw = s.getItem(CODE_PREFIX + stageId);
+    if (raw === null) return null;
+    if (raw.length > MAX_CODE_LENGTH) {
+      try {
+        s.removeItem(CODE_PREFIX + stageId);
+      } catch {
+        /* eviction is best-effort */
+      }
+      return null;
+    }
+    return raw;
   } catch {
     return null;
   }
