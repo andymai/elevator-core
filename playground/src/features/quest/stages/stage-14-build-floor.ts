@@ -74,4 +74,6 @@ export const STAGE_14_BUILD_FLOOR: Stage = {
     "`sim.addStopToLine(stopRef, lineRef)` is what binds an *existing* stop to a line — useful when you've created a stop with `addStop` on a different line and want it shared. Note the arg order: stop first, then line.",
     "3★ requires sub-25s average wait with no abandons — react quickly to the construction-complete event so waiting riders don't time out.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 8. After construction completes, \`sim.addStop\` returns the new stop's ref — bind it with \`addStopToLine(newStop, lineRef)\` so dispatch starts serving it.`,
 };

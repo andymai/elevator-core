@@ -38,11 +38,17 @@ export function wireResultsModal(): ResultsModalHandles {
  * Show the modal with a graded `StageResult` payload. The retry
  * button's behaviour is wired by the caller via `onRetry` so the
  * modal stays decoupled from the run mechanics.
+ *
+ * `failHint` is the active stage's optional diagnostic — when the
+ * grade fails, the modal renders this in place of the generic "pass
+ * condition wasn't met" line so the player sees the missed threshold
+ * and their actual number.
  */
 export function showResults(
   handles: ResultsModalHandles,
   result: StageResult,
   onRetry: () => void,
+  failHint?: (grade: GradeInputs) => string,
 ): void {
   if (result.passed) {
     handles.title.textContent = result.stars === 3 ? "Mastered!" : "Passed";
@@ -51,7 +57,7 @@ export function showResults(
     handles.title.textContent = "Did not pass";
     handles.stars.textContent = "";
   }
-  handles.detail.textContent = formatDetail(result.grade, result.passed);
+  handles.detail.textContent = formatDetail(result.grade, result.passed, failHint);
 
   // Bind a fresh retry handler each show so a previous run's
   // closure doesn't leak. Same for close — `addEventListener` with
@@ -75,11 +81,26 @@ export function hideResults(handles: ResultsModalHandles): void {
   handles.root.classList.remove("show");
 }
 
-function formatDetail(grade: GradeInputs, passed: boolean): string {
+export function formatDetail(
+  grade: GradeInputs,
+  passed: boolean,
+  failHint?: (grade: GradeInputs) => string,
+): string {
   const ticks = `tick ${grade.endTick}`;
   const counts = `${grade.delivered} delivered, ${grade.abandoned} abandoned`;
   if (passed) {
     return `${counts} · finished by ${ticks}.`;
+  }
+  if (failHint) {
+    // Stage-authored hint takes precedence on failure. Errors thrown
+    // by the hint must not blank the modal, so fall through to the
+    // generic message rather than letting the throw escape.
+    try {
+      const hint = failHint(grade);
+      if (hint) return `${counts}. ${hint}`;
+    } catch {
+      // Drop to generic fallback below.
+    }
   }
   return `${counts}. The pass condition wasn't met within the run budget.`;
 }

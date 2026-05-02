@@ -80,4 +80,8 @@ export const STAGE_11_FIRE_ALARM: Stage = {
     'Pair it with `setServiceMode(carRef, "out-of-service")` so dispatch doesn\'t immediately re-queue work for the stopped car.',
     "3★ requires sub-28s average wait and zero abandons — meaning you reset the cars cleanly to service after the alarm clears.",
   ],
+  failHint: ({ delivered, abandoned }) =>
+    abandoned > 2
+      ? `${abandoned} abandoned (max 2 allowed). Watch \`drainEvents()\` for the fire-alarm event, then call \`emergencyStop\` + \`setServiceMode("out-of-service")\` on every car.`
+      : `Delivered ${delivered} of 12. The alarm fires mid-run — react quickly so riders aren't trapped on stalled cars.`,
 };

@@ -79,4 +79,6 @@ export const STAGE_12_ROUTES: Stage = {
     "`sim.reroute(riderRef, newDestStop)` redirects a rider to a new destination from wherever they are — useful when a stop on their original route has been disabled or removed mid-run.",
     "3★ requires sub-16s average wait. ETD or RSR usually wins this; the route API is here so you understand what's available, not because you need it for the optimization.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 25. Default strategies handle this stage — the routes API is here to inspect, not to drive dispatch. \`sim.setStrategy("etd")\` is enough for the pass.`,
 };

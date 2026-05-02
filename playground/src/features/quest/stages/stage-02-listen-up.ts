@@ -75,4 +75,8 @@ for (const call of calls) {
     "Calls accumulate over time. Riders keep arriving at the configured Poisson rate, so polling `sim.hallCalls()` once per evaluation is enough; you don't need to react instantly.",
     "3★ requires beating the nearest-car baseline. Try queuing destinations in directional order so the car doesn't bounce.",
   ],
+  failHint: ({ delivered, abandoned }) =>
+    abandoned > 0
+      ? `${abandoned} abandoned — calls aged out before the car arrived. Read \`sim.hallCalls()\` and dispatch faster.`
+      : `Delivered ${delivered} of 10. Iterate \`sim.hallCalls()\` and queue a destination for each pending call.`,
 };

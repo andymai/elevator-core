@@ -92,4 +92,6 @@ export const STAGE_15_SKY_LOBBY: Stage = {
     "`sim.reassignElevatorToLine(carRef, lineRef)` moves a car between lines without rebuilding the topology. Useful when a duty band is over- or under-loaded.",
     "3★ requires sub-22s average wait. The Floater is the lever: park it on whichever side has the bigger queue and let the dedicated cars handle their bands.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 30. Three cars share two zones — \`sim.assignLineToGroup(lineRef, groupId)\` lets each zone dispatch independently of the other.`,
 };
