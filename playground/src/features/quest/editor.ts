@@ -13,6 +13,7 @@
  */
 
 import type * as Monaco from "monaco-editor";
+import { SIM_GLOBALS_DTS } from "./sim-globals-dts";
 
 export interface EditorMountOptions {
   /** Container element the editor will fill. */
@@ -102,6 +103,63 @@ async function configureWorkerEnvironment(): Promise<void> {
 }
 
 /**
+ * Configure Monaco's TypeScript service so the player's controller
+ * code typechecks correctly:
+ *
+ *   - Target ES2020 — `0n` BigInt literals, optional chaining, `??`.
+ *   - Lib `esnext` — every globals the player might reach for.
+ *   - Relaxed strictness — the curriculum welcomes JS-shaped code,
+ *     and "you didn't return on every branch" warnings are not the
+ *     teaching here.
+ *   - `addExtraLib(SIM_GLOBALS_DTS)` so `sim.foo(...)` doesn't paint
+ *     the whole file with "Cannot find name 'sim'" squigglies.
+ *
+ * Idempotent: Monaco's `setCompilerOptions` and `addExtraLib`
+ * accept repeated calls; the latter dedupes by path.
+ */
+/**
+ * Minimal shape of the Monaco TypeScript defaults surface we touch.
+ * Monaco's published types mark the entire `languages.typescript`
+ * subpath as `{ deprecated: true }`, hiding the actual runtime API
+ * behind that opaque flag — the surface still exists and works,
+ * we just have to declare the slice we need.
+ */
+interface TypescriptDefaults {
+  setCompilerOptions(options: Record<string, unknown>): void;
+  addExtraLib(content: string, filePath?: string): { dispose(): void };
+}
+
+function configureTypeScriptService(monaco: typeof Monaco): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tsModule = (monaco.languages as any).typescript as
+    | { typescriptDefaults?: TypescriptDefaults }
+    | undefined;
+  const ts = tsModule?.typescriptDefaults;
+  if (!ts) return; // Monaco was loaded without the TS service — leave defaults alone.
+  // Numeric enum values from the upstream `typescript` package.
+  // ES2020 = 7 (covers BigInt, optional chaining, nullish coalesce).
+  // ESNext = 99.
+  ts.setCompilerOptions({
+    target: 7,
+    module: 99,
+    lib: ["esnext"],
+    allowJs: true,
+    checkJs: false,
+    noImplicitAny: false,
+    strict: false,
+    noUnusedLocals: false,
+    noUnusedParameters: false,
+    noImplicitReturns: false,
+    allowNonTsExtensions: true,
+  });
+  // The `ts:filename/` namespace is Monaco's convention for ambient
+  // lib files. Pinning a stable path means a hot reload (or a
+  // re-mount in tests) replaces the lib in place rather than
+  // accumulating duplicates.
+  ts.addExtraLib(SIM_GLOBALS_DTS, "ts:filename/quest-sim-globals.d.ts");
+}
+
+/**
  * Define a Monaco theme keyed off the playground's warm-dark palette
  * so the editor sits inside a container styled with `--bg-*` /
  * `--text-*` without standing out as a cooler-toned rectangle.
@@ -166,6 +224,7 @@ function registerWarmDarkTheme(monaco: typeof Monaco): void {
 /** Mount a Monaco editor in the supplied container. */
 export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestEditor> {
   const monaco = await loadMonaco();
+  configureTypeScriptService(monaco);
   registerWarmDarkTheme(monaco);
   const editor = monaco.editor.create(opts.container, {
     value: opts.initialValue,
