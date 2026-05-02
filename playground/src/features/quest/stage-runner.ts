@@ -19,7 +19,7 @@
 
 import { createWorkerSim } from "./worker-sim";
 import type { GradeInputs, StarCount, Stage } from "./stages";
-import type { MetricsDto } from "../../types";
+import type { MetricsDto, Snapshot } from "../../types";
 
 export interface StageResult {
   /** `true` iff the stage's `passFn` returned `true` for the final grade. */
@@ -55,6 +55,14 @@ export interface RunStageOptions {
    * UI update error must not abort an in-flight run.
    */
   readonly onProgress?: (grade: GradeInputs) => void;
+  /**
+   * Called after each batch with the latest sim snapshot. Setting this
+   * implicitly opts into the worker's `wantVisuals: true` path so the
+   * snapshot bundle gets serialized — leave it `undefined` for headless
+   * grading runs and the runner skips the per-batch snapshot/event
+   * computation. Throws are caught for the same reason as `onProgress`.
+   */
+  readonly onSnapshot?: (snap: Snapshot) => void;
 }
 
 /**
@@ -98,10 +106,11 @@ export async function runStage(
     let lastMetrics: MetricsDto | null = null;
     let endTick = 0;
 
+    const wantVisuals = opts.onSnapshot !== undefined;
     while (endTick < maxTicks) {
       const remaining = maxTicks - endTick;
       const step = Math.min(batchTicks, remaining);
-      const result = await sim.tick(step);
+      const result = await sim.tick(step, wantVisuals ? { wantVisuals: true } : undefined);
       lastMetrics = result.metrics;
       endTick = result.tick;
       const grade = makeGrade(lastMetrics, endTick);
@@ -110,6 +119,13 @@ export async function runStage(
           opts.onProgress(grade);
         } catch {
           // A UI bug in the progress renderer must not abort the run.
+        }
+      }
+      if (opts.onSnapshot && result.snapshot) {
+        try {
+          opts.onSnapshot(result.snapshot);
+        } catch {
+          // A UI bug in the snapshot renderer must not abort the run.
         }
       }
       if (stage.passFn(grade)) {
