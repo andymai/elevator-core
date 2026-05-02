@@ -537,12 +537,22 @@
       aria-label="Quest mode"
     >
       <header class="flex flex-col gap-1.5">
-        <div class="flex items-baseline gap-2">
+        <div class="flex items-baseline gap-2 flex-wrap">
           <span
             class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
             >Quest</span
           >
           <h1 id="quest-stage-title" class="text-content text-base font-semibold m-0">Loading…</h1>
+          <label
+            class="ml-auto inline-flex items-center gap-1.5 text-[11.5px] text-content-tertiary"
+          >
+            Stage
+            <select
+              id="quest-stage-select"
+              class="bg-surface-elevated border border-stroke-subtle rounded-sm px-1.5 py-0.5 text-[12px] text-content cursor-pointer focus-visible:outline-none focus-visible:border-accent"
+              aria-label="Choose a quest stage"
+            ></select>
+          </label>
         </div>
         <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
       </header>
