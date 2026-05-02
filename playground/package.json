@@ -53,5 +53,10 @@
   "dependencies": {
     "monaco-editor": "^0.55.1",
     "random-words": "^2.0.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "dompurify": "^3.4.2"
+    }
   }
 }
