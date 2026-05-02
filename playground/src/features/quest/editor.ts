@@ -26,6 +26,15 @@ export interface EditorMountOptions {
   readonly readOnly?: boolean;
 }
 
+export interface RuntimeErrorMarker {
+  /** 1-based line where the error landed. */
+  readonly line: number;
+  /** 1-based column. */
+  readonly column: number;
+  /** Single-line error message — shown in Monaco's hover tooltip. */
+  readonly message: string;
+}
+
 export interface QuestEditor {
   /** Current text in the editor. */
   getValue(): string;
@@ -40,9 +49,21 @@ export interface QuestEditor {
   onDidChange(listener: () => void): { dispose(): void };
   /** Insert `text` at the current cursor position and focus the editor. */
   insertAtCursor(text: string): void;
+  /**
+   * Pin a runtime-error squiggle at `line` / `column`. Replaces any
+   * existing runtime marker so a fresh throw doesn't accumulate dots
+   * across reruns. Use `clearRuntimeMarker` to drop the marker
+   * (called at the start of each run).
+   */
+  setRuntimeMarker(marker: RuntimeErrorMarker): void;
+  /** Drop any runtime-error squiggle. */
+  clearRuntimeMarker(): void;
   /** Tear down the editor and free its DOM/worker resources. */
   dispose(): void;
 }
+
+/** Owner string for runtime markers — keeps them disjoint from the TS service's diagnostics. */
+const RUNTIME_MARKER_OWNER = "quest-runtime";
 
 let monacoModule: typeof Monaco | null = null;
 let monacoLoading: Promise<typeof Monaco> | null = null;
@@ -266,6 +287,37 @@ export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestE
       };
       editor.executeEdits("quest-snippet", [{ range, text, forceMoveMarkers: true }]);
       editor.focus();
+    },
+    setRuntimeMarker(marker) {
+      const model = editor.getModel();
+      if (!model) return;
+      // Use the message's first line as the marker's `message` field
+      // so Monaco's hover tooltip stays compact; longer details still
+      // land in the inline result span.
+      const headline = marker.message.split("\n")[0] ?? marker.message;
+      // `severity: 8` is `MarkerSeverity.Error`. Monaco's runtime
+      // expects the numeric value; the type stub for the enum is
+      // tucked behind the same deprecated-typescript flag we worked
+      // around in `configureTypeScriptService`.
+      monaco.editor.setModelMarkers(model, RUNTIME_MARKER_OWNER, [
+        {
+          severity: 8,
+          message: headline,
+          startLineNumber: marker.line,
+          startColumn: marker.column,
+          endLineNumber: marker.line,
+          endColumn: Math.max(marker.column + 1, marker.column),
+        },
+      ]);
+      // Reveal the line so the squiggle isn't off-screen in a long
+      // editor; centred so the player can read context above and
+      // below without manual scroll.
+      editor.revealLineInCenterIfOutsideViewport(marker.line);
+    },
+    clearRuntimeMarker() {
+      const model = editor.getModel();
+      if (!model) return;
+      monaco.editor.setModelMarkers(model, RUNTIME_MARKER_OWNER, []);
     },
     dispose: () => {
       // Dispose the backing model first — `editor.dispose()` releases
