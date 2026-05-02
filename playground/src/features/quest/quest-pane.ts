@@ -17,10 +17,10 @@ import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./snippet-picker";
-import { runStage } from "./stage-runner";
+import { runStage, type StageResult } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
-import type { Stage } from "./stages";
-import { clearCode, loadCode, saveCode } from "./storage";
+import type { StarCount, Stage } from "./stages";
+import { clearCode, loadBestStars, loadCode, saveBestStars, saveCode } from "./storage";
 
 export interface QuestPaneHandles {
   readonly root: HTMLElement;
@@ -82,9 +82,20 @@ export function populateStageSelect(handles: QuestPaneHandles): void {
   STAGES.forEach((stage, index) => {
     const opt = document.createElement("option");
     opt.value = stage.id;
-    opt.textContent = `${String(index + 1).padStart(2, "0")} · ${stage.title}`;
+    opt.textContent = stageOptionLabel(stage, index, loadBestStars(stage.id));
     handles.select.appendChild(opt);
   });
+}
+
+/**
+ * Build the option label for a stage. Earned stars (1–3) are appended
+ * as filled glyphs; unstarred stages keep the bare title to avoid
+ * cluttering the picker before the player has scored anything.
+ */
+function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string {
+  const ordinal = String(index + 1).padStart(2, "0");
+  const head = `${ordinal} · ${stage.title}`;
+  return stars === 0 ? head : `${head} ${"★".repeat(stars)}`;
 }
 
 /**
@@ -120,9 +131,10 @@ function attachRunButton(
   modal: ResultsModalHandles,
   editor: QuestEditor,
   getStage: () => Stage,
+  onGraded: (stage: Stage, result: StageResult) => void,
 ): void {
   const runOnce = (): void => {
-    void executeRun(handles, modal, editor, getStage(), runOnce);
+    void executeRun(handles, modal, editor, getStage(), runOnce, onGraded);
   };
   handles.runBtn.addEventListener("click", runOnce);
 }
@@ -133,6 +145,7 @@ async function executeRun(
   editor: QuestEditor,
   stage: Stage,
   retry: () => void,
+  onGraded: (stage: Stage, result: StageResult) => void,
 ): Promise<void> {
   handles.runBtn.disabled = true;
   handles.result.textContent = "Running…";
@@ -142,6 +155,7 @@ async function executeRun(
     // bubbles up as a timeout instead of blocking indefinitely.
     const result = await runStage(stage, editor.getValue(), { timeoutMs: 1000 });
     handles.result.textContent = "";
+    onGraded(stage, result);
     showResults(modal, result, retry);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -202,7 +216,26 @@ export async function bootQuestPane(opts: {
   handles.resetBtn.disabled = false;
   handles.result.textContent = "";
   const modal = wireResultsModal();
-  attachRunButton(handles, modal, editor, () => activeStage);
+  attachRunButton(
+    handles,
+    modal,
+    editor,
+    () => activeStage,
+    (stage, result) => {
+      // Persist a new high score and refresh the picker labels so the
+      // ★ glyphs reflect the win without waiting for a remount. The
+      // saved selection has to be restored after `populateStageSelect`
+      // since it rebuilds the option list and resets the value.
+      if (result.passed) {
+        const previous = loadBestStars(stage.id);
+        if (result.stars > previous) {
+          saveBestStars(stage.id, result.stars);
+          populateStageSelect(handles);
+          handles.select.value = stage.id;
+        }
+      }
+    },
+  );
 
   // Persist edits per stage so refresh / stage-swap don't wipe the
   // player's work. Monaco's onDidChange fires for every content

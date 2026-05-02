@@ -8,10 +8,11 @@ export {
   type GradeInputs,
   type PassFn,
   type Stage,
+  type StarCount,
   type StarFn,
   type UnlockedApi,
 } from "./stages";
-export { runStage, type StageResult, type RunStageOptions, type StarCount } from "./stage-runner";
+export { runStage, type StageResult, type RunStageOptions } from "./stage-runner";
 export {
   bootQuestPane,
   hideQuestPane,
@@ -28,4 +29,11 @@ export {
 } from "./results-modal";
 export { API_REFERENCE, apiEntry, unlockedEntries, type ApiEntry } from "./api-reference";
 export { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
-export { clearCode, loadCode, saveCode } from "./storage";
+export {
+  clearBestStars,
+  clearCode,
+  loadBestStars,
+  loadCode,
+  saveBestStars,
+  saveCode,
+} from "./storage";

@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearCode, loadCode, saveCode } from "../features/quest";
+import {
+  clearBestStars,
+  clearCode,
+  loadBestStars,
+  loadCode,
+  saveBestStars,
+  saveCode,
+} from "../features/quest";
 
 // Vitest runs in node by default, so `localStorage` isn't a global.
 // Install a minimal in-memory shim on `globalThis` and tear it down
@@ -123,6 +130,71 @@ describe("quest: storage", () => {
     delete (globalThis as unknown as LocalStorageHolder).localStorage;
     expect(() => {
       saveCode("first-floor", "code");
+    }).not.toThrow();
+  });
+});
+
+describe("quest: bestStars", () => {
+  it("loadBestStars returns 0 for an unset stage", () => {
+    expect(loadBestStars("first-floor")).toBe(0);
+  });
+
+  it("saveBestStars then loadBestStars round-trips for each tier", () => {
+    saveBestStars("a", 1);
+    expect(loadBestStars("a")).toBe(1);
+    saveBestStars("b", 2);
+    expect(loadBestStars("b")).toBe(2);
+    saveBestStars("c", 3);
+    expect(loadBestStars("c")).toBe(3);
+  });
+
+  it("entries are namespaced under quest:bestStars:v1:", () => {
+    saveBestStars("listen-up", 2);
+    expect(mem.getItem("quest:bestStars:v1:listen-up")).toBe("2");
+  });
+
+  it("never regresses a higher score with a lower one", () => {
+    saveBestStars("x", 3);
+    saveBestStars("x", 1);
+    expect(loadBestStars("x")).toBe(3);
+  });
+
+  it("equal score is a no-op (storage write is skipped)", () => {
+    saveBestStars("x", 2);
+    const setSpy = vi.spyOn(mem, "setItem");
+    saveBestStars("x", 2);
+    expect(setSpy).not.toHaveBeenCalled();
+  });
+
+  it("clearBestStars removes the stored entry", () => {
+    saveBestStars("x", 3);
+    clearBestStars("x");
+    expect(loadBestStars("x")).toBe(0);
+  });
+
+  it("malformed entries read as 0", () => {
+    mem.setItem("quest:bestStars:v1:bad", "not-a-number");
+    expect(loadBestStars("bad")).toBe(0);
+  });
+
+  it("out-of-range entries read as 0", () => {
+    mem.setItem("quest:bestStars:v1:bad", "9");
+    expect(loadBestStars("bad")).toBe(0);
+    mem.setItem("quest:bestStars:v1:bad", "-1");
+    expect(loadBestStars("bad")).toBe(0);
+  });
+
+  it("loadBestStars returns 0 when localStorage is unavailable", () => {
+    delete (globalThis as unknown as LocalStorageHolder).localStorage;
+    expect(loadBestStars("any")).toBe(0);
+  });
+
+  it("saveBestStars swallows setItem errors", () => {
+    vi.spyOn(mem, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    expect(() => {
+      saveBestStars("any", 3);
     }).not.toThrow();
   });
 });

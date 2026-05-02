@@ -47,4 +47,4 @@ export function stageById(id: string): Stage | undefined {
   return STAGES.find((s) => s.id === id);
 }
 
-export type { Stage, Baseline, UnlockedApi, GradeInputs, PassFn, StarFn } from "./types";
+export type { Stage, Baseline, StarCount, UnlockedApi, GradeInputs, PassFn, StarFn } from "./types";

@@ -54,6 +54,9 @@ export type PassFn = (inputs: GradeInputs) => boolean;
  */
 export type StarFn = (inputs: GradeInputs) => boolean;
 
+/** Star count earned on a stage. 0 = not passed; 1–3 = grade tiers. */
+export type StarCount = 0 | 1 | 2 | 3;
+
 export interface Stage {
   /** Stable URL-safe slug; permalinks key off this. */
   readonly id: string;
