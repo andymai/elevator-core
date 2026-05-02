@@ -47,4 +47,15 @@ export function stageById(id: string): Stage | undefined {
   return STAGES.find((s) => s.id === id);
 }
 
+/**
+ * Resolve the stage immediately following `currentId` in the registry's
+ * display order, or `undefined` if `currentId` is the last stage or
+ * isn't in the registry. Powers the results modal's "Next stage" CTA.
+ */
+export function nextStage(currentId: string): Stage | undefined {
+  const idx = STAGES.findIndex((s) => s.id === currentId);
+  if (idx < 0) return undefined;
+  return STAGES[idx + 1];
+}
+
 export type { Stage, Baseline, StarCount, UnlockedApi, GradeInputs, PassFn, StarFn } from "./types";
