@@ -13,14 +13,7 @@ export {
   type UnlockedApi,
 } from "./stages";
 export { runStage, type StageResult, type RunStageOptions } from "./stage-runner";
-export {
-  bootQuestPane,
-  hideQuestPane,
-  renderStage,
-  showQuestPane,
-  wireQuestPane,
-  type QuestPaneHandles,
-} from "./quest-pane";
+export { bootQuestPane, renderStage, wireQuestPane, type QuestPaneHandles } from "./quest-pane";
 export {
   hideResults,
   showResults,

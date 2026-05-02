@@ -1,4 +1,5 @@
 import { reconcileStrategyWithScenario } from "../features/scenario-picker";
+import { applyPlaygroundMode, wireModeToggle } from "../features/mode-toggle";
 import { bootQuestPane } from "../features/quest";
 import {
   DEFAULT_STATE,
@@ -72,6 +73,11 @@ export async function boot(): Promise<void> {
   // is the decode-side counterpart, done once at boot rather than in
   // every subsequent write path.
   permalink.overrides = compactOverrides(scenario, permalink.overrides);
+  // Apply mode-derived visibility before any paint: a `?m=quest`
+  // deep-link should never flash the compare-mode chrome. Wiring the
+  // toggle here also avoids a second pass over the same DOM nodes.
+  applyPlaygroundMode(permalink.mode);
+  wireModeToggle(permalink.mode);
   applyPermalinkToUi(permalink, ui);
   const state: State = {
     running: true,
