@@ -43,6 +43,33 @@ describe("permalink: core knobs", () => {
     expect(decodePermalink("?m=").mode).toBe(DEFAULT_STATE.mode);
   });
 
+  it("emits qs= only in quest mode and only when non-default", () => {
+    // Compare-mode URLs stay clean — questStage on default never
+    // leaks into the URL even if the user briefly dipped into quest
+    // mode and back.
+    const compareDefault = encodePermalink(DEFAULT_STATE);
+    expect(compareDefault).not.toMatch(/(^|&|\?)qs=/);
+
+    const compareWithStage = encodePermalink({ ...DEFAULT_STATE, questStage: "beat-etd" });
+    expect(compareWithStage).not.toMatch(/(^|&|\?)qs=/);
+
+    const questDefault = encodePermalink({ ...DEFAULT_STATE, mode: "quest" });
+    expect(questDefault).not.toMatch(/(^|&|\?)qs=/);
+
+    const questWithStage = encodePermalink({
+      ...DEFAULT_STATE,
+      mode: "quest",
+      questStage: "beat-etd",
+    });
+    expect(questWithStage).toMatch(/(^|&|\?)qs=beat-etd(&|$)/);
+  });
+
+  it("decodes questStage and falls back when absent", () => {
+    expect(decodePermalink("?m=quest&qs=rank-first").questStage).toBe("rank-first");
+    expect(decodePermalink("?m=quest").questStage).toBe(DEFAULT_STATE.questStage);
+    expect(decodePermalink("").questStage).toBe(DEFAULT_STATE.questStage);
+  });
+
   it("honors an explicit c=0 over the default", () => {
     // Guards against regressions where a recipient's bare URL inherits
     // the default even when the sender explicitly opted out.
