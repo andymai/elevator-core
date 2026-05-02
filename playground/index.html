@@ -589,6 +589,23 @@
         class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
         aria-label="Quest controller editor"
       ></div>
+      <div
+        id="quest-shaft-wrap"
+        class="relative h-[240px] bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+      >
+        <canvas id="quest-shaft" class="absolute inset-0 w-full h-full block"></canvas>
+        <div
+          id="quest-shaft-idle"
+          class="absolute inset-0 flex items-center justify-center text-content-tertiary text-[12px] tracking-[0.02em] pointer-events-none"
+        >
+          Click
+          <span
+            class="px-1.5 py-0.5 mx-1 rounded-sm bg-surface-elevated border border-stroke-subtle text-[11px] font-mono text-content"
+            >Run</span
+          >
+          to see your controller drive the cars.
+        </div>
+      </div>
       <div id="quest-snippets" class="flex flex-wrap gap-1.5" aria-label="Insert API call"></div>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <button
