@@ -23,32 +23,75 @@ function configStopIds(configRon: string): Set<number> {
   return ids;
 }
 
-// Pull the minimum delivered count out of the stage's `passFn`. The
-// test re-evaluates the predicate against synthetic grade inputs to
-// find the smallest `delivered` value that returns `true` while
-// `abandoned === 0` — the cheapest way to stay schema-agnostic
-// without parsing the function body. Caps at 200 so a runaway
-// predicate (or a mis-authored stage) fails the test instead of
-// hanging.
-function inferMinDelivered(stage: (typeof STAGES)[number]): number {
-  const baseMetrics = {
-    delivered: 0,
-    abandoned: 0,
-    avg_wait_s: 0,
-    max_wait_s: 0,
-  };
-  for (let n = 0; n <= 200; n += 1) {
-    const grade = {
-      // Cast just for the test stub — a stage's passFn only reads
-      // `metrics`, `delivered`, `abandoned`, and `endTick`.
-      metrics: { ...baseMetrics, delivered: n } as never,
-      endTick: 60_000,
-      delivered: n,
-      abandoned: 0,
-    };
-    if (stage.passFn(grade)) return n;
+// Cap probing at 200; far above any current threshold, low enough
+// that a runaway predicate (or a mis-authored stage) fails fast
+// instead of hanging the test.
+const MAX_DELIVERED_PROBE = 200;
+const MAX_ABANDONED_PROBE = 50;
+
+const baseMetrics = {
+  delivered: 0,
+  abandoned: 0,
+  avg_wait_s: 0,
+  max_wait_s: 0,
+};
+
+function evalPass(stage: (typeof STAGES)[number], delivered: number, abandoned: number): boolean {
+  return stage.passFn({
+    // Cast just for the stub — a stage's passFn only reads `metrics`,
+    // `delivered`, `abandoned`, and `endTick`.
+    metrics: { ...baseMetrics, delivered, abandoned } as never,
+    endTick: 60_000,
+    delivered,
+    abandoned,
+  });
+}
+
+/**
+ * Smallest `delivered` count for which the stage's `passFn` returns
+ * `true` at the given `abandoned` value, or `Infinity` if no count up
+ * to {@link MAX_DELIVERED_PROBE} satisfies it.
+ */
+function minDeliveredAt(stage: (typeof STAGES)[number], abandoned: number): number {
+  for (let n = 0; n <= MAX_DELIVERED_PROBE; n += 1) {
+    if (evalPass(stage, n, abandoned)) return n;
   }
   return Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Compute the seed-count requirement for a stage. The seed list must
+ * cover both delivered riders and any abandoned riders the pass
+ * condition explicitly tolerates: Stage 11
+ * (`delivered >= 12 && abandoned <= 2`) needs 14 seeds, not 12 —
+ * losing 2 to abandons still has to leave 12 delivered.
+ *
+ * "Explicitly tolerates" matters: a stage that doesn't mention
+ * `abandoned` (e.g., Stage 4 grades on delivered only) has no
+ * stated tolerance budget, so we don't pad. Otherwise a stage
+ * passes the test only by overshooting the seed count by the
+ * full probe range.
+ */
+function inferMinSeeds(stage: (typeof STAGES)[number]): number {
+  const minDelivered = minDeliveredAt(stage, 0);
+  if (!Number.isFinite(minDelivered)) return Number.POSITIVE_INFINITY;
+
+  // Walk `abandoned` upward at the smallest passing `delivered`. The
+  // first value that *fails* marks the stage's stated tolerance — so
+  // tolerated abandons run [0, a_break - 1]. If we never see a
+  // failing value, the stage is indifferent to abandons (no budget
+  // to design around) and `maxAbandoned` stays at 0.
+  let maxAbandoned = 0;
+  for (let abandoned = 1; abandoned <= MAX_ABANDONED_PROBE; abandoned += 1) {
+    if (evalPass(stage, minDelivered, abandoned)) {
+      maxAbandoned = abandoned;
+    } else {
+      return minDelivered + maxAbandoned;
+    }
+  }
+  // Unbounded passes across the probe range — treat as no stated
+  // tolerance, so the seed list only needs to clear `minDelivered`.
+  return minDelivered;
 }
 
 describe("quest: seed riders", () => {
@@ -60,12 +103,13 @@ describe("quest: seed riders", () => {
       });
 
       it("seeds enough riders to clear the pass threshold", () => {
-        const minDelivered = inferMinDelivered(stage);
-        // Margin: a stage that seeds exactly the threshold leaves no
-        // room for in-flight riders or the rare case where a rider
-        // gets stuck in a closed-door window. Require the seed list
-        // to comfortably exceed the pass count.
-        expect(stage.seedRiders.length).toBeGreaterThanOrEqual(minDelivered);
+        // The seed list must cover both the delivered count the
+        // stage requires and any abandons it tolerates. Stage 1
+        // (`delivered >= 5 && abandoned === 0`) needs exactly 5;
+        // Stage 11 (`delivered >= 12 && abandoned <= 2`) needs 14
+        // because losing 2 to abandon still has to leave 12
+        // delivered. `inferMinSeeds` accounts for both.
+        expect(stage.seedRiders.length).toBeGreaterThanOrEqual(inferMinSeeds(stage));
       });
 
       it("references only declared stop ids", () => {
