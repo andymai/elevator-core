@@ -78,20 +78,21 @@ export interface ResetRequest {
  * Run player-authored controller code against the wasm sim.
  *
  * The worker compiles `source` as a function body that receives `sim`
- * as its only argument and executes it once. Stage code can call any
- * sim method (`sim.addDestination`, `sim.setStrategyJs`, etc.) and any
- * registered callbacks fire on subsequent ticks. Untrusted code is
- * isolated in the worker thread — the worker has no DOM access and
- * can't reach the host's wasm directly except through the sim handle
- * passed in.
+ * as its only argument and executes it once. The `sim` handed to the
+ * controller is a Proxy that gates calls by `unlockedApi`: methods in
+ * the list pass through to the underlying wasm sim, methods not in
+ * the list throw a stage-aware error. Untrusted code is isolated in
+ * the worker thread (no DOM, no parent globals).
  *
- * Method-locking by `unlockedApi` lands in Q-06 alongside the stage
- * schema — for now the source has the full unlocked surface.
+ * Pass an empty `unlockedApi` to lock everything (mostly useful for
+ * tests). Pass `null` to disable gating entirely — the controller
+ * sees the full sim surface, matching the pre-Q-16 behaviour.
  */
 export interface LoadControllerRequest {
   readonly kind: "load-controller";
   readonly id: number;
   readonly source: string;
+  readonly unlockedApi: readonly string[] | null;
 }
 
 export type HostToWorker =

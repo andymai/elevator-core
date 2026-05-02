@@ -29,7 +29,7 @@ describe("quest: protocol shape", () => {
       { kind: "spawn-rider", id: 3, origin: 0, destination: 2, weight: 75 },
       { kind: "set-strategy", id: 4, strategy: "etd" },
       { kind: "reset", id: 5, payload: initPayload },
-      { kind: "load-controller", id: 6, source: "sim.setStrategy('scan');" },
+      { kind: "load-controller", id: 6, source: "sim.setStrategy('scan');", unlockedApi: null },
     ];
     expect(messages.map((m) => m.kind)).toEqual([
       "init",
