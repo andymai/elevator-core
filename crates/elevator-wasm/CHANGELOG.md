@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.12.0...elevator-wasm-v0.13.0) (2026-05-02)
+
+
+### Features
+
+* **wasm:** add setStrategyJs for JS-authored dispatch ([#562](https://github.com/andymai/elevator-core/issues/562)) ([35b08d9](https://github.com/andymai/elevator-core/commit/35b08d9a098175a6c2fbf123b78dda42eb75498a))
+
 ## [0.12.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.11.0...elevator-wasm-v0.12.0) (2026-04-29)
 
 
