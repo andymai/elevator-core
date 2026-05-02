@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -65,6 +66,18 @@ export const STAGE_10_HOLD_DOORS: Stage = {
   section: "events-manual",
   configRon: STAGE_10_RON,
   unlockedApi: ["setStrategy", "drainEvents", "holdDoor", "cancelDoorHold"],
+  // Twelve riders, generous patience so abandons only happen if the
+  // player ignores the door-hold mechanic and the tight 30-tick
+  // window times them out. The mix of floors gives the controller
+  // multiple chances to see boarding events on each batch.
+  seedRiders: [
+    ...arrivals(12, {
+      origin: 0,
+      destinations: [2, 3, 4, 1, 3, 2],
+      intervalTicks: 60,
+      patienceTicks: 1200,
+    }),
+  ],
   baseline: "none",
   passFn: ({ delivered, abandoned }) => delivered >= 6 && abandoned <= 1,
   starFns: [

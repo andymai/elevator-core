@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -67,6 +68,17 @@ export const STAGE_09_MANUAL: Stage = {
   section: "events-manual",
   configRon: STAGE_09_RON,
   unlockedApi: ["setStrategy", "setServiceMode", "setTargetVelocity"],
+  // Sparse traffic so the player can focus on manual-drive timing.
+  // 10 riders, generously spaced — enough margin over the 8-pass
+  // threshold that a small mistake (one missed boarding) doesn't
+  // fail the stage outright.
+  seedRiders: [
+    ...arrivals(10, {
+      origin: 0,
+      destinations: [3, 5, 2, 4],
+      intervalTicks: 70,
+    }),
+  ],
   baseline: "self-autopilot",
   passFn: ({ delivered }) => delivered >= 8,
   starFns: [

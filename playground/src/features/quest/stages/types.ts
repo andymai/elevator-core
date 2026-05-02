@@ -20,6 +20,48 @@ export type Baseline = "none" | "self-autopilot" | "scan" | "look" | "nearest" |
 /** Subset of wasm `sim.*` methods the stage exposes to the controller. */
 export type UnlockedApi = readonly string[];
 
+/**
+ * Deterministic rider arrival, seeded by the stage runner before (and
+ * during) the controller's run. The wasm `Sim::step()` does not pump
+ * the RON `passenger_spawning` block — that block exists for the
+ * Rust-side `PoissonSource` only — so without explicit seeding every
+ * Quest stage runs an empty building. Stages encode their scenario
+ * here as a list of arrivals; the runner spawns each entry host-side
+ * (bypassing the per-stage `unlockedApi` gate that scopes the
+ * controller's own access) at the requested tick.
+ *
+ * `origin` and `destination` are config-time `StopId` numeric values
+ * (the same `StopId(N)` ids declared in the stage's `configRon`),
+ * not the bigint entity refs returned by runtime APIs. The runner
+ * routes through `WasmSim::spawnRider`, which takes `u32` stop ids.
+ */
+export interface SeededRider {
+  /** Stop id where the rider appears. Must match a `StopConfig` in `configRon`. */
+  readonly origin: number;
+  /** Stop id the rider wants to reach. */
+  readonly destination: number;
+  /**
+   * Rider weight in kg. Defaults to 75 when omitted. Affects car-
+   * capacity arithmetic; tune up to exercise weight rejections, down
+   * for crowded scenarios.
+   */
+  readonly weight?: number;
+  /**
+   * Tick budget after which the rider abandons. Omit to use the
+   * sim's default. Shorter values stress dispatch latency; longer
+   * values prevent abandons in stages that grade on `delivered`
+   * alone.
+   */
+  readonly patienceTicks?: number;
+  /**
+   * Tick at which the runner spawns this rider. Defaults to 0
+   * (spawn at run start). Riders with `atTick > 0` spawn at the
+   * first batch boundary that crosses their tick — the runner does
+   * not pause inside a batch.
+   */
+  readonly atTick?: number;
+}
+
 /** Inputs supplied to grading callbacks at run end. */
 export interface GradeInputs {
   readonly metrics: MetricsDto;
@@ -80,6 +122,13 @@ export interface Stage {
   readonly configRon: string;
   /** Methods the controller is allowed to call on `sim`. */
   readonly unlockedApi: UnlockedApi;
+  /**
+   * Riders the runner injects on the player's behalf. Required for
+   * graded stages: `passFn` predicates check `delivered`/`abandoned`,
+   * and the wasm `step()` does not generate riders — so a stage
+   * without `seedRiders` runs an empty building and never passes.
+   */
+  readonly seedRiders: readonly SeededRider[];
   /** What runs in the right pane during the run. */
   readonly baseline: Baseline;
   /** Pass condition. */

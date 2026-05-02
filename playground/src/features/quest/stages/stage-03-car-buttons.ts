@@ -43,6 +43,30 @@ export const STAGE_03_CAR_BUTTONS: Stage = {
   section: "basics",
   configRon: STAGE_03_RON,
   unlockedApi: ["pushDestination", "hallCalls", "carCalls", "drainEvents"],
+  // Eighteen riders, lobby-heavy origins so the car spends most of
+  // its time picking up from the lobby and dropping off above —
+  // exactly the pattern where ignoring carCalls leaves riders stuck
+  // mid-cab. A few non-lobby origins keep hall-call polling honest.
+  seedRiders: [
+    { origin: 0, destination: 2, atTick: 0 },
+    { origin: 0, destination: 3, atTick: 0 },
+    { origin: 0, destination: 4, atTick: 30 },
+    { origin: 0, destination: 1, atTick: 60 },
+    { origin: 0, destination: 3, atTick: 90 },
+    { origin: 1, destination: 4, atTick: 120 },
+    { origin: 0, destination: 2, atTick: 150 },
+    { origin: 0, destination: 4, atTick: 200 },
+    { origin: 2, destination: 0, atTick: 250 },
+    { origin: 0, destination: 3, atTick: 300 },
+    { origin: 0, destination: 1, atTick: 350 },
+    { origin: 3, destination: 0, atTick: 400 },
+    { origin: 0, destination: 4, atTick: 450 },
+    { origin: 0, destination: 2, atTick: 500 },
+    { origin: 4, destination: 1, atTick: 550 },
+    { origin: 0, destination: 3, atTick: 600 },
+    { origin: 0, destination: 4, atTick: 650 },
+    { origin: 0, destination: 2, atTick: 700 },
+  ],
   baseline: "nearest",
   // Pass: 15 delivered, no abandons.
   passFn: ({ delivered, abandoned }) => delivered >= 15 && abandoned === 0,

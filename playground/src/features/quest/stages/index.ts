@@ -64,6 +64,7 @@ export type {
   Baseline,
   StarCount,
   UnlockedApi,
+  SeededRider,
   GradeInputs,
   PassFn,
   StarFn,
