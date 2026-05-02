@@ -53,6 +53,14 @@ export async function loadMonaco(): Promise<typeof Monaco> {
     monacoModule = mod;
     return mod;
   })();
+  // Clear the cached promise on rejection so a transient failure
+  // (network error, CSP block, worker spawn failure) doesn't pin
+  // every future call to the same dead promise. Successful loads
+  // keep `monacoModule` set, so the next call short-circuits via the
+  // top-of-function early return.
+  monacoLoading.catch(() => {
+    monacoLoading = null;
+  });
   return monacoLoading;
 }
 
@@ -109,6 +117,11 @@ export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestE
       };
     },
     dispose: () => {
+      // Dispose the backing model first — `editor.dispose()` releases
+      // the editor instance but leaves the `ITextModel` in Monaco's
+      // global registry, which leaks across mount/unmount cycles when
+      // the player switches stages.
+      editor.getModel()?.dispose();
       editor.dispose();
     },
   };
