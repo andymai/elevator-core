@@ -165,9 +165,29 @@ function lockdownWorkerGlobals(): void {
     "importScripts",
     "XMLHttpRequest",
   ];
+  // Two passes so a throw on a non-writable prototype property
+  // doesn't bail the loop and leave later names with their instance
+  // shadow uncleared. Each property override is wrapped in its own
+  // try/catch — best-effort rather than all-or-nothing — because in
+  // strict mode some prototype slots are non-configurable in older
+  // runtimes. Worst case: one banned name stays accessible; the
+  // other seven are still locked. The guarantees aren't perfect,
+  // but they degrade gracefully instead of cliffing.
   for (const name of banned) {
-    g[name] = undefined;
-    if (protoBag) protoBag[name] = undefined;
+    try {
+      g[name] = undefined;
+    } catch {
+      /* property is non-writable on the instance — best-effort */
+    }
+  }
+  if (protoBag) {
+    for (const name of banned) {
+      try {
+        protoBag[name] = undefined;
+      } catch {
+        /* property is non-writable on the prototype — best-effort */
+      }
+    }
   }
 }
 
