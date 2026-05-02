@@ -580,6 +580,23 @@
         class="flex flex-col gap-1 px-3 py-2.5 bg-surface-secondary border border-stroke-subtle rounded-md"
         aria-label="Unlocked API reference"
       ></aside>
+      <details
+        id="quest-hints"
+        class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
+      >
+        <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
+          <span class="text-[10.5px] uppercase tracking-[0.08em] text-content-tertiary font-medium"
+            >Hints</span
+          >
+          <span id="quest-hints-count" class="text-content-tertiary"></span>
+          <span
+            class="ml-auto text-content-tertiary text-[11px] transition-transform"
+            aria-hidden="true"
+            >▸</span
+          >
+        </summary>
+        <ol id="quest-hints-list" class="list-decimal m-0 mt-1.5 pl-5 flex flex-col gap-1.5"></ol>
+      </details>
     </section>
 
     <div

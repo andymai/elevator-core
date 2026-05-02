@@ -27,3 +27,4 @@ export {
   type ResultsModalHandles,
 } from "./results-modal";
 export { API_REFERENCE, apiEntry, unlockedEntries, type ApiEntry } from "./api-reference";
+export { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";

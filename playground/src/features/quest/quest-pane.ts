@@ -14,6 +14,7 @@
 
 import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel";
 import { mountQuestEditor, type QuestEditor } from "./editor";
+import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { runStage } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
@@ -178,6 +179,9 @@ export async function bootQuestPane(opts: {
   // `sim.*` is currently allowed to call.
   const apiPanel: ApiPanelHandles = wireApiPanel();
   renderApiPanel(apiPanel, activeStage);
+  // Hints drawer: collapsed-by-default progressive nudges.
+  const hints: HintsDrawerHandles = wireHintsDrawer();
+  renderHints(hints, activeStage);
 
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
@@ -202,6 +206,7 @@ export async function bootQuestPane(opts: {
     activeStage = next;
     renderStage(handles, next);
     renderApiPanel(apiPanel, next);
+    renderHints(hints, next);
     editor.setValue(next.starterCode);
     handles.result.textContent = "";
     opts.onStageChange?.(next.id);
