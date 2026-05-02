@@ -1,18 +1,20 @@
 /**
- * Persistence for Quest editor state.
+ * Persistence for Quest editor state and progression.
  *
  * Saves the player's in-flight code per stage so a refresh, a stage
- * swap, or a tab-restore doesn't wipe their work. Best-stars and
- * unlocked-stages live alongside this module in follow-up PRs; the
- * key prefix and helper shape are designed to extend.
+ * swap, or a tab-restore doesn't wipe their work, and tracks the
+ * best star count per stage so the navigator can show progress.
  *
  * All localStorage access is wrapped in try/catch — Safari private
  * mode throws on `setItem`, Brave's shim can null the global, and
  * quota-exceeded surfaces as a thrown `QuotaExceededError`. The
  * editor must keep working even when persistence quietly fails, so
- * load returns `null` and save/clear are no-ops on any error.
+ * load returns `null` / 0 and save/clear are no-ops on any error.
  */
-const KEY_PREFIX = "quest:code:v1:";
+import type { StarCount } from "./stages";
+
+const CODE_PREFIX = "quest:code:v1:";
+const STARS_PREFIX = "quest:bestStars:v1:";
 
 /**
  * Hard cap per saved entry, measured in `String.length` (UTF-16 code
@@ -43,7 +45,7 @@ export function loadCode(stageId: string): string | null {
   const s = storage();
   if (!s) return null;
   try {
-    return s.getItem(KEY_PREFIX + stageId);
+    return s.getItem(CODE_PREFIX + stageId);
   } catch {
     return null;
   }
@@ -58,7 +60,7 @@ export function saveCode(stageId: string, code: string): void {
   const s = storage();
   if (!s) return;
   try {
-    s.setItem(KEY_PREFIX + stageId, code);
+    s.setItem(CODE_PREFIX + stageId, code);
   } catch {
     // Quota / private mode — drop the write rather than surface to
     // the editor. The next save attempt will retry.
@@ -70,7 +72,57 @@ export function clearCode(stageId: string): void {
   const s = storage();
   if (!s) return;
   try {
-    s.removeItem(KEY_PREFIX + stageId);
+    s.removeItem(CODE_PREFIX + stageId);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Read the best star count earned on a stage, or `0` if no entry, the
+ * stored value is malformed, or storage is unavailable. Stars are
+ * stored as a single decimal digit ("0"–"3") rather than JSON so a
+ * corrupted entry parses cleanly to a sentinel rather than throwing.
+ */
+export function loadBestStars(stageId: string): StarCount {
+  const s = storage();
+  if (!s) return 0;
+  let raw: string | null;
+  try {
+    raw = s.getItem(STARS_PREFIX + stageId);
+  } catch {
+    return 0;
+  }
+  if (raw === null) return 0;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 0 || n > 3) return 0;
+  return n as StarCount;
+}
+
+/**
+ * Write the best star count for a stage, but only if `stars` is
+ * higher than the current entry. A graded run that scored fewer
+ * stars than the player's previous attempt should not regress the
+ * persisted score.
+ */
+export function saveBestStars(stageId: string, stars: StarCount): void {
+  const current = loadBestStars(stageId);
+  if (stars <= current) return;
+  const s = storage();
+  if (!s) return;
+  try {
+    s.setItem(STARS_PREFIX + stageId, String(stars));
+  } catch {
+    // Quota / private mode — drop the write.
+  }
+}
+
+/** Remove the best-stars entry for a stage. Mostly useful for tests. */
+export function clearBestStars(stageId: string): void {
+  const s = storage();
+  if (!s) return;
+  try {
+    s.removeItem(STARS_PREFIX + stageId);
   } catch {
     // ignore
   }
