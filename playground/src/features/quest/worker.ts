@@ -134,6 +134,28 @@ function handleSetStrategy(id: number, strategy: string): void {
   }
 }
 
+function handleLoadController(id: number, source: string): void {
+  if (!sim) {
+    post({ kind: "error", id, message: "load-controller before init" });
+    return;
+  }
+  try {
+    // Compile the player's source as a function body and run it once
+    // against the live sim handle. The worker thread is the sandbox:
+    // no DOM, no parent globals — the only way out is the `sim`
+    // argument and whatever it explicitly exposes. Strict mode keeps
+    // user code from polluting the worker scope via implicit globals.
+    const FunctionCtor = Function;
+    const factory = FunctionCtor("sim", `"use strict";\n${source}`) as (
+      simArg: WasmSimInstance,
+    ) => void;
+    factory(sim);
+    post({ kind: "ok", id });
+  } catch (err) {
+    post({ kind: "error", id, message: errorMessage(err) });
+  }
+}
+
 self.addEventListener("message", (event: MessageEvent<HostToWorker>) => {
   const msg = event.data;
   switch (msg.kind) {
@@ -151,6 +173,9 @@ self.addEventListener("message", (event: MessageEvent<HostToWorker>) => {
       return;
     case "set-strategy":
       handleSetStrategy(msg.id, msg.strategy);
+      return;
+    case "load-controller":
+      handleLoadController(msg.id, msg.source);
       return;
   }
 });

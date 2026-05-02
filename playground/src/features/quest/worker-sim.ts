@@ -93,6 +93,22 @@ export class WorkerSim {
     });
   }
 
+  /**
+   * Run player-authored controller code against the worker's sim.
+   *
+   * The source is compiled and executed once with `sim` in scope; any
+   * registered callbacks (e.g. `sim.setStrategyJs(name, rank)`) fire on
+   * subsequent ticks. Throws if the source fails to compile or the
+   * controller throws during execution.
+   */
+  async loadController(source: string): Promise<void> {
+    await this.#request<undefined>({
+      kind: "load-controller",
+      id: this.#takeId(),
+      source,
+    });
+  }
+
   async reset(opts: WorkerSimOptions): Promise<void> {
     await this.#request<undefined>({
       kind: "reset",

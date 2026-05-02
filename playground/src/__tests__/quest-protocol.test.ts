@@ -16,7 +16,7 @@ import {
 // pkg/ bundle which the dev pipeline already covers.
 
 describe("quest: protocol shape", () => {
-  it("HostToWorker covers all five command kinds", () => {
+  it("HostToWorker covers all six command kinds", () => {
     const initPayload: InitPayload = {
       configRon: "",
       strategy: "scan",
@@ -29,6 +29,7 @@ describe("quest: protocol shape", () => {
       { kind: "spawn-rider", id: 3, origin: 0, destination: 2, weight: 75 },
       { kind: "set-strategy", id: 4, strategy: "etd" },
       { kind: "reset", id: 5, payload: initPayload },
+      { kind: "load-controller", id: 6, source: "sim.setStrategy('scan');" },
     ];
     expect(messages.map((m) => m.kind)).toEqual([
       "init",
@@ -36,6 +37,7 @@ describe("quest: protocol shape", () => {
       "spawn-rider",
       "set-strategy",
       "reset",
+      "load-controller",
     ]);
   });
 
@@ -82,6 +84,32 @@ describe("quest: protocol shape", () => {
       wasmBgUrl: "",
     };
     expect(b.reposition).toBe("predictive");
+  });
+
+  it("WorkerSim.loadController posts a load-controller request", () => {
+    // Verify the host-side wrapper produces the right protocol shape.
+    // The mock Worker captures the posted message without spinning up
+    // a real worker.
+    const posted: HostToWorker[] = [];
+    const mock = {
+      addEventListener(_t: string, _f: EventListener) {},
+      removeEventListener(_t: string, _f: EventListener) {},
+      postMessage(msg: HostToWorker) {
+        posted.push(msg);
+      },
+      terminate() {},
+    } as unknown as Worker;
+
+    const sim = new WorkerSim(mock);
+    void sim.loadController("sim.addDestination(0, 2);");
+
+    expect(posted).toHaveLength(1);
+    const msg = posted[0];
+    expect(msg).toBeDefined();
+    expect(msg.kind).toBe("load-controller");
+    if (msg.kind === "load-controller") {
+      expect(msg.source).toContain("addDestination");
+    }
   });
 
   it("public surface re-exports WorkerSim and createWorkerSim", () => {
