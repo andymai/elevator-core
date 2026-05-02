@@ -11,6 +11,7 @@
  */
 declare const self: DedicatedWorkerGlobalScope;
 
+import type { EventDto, MetricsDto, Snapshot } from "../../types";
 import type { HostToWorker, InitPayload, TickResultPayload, WorkerToHost } from "./protocol";
 
 interface WasmModule {
@@ -32,9 +33,9 @@ interface WasmSimInstance {
     weight: number,
     patienceTicks?: number,
   ): { kind: "ok"; value: bigint } | { kind: "err"; error: string };
-  snapshot(): TickResultPayload["snapshot"];
-  drainEvents(): TickResultPayload["events"][number][];
-  metrics(): TickResultPayload["metrics"];
+  snapshot(): Snapshot;
+  drainEvents(): EventDto[];
+  metrics(): MetricsDto;
   free(): void;
 }
 
@@ -75,19 +76,20 @@ async function handleInit(id: number, payload: InitPayload): Promise<void> {
   }
 }
 
-function handleTick(id: number, ticks: number): void {
+function handleTick(id: number, ticks: number, wantVisuals: boolean): void {
   if (!sim) {
     post({ kind: "error", id, message: "tick before init" });
     return;
   }
   try {
     sim.stepMany(ticks);
-    const result: TickResultPayload = {
-      snapshot: sim.snapshot(),
-      tick: Number(sim.currentTick()),
-      events: sim.drainEvents(),
-      metrics: sim.metrics(),
-    };
+    const tick = Number(sim.currentTick());
+    const metrics = sim.metrics();
+    // exactOptionalPropertyTypes rejects an explicit `undefined` on
+    // optional fields, so build the result with two literal shapes.
+    const result: TickResultPayload = wantVisuals
+      ? { tick, metrics, snapshot: sim.snapshot(), events: sim.drainEvents() }
+      : { tick, metrics };
     post({ kind: "tick-result", id, result });
   } catch (err) {
     post({ kind: "error", id, message: errorMessage(err) });
@@ -281,7 +283,7 @@ self.addEventListener("message", (event: MessageEvent<HostToWorker>) => {
       void handleInit(msg.id, msg.payload);
       return;
     case "tick":
-      handleTick(msg.id, msg.ticks);
+      handleTick(msg.id, msg.ticks, msg.wantVisuals === true);
       return;
     case "spawn-rider":
       handleSpawnRider(msg.id, msg.origin, msg.destination, msg.weight, msg.patienceTicks);
