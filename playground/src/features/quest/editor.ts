@@ -101,13 +101,76 @@ async function configureWorkerEnvironment(): Promise<void> {
   };
 }
 
+/**
+ * Define a Monaco theme keyed off the playground's warm-dark palette
+ * so the editor sits inside a container styled with `--bg-*` /
+ * `--text-*` without standing out as a cooler-toned rectangle.
+ *
+ * Colour values are pinned literals (Monaco's theme API doesn't
+ * resolve CSS custom properties), kept in sync with `:root` in
+ * `style.css`. The base `vs-dark` is inherited so token-level syntax
+ * highlighting comes along for free; only chrome (background, line
+ * numbers, selection, cursor, scrollbar) gets retinted.
+ *
+ * Idempotent — Monaco lets `defineTheme` re-register the same name.
+ * Called from `mountQuestEditor` after `loadMonaco`, so multiple
+ * mounts on the same page redefine without harm.
+ */
+function registerWarmDarkTheme(monaco: typeof Monaco): void {
+  monaco.editor.defineTheme("quest-warm-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#0f0f12", // --bg-primary
+      "editor.foreground": "#fafafa", // --text-primary
+      "editorLineNumber.foreground": "#6b6b75", // --text-disabled
+      "editorLineNumber.activeForeground": "#a1a1aa", // --text-secondary
+      "editor.lineHighlightBackground": "#1a1a1f", // --bg-secondary
+      "editor.lineHighlightBorder": "#1a1a1f00",
+      "editor.selectionBackground": "#323240", // --bg-active
+      "editor.inactiveSelectionBackground": "#252530", // --bg-elevated
+      "editor.selectionHighlightBackground": "#2a2a35", // --bg-hover
+      "editorCursor.foreground": "#f59e0b", // --accent
+      "editorWhitespace.foreground": "#3a3a45", // --border-default
+      "editorIndentGuide.background1": "#2a2a35", // --border-subtle
+      "editorIndentGuide.activeBackground1": "#3a3a45", // --border-default
+      "editor.findMatchBackground": "#fbbf2440", // --accent-up + alpha
+      "editor.findMatchHighlightBackground": "#fbbf2420",
+      "editorBracketMatch.background": "#3a3a4580",
+      "editorBracketMatch.border": "#f59e0b80",
+      "editorOverviewRuler.border": "#2a2a35",
+      "scrollbar.shadow": "#00000000",
+      "scrollbarSlider.background": "#3a3a4540",
+      "scrollbarSlider.hoverBackground": "#3a3a4580",
+      "scrollbarSlider.activeBackground": "#3a3a45c0",
+      "editorWidget.background": "#1a1a1f", // --bg-secondary
+      "editorWidget.border": "#3a3a45", // --border-default
+      "editorSuggestWidget.background": "#1a1a1f",
+      "editorSuggestWidget.border": "#3a3a45",
+      "editorSuggestWidget.foreground": "#fafafa",
+      "editorSuggestWidget.selectedBackground": "#323240",
+      "editorSuggestWidget.highlightForeground": "#f59e0b",
+      // Monaco draws the matched-prefix highlight in two states:
+      // `highlightForeground` for unfocused rows, and a separate
+      // `focusHighlightForeground` for the active row. Without the
+      // focused variant, the focused row falls back to vs-dark's
+      // cool-blue and breaks the warm-accent guarantee.
+      "editorSuggestWidget.focusHighlightForeground": "#fbbf24", // --accent-up
+      "editorHoverWidget.background": "#1a1a1f",
+      "editorHoverWidget.border": "#3a3a45",
+    },
+  });
+}
+
 /** Mount a Monaco editor in the supplied container. */
 export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestEditor> {
   const monaco = await loadMonaco();
+  registerWarmDarkTheme(monaco);
   const editor = monaco.editor.create(opts.container, {
     value: opts.initialValue,
     language: opts.language ?? "typescript",
-    theme: "vs-dark",
+    theme: "quest-warm-dark",
     readOnly: opts.readOnly ?? false,
     automaticLayout: true,
     minimap: { enabled: false },
