@@ -60,7 +60,10 @@ export function renderHints(handles: HintsDrawerHandles, stage: Stage): void {
   if (total > 1) {
     const more = document.createElement("button");
     more.type = "button";
-    more.className = `${MORE_BTN_CLASS} mt-1.5 ml-5 self-start text-[11.5px] tracking-[0.01em] text-content-tertiary hover:text-content underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0`;
+    // `<details>` is block-display, so a flex/grid `align-self`
+    // utility would be a no-op here — `ml-5` lines the button up
+    // with the list-decimal indent on its own.
+    more.className = `${MORE_BTN_CLASS} mt-1.5 ml-5 text-[11.5px] tracking-[0.01em] text-content-tertiary hover:text-content underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0`;
     more.textContent = `Show ${total - 1} more`;
     more.addEventListener("click", () => {
       for (const item of handles.list.querySelectorAll<HTMLLIElement>("li[hidden]")) {
