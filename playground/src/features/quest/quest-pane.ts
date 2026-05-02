@@ -106,16 +106,28 @@ function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string
  * each click so a navigation between Run presses pulls the new
  * stage cleanly.
  */
+/**
+ * Shared mutable flag scoped to `bootQuestPane`. Lets the stage-change
+ * handler signal an active run's rAF loop to stop drawing — without
+ * it, the loop's closure-local flag stays `true` after navigation and
+ * keeps painting the previous stage's snapshot through the (transparent)
+ * idle overlay.
+ */
+interface RunLoop {
+  active: boolean;
+}
+
 function attachRunButton(
   handles: QuestPaneHandles,
   modal: ResultsModalHandles,
   editor: QuestEditor,
   renderer: CanvasRenderer,
+  runLoop: RunLoop,
   getStage: () => Stage,
   onGraded: (stage: Stage, result: StageResult) => void,
 ): void {
   const runOnce = (): void => {
-    void executeRun(handles, modal, editor, renderer, getStage(), runOnce, onGraded);
+    void executeRun(handles, modal, editor, renderer, runLoop, getStage(), runOnce, onGraded);
   };
   handles.runBtn.addEventListener("click", runOnce);
 }
@@ -125,6 +137,7 @@ async function executeRun(
   modal: ResultsModalHandles,
   editor: QuestEditor,
   renderer: CanvasRenderer,
+  runLoop: RunLoop,
   stage: Stage,
   retry: () => void,
   onGraded: (stage: Stage, result: StageResult) => void,
@@ -140,15 +153,15 @@ async function executeRun(
   // would stutter at the worker's batch cadence rather than
   // animating smoothly.
   //
-  // `loopActive` gates the recursive `requestAnimationFrame` instead
-  // of tracking a `rafId` we'd then have to cancel — at most one
-  // extra frame fires after the run ends, vs the bookkeeping the
-  // alternative would need across the closure boundary.
+  // `runLoop.active` lives at `bootQuestPane` scope — that lets the
+  // stage-change handler flip it on navigation, stopping draws so
+  // the next stage's idle overlay isn't painted over by the
+  // outgoing run's last snapshot.
   let latestSnap: Snapshot | null = null;
   let snapshotsRendered = 0;
-  let loopActive = true;
+  runLoop.active = true;
   const renderTick = (): void => {
-    if (!loopActive) return;
+    if (!runLoop.active) return;
     if (latestSnap !== null) {
       renderer.draw(latestSnap, 1);
     }
@@ -220,7 +233,10 @@ async function executeRun(
     handles.runBtn.disabled = false;
     // Stop the rAF loop. The canvas keeps its last drawn frame so
     // the player can study the final state — we don't clear it.
-    loopActive = false;
+    // The stage-change handler may have already flipped this off
+    // (in which case the loop is already idle); writing it again
+    // here is harmless either way.
+    runLoop.active = false;
     // Bring the idle overlay back only if no snapshot ever rendered
     // (e.g. the controller threw before the first batch resolved).
     // Once a snapshot has rendered, leaving the canvas exposed is
@@ -270,7 +286,16 @@ export async function bootQuestPane(opts: {
   // language across modes. Tether scenarios don't apply in Quest
   // (the curriculum is all building configs), so we leave the
   // tether-config null.
+  // `bootQuestPane` is mounted exactly once per page (the mode toggle
+  // hard-reloads on swap), so the renderer's resize listener lives
+  // for the page lifetime — `dispose()` is intentionally never called
+  // since there's no remount path that would benefit.
   const shaftRenderer = new CanvasRenderer(handles.shaft, QUEST_SHAFT_ACCENT);
+  // Shared rAF-loop control. Hoisted to this scope so the stage-change
+  // handler can flip `active` to false on navigation; without it, the
+  // outgoing run's loop keeps drawing through the (transparent) idle
+  // overlay on the next stage.
+  const runLoop: RunLoop = { active: false };
 
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
@@ -291,6 +316,7 @@ export async function bootQuestPane(opts: {
     modal,
     editor,
     shaftRenderer,
+    runLoop,
     () => activeStage,
     (stage, result) => {
       // Persist a new high score and refresh the picker labels so the
@@ -382,6 +408,11 @@ export async function bootQuestPane(opts: {
     // changed. Without this clear, the last "Tick X · N delivered"
     // readout from the orphaned run sticks on the new stage's UI.
     handles.progress.textContent = "";
+    // Stop any in-flight rAF loop before clearing the canvas. Without
+    // this the outgoing run's loop would keep drawing through the
+    // transparent idle overlay on every animation frame, painting
+    // the previous stage's cars over the next stage's idle prompt.
+    runLoop.active = false;
     // Restore the idle overlay and clear any frozen frame from the
     // previous stage's run — the next stage gets a fresh canvas so
     // the player isn't looking at stale cars from a different
