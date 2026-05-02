@@ -111,7 +111,7 @@ export const API_REFERENCE: readonly ApiEntry[] = [
   },
   {
     name: "addStopToLine",
-    signature: "addStopToLine(lineRef, stopRef): void",
+    signature: "addStopToLine(stopRef, lineRef): void",
     description: "Register a stop on a line so dispatch routes to it.",
   },
   {

@@ -172,26 +172,34 @@ function lockdownWorkerGlobals(): void {
   // so we don't pollute every plain object in the worker. In
   // practice the banned names are own properties of either
   // `WorkerGlobalScope.prototype` or its dedicated subclass.
-  const instance = self as unknown as Record<string, unknown>;
-  for (const name of banned) {
-    try {
-      instance[name] = undefined;
-    } catch {
-      /* non-writable on the instance — best-effort */
-    }
-  }
+  //
+  // `Object.defineProperty` instead of plain assignment because some
+  // platforms expose the banned names as getter-only accessors —
+  // `bag.fetch = undefined` throws TypeError in strict mode for those,
+  // even when the descriptor is `configurable: true`. defineProperty
+  // replaces the accessor with a data property cleanly.
+  silence(self as unknown as Record<string, unknown>, banned);
   let level: unknown = Object.getPrototypeOf(self);
   while (level !== null && level !== Object.prototype) {
     const bag = level as Record<string, unknown>;
-    for (const name of banned) {
-      if (!Object.prototype.hasOwnProperty.call(bag, name)) continue;
-      try {
-        bag[name] = undefined;
-      } catch {
-        /* non-writable / non-configurable — best-effort */
-      }
-    }
+    silence(bag, banned, /* ownOnly */ true);
     level = Object.getPrototypeOf(level);
+  }
+}
+
+function silence(bag: Record<string, unknown>, names: readonly string[], ownOnly = false): void {
+  for (const name of names) {
+    if (ownOnly && !Object.prototype.hasOwnProperty.call(bag, name)) continue;
+    try {
+      Object.defineProperty(bag, name, {
+        value: undefined,
+        writable: true,
+        configurable: true,
+        enumerable: false,
+      });
+    } catch {
+      /* non-configurable property — best-effort */
+    }
   }
 }
 

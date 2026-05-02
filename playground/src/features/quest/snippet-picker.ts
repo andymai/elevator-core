@@ -40,7 +40,7 @@ const SNIPPETS: Record<string, string> = {
   transferPoints: "const transfers = sim.transferPoints();",
   reachableStopsFrom: "const reachable = sim.reachableStopsFrom(0n);",
   addStop: 'const newStop = sim.addStop(/* lineRef */, "F6", 20.0);',
-  addStopToLine: "sim.addStopToLine(/* lineRef */, /* stopRef */);",
+  addStopToLine: "sim.addStopToLine(/* stopRef */, /* lineRef */);",
   assignLineToGroup: "sim.assignLineToGroup(/* lineRef */, /* groupId */ 1);",
   reassignElevatorToLine: "sim.reassignElevatorToLine(0n, /* lineRef */);",
 };
