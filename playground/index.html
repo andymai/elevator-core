@@ -13,8 +13,8 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-exWsgqAS.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CIuTG2Kg.css">
+    <script type="module" crossorigin src="./assets/index-15qQuKKZ.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DZ9990y4.css">
   </head>
   <body>
     <header
@@ -531,6 +531,52 @@
         </div>
       </div>
     </div>
+
+    <section
+      id="quest-pane"
+      class="hidden flex-col gap-4 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))]"
+      aria-label="Quest mode"
+    >
+      <header class="flex flex-col gap-1.5">
+        <div class="flex items-baseline gap-2 flex-wrap">
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
+            >Quest</span
+          >
+          <h1 id="quest-stage-title" class="text-content text-base font-semibold m-0">Loading…</h1>
+          <label
+            class="ml-auto inline-flex items-center gap-1.5 text-[11.5px] text-content-tertiary"
+          >
+            Stage
+            <select
+              id="quest-stage-select"
+              class="bg-surface-elevated border border-stroke-subtle rounded-sm px-1.5 py-0.5 text-[12px] text-content cursor-pointer focus-visible:outline-none focus-visible:border-accent"
+              aria-label="Choose a quest stage"
+            ></select>
+          </label>
+        </div>
+        <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
+      </header>
+      <div
+        id="quest-editor"
+        class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
+        aria-label="Quest controller editor"
+      ></div>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          id="quest-run"
+          class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Run
+        </button>
+        <span
+          id="quest-result"
+          class="text-content-secondary text-[12.5px] tracking-[0.01em]"
+          aria-live="polite"
+        ></span>
+      </div>
+    </section>
 
     <div
       id="loader"
