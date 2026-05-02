@@ -1,4 +1,5 @@
 import { reconcileStrategyWithScenario } from "../features/scenario-picker";
+import { bootQuestPane } from "../features/quest";
 import {
   DEFAULT_STATE,
   compactOverrides,
@@ -87,4 +88,10 @@ export async function boot(): Promise<void> {
   await resetAll(state, ui);
   state.ready = true;
   loop(state, ui);
+  // Quest mode swaps the compare layout for the curriculum banner.
+  // The handle is held only for future re-renders; nothing in this
+  // PR drives stage navigation yet, so we drop it after mount.
+  if (state.permalink.mode === "quest") {
+    bootQuestPane();
+  }
 }

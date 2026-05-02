@@ -531,6 +531,32 @@
       </div>
     </div>
 
+    <section
+      id="quest-pane"
+      class="hidden flex-col gap-4 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))]"
+      aria-label="Quest mode"
+    >
+      <header class="flex flex-col gap-1.5">
+        <div class="flex items-baseline gap-2">
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
+            >Quest</span
+          >
+          <h1 id="quest-stage-title" class="text-content text-base font-semibold m-0">Loading…</h1>
+        </div>
+        <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
+      </header>
+      <pre
+        id="quest-starter-code"
+        class="m-0 px-3 py-3 bg-surface-elevated border border-stroke-subtle rounded-md text-[12.5px] leading-snug font-mono whitespace-pre overflow-x-auto"
+      ></pre>
+      <p class="text-content-tertiary text-[11px] m-0">
+        The editor and run button mount here in the next iteration. For now this banner is the proof
+        that <code class="font-mono">?m=quest</code> is wired through the permalink and the stage
+        registry.
+      </p>
+    </section>
+
     <div
       id="loader"
       class="loader show fixed inset-0 grid place-items-center gap-3 bg-[color-mix(in_srgb,var(--bg-primary)_85%,transparent)] backdrop-blur-[2px] z-[60] opacity-0 pointer-events-none transition-opacity duration-slow [&.show]:opacity-100 [&.show]:pointer-events-auto"
