@@ -5,7 +5,18 @@ import type { RepositionStrategyName, StrategyName } from "../../types";
 // URL state encoding. Keeps the sim reproducible: sharing the URL replays
 // exactly what the sender saw. Only knobs that affect behavior go here.
 
+/**
+ * Top-level playground modes. `compare` is the long-standing
+ * side-by-side strategy view; `quest` is the curriculum mode that
+ * lands across the Quest series (Q-04+ wires the editor + worker
+ * integration). Encoded compactly so unused defaults don't bloat the
+ * URL — `compare` is omitted entirely from the query string.
+ */
+export type PlaygroundMode = "compare" | "quest";
+
 export interface PermalinkState {
+  /** Top-level playground mode. */
+  mode: PlaygroundMode;
   scenario: string;
   strategyA: StrategyName;
   strategyB: StrategyName;
@@ -55,6 +66,9 @@ const OVERRIDE_KEYS: Record<ParamKey, string> = {
 };
 
 export const DEFAULT_STATE: PermalinkState = {
+  // Cold-boot mode: compare. The Quest curriculum mode lights up via
+  // an explicit `?m=quest` until its UI shell lands (Q-04+).
+  mode: "compare",
   // First-impression tuning: skyscraper is the visually richest
   // scenario (3 cars, 12 floors, bypass feature firing during morning
   // rush). Unknown scenario ids still resolve through
@@ -135,8 +149,21 @@ export function syncPermalinkUrl(state: PermalinkState): void {
   window.history.replaceState(null, "", qs);
 }
 
+function parseMode(raw: string | null, fallback: PlaygroundMode): PlaygroundMode {
+  // Anything other than the two known modes silently falls back to
+  // the default. Keeps recipients of malformed URLs landing on
+  // something usable rather than throwing.
+  return raw === "compare" || raw === "quest" ? raw : fallback;
+}
+
 export function encodePermalink(state: PermalinkState): string {
   const p = new URLSearchParams();
+  // Only emit `m` when the mode is non-default. Compare-mode URLs
+  // stay short, and the existing share-link reader keeps producing
+  // identical canonical query strings for unchanged state.
+  if (state.mode !== DEFAULT_STATE.mode) {
+    p.set("m", state.mode);
+  }
   p.set("s", state.scenario);
   p.set("a", state.strategyA);
   // Always persist `b` so a shared non-compare URL still remembers the B
@@ -188,6 +215,7 @@ export function decodePermalink(search: string): PermalinkState {
     if (Number.isFinite(n)) overrides[k] = n;
   }
   return {
+    mode: parseMode(p.get("m"), DEFAULT_STATE.mode),
     scenario: p.get("s") ?? DEFAULT_STATE.scenario,
     strategyA: parseStrategy(p.get("a") ?? p.get("d"), DEFAULT_STATE.strategyA),
     strategyB: parseStrategy(p.get("b"), DEFAULT_STATE.strategyB),
