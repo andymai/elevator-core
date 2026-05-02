@@ -254,8 +254,10 @@ export async function bootQuestPane(opts: {
         // even if the score didn't improve, the player may be seeing
         // their first pass on this stage in this session, in which
         // case the panel transitions from hidden to unlocked here.
+        // Pass `collapse: false` so a panel the player already
+        // expanded doesn't snap shut when they hit Run again.
         if (stage.id === activeStage.id) {
-          renderReferencePanel(reference, activeStage);
+          renderReferencePanel(reference, activeStage, { collapse: false });
         }
       }
     },
