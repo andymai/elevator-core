@@ -103,7 +103,9 @@ export function renderStage(handles: QuestPaneHandles, stage: Stage): void {
 /**
  * Toggle which view (grid or stage) is visible. Called from both
  * the boot decision and the back-button / card-click handlers.
- * Idempotent.
+ * Idempotent. The current value is also tracked separately by
+ * `bootQuestPane` so run-completion guards can suppress UI updates
+ * when the player has navigated to the grid mid-run.
  */
 function setView(handles: QuestPaneHandles, view: QuestView): void {
   handles.gridView.classList.toggle("hidden", view !== "grid");
@@ -155,6 +157,14 @@ export async function bootQuestPane(opts: {
   };
 
   let activeStage = resolveStage(opts.initialStageId);
+  /**
+   * Mirror of the visible view. Tracked alongside `activeStage` so
+   * an in-flight run that completes after the player has clicked
+   * "← Stages" can suppress its results modal — `activeStage.id ===
+   * stage.id` alone wouldn't catch this, since `enterGrid` doesn't
+   * change `activeStage`.
+   */
+  let currentView: QuestView = "grid";
   renderStage(handles, activeStage);
 
   // Side panel: list the methods unlocked at the active stage.
@@ -257,6 +267,7 @@ export async function bootQuestPane(opts: {
     handles.progress.textContent = "";
     stopLoopAndResetCanvas();
     setView(handles, "stage");
+    currentView = "stage";
     // Notify boot.ts so the permalink picks up the new stage id.
     // `fromGrid` would skip this when the grid card click path
     // already handled URL sync — but today both paths funnel through
@@ -273,6 +284,7 @@ export async function bootQuestPane(opts: {
     handles.result.textContent = "";
     handles.progress.textContent = "";
     setView(handles, "grid");
+    currentView = "grid";
     // Re-render the grid so star counts reflect any stages the
     // player just passed before backing out.
     renderQuestGrid(grid, (stageId) => {
@@ -290,7 +302,9 @@ export async function bootQuestPane(opts: {
 
   // Cold-boot view: stage if the caller asked for it (typically when
   // a `?qs=` permalink picked a specific stage), else grid.
-  setView(handles, opts.landOn ?? "grid");
+  const initialView = opts.landOn ?? "grid";
+  setView(handles, initialView);
+  currentView = initialView;
 
   // Run button — closure captures `activeStage` so a navigation
   // between presses pulls the new stage cleanly.
@@ -321,11 +335,24 @@ export async function bootQuestPane(opts: {
       // Cap the controller's initial run at one second — long enough
       // for honest setup work, short enough that an infinite loop
       // bubbles up as a timeout.
+      // The "still active" predicate gates every player-facing UI
+      // update from a settling run. Both halves matter:
+      //
+      //   - `currentView === "stage"` — the player navigated to the
+      //     grid mid-run; pinning the modal over the curriculum
+      //     overview would be jarring and wrong.
+      //   - `activeStage.id === stage.id` — the player swapped to a
+      //     different stage; the outgoing run's result belongs to the
+      //     stage they left, not the one they're looking at now.
+      //
+      // Star banking happens unconditionally below — a passed run
+      // earns its stars regardless of where the player ended up.
+      const stillActive = (): boolean => currentView === "stage" && activeStage.id === stage.id;
+
       const result = await runStage(stage, editor.getValue(), {
         timeoutMs: 1000,
         onProgress: (grade) => {
-          // Drop progress updates if the player navigated away mid-run.
-          if (activeStage.id !== stage.id) return;
+          if (!stillActive()) return;
           handles.progress.textContent = formatProgress(grade);
         },
         onSnapshot: (snap) => {
@@ -333,28 +360,25 @@ export async function bootQuestPane(opts: {
           snapshotsRendered += 1;
         },
       });
-      // Always grade — a passed run earns its stars even if the
-      // player navigated to a different stage during the run window.
-      // Persist new high score and refresh the grid + reference
-      // panel.
       if (result.passed) {
         const previous = loadBestStars(stage.id);
         if (result.stars > previous) {
           saveBestStars(stage.id, result.stars);
-          // Re-render the grid (progress meter + per-card stars) and
-          // the stage-view header's star tier. Both are cheap.
+          // Re-render the grid (progress meter + per-card stars) so
+          // that backing out to it later reflects the new score —
+          // even if the player has already navigated away.
           renderQuestGrid(grid, (stageId) => {
             enterStage(resolveStage(stageId), { fromGrid: true });
           });
-          if (activeStage.id === stage.id) renderStage(handles, activeStage);
+          if (stillActive()) renderStage(handles, activeStage);
         }
-        if (activeStage.id === stage.id) {
+        if (stillActive()) {
           // Pass `collapse: false` so a panel the player already
           // expanded doesn't snap shut on a re-grade.
           renderReferencePanel(reference, activeStage, { collapse: false });
         }
       }
-      if (activeStage.id === stage.id) {
+      if (stillActive()) {
         handles.result.textContent = "";
         handles.progress.textContent = "";
         const next = result.passed ? nextStage(stage.id) : undefined;
@@ -366,7 +390,7 @@ export async function bootQuestPane(opts: {
         showResults(modal, result, () => void runOnce(), stage.failHint, onNext);
       }
     } catch (err) {
-      if (activeStage.id === stage.id) {
+      if (currentView === "stage" && activeStage.id === stage.id) {
         const msg = err instanceof Error ? err.message : String(err);
         // Errors stay inline — the modal is for graded outcomes.
         handles.result.textContent = `Error: ${msg}`;
