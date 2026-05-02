@@ -83,12 +83,11 @@ export async function runStage(
   try {
     // Forward the stage's unlocked API list so the worker's sim
     // proxy throws on calls outside the curriculum's current step.
-    // The mutable copy is necessary because `Stage.unlockedApi` is
-    // `readonly` and the protocol's field is also readonly — the
-    // worker doesn't mutate it.
-    const unlockedApi = stage.unlockedApi;
+    // `Stage.unlockedApi` is `readonly` and the protocol's field
+    // is also readonly — the reference passes straight through
+    // structured-clone, no copy involved.
     const loadOptions: { timeoutMs?: number; unlockedApi: readonly string[] } = {
-      unlockedApi,
+      unlockedApi: stage.unlockedApi,
     };
     if (opts.timeoutMs !== undefined) loadOptions.timeoutMs = opts.timeoutMs;
     await sim.loadController(source, loadOptions);
