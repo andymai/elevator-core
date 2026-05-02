@@ -17,7 +17,30 @@ describe("permalink: core knobs", () => {
     expect(decoded.scenario).toBe(DEFAULT_STATE.scenario);
     expect(decoded.strategyA).toBe(DEFAULT_STATE.strategyA);
     expect(decoded.compare).toBe(DEFAULT_STATE.compare);
+    expect(decoded.mode).toBe(DEFAULT_STATE.mode);
     expect(decoded.overrides).toEqual({});
+  });
+
+  it("omits `m` from the URL when mode is the default (compare)", () => {
+    // Cold-boot URLs stay short — only Quest mode's explicit opt-in
+    // emits the key.
+    const qs = encodePermalink(DEFAULT_STATE);
+    expect(qs).not.toMatch(/(^|&|\?)m=/);
+  });
+
+  it("emits and round-trips mode=quest", () => {
+    const qs = encodePermalink({ ...DEFAULT_STATE, mode: "quest" });
+    expect(qs).toMatch(/(^|&|\?)m=quest(&|$)/);
+    const decoded = decodePermalink(qs);
+    expect(decoded.mode).toBe("quest");
+  });
+
+  it("falls back to default mode for unrecognised values", () => {
+    // Stale or hand-edited URLs with unknown modes shouldn't crash —
+    // they land on the default. Compare-mode URLs that recipients
+    // tweak by accident keep working.
+    expect(decodePermalink("?m=blah").mode).toBe(DEFAULT_STATE.mode);
+    expect(decodePermalink("?m=").mode).toBe(DEFAULT_STATE.mode);
   });
 
   it("honors an explicit c=0 over the default", () => {
