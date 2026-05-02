@@ -294,6 +294,12 @@ export async function bootQuestPane(opts: {
     renderSnippets(snippets, next, editor);
     setEditorSilently(loadCode(next.id) ?? next.starterCode);
     handles.result.textContent = "";
+    // If a run is in flight, its `onProgress` and the success / error
+    // cleanup paths all gate on `select.value === stage.id` — none of
+    // them will fire for the outgoing stage now that the value has
+    // changed. Without this clear, the last "Tick X · N delivered"
+    // readout from the orphaned run sticks on the new stage's UI.
+    handles.progress.textContent = "";
     opts.onStageChange?.(next.id);
   });
 
