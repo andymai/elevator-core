@@ -81,24 +81,6 @@ function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string
 }
 
 /**
- * Show / hide the Quest pane only — the compare-mode chrome (layout,
- * scenario picker, controls bar, cabin legend) is owned by
- * `applyPlaygroundMode` in `mode-toggle.ts`, which boot calls before
- * first paint. These helpers stay around so callers that want to flip
- * the Quest pane independently still can, but the cross-mode chrome
- * concerns live in one place.
- */
-export function showQuestPane(handles: QuestPaneHandles): void {
-  handles.root.classList.remove("hidden");
-  handles.root.classList.add("flex");
-}
-
-export function hideQuestPane(handles: QuestPaneHandles): void {
-  handles.root.classList.add("hidden");
-  handles.root.classList.remove("flex");
-}
-
-/**
  * Wire the Run button to execute the editor's current text against
  * the active stage. The stage is read via the supplied getter on
  * each click so a navigation between Run presses pulls the new
@@ -178,7 +160,6 @@ export async function bootQuestPane(opts: {
 
   let activeStage = resolveStage(opts.initialStageId);
   renderStage(handles, activeStage);
-  showQuestPane(handles);
 
   // Side panel: list the methods unlocked at the active stage.
   // Re-renders on stage change so the player always sees what

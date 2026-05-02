@@ -31,26 +31,24 @@
 
         <div
           id="mode-toggle"
-          role="tablist"
+          role="group"
           aria-label="Playground mode"
           class="md:order-1 inline-flex items-center gap-0 rounded-md bg-surface-secondary border border-stroke-subtle p-0.5 shrink-0"
         >
           <button
             type="button"
-            role="tab"
             data-mode="compare"
             data-active="true"
-            aria-selected="true"
+            aria-pressed="true"
             class="px-2.5 py-1 rounded-sm bg-transparent border-0 text-[11.5px] font-semibold tracking-[0.02em] cursor-pointer transition-colors duration-fast text-content-tertiary hover:text-content data-[active=true]:text-content data-[active=true]:bg-surface-elevated focus-visible:outline-none focus-visible:text-content"
           >
             Compare
           </button>
           <button
             type="button"
-            role="tab"
             data-mode="quest"
             data-active="false"
-            aria-selected="false"
+            aria-pressed="false"
             class="px-2.5 py-1 rounded-sm bg-transparent border-0 text-[11.5px] font-semibold tracking-[0.02em] cursor-pointer transition-colors duration-fast text-content-tertiary hover:text-content data-[active=true]:text-content data-[active=true]:bg-surface-elevated focus-visible:outline-none focus-visible:text-content"
           >
             Quest

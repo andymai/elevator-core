@@ -51,9 +51,13 @@ export function applyPlaygroundMode(mode: PlaygroundMode): void {
  *
  * Reflects the active mode via `data-active` (Tailwind's
  * `data-[active=true]:*` variants render the pressed chip) and
- * `aria-selected`. Clicks rewrite the URL to swap modes and reload —
- * the new mode flows through `boot()` cleanly, including Monaco's
- * lazy-load on first Quest entry.
+ * `aria-pressed`. The toggle is a `role="group"` of plain buttons
+ * rather than a `role="tablist"` because activation navigates (a
+ * full reload) instead of swapping panels in the same view — plain
+ * Tab/Shift+Tab is the right keyboard model, no roving tabindex /
+ * arrow-key contract to honor. Clicks rewrite the URL to swap modes
+ * and reload; the new mode flows through `boot()` cleanly, including
+ * Monaco's lazy-load on first Quest entry.
  */
 export function wireModeToggle(currentMode: PlaygroundMode): void {
   const root = document.getElementById("mode-toggle");
@@ -62,7 +66,7 @@ export function wireModeToggle(currentMode: PlaygroundMode): void {
   for (const btn of buttons) {
     const isActive = btn.dataset["mode"] === currentMode;
     btn.dataset["active"] = String(isActive);
-    btn.setAttribute("aria-selected", String(isActive));
+    btn.setAttribute("aria-pressed", String(isActive));
   }
   root.addEventListener("click", (ev) => {
     const target = ev.target;
