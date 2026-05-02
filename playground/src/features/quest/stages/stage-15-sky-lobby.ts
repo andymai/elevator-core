@@ -78,6 +78,7 @@ export const STAGE_15_SKY_LOBBY: Stage = {
   id: "sky-lobby",
   title: "Sky Lobby",
   brief: "Three cars, two zones, one sky lobby. Split duty for sub-22s.",
+  section: "topology",
   configRon: STAGE_15_RON,
   unlockedApi: ["setStrategy", "assignLineToGroup", "reassignElevatorToLine"],
   baseline: "etd",

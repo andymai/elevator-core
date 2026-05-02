@@ -62,6 +62,7 @@ export const STAGE_10_HOLD_DOORS: Stage = {
   id: "hold-doors",
   title: "Patient Boarding",
   brief: "Tight door cycle. Hold the doors so slow riders make it in.",
+  section: "events-manual",
   configRon: STAGE_10_RON,
   unlockedApi: ["setStrategy", "drainEvents", "holdDoor", "cancelDoorHold"],
   baseline: "none",

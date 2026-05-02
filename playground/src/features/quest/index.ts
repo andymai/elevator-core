@@ -9,10 +9,12 @@ export {
   type GradeInputs,
   type PassFn,
   type Stage,
+  type StageSection,
   type StarCount,
   type StarFn,
   type UnlockedApi,
 } from "./stages";
+export { renderQuestGrid, wireQuestGrid, type QuestGridHandles } from "./quest-grid";
 export { runStage, type StageResult, type RunStageOptions } from "./stage-runner";
 export { formatProgress } from "./stage-progress";
 export { bootQuestPane, renderStage, wireQuestPane, type QuestPaneHandles } from "./quest-pane";

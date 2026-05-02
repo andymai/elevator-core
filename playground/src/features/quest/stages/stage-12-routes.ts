@@ -65,6 +65,7 @@ export const STAGE_12_ROUTES: Stage = {
   id: "routes",
   title: "Routes & Reroutes",
   brief: "Explicit per-rider routes. Read them; understand them.",
+  section: "topology",
   configRon: STAGE_12_RON,
   unlockedApi: ["setStrategy", "shortestRoute", "reroute"],
   baseline: "scan",
