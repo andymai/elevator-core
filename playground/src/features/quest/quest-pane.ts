@@ -13,6 +13,7 @@
  */
 
 import { mountQuestEditor, type QuestEditor } from "./editor";
+import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { runStage } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
 import type { Stage } from "./stages";
@@ -109,18 +110,22 @@ export function hideQuestPane(handles: QuestPaneHandles): void {
  */
 function attachRunButton(
   handles: QuestPaneHandles,
+  modal: ResultsModalHandles,
   editor: QuestEditor,
   getStage: () => Stage,
 ): void {
-  handles.runBtn.addEventListener("click", () => {
-    void executeRun(handles, editor, getStage());
-  });
+  const runOnce = (): void => {
+    void executeRun(handles, modal, editor, getStage(), runOnce);
+  };
+  handles.runBtn.addEventListener("click", runOnce);
 }
 
 async function executeRun(
   handles: QuestPaneHandles,
+  modal: ResultsModalHandles,
   editor: QuestEditor,
   stage: Stage,
+  retry: () => void,
 ): Promise<void> {
   handles.runBtn.disabled = true;
   handles.result.textContent = "Running…";
@@ -129,14 +134,13 @@ async function executeRun(
     // for honest setup work, short enough that an infinite loop
     // bubbles up as a timeout instead of blocking indefinitely.
     const result = await runStage(stage, editor.getValue(), { timeoutMs: 1000 });
-    if (result.passed) {
-      const stars = "★".repeat(result.stars) + "☆".repeat(3 - result.stars);
-      handles.result.textContent = `Passed — ${stars} (${result.grade.delivered} delivered, tick ${result.grade.endTick})`;
-    } else {
-      handles.result.textContent = `Did not pass — ${result.grade.delivered} delivered, ${result.grade.abandoned} abandoned`;
-    }
+    handles.result.textContent = "";
+    showResults(modal, result, retry);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Errors stay inline — the modal is for graded outcomes.
+    // A controller throw is a code bug the player needs to see in
+    // place, not a result to celebrate or retry.
     handles.result.textContent = `Error: ${msg}`;
   } finally {
     handles.runBtn.disabled = false;
@@ -179,7 +183,8 @@ export async function bootQuestPane(opts: {
   });
   handles.runBtn.disabled = false;
   handles.result.textContent = "";
-  attachRunButton(handles, editor, () => activeStage);
+  const modal = wireResultsModal();
+  attachRunButton(handles, modal, editor, () => activeStage);
 
   // Stage navigator: rewrite the editor's contents to the new
   // stage's starter and clear the result panel. A user mid-edit
