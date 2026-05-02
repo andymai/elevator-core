@@ -101,12 +101,6 @@ function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string
 }
 
 /**
- * Wire the Run button to execute the editor's current text against
- * the active stage. The stage is read via the supplied getter on
- * each click so a navigation between Run presses pulls the new
- * stage cleanly.
- */
-/**
  * Shared mutable flag scoped to `bootQuestPane`. Lets the stage-change
  * handler signal an active run's rAF loop to stop drawing — without
  * it, the loop's closure-local flag stays `true` after navigation and
@@ -117,6 +111,12 @@ interface RunLoop {
   active: boolean;
 }
 
+/**
+ * Wire the Run button to execute the editor's current text against
+ * the active stage. The stage is read via the supplied getter on
+ * each click so a navigation between Run presses pulls the new
+ * stage cleanly.
+ */
 function attachRunButton(
   handles: QuestPaneHandles,
   modal: ResultsModalHandles,
@@ -240,8 +240,13 @@ async function executeRun(
     // Bring the idle overlay back only if no snapshot ever rendered
     // (e.g. the controller threw before the first batch resolved).
     // Once a snapshot has rendered, leaving the canvas exposed is
-    // the more useful state.
+    // the more useful state. Clear the canvas in the no-snapshot
+    // branch — a previous run's last frame would otherwise show
+    // through the (transparent) idle overlay and contradict the
+    // "Click Run" prompt the player just got back.
     if (snapshotsRendered === 0) {
+      const ctx = handles.shaft.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, handles.shaft.width, handles.shaft.height);
       handles.shaftIdle.hidden = false;
     }
   }
