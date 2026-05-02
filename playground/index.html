@@ -13,8 +13,8 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-BW39eeZd.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DnZW9mHw.css">
+    <script type="module" crossorigin src="./assets/index-PoEV40WD.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BsbsDGkB.css">
   </head>
   <body>
     <header
@@ -581,6 +581,23 @@
         class="flex flex-col gap-1 px-3 py-2.5 bg-surface-secondary border border-stroke-subtle rounded-md"
         aria-label="Unlocked API reference"
       ></aside>
+      <details
+        id="quest-hints"
+        class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
+      >
+        <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
+          <span class="text-[10.5px] uppercase tracking-[0.08em] text-content-tertiary font-medium"
+            >Hints</span
+          >
+          <span id="quest-hints-count" class="text-content-tertiary"></span>
+          <span
+            class="ml-auto text-content-tertiary text-[11px] transition-transform"
+            aria-hidden="true"
+            >▸</span
+          >
+        </summary>
+        <ol id="quest-hints-list" class="list-decimal m-0 mt-1.5 pl-5 flex flex-col gap-1.5"></ol>
+      </details>
     </section>
 
     <div
