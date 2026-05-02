@@ -244,6 +244,14 @@ export class WorkerSim {
       case "error":
         resolver.reject(new Error(msg.message));
         return;
+      default: {
+        // An unknown `kind` from a future worker version would silently
+        // leave the host promise unresolved — reject loudly instead so
+        // the caller surfaces a debuggable error.
+        const kind = (msg as { kind?: unknown }).kind;
+        resolver.reject(new Error(`WorkerSim: unknown reply kind "${String(kind)}"`));
+        return;
+      }
     }
   };
 }
