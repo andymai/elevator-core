@@ -26,6 +26,7 @@ use slotmap::Key;
 use wasm_bindgen::prelude::*;
 
 mod dto;
+mod js_dispatch;
 mod result;
 mod world_view;
 
@@ -432,6 +433,34 @@ impl WasmSim {
         }
         self.strategy_name = name.to_string();
         true
+    }
+
+    /// Install a JS function as the dispatch strategy for every group.
+    ///
+    /// `callback` is invoked once per `(car, stop)` pair the dispatch
+    /// system considers, receiving a `JsRankContext` and returning a
+    /// score (lower is better) or `null`/`undefined` to mark the pair
+    /// unavailable. Non-finite or negative numbers are also treated as
+    /// `null` so a buggy callback degrades to "this pair is excluded"
+    /// rather than destabilizing the underlying assignment solver.
+    ///
+    /// `name` becomes the strategy's `BuiltinStrategy::Custom(name)`
+    /// identity for snapshot round-trips and is reflected in
+    /// [`strategy_name`](Self::strategy_name) as `custom:<name>`.
+    /// Re-installs are allowed; the previous callback is dropped.
+    ///
+    /// Designed for the Quest curriculum's `setStrategyJs` unlock: it
+    /// lets a player author `rank()` directly in JavaScript and have
+    /// elevator-core treat their code exactly like a built-in strategy.
+    #[wasm_bindgen(js_name = setStrategyJs)]
+    pub fn set_strategy_js(&mut self, name: String, callback: js_sys::Function) {
+        let id = BuiltinStrategy::Custom(name.clone());
+        let group_ids: Vec<_> = self.inner.dispatchers().keys().copied().collect();
+        for gid in group_ids {
+            let strategy = js_dispatch::JsDispatchStrategy::new(name.clone(), callback.clone());
+            self.inner.set_dispatch(gid, Box::new(strategy), id.clone());
+        }
+        self.strategy_name = format!("custom:{name}");
     }
 
     /// Spawn a single rider between two stop ids at the given weight.
