@@ -95,6 +95,19 @@ describe("quest: storage", () => {
     expect(loadCode("ok")).toBe(big);
   });
 
+  it("loadCode evicts and returns null on an oversized stored entry", () => {
+    // Plant an entry that bypasses saveCode's cap (e.g. another tab,
+    // a manual devtools poke, or a future cap change). loadCode must
+    // not return it — the editor would load a value that subsequent
+    // saves silently refuse.
+    // 50_001 chars — one over the storage module's MAX_CODE_LENGTH.
+    const huge = "z".repeat(50_001);
+    mem.setItem(`${KEY_PREFIX}poke`, huge);
+    expect(loadCode("poke")).toBeNull();
+    // Eviction is implicit: the stale entry should be gone.
+    expect(mem.getItem(`${KEY_PREFIX}poke`)).toBeNull();
+  });
+
   it("saveCode swallows setItem errors (private mode / quota)", () => {
     const setSpy = vi.spyOn(mem, "setItem").mockImplementation(() => {
       throw new Error("QuotaExceededError");

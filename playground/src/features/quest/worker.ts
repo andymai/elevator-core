@@ -144,17 +144,18 @@ function handleSetStrategy(id: number, strategy: string): void {
  * script. wasm is already loaded by the time we get here — none of
  * these are needed for sim operations afterwards.
  *
- * We override on both the instance (`self`) and the prototype
- * (`WorkerGlobalScope.prototype`). Without the prototype hop a hostile
- * controller could sidestep the instance shadowing via
- * `Object.getPrototypeOf(self).fetch.call(self, ...)`. Idempotent
- * across calls because subsequent overrides set the same `undefined`.
+ * We override on `self` *and on every prototype up the chain*. The
+ * banned globals (`fetch`, `WebSocket`, etc.) live on
+ * `WorkerGlobalScope.prototype`, which is two hops above
+ * `DedicatedWorkerGlobalScope`. Shadowing only the first level still
+ * lets a hostile controller reach the original via
+ * `Object.getPrototypeOf(Object.getPrototypeOf(self)).fetch.call(self, …)`.
+ * Walking until `null` covers the chain regardless of how vendors
+ * structure it. Each override is wrapped in try/catch — best-effort
+ * rather than all-or-nothing — since some prototype slots are
+ * non-configurable.
  */
 function lockdownWorkerGlobals(): void {
-  const g = self as unknown as Record<string, unknown>;
-  const proto: unknown = Object.getPrototypeOf(self);
-  const protoBag =
-    proto !== null && typeof proto === "object" ? (proto as Record<string, unknown>) : null;
   const banned = [
     "fetch",
     "WebSocket",
@@ -165,29 +166,32 @@ function lockdownWorkerGlobals(): void {
     "importScripts",
     "XMLHttpRequest",
   ];
-  // Two passes so a throw on a non-writable prototype property
-  // doesn't bail the loop and leave later names with their instance
-  // shadow uncleared. Each property override is wrapped in its own
-  // try/catch — best-effort rather than all-or-nothing — because in
-  // strict mode some prototype slots are non-configurable in older
-  // runtimes. Worst case: one banned name stays accessible; the
-  // other seven are still locked. The guarantees aren't perfect,
-  // but they degrade gracefully instead of cliffing.
+  // Always shadow on the instance so direct `self.fetch` resolves to
+  // `undefined`. Then walk the prototype chain and clear at every
+  // level that owns the name — but stop short of `Object.prototype`
+  // so we don't pollute every plain object in the worker. In
+  // practice the banned names are own properties of either
+  // `WorkerGlobalScope.prototype` or its dedicated subclass.
+  const instance = self as unknown as Record<string, unknown>;
   for (const name of banned) {
     try {
-      g[name] = undefined;
+      instance[name] = undefined;
     } catch {
-      /* property is non-writable on the instance — best-effort */
+      /* non-writable on the instance — best-effort */
     }
   }
-  if (protoBag) {
+  let level: unknown = Object.getPrototypeOf(self);
+  while (level !== null && level !== Object.prototype) {
+    const bag = level as Record<string, unknown>;
     for (const name of banned) {
+      if (!Object.prototype.hasOwnProperty.call(bag, name)) continue;
       try {
-        protoBag[name] = undefined;
+        bag[name] = undefined;
       } catch {
-        /* property is non-writable on the prototype — best-effort */
+        /* non-writable / non-configurable — best-effort */
       }
     }
+    level = Object.getPrototypeOf(level);
   }
 }
 
@@ -280,5 +284,20 @@ self.addEventListener("message", (event: MessageEvent<HostToWorker>) => {
     case "load-controller":
       handleLoadController(msg.id, msg.source, msg.unlockedApi);
       return;
+    default: {
+      // Reply with an error on the request id so the host's pending
+      // promise rejects instead of hanging forever. Casting to silence
+      // the exhaustive-switch narrowing — by definition we're here
+      // because the protocol added a kind the worker doesn't handle.
+      const unknown = msg as { id?: number; kind?: string };
+      if (typeof unknown.id === "number") {
+        post({
+          kind: "error",
+          id: unknown.id,
+          message: `worker: unknown message kind "${String(unknown.kind)}"`,
+        });
+      }
+      return;
+    }
   }
 });
