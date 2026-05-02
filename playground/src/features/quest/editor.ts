@@ -48,7 +48,7 @@ export async function loadMonaco(): Promise<typeof Monaco> {
   if (monacoModule) return monacoModule;
   if (monacoLoading) return monacoLoading;
   monacoLoading = (async () => {
-    configureWorkerEnvironment();
+    await configureWorkerEnvironment();
     const mod = await import("monaco-editor");
     monacoModule = mod;
     return mod;
@@ -65,24 +65,32 @@ export async function loadMonaco(): Promise<typeof Monaco> {
 }
 
 /** Configure Monaco's `getWorker` to use Vite's `?worker` imports. */
-function configureWorkerEnvironment(): void {
+async function configureWorkerEnvironment(): Promise<void> {
   // `MonacoEnvironment` is a global Monaco reads on init. Without
   // wiring up the workers, every keystroke drops a "could not
   // create web worker" warning and language services degrade
-  // silently. Vite resolves the URL refs at build time and bundles
-  // each worker into its own chunk.
+  // silently.
+  //
+  // The earlier `new URL("monaco-editor/...", import.meta.url)`
+  // pattern works in dev (where Vite's middleware resolves bare
+  // module specifiers) but breaks the production build: Vite's
+  // `worker-import-meta-url` plugin treats the first arg as a
+  // path relative to the importing file, so it tries to resolve
+  // `src/features/quest/monaco-editor/...` and fails. The `?worker`
+  // suffix is the documented escape hatch — Vite emits each worker
+  // into its own chunk via Rollup, no relative-path heuristics
+  // involved.
+  const [{ default: TsWorker }, { default: EditorWorker }] = await Promise.all([
+    import("monaco-editor/esm/vs/language/typescript/ts.worker?worker"),
+    import("monaco-editor/esm/vs/editor/editor.worker?worker"),
+  ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).MonacoEnvironment = {
     getWorker(_workerId: string, label: string): Worker {
       if (label === "typescript" || label === "javascript") {
-        return new Worker(
-          new URL("monaco-editor/esm/vs/language/typescript/ts.worker", import.meta.url),
-          { type: "module" },
-        );
+        return new TsWorker();
       }
-      return new Worker(new URL("monaco-editor/esm/vs/editor/editor.worker", import.meta.url), {
-        type: "module",
-      });
+      return new EditorWorker();
     },
   };
 }
