@@ -81,28 +81,6 @@ function stageOptionLabel(stage: Stage, index: number, stars: StarCount): string
 }
 
 /**
- * Show the Quest pane and hide the existing compare layout.
- *
- * Compare mode keeps its DOM intact — we toggle visibility rather
- * than tear it down so the user can flip back via permalink without
- * a remount cost.
- */
-export function showQuestPane(handles: QuestPaneHandles): void {
-  const layout = document.getElementById("layout");
-  if (layout) layout.classList.add("hidden");
-  handles.root.classList.remove("hidden");
-  handles.root.classList.add("flex");
-}
-
-/** Inverse of `showQuestPane`. */
-export function hideQuestPane(handles: QuestPaneHandles): void {
-  handles.root.classList.add("hidden");
-  handles.root.classList.remove("flex");
-  const layout = document.getElementById("layout");
-  if (layout) layout.classList.remove("hidden");
-}
-
-/**
  * Wire the Run button to execute the editor's current text against
  * the active stage. The stage is read via the supplied getter on
  * each click so a navigation between Run presses pulls the new
@@ -182,7 +160,6 @@ export async function bootQuestPane(opts: {
 
   let activeStage = resolveStage(opts.initialStageId);
   renderStage(handles, activeStage);
-  showQuestPane(handles);
 
   // Side panel: list the methods unlocked at the active stage.
   // Re-renders on stage change so the player always sees what

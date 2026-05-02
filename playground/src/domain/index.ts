@@ -5,6 +5,7 @@ export {
   hashSeedWord,
   syncPermalinkUrl,
   type PermalinkState,
+  type PlaygroundMode,
 } from "./permalink";
 export {
   PARAM_KEYS,
