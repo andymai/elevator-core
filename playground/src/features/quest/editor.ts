@@ -103,6 +103,18 @@ async function configureWorkerEnvironment(): Promise<void> {
 }
 
 /**
+ * Minimal shape of the Monaco TypeScript defaults surface we touch.
+ * Monaco's published types mark the entire `languages.typescript`
+ * subpath as `{ deprecated: true }`, hiding the actual runtime API
+ * behind that opaque flag — the surface still exists and works,
+ * we just have to declare the slice we need.
+ */
+interface TypescriptDefaults {
+  setCompilerOptions(options: Record<string, unknown>): void;
+  addExtraLib(content: string, filePath?: string): { dispose(): void };
+}
+
+/**
  * Configure Monaco's TypeScript service so the player's controller
  * code typechecks correctly:
  *
@@ -117,18 +129,6 @@ async function configureWorkerEnvironment(): Promise<void> {
  * Idempotent: Monaco's `setCompilerOptions` and `addExtraLib`
  * accept repeated calls; the latter dedupes by path.
  */
-/**
- * Minimal shape of the Monaco TypeScript defaults surface we touch.
- * Monaco's published types mark the entire `languages.typescript`
- * subpath as `{ deprecated: true }`, hiding the actual runtime API
- * behind that opaque flag — the surface still exists and works,
- * we just have to declare the slice we need.
- */
-interface TypescriptDefaults {
-  setCompilerOptions(options: Record<string, unknown>): void;
-  addExtraLib(content: string, filePath?: string): { dispose(): void };
-}
-
 function configureTypeScriptService(monaco: typeof Monaco): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tsModule = (monaco.languages as any).typescript as

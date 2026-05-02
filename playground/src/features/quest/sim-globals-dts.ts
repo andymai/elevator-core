@@ -33,11 +33,19 @@ declare interface HallCall {
   readonly direction: Direction;
 }
 
-/** Per-(car, stop) context the rank function receives. */
+/**
+ * Per-(car, stop) context the rank function receives.
+ *
+ * \`carDirection\` is the car's signed sweep direction:
+ * \`+1\` heading up, \`-1\` heading down, \`0\` idle. It's an
+ * integer rather than the \`HallCall\` "up" / "down" string union
+ * because the rank function typically multiplies it (e.g. against
+ * \`stopPosition - carPosition\`) for direction-aware costs.
+ */
 declare interface RankCtx {
   readonly car: Ref;
   readonly carPosition: number;
-  readonly carDirection: number;
+  readonly carDirection: -1 | 0 | 1;
   readonly stop: Ref;
   readonly stopPosition: number;
 }
