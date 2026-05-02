@@ -12,6 +12,7 @@
  * existing compare-mode render loop.
  */
 
+import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel";
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { runStage } from "./stage-runner";
@@ -172,6 +173,12 @@ export async function bootQuestPane(opts: {
   renderStage(handles, activeStage);
   showQuestPane(handles);
 
+  // Side panel: list the methods unlocked at the active stage.
+  // Re-renders on stage change so the player always sees what
+  // `sim.*` is currently allowed to call.
+  const apiPanel: ApiPanelHandles = wireApiPanel();
+  renderApiPanel(apiPanel, activeStage);
+
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
   handles.runBtn.disabled = true;
@@ -194,6 +201,7 @@ export async function bootQuestPane(opts: {
     const next = resolveStage(handles.select.value);
     activeStage = next;
     renderStage(handles, next);
+    renderApiPanel(apiPanel, next);
     editor.setValue(next.starterCode);
     handles.result.textContent = "";
     opts.onStageChange?.(next.id);
