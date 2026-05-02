@@ -9,8 +9,14 @@
 
 import type { Stage } from "./types";
 import { STAGE_01_FIRST_FLOOR } from "./stage-01-first-floor";
+import { STAGE_02_LISTEN_UP } from "./stage-02-listen-up";
+import { STAGE_03_CAR_BUTTONS } from "./stage-03-car-buttons";
 
-export const STAGES: readonly Stage[] = [STAGE_01_FIRST_FLOOR];
+export const STAGES: readonly Stage[] = [
+  STAGE_01_FIRST_FLOOR,
+  STAGE_02_LISTEN_UP,
+  STAGE_03_CAR_BUTTONS,
+];
 
 /** Look up a stage by id. Returns `undefined` if no match. */
 export function stageById(id: string): Stage | undefined {
