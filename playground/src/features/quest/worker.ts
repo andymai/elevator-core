@@ -138,25 +138,37 @@ function handleSetStrategy(id: number, strategy: string): void {
  * Strip network-capable globals before running untrusted code.
  *
  * The worker context is *less* isolated than the comment originally
- * claimed: workers retain `fetch`, `WebSocket`, and `importScripts`,
- * which would let player code exfiltrate data or pull in arbitrary
- * external script. wasm is already loaded by the time we get here —
- * none of these are needed for sim operations afterwards — so we
- * remove them outright. Idempotent across multiple `load-controller`
- * calls because subsequent deletes are no-ops.
+ * claimed: workers retain `fetch`, `WebSocket`, `BroadcastChannel`,
+ * the `Worker` constructor, and `importScripts`, any of which would
+ * let player code exfiltrate data or pull in arbitrary external
+ * script. wasm is already loaded by the time we get here — none of
+ * these are needed for sim operations afterwards.
+ *
+ * We override on both the instance (`self`) and the prototype
+ * (`WorkerGlobalScope.prototype`). Without the prototype hop a hostile
+ * controller could sidestep the instance shadowing via
+ * `Object.getPrototypeOf(self).fetch.call(self, ...)`. Idempotent
+ * across calls because subsequent overrides set the same `undefined`.
  */
 function lockdownWorkerGlobals(): void {
   const g = self as unknown as Record<string, unknown>;
-  // Overwrite rather than delete: the lint rule against dynamic
-  // delete steers us toward a fixed assignment, and `undefined`
-  // is functionally equivalent — calling `fetch(...)` on an
-  // undefined global throws `TypeError: fetch is not a function`,
-  // exactly the access denial we want.
-  g["fetch"] = undefined;
-  g["WebSocket"] = undefined;
-  g["EventSource"] = undefined;
-  g["importScripts"] = undefined;
-  g["XMLHttpRequest"] = undefined;
+  const proto: unknown = Object.getPrototypeOf(self);
+  const protoBag =
+    proto !== null && typeof proto === "object" ? (proto as Record<string, unknown>) : null;
+  const banned = [
+    "fetch",
+    "WebSocket",
+    "EventSource",
+    "BroadcastChannel",
+    "Worker",
+    "SharedWorker",
+    "importScripts",
+    "XMLHttpRequest",
+  ];
+  for (const name of banned) {
+    g[name] = undefined;
+    if (protoBag) protoBag[name] = undefined;
+  }
 }
 
 function handleLoadController(id: number, source: string): void {
