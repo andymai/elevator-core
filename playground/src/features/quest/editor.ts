@@ -33,6 +33,8 @@ export interface QuestEditor {
   setValue(text: string): void;
   /** Subscribe to text changes. Returns an unsubscribe handle. */
   onDidChange(listener: (value: string) => void): { dispose(): void };
+  /** Insert `text` at the current cursor position and focus the editor. */
+  insertAtCursor(text: string): void;
   /** Tear down the editor and free its DOM/worker resources. */
   dispose(): void;
 }
@@ -123,6 +125,21 @@ export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestE
           sub.dispose();
         },
       };
+    },
+    insertAtCursor(text: string) {
+      // executeEdits drives the same undo stack as keyboard input,
+      // so a player can ⌘Z away a snippet they didn't mean to insert.
+      // Without a selection range Monaco needs an explicit one — use
+      // the current cursor position, collapsed.
+      const selection = editor.getSelection();
+      const range = selection ?? {
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 1,
+      };
+      editor.executeEdits("quest-snippet", [{ range, text, forceMoveMarkers: true }]);
+      editor.focus();
     },
     dispose: () => {
       // Dispose the backing model first — `editor.dispose()` releases

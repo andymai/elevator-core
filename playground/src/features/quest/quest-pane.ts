@@ -16,6 +16,7 @@ import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel"
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
+import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./snippet-picker";
 import { runStage } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
 import type { Stage } from "./stages";
@@ -197,6 +198,12 @@ export async function bootQuestPane(opts: {
   const modal = wireResultsModal();
   attachRunButton(handles, modal, editor, () => activeStage);
 
+  // Snippet picker — chips paste pre-built API calls into the
+  // editor at the cursor. Wired here (after editor mount) so the
+  // chip click handlers have a real editor to insert into.
+  const snippets: SnippetPickerHandles = wireSnippetPicker();
+  renderSnippets(snippets, activeStage, editor);
+
   // Stage navigator: rewrite the editor's contents to the new
   // stage's starter and clear the result panel. A user mid-edit
   // loses their work — by design for v1; a "discard your code?"
@@ -207,6 +214,7 @@ export async function bootQuestPane(opts: {
     renderStage(handles, next);
     renderApiPanel(apiPanel, next);
     renderHints(hints, next);
+    renderSnippets(snippets, next, editor);
     editor.setValue(next.starterCode);
     handles.result.textContent = "";
     opts.onStageChange?.(next.id);
