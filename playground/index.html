@@ -13,8 +13,8 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-DDqRSdGh.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BO5NhzV-.css">
+    <script type="module" crossorigin src="./assets/index-DkGtTHgX.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-ChRXNL5z.css">
   </head>
   <body>
     <header
@@ -565,118 +565,152 @@
       class="hidden flex-col gap-4 px-5 pt-3.5 pb-[calc(var(--controls-bar-h,52px)+16px)] flex-1 max-md:px-[calc(14px+env(safe-area-inset-left))] max-md:pr-[calc(14px+env(safe-area-inset-right))] max-md:pt-2.5 max-md:pb-[calc(var(--controls-bar-h,52px)+12px+env(safe-area-inset-bottom))]"
       aria-label="Quest mode"
     >
-      <header class="flex flex-col gap-1.5">
-        <div class="flex items-baseline gap-2 flex-wrap">
-          <span
-            class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
-            >Quest</span
-          >
-          <h1 id="quest-stage-title" class="text-content text-base font-semibold m-0">Loading…</h1>
-          <label
-            class="ml-auto inline-flex items-center gap-1.5 text-[11.5px] text-content-tertiary"
-          >
-            Stage
-            <select
-              id="quest-stage-select"
-              class="bg-surface-elevated border border-stroke-subtle rounded-sm px-1.5 py-0.5 text-[12px] text-content cursor-pointer focus-visible:outline-none focus-visible:border-accent"
-              aria-label="Choose a quest stage"
-            ></select>
-          </label>
-        </div>
-        <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
-      </header>
-      <div
-        id="quest-editor"
-        class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
-        aria-label="Quest controller editor"
-      ></div>
-      <div
-        id="quest-shaft-wrap"
-        class="relative h-[240px] bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
-      >
-        <canvas id="quest-shaft" class="absolute inset-0 w-full h-full block"></canvas>
+      <div id="quest-grid" class="hidden flex-col gap-6" aria-label="Quest curriculum">
+        <header class="flex flex-col gap-1.5">
+          <div class="flex items-baseline gap-2 flex-wrap">
+            <span
+              class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
+              >Quest</span
+            >
+            <h1 class="text-content text-base font-semibold m-0">Curriculum</h1>
+            <span class="ml-auto text-content-secondary text-[12px]">
+              <span
+                id="quest-grid-progress"
+                class="tabular-nums font-semibold text-accent"
+                aria-live="polite"
+                >0 / 45</span
+              >
+              <span class="text-content-tertiary">★ earned</span>
+            </span>
+          </div>
+          <p class="text-content-secondary text-[13px] m-0">
+            Fifteen stages teach the elevator-core API one primitive at a time. Pick a stage to
+            start writing controller code.
+          </p>
+        </header>
+        <div id="quest-grid-sections" class="flex flex-col gap-5"></div>
+      </div>
+      <div id="quest-stage-view" class="hidden flex-col gap-4">
+        <header class="flex flex-col gap-1.5">
+          <div class="flex items-baseline gap-2 flex-wrap">
+            <button
+              type="button"
+              id="quest-back-to-grid"
+              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-transparent border border-transparent text-content-tertiary text-[11.5px] tracking-[0.01em] cursor-pointer transition-colors duration-fast hover:text-content hover:bg-surface-hover hover:border-stroke-subtle focus-visible:outline-none focus-visible:text-content focus-visible:border-stroke-subtle"
+              aria-label="Back to stages"
+            >
+              <span aria-hidden="true">&larr;</span>
+              Stages
+            </button>
+            <span
+              class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-accent/15 text-accent text-[10px] font-bold tracking-[0.08em] uppercase"
+              >Quest</span
+            >
+            <h1 id="quest-stage-title" class="text-content text-base font-semibold m-0">
+              Loading…
+            </h1>
+            <span
+              id="quest-stage-stars"
+              class="ml-auto text-accent text-[14px] tracking-[0.18em] tabular-nums leading-none"
+              aria-live="polite"
+            ></span>
+          </div>
+          <p id="quest-stage-brief" class="text-content-secondary text-[13px] m-0"></p>
+        </header>
         <div
-          id="quest-shaft-idle"
-          class="absolute inset-0 flex items-center justify-center text-content-tertiary text-[12px] tracking-[0.02em] pointer-events-none"
+          id="quest-editor"
+          class="min-h-[260px] bg-surface-elevated border border-stroke-subtle rounded-md overflow-hidden"
+          aria-label="Quest controller editor"
+        ></div>
+        <div
+          id="quest-shaft-wrap"
+          class="relative h-[240px] bg-[radial-gradient(ellipse_at_50%_0%,var(--bg-hover)_0%,var(--bg-secondary)_80%)] border border-stroke-subtle rounded-md overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
         >
-          Click
-          <span
-            class="px-1.5 py-0.5 mx-1 rounded-sm bg-surface-elevated border border-stroke-subtle text-[11px] font-mono text-content"
-            >Run</span
+          <canvas id="quest-shaft" class="absolute inset-0 w-full h-full block"></canvas>
+          <div
+            id="quest-shaft-idle"
+            class="absolute inset-0 flex items-center justify-center text-content-tertiary text-[12px] tracking-[0.02em] pointer-events-none"
           >
-          to see your controller drive the cars.
+            Click
+            <span
+              class="px-1.5 py-0.5 mx-1 rounded-sm bg-surface-elevated border border-stroke-subtle text-[11px] font-mono text-content"
+              >Run</span
+            >
+            to see your controller drive the cars.
+          </div>
         </div>
-      </div>
-      <div id="quest-snippets" class="flex flex-wrap gap-1.5" aria-label="Insert API call"></div>
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <button
-          type="button"
-          id="quest-run"
-          class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Run
-        </button>
-        <button
-          type="button"
-          id="quest-reset"
-          class="inline-flex items-center px-2.5 py-1.5 rounded-sm bg-surface-elevated border border-stroke-subtle text-content-secondary text-[12px] tracking-[0.01em] cursor-pointer transition-colors duration-fast hover:text-content hover:border-stroke disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Replace your code with the stage's starter"
-        >
-          Reset
-        </button>
-        <span
-          id="quest-result"
-          class="text-content-secondary text-[12.5px] tracking-[0.01em]"
-          aria-live="polite"
-        ></span>
-        <span
-          id="quest-progress"
-          class="text-content-tertiary text-[11.5px] tabular-nums tracking-[0.01em] ml-auto"
-          aria-hidden="true"
-        ></span>
-      </div>
-      <aside
-        id="quest-api-panel"
-        class="flex flex-col gap-1 px-3 py-2.5 bg-surface-secondary border border-stroke-subtle rounded-md"
-        aria-label="Unlocked API reference"
-      ></aside>
-      <details
-        id="quest-hints"
-        class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
-      >
-        <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
-          <span class="text-[10.5px] uppercase tracking-[0.08em] text-content-tertiary font-medium"
-            >Hints</span
+        <div id="quest-snippets" class="flex flex-wrap gap-1.5" aria-label="Insert API call"></div>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <button
+            type="button"
+            id="quest-run"
+            class="inline-flex items-center px-3 py-1.5 rounded-sm bg-accent text-surface text-[12.5px] font-semibold tracking-[0.01em] cursor-pointer transition-opacity duration-fast hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-          <span id="quest-hints-count" class="text-content-tertiary"></span>
+            Run
+          </button>
+          <button
+            type="button"
+            id="quest-reset"
+            class="inline-flex items-center px-2.5 py-1.5 rounded-sm bg-surface-elevated border border-stroke-subtle text-content-secondary text-[12px] tracking-[0.01em] cursor-pointer transition-colors duration-fast hover:text-content hover:border-stroke disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Replace your code with the stage's starter"
+          >
+            Reset
+          </button>
           <span
-            class="ml-auto text-content-tertiary text-[11px] transition-transform"
-            aria-hidden="true"
-            >▸</span
-          >
-        </summary>
-        <ol id="quest-hints-list" class="list-decimal m-0 mt-1.5 pl-5 flex flex-col gap-1.5"></ol>
-      </details>
-      <details
-        id="quest-reference"
-        hidden
-        class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
-      >
-        <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
-          <span class="text-[10.5px] uppercase tracking-[0.08em] text-accent font-medium"
-            >Reference solution</span
-          >
-          <span id="quest-reference-status" class="text-content-tertiary"></span>
+            id="quest-result"
+            class="text-content-secondary text-[12.5px] tracking-[0.01em]"
+            aria-live="polite"
+          ></span>
           <span
-            class="ml-auto text-content-tertiary text-[11px] transition-transform"
+            id="quest-progress"
+            class="text-content-tertiary text-[11.5px] tabular-nums tracking-[0.01em] ml-auto"
             aria-hidden="true"
-            >▸</span
-          >
-        </summary>
-        <pre
-          class="m-0 mt-1.5 p-2.5 bg-surface-elevated border border-stroke-subtle rounded-sm font-mono text-[11.5px] text-content overflow-x-auto whitespace-pre"
-        ><code id="quest-reference-code" class="block"></code></pre>
-      </details>
+          ></span>
+        </div>
+        <aside
+          id="quest-api-panel"
+          class="flex flex-col gap-1 px-3 py-2.5 bg-surface-secondary border border-stroke-subtle rounded-md"
+          aria-label="Unlocked API reference"
+        ></aside>
+        <details
+          id="quest-hints"
+          class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
+        >
+          <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
+            <span
+              class="text-[10.5px] uppercase tracking-[0.08em] text-content-tertiary font-medium"
+              >Hints</span
+            >
+            <span id="quest-hints-count" class="text-content-tertiary"></span>
+            <span
+              class="ml-auto text-content-tertiary text-[11px] transition-transform"
+              aria-hidden="true"
+              >▸</span
+            >
+          </summary>
+          <ol id="quest-hints-list" class="list-decimal m-0 mt-1.5 pl-5 flex flex-col gap-1.5"></ol>
+        </details>
+        <details
+          id="quest-reference"
+          hidden
+          class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
+        >
+          <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
+            <span class="text-[10.5px] uppercase tracking-[0.08em] text-accent font-medium"
+              >Reference solution</span
+            >
+            <span id="quest-reference-status" class="text-content-tertiary"></span>
+            <span
+              class="ml-auto text-content-tertiary text-[11px] transition-transform"
+              aria-hidden="true"
+              >▸</span
+            >
+          </summary>
+          <pre
+            class="m-0 mt-1.5 p-2.5 bg-surface-elevated border border-stroke-subtle rounded-sm font-mono text-[11.5px] text-content overflow-x-auto whitespace-pre"
+          ><code id="quest-reference-code" class="block"></code></pre>
+        </details>
+      </div>
     </section>
 
     <div
