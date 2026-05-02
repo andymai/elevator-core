@@ -26,6 +26,11 @@ export {
 export { API_REFERENCE, apiEntry, unlockedEntries, type ApiEntry } from "./api-reference";
 export { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 export {
+  renderReferencePanel,
+  wireReferencePanel,
+  type ReferencePanelHandles,
+} from "./reference-panel";
+export {
   clearBestStars,
   clearCode,
   loadBestStars,

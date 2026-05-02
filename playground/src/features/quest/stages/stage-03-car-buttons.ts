@@ -86,4 +86,15 @@ for (const stop of inside) {
     if (abandoned > 0) issues.push(`${abandoned} abandoned`);
     return `Run short — ${issues.join(", ")}. Combine \`hallCalls()\` and \`carCalls(carId)\` into one sweep so the car serves riders inside the cab too.`;
   },
+  referenceSolution: `// Canonical stage-3 solution.
+// Hall calls and car calls together: queue every waiting floor and
+// every cabin button into a single sweep.
+
+for (const call of sim.hallCalls()) {
+  sim.pushDestination(0n, BigInt(call.stop));
+}
+for (const stop of sim.carCalls(0n)) {
+  sim.pushDestination(0n, BigInt(stop));
+}
+`,
 };

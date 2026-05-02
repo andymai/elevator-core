@@ -639,6 +639,26 @@
         </summary>
         <ol id="quest-hints-list" class="list-decimal m-0 mt-1.5 pl-5 flex flex-col gap-1.5"></ol>
       </details>
+      <details
+        id="quest-reference"
+        hidden
+        class="px-3 py-2 bg-surface-secondary border border-stroke-subtle rounded-md text-[12.5px] [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:select-none [&[open]>summary>span:last-child]:rotate-90"
+      >
+        <summary class="flex items-center gap-2 text-content tracking-[0.01em]">
+          <span class="text-[10.5px] uppercase tracking-[0.08em] text-accent font-medium"
+            >Reference solution</span
+          >
+          <span id="quest-reference-status" class="text-content-tertiary"></span>
+          <span
+            class="ml-auto text-content-tertiary text-[11px] transition-transform"
+            aria-hidden="true"
+            >▸</span
+          >
+        </summary>
+        <pre
+          class="m-0 mt-1.5 p-2.5 bg-surface-elevated border border-stroke-subtle rounded-sm font-mono text-[11.5px] text-content overflow-x-auto whitespace-pre"
+        ><code id="quest-reference-code" class="block"></code></pre>
+      </details>
     </section>
 
     <div

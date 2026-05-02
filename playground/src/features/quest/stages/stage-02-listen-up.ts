@@ -81,4 +81,12 @@ for (const call of calls) {
     if (abandoned > 0) issues.push(`${abandoned} abandoned`);
     return `Run short — ${issues.join(", ")}. Iterate \`sim.hallCalls()\` and queue a destination for each pending call.`;
   },
+  referenceSolution: `// Canonical stage-2 solution.
+// Read the pending hall calls once and dispatch the car to each
+// floor riders are waiting on.
+
+for (const call of sim.hallCalls()) {
+  sim.pushDestination(0n, BigInt(call.stop));
+}
+`,
 };

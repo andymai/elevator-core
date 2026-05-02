@@ -71,4 +71,11 @@ sim.pushDestination(0n, 2n);
     if (abandoned > 0) issues.push(`${abandoned} abandoned`);
     return `Run short — ${issues.join(", ")}. Call \`sim.pushDestination(0n, stopId)\` for each floor riders are heading to so nobody times out.`;
   },
+  referenceSolution: `// Canonical stage-1 solution.
+// Five riders at the lobby want F2 or F3 — queue both stops up front
+// and let dispatch fan them out.
+
+sim.pushDestination(0n, 1n);
+sim.pushDestination(0n, 2n);
+`,
 };
