@@ -9,6 +9,7 @@
  * additive — it appears on settle and dismisses on close or retry.
  */
 
+import { requireElement } from "./dom-utils";
 import type { GradeInputs } from "./stages";
 import type { StageResult } from "./stage-runner";
 
@@ -22,22 +23,14 @@ export interface ResultsModalHandles {
 }
 
 export function wireResultsModal(): ResultsModalHandles {
-  const root = document.getElementById("quest-results-modal");
-  const title = document.getElementById("quest-results-title");
-  const stars = document.getElementById("quest-results-stars");
-  const detail = document.getElementById("quest-results-detail");
-  const close = document.getElementById("quest-results-close");
-  const retry = document.getElementById("quest-results-retry");
-  if (!root || !title || !stars || !detail || !close || !retry) {
-    throw new Error("results-modal: missing DOM anchors");
-  }
+  const m = "results-modal";
   return {
-    root,
-    title,
-    stars,
-    detail,
-    close: close as HTMLButtonElement,
-    retry: retry as HTMLButtonElement,
+    root: requireElement("quest-results-modal", m),
+    title: requireElement("quest-results-title", m),
+    stars: requireElement("quest-results-stars", m),
+    detail: requireElement("quest-results-detail", m),
+    close: requireElement("quest-results-close", m) as HTMLButtonElement,
+    retry: requireElement("quest-results-retry", m) as HTMLButtonElement,
   };
 }
 
