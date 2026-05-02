@@ -85,10 +85,16 @@ function handleTick(id: number, ticks: number, wantVisuals: boolean): void {
     sim.stepMany(ticks);
     const tick = Number(sim.currentTick());
     const metrics = sim.metrics();
+    // Always drain so the wasm `EventBus` (an unbounded `Vec<Event>`)
+    // doesn't grow for the lifetime of the worker. The per-batch
+    // serialization cost stays, but the saved postMessage bandwidth
+    // (and the snapshot serialization, which is the bigger win)
+    // still come back when wantVisuals is false.
+    const events = sim.drainEvents();
     // exactOptionalPropertyTypes rejects an explicit `undefined` on
     // optional fields, so build the result with two literal shapes.
     const result: TickResultPayload = wantVisuals
-      ? { tick, metrics, snapshot: sim.snapshot(), events: sim.drainEvents() }
+      ? { tick, metrics, snapshot: sim.snapshot(), events }
       : { tick, metrics };
     post({ kind: "tick-result", id, result });
   } catch (err) {
