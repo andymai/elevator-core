@@ -79,4 +79,11 @@ sim.setStrategy("look");
   ],
   failHint: ({ delivered }) =>
     `Delivered ${delivered} of 25. Try a different built-in via \`sim.setStrategy("look" | "nearest" | "etd")\` — heavy traffic favours stronger heuristics.`,
+  referenceSolution: `// Canonical stage-4 solution.
+// LOOK sweeps to the last request and reverses — strong on
+// steady moderate traffic and competitive with the nearest-car
+// pick under this stage's spawn rate.
+
+sim.setStrategy("look");
+`,
 };

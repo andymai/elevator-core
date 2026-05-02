@@ -75,4 +75,11 @@ sim.setStrategy("etd");
   ],
   failHint: ({ delivered }) =>
     `Delivered ${delivered} of 30. Up-peak rewards ETD or RSR — \`sim.setStrategy("etd")\` is a strong starting point.`,
+  referenceSolution: `// Canonical stage-5 solution.
+// Up-peak (most riders boarding at the lobby, all heading up) is
+// exactly the case ETD was designed for — it minimises estimated
+// time-to-destination across the assignment.
+
+sim.setStrategy("etd");
+`,
 };
