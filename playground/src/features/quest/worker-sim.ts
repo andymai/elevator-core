@@ -7,6 +7,7 @@
  */
 
 import type { RepositionStrategyName, StrategyName } from "../../types";
+import { ControllerError, type ControllerErrorLocation } from "./controller-error";
 import type { HostToWorker, InitPayload, TickResultPayload, WorkerToHost } from "./protocol";
 
 interface PendingResolver {
@@ -251,9 +252,21 @@ export class WorkerSim {
           resolver.resolve(msg.riderId);
         }
         return;
-      case "error":
-        resolver.reject(new Error(msg.message));
+      case "error": {
+        // Worker-side controller throws come back with line/column
+        // populated; surface those as a `ControllerError` so the host
+        // can pin a Monaco marker at the source location. Other
+        // error sources (init / spawn / tick) leave both unset and
+        // bubble as plain Errors.
+        const loc: ControllerErrorLocation | null =
+          msg.line !== undefined && msg.column !== undefined
+            ? { line: msg.line, column: msg.column }
+            : null;
+        resolver.reject(
+          loc !== null ? new ControllerError(msg.message, loc) : new Error(msg.message),
+        );
         return;
+      }
       default: {
         // An unknown `kind` from a future worker version would silently
         // leave the host promise unresolved — reject loudly instead so

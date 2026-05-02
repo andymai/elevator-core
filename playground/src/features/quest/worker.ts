@@ -12,7 +12,51 @@
 declare const self: DedicatedWorkerGlobalScope;
 
 import type { EventDto, MetricsDto, Snapshot } from "../../types";
+import { extractTopFrameLineCol, type ControllerErrorLocation } from "./controller-error";
 import type { HostToWorker, InitPayload, TickResultPayload, WorkerToHost } from "./protocol";
+
+/**
+ * Line offset between the player's source and the wrapped function
+ * body the runtime sees. `handleLoadController` uses the existing
+ * `Function` constructor to evaluate the player's code and the
+ * runtime synthesises a wrapper around it; different runtimes
+ * attribute body line 1 differently. The probe runs once at module
+ * load by throwing from a known line and reading back the reported
+ * number — the resulting offset gets subtracted from controller
+ * stack frames so the line/column we send back to the host matches
+ * the player's source.
+ *
+ * Cached at module load. If the probe doesn't yield a usable stack
+ * the offset stays at the default and the resulting markers may
+ * sit a line or two off; the inline message still tells the truth.
+ */
+const PROBE_KNOWN_LINE = 3;
+let controllerLineOffset = 0;
+{
+  // Same `Function` access pattern `handleLoadController` uses below.
+  const ProbeCtor = Function;
+  try {
+    // Two empty body lines so we don't share line 1 with the wrapper.
+    new ProbeCtor('\n\nthrow new Error("__quest_probe__")')();
+  } catch (probe) {
+    const reported = extractTopFrameLineCol((probe as Error).stack);
+    if (reported && reported.line >= PROBE_KNOWN_LINE) {
+      controllerLineOffset = reported.line - PROBE_KNOWN_LINE;
+    }
+  }
+}
+
+/** One leading line — the `"use strict";\n` prefix `handleLoadController` adds. */
+const SOURCE_PREFIX_LINES = 1;
+
+function controllerErrorLocation(err: unknown): ControllerErrorLocation | null {
+  if (!(err instanceof Error)) return null;
+  const reported = extractTopFrameLineCol(err.stack);
+  if (!reported) return null;
+  const sourceLine = reported.line - SOURCE_PREFIX_LINES - controllerLineOffset;
+  if (sourceLine < 1) return null;
+  return { line: sourceLine, column: reported.column };
+}
 
 interface WasmModule {
   default: (input: string) => Promise<unknown>;
@@ -275,7 +319,16 @@ function handleLoadController(
     factory(gatedSim(sim, unlockedApi));
     post({ kind: "ok", id });
   } catch (err) {
-    post({ kind: "error", id, message: errorMessage(err) });
+    // Player-source errors land here — pin the location so the host
+    // can paint a Monaco marker at the offending line. Other error
+    // sources in this worker (init / tick / spawn / set-strategy)
+    // leave line/column unset since their throws aren't user-source.
+    const loc = controllerErrorLocation(err);
+    const response: WorkerToHost =
+      loc !== null
+        ? { kind: "error", id, message: errorMessage(err), line: loc.line, column: loc.column }
+        : { kind: "error", id, message: errorMessage(err) };
+    post(response);
   }
 }
 

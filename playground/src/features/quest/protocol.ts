@@ -142,6 +142,16 @@ export interface ErrorResponse {
   readonly kind: "error";
   readonly id: number;
   readonly message: string;
+  /**
+   * 1-based line / column in the player's controller source where
+   * the error landed, when the worker could pin one — populated for
+   * `load-controller` throws after the stack-frame extractor finds
+   * a usable `<anonymous>:N:M` frame. Other error sources (init
+   * failures, missing-method protocol drift, etc.) leave both
+   * undefined and the host falls back to a generic inline message.
+   */
+  readonly line?: number;
+  readonly column?: number;
 }
 
 export type WorkerToHost = OkResponse | TickResponse | SpawnResponse | ErrorResponse;

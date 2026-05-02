@@ -10,6 +10,7 @@
  */
 
 import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel";
+import { ControllerError } from "./controller-error";
 import { requireElement } from "./dom-utils";
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
@@ -263,6 +264,10 @@ export async function bootQuestPane(opts: {
     renderReferencePanel(reference, next);
     renderSnippets(snippets, next, editor);
     setEditorSilently(loadCode(next.id) ?? next.starterCode);
+    // Drop any runtime marker carried over from the outgoing stage's
+    // last failure — the line numbers wouldn't match the new code,
+    // and a stale red squiggle on freshly-loaded code is misleading.
+    editor.clearRuntimeMarker();
     handles.result.textContent = "";
     handles.progress.textContent = "";
     stopLoopAndResetCanvas();
@@ -313,6 +318,10 @@ export async function bootQuestPane(opts: {
     handles.runBtn.disabled = true;
     handles.result.textContent = "Running…";
     handles.progress.textContent = "";
+    // Drop any squiggle from a previous failing run before starting
+    // afresh — keeping the old marker around would tell the player
+    // the line they're about to re-execute is already broken.
+    editor.clearRuntimeMarker();
 
     // Live shaft loop. Snapshots arrive from the worker every batch
     // (~3-5 Hz). Cache the latest one and let an rAF loop redraw
@@ -395,6 +404,18 @@ export async function bootQuestPane(opts: {
         // Errors stay inline — the modal is for graded outcomes.
         handles.result.textContent = `Error: ${msg}`;
         handles.progress.textContent = "";
+        // When the worker pinned a source location, paint a Monaco
+        // marker so the player sees a red squiggle at the line that
+        // threw. Without a location (init/protocol/timeout errors)
+        // the inline message is the only signal — that's fine; we'd
+        // be guessing if we forced a marker.
+        if (err instanceof ControllerError && err.location !== null) {
+          editor.setRuntimeMarker({
+            line: err.location.line,
+            column: err.location.column,
+            message: msg,
+          });
+        }
       }
     } finally {
       handles.runBtn.disabled = false;
@@ -423,6 +444,9 @@ export async function bootQuestPane(opts: {
     if (!ok) return;
     clearCode(activeStage.id);
     setEditorSilently(activeStage.starterCode);
+    // Drop any squiggle the previous code had — the new starter is
+    // the canonical fresh state.
+    editor.clearRuntimeMarker();
     handles.result.textContent = "";
   });
 
