@@ -3,6 +3,7 @@ export { WorkerSim, createWorkerSim, type WorkerSimOptions } from "./worker-sim"
 export { loadMonaco, mountQuestEditor, type EditorMountOptions, type QuestEditor } from "./editor";
 export {
   STAGES,
+  nextStage,
   stageById,
   type Baseline,
   type GradeInputs,
