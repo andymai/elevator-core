@@ -88,8 +88,10 @@ export function showResults(
 
   // Next-stage CTA is the success-path primary action. When shown,
   // demote Run again to the secondary slot so the dialog reads with
-  // a single accented button.
-  const nextHandler = result.passed ? onNext : undefined;
+  // a single accented button. Caller is responsible for only passing
+  // `onNext` on a passing run — the modal trusts that contract rather
+  // than re-checking `result.passed` here.
+  const nextHandler = onNext;
   if (nextHandler) {
     handles.next.hidden = false;
     handles.next.onclick = () => {

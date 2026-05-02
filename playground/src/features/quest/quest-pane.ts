@@ -151,7 +151,11 @@ async function executeRun(
       const onNext = next
         ? () => {
             handles.select.value = next.id;
-            handles.select.dispatchEvent(new Event("change"));
+            // Match native select behaviour — `change` events bubble
+            // by default, and any future delegated listener on a
+            // wrapping form / fieldset should see this synthetic
+            // dispatch the same way it sees a real user pick.
+            handles.select.dispatchEvent(new Event("change", { bubbles: true }));
           }
         : undefined;
       showResults(modal, result, retry, stage.failHint, onNext);
