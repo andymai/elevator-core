@@ -119,6 +119,14 @@ export class WorkerSim {
       await request;
       return;
     }
+    // Attach a `.catch` so the underlying request promise has a
+    // handler regardless of which side of the race wins. Otherwise:
+    // when the timeout fires first, `Promise.race` rejects and we
+    // throw, but the request is still pending. A later `dispose()`
+    // rejects every entry in `#pending`, and that rejection lands on
+    // an unhandled promise — every student timeout produces a noisy
+    // "Uncaught (in promise) WorkerSim disposed" in the console.
+    request.catch(() => undefined);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
