@@ -20,6 +20,7 @@ import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./
 import { runStage } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
 import type { Stage } from "./stages";
+import { clearCode, loadCode, saveCode } from "./storage";
 
 export interface QuestPaneHandles {
   readonly root: HTMLElement;
@@ -28,6 +29,7 @@ export interface QuestPaneHandles {
   readonly select: HTMLSelectElement;
   readonly editorHost: HTMLElement;
   readonly runBtn: HTMLButtonElement;
+  readonly resetBtn: HTMLButtonElement;
   readonly result: HTMLElement;
 }
 
@@ -44,8 +46,9 @@ export function wireQuestPane(): QuestPaneHandles {
   const select = document.getElementById("quest-stage-select");
   const editorHost = document.getElementById("quest-editor");
   const runBtn = document.getElementById("quest-run");
+  const resetBtn = document.getElementById("quest-reset");
   const result = document.getElementById("quest-result");
-  if (!title || !brief || !select || !editorHost || !runBtn || !result) {
+  if (!title || !brief || !select || !editorHost || !runBtn || !resetBtn || !result) {
     throw new Error("quest-pane: missing stage banner elements");
   }
   return {
@@ -55,6 +58,7 @@ export function wireQuestPane(): QuestPaneHandles {
     select: select as HTMLSelectElement,
     editorHost,
     runBtn: runBtn as HTMLButtonElement,
+    resetBtn: resetBtn as HTMLButtonElement,
     result,
   };
 }
@@ -187,16 +191,42 @@ export async function bootQuestPane(opts: {
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
   handles.runBtn.disabled = true;
+  handles.resetBtn.disabled = true;
   handles.result.textContent = "Loading editor…";
   const editor = await mountQuestEditor({
     container: handles.editorHost,
-    initialValue: activeStage.starterCode,
+    initialValue: loadCode(activeStage.id) ?? activeStage.starterCode,
     language: "typescript",
   });
   handles.runBtn.disabled = false;
+  handles.resetBtn.disabled = false;
   handles.result.textContent = "";
   const modal = wireResultsModal();
   attachRunButton(handles, modal, editor, () => activeStage);
+
+  // Persist edits per stage so refresh / stage-swap don't wipe the
+  // player's work. Debounced because Monaco fires a change on every
+  // keystroke; ~300ms is below the perceptible "I edited then it
+  // saved" gap and well under the time it takes to lift the finger
+  // and reach for refresh.
+  const SAVE_DEBOUNCE_MS = 300;
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleSave = (): void => {
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveCode(activeStage.id, editor.getValue());
+      saveTimer = null;
+    }, SAVE_DEBOUNCE_MS);
+  };
+  const flushSave = (): void => {
+    if (saveTimer === null) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveCode(activeStage.id, editor.getValue());
+  };
+  editor.onDidChange(() => {
+    scheduleSave();
+  });
 
   // Snippet picker — chips paste pre-built API calls into the
   // editor at the cursor. Wired here (after editor mount) so the
@@ -204,18 +234,31 @@ export async function bootQuestPane(opts: {
   const snippets: SnippetPickerHandles = wireSnippetPicker();
   renderSnippets(snippets, activeStage, editor);
 
-  // Stage navigator: rewrite the editor's contents to the new
-  // stage's starter and clear the result panel. A user mid-edit
-  // loses their work — by design for v1; a "discard your code?"
-  // confirm is a follow-up nicety.
+  // Reset: drop the saved entry and rehydrate the starter. Confirm
+  // first because it's destructive — the player's only undo is
+  // Monaco's edit history, which doesn't survive a refresh.
+  handles.resetBtn.addEventListener("click", () => {
+    const ok = window.confirm(`Reset ${activeStage.title} to its starter code?`);
+    if (!ok) return;
+    clearCode(activeStage.id);
+    editor.setValue(activeStage.starterCode);
+    handles.result.textContent = "";
+  });
+
+  // Stage navigator: save the outgoing stage's edits, then rehydrate
+  // the next stage from its saved entry (or starter on first visit).
+  // Saving on swap covers the "user edited then immediately picked a
+  // different stage" race that would otherwise lose the last <300ms
+  // of typing to the debounce.
   handles.select.addEventListener("change", () => {
+    flushSave();
     const next = resolveStage(handles.select.value);
     activeStage = next;
     renderStage(handles, next);
     renderApiPanel(apiPanel, next);
     renderHints(hints, next);
     renderSnippets(snippets, next, editor);
-    editor.setValue(next.starterCode);
+    editor.setValue(loadCode(next.id) ?? next.starterCode);
     handles.result.textContent = "";
     opts.onStageChange?.(next.id);
   });
