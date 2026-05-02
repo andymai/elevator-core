@@ -19,7 +19,7 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 </div>
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/andymai/elevator-core/main/media/demo.mp4" autoplay loop muted playsinline></video>
+  <img src="https://raw.githubusercontent.com/andymai/elevator-core/main/media/demo.webp" alt="elevator-core web playground: two dispatch strategies racing on identical traffic" width="720" />
 </p>
 
 ## What it does
