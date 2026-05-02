@@ -30,8 +30,13 @@ export interface QuestEditor {
   getValue(): string;
   /** Replace the editor's text. */
   setValue(text: string): void;
-  /** Subscribe to text changes. Returns an unsubscribe handle. */
-  onDidChange(listener: (value: string) => void): { dispose(): void };
+  /**
+   * Subscribe to text changes. The listener is called with no
+   * argument to avoid a `getValue()` allocation on every keystroke;
+   * call `getValue()` from the listener if the current text is
+   * actually needed.
+   */
+  onDidChange(listener: () => void): { dispose(): void };
   /** Insert `text` at the current cursor position and focus the editor. */
   insertAtCursor(text: string): void;
   /** Tear down the editor and free its DOM/worker resources. */
@@ -117,7 +122,7 @@ export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestE
     },
     onDidChange(listener) {
       const sub = editor.onDidChangeModelContent(() => {
-        listener(editor.getValue());
+        listener();
       });
       return {
         dispose: () => {

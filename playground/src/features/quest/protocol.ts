@@ -31,12 +31,20 @@ export interface InitPayload {
   readonly wasmBgUrl: string;
 }
 
-/** Snapshot bundle returned after a `tick` request. */
+/**
+ * Snapshot bundle returned after a `tick` request.
+ *
+ * `snapshot` and `events` are only populated when the host requested
+ * visuals (`wantVisuals: true` on the `TickRequest`). In the headless
+ * grading path they're undefined — the worker skips both wasm calls
+ * entirely so we don't pay for snapshot serialization or event drain
+ * on every batch when only `metrics` + `tick` are read.
+ */
 export interface TickResultPayload {
-  readonly snapshot: Snapshot;
   readonly tick: number;
-  readonly events: readonly EventDto[];
   readonly metrics: MetricsDto;
+  readonly snapshot?: Snapshot;
+  readonly events?: readonly EventDto[];
 }
 
 // ─── Host → Worker ──────────────────────────────────────────────────
@@ -51,6 +59,13 @@ export interface TickRequest {
   readonly kind: "tick";
   readonly id: number;
   readonly ticks: number;
+  /**
+   * Set true when the host needs the snapshot + event bundle for a
+   * visualizer or replay. Default false — saves a wasm `snapshot()`
+   * and a wasm `drainEvents()` per batch in the headless grading
+   * path, which on stage-15-scale configs is a measurable win.
+   */
+  readonly wantVisuals?: boolean;
 }
 
 export interface SpawnRiderRequest {
