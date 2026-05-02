@@ -64,8 +64,9 @@ const STAGE_15_STARTER = `// Stage 15 — Sky Lobby
 // high halves of the building. A natural split: Low car serves
 // the bottom half, High car serves the top half, Floater fills in.
 //
-// assignLineToGroup(lineRef, groupRef) puts a line under a group's
-// dispatcher; reassignElevatorToLine(carRef, lineRef) moves a car.
+// assignLineToGroup(lineRef, groupId) puts a line under a group's
+// dispatcher (groupId is a plain number, not a bigint ref);
+// reassignElevatorToLine(carRef, lineRef) moves a car.
 //
 // The default config has everything on one group. ETD does fine.
 // Beating 22s average wait needs an explicit group split.
@@ -87,7 +88,7 @@ export const STAGE_15_SKY_LOBBY: Stage = {
   ],
   starterCode: STAGE_15_STARTER,
   hints: [
-    "`sim.assignLineToGroup(lineRef, groupRef)` puts a line under a group's dispatcher. Two groups means two independent dispatch decisions.",
+    "`sim.assignLineToGroup(lineRef, groupId)` puts a line under a group's dispatcher; `groupId` is a plain integer (not a ref) and the call returns the active dispatcher's id. Two groups means two independent dispatch decisions.",
     "`sim.reassignElevatorToLine(carRef, lineRef)` moves a car between lines without rebuilding the topology. Useful when a duty band is over- or under-loaded.",
     "3★ requires sub-22s average wait. The Floater is the lever: park it on whichever side has the bigger queue and let the dedicated cars handle their bands.",
   ],

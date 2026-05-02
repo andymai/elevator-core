@@ -51,7 +51,8 @@ const STAGE_12_STARTER = `// Stage 12 — Routes
 //
 // Riders have explicit routes between origin and destination. The
 // controller can inspect them with shortestRoute(originStop,
-// destinationStop) and reroute(rider, newRoute) when needed.
+// destinationStop) and send a rider to a new destination with
+// reroute(riderRef, newDestStop).
 //
 // Most stages don't need this directly — riders are auto-routed at
 // spawn. But understanding routes is the foundation for the
@@ -75,7 +76,7 @@ export const STAGE_12_ROUTES: Stage = {
   starterCode: STAGE_12_STARTER,
   hints: [
     "`sim.shortestRoute(originStop, destinationStop)` returns the canonical route as an array of stop refs. The first entry is the origin, the last is the destination.",
-    "`sim.reroute(riderRef, newRoute)` replaces a rider's route — useful when a stop on their route has been disabled or removed mid-run.",
+    "`sim.reroute(riderRef, newDestStop)` redirects a rider to a new destination from wherever they are — useful when a stop on their original route has been disabled or removed mid-run.",
     "3★ requires sub-16s average wait. ETD or RSR usually wins this; the route API is here so you understand what's available, not because you need it for the optimization.",
   ],
 };
