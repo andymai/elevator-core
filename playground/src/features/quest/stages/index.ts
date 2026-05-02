@@ -1,10 +1,10 @@
 /**
  * Quest stage registry.
  *
- * Stages are listed in display order. The registry is intentionally a
- * simple array so the picker UI (Q-12+) can iterate it directly. New
- * stages add an export from a `stage-NN-slug.ts` module and append it
- * here — no central type wrangling required.
+ * Stages are listed in display order. The registry is a simple
+ * array so the picker UI can iterate it directly. New stages export
+ * from a `stage-NN-slug.ts` module and append it here — no central
+ * type wrangling required.
  */
 
 import type { Stage } from "./types";

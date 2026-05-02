@@ -23,8 +23,7 @@ describe("quest: stage registry", () => {
 
   it("each stage has at most two star tiers", () => {
     // 1★ comes from `passFn`; `starFns` covers the 2★ and 3★ bonus
-    // tiers only. Anything beyond that would be invisible to the
-    // player — the grading UX (Q-09) renders 1–3 stars total.
+    // tiers only. The results modal renders at most 3 stars total.
     for (const stage of STAGES) {
       expect(stage.starFns.length).toBeLessThanOrEqual(2);
     }
@@ -45,8 +44,8 @@ describe("quest: stage registry", () => {
   });
 
   it("stage 1 (first-floor) is the curriculum entry point", () => {
-    // Stage 1 must exist and unlock `pushDestination`. Removing it
-    // would break onboarding from Q-12+.
+    // Stage 1 must exist and unlock `pushDestination` — removing it
+    // would break onboarding for every new player.
     const stage1 = stageById("first-floor");
     expect(stage1).toBeDefined();
     expect(stage1?.unlockedApi).toContain("pushDestination");

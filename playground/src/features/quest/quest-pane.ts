@@ -1,18 +1,15 @@
 /**
  * Mount the Quest mode UI shell.
  *
- * Q-09 added the visible banner; Q-10 swaps the static starter-code
- * `<pre>` for a Monaco editor and wires the Run button to
- * `runStage`. Q-15 adds the stage navigator: a `<select>` lets the
- * player switch between every stage in the registry, and the chosen
- * stage round-trips through the permalink as `?qs=`.
- *
- * The function is intentionally idempotent and side-effect-light so
+ * Renders the stage banner, mounts the Monaco editor, wires the
+ * Run/Reset buttons and stage navigator, and hosts per-stage
+ * persistence. The function is idempotent and side-effect-light so
  * the shell can call it from `boot.ts` without coordinating with the
  * existing compare-mode render loop.
  */
 
 import { renderApiPanel, wireApiPanel, type ApiPanelHandles } from "./api-panel";
+import { clearChildren, requireElement } from "./dom-utils";
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
@@ -34,32 +31,21 @@ export interface QuestPaneHandles {
 }
 
 /**
- * Wire the Quest pane DOM. Throws if the expected anchor isn't in
- * the document — the caller should only invoke this when in Quest
- * mode (the index.html ships the section hidden by default).
+ * Wire the Quest pane DOM. Throws if any expected anchor is missing —
+ * the caller should only invoke this when in Quest mode (the
+ * index.html ships the section hidden by default).
  */
 export function wireQuestPane(): QuestPaneHandles {
-  const root = document.getElementById("quest-pane");
-  if (!root) throw new Error("quest-pane: missing #quest-pane");
-  const title = document.getElementById("quest-stage-title");
-  const brief = document.getElementById("quest-stage-brief");
-  const select = document.getElementById("quest-stage-select");
-  const editorHost = document.getElementById("quest-editor");
-  const runBtn = document.getElementById("quest-run");
-  const resetBtn = document.getElementById("quest-reset");
-  const result = document.getElementById("quest-result");
-  if (!title || !brief || !select || !editorHost || !runBtn || !resetBtn || !result) {
-    throw new Error("quest-pane: missing stage banner elements");
-  }
+  const m = "quest-pane";
   return {
-    root,
-    title,
-    brief,
-    select: select as HTMLSelectElement,
-    editorHost,
-    runBtn: runBtn as HTMLButtonElement,
-    resetBtn: resetBtn as HTMLButtonElement,
-    result,
+    root: requireElement("quest-pane", m),
+    title: requireElement("quest-stage-title", m),
+    brief: requireElement("quest-stage-brief", m),
+    select: requireElement("quest-stage-select", m) as HTMLSelectElement,
+    editorHost: requireElement("quest-editor", m),
+    runBtn: requireElement("quest-run", m) as HTMLButtonElement,
+    resetBtn: requireElement("quest-reset", m) as HTMLButtonElement,
+    result: requireElement("quest-result", m),
   };
 }
 
@@ -73,12 +59,8 @@ export function renderStage(handles: QuestPaneHandles, stage: Stage): void {
 }
 
 /** Populate the stage picker from the registry. Idempotent. */
-export function populateStageSelect(handles: QuestPaneHandles): void {
-  // Clear in case of re-entry — `populateStageSelect` is called on
-  // every Quest mount and the registry is the source of truth.
-  while (handles.select.firstChild) {
-    handles.select.removeChild(handles.select.firstChild);
-  }
+function populateStageSelect(handles: QuestPaneHandles): void {
+  clearChildren(handles.select);
   STAGES.forEach((stage, index) => {
     const opt = document.createElement("option");
     opt.value = stage.id;

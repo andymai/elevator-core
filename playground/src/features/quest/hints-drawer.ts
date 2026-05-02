@@ -14,6 +14,7 @@
  * while letting confident ones ignore the panel entirely.
  */
 
+import { clearChildren, requireElement } from "./dom-utils";
 import type { Stage } from "./stages";
 
 export interface HintsDrawerHandles {
@@ -23,23 +24,15 @@ export interface HintsDrawerHandles {
 }
 
 export function wireHintsDrawer(): HintsDrawerHandles {
-  const root = document.getElementById("quest-hints");
-  const count = document.getElementById("quest-hints-count");
-  const list = document.getElementById("quest-hints-list");
-  if (!root || !count || !list) {
-    throw new Error("hints-drawer: missing DOM anchors");
-  }
   return {
-    root: root as HTMLDetailsElement,
-    count,
-    list: list as HTMLOListElement,
+    root: requireElement("quest-hints", "hints-drawer") as HTMLDetailsElement,
+    count: requireElement("quest-hints-count", "hints-drawer"),
+    list: requireElement("quest-hints-list", "hints-drawer") as HTMLOListElement,
   };
 }
 
 export function renderHints(handles: HintsDrawerHandles, stage: Stage): void {
-  while (handles.list.firstChild) {
-    handles.list.removeChild(handles.list.firstChild);
-  }
+  clearChildren(handles.list);
   const total = stage.hints.length;
   if (total === 0) {
     handles.count.textContent = "(none for this stage)";
