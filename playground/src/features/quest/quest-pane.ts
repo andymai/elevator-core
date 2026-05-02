@@ -14,6 +14,7 @@ import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
 import { showResults, wireResultsModal, type ResultsModalHandles } from "./results-modal";
 import { renderSnippets, wireSnippetPicker, type SnippetPickerHandles } from "./snippet-picker";
+import { formatProgress } from "./stage-progress";
 import { runStage, type StageResult } from "./stage-runner";
 import { STAGES, stageById } from "./stages";
 import type { StarCount, Stage } from "./stages";
@@ -28,6 +29,13 @@ export interface QuestPaneHandles {
   readonly runBtn: HTMLButtonElement;
   readonly resetBtn: HTMLButtonElement;
   readonly result: HTMLElement;
+  /**
+   * Live tick/delivered/avg-wait readout shown beside the Run row
+   * while a stage is running. Distinct from `result` so screen
+   * readers (which announce `result` via `aria-live`) don't get
+   * spammed by the per-batch update stream.
+   */
+  readonly progress: HTMLElement;
 }
 
 /**
@@ -46,6 +54,7 @@ export function wireQuestPane(): QuestPaneHandles {
     runBtn: requireElement("quest-run", m) as HTMLButtonElement,
     resetBtn: requireElement("quest-reset", m) as HTMLButtonElement,
     result: requireElement("quest-result", m),
+    progress: requireElement("quest-progress", m),
   };
 }
 
@@ -109,11 +118,21 @@ async function executeRun(
 ): Promise<void> {
   handles.runBtn.disabled = true;
   handles.result.textContent = "Running…";
+  handles.progress.textContent = "";
   try {
     // Cap the controller's initial run at one second — long enough
     // for honest setup work, short enough that an infinite loop
     // bubbles up as a timeout instead of blocking indefinitely.
-    const result = await runStage(stage, editor.getValue(), { timeoutMs: 1000 });
+    const result = await runStage(stage, editor.getValue(), {
+      timeoutMs: 1000,
+      onProgress: (grade) => {
+        // Drop progress updates if the player navigated away mid-run;
+        // matches the modal-suppression policy below so the next
+        // stage's fresh state isn't overwritten by stale text.
+        if (handles.select.value !== stage.id) return;
+        handles.progress.textContent = formatProgress(grade);
+      },
+    });
     // Always grade — a passed run earns its stars even if the player
     // navigated to a different stage during the run window. Only
     // surface the modal/inline status if the player is still looking
@@ -122,6 +141,7 @@ async function executeRun(
     onGraded(stage, result);
     if (handles.select.value === stage.id) {
       handles.result.textContent = "";
+      handles.progress.textContent = "";
       showResults(modal, result, retry);
     }
   } catch (err) {
@@ -131,6 +151,7 @@ async function executeRun(
       // A controller throw is a code bug the player needs to see in
       // place, not a result to celebrate or retry.
       handles.result.textContent = `Error: ${msg}`;
+      handles.progress.textContent = "";
     }
   } finally {
     handles.runBtn.disabled = false;
