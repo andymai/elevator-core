@@ -49,6 +49,12 @@ export interface RunStageOptions {
    * at the standard tick rate).
    */
   readonly batchTicks?: number;
+  /**
+   * Called after each batch with the latest grade. Lets the host paint
+   * tick-by-tick progress while the sim runs. Throws are caught — a
+   * UI update error must not abort an in-flight run.
+   */
+  readonly onProgress?: (grade: GradeInputs) => void;
 }
 
 /**
@@ -99,6 +105,13 @@ export async function runStage(
       lastMetrics = result.metrics;
       endTick = result.tick;
       const grade = makeGrade(lastMetrics, endTick);
+      if (opts.onProgress) {
+        try {
+          opts.onProgress(grade);
+        } catch {
+          // A UI bug in the progress renderer must not abort the run.
+        }
+      }
       if (stage.passFn(grade)) {
         return finalize(stage, grade, true);
       }
