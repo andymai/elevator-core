@@ -6,15 +6,10 @@
  * click/tap. On mobile the chip row is the primary input affordance
  * for adding code; on desktop it's a faster path than typing the
  * full call.
- *
- * The chip row re-renders on stage navigation: locked methods
- * disappear, freshly-unlocked methods appear with a subtle accent
- * the first time they show up. (Actually we render every time
- * without the "fresh" treatment for v1; the per-stage-novelty
- * highlight is a follow-up.)
  */
 
 import { unlockedEntries } from "./api-reference";
+import { clearChildren, requireElement } from "./dom-utils";
 import type { QuestEditor } from "./editor";
 import type { Stage } from "./stages";
 
@@ -24,10 +19,7 @@ export interface SnippetPickerHandles {
 
 /**
  * Curated insert templates per wasm method. Mirrors API_REFERENCE
- * entries (the registry-completeness test should eventually pin
- * snippets to the reference too — for v1 the lookup falls back to
- * a generic `sim.{name}();` template, which is good enough for
- * methods I haven't hand-tuned yet).
+ * entries; missing names fall through to a generic `sim.{name}();`.
  */
 const SNIPPETS: Record<string, string> = {
   pushDestination: "sim.pushDestination(0n, 2n);",
@@ -58,9 +50,7 @@ function snippetFor(name: string): string {
 }
 
 export function wireSnippetPicker(): SnippetPickerHandles {
-  const root = document.getElementById("quest-snippets");
-  if (!root) throw new Error("snippet-picker: missing #quest-snippets");
-  return { root };
+  return { root: requireElement("quest-snippets", "snippet-picker") };
 }
 
 export function renderSnippets(
@@ -68,9 +58,7 @@ export function renderSnippets(
   stage: Stage,
   editor: QuestEditor,
 ): void {
-  while (handles.root.firstChild) {
-    handles.root.removeChild(handles.root.firstChild);
-  }
+  clearChildren(handles.root);
   const entries = unlockedEntries(stage.unlockedApi);
   if (entries.length === 0) return;
 

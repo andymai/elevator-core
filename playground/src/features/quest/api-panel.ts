@@ -9,6 +9,7 @@
  */
 
 import { unlockedEntries } from "./api-reference";
+import { clearChildren, requireElement } from "./dom-utils";
 import type { Stage } from "./stages";
 
 export interface ApiPanelHandles {
@@ -16,16 +17,11 @@ export interface ApiPanelHandles {
 }
 
 export function wireApiPanel(): ApiPanelHandles {
-  const root = document.getElementById("quest-api-panel");
-  if (!root) throw new Error("api-panel: missing #quest-api-panel");
-  return { root };
+  return { root: requireElement("quest-api-panel", "api-panel") };
 }
 
 export function renderApiPanel(handles: ApiPanelHandles, stage: Stage): void {
-  // Clear via removeChild so we don't trip the no-innerHTML rule.
-  while (handles.root.firstChild) {
-    handles.root.removeChild(handles.root.firstChild);
-  }
+  clearChildren(handles.root);
   const entries = unlockedEntries(stage.unlockedApi);
   if (entries.length === 0) {
     const empty = document.createElement("p");

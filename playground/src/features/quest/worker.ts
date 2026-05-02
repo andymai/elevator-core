@@ -202,7 +202,7 @@ function lockdownWorkerGlobals(): void {
  * that doesn't exist on the underlying sim falls through unchanged
  * (typo'd properties read as `undefined`, matching the bare wasm
  * surface). `null` skips gating entirely — the controller sees the
- * full sim, matching pre-Q-16 behaviour.
+ * full sim.
  */
 function gatedSim(
   realSim: WasmSimInstance,

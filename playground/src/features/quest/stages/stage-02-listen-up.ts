@@ -51,9 +51,7 @@ export const STAGE_02_LISTEN_UP: Stage = {
     ({ delivered, abandoned, metrics }) =>
       delivered >= 10 && abandoned === 0 && metrics.avg_wait_s < 30,
     // 3★ — beat the nearest-car baseline by ~25% on average wait
-    // (under 22 sim-seconds). The cross-pane delta computation
-    // ships in Q-09's results modal; for now the absolute threshold
-    // stands in.
+    // (under 22 sim-seconds).
     ({ delivered, abandoned, metrics }) =>
       delivered >= 10 && abandoned === 0 && metrics.avg_wait_s < 22,
   ],

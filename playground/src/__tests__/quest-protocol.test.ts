@@ -9,11 +9,9 @@ import {
 } from "../features/quest";
 
 // These tests verify the protocol's shape and discriminated-union
-// exhaustiveness — there's no Worker spinning up here. The actual
-// host↔worker round-trip is exercised when the Quest mode shell wires
-// it into the playground in a follow-up PR; jsdom (vitest's default)
-// has no Web Workers, and instantiating the worker requires the wasm
-// pkg/ bundle which the dev pipeline already covers.
+// exhaustiveness without spinning up a real Worker. jsdom has no
+// `Worker`, and instantiating the wasm sim requires the pkg/ bundle
+// — the live host↔worker round-trip is exercised in browser only.
 
 describe("quest: protocol shape", () => {
   it("HostToWorker covers all six command kinds", () => {

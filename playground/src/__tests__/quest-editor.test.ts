@@ -3,14 +3,11 @@ import { loadMonaco, mountQuestEditor } from "../features/quest";
 
 // These tests verify the public surface of the lazy Monaco loader.
 // Actually mounting Monaco requires a real DOM with a layout engine
-// and Web Workers — vitest's node env has neither, so the mount path
-// is exercised once the Quest mode shell wires the editor into the
-// playground in a follow-up PR.
+// and Web Workers; vitest's node env has neither, so the mount path
+// is exercised in browser only.
 
 describe("quest: editor", () => {
   it("exposes loadMonaco and mountQuestEditor", () => {
-    // Smoke check: keeps the runtime entry points reachable from a
-    // test entry while the editor isn't yet mounted by any feature.
     expect(typeof loadMonaco).toBe("function");
     expect(typeof mountQuestEditor).toBe("function");
   });

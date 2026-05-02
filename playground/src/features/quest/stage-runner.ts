@@ -12,9 +12,9 @@
  *      `passFn` + `starFns` to compute the result.
  *   5. Tear the worker down on the way out (success or failure).
  *
- * UI integration (results modal, retry button, stage navigation)
- * lands in a follow-up. This module is the headless engine that the
- * UI will eventually drive.
+ * The runner is intentionally headless — `quest-pane` drives the UI
+ * (results modal, retry, navigation) on top of the resolved
+ * `StageResult`.
  */
 
 import { createWorkerSim } from "./worker-sim";

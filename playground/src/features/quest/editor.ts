@@ -1,11 +1,10 @@
 /**
  * Lazy-loaded Monaco editor for Quest mode.
  *
- * Exposes a small handle so callers (Q-05's player-code execution) can
- * mount an editor, read/write the code, and dispose it without
- * importing Monaco directly. The Monaco bundle (~3MB) only loads when
- * `mountQuestEditor` is first called — Compare-mode users never pay
- * the cost.
+ * Exposes a small handle so callers can mount an editor, read/write
+ * the code, and dispose it without importing Monaco directly. The
+ * Monaco bundle (~3MB) only loads when `mountQuestEditor` is first
+ * called — Compare-mode users never pay the cost.
  *
  * The editor's web workers (TS language service + the generic editor
  * worker) are configured via `MonacoEnvironment` on first mount so

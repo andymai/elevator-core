@@ -3,9 +3,7 @@
  *
  * Each stage is its own typed module under `stages/`. The fields are
  * intentionally small and serializable so the registry can be loaded
- * incrementally as the curriculum grows. Q-09 grafts richer grading
- * (`starFns`, results modal); Q-10 adds the reference solution
- * gating; for v1 the schema covers what stages 1–3 need.
+ * incrementally as the curriculum grows.
  */
 
 import type { MetricsDto } from "../../../types";
@@ -78,6 +76,6 @@ export interface Stage {
   readonly starterCode: string;
   /** Progressive hints, revealed one at a time on demand. */
   readonly hints: readonly string[];
-  /** Reference solution — unlocked after a 1★ pass (Q-10). */
+  /** Reference solution — unlocked after a 1★ pass. */
   readonly referenceSolution?: string;
 }

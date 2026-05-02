@@ -86,7 +86,7 @@ export interface ResetRequest {
  *
  * Pass an empty `unlockedApi` to lock everything (mostly useful for
  * tests). Pass `null` to disable gating entirely — the controller
- * sees the full sim surface, matching the pre-Q-16 behaviour.
+ * sees the full sim surface.
  */
 export interface LoadControllerRequest {
   readonly kind: "load-controller";
