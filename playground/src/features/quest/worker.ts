@@ -134,17 +134,51 @@ function handleSetStrategy(id: number, strategy: string): void {
   }
 }
 
+/**
+ * Strip network-capable globals before running untrusted code.
+ *
+ * The worker context is *less* isolated than the comment originally
+ * claimed: workers retain `fetch`, `WebSocket`, and `importScripts`,
+ * which would let player code exfiltrate data or pull in arbitrary
+ * external script. wasm is already loaded by the time we get here —
+ * none of these are needed for sim operations afterwards — so we
+ * remove them outright. Idempotent across multiple `load-controller`
+ * calls because subsequent deletes are no-ops.
+ */
+function lockdownWorkerGlobals(): void {
+  const g = self as unknown as Record<string, unknown>;
+  // Overwrite rather than delete: the lint rule against dynamic
+  // delete steers us toward a fixed assignment, and `undefined`
+  // is functionally equivalent — calling `fetch(...)` on an
+  // undefined global throws `TypeError: fetch is not a function`,
+  // exactly the access denial we want.
+  g["fetch"] = undefined;
+  g["WebSocket"] = undefined;
+  g["EventSource"] = undefined;
+  g["importScripts"] = undefined;
+  g["XMLHttpRequest"] = undefined;
+}
+
 function handleLoadController(id: number, source: string): void {
   if (!sim) {
     post({ kind: "error", id, message: "load-controller before init" });
     return;
   }
+  lockdownWorkerGlobals();
   try {
     // Compile the player's source as a function body and run it once
-    // against the live sim handle. The worker thread is the sandbox:
-    // no DOM, no parent globals — the only way out is the `sim`
-    // argument and whatever it explicitly exposes. Strict mode keeps
+    // against the live sim handle. Combined with the lockdown above,
+    // the worker thread is now meaningfully isolated: no DOM, no
+    // network, no script-loading. The `sim` argument is the only
+    // engine-side surface the controller can touch. Strict mode keeps
     // user code from polluting the worker scope via implicit globals.
+    //
+    // No timeout in this PR — `Function`-compiled code can't be
+    // interrupted from inside the worker (synchronous infinite loops
+    // block the message loop). The host-side `loadController` adds a
+    // race-against-timeout that rejects on the host side; tearing
+    // down + re-spawning the worker on timeout is the stage-runner's
+    // job once it ships in Q-09+.
     const FunctionCtor = Function;
     const factory = FunctionCtor("sim", `"use strict";\n${source}`) as (
       simArg: WasmSimInstance,

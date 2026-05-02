@@ -97,16 +97,39 @@ export class WorkerSim {
    * Run player-authored controller code against the worker's sim.
    *
    * The source is compiled and executed once with `sim` in scope; any
-   * registered callbacks (e.g. `sim.setStrategyJs(name, rank)`) fire on
-   * subsequent ticks. Throws if the source fails to compile or the
-   * controller throws during execution.
+   * registered callbacks (e.g. `sim.setStrategyJs(name, rank)`) fire
+   * on subsequent ticks. Throws if the source fails to compile or
+   * the controller throws during execution.
+   *
+   * Pass `timeoutMs` to bound how long the controller's initial run
+   * may take. On timeout the host promise rejects; the worker thread
+   * itself is still alive but blocked, so the stage runner that wraps
+   * this call should `dispose()` and re-spawn the handle. Callers
+   * that don't supply a timeout get the underlying request's
+   * unbounded wait — fine for trusted controllers but unsafe for
+   * student-facing stages.
    */
-  async loadController(source: string): Promise<void> {
-    await this.#request<undefined>({
+  async loadController(source: string, timeoutMs?: number): Promise<void> {
+    const request = this.#request<undefined>({
       kind: "load-controller",
       id: this.#takeId(),
       source,
     });
+    if (timeoutMs === undefined) {
+      await request;
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`controller did not return within ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+    try {
+      await Promise.race([request, timeout]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
 
   async reset(opts: WorkerSimOptions): Promise<void> {
