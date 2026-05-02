@@ -20,6 +20,9 @@ import { STAGE_09_MANUAL } from "./stage-09-manual";
 import { STAGE_10_HOLD_DOORS } from "./stage-10-hold-doors";
 import { STAGE_11_FIRE_ALARM } from "./stage-11-fire-alarm";
 import { STAGE_12_ROUTES } from "./stage-12-routes";
+import { STAGE_13_TRANSFERS } from "./stage-13-transfers";
+import { STAGE_14_BUILD_FLOOR } from "./stage-14-build-floor";
+import { STAGE_15_SKY_LOBBY } from "./stage-15-sky-lobby";
 
 export const STAGES: readonly Stage[] = [
   STAGE_01_FIRST_FLOOR,
@@ -34,6 +37,9 @@ export const STAGES: readonly Stage[] = [
   STAGE_10_HOLD_DOORS,
   STAGE_11_FIRE_ALARM,
   STAGE_12_ROUTES,
+  STAGE_13_TRANSFERS,
+  STAGE_14_BUILD_FLOOR,
+  STAGE_15_SKY_LOBBY,
 ];
 
 /** Look up a stage by id. Returns `undefined` if no match. */

@@ -1,0 +1,84 @@
+import type { Stage } from "./types";
+
+/**
+ * Stage 13 — Transfer Points.
+ *
+ * The first multi-line stage. The building has two lines (low-rise
+ * and high-rise) that share a transfer floor. Riders going from
+ * lobby to a high floor must change cars at the transfer point.
+ * Introduces transferPoints + reachableStopsFrom.
+ *
+ * Routes are auto-built by the engine; the curriculum's job here
+ * is to make the player aware of the topology query surface so
+ * later stages (sky-lobby dispatch, dynamic re-routing) feel
+ * natural.
+ */
+const STAGE_13_RON = `SimConfig(
+    building: BuildingConfig(
+        name: "Quest 13",
+        stops: [
+            StopConfig(id: StopId(0), name: "Lobby", position: 0.0),
+            StopConfig(id: StopId(1), name: "L2", position: 4.0),
+            StopConfig(id: StopId(2), name: "L3", position: 8.0),
+            StopConfig(id: StopId(3), name: "Transfer", position: 12.0),
+            StopConfig(id: StopId(4), name: "H1", position: 16.0),
+            StopConfig(id: StopId(5), name: "H2", position: 20.0),
+            StopConfig(id: StopId(6), name: "H3", position: 24.0),
+        ],
+    ),
+    elevators: [
+        ElevatorConfig(
+            id: 0, name: "Low",
+            max_speed: 2.5, acceleration: 1.5, deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 55, door_transition_ticks: 14,
+        ),
+        ElevatorConfig(
+            id: 1, name: "High",
+            max_speed: 3.0, acceleration: 1.5, deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(3),
+            door_open_ticks: 55, door_transition_ticks: 14,
+        ),
+    ],
+    simulation: SimulationParams(ticks_per_second: 60.0),
+    passenger_spawning: PassengerSpawnConfig(
+        mean_interval_ticks: 50,
+        weight_range: (50.0, 100.0),
+    ),
+)`;
+
+const STAGE_13_STARTER = `// Stage 13 — Transfer Points
+//
+// Two cars on two lines that meet at the Transfer floor. Riders
+// going lobby->H2 ride the Low car to Transfer, change to the
+// High car, then ride to H2. The engine handles the change
+// automatically when riders carry routes — your job here is just
+// to keep dispatch healthy on both lines.
+//
+// transferPoints() and reachableStopsFrom(stop) tell you the
+// topology, but you don't need them for the pass condition.
+
+sim.setStrategy("etd");
+`;
+
+export const STAGE_13_TRANSFERS: Stage = {
+  id: "transfers",
+  title: "Transfer Points",
+  brief: "Two lines that share a transfer floor. Keep both halves moving.",
+  configRon: STAGE_13_RON,
+  unlockedApi: ["setStrategy", "transferPoints", "reachableStopsFrom", "shortestRoute"],
+  baseline: "scan",
+  passFn: ({ delivered }) => delivered >= 18,
+  starFns: [
+    ({ delivered, metrics }) => delivered >= 18 && metrics.avg_wait_s < 30,
+    ({ delivered, metrics }) => delivered >= 18 && metrics.avg_wait_s < 22,
+  ],
+  starterCode: STAGE_13_STARTER,
+  hints: [
+    "`sim.transferPoints()` returns the stops that bridge two lines. Useful when you're building a custom rank() that wants to penalise crossings.",
+    "`sim.reachableStopsFrom(stop)` returns every stop reachable without a transfer. Multi-line ranks use it to prefer same-line trips.",
+    "3★ requires sub-22s average wait. ETD or RSR plus a custom rank() that biases toward whichever car can finish the trip without a transfer wins it.",
+  ],
+};
