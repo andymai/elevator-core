@@ -90,6 +90,39 @@ export const API_REFERENCE: readonly ApiEntry[] = [
     signature: "reroute(riderRef, route): boolean",
     description: "Replace a rider's route. Useful when a stop on their route was removed.",
   },
+  {
+    name: "transferPoints",
+    signature: "transferPoints(): number[]",
+    description:
+      "Stops that bridge two lines — useful when ranking trips that may need a transfer.",
+  },
+  {
+    name: "reachableStopsFrom",
+    signature: "reachableStopsFrom(stop): number[]",
+    description: "Every stop reachable without changing lines.",
+  },
+  {
+    name: "addStop",
+    signature: "addStop(name, position): bigint",
+    description:
+      "Create a new stop. Returns the new stop's ref. Add to a line before dispatch will use it.",
+  },
+  {
+    name: "addStopToLine",
+    signature: "addStopToLine(lineRef, stopRef): void",
+    description: "Register a stop on a line so dispatch routes to it.",
+  },
+  {
+    name: "assignLineToGroup",
+    signature: "assignLineToGroup(lineRef, groupRef): void",
+    description:
+      "Put a line under a group's dispatcher. Two groups means two independent dispatch passes.",
+  },
+  {
+    name: "reassignElevatorToLine",
+    signature: "reassignElevatorToLine(carRef, lineRef): void",
+    description: "Move a car to a different line. Useful for duty-banding when one zone is busier.",
+  },
 ];
 
 const API_BY_NAME = new Map<string, ApiEntry>(API_REFERENCE.map((e) => [e.name, e]));
