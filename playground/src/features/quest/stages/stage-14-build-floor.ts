@@ -48,7 +48,7 @@ const STAGE_14_STARTER = `// Stage 14 — Build a Floor
 //
 //   const lineRef = /* the line you want to add the stop to */;
 //   const newStop = sim.addStop(lineRef, "F6", 20.0);
-//   sim.addStopToLine(lineRef, newStop);
+//   sim.addStopToLine(newStop, lineRef);  // (stopRef, lineRef)
 //
 // Standard dispatch otherwise.
 
@@ -71,7 +71,7 @@ export const STAGE_14_BUILD_FLOOR: Stage = {
   starterCode: STAGE_14_STARTER,
   hints: [
     "`sim.addStop(lineRef, name, position)` creates a stop on the supplied line and returns its ref. Once it's added, the line knows about it but dispatch may need a reassign or rebuild before serving it actively.",
-    "`sim.addStopToLine(lineRef, stopRef)` is what binds an *existing* stop to a line — useful when you've created a stop with `addStop` on a different line and want it shared.",
+    "`sim.addStopToLine(stopRef, lineRef)` is what binds an *existing* stop to a line — useful when you've created a stop with `addStop` on a different line and want it shared. Note the arg order: stop first, then line.",
     "3★ requires sub-25s average wait with no abandons — react quickly to the construction-complete event so waiting riders don't time out.",
   ],
 };
