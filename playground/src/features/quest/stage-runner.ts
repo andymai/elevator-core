@@ -17,9 +17,46 @@
  * `StageResult`.
  */
 
-import { createWorkerSim } from "./worker-sim";
-import type { GradeInputs, StarCount, Stage } from "./stages";
+import { createWorkerSim, type WorkerSim } from "./worker-sim";
+import type { GradeInputs, SeededRider, StarCount, Stage } from "./stages";
 import type { MetricsDto, Snapshot } from "../../types";
+
+const DEFAULT_RIDER_WEIGHT_KG = 75;
+
+/**
+ * Drain seed riders whose `atTick` is at or below `throughTick`,
+ * advancing the supplied cursor. Returns the new cursor index.
+ *
+ * The list is assumed to be pre-sorted by `atTick` ascending — the
+ * caller does that once at run start so this function stays O(k) per
+ * batch (where k is the number of riders crossed).
+ */
+async function spawnDueRiders(
+  sim: WorkerSim,
+  riders: readonly SeededRider[],
+  cursor: number,
+  throughTick: number,
+): Promise<number> {
+  let i = cursor;
+  while (i < riders.length) {
+    const rider = riders[i];
+    if (rider === undefined) break;
+    if ((rider.atTick ?? 0) > throughTick) break;
+    // Host-side `spawnRider` bypasses the controller-side `gatedSim`
+    // proxy: the worker's `handleSpawnRider` runs on the protocol
+    // path, not inside the player's `Function`-compiled controller,
+    // so seeding works regardless of what the stage's `unlockedApi`
+    // exposes to the player.
+    await sim.spawnRider(
+      rider.origin,
+      rider.destination,
+      rider.weight ?? DEFAULT_RIDER_WEIGHT_KG,
+      rider.patienceTicks,
+    );
+    i += 1;
+  }
+  return i;
+}
 
 export interface StageResult {
   /** `true` iff the stage's `passFn` returned `true` for the final grade. */
@@ -92,6 +129,18 @@ export async function runStage(
   });
 
   try {
+    // Sort seeds by arrival tick so the runner can walk a single
+    // cursor as the sim advances. The stable, immutable input is
+    // copied to a local list so callers can keep their `readonly`
+    // arrays without TypeScript widening the contract.
+    const sortedRiders = [...stage.seedRiders].sort((a, b) => (a.atTick ?? 0) - (b.atTick ?? 0));
+    // Spawn the tick-0 cohort before the controller runs. Without
+    // this, a stage like Stage 1 ("five riders waiting at the
+    // lobby") would have an empty lobby when the player's
+    // `pushDestination` calls fire and `delivered` would never
+    // climb off zero.
+    let riderCursor = await spawnDueRiders(sim, sortedRiders, 0, 0);
+
     // Forward the stage's unlocked API list so the worker's sim
     // proxy throws on calls outside the curriculum's current step.
     // `Stage.unlockedApi` is `readonly` and the protocol's field
@@ -113,6 +162,11 @@ export async function runStage(
       const result = await sim.tick(step, wantVisuals ? { wantVisuals: true } : undefined);
       lastMetrics = result.metrics;
       endTick = result.tick;
+      // Spawn any seed riders whose `atTick` falls inside the just-
+      // elapsed batch window. New arrivals show up no later than the
+      // start of the next batch — within a few ticks of their
+      // requested arrival at the default 60-tick batch size.
+      riderCursor = await spawnDueRiders(sim, sortedRiders, riderCursor, endTick);
       const grade = makeGrade(lastMetrics, endTick);
       if (opts.onProgress) {
         try {

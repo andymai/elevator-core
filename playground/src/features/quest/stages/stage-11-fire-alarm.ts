@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -68,6 +69,25 @@ export const STAGE_11_FIRE_ALARM: Stage = {
   section: "events-manual",
   configRon: STAGE_11_RON,
   unlockedApi: ["setStrategy", "drainEvents", "emergencyStop", "setServiceMode"],
+  // Pre-alarm steady traffic + post-alarm tail so the controller
+  // gets graded on both halves of the scenario. 22 riders for the
+  // 12-pass threshold gives margin for an abandon or two during the
+  // emergency window. (The actual fire-alarm event is dispatched
+  // by stage-runner machinery in a follow-up; for now this just
+  // delivers riders against the standard dispatch path.)
+  seedRiders: [
+    ...arrivals(12, {
+      origin: 0,
+      destinations: [2, 3, 4, 5, 1],
+      intervalTicks: 40,
+    }),
+    ...arrivals(10, {
+      origin: 0,
+      destinations: [3, 5, 2, 4],
+      startTick: 600,
+      intervalTicks: 50,
+    }),
+  ],
   baseline: "scan",
   passFn: ({ delivered, abandoned }) => delivered >= 12 && abandoned <= 2,
   starFns: [

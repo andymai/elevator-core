@@ -43,6 +43,24 @@ export const STAGE_02_LISTEN_UP: Stage = {
   section: "basics",
   configRon: STAGE_02_RON,
   unlockedApi: ["pushDestination", "hallCalls", "drainEvents"],
+  // Twelve riders staggered across the run so `hallCalls()` returns
+  // fresh entries each time the controller polls. Mix of upper-floor
+  // origins (so calls come from across the building, not just the
+  // lobby) and lobby origins to exercise the "polling matters" lesson.
+  seedRiders: [
+    { origin: 0, destination: 2, atTick: 0 },
+    { origin: 0, destination: 4, atTick: 0 },
+    { origin: 1, destination: 0, atTick: 60 },
+    { origin: 0, destination: 3, atTick: 120 },
+    { origin: 2, destination: 0, atTick: 180 },
+    { origin: 0, destination: 4, atTick: 240 },
+    { origin: 3, destination: 1, atTick: 300 },
+    { origin: 0, destination: 2, atTick: 360 },
+    { origin: 4, destination: 0, atTick: 420 },
+    { origin: 0, destination: 3, atTick: 480 },
+    { origin: 2, destination: 4, atTick: 540 },
+    { origin: 0, destination: 1, atTick: 600 },
+  ],
   baseline: "nearest",
   // Pass: 10 delivered, no abandons.
   passFn: ({ delivered, abandoned }) => delivered >= 10 && abandoned === 0,

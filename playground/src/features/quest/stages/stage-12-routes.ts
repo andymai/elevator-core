@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -68,6 +69,22 @@ export const STAGE_12_ROUTES: Stage = {
   section: "topology",
   configRon: STAGE_12_RON,
   unlockedApi: ["setStrategy", "shortestRoute", "reroute"],
+  // Steady mixed traffic across eight stops, two cars. 30 riders
+  // for the 25-pass — the routes API is informational, so the
+  // shape just needs to keep dispatch busy.
+  seedRiders: [
+    ...arrivals(20, {
+      origin: 0,
+      destinations: [3, 5, 7, 4, 6, 2],
+      intervalTicks: 25,
+    }),
+    ...arrivals(10, {
+      origin: 7,
+      destinations: [0, 1, 2, 3],
+      startTick: 360,
+      intervalTicks: 40,
+    }),
+  ],
   baseline: "scan",
   passFn: ({ delivered }) => delivered >= 25,
   starFns: [

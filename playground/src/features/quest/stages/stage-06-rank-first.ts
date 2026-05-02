@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -67,6 +68,19 @@ export const STAGE_06_RANK_FIRST: Stage = {
   section: "strategies",
   configRon: STAGE_06_RON,
   unlockedApi: ["setStrategyJs"],
+  // Mixed bidirectional traffic over six stops. The starter rank()
+  // (distance-only) clears 1★; tighter ranks that handle direction
+  // earn the star tiers. 24 riders gives players margin over the
+  // 20-delivery pass threshold.
+  seedRiders: [
+    ...arrivals(12, { origin: 0, destinations: [2, 4, 5, 3], intervalTicks: 30 }),
+    ...arrivals(12, {
+      origin: 5,
+      destinations: [0, 1, 2, 3],
+      startTick: 240,
+      intervalTicks: 35,
+    }),
+  ],
   baseline: "nearest",
   passFn: ({ delivered }) => delivered >= 20,
   starFns: [

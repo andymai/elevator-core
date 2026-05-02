@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -62,6 +63,17 @@ export const STAGE_14_BUILD_FLOOR: Stage = {
   section: "topology",
   configRon: STAGE_14_RON,
   unlockedApi: ["setStrategy", "addStop", "addStopToLine"],
+  // Sparse low-traffic scenario so the topology mutation is the
+  // focus. 14 riders for an 8-pass — riders are routed only to
+  // existing stops (the new sixth floor would need post-build
+  // arrivals threaded by a follow-up event-trigger system).
+  seedRiders: [
+    ...arrivals(14, {
+      origin: 0,
+      destinations: [2, 3, 4, 1, 3, 2],
+      intervalTicks: 75,
+    }),
+  ],
   baseline: "none",
   passFn: ({ delivered }) => delivered >= 8,
   starFns: [

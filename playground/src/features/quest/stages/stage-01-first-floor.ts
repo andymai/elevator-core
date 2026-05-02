@@ -42,6 +42,17 @@ export const STAGE_01_FIRST_FLOOR: Stage = {
   section: "basics",
   configRon: STAGE_01_RON,
   unlockedApi: ["pushDestination"],
+  // Five lobby riders matching the brief: three to F2, two to F3.
+  // Patience is generous so a player who only queues one destination
+  // still sees their riders sit (not abandon) — keeps the failure
+  // mode visible and debuggable.
+  seedRiders: [
+    { origin: 0, destination: 1, weight: 75 },
+    { origin: 0, destination: 1, weight: 75 },
+    { origin: 0, destination: 1, weight: 75 },
+    { origin: 0, destination: 2, weight: 75 },
+    { origin: 0, destination: 2, weight: 75 },
+  ],
   baseline: "none",
   // Pass: at least 5 riders delivered, no abandons.
   passFn: ({ delivered, abandoned }) => delivered >= 5 && abandoned === 0,

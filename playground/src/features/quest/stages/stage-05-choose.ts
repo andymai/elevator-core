@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -54,6 +55,18 @@ export const STAGE_05_CHOOSE: Stage = {
   section: "strategies",
   configRon: STAGE_05_RON,
   unlockedApi: ["setStrategy"],
+  // Up-peak: 36 lobby-origin riders fanned out across F2-F10 with
+  // bias toward upper floors (where ETD's destination-aware
+  // assignment beats nearest's distance-only pick). Spaced tightly
+  // (20 ticks ≈ 0.33s) to overload the cars and reward the better
+  // strategy with shorter aggregate waits.
+  seedRiders: [
+    ...arrivals(36, {
+      origin: 0,
+      destinations: [3, 5, 7, 9, 4, 6, 8, 2, 5, 7, 3, 9],
+      intervalTicks: 20,
+    }),
+  ],
   baseline: "nearest",
   passFn: ({ delivered }) => delivered >= 30,
   starFns: [

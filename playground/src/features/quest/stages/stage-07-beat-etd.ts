@@ -1,3 +1,4 @@
+import { arrivals } from "./seed-helpers";
 import type { Stage } from "./types";
 
 /**
@@ -63,6 +64,24 @@ export const STAGE_07_BEAT_ETD: Stage = {
   section: "strategies",
   configRon: STAGE_07_RON,
   unlockedApi: ["setStrategyJs"],
+  // Heavy mixed traffic over ten stops, three cars. Two streams:
+  // a sustained lobby up-rush (where direction-aware ranks earn
+  // their keep) and a slower top-down trickle that punishes ranks
+  // that ignore the cars on the way back. 48 riders to allow
+  // margin over the 40-delivery pass.
+  seedRiders: [
+    ...arrivals(36, {
+      origin: 0,
+      destinations: [4, 6, 8, 2, 5, 9, 3, 7, 6, 8, 4, 5],
+      intervalTicks: 18,
+    }),
+    ...arrivals(12, {
+      origin: 9,
+      destinations: [0, 1, 2, 3],
+      startTick: 360,
+      intervalTicks: 30,
+    }),
+  ],
   baseline: "etd",
   passFn: ({ delivered }) => delivered >= 40,
   starFns: [
