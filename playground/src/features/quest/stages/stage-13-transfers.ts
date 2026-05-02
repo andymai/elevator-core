@@ -81,4 +81,6 @@ export const STAGE_13_TRANSFERS: Stage = {
     "`sim.reachableStopsFrom(stop)` returns every stop reachable without a transfer. Multi-line ranks use it to prefer same-line trips.",
     "3★ requires sub-22s average wait. ETD or RSR plus a custom rank() that biases toward whichever car can finish the trip without a transfer wins it.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 18. Two lines share the Transfer floor — keep ETD running on both halves so transfers don't pile up at the bridge.`,
 };

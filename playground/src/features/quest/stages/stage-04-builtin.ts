@@ -77,4 +77,6 @@ sim.setStrategy("look");
     "Look at `metrics.avg_wait_s` to judge: lower is better. Try each strategy in turn — the deltas are small but visible.",
     "3★ requires sub-18s average wait. ETD typically wins on heavy traffic; LOOK is competitive at lower spawn rates.",
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 25. Try a different built-in via \`sim.setStrategy("look" | "nearest" | "etd")\` — heavy traffic favours stronger heuristics.`,
 };

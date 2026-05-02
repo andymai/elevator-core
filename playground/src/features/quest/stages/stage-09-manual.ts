@@ -78,4 +78,6 @@ export const STAGE_09_MANUAL: Stage = {
     "Setting target velocity to 0 doesn't park the car — it coasts until friction (none in this sim) or a brake stop. Use `setTargetVelocity(carRef, 0)` only when you've already arrived.",
     '3★ rewards a controller that can match the autopilot\'s average wait. Start with `setStrategy("etd")` (the starter code) and see how close manual gets you.',
   ],
+  failHint: ({ delivered }) =>
+    `Delivered ${delivered} of 8. If the car never moves, check that \`setServiceMode(carRef, "manual")\` ran before \`setTargetVelocity\` — direct drive only works in manual mode.`,
 };
