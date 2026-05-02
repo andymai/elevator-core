@@ -71,6 +71,7 @@ export const STAGE_08_EVENTS: Stage = {
   id: "events",
   title: "Event-Driven",
   brief: "React to events. Use call age to break ties when distance is equal.",
+  section: "strategies",
   configRon: STAGE_08_RON,
   unlockedApi: ["setStrategyJs", "drainEvents"],
   baseline: "scan",

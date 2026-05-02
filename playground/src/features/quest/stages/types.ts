@@ -55,6 +55,13 @@ export type StarFn = (inputs: GradeInputs) => boolean;
 /** Star count earned on a stage. 0 = not passed; 1–3 = grade tiers. */
 export type StarCount = 0 | 1 | 2 | 3;
 
+/**
+ * Curriculum sections used to group stages in the grid navigator.
+ * Pinned via union type so a stage with an unrecognised section
+ * fails the typecheck rather than rendering under "—".
+ */
+export type StageSection = "basics" | "strategies" | "events-manual" | "topology";
+
 export interface Stage {
   /** Stable URL-safe slug; permalinks key off this. */
   readonly id: string;
@@ -62,6 +69,13 @@ export interface Stage {
   readonly title: string;
   /** One-line brief shown above the editor. */
   readonly brief: string;
+  /**
+   * Curriculum section the stage belongs to. Drives section grouping
+   * in the grid navigator (basics → strategies → events-manual →
+   * topology). Required so a forgotten annotation lands in a typecheck
+   * error instead of silently going un-grouped.
+   */
+  readonly section: StageSection;
   /** RON-encoded `SimConfig`. */
   readonly configRon: string;
   /** Methods the controller is allowed to call on `sim`. */

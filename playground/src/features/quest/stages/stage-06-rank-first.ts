@@ -64,6 +64,7 @@ export const STAGE_06_RANK_FIRST: Stage = {
   id: "rank-first",
   title: "Your First rank()",
   brief: "Implement dispatch as a function. Score each (car, stop) pair.",
+  section: "strategies",
   configRon: STAGE_06_RON,
   unlockedApi: ["setStrategyJs"],
   baseline: "nearest",

@@ -58,4 +58,13 @@ export function nextStage(currentId: string): Stage | undefined {
   return STAGES[idx + 1];
 }
 
-export type { Stage, Baseline, StarCount, UnlockedApi, GradeInputs, PassFn, StarFn } from "./types";
+export type {
+  Stage,
+  StageSection,
+  Baseline,
+  StarCount,
+  UnlockedApi,
+  GradeInputs,
+  PassFn,
+  StarFn,
+} from "./types";

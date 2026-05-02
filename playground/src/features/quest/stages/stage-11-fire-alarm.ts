@@ -65,6 +65,7 @@ export const STAGE_11_FIRE_ALARM: Stage = {
   id: "fire-alarm",
   title: "Fire Alarm",
   brief: "Halt every car cleanly when an alarm fires. Standard dispatch otherwise.",
+  section: "events-manual",
   configRon: STAGE_11_RON,
   unlockedApi: ["setStrategy", "drainEvents", "emergencyStop", "setServiceMode"],
   baseline: "scan",

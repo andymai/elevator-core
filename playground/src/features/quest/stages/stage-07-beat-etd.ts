@@ -60,6 +60,7 @@ export const STAGE_07_BEAT_ETD: Stage = {
   id: "beat-etd",
   title: "Beat ETD",
   brief: "Three cars, mixed traffic. The strongest built-in is your baseline.",
+  section: "strategies",
   configRon: STAGE_07_RON,
   unlockedApi: ["setStrategyJs"],
   baseline: "etd",

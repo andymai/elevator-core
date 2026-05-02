@@ -67,6 +67,7 @@ export const STAGE_13_TRANSFERS: Stage = {
   id: "transfers",
   title: "Transfer Points",
   brief: "Two lines that share a transfer floor. Keep both halves moving.",
+  section: "topology",
   configRon: STAGE_13_RON,
   unlockedApi: ["setStrategy", "transferPoints", "reachableStopsFrom", "shortestRoute"],
   baseline: "scan",

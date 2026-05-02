@@ -99,8 +99,14 @@ export async function boot(): Promise<void> {
   // the controls bar stays interactive in the meantime because boot
   // already completed the synchronous wiring above.
   if (state.permalink.mode === "quest") {
+    // Land on the curriculum grid by default. Only short-circuit
+    // straight to the stage view when the URL explicitly carries a
+    // `?qs=` — that's the recipient-of-shared-link case where the
+    // sender meant "look at this exact stage".
+    const hadStageInUrl = new URLSearchParams(window.location.search).has("qs");
     await bootQuestPane({
       initialStageId: state.permalink.questStage,
+      landOn: hadStageInUrl ? "stage" : "grid",
       onStageChange: (stageId) => {
         state.permalink.questStage = stageId;
         const url = new URL(window.location.href);
@@ -109,6 +115,13 @@ export async function boot(): Promise<void> {
         } else {
           url.searchParams.set("qs", stageId);
         }
+        window.history.replaceState(null, "", url.toString());
+      },
+      onBackToGrid: () => {
+        // The grid is the default cold-boot view; clear `qs` so a
+        // refresh from the grid stays on the grid.
+        const url = new URL(window.location.href);
+        url.searchParams.delete("qs");
         window.history.replaceState(null, "", url.toString());
       },
     });

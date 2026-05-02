@@ -27,6 +27,7 @@ describe("quest: stage runner surface", () => {
       id: "test",
       title: "Test",
       brief: "Test stage",
+      section: "basics",
       configRon: "",
       unlockedApi: ["addDestination"],
       baseline: "none",

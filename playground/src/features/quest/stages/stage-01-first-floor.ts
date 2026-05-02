@@ -39,6 +39,7 @@ export const STAGE_01_FIRST_FLOOR: Stage = {
   id: "first-floor",
   title: "First Floor",
   brief: "Five riders at the lobby. Pick destinations and dispatch the car.",
+  section: "basics",
   configRon: STAGE_01_RON,
   unlockedApi: ["pushDestination"],
   baseline: "none",

@@ -40,6 +40,7 @@ export const STAGE_02_LISTEN_UP: Stage = {
   id: "listen-up",
   title: "Listen for Calls",
   brief: "Riders are pressing hall buttons. Read the calls and dispatch the car.",
+  section: "basics",
   configRon: STAGE_02_RON,
   unlockedApi: ["pushDestination", "hallCalls", "drainEvents"],
   baseline: "nearest",

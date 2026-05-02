@@ -51,6 +51,7 @@ export const STAGE_05_CHOOSE: Stage = {
   id: "choose",
   title: "Choose Wisely",
   brief: "Asymmetric morning rush. Pick the strategy that handles up-peak best.",
+  section: "strategies",
   configRon: STAGE_05_RON,
   unlockedApi: ["setStrategy"],
   baseline: "nearest",
