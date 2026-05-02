@@ -306,7 +306,10 @@ export async function mountQuestEditor(opts: EditorMountOptions): Promise<QuestE
           startLineNumber: marker.line,
           startColumn: marker.column,
           endLineNumber: marker.line,
-          endColumn: Math.max(marker.column + 1, marker.column),
+          // Single-character squiggle — the location is approximate
+          // (browser stacks don't span a token range), so a one-char
+          // hit reads cleaner than a synthetic "to end of line".
+          endColumn: marker.column + 1,
         },
       ]);
       // Reveal the line so the squiggle isn't off-screen in a long
