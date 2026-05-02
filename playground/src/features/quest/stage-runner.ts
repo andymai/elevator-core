@@ -109,7 +109,9 @@ export async function runStage(
       // guard so the type narrows below.
       throw new Error("runStage: maxTicks must be positive");
     }
-    return finalize(stage, makeGrade(lastMetrics, endTick), null);
+    // Loop exited because every tested batch's `passFn` returned
+    // `false` — pass that through so `finalize` doesn't re-evaluate.
+    return finalize(stage, makeGrade(lastMetrics, endTick), false);
   } finally {
     sim.dispose();
   }
@@ -125,13 +127,12 @@ function makeGrade(metrics: MetricsDto, endTick: number): GradeInputs {
 }
 
 /**
- * Build the final `StageResult` from a grade. `passedHint` lets the
- * caller skip a redundant `passFn` call when it already knows the
- * outcome (the early-exit path in `runStage` does); pass `null` to
- * have `finalize` evaluate `passFn` itself.
+ * Build the final `StageResult` from a grade. `passed` is supplied by
+ * the caller — both call sites in `runStage` already know it (one
+ * from the early-exit `passFn(grade)` branch, the other from the
+ * loop's exit condition), so `finalize` doesn't re-evaluate.
  */
-function finalize(stage: Stage, grade: GradeInputs, passedHint: boolean | null): StageResult {
-  const passed = passedHint ?? stage.passFn(grade);
+function finalize(stage: Stage, grade: GradeInputs, passed: boolean): StageResult {
   if (!passed) {
     return { passed: false, stars: 0, grade };
   }
