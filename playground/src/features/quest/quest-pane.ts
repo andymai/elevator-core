@@ -205,13 +205,16 @@ export async function bootQuestPane(opts: {
   attachRunButton(handles, modal, editor, () => activeStage);
 
   // Persist edits per stage so refresh / stage-swap don't wipe the
-  // player's work. Debounced because Monaco fires a change on every
-  // keystroke; ~300ms is below the perceptible "I edited then it
-  // saved" gap and well under the time it takes to lift the finger
-  // and reach for refresh.
+  // player's work. Monaco's onDidChange fires for every content
+  // change including programmatic `setValue`, so a `suppressSave`
+  // flag gates the debounce while we rehydrate from storage —
+  // otherwise stage-swap and Reset would silently re-save the
+  // starter code 300ms later, defeating the clear.
   const SAVE_DEBOUNCE_MS = 300;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let suppressSave = false;
   const scheduleSave = (): void => {
+    if (suppressSave) return;
     if (saveTimer !== null) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveCode(activeStage.id, editor.getValue());
@@ -223,6 +226,14 @@ export async function bootQuestPane(opts: {
     clearTimeout(saveTimer);
     saveTimer = null;
     saveCode(activeStage.id, editor.getValue());
+  };
+  const setEditorSilently = (text: string): void => {
+    suppressSave = true;
+    try {
+      editor.setValue(text);
+    } finally {
+      suppressSave = false;
+    }
   };
   editor.onDidChange(() => {
     scheduleSave();
@@ -241,7 +252,7 @@ export async function bootQuestPane(opts: {
     const ok = window.confirm(`Reset ${activeStage.title} to its starter code?`);
     if (!ok) return;
     clearCode(activeStage.id);
-    editor.setValue(activeStage.starterCode);
+    setEditorSilently(activeStage.starterCode);
     handles.result.textContent = "";
   });
 
@@ -258,7 +269,7 @@ export async function bootQuestPane(opts: {
     renderApiPanel(apiPanel, next);
     renderHints(hints, next);
     renderSnippets(snippets, next, editor);
-    editor.setValue(loadCode(next.id) ?? next.starterCode);
+    setEditorSilently(loadCode(next.id) ?? next.starterCode);
     handles.result.textContent = "";
     opts.onStageChange?.(next.id);
   });

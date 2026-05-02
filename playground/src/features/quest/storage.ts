@@ -15,12 +15,14 @@
 const KEY_PREFIX = "quest:code:v1:";
 
 /**
- * Hard cap per saved entry. The localStorage origin quota is ~5MB on
- * most browsers; capping each stage at 50KB keeps the curriculum's
- * worst case (one entry per stage × ~20 stages) well under 1MB and
- * prevents a single runaway paste from starving every other slot.
+ * Hard cap per saved entry, measured in `String.length` (UTF-16 code
+ * units, ≈ ASCII chars). The localStorage origin quota is ~5MB on
+ * most browsers; capping each stage at 50_000 chars keeps the
+ * curriculum's worst case (one entry per stage × ~20 stages) well
+ * under 1MB and prevents a single runaway paste from starving every
+ * other slot.
  */
-const MAX_CODE_BYTES = 50_000;
+const MAX_CODE_LENGTH = 50_000;
 
 function storage(): Storage | null {
   // `globalThis.localStorage` is the safe access path: in jsdom it's
@@ -52,7 +54,7 @@ export function loadCode(stageId: string): string | null {
  * exceeds the per-stage size cap or storage rejects the write.
  */
 export function saveCode(stageId: string, code: string): void {
-  if (code.length > MAX_CODE_BYTES) return;
+  if (code.length > MAX_CODE_LENGTH) return;
   const s = storage();
   if (!s) return;
   try {
