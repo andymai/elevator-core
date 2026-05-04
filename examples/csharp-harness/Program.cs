@@ -91,6 +91,19 @@ internal static class Native
         public UIntPtr name_len;
     }
 
+    // Matches crates/elevator-ffi/src/lib.rs::EvLogMessage.
+    // Layout: u8 level + 7 pad + i64 ts_ns + *const u8 msg_ptr + u32
+    // msg_len + 4 pad = 32 bytes on 64-bit. Spelled out explicitly so
+    // CLR default packing can't drift from the Rust #[repr(C)] layout.
+    [StructLayout(LayoutKind.Explicit, Size = 32)]
+    public struct EvLogMessage
+    {
+        [FieldOffset(0)] public byte level;
+        [FieldOffset(8)] public long ts_ns;
+        [FieldOffset(16)] public IntPtr msg_ptr;
+        [FieldOffset(24)] public uint msg_len;
+    }
+
     // Matches crates/elevator-ffi/src/lib.rs::EvHallCall.
     [StructLayout(LayoutKind.Sequential)]
     public struct EvHallCall
@@ -157,6 +170,10 @@ internal static class Native
     [DllImport(Lib)]
     public static extern EvStatus ev_sim_drain_events(
         IntPtr handle, [Out] EvEvent[] outBuf, uint capacity, out uint outWritten);
+    [DllImport(Lib)]
+    public static extern EvStatus ev_drain_log_messages(
+        IntPtr handle, [Out] EvLogMessage[] outBuf, uint capacity, out uint outWritten);
+    [DllImport(Lib)] public static extern uint ev_pending_log_message_count(IntPtr handle);
     [DllImport(Lib)] public static extern EvStatus ev_sim_press_hall_button(IntPtr handle, ulong stopEntityId, sbyte direction);
     [DllImport(Lib)] public static extern EvStatus ev_sim_pin_assignment(IntPtr handle, ulong carEntityId, ulong stopEntityId, sbyte direction);
     [DllImport(Lib)] public static extern uint ev_sim_hall_call_count(IntPtr handle);
@@ -324,6 +341,34 @@ internal static class Program
                 return 1;
             }
             Console.WriteLine($"  drained events: {drained}");
+
+            // Exercise the polling log-drain ABI. Forwarding pushes a
+            // record per pending sim event on every step, so 600 ticks
+            // should leave at least one in the queue. Decode one entry
+            // to validate msg_ptr+msg_len round-trip across the FFI.
+            var pendingLogs = Native.ev_pending_log_message_count(handle);
+            var logBuf = new Native.EvLogMessage[64];
+            var logStatus = Native.ev_drain_log_messages(
+                handle, logBuf, (uint)logBuf.Length, out var logWritten);
+            if (logStatus != Native.EvStatus.Ok)
+            {
+                Console.Error.WriteLine($"ev_drain_log_messages: {logStatus} ({Native.LastError()})");
+                return 1;
+            }
+            Console.WriteLine($"  pending log messages: {pendingLogs}, drained: {logWritten}");
+            if (logWritten > 0)
+            {
+                var first = logBuf[0];
+                if (first.msg_ptr == IntPtr.Zero || first.msg_len == 0)
+                {
+                    Console.Error.WriteLine("first log message has null/empty borrowed slice");
+                    return 1;
+                }
+                var bytes = new byte[first.msg_len];
+                Marshal.Copy(first.msg_ptr, bytes, 0, (int)first.msg_len);
+                var msg = System.Text.Encoding.UTF8.GetString(bytes);
+                Console.WriteLine($"  first log: level={first.level} ts_ns={first.ts_ns} msg=\"{msg}\"");
+            }
 
             if (frame.metrics.current_tick == 0)
             {
