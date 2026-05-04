@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.16.0...elevator-ffi-v0.16.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* **ffi:** namespace cbindgen enums to fix Custom collision ([#620](https://github.com/andymai/elevator-core/issues/620)) ([aef39fa](https://github.com/andymai/elevator-core/commit/aef39fa7b26927e68ed70048eaf50105e2ceed6c))
+
 ## [0.16.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.15.0...elevator-ffi-v0.16.0) (2026-05-04)
 
 
