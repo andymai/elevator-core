@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.16.1...elevator-ffi-v0.17.0) (2026-05-04)
+
+
+### Features
+
+* MultiHostLayout proc-macro for repr-C struct introspection ([#625](https://github.com/andymai/elevator-core/issues/625)) ([29e8e55](https://github.com/andymai/elevator-core/commit/29e8e554e70c6fe1f7aeb1311c02a9071c7a3edd))
+
 ## [0.16.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.16.0...elevator-ffi-v0.16.1) (2026-05-04)
 
 
