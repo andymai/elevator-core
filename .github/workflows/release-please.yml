@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
+      ffi-release-created: ${{ steps.release.outputs['crates/elevator-ffi--release_created'] }}
+      ffi-tag-name: ${{ steps.release.outputs['crates/elevator-ffi--tag_name'] }}
+      ffi-version: ${{ steps.release.outputs['crates/elevator-ffi--version'] }}
     steps:
       # Mint the App token first so release-please-action creates its
       # PR using the App identity (release-kun). PRs created via the
@@ -79,3 +82,127 @@ jobs:
         run: cargo publish -p elevator-core
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  # ── GameMaker Studio 2 extension bundle ──────────────────────────
+  # Triggers on every elevator-ffi release. Builds the cdylib on each
+  # target platform, then a final job downloads all three artefacts,
+  # assembles examples/gms2-extension/ with the right binaries +
+  # LICENSE files, zips the bundle, and uploads it to the GitHub
+  # release as elevator_ffi_gms2-<version>.zip.
+  #
+  # Why rebuild instead of reusing ffi-harness artefacts: cross-job
+  # artefact handoff requires explicit upload-artifact wiring and
+  # short retention (1 day default), and ffi-harness might not have
+  # run on the tagged SHA at all if the release was cut off-cycle.
+  # Rebuild is ~30 s per platform warm with rust-cache.
+  package-gms-binaries:
+    needs: release-please
+    if: needs.release-please.outputs.ffi-release-created == 'true'
+    # Job-level override: this job only needs read access to check
+    # out the tagged ref and write back via upload-artifact (which
+    # uses the workflow token, not release write). Mirrors the
+    # `publish` job's least-privilege override below.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            lib_name: libelevator_ffi.so
+          - os: windows-latest
+            lib_name: elevator_ffi.dll
+          - os: macos-15
+            lib_name: libelevator_ffi.dylib
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.ffi-tag-name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev
+
+      - name: Build elevator-ffi cdylib
+        run: cargo build -p elevator-ffi --release
+
+      - name: Stage cdylib
+        env:
+          LIB_NAME: ${{ matrix.lib_name }}
+        run: |
+          mkdir -p staged
+          # No --target was passed to cargo build, so the cdylib is
+          # always at the workspace-local target/release/. The
+          # ffi-harness job uses the same path; matching it here
+          # avoids Windows-path edge cases that the cargo-metadata
+          # JSON parse would inherit (backslashes in target_directory).
+          cp "target/release/$LIB_NAME" "staged/$LIB_NAME"
+
+      - name: Upload cdylib artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gms-binary-${{ matrix.lib_name }}
+          path: staged/
+          retention-days: 1
+
+  package-gms-bundle:
+    needs: [release-please, package-gms-binaries]
+    if: needs.release-please.outputs.ffi-release-created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.ffi-tag-name }}
+
+      - name: Download all platform binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: pickup/
+          pattern: gms-binary-*
+          merge-multiple: true
+
+      - name: Assemble bundle
+        env:
+          VERSION: ${{ needs.release-please.outputs.ffi-version }}
+        run: |
+          BUNDLE="elevator_ffi_gms2-${VERSION}"
+          mkdir -p "$BUNDLE"
+          # Copy the in-tree extension folder verbatim, then drop the
+          # platform binaries into binaries/. The extension folder
+          # already includes elevator_ffi.gml + elevator_ffi_generated.gml
+          # + elevator_ffi.yy + README + the binaries/.gitkeep that
+          # the release fills in here.
+          cp -r examples/gms2-extension/* "$BUNDLE/"
+          mkdir -p "$BUNDLE/extension/elevator_ffi/binaries"
+          cp pickup/libelevator_ffi.so      "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/elevator_ffi.dll        "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/binaries/"
+          # License compliance: the dual MIT/Apache notice ships with
+          # every binary distribution.
+          cp LICENSE LICENSE-MIT LICENSE-APACHE "$BUNDLE/"
+          # Drop the empty .gitkeep marker that's there only to make
+          # the repo path real before release packaging populates it.
+          rm -f "$BUNDLE/extension/elevator_ffi/binaries/.gitkeep"
+          zip -r "$BUNDLE.zip" "$BUNDLE"
+
+      - name: Upload bundle to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.ffi-tag-name }}
+          VERSION: ${{ needs.release-please.outputs.ffi-version }}
+        run: |
+          # --clobber: a re-run after a partial failure (e.g. asset
+          # uploaded but a later step failed) needs to overwrite the
+          # previous attempt rather than refusing with "already
+          # exists" and aborting the rerun.
+          gh release upload "$TAG" "elevator_ffi_gms2-${VERSION}.zip" \
+            --clobber \
+            --repo "${GITHUB_REPOSITORY}"
