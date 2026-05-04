@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.14.0...elevator-ffi-v0.15.0) (2026-05-04)
+
+
+### Features
+
+* **ffi:** add ev_drain_log_messages polling API ([#613](https://github.com/andymai/elevator-core/issues/613)) ([66347a6](https://github.com/andymai/elevator-core/commit/66347a67d80a467478f88036948be7b6bcb00b02))
+
 ## [0.14.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.13.0...elevator-ffi-v0.14.0) (2026-04-29)
 
 
