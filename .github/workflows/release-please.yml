@@ -98,6 +98,12 @@ jobs:
   package-gms-binaries:
     needs: release-please
     if: needs.release-please.outputs.ffi-release-created == 'true'
+    # Job-level override: this job only needs read access to check
+    # out the tagged ref and write back via upload-artifact (which
+    # uses the workflow token, not release write). Mirrors the
+    # `publish` job's least-privilege override below.
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -131,11 +137,12 @@ jobs:
           LIB_NAME: ${{ matrix.lib_name }}
         run: |
           mkdir -p staged
-          # Workspace shares target/ via .cargo/config.toml; resolve
-          # the actual location from cargo metadata.
-          TARGET_DIR=$(cargo metadata --format-version 1 --no-deps \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")
-          cp "$TARGET_DIR/release/$LIB_NAME" "staged/$LIB_NAME"
+          # No --target was passed to cargo build, so the cdylib is
+          # always at the workspace-local target/release/. The
+          # ffi-harness job uses the same path; matching it here
+          # avoids Windows-path edge cases that the cargo-metadata
+          # JSON parse would inherit (backslashes in target_directory).
+          cp "target/release/$LIB_NAME" "staged/$LIB_NAME"
 
       - name: Upload cdylib artefact
         uses: actions/upload-artifact@v4
@@ -192,5 +199,10 @@ jobs:
           TAG: ${{ needs.release-please.outputs.ffi-tag-name }}
           VERSION: ${{ needs.release-please.outputs.ffi-version }}
         run: |
+          # --clobber: a re-run after a partial failure (e.g. asset
+          # uploaded but a later step failed) needs to overwrite the
+          # previous attempt rather than refusing with "already
+          # exists" and aborting the rerun.
           gh release upload "$TAG" "elevator_ffi_gms2-${VERSION}.zip" \
+            --clobber \
             --repo "${GITHUB_REPOSITORY}"
