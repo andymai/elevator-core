@@ -16,6 +16,8 @@
 #   ffi       = "<status>"             # required — see status values
 #   tui       = "<status>"             # required — see status values
 #   gms       = "<status>"             # required — see status values
+#   gdext     = "<status>"             # required — see status values
+#   bevy      = "<status>"             # required — see status values
 #
 # Status values
 # -------------
@@ -27,7 +29,13 @@
 #                         is the GameMaker Studio 2 GML wrapper script
 #                         name (typically the same as `ffi` since the
 #                         generated `external_define` declares the
-#                         underlying C symbol under the same name).
+#                         underlying C symbol under the same name). For
+#                         gdext this is the GDScript-callable name
+#                         registered on `SimNode` in
+#                         `crates/elevator-gdext/src/sim_node.rs`. For
+#                         bevy this is the Bevy plugin's public name
+#                         (System / Resource / Event), once a Bevy-
+#                         plugin layer ships.
 #   "skip:<reason>"     — intentionally not bound. Reason is mandatory and
 #                         must explain *why* (lifetimes, internal detail,
 #                         covered by another binding, read-only viewer,
@@ -36,6 +44,13 @@
 #                         during phased rollout; CI emits a warning, not
 #                         an error. Once `phase` ships the entry must
 #                         become an exported name or skip.
+#
+# Note on `bevy = "todo:plugin-layer"`: until a Bevy plugin layer
+# ships, every non-`internal` entry's bevy column carries this exact
+# marker. That's the *expected* state, not an actionable gap, and the
+# difference between bevy and the other columns is purely policy
+# convention — the CI gate treats `todo:<phase>` identically across
+# every column (no failure, just summary count).
 #
 # Phase markers (see PR plan in design doc)
 # -----------------------------------------
@@ -72,6 +87,8 @@ wasm = "constructor"
 ffi  = "ev_sim_create"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_create"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "step"
@@ -80,6 +97,8 @@ wasm = "stepMany"  # exposes batched step, internally calls step in loop
 ffi  = "ev_sim_step"
 tui  = "auto_tick_or_dot_hotkey"
 gms  = "ev_sim_step"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "advance_tick"
@@ -88,6 +107,8 @@ wasm = "skip:internal — driven by step()"
 ffi  = "skip:internal — driven by step()"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — driven by step()"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "run_until_quiet"
@@ -96,6 +117,8 @@ wasm = "runUntilQuiet"
 ffi  = "ev_sim_run_until_quiet"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_run_until_quiet"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Substep / phase-by-phase ticking ─────────────────────────────────────
 # Internal — exposing these would let consumers run an out-of-order tick
@@ -108,6 +131,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_dispatch"
@@ -116,6 +141,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_advance_queue"
@@ -124,6 +151,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_doors"
@@ -132,6 +161,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_loading"
@@ -140,6 +171,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_metrics"
@@ -148,6 +181,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_movement"
@@ -156,6 +191,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_reposition"
@@ -164,6 +201,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 # ─── Modes (the original concern: \"emergency stop doesn't work\") ────────
 
@@ -174,6 +213,8 @@ wasm = "setServiceMode"
 ffi  = "ev_sim_set_service_mode"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_service_mode"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "service_mode"
@@ -182,6 +223,8 @@ wasm = "serviceMode"
 ffi  = "ev_sim_service_mode"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_service_mode"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_target_velocity"
@@ -190,6 +233,8 @@ wasm = "setTargetVelocity"
 ffi  = "ev_sim_set_target_velocity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_target_velocity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "emergency_stop"
@@ -198,6 +243,8 @@ wasm = "emergencyStop"
 ffi  = "ev_sim_emergency_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_emergency_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "open_door"
@@ -206,6 +253,8 @@ wasm = "openDoor"
 ffi  = "ev_sim_open_door"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_open_door"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "close_door"
@@ -214,6 +263,8 @@ wasm = "closeDoor"
 ffi  = "ev_sim_close_door"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_close_door"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "hold_door"
@@ -222,6 +273,8 @@ wasm = "holdDoor"
 ffi  = "ev_sim_hold_door"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_hold_door"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "cancel_door_hold"
@@ -230,6 +283,8 @@ wasm = "cancelDoorHold"
 ffi  = "ev_sim_cancel_door_hold"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_cancel_door_hold"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Dispatch ─────────────────────────────────────────────────────────────
 
@@ -240,6 +295,8 @@ wasm = "setStrategy"
 ffi  = "ev_sim_set_strategy"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_strategy"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "strategy_id"
@@ -248,6 +305,8 @@ wasm = "strategyName"
 ffi  = "ev_sim_strategy_id"
 tui  = "dispatch_panel"
 gms  = "ev_sim_strategy_id"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_reposition"
@@ -256,6 +315,8 @@ wasm = "setReposition"
 ffi  = "ev_sim_set_reposition"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_reposition"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "remove_reposition"
@@ -264,6 +325,8 @@ wasm = "removeReposition"
 ffi  = "ev_sim_remove_reposition"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_remove_reposition"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "reposition_id"
@@ -272,6 +335,8 @@ wasm = "repositionStrategyName"
 ffi  = "ev_sim_reposition_id"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_reposition_id"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "build_dispatch_manifest"
@@ -280,6 +345,8 @@ wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
 tui  = "dispatch_panel"
 gms  = "skip:internal — strategies consume this"
+gdext = "skip:internal — strategies consume this"
+bevy = "skip:internal — strategies consume this"
 
 [[methods]]
 name = "peek_dispatch_manifest"
@@ -288,6 +355,8 @@ wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
 tui  = "dispatch_panel"
 gms  = "skip:internal — strategies consume this"
+gdext = "skip:internal — strategies consume this"
+bevy = "skip:internal — strategies consume this"
 
 [[methods]]
 name = "pin_assignment"
@@ -296,6 +365,8 @@ wasm = "pinAssignment"
 ffi  = "ev_sim_pin_assignment"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_pin_assignment"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "unpin_assignment"
@@ -304,6 +375,8 @@ wasm = "unpinAssignment"
 ffi  = "ev_sim_unpin_assignment"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_unpin_assignment"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "assigned_car"
@@ -312,6 +385,8 @@ wasm = "assignedCar"
 ffi  = "ev_sim_assigned_car"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_assigned_car"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "assigned_cars_by_line"
@@ -320,6 +395,8 @@ wasm = "assignedCarsByLine"
 ffi  = "ev_sim_assigned_cars_by_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_assigned_cars_by_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "best_eta"
@@ -328,6 +405,8 @@ wasm = "bestEta"
 ffi  = "ev_sim_best_eta"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_best_eta"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "eta_for_call"
@@ -336,6 +415,8 @@ wasm = "etaForCall"
 ffi  = "ev_sim_eta_for_call"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_eta_for_call"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "eta"
@@ -344,6 +425,8 @@ wasm = "eta"
 ffi  = "ev_sim_eta"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_eta"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Buttons ──────────────────────────────────────────────────────────────
 
@@ -354,6 +437,8 @@ wasm = "pressHallCall"
 ffi  = "ev_sim_press_hall_button"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_press_hall_button"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "press_car_button"
@@ -362,6 +447,8 @@ wasm = "pressCarButton"
 ffi  = "ev_sim_press_car_button"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_press_car_button"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "hall_calls"
@@ -370,6 +457,8 @@ wasm = "hallCalls"
 ffi  = "ev_sim_hall_calls_snapshot"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_hall_calls_snapshot"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "car_calls"
@@ -378,6 +467,8 @@ wasm = "carCalls"
 ffi  = "ev_sim_car_calls_snapshot"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_car_calls_snapshot"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Events ───────────────────────────────────────────────────────────────
 
@@ -388,6 +479,8 @@ wasm = "drainEvents"
 ffi  = "ev_sim_drain_events"
 tui  = "events_panel"
 gms  = "ev_sim_drain_events"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "drain_events_where"
@@ -396,6 +489,8 @@ wasm = "skip:closure marshaling — JS consumers filter drainEvents() output cli
 ffi  = "skip:closure marshaling — C consumers filter drain_events output"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:closure marshaling — C consumers filter drain_events output"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "pending_events"
@@ -404,6 +499,8 @@ wasm = "pendingEvents"
 ffi  = "ev_sim_pending_event_count"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_pending_event_count"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Riders ───────────────────────────────────────────────────────────────
 
@@ -414,6 +511,8 @@ wasm = "spawnRider"
 ffi  = "ev_sim_spawn_rider"
 tui  = "headless_poisson_traffic"
 gms  = "ev_sim_spawn_rider"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "build_rider"
@@ -422,6 +521,8 @@ wasm = "spawnRiderByRef"
 ffi  = "ev_sim_spawn_rider_ex"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_spawn_rider_ex"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "despawn_rider"
@@ -430,6 +531,8 @@ wasm = "despawnRider"
 ffi  = "ev_sim_despawn_rider"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_despawn_rider"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "settle_rider"
@@ -438,6 +541,8 @@ wasm = "settleRider"
 ffi  = "ev_sim_settle_rider"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_settle_rider"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Routes ───────────────────────────────────────────────────────────────
 
@@ -462,6 +567,8 @@ wasm = "reroute"
 ffi  = "ev_sim_reroute"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_reroute"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_rider_access"
@@ -470,6 +577,8 @@ wasm = "setRiderAccess"
 ffi  = "ev_sim_set_rider_access"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_rider_access"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_rider_tag"
@@ -478,6 +587,8 @@ wasm = "setRiderTag"
 ffi  = "ev_sim_set_rider_tag"
 tui  = "skip:opaque consumer-attached id — TUI viewer has no concept of an external tag space"
 gms  = "ev_sim_set_rider_tag"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "rider_tag"
@@ -486,6 +597,8 @@ wasm = "riderTag"
 ffi  = "ev_sim_rider_tag"
 tui  = "skip:opaque consumer-attached id — TUI viewer has no concept of an external tag space"
 gms  = "ev_sim_rider_tag"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "shortest_route"
@@ -494,6 +607,8 @@ wasm = "shortestRoute"
 ffi  = "ev_sim_shortest_route"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_shortest_route"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "transfer_points"
@@ -502,6 +617,8 @@ wasm = "transferPoints"
 ffi  = "ev_sim_transfer_points"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_transfer_points"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "reachable_stops_from"
@@ -510,6 +627,8 @@ wasm = "reachableStopsFrom"
 ffi  = "ev_sim_reachable_stops_from"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_reachable_stops_from"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Topology ─────────────────────────────────────────────────────────────
 
@@ -520,6 +639,8 @@ wasm = "addGroup"
 ffi  = "ev_sim_add_group"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_add_group"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_line"
@@ -528,6 +649,8 @@ wasm = "addLine"
 ffi  = "ev_sim_add_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_add_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_stop"
@@ -536,6 +659,8 @@ wasm = "addStop"
 ffi  = "ev_sim_add_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_add_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_stop_to_line"
@@ -544,6 +669,8 @@ wasm = "addStopToLine"
 ffi  = "ev_sim_add_stop_to_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_add_stop_to_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_elevator"
@@ -552,6 +679,8 @@ wasm = "addElevator"
 ffi  = "ev_sim_add_elevator"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_add_elevator"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "remove_elevator"
@@ -560,6 +689,8 @@ wasm = "removeElevator"
 ffi  = "ev_sim_remove_elevator"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_remove_elevator"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "remove_line"
@@ -568,6 +699,8 @@ wasm = "removeLine"
 ffi  = "ev_sim_remove_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_remove_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "remove_stop"
@@ -576,6 +709,8 @@ wasm = "removeStop"
 ffi  = "ev_sim_remove_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_remove_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "remove_stop_from_line"
@@ -584,6 +719,8 @@ wasm = "removeStopFromLine"
 ffi  = "ev_sim_remove_stop_from_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_remove_stop_from_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_line_range"
@@ -592,6 +729,8 @@ wasm = "setLineRange"
 ffi  = "ev_sim_set_line_range"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_line_range"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "assign_line_to_group"
@@ -600,6 +739,8 @@ wasm = "assignLineToGroup"
 ffi  = "ev_sim_assign_line_to_group"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_assign_line_to_group"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "reassign_elevator_to_line"
@@ -608,6 +749,8 @@ wasm = "reassignElevatorToLine"
 ffi  = "ev_sim_reassign_elevator_to_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_reassign_elevator_to_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_elevator_restricted_stops"
@@ -616,6 +759,8 @@ wasm = "setElevatorRestrictedStops"
 ffi  = "ev_sim_set_elevator_restricted_stops"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_elevator_restricted_stops"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_elevator_home_stop"
@@ -624,6 +769,8 @@ wasm = "setElevatorHomeStop"
 ffi  = "ev_sim_set_elevator_home_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_elevator_home_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "clear_elevator_home_stop"
@@ -632,6 +779,8 @@ wasm = "clearElevatorHomeStop"
 ffi  = "ev_sim_clear_elevator_home_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_clear_elevator_home_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_home_stop"
@@ -640,6 +789,8 @@ wasm = "elevatorHomeStop"
 ffi  = "ev_sim_elevator_home_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_home_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Introspection ────────────────────────────────────────────────────────
 
@@ -650,6 +801,8 @@ wasm = "currentTick"
 ffi  = "ev_sim_current_tick"
 tui  = "title_bar"
 gms  = "ev_sim_current_tick"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "dt"
@@ -658,6 +811,8 @@ wasm = "dt"
 ffi  = "ev_sim_dt"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_dt"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "metrics"
@@ -666,6 +821,8 @@ wasm = "metrics"
 ffi  = "ev_sim_metrics"
 tui  = "metrics_panel"
 gms  = "ev_sim_metrics"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "time"
@@ -674,6 +831,8 @@ wasm = "skip:returns &TimeAdapter — internal layout"
 ffi  = "skip:returns &TimeAdapter — internal layout"
 tui  = "tick_rate_calc"
 gms  = "skip:returns &TimeAdapter — internal layout"
+gdext = "skip:returns &TimeAdapter — internal layout"
+bevy = "skip:returns &TimeAdapter — internal layout"
 
 [[methods]]
 name = "events_mut"
@@ -682,6 +841,8 @@ wasm = "skip:returns &mut EventBus — never bound"
 ffi  = "skip:returns &mut EventBus — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut EventBus — never bound"
+gdext = "skip:returns &mut EventBus — never bound"
+bevy = "skip:returns &mut EventBus — never bound"
 
 [[methods]]
 name = "metrics_mut"
@@ -690,6 +851,8 @@ wasm = "skip:returns &mut Metrics — never bound"
 ffi  = "skip:returns &mut Metrics — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut Metrics — never bound"
+gdext = "skip:returns &mut Metrics — never bound"
+bevy = "skip:returns &mut Metrics — never bound"
 
 [[methods]]
 name = "phase_context"
@@ -698,6 +861,8 @@ wasm = "skip:returns PhaseContext — internal scheduling helper"
 ffi  = "skip:returns PhaseContext — internal scheduling helper"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns PhaseContext — internal scheduling helper"
+gdext = "skip:returns PhaseContext — internal scheduling helper"
+bevy = "skip:returns PhaseContext — internal scheduling helper"
 
 [[methods]]
 name = "elevators_on_line"
@@ -706,6 +871,8 @@ wasm = "elevatorsOnLine"
 ffi  = "ev_sim_elevators_on_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevators_on_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "groups_serving_stop"
@@ -714,6 +881,8 @@ wasm = "groupsServingStop"
 ffi  = "ev_sim_groups_serving_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_groups_serving_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "lines_in_group"
@@ -722,6 +891,8 @@ wasm = "linesInGroup"
 ffi  = "ev_sim_lines_in_group"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_lines_in_group"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "lines_serving_stop"
@@ -730,6 +901,8 @@ wasm = "linesServingStop"
 ffi  = "ev_sim_lines_serving_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_lines_serving_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "stops_served_by_line"
@@ -738,6 +911,8 @@ wasm = "stopsServedByLine"
 ffi  = "ev_sim_stops_served_by_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_stops_served_by_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "line_for_elevator"
@@ -746,6 +921,8 @@ wasm = "lineForElevator"
 ffi  = "ev_sim_line_for_elevator"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_line_for_elevator"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "all_lines"
@@ -754,6 +931,8 @@ wasm = "allLines"
 ffi  = "ev_sim_all_lines"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_all_lines"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "line_count"
@@ -762,6 +941,8 @@ wasm = "lineCount"
 ffi  = "ev_sim_line_count"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_line_count"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "stop_lookup_iter"
@@ -770,6 +951,8 @@ wasm = "stopLookupIter"
 ffi  = "ev_sim_stop_lookup_iter"
 tui  = "shaft_view"
 gms  = "ev_sim_stop_lookup_iter"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "stop_entity"
@@ -778,6 +961,8 @@ wasm = "stopEntity"
 ffi  = "ev_sim_stop_entity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_stop_entity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "find_stop_at_position_on_line"
@@ -786,6 +971,8 @@ wasm = "findStopAtPositionOnLine"
 ffi  = "ev_sim_find_stop_at_position_on_line"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_find_stop_at_position_on_line"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "velocity"
@@ -794,6 +981,8 @@ wasm = "velocity"
 ffi  = "ev_sim_velocity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_velocity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "position_at"
@@ -802,6 +991,8 @@ wasm = "positionAt"
 ffi  = "ev_sim_position_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_position_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_load"
@@ -810,6 +1001,8 @@ wasm = "elevatorLoad"
 ffi  = "ev_sim_elevator_load"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_load"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "occupancy"
@@ -818,6 +1011,8 @@ wasm = "occupancy"
 ffi  = "ev_sim_occupancy"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_occupancy"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_direction"
@@ -826,6 +1021,8 @@ wasm = "elevatorDirection"
 ffi  = "ev_sim_elevator_direction"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_direction"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_going_up"
@@ -834,6 +1031,8 @@ wasm = "elevatorGoingUp"
 ffi  = "ev_sim_elevator_going_up"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_going_up"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_going_down"
@@ -842,6 +1041,8 @@ wasm = "elevatorGoingDown"
 ffi  = "ev_sim_elevator_going_down"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_going_down"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevator_move_count"
@@ -850,6 +1051,8 @@ wasm = "elevatorMoveCount"
 ffi  = "ev_sim_elevator_move_count"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevator_move_count"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "braking_distance"
@@ -858,6 +1061,8 @@ wasm = "brakingDistance"
 ffi  = "ev_sim_braking_distance"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_braking_distance"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "future_stop_position"
@@ -866,6 +1071,8 @@ wasm = "futureStopPosition"
 ffi  = "ev_sim_future_stop_position"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_future_stop_position"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "destination_queue"
@@ -874,6 +1081,8 @@ wasm = "destinationQueue"
 ffi  = "ev_sim_destination_queue"
 tui  = "drilldown_panel"
 gms  = "ev_sim_destination_queue"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "elevators_in_phase"
@@ -882,6 +1091,8 @@ wasm = "elevatorsInPhase"
 ffi  = "ev_sim_elevators_in_phase"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_elevators_in_phase"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "iter_repositioning_elevators"
@@ -890,6 +1101,8 @@ wasm = "iterRepositioningElevators"
 ffi  = "ev_sim_iter_repositioning_elevators"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_iter_repositioning_elevators"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "idle_elevator_count"
@@ -898,6 +1111,8 @@ wasm = "idleElevatorCount"
 ffi  = "ev_sim_idle_elevator_count"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_idle_elevator_count"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "is_elevator"
@@ -906,6 +1121,8 @@ wasm = "isElevator"
 ffi  = "ev_sim_is_elevator"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_is_elevator"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "is_rider"
@@ -914,6 +1131,8 @@ wasm = "isRider"
 ffi  = "ev_sim_is_rider"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_is_rider"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "is_stop"
@@ -922,6 +1141,8 @@ wasm = "isStop"
 ffi  = "ev_sim_is_stop"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_is_stop"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "is_disabled"
@@ -930,6 +1151,8 @@ wasm = "isDisabled"
 ffi  = "ev_sim_is_disabled"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_is_disabled"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "waiting_at"
@@ -938,6 +1161,8 @@ wasm = "waitingAt"
 ffi  = "ev_sim_waiting_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_waiting_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "waiting_count_at"
@@ -946,6 +1171,8 @@ wasm = "waitingCountAt"
 ffi  = "ev_sim_waiting_count_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_waiting_count_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "waiting_counts_by_line_at"
@@ -954,6 +1181,8 @@ wasm = "waitingCountsByLineAt"
 ffi  = "ev_sim_waiting_counts_by_line_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_waiting_counts_by_line_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "waiting_direction_counts_at"
@@ -962,6 +1191,8 @@ wasm = "waitingDirectionCountsAt"
 ffi  = "ev_sim_waiting_direction_counts_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_waiting_direction_counts_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "residents_at"
@@ -970,6 +1201,8 @@ wasm = "residentsAt"
 ffi  = "ev_sim_residents_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_residents_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "resident_count_at"
@@ -978,6 +1211,8 @@ wasm = "residentCountAt"
 ffi  = "ev_sim_resident_count_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_resident_count_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "abandoned_at"
@@ -986,6 +1221,8 @@ wasm = "abandonedAt"
 ffi  = "ev_sim_abandoned_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_abandoned_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "abandoned_count_at"
@@ -994,6 +1231,8 @@ wasm = "abandonedCountAt"
 ffi  = "ev_sim_abandoned_count_at"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_abandoned_count_at"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "riders_on"
@@ -1002,6 +1241,8 @@ wasm = "ridersOn"
 ffi  = "ev_sim_riders_on"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_riders_on"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Destinations ─────────────────────────────────────────────────────────
 
@@ -1012,6 +1253,8 @@ wasm = "pushDestination"
 ffi  = "ev_sim_push_destination"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_push_destination"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "push_destination_front"
@@ -1020,6 +1263,8 @@ wasm = "pushDestinationFront"
 ffi  = "ev_sim_push_destination_front"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_push_destination_front"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "clear_destinations"
@@ -1028,6 +1273,8 @@ wasm = "clearDestinations"
 ffi  = "ev_sim_clear_destinations"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_clear_destinations"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "abort_movement"
@@ -1036,6 +1283,8 @@ wasm = "abortMovement"
 ffi  = "ev_sim_abort_movement"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_abort_movement"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "recall_to"
@@ -1044,6 +1293,8 @@ wasm = "recallTo"
 ffi  = "ev_sim_recall_to"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_recall_to"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Parameters ───────────────────────────────────────────────────────────
 # Note: wasm exposes "*All" sweeping helpers (setMaxSpeedAll, etc.) that
@@ -1060,6 +1311,8 @@ wasm = "setMaxSpeed"
 ffi  = "ev_sim_set_max_speed"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_max_speed"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_acceleration"
@@ -1068,6 +1321,8 @@ wasm = "setAcceleration"
 ffi  = "ev_sim_set_acceleration"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_acceleration"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_deceleration"
@@ -1076,6 +1331,8 @@ wasm = "setDeceleration"
 ffi  = "ev_sim_set_deceleration"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_deceleration"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_door_open_ticks"
@@ -1086,6 +1343,8 @@ wasm = "setDoorOpenTicks"
 ffi  = "ev_sim_set_door_open_ticks"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_door_open_ticks"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_door_transition_ticks"
@@ -1095,6 +1354,8 @@ wasm = "setDoorTransitionTicks"
 ffi  = "ev_sim_set_door_transition_ticks"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_door_transition_ticks"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_weight_capacity"
@@ -1104,6 +1365,8 @@ wasm = "setWeightCapacity"
 ffi  = "ev_sim_set_weight_capacity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_weight_capacity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "set_arrival_log_retention_ticks"
@@ -1112,6 +1375,8 @@ wasm = "setArrivalLogRetentionTicks"
 ffi  = "ev_sim_set_arrival_log_retention_ticks"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_set_arrival_log_retention_ticks"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "enable"
@@ -1120,6 +1385,8 @@ wasm = "enable"
 ffi  = "ev_sim_enable"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_enable"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "disable"
@@ -1128,6 +1395,8 @@ wasm = "disable"
 ffi  = "ev_sim_disable"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_disable"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Hooks (closures don't survive the binding boundary) ──────────────────
 
@@ -1138,6 +1407,8 @@ wasm = "skip:closures don't survive the wasm boundary — use streaming events"
 ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:closures don't survive the FFI boundary — use streaming events"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_before_hook"
@@ -1146,6 +1417,8 @@ wasm = "skip:closures don't survive the wasm boundary — use streaming events"
 ffi  = "skip:closures don't survive the FFI boundary — use streaming events"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:closures don't survive the FFI boundary — use streaming events"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_after_group_hook"
@@ -1154,6 +1427,8 @@ wasm = "skip:closures don't survive the wasm boundary"
 ffi  = "skip:closures don't survive the FFI boundary"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:closures don't survive the FFI boundary"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "add_before_group_hook"
@@ -1162,6 +1437,8 @@ wasm = "skip:closures don't survive the wasm boundary"
 ffi  = "skip:closures don't survive the FFI boundary"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:closures don't survive the FFI boundary"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "load_extensions"
@@ -1170,6 +1447,8 @@ wasm = "skip:builder-pattern entry point — runs at construction"
 ffi  = "skip:builder-pattern entry point — runs at construction"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:builder-pattern entry point — runs at construction"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "load_extensions_with"
@@ -1178,6 +1457,8 @@ wasm = "skip:takes a generic closure"
 ffi  = "skip:takes a generic closure"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:takes a generic closure"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Tagging + per-tag metrics ────────────────────────────────────────────
 
@@ -1188,6 +1469,8 @@ wasm = "tagEntity"
 ffi  = "ev_sim_tag_entity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_tag_entity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "untag_entity"
@@ -1196,6 +1479,8 @@ wasm = "untagEntity"
 ffi  = "ev_sim_untag_entity"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_untag_entity"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "all_tags"
@@ -1204,6 +1489,8 @@ wasm = "allTags"
 ffi  = "ev_sim_all_tags"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_all_tags"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 [[methods]]
 name = "metrics_for_tag"
@@ -1212,6 +1499,8 @@ wasm = "metricsForTag"
 ffi  = "ev_sim_metrics_for_tag"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "ev_sim_metrics_for_tag"
+gdext = "todo:audit"
+bevy = "todo:plugin-layer"
 
 # ─── Internal — exposes &World, &mut World, internal slices ───────────────
 
@@ -1222,6 +1511,8 @@ wasm = "skip:returns &World — consumers use snapshot/worldView DTOs"
 ffi  = "skip:returns &World — consumers use ev_sim_frame"
 tui  = "shaft_view"
 gms  = "skip:returns &World — consumers use ev_sim_frame"
+gdext = "skip:returns &World — consumers use snapshot/worldView DTOs"
+bevy = "skip:returns &World — consumers use snapshot/worldView DTOs"
 
 [[methods]]
 name = "world_mut"
@@ -1230,6 +1521,8 @@ wasm = "skip:returns &mut World — never bound"
 ffi  = "skip:returns &mut World — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut World — never bound"
+gdext = "skip:returns &mut World — never bound"
+bevy = "skip:returns &mut World — never bound"
 
 [[methods]]
 name = "dispatchers"
@@ -1238,6 +1531,8 @@ wasm = "skip:returns trait-object slice — never bound"
 ffi  = "skip:returns trait-object slice — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns trait-object slice — never bound"
+gdext = "skip:returns trait-object slice — never bound"
+bevy = "skip:returns trait-object slice — never bound"
 
 [[methods]]
 name = "dispatchers_mut"
@@ -1246,6 +1541,8 @@ wasm = "skip:returns &mut trait-object slice — never bound"
 ffi  = "skip:returns &mut trait-object slice — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut trait-object slice — never bound"
+gdext = "skip:returns &mut trait-object slice — never bound"
+bevy = "skip:returns &mut trait-object slice — never bound"
 
 [[methods]]
 name = "groups"
@@ -1254,6 +1551,8 @@ wasm = "skip:returns &[ElevatorGroup] — internal layout"
 ffi  = "skip:returns &[ElevatorGroup] — internal layout"
 tui  = "shaft_view"
 gms  = "skip:returns &[ElevatorGroup] — internal layout"
+gdext = "skip:returns &[ElevatorGroup] — internal layout"
+bevy = "skip:returns &[ElevatorGroup] — internal layout"
 
 [[methods]]
 name = "groups_mut"
@@ -1262,3 +1561,5 @@ wasm = "skip:returns &mut [ElevatorGroup] — never bound"
 ffi  = "skip:returns &mut [ElevatorGroup] — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut [ElevatorGroup] — never bound"
+gdext = "skip:returns &mut [ElevatorGroup] — never bound"
+bevy = "skip:returns &mut [ElevatorGroup] — never bound"
