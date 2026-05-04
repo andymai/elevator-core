@@ -92,9 +92,13 @@ internal static class Native
     }
 
     // Matches crates/elevator-ffi/src/lib.rs::EvLogMessage.
-    // Layout: u8 level + 7 pad + i64 ts_ns + *const u8 msg_ptr + u32
-    // msg_len + 4 pad = 32 bytes on 64-bit. Spelled out explicitly so
-    // CLR default packing can't drift from the Rust #[repr(C)] layout.
+    // Layout (64-bit only): u8 level + 7 pad + i64 ts_ns + *const u8
+    // msg_ptr + u32 msg_len + 4 pad = 32 bytes. Spelled out explicitly
+    // so CLR default packing can't drift from the Rust #[repr(C)]
+    // layout. On 32-bit the offsets would differ (i64 lands at offset
+    // 4, msg_ptr is 4 bytes, total size 20) — Main asserts
+    // IntPtr.Size == 8 at startup so a 32-bit build fails fast rather
+    // than corrupting reads.
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     public struct EvLogMessage
     {
@@ -206,6 +210,18 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // EvLogMessage's explicit FieldOffsets are 64-bit-only. On a
+        // 32-bit host the i64 would land at offset 4, the pointer
+        // would be 4 bytes, and the layout would silently misalign.
+        // Fail loudly rather than corrupting reads.
+        if (IntPtr.Size != 8)
+        {
+            Console.Error.WriteLine(
+                "elevator-ffi requires a 64-bit host (IntPtr.Size = "
+                + IntPtr.Size + ", expected 8)");
+            return 2;
+        }
+
         if (args.Length != 1)
         {
             Console.Error.WriteLine("usage: elevator-harness <path-to-config.ron>");

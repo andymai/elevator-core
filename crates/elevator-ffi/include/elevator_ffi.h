@@ -1497,11 +1497,11 @@ enum EvStatus ev_sim_drain_events(struct EvSim *handle,
  * the internal queue for the next call. Drain in a loop until
  * `out_written < capacity` to consume the full backlog.
  *
- * Messages are recorded for every consumer regardless of whether a
- * callback is installed via [`ev_set_log_callback`], so polling
- * hosts (e.g. `GameMaker`, which cannot pass C function pointers) get
- * the same stream as callback hosts. A consumer that uses neither
- * path should drain occasionally to bound queue growth.
+ * **Lazy opt-in:** the per-handle log queue is empty until the
+ * first call to this function (or [`ev_pending_log_message_count`]).
+ * Callback-only hosts that never poll pay zero overhead. Once
+ * activated, the queue accumulates one record per simulated event;
+ * a polling consumer should drain regularly to bound growth.
  *
  * # Safety
  *
@@ -1516,6 +1516,10 @@ enum EvStatus ev_drain_log_messages(struct EvSim *handle,
 /**
  * Number of log messages parked in the FFI buffer awaiting a
  * [`ev_drain_log_messages`] call.
+ *
+ * Calling this also activates lazy buffering (see
+ * [`ev_drain_log_messages`]), so a consumer that wants to size a
+ * buffer up-front may call this once before stepping the sim.
  *
  * # Safety
  *
