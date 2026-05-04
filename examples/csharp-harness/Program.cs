@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace ElevatorHarness;
 
-internal static class Native
+internal static partial class Native
 {
     private const string Lib = "elevator_ffi";
 
@@ -36,91 +36,14 @@ internal static class Native
         Etd = 3,
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct EvMetricsView
-    {
-        public ulong total_delivered;
-        public ulong total_abandoned;
-        public double avg_wait_seconds;
-        public double avg_ride_seconds;
-        public ulong current_tick;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct EvFrame
-    {
-        public IntPtr elevators;
-        public UIntPtr elevator_count;
-        public IntPtr stops;
-        public UIntPtr stop_count;
-        public IntPtr riders;
-        public UIntPtr rider_count;
-        public EvMetricsView metrics;
-    }
-
-    // Matches crates/elevator-ffi/src/lib.rs::EvElevatorView.
-    [StructLayout(LayoutKind.Sequential)]
-    public struct EvElevatorView
-    {
-        public ulong entity_id;
-        public uint group_id;
-        public ulong line_id;
-        public byte phase;
-        public double position;
-        public double velocity;
-        public ulong current_stop_id;
-        public ulong target_stop_id;
-        public uint occupancy;
-        public double capacity_kg;
-        public byte door_state;
-        public byte going_up;
-        public byte going_down;
-    }
-
-    // Matches crates/elevator-ffi/src/lib.rs::EvStopView.
-    [StructLayout(LayoutKind.Sequential)]
-    public struct EvStopView
-    {
-        public ulong entity_id;
-        public uint stop_id;
-        public double position;
-        public uint waiting;
-        public uint residents;
-        public uint abandoned;
-        public IntPtr name_ptr;
-        public UIntPtr name_len;
-    }
-
-    // Matches crates/elevator-ffi/src/lib.rs::EvLogMessage.
-    // Layout (64-bit only): u8 level + 7 pad + i64 ts_ns + *const u8
-    // msg_ptr + u32 msg_len + 4 pad = 32 bytes. Spelled out explicitly
-    // so CLR default packing can't drift from the Rust #[repr(C)]
-    // layout. On 32-bit the offsets would differ (i64 lands at offset
-    // 4, msg_ptr is 4 bytes, total size 20) — Main asserts
-    // IntPtr.Size == 8 at startup so a 32-bit build fails fast rather
-    // than corrupting reads.
-    [StructLayout(LayoutKind.Explicit, Size = 32)]
-    public struct EvLogMessage
-    {
-        [FieldOffset(0)] public byte level;
-        [FieldOffset(8)] public long ts_ns;
-        [FieldOffset(16)] public IntPtr msg_ptr;
-        [FieldOffset(24)] public uint msg_len;
-    }
-
-    // Matches crates/elevator-ffi/src/lib.rs::EvHallCall.
-    [StructLayout(LayoutKind.Sequential)]
-    public struct EvHallCall
-    {
-        public ulong stop_entity_id;
-        public sbyte direction;
-        public ulong press_tick;
-        public ulong acknowledged_at;
-        public ulong assigned_car;
-        public ulong destination_entity_id;
-        public byte pinned;
-        public uint pending_rider_count;
-    }
+    // Struct layouts (EvMetricsView, EvFrame, EvElevatorView,
+    // EvStopView, EvLogMessage, EvHallCall, EvEvent, ...) live in
+    // Generated.cs — auto-emitted from the #[repr(C)] +
+    // #[derive(MultiHostLayout)] surface in
+    // crates/elevator-ffi/src/lib.rs by the
+    // elevator-layout-codegen binary. Don't add manual struct
+    // definitions here; regenerate via `cargo run -p
+    // elevator-layout-codegen` instead.
 
     // Kind discriminator values for EvEvent. See crates/elevator-ffi/src/lib.rs::ev_event_kind.
     public const byte EV_HALL_BUTTON_PRESSED = 1;
@@ -132,37 +55,6 @@ internal static class Native
     public const byte EV_RIDER_BOARDED = 7;
     public const byte EV_RIDER_EXITED = 8;
     public const byte EV_RIDER_ABANDONED = 9;
-
-    // Explicit layout mirrors the Rust #[repr(C)] EvEvent at ABI v5
-    // (88 bytes). The first 8 bytes pack four single-byte fields and
-    // a u32 group id; bytes 8..88 are nine u64/f64 slots in their
-    // natural order. Relying on the CLR's default Sequential packing
-    // could match by coincidence on one platform but skew on
-    // another, so explicit FieldOffsets are spelled out for every
-    // platform target.
-    //
-    // ABI v5 added the `tag` field (offset 80) carrying `Rider.tag`
-    // for every rider-bearing variant; consumers that don't use the
-    // tag can simply ignore the new slot.
-    [StructLayout(LayoutKind.Explicit, Size = 88)]
-    public struct EvEvent
-    {
-        [FieldOffset(0)] public byte kind;
-        [FieldOffset(1)] public sbyte direction;
-        [FieldOffset(2)] public byte code1;
-        [FieldOffset(3)] public byte code2;
-        [FieldOffset(4)] public uint group;
-        [FieldOffset(8)] public ulong tick;
-        [FieldOffset(16)] public ulong stop;
-        [FieldOffset(24)] public ulong car;
-        [FieldOffset(32)] public ulong rider;
-        [FieldOffset(40)] public ulong floor;
-        [FieldOffset(48)] public ulong entity;
-        [FieldOffset(56)] public ulong count;
-        [FieldOffset(64)] public double f1;
-        [FieldOffset(72)] public double f2;
-        [FieldOffset(80)] public ulong tag;
-    }
 
     [DllImport(Lib)] public static extern uint ev_abi_version();
     [DllImport(Lib)] public static extern IntPtr ev_last_error();

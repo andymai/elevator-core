@@ -64,12 +64,18 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
         let field_name_str = field_ident.to_string();
         let kind_tokens = classify_type(&field.ty);
         let ty = &field.ty;
+        // Stringified type token (whitespace-stripped). Used by
+        // PR 6's codegen to detect nested repr-C struct fields and
+        // emit them with their proper named type rather than as a
+        // raw byte run.
+        let type_name_str = quote!(#ty).to_string().replace(' ', "");
         field_entries.push(quote! {
             ::elevator_layout_runtime::Field {
                 name: #field_name_str,
                 offset: ::core::mem::offset_of!(#name, #field_ident),
                 size: ::core::mem::size_of::<#ty>(),
                 kind: #kind_tokens,
+                type_name: #type_name_str,
             }
         });
     }
@@ -158,12 +164,13 @@ fn classify_type(ty: &Type) -> proc_macro2::TokenStream {
         "i64" => quote!(I64),
         "f32" => quote!(F32),
         "f64" => quote!(F64),
-        // Pointer-sized: any *const/*mut, usize/isize. The token
-        // shape `*const T` or `*mut T` always starts with one of
-        // these prefixes, so a string match suffices for the
-        // pre-PR-5 type universe.
+        // Pointer-sized. Distinguish unsigned from signed so the
+        // codegen can emit UIntPtr vs IntPtr accurately:
+        //   *const T / *mut T / isize → Ptr (signed/opaque)
+        //   usize → UPtr (unsigned)
         s if s.starts_with("*const") || s.starts_with("*mut") => quote!(Ptr),
-        "usize" | "isize" => quote!(Ptr),
+        "isize" => quote!(Ptr),
+        "usize" => quote!(UPtr),
         // Anything else (nested structs, arrays) is an opaque byte
         // run from the codegen's perspective.
         _ => quote!(Bytes),

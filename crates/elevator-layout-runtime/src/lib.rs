@@ -27,6 +27,11 @@ pub struct Field {
     /// emitted by the codegen binary (e.g. `byte` in C#, `u8` in
     /// `buffer_peek`'s second argument in GML).
     pub kind: FieldKind,
+    /// Rust type identifier as emitted by the derive (e.g.
+    /// `"EvMetricsView"` for nested struct fields, `"u64"` for
+    /// primitives). Lets the codegen prefer "embed the named C#
+    /// struct" over "emit IntPtr" for nested repr-C types.
+    pub type_name: &'static str,
 }
 
 /// Primitive kinds the host-side layouts care about.
@@ -53,9 +58,16 @@ pub enum FieldKind {
     F32,
     /// `f64`.
     F64,
-    /// Pointer-sized: any `*const T`, `*mut T`, `usize`, or
-    /// `isize`. Eight bytes on every supported target.
+    /// Signed pointer-sized: `*const T`, `*mut T`, or `isize`.
+    /// Eight bytes on every supported target. Mapped to `IntPtr`
+    /// in C# and to `buffer_u64` for buffer_peek in GML.
     Ptr,
+    /// Unsigned pointer-sized: `usize`. Distinct from `Ptr` so the
+    /// codegen can emit `UIntPtr` (unsigned) instead of `IntPtr`
+    /// (signed) — relevant for fields like `EvFrame.elevator_count`
+    /// where a consumer doing unsigned arithmetic should not see
+    /// the value sign-extended.
+    UPtr,
     /// Compound nested type (a derived struct or `[u8; N]` blob)
     /// the codegen emits as raw bytes. Reserved for future structs
     /// that contain nested repr-C records.
