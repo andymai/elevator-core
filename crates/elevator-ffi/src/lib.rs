@@ -176,7 +176,7 @@ pub type EvLogFn = unsafe extern "C" fn(level: u8, msg: *const c_char);
 /// same handle. The bytes are UTF-8 and are **not** null-terminated;
 /// use `msg_len` to bound the read.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvLogMessage {
     /// Severity level (0 = trace, 1 = debug, 2 = info, 3 = warn, 4 = error).
     pub level: u8,
@@ -211,7 +211,7 @@ pub unsafe extern "C" fn ev_set_log_callback(cb: Option<EvLogFn>) {
 
 /// View of a single elevator at the current tick.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvElevatorView {
     /// Elevator entity id (raw slotmap `as_ffi()`).
     pub entity_id: u64,
@@ -244,7 +244,7 @@ pub struct EvElevatorView {
 
 /// View of a single stop at the current tick.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvStopView {
     /// Stop entity id.
     pub entity_id: u64,
@@ -266,7 +266,7 @@ pub struct EvStopView {
 
 /// View of a single rider at the current tick.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvRiderView {
     /// Rider entity id.
     pub entity_id: u64,
@@ -283,7 +283,7 @@ pub struct EvRiderView {
 
 /// Aggregate metrics at the current tick.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvMetricsView {
     /// Cumulative riders delivered.
     pub total_delivered: u64,
@@ -300,7 +300,7 @@ pub struct EvMetricsView {
 /// Borrowed per-tick snapshot. All slice pointers are valid until the next
 /// call to [`ev_sim_frame`] on the same handle.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvFrame {
     /// Pointer to contiguous elevator views.
     pub elevators: *const EvElevatorView,
@@ -1557,7 +1557,7 @@ pub unsafe extern "C" fn ev_sim_hall_calls_snapshot(
 
 /// C-ABI-flat projection of a `HallCall` for FFI consumers.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvHallCall {
     /// Stop entity id (same encoding as elsewhere in the FFI).
     pub stop_entity_id: u64,
@@ -1588,7 +1588,7 @@ pub struct EvHallCall {
 /// One `(line, car)` assignment on a hall call. Read by
 /// [`ev_sim_assigned_cars_by_line`].
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvAssignment {
     /// Line entity id the car runs on.
     pub line_entity_id: u64,
@@ -1843,7 +1843,7 @@ pub mod ev_upgrade_field {
 /// against v3 must rebuild and check [`EV_ABI_VERSION`].
 #[allow(clippy::doc_markdown)]
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvEvent {
     /// Event kind discriminator. Values outside [`ev_event_kind`] are
     /// reserved — surface as [`UNKNOWN`](ev_event_kind::UNKNOWN) and
@@ -3245,7 +3245,7 @@ pub unsafe extern "C" fn ev_sim_remove_stop(handle: *mut EvSim, stop_entity_id: 
 /// supply `restricted_stops` separately as a `(*const u64, count)` pair
 /// to [`ev_sim_add_elevator`].
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvElevatorParams {
     /// Maximum travel speed (distance/tick); must be positive and finite.
     pub max_speed: f64,
@@ -6504,7 +6504,7 @@ pub unsafe extern "C" fn ev_sim_shortest_route(
 /// surfaced as a count (call [`ev_sim_car_call_pending_riders`] to read
 /// the actual rider list).
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvCarCall {
     /// Elevator the button was pressed inside.
     pub car_entity_id: u64,
@@ -6691,7 +6691,7 @@ pub unsafe extern "C" fn ev_sim_car_call_pending_riders(
 /// for real-time. The narrower [`EvMetricsView`] embedded in [`EvFrame`]
 /// is kept for backward compatibility; new code should prefer this struct.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvMetrics {
     /// Cumulative riders delivered.
     pub total_delivered: u64,
@@ -6770,7 +6770,7 @@ pub unsafe extern "C" fn ev_sim_metrics(
 /// Per-tag metric snapshot. Mirrors
 /// [`elevator_core::tagged_metrics::TaggedMetric`].
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, elevator_layout_derive::MultiHostLayout)]
 pub struct EvTaggedMetric {
     /// Average wait time in ticks for tagged riders.
     pub avg_wait_ticks: f64,
@@ -7086,6 +7086,90 @@ mod tests {
     fn abi_version_matches_constant() {
         assert_eq!(ev_abi_version(), EV_ABI_VERSION);
         assert_eq!(EV_ABI_VERSION, 5);
+    }
+
+    #[test]
+    fn layout_derive_matches_offset_of() {
+        // The proc-macro emits `core::mem::offset_of!` calls; verify
+        // the captured offsets agree with native offset_of for every
+        // field. This is the core invariant PR 6's codegen relies
+        // on — if it ever drifts, every consumer-side struct
+        // definition becomes silently wrong.
+        use elevator_layout_runtime::LayoutInfo;
+        let fields = <EvLogMessage as LayoutInfo>::fields();
+        assert_eq!(fields.len(), 4, "EvLogMessage has 4 fields");
+        assert_eq!(fields[0].name, "level");
+        assert_eq!(fields[0].offset, std::mem::offset_of!(EvLogMessage, level));
+        assert_eq!(fields[1].name, "ts_ns");
+        assert_eq!(fields[1].offset, std::mem::offset_of!(EvLogMessage, ts_ns));
+        assert_eq!(fields[2].name, "msg_ptr");
+        assert_eq!(
+            fields[2].offset,
+            std::mem::offset_of!(EvLogMessage, msg_ptr)
+        );
+        assert_eq!(fields[3].name, "msg_len");
+        assert_eq!(
+            fields[3].offset,
+            std::mem::offset_of!(EvLogMessage, msg_len)
+        );
+        assert_eq!(
+            <EvLogMessage as LayoutInfo>::size(),
+            std::mem::size_of::<EvLogMessage>()
+        );
+    }
+
+    #[test]
+    fn layout_registry_includes_every_host_bound_struct() {
+        // Registry holds an entry for every #[derive(MultiHostLayout)]
+        // type linked into the binary. The codegen (PR 6) iterates
+        // this slice to enumerate everything to emit.
+        let names: std::collections::HashSet<&str> = elevator_layout_runtime::REGISTRY
+            .iter()
+            .map(|e| e.name)
+            .collect();
+        // The 13 host-bound repr-C structs in elevator-ffi as of this
+        // ABI generation. Adding a struct without #[derive(MultiHostLayout)]
+        // lets the codegen miss it silently — this list is the gate.
+        for required in [
+            "EvLogMessage",
+            "EvElevatorView",
+            "EvStopView",
+            "EvRiderView",
+            "EvMetricsView",
+            "EvFrame",
+            "EvHallCall",
+            "EvAssignment",
+            "EvEvent",
+            "EvElevatorParams",
+            "EvCarCall",
+            "EvMetrics",
+            "EvTaggedMetric",
+        ] {
+            assert!(
+                names.contains(required),
+                "registry missing {required}; got: {names:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn layout_offsets_round_trip_via_registry() {
+        // Spot-check a few structs through the registry (rather than
+        // direct LayoutInfo calls) so the codegen's iteration path
+        // is exercised in tests too. Field counts and total sizes
+        // must match native size_of / offset_of.
+        let entry = elevator_layout_runtime::REGISTRY
+            .iter()
+            .find(|e| e.name == "EvLogMessage")
+            .expect("EvLogMessage in registry");
+        assert_eq!(entry.size, std::mem::size_of::<EvLogMessage>());
+        assert_eq!(entry.fields.len(), 4);
+
+        let frame_entry = elevator_layout_runtime::REGISTRY
+            .iter()
+            .find(|e| e.name == "EvFrame")
+            .expect("EvFrame in registry");
+        assert_eq!(frame_entry.size, std::mem::size_of::<EvFrame>());
     }
 
     #[test]
