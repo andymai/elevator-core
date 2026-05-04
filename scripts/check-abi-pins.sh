@@ -30,9 +30,12 @@ WATCHED=(
   "crates/elevator-ffi/src/lib.rs|pub const EV_ABI_VERSION: u32 = [0-9]+"
   "examples/csharp-harness/Program.cs|private const uint EXPECTED_ABI = [0-9]+"
   "examples/gms2-harness/main.c|#define EXPECTED_ABI [0-9]+"
-  "examples/gms2-extension/README.md|ABI version: [0-9]+"
+  # Anchored to the literal verification-recipe comment so a future
+  # changelog / migration-guide section in the README that mentions
+  # an old version doesn't trick `head -1` into extracting it.
+  "examples/gms2-extension/README.md|// expect: \"ABI version: [0-9]+\""
   "crates/elevator-wasm/src/lib.rs|pub const ABI_VERSION: u32 = [0-9]+"
-  "crates/elevator-gdext/src/sim_node.rs|const ABI_VERSION: u32 = [0-9]+"
+  "crates/elevator-gdext/src/sim_node.rs|pub const ABI_VERSION: u32 = [0-9]+"
 )
 
 declare -A versions
@@ -51,8 +54,11 @@ for entry in "${WATCHED[@]}"; do
     missing+=("$path")
     continue
   fi
-  # Strip everything except the trailing integer.
-  version=$(echo "$match" | grep -oE '[0-9]+$')
+  # Pull the last integer literal out of the matched line; the
+  # README's anchor ends with a closing quote, not a digit, so a
+  # bare `[0-9]+$` won't anchor against the line end. Take the last
+  # digit run via a tail call instead.
+  version=$(echo "$match" | grep -oE '[0-9]+' | tail -1)
   versions["$path"]="$version"
 done
 
