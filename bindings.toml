@@ -46,9 +46,11 @@
 #                         become an exported name or skip.
 #
 # Note on `bevy = "todo:plugin-layer"`: until a Bevy plugin layer
-# ships, every entry's bevy column carries this exact marker.
-# That's the *expected* state, not an actionable gap. The CI gate
-# accepts `todo:` indefinitely, so the manifest stays green.
+# ships, every non-`internal` entry's bevy column carries this exact
+# marker. That's the *expected* state, not an actionable gap, and the
+# difference between bevy and the other columns is purely policy
+# convention — the CI gate treats `todo:<phase>` identically across
+# every column (no failure, just summary count).
 #
 # Phase markers (see PR plan in design doc)
 # -----------------------------------------
@@ -129,8 +131,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_dispatch"
@@ -139,8 +141,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_advance_queue"
@@ -149,8 +151,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_doors"
@@ -159,8 +161,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_loading"
@@ -169,8 +171,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_metrics"
@@ -179,8 +181,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_movement"
@@ -189,8 +191,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 [[methods]]
 name = "run_reposition"
@@ -199,8 +201,8 @@ wasm = "skip:internal — phase ordering invariant"
 ffi  = "skip:internal — phase ordering invariant"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:internal — phase ordering invariant"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
 
 # ─── Modes (the original concern: \"emergency stop doesn't work\") ────────
 
@@ -343,8 +345,8 @@ wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
 tui  = "dispatch_panel"
 gms  = "skip:internal — strategies consume this"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — strategies consume this"
+bevy = "skip:internal — strategies consume this"
 
 [[methods]]
 name = "peek_dispatch_manifest"
@@ -353,8 +355,8 @@ wasm = "skip:internal — strategies consume this"
 ffi  = "skip:internal — strategies consume this"
 tui  = "dispatch_panel"
 gms  = "skip:internal — strategies consume this"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:internal — strategies consume this"
+bevy = "skip:internal — strategies consume this"
 
 [[methods]]
 name = "pin_assignment"
@@ -829,8 +831,8 @@ wasm = "skip:returns &TimeAdapter — internal layout"
 ffi  = "skip:returns &TimeAdapter — internal layout"
 tui  = "tick_rate_calc"
 gms  = "skip:returns &TimeAdapter — internal layout"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &TimeAdapter — internal layout"
+bevy = "skip:returns &TimeAdapter — internal layout"
 
 [[methods]]
 name = "events_mut"
@@ -839,8 +841,8 @@ wasm = "skip:returns &mut EventBus — never bound"
 ffi  = "skip:returns &mut EventBus — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut EventBus — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &mut EventBus — never bound"
+bevy = "skip:returns &mut EventBus — never bound"
 
 [[methods]]
 name = "metrics_mut"
@@ -849,8 +851,8 @@ wasm = "skip:returns &mut Metrics — never bound"
 ffi  = "skip:returns &mut Metrics — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut Metrics — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &mut Metrics — never bound"
+bevy = "skip:returns &mut Metrics — never bound"
 
 [[methods]]
 name = "phase_context"
@@ -859,8 +861,8 @@ wasm = "skip:returns PhaseContext — internal scheduling helper"
 ffi  = "skip:returns PhaseContext — internal scheduling helper"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns PhaseContext — internal scheduling helper"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns PhaseContext — internal scheduling helper"
+bevy = "skip:returns PhaseContext — internal scheduling helper"
 
 [[methods]]
 name = "elevators_on_line"
@@ -1509,8 +1511,8 @@ wasm = "skip:returns &World — consumers use snapshot/worldView DTOs"
 ffi  = "skip:returns &World — consumers use ev_sim_frame"
 tui  = "shaft_view"
 gms  = "skip:returns &World — consumers use ev_sim_frame"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &World — consumers use snapshot/worldView DTOs"
+bevy = "skip:returns &World — consumers use snapshot/worldView DTOs"
 
 [[methods]]
 name = "world_mut"
@@ -1519,8 +1521,8 @@ wasm = "skip:returns &mut World — never bound"
 ffi  = "skip:returns &mut World — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut World — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &mut World — never bound"
+bevy = "skip:returns &mut World — never bound"
 
 [[methods]]
 name = "dispatchers"
@@ -1529,8 +1531,8 @@ wasm = "skip:returns trait-object slice — never bound"
 ffi  = "skip:returns trait-object slice — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns trait-object slice — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns trait-object slice — never bound"
+bevy = "skip:returns trait-object slice — never bound"
 
 [[methods]]
 name = "dispatchers_mut"
@@ -1539,8 +1541,8 @@ wasm = "skip:returns &mut trait-object slice — never bound"
 ffi  = "skip:returns &mut trait-object slice — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut trait-object slice — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &mut trait-object slice — never bound"
+bevy = "skip:returns &mut trait-object slice — never bound"
 
 [[methods]]
 name = "groups"
@@ -1549,8 +1551,8 @@ wasm = "skip:returns &[ElevatorGroup] — internal layout"
 ffi  = "skip:returns &[ElevatorGroup] — internal layout"
 tui  = "shaft_view"
 gms  = "skip:returns &[ElevatorGroup] — internal layout"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &[ElevatorGroup] — internal layout"
+bevy = "skip:returns &[ElevatorGroup] — internal layout"
 
 [[methods]]
 name = "groups_mut"
@@ -1559,5 +1561,5 @@ wasm = "skip:returns &mut [ElevatorGroup] — never bound"
 ffi  = "skip:returns &mut [ElevatorGroup] — never bound"
 tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
 gms  = "skip:returns &mut [ElevatorGroup] — never bound"
-gdext = "todo:audit"
-bevy = "todo:plugin-layer"
+gdext = "skip:returns &mut [ElevatorGroup] — never bound"
+bevy = "skip:returns &mut [ElevatorGroup] — never bound"
