@@ -40,6 +40,9 @@ deterministic-fp = ["elevator-core/deterministic-fp"]
 
 [dependencies]
 elevator-core = { path = "../elevator-core" }
+elevator-layout-derive = { path = "../elevator-layout-derive" }
+elevator-layout-runtime = { path = "../elevator-layout-runtime" }
+linkme = "0.3"
 ron = { workspace = true }
 serde = { workspace = true }
 slotmap = { workspace = true }

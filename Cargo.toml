@@ -5,6 +5,8 @@ members = [
     "crates/elevator-bevy",
     "crates/elevator-ffi",
     "crates/elevator-gdext",
+    "crates/elevator-layout-derive",
+    "crates/elevator-layout-runtime",
     "crates/elevator-tui",
     "crates/elevator-wasm",
 ]
