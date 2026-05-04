@@ -484,7 +484,7 @@ typedef enum EvStrategy {
     /**
      * Custom (non-builtin) strategy. Passed only as an output value
      * from [`ev_sim_strategy_id`]; passing it to a setter returns
-     * `EvStatus::InvalidArg` since FFI consumers cannot register
+     * `EvStatus_InvalidArg` since FFI consumers cannot register
      * custom strategies.
      */
     EvStrategy_Custom = 99,
@@ -493,10 +493,10 @@ typedef enum EvStrategy {
 /**
  * Built-in reposition strategy identifier (ABI v3+).
  *
- * Mirrors [`elevator_core::dispatch::BuiltinReposition`]. `Custom` is
- * an output-only sentinel for non-built-in strategies registered via
- * the Rust API; FFI consumers passing `Custom` to a setter receive
- * `EvStatus::InvalidArg`.
+ * Mirrors [`elevator_core::dispatch::BuiltinReposition`].
+ * `EvReposition_Custom` is an output-only sentinel for non-built-in
+ * strategies registered via the Rust API; FFI consumers passing
+ * `EvReposition_Custom` to a setter receive `EvStatus_InvalidArg`.
  */
 typedef enum EvReposition {
     /**
@@ -1200,7 +1200,7 @@ enum EvStatus ev_sim_frame(struct EvSim *handle, struct EvFrame *out);
  * Query the best ETA to a stop across eligible elevators.
  *
  * `direction`: `-1` = Down, `0` = Either, `1` = Up. Returns
- * [`EvStatus::NotFound`] if no eligible elevator has `stop_entity_id`
+ * `EvStatus_NotFound` if no eligible elevator has `stop_entity_id`
  * queued; in that case the out-parameters are written as `(0, NaN)`.
  *
  * # Safety
@@ -1236,7 +1236,7 @@ enum EvStatus ev_sim_remove_reposition(struct EvSim *handle, uint32_t group_id);
 
 /**
  * Get the dispatch strategy currently active on `group_id`. Writes the
- * result to `*out_strategy`. Returns `EvStatus::NotFound` if the group
+ * result to `*out_strategy`. Returns `EvStatus_NotFound` if the group
  * has no registered strategy (or doesn't exist).
  *
  * # Safety
@@ -1249,7 +1249,7 @@ enum EvStatus ev_sim_strategy_id(struct EvSim *handle,
                                  enum EvStrategy *out_strategy);
 
 /**
- * Set the reposition strategy on `group_id`. Pass [`EvReposition::Custom`]
+ * Set the reposition strategy on `group_id`. Pass `EvReposition_Custom`
  * returns `InvalidArg` — FFI consumers cannot register custom strategies.
  *
  * # Safety
@@ -1262,7 +1262,7 @@ enum EvStatus ev_sim_set_reposition(struct EvSim *handle,
 
 /**
  * Get the reposition strategy currently set on `group_id`. Returns
- * `EvStatus::NotFound` if the group has no reposition strategy.
+ * `EvStatus_NotFound` if the group has no reposition strategy.
  *
  * # Safety
  *
@@ -1280,8 +1280,8 @@ enum EvStatus ev_sim_reposition_id(struct EvSim *handle,
  * pending hall calls, all cars idle). Writes the actual tick count
  * to `*out_ticks_run` on both success and timeout.
  *
- * Returns `EvStatus::Ok` if the world quieted within `max_ticks`,
- * `EvStatus::InvalidArg` if it failed to quiet (loop guard).
+ * Returns `EvStatus_Ok` if the world quieted within `max_ticks`,
+ * `EvStatus_InvalidArg` if it failed to quiet (loop guard).
  *
  * # Safety
  *
@@ -1415,10 +1415,10 @@ uint32_t ev_sim_hall_call_count(struct EvSim *handle);
  * real buffer.
  *
  * Returns:
- * - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+ * - `EvStatus_Ok` when all calls fit in `capacity` (`out_written
  *   <= capacity`); the first `out_written` slots of `out` are
  *   populated.
- * - [`EvStatus::InvalidArg`] when the buffer is too small;
+ * - `EvStatus_InvalidArg` when the buffer is too small;
  *   `out_written` carries the required slot count and no slot of
  *   `out` is written. [`ev_last_error`] carries a diagnostic string
  *   **only** when `capacity > 0` — the documented `(null, 0)` probe
@@ -1427,9 +1427,9 @@ uint32_t ev_sim_hall_call_count(struct EvSim *handle);
  *   mistake" after a deliberate size query.
  *
  * **ABI v4 contract change:** prior versions silently truncated to
- * `capacity` and returned `Ok` regardless. Callers that previously
- * passed an under-sized buffer and ignored the count must now
- * either grow the buffer or check for `InvalidArg`. Use
+ * `capacity` and returned `EvStatus_Ok` regardless. Callers that
+ * previously passed an under-sized buffer and ignored the count must
+ * now either grow the buffer or check for `EvStatus_InvalidArg`. Use
  * [`ev_sim_hall_call_count`] for size-only probes when the buffer
  * pattern feels heavyweight.
  *
@@ -1822,7 +1822,7 @@ enum EvStatus ev_sim_clear_elevator_home_stop(struct EvSim *handle, uint64_t ele
 /**
  * Read the home-stop pin for `elevator_entity_id`. Writes the stop
  * entity id (or `0` for unpinned) into `*out_stop_id` and returns
- * [`EvStatus::Ok`].
+ * `EvStatus_Ok`.
  *
  * # Safety
  *
@@ -1887,7 +1887,7 @@ enum EvStatus ev_sim_set_rider_tag(struct EvSim *handle, uint64_t rider_entity_i
 
 /**
  * Read the opaque tag attached to a rider. Writes the value into
- * `*out_tag` and returns [`EvStatus::Ok`]. Returns `0` for the default
+ * `*out_tag` and returns `EvStatus_Ok`. Returns `0` for the default
  * "untagged" state.
  *
  * # Safety
@@ -1916,7 +1916,7 @@ enum EvStatus ev_sim_set_rider_route_direct(struct EvSim *handle,
  * Replace a rider's remaining route with a multi-leg route built from
  * `shortest_route(rider's current_stop → to_stop)`.
  *
- * Returns [`EvStatus::NotFound`] if no route exists or the rider has
+ * Returns `EvStatus_NotFound` if no route exists or the rider has
  * no current stop.
  *
  * # Safety
@@ -1947,7 +1947,7 @@ enum EvStatus ev_sim_reroute_rider_direct(struct EvSim *handle,
  * `shortest_route(rider's current_stop → to_stop)`, transitioning them
  * back to `Waiting`.
  *
- * Returns [`EvStatus::NotFound`] if the rider has no current stop or
+ * Returns `EvStatus_NotFound` if the rider has no current stop or
  * no route exists.
  *
  * # Safety
@@ -2201,7 +2201,7 @@ enum EvStatus ev_sim_set_service_mode(struct EvSim *handle,
 /**
  * Get the current operational mode of an elevator.
  *
- * Writes the mode to `*out_mode`. Returns `Normal` for missing/disabled
+ * Writes the mode to `*out_mode`. Returns `EvServiceMode_Normal` for missing/disabled
  * elevators (matches core's `service_mode` accessor, which returns the
  * default rather than erroring). Use [`ev_sim_frame`] to verify existence.
  *
@@ -2716,12 +2716,12 @@ enum EvStatus ev_sim_riders_on(struct EvSim *handle,
  * can probe with `(null, 0)` to size a real buffer.
  *
  * Returns:
- * - [`EvStatus::Ok`] if a route exists and fits in `capacity`.
- * - [`EvStatus::InvalidArg`] if the route exists but `capacity` is too
+ * - `EvStatus_Ok` if a route exists and fits in `capacity`.
+ * - `EvStatus_InvalidArg` if the route exists but `capacity` is too
  *   small; `out_written` contains the required slot count.
  *   [`ev_last_error`] carries a diagnostic string only when
  *   `capacity > 0` — the documented `(null, 0)` probe is silent.
- * - [`EvStatus::NotFound`] if no route exists.
+ * - `EvStatus_NotFound` if no route exists.
  *
  * # Safety
  *
@@ -2754,10 +2754,10 @@ uint32_t ev_sim_car_call_count(struct EvSim *handle, uint64_t elevator_entity_id
  * real buffer.
  *
  * Returns:
- * - [`EvStatus::Ok`] when all calls fit in `capacity` (`out_written
+ * - `EvStatus_Ok` when all calls fit in `capacity` (`out_written
  *   <= capacity`); the first `out_written` slots of `out` are
  *   populated.
- * - [`EvStatus::InvalidArg`] when the buffer is too small;
+ * - `EvStatus_InvalidArg` when the buffer is too small;
  *   `out_written` carries the required slot count and no slot of
  *   `out` is written. [`ev_last_error`] carries a diagnostic string
  *   only when `capacity > 0` — the documented `(null, 0)` probe is
@@ -2778,7 +2778,7 @@ enum EvStatus ev_sim_car_calls_snapshot(struct EvSim *handle,
 /**
  * Pending rider list for the `index`-th car call inside `elevator_entity_id`.
  * Caller-owned buffer pattern matching the call snapshot. Returns
- * [`EvStatus::NotFound`] if the index is out of range.
+ * `EvStatus_NotFound` if the index is out of range.
  *
  * # Safety
  *
@@ -2804,7 +2804,7 @@ enum EvStatus ev_sim_car_call_pending_riders(struct EvSim *handle,
 enum EvStatus ev_sim_metrics(struct EvSim *handle, struct EvMetrics *out_metrics);
 
 /**
- * Read the per-tag aggregates for `tag`. Returns [`EvStatus::NotFound`]
+ * Read the per-tag aggregates for `tag`. Returns `EvStatus_NotFound`
  * if no riders carrying the tag have been recorded yet.
  *
  * # Safety
@@ -2835,7 +2835,7 @@ uint32_t ev_sim_tag_count(struct EvSim *handle);
  * `out_scratch_used` the number of bytes written to the scratch buffer
  * (including null terminators).
  *
- * Returns [`EvStatus::InvalidArg`] if either buffer is too small; the
+ * Returns `EvStatus_InvalidArg` if either buffer is too small; the
  * `out_*` counts indicate the required sizes. [`ev_last_error`]
  * carries a diagnostic string only when at least one capacity is
  * non-zero — the documented `(null, 0, null, 0)` pure probe is
@@ -2863,7 +2863,7 @@ enum EvStatus ev_sim_all_tags(struct EvSim *handle,
  * Only data-less variants are supported: `0` `Idle`, `3` `DoorOpening`,
  * `4` `Loading`, `5` `DoorClosing`, `6` `Stopped`.
  *
- * Returns [`EvStatus::InvalidArg`] for unknown phase codes.
+ * Returns `EvStatus_InvalidArg` for unknown phase codes.
  *
  * # Safety
  *
@@ -2876,8 +2876,8 @@ enum EvStatus ev_sim_elevators_in_phase(struct EvSim *handle, uint8_t phase, uin
  * ETA from `elevator_entity_id` to `stop_entity_id` in **ticks**.
  * Mirrors [`Simulation::eta`](elevator_core::sim::Simulation::eta).
  *
- * Returns [`EvStatus::InvalidArg`] if the entities don't refer to a
- * valid elevator/stop pair, or [`EvStatus::NotFound`] if the elevator
+ * Returns `EvStatus_InvalidArg` if the entities don't refer to a
+ * valid elevator/stop pair, or `EvStatus_NotFound` if the elevator
  * cannot reach the stop (e.g. stop not on the elevator's line, or
  * disabled).
  *
