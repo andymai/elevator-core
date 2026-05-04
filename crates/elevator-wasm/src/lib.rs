@@ -25,6 +25,13 @@ use elevator_core::prelude::{Simulation, StopId};
 use slotmap::Key;
 use wasm_bindgen::prelude::*;
 
+/// elevator-ffi ABI version this crate is pinned against.
+///
+/// Watched by `scripts/check-abi-pins.sh` in CI: any drift between
+/// this constant and `EV_ABI_VERSION` in the FFI header fails the
+/// gate, surfacing a stale wasm pin before runtime.
+pub const ABI_VERSION: u32 = 5;
+
 mod dto;
 mod js_dispatch;
 mod result;

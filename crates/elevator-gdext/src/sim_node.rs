@@ -30,6 +30,14 @@ use elevator_core::dispatch::BuiltinStrategy;
 use elevator_core::dispatch::scan::ScanDispatch;
 use elevator_core::sim::Simulation;
 
+/// elevator-ffi ABI version this crate is pinned against.
+///
+/// Watched by `scripts/check-abi-pins.sh` in CI: any drift between
+/// this constant and `EV_ABI_VERSION` in the FFI header fails the
+/// gate, surfacing a stale gdext pin before runtime. Public so a
+/// curious GDScript caller can verify the binding's ABI generation.
+pub const ABI_VERSION: u32 = 5;
+
 /// Elevator simulation node.
 ///
 /// Attach to your scene tree and configure via exported properties.

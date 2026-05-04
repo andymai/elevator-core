@@ -53,6 +53,15 @@ if [ "$has_rust" = true ]; then
         echo "pre-commit: linting docs..."
         scripts/lint-docs.sh --quick
     fi
+
+    # ABI version pin sync: run the gate if any watched file is staged.
+    # The full list lives in scripts/check-abi-pins.sh; checking the
+    # parent directories here is a coarse approximation that catches
+    # every relevant edit without re-listing the file set.
+    if grep -qE '^(crates/elevator-(ffi|wasm|gdext)/|examples/(csharp-harness|gms2-harness|gms2-extension)/)' <<<"$staged"; then
+        echo "pre-commit: checking ABI version pins..."
+        scripts/check-abi-pins.sh
+    fi
 fi
 
 # ─── Playground (TypeScript) ─────────────────────────────────────────
