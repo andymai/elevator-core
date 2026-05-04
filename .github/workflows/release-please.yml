@@ -110,10 +110,20 @@ jobs:
         include:
           - os: ubuntu-latest
             lib_name: libelevator_ffi.so
+            bundle_name: libelevator_ffi.so
           - os: windows-latest
             lib_name: elevator_ffi.dll
+            bundle_name: elevator_ffi.dll
+          # Both macOS arches share the same cargo-output filename
+          # (libelevator_ffi.dylib); rename to arch-suffixed names
+          # inside the bundle so a single release zip carries both
+          # Apple Silicon and Intel binaries side-by-side.
           - os: macos-15
             lib_name: libelevator_ffi.dylib
+            bundle_name: libelevator_ffi-arm64.dylib
+          - os: macos-13
+            lib_name: libelevator_ffi.dylib
+            bundle_name: libelevator_ffi-x64.dylib
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -135,6 +145,7 @@ jobs:
       - name: Stage cdylib
         env:
           LIB_NAME: ${{ matrix.lib_name }}
+          BUNDLE_NAME: ${{ matrix.bundle_name }}
         run: |
           mkdir -p staged
           # No --target was passed to cargo build, so the cdylib is
@@ -142,12 +153,12 @@ jobs:
           # ffi-harness job uses the same path; matching it here
           # avoids Windows-path edge cases that the cargo-metadata
           # JSON parse would inherit (backslashes in target_directory).
-          cp "target/release/$LIB_NAME" "staged/$LIB_NAME"
+          cp "target/release/$LIB_NAME" "staged/$BUNDLE_NAME"
 
       - name: Upload cdylib artefact
         uses: actions/upload-artifact@v4
         with:
-          name: gms-binary-${{ matrix.lib_name }}
+          name: gms-binary-${{ matrix.bundle_name }}
           path: staged/
           retention-days: 1
 
@@ -182,9 +193,10 @@ jobs:
           # the release fills in here.
           cp -r examples/gms2-extension/* "$BUNDLE/"
           mkdir -p "$BUNDLE/extension/elevator_ffi/binaries"
-          cp pickup/libelevator_ffi.so      "$BUNDLE/extension/elevator_ffi/binaries/"
-          cp pickup/elevator_ffi.dll        "$BUNDLE/extension/elevator_ffi/binaries/"
-          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/libelevator_ffi.so            "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/elevator_ffi.dll              "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/libelevator_ffi-arm64.dylib   "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/libelevator_ffi-x64.dylib     "$BUNDLE/extension/elevator_ffi/binaries/"
           # License compliance: the dual MIT/Apache notice ships with
           # every binary distribution.
           cp LICENSE LICENSE-MIT LICENSE-APACHE "$BUNDLE/"

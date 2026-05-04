@@ -91,9 +91,15 @@ matrix). The harness includes static asserts on every
 ## Supported targets
 
 - **Windows x64 desktop**: `elevator_ffi.dll`
-- **macOS arm64 desktop**: `libelevator_ffi.dylib` (Intel Mac is a
-  follow-up — see PR 3's risk note)
+- **macOS arm64 desktop** (Apple Silicon): `libelevator_ffi-arm64.dylib`
+- **macOS x64 desktop** (Intel): `libelevator_ffi-x64.dylib`
 - **Ubuntu x64 desktop**: `libelevator_ffi.so`
+
+The release zip ships both macOS dylibs side-by-side under arch-suffixed
+names; configure the GMS extension's macOS Proxy File to point at the
+matching arch (or run `lipo -create -output libelevator_ffi.dylib
+libelevator_ffi-arm64.dylib libelevator_ffi-x64.dylib` locally to merge
+them into a single universal binary if you prefer one entry).
 - **HTML5, mobile, consoles**: not supported. HTML5 needs
   [`elevator-wasm`](../../crates/elevator-wasm) with a different
   glue layer; mobile/console builds need entirely different native
