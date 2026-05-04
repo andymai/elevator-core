@@ -11,3 +11,14 @@ line_length = 100
 tab_width = 4
 documentation = true
 documentation_style = "doxy"
+
+[enum]
+# Namespace every C enum constant with the enum name to avoid
+# collisions across enums sharing a variant name. Without this,
+# `EvStrategy::Custom` and `EvReposition::Custom` (both = 99) emit
+# bare `Custom = 99` lines that prevent any pure-C consumer from
+# including the header. With it, they become `EvStrategy_Custom`
+# and `EvReposition_Custom`. Pure-Rust consumers (Unity P/Invoke,
+# elevator-gdext) round-trip the integer values regardless of the
+# C enumerator names, so this is a non-breaking ABI change.
+prefix_with_name = true
