@@ -14,7 +14,15 @@ by `build.rs` via [cbindgen](https://github.com/mozilla/cbindgen) into
 uint32_t v = ev_abi_version();  // must equal EV_ABI_VERSION from the header
 ```
 
-Always check this at startup. Any breaking layout change bumps the constant.
+Always check this at startup. The constant tracks **layout** changes
+to the C structs and enums — a bump means existing callers must
+recompile against the new header. New entry points (e.g. additional
+`ev_*` functions) are additive and do **not** bump the constant; a
+v5 caller can safely link against a newer cdylib that exposes more
+symbols.
+
+See [`include/elevator_ffi.h`](include/elevator_ffi.h)'s
+`EV_ABI_VERSION` doc-comment for the per-version delta.
 
 ## Lifecycle
 
@@ -48,6 +56,28 @@ null-terminated.
 Each `EvSim *` is single-threaded. Serialize all calls on a given handle.
 Distinct handles can be driven from distinct threads. The global log callback
 installed via `ev_set_log_callback` is protected by an internal mutex.
+
+## Logs
+
+Two paths, both seeing the same per-step stream:
+
+```c
+// Path A: callback (Unity, Godot, native).
+void on_log(uint8_t level, const char *msg) { /* ... */ }
+ev_set_log_callback(on_log);
+
+// Path B: polling (GameMaker — GML can't pass C function pointers).
+EvLogMessage logs[64];
+uint32_t written = 0;
+ev_drain_log_messages(sim, logs, 64, &written);
+// logs[i].msg_ptr borrows from sim's internal buffer; valid until
+// the next ev_drain_log_messages call on the same handle.
+```
+
+**Lazy opt-in:** the per-handle log queue is empty until the first
+call to `ev_drain_log_messages` or `ev_pending_log_message_count`.
+Callback-only consumers pay zero per-handle buffering. Polling
+consumers should drain regularly to bound queue growth.
 
 ## Error model
 
@@ -119,3 +149,11 @@ harness against the compiled cdylib on three host platforms:
 The header-diff check runs only on Linux (all three produce identical
 output). `fail-fast: false` is set so a regression on one platform
 doesn't hide issues on the others.
+
+A second harness at [`examples/gms2-harness/main.c`](../../examples/gms2-harness/main.c)
+exercises the FFI under GameMaker Studio 2's stricter type
+constraints (no callbacks, struct out-params via caller buffers,
+pointers staged through `double`). It runs on Linux only — the layout
+asserts are platform-independent so one OS catches the regression
+before the GML decoders in
+[`examples/gms2-extension`](../../examples/gms2-extension) break.
