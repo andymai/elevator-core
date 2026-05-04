@@ -67,6 +67,9 @@ jobs:
       - name: Check binding coverage
         run: scripts/check-bindings.sh
 
+      - name: Check ABI version pins
+        run: scripts/check-abi-pins.sh
+
   supply-chain:
     name: Supply chain (cargo-deny)
     if: |

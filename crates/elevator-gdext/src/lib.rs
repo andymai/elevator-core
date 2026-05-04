@@ -6,7 +6,7 @@
 
 mod sim_node;
 
-pub use sim_node::ElevatorSim;
+pub use sim_node::{ABI_VERSION, ElevatorSim};
 
 use godot::prelude::*;
 
