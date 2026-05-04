@@ -415,39 +415,39 @@ typedef enum EvStatus {
     /**
      * Operation succeeded.
      */
-    Ok = 0,
+    EvStatus_Ok = 0,
     /**
      * A required pointer argument was null.
      */
-    NullArg = 1,
+    EvStatus_NullArg = 1,
     /**
      * A C string argument was not valid UTF-8.
      */
-    InvalidUtf8 = 2,
+    EvStatus_InvalidUtf8 = 2,
     /**
      * The config file could not be read from disk.
      */
-    ConfigLoad = 3,
+    EvStatus_ConfigLoad = 3,
     /**
      * The config file failed to parse as RON.
      */
-    ConfigParse = 4,
+    EvStatus_ConfigParse = 4,
     /**
      * [`SimulationBuilder::build`] returned an error.
      */
-    BuildFailed = 5,
+    EvStatus_BuildFailed = 5,
     /**
      * The requested entity, group, or resource was not found.
      */
-    NotFound = 6,
+    EvStatus_NotFound = 6,
     /**
      * An argument was structurally valid but semantically rejected.
      */
-    InvalidArg = 7,
+    EvStatus_InvalidArg = 7,
     /**
      * A Rust panic was caught at the FFI boundary.
      */
-    Panic = 99,
+    EvStatus_Panic = 99,
 } EvStatus;
 
 /**
@@ -460,34 +460,34 @@ typedef enum EvStrategy {
     /**
      * SCAN — sweep end-to-end.
      */
-    Scan = 0,
+    EvStrategy_Scan = 0,
     /**
      * LOOK — reverse at last request.
      */
-    Look = 1,
+    EvStrategy_Look = 1,
     /**
      * Nearest-car.
      */
-    NearestCar = 2,
+    EvStrategy_NearestCar = 2,
     /**
      * Estimated time to destination.
      */
-    Etd = 3,
+    EvStrategy_Etd = 3,
     /**
      * Destination dispatch (lobby kiosk, hall-button mode = Destination).
      */
-    Destination = 4,
+    EvStrategy_Destination = 4,
     /**
      * RSR — composite cost-stack with stock weights.
      */
-    Rsr = 5,
+    EvStrategy_Rsr = 5,
     /**
      * Custom (non-builtin) strategy. Passed only as an output value
      * from [`ev_sim_strategy_id`]; passing it to a setter returns
      * `EvStatus::InvalidArg` since FFI consumers cannot register
      * custom strategies.
      */
-    Custom = 99,
+    EvStrategy_Custom = 99,
 } EvStrategy;
 
 /**
@@ -502,31 +502,31 @@ typedef enum EvReposition {
     /**
      * Distribute idle elevators evenly across stops.
      */
-    SpreadEvenly = 0,
+    EvReposition_SpreadEvenly = 0,
     /**
      * Return idle elevators to a configured home stop.
      */
-    ReturnToLobby = 1,
+    EvReposition_ReturnToLobby = 1,
     /**
      * Position near stops with historically high demand.
      */
-    DemandWeighted = 2,
+    EvReposition_DemandWeighted = 2,
     /**
      * Keep idle elevators where they are.
      */
-    NearestIdle = 3,
+    EvReposition_NearestIdle = 3,
     /**
      * Pre-position cars near stops with the highest recent arrival rate.
      */
-    PredictiveParking = 4,
+    EvReposition_PredictiveParking = 4,
     /**
      * Mode-gated picker between `ReturnToLobby` / `PredictiveParking`.
      */
-    Adaptive = 5,
+    EvReposition_Adaptive = 5,
     /**
      * Custom (output-only).
      */
-    Custom = 99,
+    EvReposition_Custom = 99,
 } EvReposition;
 
 /**
@@ -537,24 +537,24 @@ typedef enum EvServiceMode {
     /**
      * Normal operation: dispatch assigns stops, doors auto-cycle.
      */
-    Normal = 0,
+    EvServiceMode_Normal = 0,
     /**
      * Excluded from dispatch and repositioning. Consumer drives movement.
      */
-    Independent = 1,
+    EvServiceMode_Independent = 1,
     /**
      * Reduced speed, doors hold open indefinitely.
      */
-    Inspection = 2,
+    EvServiceMode_Inspection = 2,
     /**
      * Driven by direct velocity commands. Doors follow manual API.
      */
-    Manual = 3,
+    EvServiceMode_Manual = 3,
     /**
      * Shut down: excluded from dispatch, no auto-boarding, fully inert
      * once idle.
      */
-    OutOfService = 4,
+    EvServiceMode_OutOfService = 4,
 } EvServiceMode;
 
 /**

@@ -20,15 +20,6 @@
  *     type constraints but not the runtime. A working extension still
  *     needs a manual GMS-side import per examples/gms2-extension/README.md.
  *
- * Why we don't include elevator_ffi.h: at the time of writing the
- * cbindgen-generated header has duplicate enumerator names across
- * enums (`Custom = 99` in both `EvStrategy` and `EvReposition`),
- * which a pure C consumer can't compile. The C# / .NET P/Invoke side
- * works around this via per-enum namespacing. The handful of symbols
- * we exercise here are declared locally — drift between these decls
- * and the real ABI is caught by the offset asserts and by the
- * runtime smoke pass.
- *
  * Build: examples/gms2-harness/build.sh resolves cc/cl per platform
  * and links against the in-tree libelevator_ffi shared object. CI runs
  * the same script as part of the ffi-harness matrix.
@@ -41,35 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── Local minimal ABI declarations ─────────────────────────────── */
+#include "elevator_ffi.h"
 
 #define EXPECTED_ABI 5
-
-/* EvStatus.Ok happens to be 0 across every cbindgen revision; this
- * file's contract is "exit non-zero on any non-Ok status", so the
- * literal 0 is the only value we need. */
-#define EV_STATUS_OK 0
-
-typedef struct EvSim EvSim;
-
-/* Mirrors crates/elevator-ffi/src/lib.rs::EvLogMessage at ABI v5.
- * The static asserts below pin the offsets so a future cbindgen
- * reorder breaks CI here, not on the GML side. */
-struct EvLogMessage {
-    uint8_t  level;
-    int64_t  ts_ns;
-    const uint8_t *msg_ptr;
-    uint32_t msg_len;
-};
-
-extern uint32_t      ev_abi_version(void);
-extern const char   *ev_last_error(void);
-extern EvSim        *ev_sim_create(const char *config_path);
-extern void          ev_sim_destroy(EvSim *handle);
-extern int32_t       ev_sim_step(EvSim *handle);
-extern uint32_t      ev_pending_log_message_count(EvSim *handle);
-extern int32_t       ev_drain_log_messages(EvSim *handle, struct EvLogMessage *out,
-                                            uint32_t capacity, uint32_t *out_written);
 
 /* ── Layout asserts ─────────────────────────────────────────────── */
 
@@ -133,12 +98,12 @@ int main(int argc, char **argv) {
      * would (external_define says ty_real for pointer args/returns).
      * If the bit pattern doesn't survive the round-trip, every
      * subsequent FFI call would dereference garbage. */
-    EvSim *handle = ev_sim_create(argv[1]);
+    struct EvSim *handle = ev_sim_create(argv[1]);
     if (!handle) {
         return fail("ev_sim_create");
     }
     double handle_as_real = handle_to_real(handle);
-    EvSim *roundtrip = (EvSim *)real_to_handle(handle_as_real);
+    struct EvSim *roundtrip = (struct EvSim *)real_to_handle(handle_as_real);
     if (roundtrip != handle) {
         fprintf(stderr, "FAIL: handle round-trip through double altered the pointer\n");
         ev_sim_destroy(handle);
@@ -151,7 +116,7 @@ int main(int argc, char **argv) {
     (void)ev_pending_log_message_count(roundtrip);
 
     for (int i = 0; i < TICKS; ++i) {
-        if (ev_sim_step(roundtrip) != EV_STATUS_OK) {
+        if (ev_sim_step(roundtrip) != EvStatus_Ok) {
             ev_sim_destroy(roundtrip);
             return fail("ev_sim_step");
         }
@@ -162,7 +127,7 @@ int main(int argc, char **argv) {
      * GML decoder in elevator_ffi.gml does on the GameMaker side. */
     struct EvLogMessage logs[LOG_BUF_CAPACITY];
     uint32_t written = 0;
-    if (ev_drain_log_messages(roundtrip, logs, LOG_BUF_CAPACITY, &written) != EV_STATUS_OK) {
+    if (ev_drain_log_messages(roundtrip, logs, LOG_BUF_CAPACITY, &written) != EvStatus_Ok) {
         ev_sim_destroy(roundtrip);
         return fail("ev_drain_log_messages");
     }
@@ -194,7 +159,7 @@ int main(int argc, char **argv) {
          * since we just emptied it) without crashing on the cleared
          * log_drain_buf. */
         uint32_t second = 0;
-        if (ev_drain_log_messages(roundtrip, logs, LOG_BUF_CAPACITY, &second) != EV_STATUS_OK) {
+        if (ev_drain_log_messages(roundtrip, logs, LOG_BUF_CAPACITY, &second) != EvStatus_Ok) {
             ev_sim_destroy(roundtrip);
             return fail("ev_drain_log_messages (second call)");
         }
