@@ -61,17 +61,27 @@ installed via `ev_set_log_callback` is protected by an internal mutex.
 
 Two paths, both seeing the same per-step stream:
 
-```c
-// Path A: callback (Unity, Godot, native).
-void on_log(uint8_t level, const char *msg) { /* ... */ }
-ev_set_log_callback(on_log);
+**Path A: callback** — wired through higher-level binding layers
+(C# P/Invoke, Godot gdnative, etc.) since cbindgen emits the
+function-pointer arg as the opaque `Option_EvLogFn` wrapper, which
+isn't directly constructible from raw C. See
+[`include/elevator_ffi.h`](include/elevator_ffi.h) for the type.
 
-// Path B: polling (GameMaker — GML can't pass C function pointers).
+**Path B: polling** — works equally from C, GameMaker (which can't
+pass C function pointers), and any other host:
+
+```c
 EvLogMessage logs[64];
 uint32_t written = 0;
 ev_drain_log_messages(sim, logs, 64, &written);
-// logs[i].msg_ptr borrows from sim's internal buffer; valid until
-// the next ev_drain_log_messages call on the same handle.
+for (uint32_t i = 0; i < written; ++i) {
+    // logs[i].msg_ptr / .msg_len: UTF-8 bytes, NOT null-terminated.
+    // Always read with the length — never strlen / printf("%s", ...).
+    // The slice borrows from sim's internal buffer and is valid only
+    // until the next ev_drain_log_messages call on the same handle.
+    fwrite(logs[i].msg_ptr, 1, logs[i].msg_len, stdout);
+    fputc('\n', stdout);
+}
 ```
 
 **Lazy opt-in:** the per-handle log queue is empty until the first
