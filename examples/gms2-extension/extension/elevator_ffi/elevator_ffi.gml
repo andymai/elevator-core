@@ -38,19 +38,11 @@ function ev_real_to_handle(_real) {
 
 // ── EvLogMessage decoder ────────────────────────────────────────────
 //
-// Layout (matches crates/elevator-ffi/src/lib.rs::EvLogMessage):
-//   offset 0:  u8  level
-//   offset 1:  7 bytes padding
-//   offset 8:  i64 ts_ns
-//   offset 16: *const u8 msg_ptr (8 bytes on x64)
-//   offset 24: u32 msg_len
-//   offset 28: 4 bytes padding
-//   sizeof = 32
-#macro EV_LOG_MESSAGE_SIZE             32
-#macro EV_LOG_MESSAGE_LEVEL_OFFSET      0
-#macro EV_LOG_MESSAGE_TS_NS_OFFSET      8
-#macro EV_LOG_MESSAGE_MSG_PTR_OFFSET   16
-#macro EV_LOG_MESSAGE_MSG_LEN_OFFSET   24
+// Offset macros live in elevator_ffi_layout.gml (auto-generated from
+// #[repr(C)] + #[derive(MultiHostLayout)] in
+// crates/elevator-ffi/src/lib.rs by `cargo run -p
+// elevator-layout-codegen`). Use them directly with buffer_peek; the
+// codegen guarantees they match the Rust struct layout.
 
 /// Decode a single EvLogMessage out of `_buf` at `_offset`.
 ///
