@@ -319,6 +319,14 @@ internal static class Program
                 Console.WriteLine("  hall-call API skipped: config has <2 stops or 0 elevators");
             }
 
+            // Activate lazy log buffering before the step loop so the
+            // msg_ptr/msg_len round-trip below has data to check. The
+            // first call to either polling-side log API flips
+            // log_polling_active on the Rust side; without it,
+            // forward_pending_events skips the per-step push and the
+            // queue stays empty.
+            _ = Native.ev_pending_log_message_count(handle);
+
             for (var i = 0; i < TICKS; i++)
             {
                 var st = Native.ev_sim_step(handle);
