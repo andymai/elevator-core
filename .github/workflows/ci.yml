@@ -157,6 +157,18 @@ jobs:
         working-directory: examples/csharp-harness
         run: dotnet run -c Release --no-build -- ../../assets/config/default.ron
 
+      # GameMaker-shaped C smoke harness. Validates pointer-as-double
+      # round-trip, EvLogMessage struct offsets (so a future cbindgen
+      # reorder fails CI before extension/elevator_ffi/elevator_ffi.gml
+      # decoders break), and lazy log-polling activation. Linux-only:
+      # the layout asserts are platform-independent so one OS catches
+      # the regression; the Windows/macOS toolchain matrix for the
+      # GMS harness is a follow-up. Skipped on release-please PRs for
+      # the same reason as the C# harness above.
+      - name: Run GMS-shaped C harness
+        if: runner.os == 'Linux'
+        run: bash ./examples/gms2-harness/build.sh
+
   wasm-gate:
     name: wasm32 gate (elevator-core)
     # Enforces the "core stays engine-agnostic" invariant: if anyone adds a

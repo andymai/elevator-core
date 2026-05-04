@@ -73,6 +73,27 @@ public static class Ev {
 For Unity, drop the compiled `libelevator_ffi.so` / `.dylib` / `.dll` into
 `Assets/Plugins/` and call through `DllImport("elevator_ffi")` as above.
 
+## Consuming from GameMaker Studio 2
+
+Desktop x64 only (Windows / macOS / Ubuntu) — GMS dropped 32-bit
+Windows in 2022.8 and HTML5 / mobile / consoles need separate build
+paths.
+
+GameMaker's `external_define` only supports `ty_real` (double) and
+`ty_string` (UTF-8 char\*) as argument and return types. Pointers
+(handles, buffer addresses) round-trip through `ty_real` — safe on
+x64 because user-space addresses fit in 47 bits, well inside a
+double's 53-bit mantissa. Function-pointer arguments (e.g.
+`ev_set_log_callback`) are unreachable from GML; use the polling
+alternatives like `ev_drain_log_messages`.
+
+The full bundle — auto-generated `external_define` calls for every
+exported FFI function plus hand-written GML decoders for the
+struct-out-param entry points — lives at
+[`examples/gms2-extension`](../../examples/gms2-extension). See its
+[README](../../examples/gms2-extension/README.md) for the import
+recipe and local-testing flow.
+
 ## Building
 
 ```bash
