@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace ElevatorHarness;
 
-internal static class Native
+internal static partial class Native
 {
     private const string Lib = "elevator_ffi";
 
