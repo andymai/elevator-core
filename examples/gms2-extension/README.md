@@ -40,19 +40,29 @@ FFI function the manifest marks as exported (`gms = "..."` in
 `bindings.toml`). Hand-written helpers in `elevator_ffi.gml` cover
 the cases that need GML-side decoding.
 
+## Installing (end users)
+
+Download `elevator_ffi_gms2-<version>.zip` from the
+[Releases page](https://github.com/andymai/elevator-core/releases?q=elevator-ffi)
+— the [release-please packaging
+job](../../.github/workflows/release-please.yml) attaches it to every
+`elevator-ffi-v*` tag with all three platform binaries plus the dual
+MIT/Apache LICENSE files pre-staged. Extract the zip and follow the
+manual import recipe at the bottom of this README.
+
 ## Local testing (developers)
 
-GameMaker end-users get binaries via the release `.zip` /
-`.yymps` (PR 4 wires the packaging). To test the extension against a
-local build of the cdylib:
+To test against a local build of the cdylib instead of waiting for a
+tagged release:
 
 ```bash
 # 1. Build the cdylib
 cargo build -p elevator-ffi --release
 
-# 2. Copy the produced artefact into the extension folder
-#    (path varies per platform):
-cp "$(cargo metadata --format-version 1 --no-deps | jq -r .target_directory)/release/libelevator_ffi.so" \
+# 2. Copy the produced artefact into the extension folder.
+#    (cargo writes to a workspace-local target/release/ unless you
+#    set CARGO_TARGET_DIR; adjust the source path accordingly.)
+cp target/release/libelevator_ffi.so \
    examples/gms2-extension/extension/elevator_ffi/binaries/    # Linux
 # or libelevator_ffi.dylib on macOS, elevator_ffi.dll on Windows
 
@@ -96,9 +106,9 @@ need a different target.
 ## Manifest (`elevator_ffi.yy`) — work in progress
 
 The `.yy` file in this folder is a structural placeholder. GameMaker
-Studio 2's extension manifest schema evolves across LTS versions; PR
-4 adds verified `.yy` + `.yymps` packaging once the format has been
-exercised against a working extension import.
+Studio 2's extension manifest schema evolves across LTS versions, so
+a follow-up PR adds verified `.yy` + `.yymps` packaging once the
+format has been exercised against a working extension import.
 
 Until then, treat the bundle as a folder of GML scripts + binaries
 that you manually wire up by:
