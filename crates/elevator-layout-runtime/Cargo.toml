@@ -1,0 +1,12 @@
+[package]
+name = "elevator-layout-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Runtime trait + linkme registry consumed by the elevator-layout-derive proc-macro and the elevator-layout-codegen binary."
+publish = false
+
+[dependencies]
+linkme = "0.3"
