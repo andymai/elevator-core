@@ -67,8 +67,19 @@ jobs:
       - name: Check binding coverage
         run: scripts/check-bindings.sh
 
-      - name: Check ABI version pins
-        run: scripts/check-abi-pins.sh
+      - name: Check layout-codegen drift
+        # Regenerate the C# / GML / C-asserts files from the
+        # elevator-layout-runtime registry and fail if the result
+        # differs from what's checked in. Mirrors the cbindgen
+        # header-diff check for elevator_ffi.h.
+        run: |
+          cargo run -p elevator-layout-codegen
+          if ! git diff --exit-code examples/csharp-harness/Generated.cs \
+                                    examples/gms2-extension/extension/elevator_ffi/elevator_ffi_layout.gml \
+                                    examples/gms2-harness/layout_asserts.h; then
+            echo "::error::Layout codegen output drifted — run 'cargo run -p elevator-layout-codegen' and commit the result."
+            exit 1
+          fi
 
   supply-chain:
     name: Supply chain (cargo-deny)

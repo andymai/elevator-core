@@ -1,0 +1,20 @@
+[package]
+name = "elevator-layout-codegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Reads the elevator-layout-runtime REGISTRY at compile time and emits consumer-side layout files (C# / GML / C asserts)."
+publish = false
+
+[[bin]]
+name = "elevator-layout-codegen"
+path = "src/main.rs"
+
+[dependencies]
+# Depending on elevator-ffi pulls every #[derive(MultiHostLayout)]
+# struct's REGISTRY entry into the binary's distributed slice via
+# linkme. Without this dep the codegen would see an empty registry.
+elevator-ffi = { path = "../elevator-ffi" }
+elevator-layout-runtime = { path = "../elevator-layout-runtime" }
