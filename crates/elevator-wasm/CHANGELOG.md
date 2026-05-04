@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.13.0...elevator-wasm-v0.14.0) (2026-05-04)
+
+
+### Features
+
+* **ci:** cross-consumer ABI version gate ([#624](https://github.com/andymai/elevator-core/issues/624)) ([d8c58ac](https://github.com/andymai/elevator-core/commit/d8c58ac8a2eda8e2246f1f3791de7b63c9462edd))
+
 ## [0.13.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.12.0...elevator-wasm-v0.13.0) (2026-05-02)
 
 
