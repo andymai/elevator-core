@@ -37,8 +37,10 @@ pub enum FieldKind {
     U8,
     /// `i8`.
     I8,
-    /// `u16` / `i16`. Currently unused; reserved for future structs.
+    /// `u16`. Currently unused; reserved for future structs.
     U16,
+    /// `i16`. Currently unused; reserved for future structs.
+    I16,
     /// `u32`.
     U32,
     /// `i32`. Currently unused; reserved.

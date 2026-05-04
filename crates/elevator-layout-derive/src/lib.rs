@@ -20,6 +20,21 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
     let name = &input.ident;
     let name_str = name.to_string();
 
+    // Require #[repr(C)]. Without it, `core::mem::offset_of!` still
+    // compiles but the offsets follow the compiler's layout choices,
+    // which are unstable across targets and rustc versions. PR 6's
+    // codegen would then emit C# / GML / C definitions assuming
+    // FFI-stable offsets — silently corrupting cross-language
+    // memory reads.
+    if !has_repr_c(&input.attrs) {
+        return syn::Error::new_spanned(
+            name,
+            "MultiHostLayout requires #[repr(C)] for FFI-stable offsets",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let fields = match &input.data {
         Data::Struct(s) => match &s.fields {
             Fields::Named(named) => &named.named,
@@ -59,11 +74,20 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
         });
     }
 
-    // Generate a unique constant ident for the registry submission so
-    // multiple derives in the same crate don't collide.
+    // Generate unique idents for the per-type statics so multiple
+    // derives in the same crate don't collide.
     let registry_const = format_ident!("__LAYOUT_REGISTRY_ENTRY_{}", name);
+    let fields_static = format_ident!("__LAYOUT_FIELDS_{}", name);
 
     let expanded = quote! {
+        // Single per-type FIELDS table — referenced by both the
+        // LayoutInfo::fields() impl and the registry entry below
+        // so the field-literal token stream is only expanded once.
+        #[allow(non_upper_case_globals)]
+        const #fields_static: &[::elevator_layout_runtime::Field] = &[
+            #(#field_entries),*
+        ];
+
         impl ::elevator_layout_runtime::LayoutInfo for #name {
             fn name() -> &'static str {
                 #name_str
@@ -72,10 +96,7 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
                 ::core::mem::size_of::<Self>()
             }
             fn fields() -> &'static [::elevator_layout_runtime::Field] {
-                static FIELDS: &[::elevator_layout_runtime::Field] = &[
-                    #(#field_entries),*
-                ];
-                FIELDS
+                #fields_static
             }
         }
 
@@ -89,16 +110,34 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
             ::elevator_layout_runtime::LayoutEntry {
                 name: #name_str,
                 size: ::core::mem::size_of::<#name>(),
-                fields: {
-                    static FIELDS: &[::elevator_layout_runtime::Field] = &[
-                        #(#field_entries),*
-                    ];
-                    FIELDS
-                },
+                fields: #fields_static,
             };
     };
 
     expanded.into()
+}
+
+/// Detect whether the input struct carries `#[repr(C)]`.
+///
+/// `#[repr(C, ...other...)]` (e.g. `#[repr(C, packed)]`) is also
+/// accepted — we walk every nested meta in the repr list.
+fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
+    for attr in attrs {
+        if !attr.path().is_ident("repr") {
+            continue;
+        }
+        let mut found = false;
+        let _ = attr.parse_nested_meta(|nested| {
+            if nested.path.is_ident("C") {
+                found = true;
+            }
+            Ok(())
+        });
+        if found {
+            return true;
+        }
+    }
+    false
 }
 
 /// Map a Rust type token to a `FieldKind` variant.
@@ -112,7 +151,7 @@ fn classify_type(ty: &Type) -> proc_macro2::TokenStream {
         "u8" => quote!(U8),
         "i8" => quote!(I8),
         "u16" => quote!(U16),
-        "i16" => quote!(U16),
+        "i16" => quote!(I16),
         "u32" => quote!(U32),
         "i32" => quote!(I32),
         "u64" => quote!(U64),
