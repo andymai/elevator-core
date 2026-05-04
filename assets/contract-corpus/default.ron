@@ -1,0 +1,64 @@
+// Demo Tower — three elevators serving an 8-stop building.
+//
+// Tuned so the sim is visibly active within the first few seconds:
+// passengers spawn ~2/sec, weights vary, and the three cars develop
+// distinct behaviours under the default Scan dispatcher (the express
+// idles higher, the locals oscillate). For a sparser/faster mover
+// scenario see `space_elevator.ron`.
+SimConfig(
+    building: BuildingConfig(
+        name: "Demo Tower",
+        stops: [
+            StopConfig(id: StopId(0), name: "Lobby",   position: 0.0),
+            StopConfig(id: StopId(1), name: "L2",      position: 4.0),
+            StopConfig(id: StopId(2), name: "L3",      position: 7.5),
+            StopConfig(id: StopId(3), name: "L4",      position: 11.0),
+            StopConfig(id: StopId(4), name: "L5",      position: 14.5),
+            StopConfig(id: StopId(5), name: "L6",      position: 18.0),
+            StopConfig(id: StopId(6), name: "Sky",     position: 22.0),
+            StopConfig(id: StopId(7), name: "Roof",    position: 25.0),
+        ],
+    ),
+    elevators: [
+        ElevatorConfig(
+            id: 0,
+            name: "Express",
+            max_speed: 3.5,
+            acceleration: 2.0,
+            deceleration: 2.5,
+            weight_capacity: 1200.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 50,
+            door_transition_ticks: 12,
+        ),
+        ElevatorConfig(
+            id: 1,
+            name: "Local-A",
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(2),
+            door_open_ticks: 60,
+            door_transition_ticks: 15,
+        ),
+        ElevatorConfig(
+            id: 2,
+            name: "Local-B",
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 800.0,
+            starting_stop: StopId(5),
+            door_open_ticks: 60,
+            door_transition_ticks: 15,
+        ),
+    ],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        mean_interval_ticks: 30,
+        weight_range: (50.0, 110.0),
+    ),
+)

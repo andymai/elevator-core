@@ -2586,6 +2586,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "elevator-contract"
+version = "1.0.0"
+dependencies = [
+ "elevator-core",
+ "ron",
+]
+
+[[package]]
 name = "elevator-core"
 version = "16.0.1"
 dependencies = [
@@ -2604,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-ffi"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "cbindgen",
  "elevator-core",

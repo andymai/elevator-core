@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/elevator-core",
     "crates/elevator-bevy",
+    "crates/elevator-contract",
     "crates/elevator-ffi",
     "crates/elevator-gdext",
     "crates/elevator-layout-codegen",
