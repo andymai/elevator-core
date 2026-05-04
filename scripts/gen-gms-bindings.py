@@ -50,10 +50,15 @@ OUT = (
 # follows the same rules as bindings.toml: an exported name to expose,
 # or `skip:<reason>`. Keep in sync with the corresponding
 # `pub extern "C"` blocks in crates/elevator-ffi/src/lib.rs.
+#
+# Note: ev_sim_create IS in bindings.toml (under Simulation::new with
+# gms = "ev_sim_create"), so it's picked up via parse_bindings — don't
+# duplicate it here. ev_sim_destroy stays because Simulation::drop
+# isn't tracked as a Simulation method in the manifest. The dedup
+# pass in main() catches any accidental overlap defensively.
 FREE_HELPERS: list[tuple[str, str]] = [
     ("ev_abi_version", "ev_abi_version"),
     ("ev_last_error", "ev_last_error"),
-    ("ev_sim_create", "ev_sim_create"),
     ("ev_sim_destroy", "ev_sim_destroy"),
     ("ev_set_log_callback", "skip:no_function_pointers — GML cannot pass C function pointers"),
     ("ev_drain_log_messages", "ev_drain_log_messages"),
@@ -203,9 +208,18 @@ def main() -> int:
 
     # Filter out exports whose signature has a callback arg —
     # external_define can't bind those even if bindings.toml says
-    # otherwise. Surface as a skip with a clear reason.
+    # otherwise. Surface as a skip with a clear reason. Dedup on
+    # symbol name as a defensive measure: if a future contributor
+    # adds an entry to FREE_HELPERS that shadows a bindings.toml
+    # name, we keep only the first occurrence rather than emitting
+    # duplicate `function` declarations (which GML treats as a
+    # compile-time error).
     exports_clean: list[str] = []
+    seen: set[str] = set()
     for fn, _ in exports:
+        if fn in seen:
+            continue
+        seen.add(fn)
         if "callback" in sigs[fn]["args"]:
             skips.append((fn, "skip:no_function_pointers — signature contains a callback"))
         else:

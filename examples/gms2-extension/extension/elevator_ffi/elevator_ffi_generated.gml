@@ -188,13 +188,6 @@ global._ev_sim_create_handle = external_define(
 function ev_sim_create(a0) {
     return external_call(global._ev_sim_create_handle, a0);
 }
-// ev_sim_create — auto-generated wrapper.
-global._ev_sim_create_handle = external_define(
-    "elevator_ffi", "ev_sim_create", dll_cdecl, ty_real, 1, ty_string
-);
-function ev_sim_create(a0) {
-    return external_call(global._ev_sim_create_handle, a0);
-}
 // ev_sim_current_tick — auto-generated wrapper.
 global._ev_sim_current_tick_handle = external_define(
     "elevator_ffi", "ev_sim_current_tick", dll_cdecl, ty_real, 1, ty_real

@@ -21,10 +21,13 @@ CONFIG="$ROOT/assets/config/default.ron"
 # Resolve cargo's effective target directory. The workspace's
 # .cargo/config.toml may redirect [build] target-dir to a shared
 # cache (so worktrees skip the cold Bevy build); fall back to
-# $ROOT/target if cargo metadata isn't available.
-if command -v cargo >/dev/null 2>&1; then
+# $ROOT/target if cargo metadata or python3 isn't available.
+# Use python3 (not sed) for the JSON parse — sed silently corrupts
+# Windows paths because backslashes survive as `C:\\Users\\...` in
+# JSON output.
+if command -v cargo >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
   CARGO_TARGET_DIR="$(cd "$ROOT" && cargo metadata --format-version 1 --no-deps 2>/dev/null \
-    | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p')"
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('target_directory',''))")"
 fi
 TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}/release"
 

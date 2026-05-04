@@ -94,32 +94,39 @@ function ev_log_message_decode(_buf, _offset) {
 /// ev_pending_log_message_count call; subsequent ev_sim_step calls
 /// will queue records.
 ///
-/// The returned array is a snapshot — the borrowed msg_ptr slices
-/// have been copied out of the handle's internal buffer, so the
-/// strings are safe to retain past the next drain call.
+/// Drains in a loop (chunk size `_CHUNK`) until the queue is empty,
+/// so the returned array carries every record currently buffered —
+/// no overflow is silently dropped. Each chunk's msg_ptr slices are
+/// copied out of the handle's internal buffer before the next call,
+/// so the strings are safe to retain past subsequent drains.
 function ev_drain_log_messages_into_array(_handle) {
     // Trip the lazy-opt-in flag so the next ev_sim_step queues
     // records (no-op if already active).
     ev_pending_log_message_count(_handle);
 
-    var _CAPACITY = 256;
-    var _buf = buffer_create(EV_LOG_MESSAGE_SIZE * _CAPACITY, buffer_fixed, 1);
+    var _CHUNK = 256;
+    var _buf = buffer_create(EV_LOG_MESSAGE_SIZE * _CHUNK, buffer_fixed, 1);
     var _written_buf = buffer_create(4, buffer_fixed, 1);
 
     var _addr_buf = buffer_get_address(_buf);
     var _addr_written = buffer_get_address(_written_buf);
 
-    var _status = ev_drain_log_messages(_handle, _addr_buf, _CAPACITY, _addr_written);
-    if (_status != 0) {
-        buffer_delete(_buf);
-        buffer_delete(_written_buf);
-        return [];
-    }
-
-    var _written = buffer_peek(_written_buf, 0, buffer_u32);
-    var _out = array_create(_written);
-    for (var i = 0; i < _written; i++) {
-        _out[i] = ev_log_message_decode(_buf, i * EV_LOG_MESSAGE_SIZE);
+    var _out = [];
+    while (true) {
+        var _status = ev_drain_log_messages(_handle, _addr_buf, _CHUNK, _addr_written);
+        if (_status != 0) {
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        for (var i = 0; i < _written; i++) {
+            array_push(_out, ev_log_message_decode(_buf, i * EV_LOG_MESSAGE_SIZE));
+        }
+        // A short read indicates the queue is now empty. The next
+        // drain would return 0 records anyway; exit the loop now to
+        // skip the redundant FFI call.
+        if (_written < _CHUNK) {
+            break;
+        }
     }
 
     buffer_delete(_buf);
