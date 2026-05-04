@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.15.0...elevator-ffi-v0.16.0) (2026-05-04)
+
+
+### Features
+
+* GameMaker Studio 2 native-extension bundle + C harness ([#616](https://github.com/andymai/elevator-core/issues/616)) ([d3ecb95](https://github.com/andymai/elevator-core/commit/d3ecb955104839200450c2eeca1f3bf124a0aaeb))
+
 ## [0.15.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.14.0...elevator-ffi-v0.15.0) (2026-05-04)
 
 
