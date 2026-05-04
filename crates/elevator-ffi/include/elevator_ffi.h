@@ -917,6 +917,34 @@ typedef struct EvEvent {
 } EvEvent;
 
 /**
+ * A single log message returned by [`ev_drain_log_messages`].
+ *
+ * `msg_ptr` borrows from an internal buffer owned by the handle and
+ * remains valid until the next [`ev_drain_log_messages`] call on the
+ * same handle. The bytes are UTF-8 and are **not** null-terminated;
+ * use `msg_len` to bound the read.
+ */
+typedef struct EvLogMessage {
+    /**
+     * Severity level (0 = trace, 1 = debug, 2 = info, 3 = warn, 4 = error).
+     */
+    uint8_t level;
+    /**
+     * Wall-clock timestamp at message ingestion, in nanoseconds since
+     * the Unix epoch. `0` if the host clock is unavailable.
+     */
+    int64_t ts_ns;
+    /**
+     * Pointer to UTF-8 message bytes. Borrowed; not null-terminated.
+     */
+    const uint8_t *msg_ptr;
+    /**
+     * Length of `msg_ptr` in bytes.
+     */
+    uint32_t msg_len;
+} EvLogMessage;
+
+/**
  * Repr-C mirror of [`elevator_core::sim::ElevatorParams`].
  *
  * Sentinel encoding:
@@ -1455,6 +1483,49 @@ enum EvStatus ev_sim_drain_events(struct EvSim *handle,
                                   struct EvEvent *out,
                                   uint32_t capacity,
                                   uint32_t *out_written);
+
+/**
+ * Drain queued log messages into a caller-provided buffer.
+ *
+ * Each [`EvLogMessage::msg_ptr`] borrows from an internal buffer
+ * owned by the handle and remains valid only until the next
+ * `ev_drain_log_messages` call on the same handle (mirrors the
+ * [`ev_sim_frame`] borrow rule). UTF-8 bytes are not
+ * null-terminated; bound the read with `msg_len`.
+ *
+ * If more messages are queued than `capacity`, the surplus stays in
+ * the internal queue for the next call. Drain in a loop until
+ * `out_written < capacity` to consume the full backlog.
+ *
+ * **Lazy opt-in:** the per-handle log queue is empty until the
+ * first call to this function (or [`ev_pending_log_message_count`]).
+ * Callback-only hosts that never poll pay zero overhead. Once
+ * activated, the queue accumulates one record per simulated event;
+ * a polling consumer should drain regularly to bound growth.
+ *
+ * # Safety
+ *
+ * `handle`, `out`, and `out_written` must be valid pointers. `out`
+ * must point to a buffer of at least `capacity` [`EvLogMessage`]s.
+ */
+enum EvStatus ev_drain_log_messages(struct EvSim *handle,
+                                    struct EvLogMessage *out,
+                                    uint32_t capacity,
+                                    uint32_t *out_written);
+
+/**
+ * Number of log messages parked in the FFI buffer awaiting a
+ * [`ev_drain_log_messages`] call.
+ *
+ * Calling this also activates lazy buffering (see
+ * [`ev_drain_log_messages`]), so a consumer that wants to size a
+ * buffer up-front may call this once before stepping the sim.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint32_t ev_pending_log_message_count(struct EvSim *handle);
 
 /**
  * Number of events parked in the FFI event buffer plus any pending

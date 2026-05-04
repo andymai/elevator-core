@@ -136,11 +136,58 @@ pub struct EvSim {
     /// per-call buffer was too small — overflow parks in this queue
     /// and is delivered on the next drain call.
     pending_events: std::collections::VecDeque<EvEvent>,
+    /// Log messages produced during [`ev_sim_step`] but not yet
+    /// handed out via [`ev_drain_log_messages`]. Mirrors the side-channel
+    /// callback installed by [`ev_set_log_callback`] so consumers that
+    /// cannot register a function pointer (e.g. `GameMaker`) can poll
+    /// instead.
+    pending_log_messages: std::collections::VecDeque<LogRecord>,
+    /// Backs the `msg_ptr` slices returned by the most recent
+    /// [`ev_drain_log_messages`] call. Replaced (and dropped) on every
+    /// subsequent drain — pointers from a prior call go invalid then,
+    /// matching the [`ev_sim_frame`] borrow rule.
+    log_drain_buf: Vec<CString>,
+    /// `true` once a polling log API ([`ev_drain_log_messages`] or
+    /// [`ev_pending_log_message_count`]) has been called. Until then
+    /// [`forward_pending_events`] skips the per-step push so
+    /// callback-only consumers (Unity, Godot) keep their pre-PR
+    /// behaviour of zero per-handle log buffering. Lazy opt-in: a
+    /// caller that touches the polling API once is taken to want the
+    /// stream from then on.
+    log_polling_active: bool,
+}
+
+/// Internal per-handle log record. Owns its message string; converted
+/// to [`EvLogMessage`] (borrowed pointer) at drain time.
+struct LogRecord {
+    level: u8,
+    ts_ns: i64,
+    msg: CString,
 }
 
 /// Log callback type. Severity follows syslog-style convention (0 = trace,
 /// 1 = debug, 2 = info, 3 = warn, 4 = error).
 pub type EvLogFn = unsafe extern "C" fn(level: u8, msg: *const c_char);
+
+/// A single log message returned by [`ev_drain_log_messages`].
+///
+/// `msg_ptr` borrows from an internal buffer owned by the handle and
+/// remains valid until the next [`ev_drain_log_messages`] call on the
+/// same handle. The bytes are UTF-8 and are **not** null-terminated;
+/// use `msg_len` to bound the read.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct EvLogMessage {
+    /// Severity level (0 = trace, 1 = debug, 2 = info, 3 = warn, 4 = error).
+    pub level: u8,
+    /// Wall-clock timestamp at message ingestion, in nanoseconds since
+    /// the Unix epoch. `0` if the host clock is unavailable.
+    pub ts_ns: i64,
+    /// Pointer to UTF-8 message bytes. Borrowed; not null-terminated.
+    pub msg_ptr: *const u8,
+    /// Length of `msg_ptr` in bytes.
+    pub msg_len: u32,
+}
 
 static LOG_CALLBACK: Mutex<Option<EvLogFn>> = Mutex::new(None);
 
@@ -157,16 +204,6 @@ static LOG_CALLBACK: Mutex<Option<EvLogFn>> = Mutex::new(None);
 pub unsafe extern "C" fn ev_set_log_callback(cb: Option<EvLogFn>) {
     if let Ok(mut slot) = LOG_CALLBACK.lock() {
         *slot = cb;
-    }
-}
-
-fn with_log_callback(f: impl FnOnce(EvLogFn)) {
-    // Copy the function pointer out before releasing the guard so the user
-    // callback can re-enter `ev_set_log_callback` (e.g. to deregister itself
-    // after the first fire) without deadlocking on the same mutex.
-    let maybe_cb = LOG_CALLBACK.lock().ok().and_then(|slot| *slot);
-    if let Some(cb) = maybe_cb {
-        f(cb);
     }
 }
 
@@ -595,6 +632,9 @@ pub unsafe extern "C" fn ev_sim_create(config_path: *const c_char) -> *mut EvSim
             sim,
             frame: FrameBuffer::default(),
             pending_events: std::collections::VecDeque::new(),
+            pending_log_messages: std::collections::VecDeque::new(),
+            log_drain_buf: Vec::new(),
+            log_polling_active: false,
         }))
     })
 }
@@ -632,22 +672,42 @@ pub unsafe extern "C" fn ev_sim_step(handle: *mut EvSim) -> EvStatus {
         // Safety: validity guaranteed by caller; no aliasing across threads.
         let ev = unsafe { &mut *handle };
         ev.sim.step();
-        forward_pending_events(&mut ev.sim);
+        forward_pending_events(ev);
         EvStatus::Ok
     })
 }
 
-fn forward_pending_events(sim: &mut Simulation) {
-    with_log_callback(|cb| {
-        for event in sim.pending_events() {
-            let msg = format!("{event:?}");
-            if let Ok(c) = CString::new(msg) {
-                // Safety: ev_set_log_callback's contract covers pointer
-                // validity for the duration of the callback installation.
-                unsafe { cb(1, c.as_ptr()) };
-            }
+const LEVEL_DEBUG: u8 = 1;
+
+fn forward_pending_events(ev: &mut EvSim) {
+    let maybe_cb = LOG_CALLBACK.lock().ok().and_then(|slot| *slot);
+    // Skip both legs entirely if neither side wants the stream.
+    // Callback-only consumers that never poll, and polling consumers
+    // who haven't yet called the drain, both pay zero here.
+    if maybe_cb.is_none() && !ev.log_polling_active {
+        return;
+    }
+    let now_ns = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|d| i64::try_from(d.as_nanos()).ok())
+        .unwrap_or(0);
+    for event in ev.sim.pending_events() {
+        let msg = format!("{event:?}");
+        let Ok(c) = CString::new(msg) else { continue };
+        if let Some(cb) = maybe_cb {
+            // Safety: ev_set_log_callback's contract covers pointer
+            // validity for the duration of the callback installation.
+            unsafe { cb(LEVEL_DEBUG, c.as_ptr()) };
         }
-    });
+        if ev.log_polling_active {
+            ev.pending_log_messages.push_back(LogRecord {
+                level: LEVEL_DEBUG,
+                ts_ns: now_ns,
+                msg: c,
+            });
+        }
+    }
 }
 
 /// Populate `out` with a borrowed view of the current simulation state.
@@ -1917,6 +1977,102 @@ pub unsafe extern "C" fn ev_sim_drain_events(
         // Safety: validated non-null above.
         unsafe { std::ptr::write(out_written, written) };
         EvStatus::Ok
+    })
+}
+
+/// Drain queued log messages into a caller-provided buffer.
+///
+/// Each [`EvLogMessage::msg_ptr`] borrows from an internal buffer
+/// owned by the handle and remains valid only until the next
+/// `ev_drain_log_messages` call on the same handle (mirrors the
+/// [`ev_sim_frame`] borrow rule). UTF-8 bytes are not
+/// null-terminated; bound the read with `msg_len`.
+///
+/// If more messages are queued than `capacity`, the surplus stays in
+/// the internal queue for the next call. Drain in a loop until
+/// `out_written < capacity` to consume the full backlog.
+///
+/// **Lazy opt-in:** the per-handle log queue is empty until the
+/// first call to this function (or [`ev_pending_log_message_count`]).
+/// Callback-only hosts that never poll pay zero overhead. Once
+/// activated, the queue accumulates one record per simulated event;
+/// a polling consumer should drain regularly to bound growth.
+///
+/// # Safety
+///
+/// `handle`, `out`, and `out_written` must be valid pointers. `out`
+/// must point to a buffer of at least `capacity` [`EvLogMessage`]s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_drain_log_messages(
+    handle: *mut EvSim,
+    out: *mut EvLogMessage,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out.is_null() || out_written.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        // Activate lazy buffering: from here on, every step queues a
+        // record per pending sim event so a future drain has data to
+        // return. Callers that never reach this entry point keep
+        // their pre-PR zero-buffering behaviour.
+        ev.log_polling_active = true;
+        // Replace the previous drain buffer; this drops the CStrings
+        // that backed the prior call's pointers, invalidating them as
+        // documented above.
+        ev.log_drain_buf.clear();
+        let mut written: u32 = 0;
+        while written < capacity {
+            let Some(record) = ev.pending_log_messages.pop_front() else {
+                break;
+            };
+            let level = record.level;
+            let ts_ns = record.ts_ns;
+            ev.log_drain_buf.push(record.msg);
+            // Safety: just pushed; index is valid.
+            let bytes = ev.log_drain_buf[ev.log_drain_buf.len() - 1].as_bytes();
+            let entry = EvLogMessage {
+                level,
+                ts_ns,
+                msg_ptr: bytes.as_ptr(),
+                msg_len: u32::try_from(bytes.len()).unwrap_or(u32::MAX),
+            };
+            // Safety: `written < capacity` and the caller guaranteed
+            // `out` points to `capacity` entries.
+            unsafe { std::ptr::write(out.add(written as usize), entry) };
+            written += 1;
+        }
+        // Safety: validated non-null above.
+        unsafe { std::ptr::write(out_written, written) };
+        EvStatus::Ok
+    })
+}
+
+/// Number of log messages parked in the FFI buffer awaiting a
+/// [`ev_drain_log_messages`] call.
+///
+/// Calling this also activates lazy buffering (see
+/// [`ev_drain_log_messages`]), so a consumer that wants to size a
+/// buffer up-front may call this once before stepping the sim.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_pending_log_message_count(handle: *mut EvSim) -> u32 {
+    guard(0, || {
+        if handle.is_null() {
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &mut *handle };
+        ev.log_polling_active = true;
+        u32::try_from(ev.pending_log_messages.len()).unwrap_or(u32::MAX)
     })
 }
 
@@ -8665,6 +8821,171 @@ mod tests {
             EvStatus::Ok,
         );
         assert_eq!(written, 2);
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn drain_log_messages_surfaces_pending_records() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+        // Activate lazy buffering before stepping — without this, the
+        // forward path skips the queue push entirely (callback-only
+        // consumers' pre-PR zero-buffering behaviour).
+        let _ = unsafe { ev_pending_log_message_count(handle) };
+        // Step enough to emit several lifecycle events, each forwarding
+        // a log record.
+        for _ in 0..200 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+
+        let count_before = unsafe { ev_pending_log_message_count(handle) };
+        assert!(
+            count_before > 0,
+            "stepping with a spawned rider after polling activation should queue at least one log",
+        );
+
+        let mut buf = [EvLogMessage {
+            level: 0,
+            ts_ns: 0,
+            msg_ptr: std::ptr::null(),
+            msg_len: 0,
+        }; 32];
+        let mut written: u32 = 0;
+        let cap = u32::try_from(buf.len()).expect("buffer len fits u32");
+        assert_eq!(
+            unsafe { ev_drain_log_messages(handle, buf.as_mut_ptr(), cap, &raw mut written) },
+            EvStatus::Ok,
+        );
+        assert!(written > 0, "drain should surface at least one record");
+
+        let first = buf[0];
+        assert_eq!(first.level, 1, "forward path tags everything as debug");
+        assert!(
+            !first.msg_ptr.is_null(),
+            "borrowed pointer must be non-null"
+        );
+        assert!(first.msg_len > 0, "borrowed slice must be non-empty");
+        // Decode the borrowed UTF-8 slice and confirm it parses.
+        let slice = unsafe { std::slice::from_raw_parts(first.msg_ptr, first.msg_len as usize) };
+        let _ = std::str::from_utf8(slice).expect("forwarded record must be valid UTF-8");
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn drain_log_messages_handles_overflow_across_calls() {
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+        // Activate lazy buffering before stepping — see comment in
+        // drain_log_messages_surfaces_pending_records.
+        let _ = unsafe { ev_pending_log_message_count(handle) };
+        for _ in 0..3000 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+
+        // Drain in two-record chunks. Loop must terminate (no
+        // unbounded growth) and the running total should match the
+        // original pending count.
+        let total_before = unsafe { ev_pending_log_message_count(handle) };
+        assert!(
+            total_before > 2,
+            "test needs >2 messages to exercise overflow"
+        );
+
+        let mut drained_total: u64 = 0;
+        let mut buf = [EvLogMessage {
+            level: 0,
+            ts_ns: 0,
+            msg_ptr: std::ptr::null(),
+            msg_len: 0,
+        }; 2];
+        loop {
+            let mut written: u32 = 0;
+            assert_eq!(
+                unsafe { ev_drain_log_messages(handle, buf.as_mut_ptr(), 2, &raw mut written) },
+                EvStatus::Ok,
+            );
+            drained_total += u64::from(written);
+            if written < 2 {
+                break;
+            }
+        }
+        assert_eq!(drained_total, u64::from(total_before));
+        assert_eq!(unsafe { ev_pending_log_message_count(handle) }, 0);
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn callback_only_consumer_pays_zero_buffering() {
+        // Pre-PR behaviour: a consumer that uses ev_set_log_callback
+        // and never touches the polling API has zero per-handle log
+        // buffering. The lazy opt-in flag preserves that.
+        let handle = create_test_handle();
+        let (origin, dest) = stop_entities(handle);
+
+        let mut rider_id: u64 = 0;
+        assert_eq!(
+            unsafe { ev_sim_spawn_rider(handle, origin, dest, 80.0, &raw mut rider_id) },
+            EvStatus::Ok,
+        );
+        // Step a long horizon. No drain or count call — polling
+        // remains inactive.
+        for _ in 0..3000 {
+            assert_eq!(unsafe { ev_sim_step(handle) }, EvStatus::Ok);
+        }
+
+        // Reach into the handle to verify nothing was buffered. We
+        // can't call ev_pending_log_message_count here because that
+        // call itself activates polling.
+        // Safety: handle is valid for the duration of the test.
+        let ev = unsafe { &*handle };
+        assert_eq!(
+            ev.pending_log_messages.len(),
+            0,
+            "callback-only consumer must not accumulate log records",
+        );
+
+        unsafe { ev_sim_destroy(handle) };
+    }
+
+    #[test]
+    fn drain_log_messages_rejects_null_args() {
+        let handle = create_test_handle();
+        let mut written: u32 = 0;
+        assert_eq!(
+            unsafe {
+                ev_drain_log_messages(
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    0,
+                    &raw mut written,
+                )
+            },
+            EvStatus::NullArg,
+        );
+        let mut buf = [EvLogMessage {
+            level: 0,
+            ts_ns: 0,
+            msg_ptr: std::ptr::null(),
+            msg_len: 0,
+        }; 1];
+        assert_eq!(
+            unsafe { ev_drain_log_messages(handle, buf.as_mut_ptr(), 1, std::ptr::null_mut()) },
+            EvStatus::NullArg,
+        );
         unsafe { ev_sim_destroy(handle) };
     }
 }
