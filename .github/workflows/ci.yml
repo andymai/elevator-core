@@ -105,13 +105,16 @@ jobs:
           - os: windows-latest
             rid: win-x64
             lib_name: elevator_ffi.dll
-          # Pin to macos-15 rather than macos-latest: the alias currently
-          # resolves to Apple Silicon (matching osx-arm64), but if GitHub
-          # ever remaps macos-latest to an x86-64 runner the dylib would
-          # land in the wrong runtime-id directory and fail with a
-          # confusing DllNotFoundException. Explicit = self-documenting.
+          # Both macOS architectures are pinned explicitly (rather than
+          # using the macos-latest alias) because the alias currently
+          # resolves to Apple Silicon — if GitHub ever remaps it the
+          # dylib would land in the wrong runtime-id directory and
+          # fail with a confusing DllNotFoundException at load time.
           - os: macos-15
             rid: osx-arm64
+            lib_name: libelevator_ffi.dylib
+          - os: macos-13
+            rid: osx-x64
             lib_name: libelevator_ffi.dylib
     runs-on: ${{ matrix.os }}
     defaults:
