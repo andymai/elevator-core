@@ -1,4 +1,4 @@
-I solemnly swear that the entirety of this text has been written by myself with absolutely no AI assistance or even proofreading.
+I solemnly swear that this opening sentence is the only thing here written by myself with absolutely no AI assistance or even proofreading. The rest of the project? Different story.
 
 Most, if not all, of this project has been created with the assistance of AI tooling. I am a builder / software engineer at heart with decades of experience and I genuinely love what AI has enabled me to pursue.
 

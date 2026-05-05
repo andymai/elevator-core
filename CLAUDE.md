@@ -2,12 +2,23 @@
 
 ## Project Structure
 
-Cargo workspace with five crates:
+Cargo workspace, ten crates grouped by role.
+
+**Core**
 - `crates/elevator-core` — Engine-agnostic simulation library (pure Rust, no Bevy deps)
+
+**Hosts** (consume the core)
 - `crates/elevator-bevy` — Bevy 0.18 game binary wrapping the core sim
-- `crates/elevator-ffi` — C ABI wrapper for Unity/.NET interop (not published to crates.io)
+- `crates/elevator-ffi` — C ABI wrapper for Unity / .NET / GameMaker (not published to crates.io)
 - `crates/elevator-wasm` — wasm-bindgen surface for the browser playground
 - `crates/elevator-gdext` — gdext (Godot) extension wrapping the core sim
+- `crates/elevator-tui` — Terminal viewer with pause/step controls; doubles as a headless smoke runner
+
+**Supporting** (build-time / test infrastructure, not shipped to consumers)
+- `crates/elevator-contract` — Cross-process snapshot-determinism contract harness
+- `crates/elevator-layout-derive` — `#[derive(MultiHostLayout)]` proc-macro for `#[repr(C)]` introspection
+- `crates/elevator-layout-runtime` — Registry of layout metadata consumed by the codegen step
+- `crates/elevator-layout-codegen` — Emits C# / GML / harness asserts from `MultiHostLayout` metadata
 
 ## Build
 
@@ -32,7 +43,14 @@ cd playground && pnpm dev       # auto-builds wasm if pkg/ missing, watches Rust
 
 ## Pre-commit Hook
 
-Shared hook at `.githooks/pre-commit` — runs fmt, clippy (all features on core), core tests, doc tests, `cargo check --workspace` (catches FFI/bevy drift), a Cargo.lock drift guard, and doc lint (when `docs/` files are staged). Rust checks are skipped when only `playground/` files are staged. When `playground/` files are staged, runs lint-staged, typecheck, and vitest (bypass with `SKIP_PLAYGROUND_HOOKS=1`). Conventional-commit check at `.githooks/commit-msg` via commitlint. After cloning:
+Shared hook at `.githooks/pre-commit`. Behavior is path-aware:
+
+- **Any non-`playground/` file staged** — fmt, clippy (all features on core), core tests, doc tests (core + Bevy), `cargo check --workspace --all-targets` (catches FFI / Bevy drift), and a Cargo.lock drift guard.
+- **`docs/` or `README.md` staged** — additionally runs `scripts/lint-docs.sh --quick`.
+- **FFI / wasm / gdext source or harness staged** — additionally runs `scripts/check-abi-pins.sh`.
+- **`playground/` staged** — runs lint-staged, typecheck, and vitest. Bypass the playground side with `SKIP_PLAYGROUND_HOOKS=1`.
+
+Conventional-commit check at `.githooks/commit-msg` via commitlint. After cloning:
 
 ```bash
 git config core.hooksPath .githooks
