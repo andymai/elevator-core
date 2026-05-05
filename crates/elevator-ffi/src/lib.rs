@@ -63,6 +63,13 @@ use slotmap::{Key, KeyData};
 /// kind discriminator was extended from 9 known kinds to 49.
 pub const EV_ABI_VERSION: u32 = 5;
 
+// Compile-time guard: keep the FFI's literal in lock-step with the
+// shared `HOST_PROTOCOL_VERSION` source of truth in `elevator-core`.
+// `EV_ABI_VERSION` stays a literal so cbindgen can resolve it into
+// the generated C header (`elevator_ffi.h`); this assert traps the
+// drift the moment someone bumps one without the other.
+const _: () = assert!(EV_ABI_VERSION == elevator_core::HOST_PROTOCOL_VERSION);
+
 /// Return the ABI version compiled into this shared library.
 #[unsafe(no_mangle)]
 pub const extern "C" fn ev_abi_version() -> u32 {
