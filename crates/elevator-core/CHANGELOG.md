@@ -1,5 +1,12 @@
 # Changelog
 
+## [16.0.3](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.2...elevator-core-v16.0.3) (2026-05-05)
+
+
+### Bug Fixes
+
+* **core:** widen arrival-log retention to match reposition window ([#675](https://github.com/andymai/elevator-core/issues/675)) ([#682](https://github.com/andymai/elevator-core/issues/682)) ([2e6b298](https://github.com/andymai/elevator-core/commit/2e6b2981ecb531f5985fc90c2373e145bac226ed))
+
 ## [16.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.1...elevator-core-v16.0.2) (2026-05-05)
 
 
