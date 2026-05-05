@@ -15,6 +15,12 @@
 //!
 //! ## Determinism
 //!
+//! Every scenario drives auto-spawning via a `PoissonSource` seeded
+//! with `Scenario::seed` (per-scenario constants below) so the
+//! generated rider stream is reproducible run-to-run. Without the
+//! seed, `make_rng` would pull from the OS entropy and every harness
+//! run would produce different metrics.
+//!
 //! We don't use `Simulation::snapshot_checksum()` directly — empirical
 //! testing showed that snapshot bytes still leak HashMap iteration
 //! order somewhere in the World plumbing (a small permutation of stop
@@ -23,13 +29,6 @@
 //! the sim state: `(current_tick, total_delivered, total_abandoned,
 //! total_spawned, throughput, total_distance.to_bits())`. Every value
 //! is a primitive integer/float that doesn't traverse a HashMap.
-//!
-//! Limitation: with the current "no rider spawning" scenarios, this
-//! reduces to `(600, 0, 0, 0, 0, 0)` for most fixtures — a weak
-//! signal. PR 8 (gms + gdext hosts) will extend each scenario with a
-//! deterministic rider-spawn schedule so the metrics carry real
-//! content. The current MVP catches "host A vs host B return
-//! different metrics tuples" — useful but conservative.
 //!
 //! ## Update protocol
 //!
@@ -46,6 +45,9 @@ use std::path::{Path, PathBuf};
 use elevator_core::builder::SimulationBuilder;
 use elevator_core::config::SimConfig;
 use elevator_core::sim::Simulation;
+use elevator_core::traffic::{PoissonSource, TrafficSource};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 /// Number of ticks every scenario runs for. Long enough to exercise
 /// rider lifecycles end-to-end (spawn → board → ride → exit) under
@@ -53,14 +55,38 @@ use elevator_core::sim::Simulation;
 /// in well under a second.
 const SCENARIO_TICKS: u64 = 600;
 
-/// Each scenario in the corpus.
-const SCENARIOS: &[&str] = &[
-    "default",
-    "sparse",
-    "dense_traffic",
-    "multi_group",
-    "extreme_load",
+/// Each scenario's name + Poisson seed. The seed is chosen per
+/// scenario so a regression in one doesn't trivially propagate to
+/// another via shared randomness, and is hand-picked to surface
+/// non-trivial metrics (mix of delivered + abandoned).
+const SCENARIOS: &[Scenario] = &[
+    Scenario {
+        name: "default",
+        seed: 0xD0FA17,
+    },
+    Scenario {
+        name: "sparse",
+        seed: 0x5141FE,
+    },
+    Scenario {
+        name: "dense_traffic",
+        seed: 0xDE15E0,
+    },
+    Scenario {
+        name: "multi_group",
+        seed: 0x6600BD,
+    },
+    Scenario {
+        name: "extreme_load",
+        seed: 0xE7104D,
+    },
 ];
+
+#[derive(Clone, Copy)]
+struct Scenario {
+    name: &'static str,
+    seed: u64,
+}
 
 fn main() -> std::io::Result<()> {
     let mode = match std::env::args().nth(1).as_deref() {
@@ -77,10 +103,10 @@ fn main() -> std::io::Result<()> {
     let golden_path = corpus_dir.join("golden.txt");
 
     let mut current: BTreeMap<String, u64> = BTreeMap::new();
-    for name in SCENARIOS {
-        let cfg_path = corpus_dir.join(format!("{name}.ron"));
-        let checksum = run_scenario(&cfg_path, SCENARIO_TICKS);
-        current.insert((*name).to_string(), checksum);
+    for scenario in SCENARIOS {
+        let cfg_path = corpus_dir.join(format!("{}.ron", scenario.name));
+        let checksum = run_scenario(&cfg_path, SCENARIO_TICKS, scenario.seed);
+        current.insert(scenario.name.to_string(), checksum);
     }
 
     match mode {
@@ -103,6 +129,8 @@ fn main() -> std::io::Result<()> {
         Mode::Verify => {
             let golden = parse_golden(&golden_path)?;
             let mut mismatches: Vec<(String, u64, Option<u64>)> = Vec::new();
+            // Forward direction: every scenario in SCENARIOS must
+            // have a matching golden entry.
             for (name, computed) in &current {
                 match golden.get(name) {
                     Some(&expected) if expected == *computed => {}
@@ -110,21 +138,46 @@ fn main() -> std::io::Result<()> {
                     None => mismatches.push((name.clone(), *computed, None)),
                 }
             }
-            if mismatches.is_empty() {
+            // Reverse direction: a golden entry without a matching
+            // scenario is a stale row left behind when SCENARIOS was
+            // shrunk. Surface it explicitly so dropped coverage can't
+            // silently accumulate.
+            let mut stale: Vec<&str> = Vec::new();
+            for name in golden.keys() {
+                if !current.contains_key(name) {
+                    stale.push(name.as_str());
+                }
+            }
+
+            if mismatches.is_empty() && stale.is_empty() {
                 eprintln!(
                     "ok: contract harness passed ({} scenarios match golden)",
                     current.len()
                 );
                 Ok(())
             } else {
-                eprintln!(
-                    "FAIL: {} scenario(s) diverged from golden:",
-                    mismatches.len()
-                );
-                for (name, got, expected) in &mismatches {
-                    match expected {
-                        Some(exp) => eprintln!("  {name}: expected {exp:#018x}, got {got:#018x}"),
-                        None => eprintln!("  {name}: missing from golden, got {got:#018x}"),
+                if !mismatches.is_empty() {
+                    eprintln!(
+                        "FAIL: {} scenario(s) diverged from golden:",
+                        mismatches.len()
+                    );
+                    for (name, got, expected) in &mismatches {
+                        match expected {
+                            Some(exp) => {
+                                eprintln!("  {name}: expected {exp:#018x}, got {got:#018x}");
+                            }
+                            None => eprintln!("  {name}: missing from golden, got {got:#018x}"),
+                        }
+                    }
+                }
+                if !stale.is_empty() {
+                    eprintln!(
+                        "FAIL: {} stale golden entr{} (no matching scenario in SCENARIOS):",
+                        stale.len(),
+                        if stale.len() == 1 { "y" } else { "ies" }
+                    );
+                    for name in &stale {
+                        eprintln!("  {name}");
                     }
                 }
                 eprintln!();
@@ -153,15 +206,23 @@ fn repo_root() -> PathBuf {
         .unwrap_or_else(|| manifest.to_path_buf())
 }
 
-fn run_scenario(cfg_path: &Path, ticks: u64) -> u64 {
+fn run_scenario(cfg_path: &Path, ticks: u64, seed: u64) -> u64 {
     let cfg_text = std::fs::read_to_string(cfg_path)
         .unwrap_or_else(|e| panic!("read {}: {e}", cfg_path.display()));
     let cfg: SimConfig =
         ron::from_str(&cfg_text).unwrap_or_else(|e| panic!("parse {}: {e}", cfg_path.display()));
-    let mut sim: Simulation = SimulationBuilder::from_config(cfg)
+    let mut sim: Simulation = SimulationBuilder::from_config(cfg.clone())
         .build()
         .unwrap_or_else(|e| panic!("build {}: {e}", cfg_path.display()));
-    for _ in 0..ticks {
+    let mut source = PoissonSource::from_config(&cfg).with_rng(StdRng::seed_from_u64(seed));
+    for tick in 0..ticks {
+        for req in source.generate(tick) {
+            // Spawn errors (over-capacity, no-route, etc.) increment
+            // metrics counters that the checksum reads — drop them
+            // here so a config that produces a few rejections still
+            // yields a deterministic outcome.
+            let _ = sim.spawn_rider(req.origin, req.destination, req.weight);
+        }
         sim.step();
     }
     metrics_checksum(&sim)
@@ -195,19 +256,35 @@ fn metrics_checksum(sim: &Simulation) -> u64 {
 fn parse_golden(path: &Path) -> std::io::Result<BTreeMap<String, u64>> {
     let text = std::fs::read_to_string(path)?;
     let mut out = BTreeMap::new();
-    for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
+    for (lineno, line) in text.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        let mut parts = line.split_whitespace();
+        let mut parts = trimmed.split_whitespace();
         let name = parts.next().unwrap_or("");
         let hex = parts.next().unwrap_or("");
+        if name.is_empty() {
+            panic!(
+                "{}:{}: malformed golden line — missing scenario name: {trimmed:?}",
+                path.display(),
+                lineno + 1
+            );
+        }
         let Some(stripped) = hex.strip_prefix("0x") else {
-            continue;
+            panic!(
+                "{}:{}: malformed golden line — checksum must be 0x-prefixed hex: {trimmed:?}",
+                path.display(),
+                lineno + 1
+            );
         };
-        let checksum = u64::from_str_radix(stripped, 16)
-            .unwrap_or_else(|e| panic!("invalid checksum on golden line {line:?}: {e}"));
+        let checksum = u64::from_str_radix(stripped, 16).unwrap_or_else(|e| {
+            panic!(
+                "{}:{}: malformed checksum {hex:?}: {e}",
+                path.display(),
+                lineno + 1
+            )
+        });
         out.insert(name.to_string(), checksum);
     }
     Ok(out)

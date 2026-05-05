@@ -2590,6 +2590,7 @@ name = "elevator-contract"
 version = "1.0.0"
 dependencies = [
  "elevator-core",
+ "rand 0.10.1",
  "ron",
 ]
 
