@@ -52,3 +52,11 @@ slotmap = { workspace = true }
 # native (x86_64) builds of this crate are unaffected.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4", features = ["wasm_js"] }
+
+[dev-dependencies]
+# Drives the cross-target contract test in `tests/contract.rs`. Verifies
+# `Simulation` produces byte-identical snapshot bytes on wasm32 and
+# native — the gate that catches a `getrandom`/`HashMap`-style
+# divergence before it ships to the playground.
+wasm-bindgen-test = "0.3"
+rand = { workspace = true }
