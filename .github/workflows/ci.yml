@@ -300,9 +300,14 @@ jobs:
     # PR-only: commits on main have already landed. The local
     # `.githooks/commit-msg` hook covers contributors who installed it,
     # but anyone bypassing the hook (or editing on the GitHub web UI)
-    # would otherwise sneak through. release-please commits follow the
-    # `chore(main): release` convention by construction.
-    if: github.event_name == 'pull_request'
+    # would otherwise sneak through. Skip release-please PRs to match
+    # every other job's guard — their commits follow `chore(main):
+    # release` by construction, but a future bot quirk shouldn't be able
+    # to block a machine-generated PR.
+    if: |
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.user.login != 'release-kun[bot]' ||
+       !startsWith(github.event.pull_request.title, 'chore(main): release'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
