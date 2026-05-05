@@ -88,9 +88,23 @@ impl Sparkline {
     }
 }
 
+/// Mutually-exclusive UI overlays the viewer can show on top of the
+/// active panels.
+///
+/// Replaces the old pair of `show_welcome` / `show_help` booleans,
+/// which carried an implicit "at most one is `true`" invariant the
+/// type system didn't enforce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UiOverlay {
+    /// First-launch welcome card. Default on a fresh session unless
+    /// suppressed by `--no-welcome`.
+    Welcome,
+    /// Help cheat-sheet (toggled by `?`).
+    Help,
+}
+
 /// Top-level interactive app state.
 #[derive(Debug)]
-#[allow(clippy::struct_excessive_bools)]
 pub struct AppState {
     /// Sim is paused (no auto-stepping). `space` toggles, `.` single-steps.
     pub paused: bool,
@@ -136,11 +150,12 @@ pub struct AppState {
     ///
     /// [`flash`]: Self::flash
     pub status_seq: u64,
-    /// Help overlay is visible (toggled by `?`).
-    pub show_help: bool,
-    /// First-launch welcome overlay is visible. Dismissed by any key.
-    /// Default `true` unless suppressed by `--no-welcome`.
-    pub show_welcome: bool,
+    /// Currently-displayed overlay (welcome card or help cheat-sheet),
+    /// or `None` for the active viewer. The two were previously
+    /// flat `show_welcome`/`show_help` booleans with an implicit
+    /// "never both `true`" invariant; the enum makes the contract
+    /// explicit.
+    pub overlay: Option<UiOverlay>,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -167,8 +182,7 @@ impl AppState {
             snapshot_slot: None,
             status: None,
             status_seq: 0,
-            show_help: false,
-            show_welcome: true,
+            overlay: Some(UiOverlay::Welcome),
             quit: false,
         }
     }
@@ -176,7 +190,12 @@ impl AppState {
     /// Suppress the first-launch welcome overlay. Honoured by `--no-welcome`.
     #[must_use]
     pub const fn without_welcome(mut self) -> Self {
-        self.show_welcome = false;
+        // Only clears the welcome overlay, not other overlays (the
+        // help overlay can't be active at construction anyway, but
+        // matching on `Welcome` keeps the intent obvious).
+        if matches!(self.overlay, Some(UiOverlay::Welcome)) {
+            self.overlay = None;
+        }
         self
     }
 

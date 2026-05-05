@@ -84,7 +84,7 @@ fn frame_with_welcome_overlay() {
 fn frame_with_help_overlay() {
     let sim = demo_sim(60);
     let mut state = AppState::new(1.0).without_welcome();
-    state.show_help = true;
+    state.overlay = Some(elevator_tui::state::UiOverlay::Help);
     let frame = render(&sim, &state, 100, 30);
     insta::assert_snapshot!("help_overlay", frame);
 }

@@ -8,7 +8,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::state::{AppState, RightPanel};
+use crate::state::{AppState, RightPanel, UiOverlay};
 
 pub mod dispatch;
 pub mod drilldown;
@@ -54,10 +54,10 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
     draw_footer(frame, outer[3], state);
 
     // Modal overlays render last so they sit above every panel.
-    if state.show_help {
-        help::draw(frame, frame.area());
-    } else if state.show_welcome {
-        welcome::draw(frame, frame.area(), sim);
+    match state.overlay {
+        Some(UiOverlay::Help) => help::draw(frame, frame.area()),
+        Some(UiOverlay::Welcome) => welcome::draw(frame, frame.area(), sim),
+        None => {}
     }
 }
 
