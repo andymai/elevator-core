@@ -5,7 +5,7 @@
 //! wasm-bindgen-test runner, and asserts the resulting
 //! `snapshot_checksum` matches the golden value committed in
 //! `assets/contract-corpus/golden.txt`. A divergence between the
-//! native and wasm32 build of `elevator-core` (HashMap iteration
+//! native and wasm32 build of `elevator-core` (`HashMap` iteration
 //! drift, FP semantics, `getrandom` impl difference, etc.) surfaces
 //! here as a checksum mismatch keyed by scenario name.
 //!
