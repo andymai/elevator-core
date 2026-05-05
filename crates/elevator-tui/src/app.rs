@@ -15,7 +15,7 @@ use elevator_core::traffic::{PoissonSource, TrafficSource as _};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
-use crate::state::{AppState, RightPanel, ShaftMode, Sparkline};
+use crate::state::{AppState, RightPanel, ShaftMode, Sparkline, UiOverlay};
 use crate::ui;
 
 /// Run the interactive TUI until the user quits.
@@ -60,7 +60,9 @@ fn event_loop(
     show_welcome: bool,
 ) -> Result<()> {
     let mut state = AppState::new(initial_tick_rate);
-    state.show_welcome = show_welcome;
+    if !show_welcome {
+        state = state.without_welcome();
+    }
     let mut traffic = PoissonSource::from_config(config);
     let cfg_tps = sim.time().ticks_per_second();
     let mut accumulator = 0.0_f64;
@@ -194,13 +196,16 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
         state.quit = true;
         return;
     }
-    if state.show_welcome {
-        handle_key_welcome(state);
-        return;
-    }
-    if state.show_help {
-        handle_key_help(state, code);
-        return;
+    match state.overlay {
+        Some(UiOverlay::Welcome) => {
+            handle_key_welcome(state);
+            return;
+        }
+        Some(UiOverlay::Help) => {
+            handle_key_help(state, code);
+            return;
+        }
+        None => {}
     }
     handle_key_main(state, sim, code);
 }
@@ -211,7 +216,7 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
 /// `q`, so a user who hits q-then-q doesn't accidentally quit while
 /// reading. Ctrl-C is checked in the dispatcher and still escapes.
 const fn handle_key_welcome(state: &mut AppState) {
-    state.show_welcome = false;
+    state.overlay = None;
 }
 
 /// Help overlay handler.
@@ -220,7 +225,7 @@ const fn handle_key_welcome(state: &mut AppState) {
 /// "quit the app" — same justification as welcome above.
 const fn handle_key_help(state: &mut AppState, code: KeyCode) {
     if matches!(code, KeyCode::Char('?' | 'q') | KeyCode::Esc) {
-        state.show_help = false;
+        state.overlay = None;
     }
 }
 
@@ -229,7 +234,7 @@ const fn handle_key_help(state: &mut AppState, code: KeyCode) {
 /// `Overview` and `DrillDown` without changing the keymap.
 fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
     match code {
-        KeyCode::Char('?') => state.show_help = true,
+        KeyCode::Char('?') => state.overlay = Some(UiOverlay::Help),
         KeyCode::Char('q') => state.quit = true,
         KeyCode::Char(' ') => {
             state.paused = !state.paused;
