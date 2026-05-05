@@ -36,11 +36,24 @@ if [ "$has_rust" = true ]; then
         fi
     fi
 
-    echo "pre-commit: checking formatting..."
-    cargo fmt --check
-
-    echo "pre-commit: running clippy..."
-    cargo clippy -p elevator-core --all-features -- -D warnings
+    # fmt --check uses rustfmt directly and does not take the cargo build
+    # lock, so it can run in parallel with clippy. clippy compiles core,
+    # which is the slowest step here (~30 s cold), so overlapping fmt
+    # with it shaves a small but consistent slice off every commit.
+    echo "pre-commit: running fmt check + clippy in parallel..."
+    cargo fmt --check &
+    fmt_pid=$!
+    cargo clippy -p elevator-core --all-features -- -D warnings || clippy_rc=$?
+    wait $fmt_pid || fmt_rc=$?
+    if [ "${fmt_rc:-0}" -ne 0 ]; then
+        echo "pre-commit: fmt check failed." >&2
+    fi
+    if [ "${clippy_rc:-0}" -ne 0 ]; then
+        echo "pre-commit: clippy failed." >&2
+    fi
+    if [ "${fmt_rc:-0}" -ne 0 ] || [ "${clippy_rc:-0}" -ne 0 ]; then
+        exit 1
+    fi
 
     echo "pre-commit: running core tests..."
     cargo test -p elevator-core --all-features --quiet
