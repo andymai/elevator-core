@@ -16,6 +16,10 @@ crates/*/proptest-regressions/
 .claude/*.lock
 .claude/worktrees/
 .worktrees/
+# Per-author scratch space for in-flight research, audits, and review
+# notes. Not part of the repo; findings worth keeping get folded into
+# tracked GitHub issues or `docs/` chapters.
+.research/
 .idea/
 .vscode/
 *.code-workspace
