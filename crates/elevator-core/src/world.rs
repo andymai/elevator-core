@@ -531,10 +531,6 @@ impl World {
     }
 
     // ── Hall call / car call accessors ──────────────────────────────
-    //
-    // Phase wiring in follow-up commits consumes the mutators. Until
-    // that lands, `#[allow(dead_code)]` suppresses warnings that would
-    // otherwise block the build under the workspace's `deny(warnings)`.
 
     /// Get the `(up, down)` hall call pair at a stop, if any exist.
     #[must_use]
@@ -549,7 +545,6 @@ impl World {
     }
 
     /// Mutable access to a directional hall call (crate-internal).
-    #[allow(dead_code)]
     pub(crate) fn hall_call_mut(
         &mut self,
         stop: EntityId,
@@ -562,7 +557,6 @@ impl World {
 
     /// Insert (or replace) a hall call at `stop` in `direction`.
     /// Returns `false` if the stop entity no longer exists in the world.
-    #[allow(dead_code)]
     pub(crate) fn set_hall_call(&mut self, call: HallCall) -> bool {
         let Some(entry) = self.hall_calls.entry(call.stop) else {
             return false;
@@ -576,7 +570,6 @@ impl World {
     }
 
     /// Remove and return the hall call at `(stop, direction)`, if any.
-    #[allow(dead_code)]
     pub(crate) fn remove_hall_call(
         &mut self,
         stop: EntityId,
@@ -595,7 +588,6 @@ impl World {
     }
 
     /// Mutable iteration over every active hall call (crate-internal).
-    #[allow(dead_code)]
     pub(crate) fn iter_hall_calls_mut(&mut self) -> impl Iterator<Item = &mut HallCall> {
         self.hall_calls.values_mut().flat_map(StopCalls::iter_mut)
     }
@@ -608,7 +600,6 @@ impl World {
 
     /// Mutable access to the car-call list (crate-internal). Returns
     /// `None` if the car entity no longer exists.
-    #[allow(dead_code)]
     pub(crate) fn car_calls_mut(&mut self, car: EntityId) -> Option<&mut Vec<CarCall>> {
         Some(self.car_calls.entry(car)?.or_default())
     }
