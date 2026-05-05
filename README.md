@@ -91,7 +91,7 @@ cargo run --example basic -p elevator-core   # try it now
 
 This is a simulation library, not a game. It deliberately does **not** include:
 
-- Rendering or UI — wrap it with [Bevy](crates/elevator-bevy), Unity ([FFI](crates/elevator-ffi)), or anything else
+- Rendering or UI — wrap it with [Bevy](crates/elevator-bevy), Unity ([FFI](crates/elevator-ffi)), [Godot (gdext)](crates/elevator-gdext), or anything else
 - AI passengers or traffic generation — use the optional `traffic` feature flag, or drive arrivals yourself
 - Building layout or 2-D floor plans — the sim is 1-D by design
 
@@ -119,6 +119,10 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 |------|---------|------|
 | `traffic` | yes | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
 | `energy` | no | Per-elevator energy/regen modeling. |
+
+## Workspace
+
+The `crates/` directory ships a host crate per supported engine ([`elevator-bevy`](crates/elevator-bevy), [`elevator-ffi`](crates/elevator-ffi), [`elevator-wasm`](crates/elevator-wasm), [`elevator-gdext`](crates/elevator-gdext), [`elevator-tui`](crates/elevator-tui)) plus build-time / test-only supporting crates. See [CLAUDE.md](CLAUDE.md#project-structure) for the full breakdown.
 
 ## License
 

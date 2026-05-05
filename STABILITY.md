@@ -117,10 +117,14 @@ releases of `elevator-core` and may evolve independently.
 
 ## Cadence commitment
 
-`elevator-core` shipped 15 major versions between v1.0.0 (2025) and
-v15.0.0 (2026-04-16). That cadence is driven by API discovery, not
-instability of the implementation — the library has had 604 lib tests,
-156 doc tests, and a mutation-tested kernel throughout. Going forward:
+`elevator-core` went through several major versions during early API
+discovery. That churn was driven by shaping the surface, not by
+instability of the implementation — the library is covered by an
+extensive lib + doc test suite and a mutation-tested kernel. The
+canonical record of past releases is the git tag history
+(`git tag --list 'v*'`).
+
+Going forward:
 
 - **Stable surface**: at most one breaking change per 60 days.
   Experimental surface has no such bound.
