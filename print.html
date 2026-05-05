@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5dc638c7.js";
+            window.path_to_searchindex_js = "searchindex-f7c2eaca.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -5112,10 +5112,16 @@ it has native <code>tracing</code>.</li>
 shape from FFI to a shared <code>elevator_core::host_error::ErrorKind</code>
 enum. FFI re-exports it under the <code>EvStatus</code> name; wasm /
 gdext use it to tag thrown errors.</li>
-<li>⬜ <strong>Snapshot field-set guard</strong> — a CI lint that fails when the
-FFI / wasm / gdext snapshot DTOs and the core <code>Snapshot</code> drift
-in field names. Cheap version: a doc-test that lists field
-names and compares.</li>
+<li>✅ <strong>Snapshot field-set guard</strong> — a tripwire test
+(<code>elevator_ffi::tests::snapshot_dto_field_names_locked</code>) locks
+the field names on every snapshot DTO (<code>EvElevatorView</code>,
+<code>EvStopView</code>, <code>EvRiderView</code>, <code>EvMetricsView</code>, <code>EvFrame</code>) using
+the existing <code>MultiHostLayout::fields()</code> registry. When a field
+is added, removed, or renamed, the test fails and walks the
+developer through the parity update sequence (wasm DTO → gdext
+dict → bump <code>HOST_PROTOCOL_VERSION</code> if breaking → update the
+locked list). Catches the silent-drift failure mode without
+requiring CI access to wasm / gdext crate internals.</li>
 <li>⬜ <strong>Wire-version constant</strong> — surface a single
 <code>elevator_core::HOST_PROTOCOL_VERSION</code> consumed by every host;
 the FFI’s existing ABI-pin guard becomes a check that
