@@ -13,6 +13,11 @@
 #      marker -- mermaid renders those as the literal text
 #      "Unsupported markdown: list/blockquote/heading" instead of the
 #      intended label.
+#   9. Type::method references inside ```rust fences resolve to a known
+#      type (one of: a `pub struct/enum/trait/type Name` declared in the
+#      workspace, a stdlib/ecosystem allowlist entry, or a type defined
+#      inline elsewhere in the same chapter). Catches doc rot when a
+#      core type is renamed without sweeping the docs.
 #
 # Usage:
 #   scripts/lint-docs.sh          # run all checks
@@ -148,6 +153,133 @@ done < <(awk '
         printf "%s:%d:%s\n", FILENAME, FNR, $0
     }
 ' "$DOCS_SRC"/*.md)
+
+# ── 9. Code-symbol references inside ```rust fences ──────────────
+# For every `Type::method` reference inside a ```rust fence in
+# docs/src/*.md, verify that `Type` is one of:
+#   - a public type declared in the workspace (`pub (struct|enum|trait|type)`),
+#   - a stdlib / ecosystem name on the allowlist below, or
+#   - a type defined inline elsewhere in the same chapter (tutorial
+#     types like `struct PriorityDispatch` shouldn't be flagged).
+# Method-level checking is intentionally out of scope: derive macros
+# (`#[derive(Default)]`) and trait impls (`From::from`) make method
+# resolution noisy without strict crate-level rustdoc parsing. The
+# rename signal we want — "the docs reference a Type that no longer
+# exists" — falls out of the type-level check alone.
+echo "checking code-symbol references..."
+
+OUR_TYPES_FILE="$(mktemp)"
+ALLOW_TYPES_FILE="$(mktemp)"
+LOCAL_TYPES_FILE="$(mktemp)"
+trap 'rm -f "$OUR_TYPES_FILE" "$ALLOW_TYPES_FILE" "$LOCAL_TYPES_FILE"' EXIT
+
+{
+    grep -rohP '\bpub (struct|enum|trait|type) \K[A-Z][A-Za-z0-9_]*' \
+        "$REPO_ROOT"/crates/*/src/ 2>/dev/null
+    # typed_entity_id! macro-generated wrappers (see entity.rs).
+    printf '%s\n' ElevatorId RiderId StopId GroupId EntityId
+} | sort -u > "$OUR_TYPES_FILE"
+
+cat > "$ALLOW_TYPES_FILE" <<'ALLOW'
+App
+AppExit
+Arc
+AsMut
+AsRef
+BTreeMap
+BTreeSet
+Bound
+Box
+Cell
+Clone
+Commands
+Component
+Debug
+Default
+Display
+Drop
+Duration
+Eq
+Error
+FixedUpdate
+Fn
+FnMut
+FnOnce
+From
+Handle
+Hash
+HashMap
+HashSet
+Instant
+Into
+IntoIterator
+IntoSystem
+Iterator
+Mutex
+OnAdd
+OnEnter
+OnExit
+Option
+Ord
+PartialEq
+PartialOrd
+Path
+PathBuf
+Plugin
+Query
+Range
+RangeInclusive
+Rc
+RefCell
+Res
+ResMut
+Resource
+Result
+Rng
+RngCore
+RwLock
+Schedule
+SeedableRng
+Send
+Sized
+SmallRng
+StdRng
+String
+Sync
+SystemSet
+ThreadRng
+Time
+ToString
+Trigger
+Update
+Vec
+VecDeque
+World
+ALLOW
+
+for f in "$DOCS_SRC"/*.md; do
+    fname="$(basename "$f")"
+    [[ "$fname" == "SUMMARY.md" ]] && continue
+
+    # Local types: any `(struct|enum|trait|type) Name` that appears
+    # inside any code fence in this file (rust, text, gdscript, etc.).
+    awk '
+        /^```/ { in_f = !in_f; next }
+        in_f && match($0, /(struct|enum|trait|type)[[:space:]]+[A-Z][A-Za-z0-9_]*/) {
+            n = split(substr($0, RSTART, RLENGTH), a, /[[:space:]]+/)
+            print a[n]
+        }
+    ' "$f" | sort -u > "$LOCAL_TYPES_FILE"
+
+    while IFS= read -r ref; do
+        type="${ref%%::*}"
+        grep -qFx "$type" "$OUR_TYPES_FILE"   && continue
+        grep -qFx "$type" "$ALLOW_TYPES_FILE" && continue
+        grep -qFx "$type" "$LOCAL_TYPES_FILE" && continue
+        err "$fname: unknown type in code fence: $ref (renamed? add to allowlist if intentional)"
+    done < <(awk '/^```rust/{in_f=1; next} /^```/{in_f=0; next} in_f' "$f" \
+              | grep -oP '[A-Z][A-Za-z0-9]*::[a-zA-Z_][A-Za-z0-9_]*' | sort -u)
+done
 
 # ── Summary ──────────────────────────────────────────────────────
 echo ""
