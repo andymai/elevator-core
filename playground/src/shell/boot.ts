@@ -7,6 +7,7 @@ import {
   decodePermalink,
   hashSeedWord,
   scenarioById,
+  syncPermalinkUrl,
 } from "../domain";
 import { loadWasm, TrafficDriver } from "../sim";
 import type { State } from "./state";
@@ -107,22 +108,23 @@ export async function boot(): Promise<void> {
     await bootQuestPane({
       initialStageId: state.permalink.questStage,
       landOn: hadStageInUrl ? "stage" : "grid",
+      // Both navigation paths funnel through `syncPermalinkUrl` so
+      // the canonical query-string encoding lives in the permalink
+      // domain module, not in ad-hoc `URL` construction here. This
+      // is the seam that previously diverged: `onBackToGrid` cleared
+      // `qs` directly via `URLSearchParams` while the encoder owns
+      // its own "default → omit" rule. Routing both through the
+      // domain function keeps them in lock-step.
       onStageChange: (stageId) => {
         state.permalink.questStage = stageId;
-        const url = new URL(window.location.href);
-        if (stageId === DEFAULT_STATE.questStage) {
-          url.searchParams.delete("qs");
-        } else {
-          url.searchParams.set("qs", stageId);
-        }
-        window.history.replaceState(null, "", url.toString());
+        syncPermalinkUrl(state.permalink);
       },
       onBackToGrid: () => {
-        // The grid is the default cold-boot view; clear `qs` so a
-        // refresh from the grid stays on the grid.
-        const url = new URL(window.location.href);
-        url.searchParams.delete("qs");
-        window.history.replaceState(null, "", url.toString());
+        // Grid is the default cold-boot view, so reset to the
+        // default stage id and let `encodePermalink` drop `qs`
+        // because of the default-omit rule.
+        state.permalink.questStage = DEFAULT_STATE.questStage;
+        syncPermalinkUrl(state.permalink);
       },
     });
   }
