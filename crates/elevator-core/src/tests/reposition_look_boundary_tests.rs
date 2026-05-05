@@ -163,23 +163,32 @@ fn cooldown_no_entry_is_never_cooling_down() {
 
 #[test]
 fn spread_evenly_omits_no_op_when_already_at_target_stop() {
+    // Two idle cars collocated at stop[1] force `SpreadEvenly` to emit
+    // exactly one move (the second car must go to stop[0] to spread).
+    // The first car stays put: pinning the no-op suppression at the
+    // exact `1e-6` boundary requires that the emitted moves never
+    // include a target equal to the car's current stop, AND that
+    // exactly one move comes out — otherwise a mutation suppressing
+    // all moves would survive vacuously.
     let (mut world, stops) = world_with_stops(&[0.0, 10.0]);
-    let elev = idle_elevator_at(&mut world, 10.0);
-    let g = group(&stops, vec![elev]);
+    let elev_a = idle_elevator_at(&mut world, 10.0);
+    let elev_b = idle_elevator_at(&mut world, 10.0);
+    let g = group(&stops, vec![elev_a, elev_b]);
     let stop_pos = vec![(stops[0], 0.0), (stops[1], 10.0)];
-    let idle = vec![(elev, 10.0)];
+    let idle = vec![(elev_a, 10.0), (elev_b, 10.0)];
 
     let mut out = Vec::new();
     SpreadEvenly.reposition(&idle, &stop_pos, &g, &world, &mut out);
-    // With one car at stop[1] and stop[0] empty, the spread chooses
-    // stop[0]; the car is exactly at stop[1] so any emitted move must
-    // be to the *other* stop, never a no-op back to stop[1].
-    for &(_, target) in &out {
-        assert_ne!(
-            target, stops[1],
-            "must not emit no-op (car already at this stop); got move to itself"
-        );
-    }
+    assert_eq!(
+        out.len(),
+        1,
+        "two cars at stop[1] must spread one to stop[0]; got {out:?}"
+    );
+    let (_, target) = out[0];
+    assert_eq!(
+        target, stops[0],
+        "the emitted move must target the empty stop[0], not a no-op back to stop[1]"
+    );
 }
 
 #[test]
@@ -198,7 +207,7 @@ fn spread_evenly_within_epsilon_of_stop_omits_move() {
     SpreadEvenly.reposition(&idle, &stop_pos, &g, &world, &mut out);
     assert!(
         out.is_empty(),
-        "elevator within EPSILON (5e-7 < 1e-6) of stop must not emit a move; got {out:?}"
+        "elevator within reposition threshold (5e-7 < 1e-6) of stop must not emit a move; got {out:?}"
     );
 }
 
@@ -363,6 +372,13 @@ fn sweep_rank_lenient_down_accepts_just_above_car() {
     let car = 10.0;
     let stop = car + EPSILON / 2.0;
     assert!(sweep::rank(SweepMode::Lenient, SweepDirection::Down, car, stop).is_some());
+}
+
+#[test]
+fn sweep_rank_lenient_down_rejects_well_above_car() {
+    let car = 10.0;
+    let stop = car + 1.0; // far above — outside the lenient half-sweep
+    assert!(sweep::rank(SweepMode::Lenient, SweepDirection::Down, car, stop).is_none());
 }
 
 #[test]
