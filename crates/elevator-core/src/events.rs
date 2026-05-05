@@ -955,10 +955,21 @@ impl<T> Default for EventChannel<T> {
 pub mod log_format {
     use super::Event;
 
-    /// Severity level matching the syslog/FFI convention used by
-    /// host log-drain APIs: `0` trace · `1` debug · `2` info ·
-    /// `3` warn · `4` error.
+    /// `trace`-level severity (`0`).
+    ///
+    /// The full set (`LEVEL_TRACE` … `LEVEL_ERROR`) is the shared
+    /// vocabulary for cross-host log surfaces — see the repository's
+    /// `docs/src/host-binding-parity.md` for the parity contract.
+    pub const LEVEL_TRACE: u8 = 0;
+    /// `debug`-level severity (`1`). The default for events surfaced
+    /// via [`format_event`].
     pub const LEVEL_DEBUG: u8 = 1;
+    /// `info`-level severity (`2`).
+    pub const LEVEL_INFO: u8 = 2;
+    /// `warn`-level severity (`3`).
+    pub const LEVEL_WARN: u8 = 3;
+    /// `error`-level severity (`4`).
+    pub const LEVEL_ERROR: u8 = 4;
 
     /// Format an event for log-style consumption. Returns
     /// `(level, message)` where `message` is the `Debug` rendering
