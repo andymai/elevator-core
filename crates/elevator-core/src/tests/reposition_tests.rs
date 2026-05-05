@@ -537,12 +537,17 @@ fn predictive_parking_picks_hottest_when_cars_undersupplied() {
         "two cars must cover the two hottest stops; got {result:?}"
     );
     assert!(
-        !targets.contains(&stops[4]),
-        "third-hottest stop must not be covered when there are only 2 cars; got {result:?}"
-    );
-    assert!(
         result.len() <= 2,
         "must not generate more moves than idle cars; got {result:?}"
+    );
+    // Independent invariant: no double-targeting (mirrors the
+    // `asymmetric_extra_car_stays_put` companion test). The
+    // "third-hottest stop is unserved" property follows from the two
+    // assertions above plus this one — no separate check needed.
+    assert_eq!(
+        targets.len(),
+        result.len(),
+        "each covered stop must appear at most once; got {result:?}"
     );
 }
 
