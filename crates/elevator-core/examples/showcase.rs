@@ -364,6 +364,7 @@ fn part6_configuration() {
 
     // Build a SimConfig entirely in code (no RON file needed).
     let config = SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Space Needle".into(),
             stops: vec![

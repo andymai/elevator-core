@@ -212,6 +212,7 @@ fn twin_shaft_sim() -> Simulation {
         max_cars: None,
     };
     let config = SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Twin Shaft".into(),
             stops: vec![

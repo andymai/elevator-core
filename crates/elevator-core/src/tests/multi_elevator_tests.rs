@@ -9,6 +9,7 @@ use crate::stop::{StopConfig, StopId};
 
 fn two_elevator_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Test".into(),
             stops: vec![

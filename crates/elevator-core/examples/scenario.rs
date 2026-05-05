@@ -13,6 +13,7 @@ fn main() {
     let scenario = Scenario {
         name: "Basic up-peak".into(),
         config: SimConfig {
+            schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
             building: BuildingConfig {
                 name: "Test Building".into(),
                 stops: vec![

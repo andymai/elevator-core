@@ -322,6 +322,7 @@ fn already_at_home_does_not_reposition_redundantly() {
 /// distinct dispatch groups. Used to test cross-line pin rejection.
 fn two_line_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Two Lines".into(),
             stops: vec![
@@ -394,6 +395,7 @@ fn two_line_config() -> SimConfig {
 /// car is pinned.
 fn two_car_one_line_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Two Cars".into(),
             stops: vec![

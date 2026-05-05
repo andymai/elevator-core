@@ -6,6 +6,7 @@
 // idles higher, the locals oscillate). For a sparser/faster mover
 // scenario see `space_elevator.ron`.
 SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Demo Tower",
         stops: [

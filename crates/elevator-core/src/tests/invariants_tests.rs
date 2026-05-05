@@ -168,6 +168,7 @@ impl Workload {
             })
             .collect();
         SimConfig {
+            schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
             building: BuildingConfig {
                 name: "Invariant Building".into(),
                 stops,

@@ -26,6 +26,7 @@ use crate::stop::{StopConfig, StopId};
 /// ```
 fn two_group_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Transfer Tower".into(),
             stops: vec![
@@ -142,6 +143,7 @@ fn two_group_config() -> SimConfig {
 /// Config where both lines/groups serve the same set of stops (for ambiguity tests).
 fn overlapping_groups_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Overlap Tower".into(),
             stops: vec![
@@ -599,6 +601,7 @@ fn rider_only_boards_elevator_from_matching_group() {
 fn line_pinned_rider_boards_only_specified_line_elevator() {
     // Config with one group containing two lines, each with one elevator.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Twin Shaft".into(),
             stops: vec![
@@ -922,6 +925,7 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
     use super::helpers::scan;
 
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Island".into(),
             stops: vec![
@@ -1073,6 +1077,7 @@ fn shortest_route_spans_groups_via_transfer() {
 fn shortest_route_returns_none_for_unreachable_stop() {
     // Two groups with no shared stops.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Disconnected".into(),
             stops: vec![
@@ -1282,6 +1287,7 @@ fn orphaned_stop_not_in_any_line_fails_validation() {
 #[test]
 fn no_elevators_in_any_line_fails_validation() {
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Elevator-less".into(),
             stops: vec![
@@ -1822,6 +1828,7 @@ fn reassign_elevator_to_line_moves_elevator() {
 fn reassign_elevator_to_line_at_max_cars_returns_error() {
     // Build a config where the high line has max_cars: Some(1).
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Cap Test".into(),
             stops: vec![
@@ -1991,6 +1998,7 @@ fn reassign_elevator_emits_elevator_reassigned_event() {
 fn max_cars_exactly_met_at_config_time_succeeds() {
     // max_cars: Some(2) with exactly 2 elevators: valid.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Capped".into(),
             stops: vec![
@@ -2080,6 +2088,7 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
 fn max_cars_exceeded_at_config_time_fails_validation() {
     // max_cars: Some(1) with 2 elevators: invalid.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Over Cap".into(),
             stops: vec![
@@ -2175,6 +2184,7 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
 fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
     // Build a sim with max_cars: Some(1) on a line that already has 1 elevator.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Runtime Cap".into(),
             stops: vec![
@@ -2260,6 +2270,7 @@ fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
 /// ```
 fn three_group_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Three-Group Tower".into(),
             stops: vec![
@@ -2857,6 +2868,7 @@ fn passing_floor_event_moving_up_is_false_when_descending() {
 fn orphan_line_not_referenced_by_any_group_fails_validation() {
     // Line 2 exists but is not in any group's lines list.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Orphan Line".into(),
             stops: vec![
@@ -3368,6 +3380,7 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
     //   Line B: serves stops 2 and 3
     // A car on Line B must NOT be dispatched to a hall call at stop 0.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Disjoint".into(),
             stops: vec![
@@ -3524,6 +3537,7 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
     use crate::components::RiderPhase;
 
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Co-located".into(),
             // Order matters: declare B's stops first so they receive
