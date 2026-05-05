@@ -387,7 +387,17 @@ impl Simulation {
         stop_lookup: &HashMap<StopId, EntityId>,
         builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     ) -> TopologyResult {
-        let all_stop_entities: Vec<EntityId> = stop_lookup.values().copied().collect();
+        // Iterate the config's stop list (deterministic Vec order) and
+        // resolve each through the lookup. Walking `stop_lookup.values()`
+        // would expose `HashMap` iteration order — which varies by
+        // per-process hash seed — into `LineInfo.serves` and from
+        // there into snapshot bytes.
+        let all_stop_entities: Vec<EntityId> = config
+            .building
+            .stops
+            .iter()
+            .filter_map(|s| stop_lookup.get(&s.id).copied())
+            .collect();
         let stop_positions: Vec<f64> = config.building.stops.iter().map(|s| s.position).collect();
         let min_pos = stop_positions.iter().copied().fold(f64::INFINITY, f64::min);
         let max_pos = stop_positions
@@ -475,8 +485,12 @@ impl Simulation {
         stop_lookup: &HashMap<StopId, EntityId>,
         builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     ) -> TopologyResult {
-        // Map line config id → (line EntityId, LineInfo).
-        let mut line_map: HashMap<u32, (EntityId, LineInfo)> = HashMap::new();
+        // Map line config id → (line EntityId, LineInfo). `BTreeMap`
+        // (not `HashMap`) so the auto-inferred-groups branch iterates
+        // `.values()` in deterministic key order — otherwise the
+        // resulting `LineInfo` sequence permutes across processes and
+        // leaks into snapshot bytes via `GroupSnapshot::lines`.
+        let mut line_map: BTreeMap<u32, (EntityId, LineInfo)> = BTreeMap::new();
 
         for lc in line_configs {
             // Resolve served stop entities.
