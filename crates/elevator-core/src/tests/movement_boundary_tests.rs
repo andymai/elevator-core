@@ -136,3 +136,59 @@ fn tick_movement_accelerate_does_not_cap_below_max_speed() {
         result.velocity
     );
 }
+
+// ── tick_movement opposing-velocity branch ──────────────────────────
+
+/// Kills `replace * with + in tick_movement` on `velocity * sign < 0.0`
+/// (the opposing-direction detector).
+///
+/// With velocity in one direction and target in the other (`vel=2`,
+/// `sign=-1`):
+/// - Original `velocity * sign = -2 < 0` → `opposing = true` → decelerate
+///   branch: `fma(-decel·dt, sign(vel), vel) = fma(-5, +1, 2) = -3`,
+///   sign-flip clamp → `0`.
+/// - Mutant `velocity + sign = 1`, NOT `< 0` → `opposing = false` →
+///   falls through to accelerate: `fma(accel·dt, sign, vel) =
+///   fma(1, -1, 2) = 1`. The car *accelerates* further from the target
+///   instead of braking back toward it.
+///
+/// `vel = 1.0` would coincidentally cancel: mutant accelerate produces
+/// `fma(1, -1, 1) = 0`, identical to the original sign-flip clamp, so
+/// the mutation survives. `vel = 2.0` breaks the symmetry.
+#[test]
+fn tick_movement_opposing_velocity_decelerates() {
+    // pos=0, vel=+2 (moving up), target=-10 (down), decel=5, dt=1.
+    let result = tick_movement(0.0, 2.0, -10.0, 10.0, 1.0, 5.0, 1.0);
+    assert!(
+        result.velocity <= 0.0,
+        "opposing-velocity branch must not accelerate further from target: got velocity={}",
+        result.velocity
+    );
+}
+
+// ── tick_movement already-arrived guard ─────────────────────────────
+
+/// Kills `replace < with <= in tick_movement` on the `displacement.abs()
+/// < EPSILON` half of the already-arrived guard. Shows the guard does
+/// **not** fire when displacement is non-zero (even if velocity is at
+/// EPSILON exactly), so mutants flipping the displacement check from
+/// `<` to `<=` would still need a separate displacement-equals-EPSILON
+/// case to diverge — and at exactly EPSILON the guard's velocity half
+/// (also `<`, not `<=`) keeps the mutant equivalent. The behavioural
+/// signal is "we did integrate, not short-circuit": post-tick position
+/// is no longer the start position when displacement is meaningful.
+#[test]
+fn tick_movement_does_not_short_circuit_with_pending_displacement() {
+    // displacement = 1.0 (well above EPSILON), velocity = 0.
+    // The guard must not fire — must integrate one step.
+    let result = tick_movement(0.0, 0.0, 1.0, 10.0, 1.0, 1.0, 0.5);
+    assert!(
+        !result.arrived,
+        "already-arrived guard fired with non-zero displacement (pos=0, target=1)"
+    );
+    assert!(
+        result.position > 0.0,
+        "expected forward integration, got position={}",
+        result.position
+    );
+}
