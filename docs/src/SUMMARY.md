@@ -40,6 +40,7 @@
 - [Manual and Inspection Modes](manual-inspection-modes.md)
 - [Traffic Generation](traffic-generation.md)
 - [Snapshots and Determinism](snapshots-determinism.md)
+- [Snapshot Versioning](snapshot-versioning.md)
 - [Testing Your Simulation](testing.md)
 - [Stability and Versioning](stability.md)
 
