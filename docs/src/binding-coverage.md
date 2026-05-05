@@ -126,8 +126,8 @@ plugin-layer phase.
 
 ## Related
 
-- [`bindings.toml`](../../bindings.toml) — the manifest itself, with the
-  current header comment kept in sync with this page.
+- `bindings.toml` — the manifest itself, with the current header comment
+  kept in sync with this page.
 - `scripts/check-bindings.sh` — the CI gate.
 - [Using the Bindings](using-the-bindings.md) — host-facing usage docs.
 
