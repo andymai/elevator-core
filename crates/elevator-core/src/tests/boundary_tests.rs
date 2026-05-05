@@ -285,3 +285,53 @@ fn weight_exactly_at_capacity_boards() {
         "rider weighing exactly capacity should be able to board"
     );
 }
+
+/// Crowding test that targets the `current_load / weight_capacity`
+/// division at a non-degenerate ratio (load = half-capacity, prefs at
+/// 0.6). A `/ ↔ *` or `/ ↔ %` mutation flips the ratio to a
+/// `current_load * weight_capacity` magnitude that always exceeds any
+/// realistic `max_crowding_factor`, silently rejecting riders the
+/// preference rule would let through. The rider must board.
+#[test]
+fn preferences_below_crowding_threshold_boards_at_half_load() {
+    let config = default_config(); // capacity = 800
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+
+    // First rider takes the elevator to half-capacity (400 / 800 = 0.5).
+    let r1 = sim.spawn_rider(StopId(0), StopId(2), 400.0).unwrap();
+
+    // Second rider tolerates up to 60% crowding — at 50% they should
+    // board. A mutation that multiplied instead of divided would
+    // compute load_ratio = 400 * 800 = 320_000, well above 0.6,
+    // and reject this rider.
+    let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.world_mut().set_preferences(
+        r2.entity(),
+        Preferences {
+            skip_full_elevator: true,
+            max_crowding_factor: 0.6,
+            abandon_after_ticks: None,
+            abandon_on_full: false,
+        },
+    );
+
+    let mut r2_boarded = false;
+    for _ in 0..1_000 {
+        sim.step();
+        if sim.world().rider(r2.entity()).is_some_and(|r| {
+            matches!(
+                r.phase,
+                RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
+            )
+        }) {
+            r2_boarded = true;
+            break;
+        }
+    }
+    let _ = r1;
+    assert!(
+        r2_boarded,
+        "rider with max_crowding=0.6 should board when load_ratio=0.5; \
+         a `/` ↔ `*` or `%` mutation on the ratio would silently reject"
+    );
+}

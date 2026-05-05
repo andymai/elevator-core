@@ -192,3 +192,60 @@ fn energy_consumed_events_emitted() {
         "expected at least one EnergyConsumed event per tick"
     );
 }
+
+/// An all-zero profile must not emit `EnergyConsumed` events. Pins the
+/// emission threshold — the `if consumed > 0.0 || regenerated > 0.0`
+/// guard. Any boundary mutation (`>` → `>=`, `||` → `&&`) that flipped
+/// the guard's behaviour at `(0.0, 0.0)` would either spam the bus with
+/// no-op events or — under the `&&` swap — never emit even when energy
+/// is being consumed (caught by `energy_consumed_events_emitted` above).
+#[test]
+fn energy_zero_costs_emit_no_event() {
+    let cfg = config_with_energy(EnergyProfile::new(0.0, 0.0, 0.0, 0.0));
+    let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
+
+    for _ in 0..50 {
+        sim.step();
+    }
+    let events = sim.drain_events();
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, Event::EnergyConsumed { .. })),
+        "expected no EnergyConsumed events when both consumed and regenerated are zero"
+    );
+}
+
+/// Energy metrics must never go negative under arbitrary sim activity.
+/// Pins the contract that `total_consumed - total_regenerated` (the
+/// `net_consumed` accessor) and the per-component totals stay
+/// non-negative — a regen-factor mutation that flipped a sign or
+/// substituted regen for consumption would push one of these below
+/// zero almost immediately.
+#[test]
+fn energy_metrics_never_negative_under_load() {
+    let cfg = config_with_energy(default_profile());
+    let mut sim = crate::sim::Simulation::new(&cfg, helpers::scan()).unwrap();
+
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 70.0).unwrap();
+
+    let elevator_ids = sim.world().elevator_ids();
+    let eid = elevator_ids[0];
+
+    for _ in 0..2_000 {
+        sim.step();
+        if let Some(metrics) = sim.world().energy_metrics(eid) {
+            assert!(
+                metrics.total_consumed() >= 0.0,
+                "total_consumed went negative: {}",
+                metrics.total_consumed()
+            );
+            assert!(
+                metrics.total_regenerated() >= 0.0,
+                "total_regenerated went negative: {}",
+                metrics.total_regenerated()
+            );
+        }
+    }
+}
