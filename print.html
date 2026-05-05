@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-976746c3.js";
+            window.path_to_searchindex_js = "searchindex-5dc638c7.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -5071,7 +5071,7 @@ risk that motivated <code>bindings.toml</code> for the per-method surface.</p>
 <tr><td>Event peek (non-consuming)</td><td><code>Simulation::pending_events</code></td><td>(internal, used by log forwarder)</td><td><code>pendingEvents</code></td><td>(none yet)</td><td>(none yet)</td><td>gdext / Bevy parity is a follow-up.</td></tr>
 <tr><td>Log drain (formatted)</td><td><code>events::log_format::format_event</code></td><td><code>ev_drain_log_messages</code></td><td><code>peekLogMessages</code> (#656)</td><td><code>peek_log_messages</code> (#656)</td><td><em>skip — uses <code>tracing</code></em></td><td>Severity constants in <code>events::log_format</code>.</td></tr>
 <tr><td>Error marshalling</td><td>(host-specific; see below)</td><td><code>EvStatus</code> + <code>ev_last_error</code></td><td>thrown <code>Error</code></td><td>Godot exception</td><td>Rust panic</td><td>Map to a shared classification — see “Error vocabulary” below.</td></tr>
-<tr><td>ABI / wire version</td><td><code>crates/elevator-ffi/src/lib.rs::EV_ABI_VERSION</code></td><td><code>5</code> (pinned by ABI guard)</td><td><code>package.json</code> semver</td><td>crate semver</td><td>crate semver</td><td>Wasm/gdext don’t have a binary ABI; their consumers track the published crate/package version.</td></tr>
+<tr><td>ABI / wire version</td><td><code>elevator_core::HOST_PROTOCOL_VERSION</code></td><td><code>EV_ABI_VERSION</code> (literal, asserted equal to core)</td><td><code>ABI_VERSION</code> (refs core)</td><td><code>ABI_VERSION</code> (refs core)</td><td>crate semver</td><td>FFI keeps a literal so cbindgen can emit <code>#define EV_ABI_VERSION</code> in the generated C header; a compile-time <code>assert!</code> ties the literal to core.</td></tr>
 </tbody>
 </table>
 </div>
