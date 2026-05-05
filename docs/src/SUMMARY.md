@@ -53,4 +53,5 @@
 - [TUI Debugger](tui-debugger.md)
 - [Using the Bindings](using-the-bindings.md)
 - [Binding Coverage Manifest](binding-coverage.md)
+- [Integration Gallery](integration-gallery.md)
 - [Performance](performance.md)
