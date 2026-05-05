@@ -45,7 +45,7 @@ cd playground && pnpm dev       # auto-builds wasm if pkg/ missing, watches Rust
 
 Shared hook at `.githooks/pre-commit`. Behavior is path-aware:
 
-- **Any non-`playground/` file staged** — fmt, clippy (all features on core), core tests, doc tests (core + Bevy), `cargo check --workspace --all-targets` (catches FFI / Bevy drift), and a Cargo.lock drift guard.
+- **Any non-`playground/` file staged** — fmt, clippy (all features on core), core tests, doc tests (core + Bevy), `cargo check --workspace --all-features --all-targets` (catches FFI / Bevy drift), and a Cargo.lock drift guard.
 - **`docs/` or `README.md` staged** — additionally runs `scripts/lint-docs.sh --quick`.
 - **FFI / wasm / gdext source or harness staged** — additionally runs `scripts/check-abi-pins.sh`.
 - **`playground/` staged** — runs lint-staged, typecheck, and vitest. Bypass the playground side with `SKIP_PLAYGROUND_HOOKS=1`.
