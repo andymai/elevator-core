@@ -9,6 +9,7 @@
 use elevator_wasm::{WasmSim, WasmU64Result, WasmVoidResult};
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Home Stop",
         stops: [

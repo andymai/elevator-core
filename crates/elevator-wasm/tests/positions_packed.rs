@@ -5,6 +5,7 @@
 use elevator_wasm::WasmSim;
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Packed Positions",
         stops: [

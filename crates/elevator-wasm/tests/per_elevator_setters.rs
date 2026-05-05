@@ -10,6 +10,7 @@
 use elevator_wasm::{WasmSim, WasmVoidResult};
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Per-Elevator Setters",
         stops: [

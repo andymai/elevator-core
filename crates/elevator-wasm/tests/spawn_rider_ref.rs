@@ -8,6 +8,7 @@
 use elevator_wasm::{WasmSim, WasmU64Result};
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Spawn Ref",
         stops: [

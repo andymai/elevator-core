@@ -12,6 +12,7 @@ use elevator_core::dispatch::{DestinationDispatch, EtdDispatch, ScanDispatch};
 use elevator_core::sim::Simulation;
 
 const OFFICE: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Mid-Rise Office",
         stops: [
@@ -40,6 +41,7 @@ const OFFICE: &str = r#"SimConfig(
 )"#;
 
 const SKYSCRAPER: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Skyscraper (Sky Lobby)",
         stops: [
@@ -92,6 +94,7 @@ const SKYSCRAPER: &str = r#"SimConfig(
 )"#;
 
 const RESIDENTIAL: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Residential Tower",
         stops: [
@@ -129,6 +132,7 @@ const RESIDENTIAL: &str = r#"SimConfig(
 )"#;
 
 const HOTEL: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Hotel 24/7",
         stops: [
@@ -175,6 +179,7 @@ const HOTEL: &str = r#"SimConfig(
 )"#;
 
 const CONVENTION: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Convention Center",
         stops: [
@@ -209,6 +214,7 @@ const CONVENTION: &str = r#"SimConfig(
 )"#;
 
 const SPACE: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Orbital Tether",
         stops: [
