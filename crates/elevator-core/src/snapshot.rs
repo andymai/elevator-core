@@ -1022,8 +1022,11 @@ impl crate::sim::Simulation {
     }
 
     /// Cheap u64 checksum of the simulation's serializable state.
-    /// Hashes [`Self::snapshot_bytes`] via inline FNV-1a — no new
-    /// dependencies. The numeric value is FNV-1a-specific and not
+    /// FNV-1a over the postcard encoding of [`Self::snapshot`]'s
+    /// `WorldSnapshot` payload — the envelope (magic + crate version
+    /// string) is *not* hashed, so the value depends only on the
+    /// logical sim state, not on the `elevator-core` version that
+    /// produced it. The numeric value is FNV-1a-specific and not
     /// equivalent to other hash functions of the same bytes; consumers
     /// computing an independent hash for comparison must use this
     /// method (or run FNV-1a themselves with the same constants).
@@ -1034,21 +1037,28 @@ impl crate::sim::Simulation {
     /// type registering on restore but not `new`; that was fixed.)
     ///
     /// Designed for divergence detection between runtimes that should
-    /// be in lockstep (browser vs server, multi-client multiplayer).
-    /// Two sims that have produced bit-identical inputs in bit-identical
-    /// order must hash to the same value.
+    /// be in lockstep (browser vs server, multi-client multiplayer)
+    /// and for golden checksums that need to survive a
+    /// release-please version bump. Two sims that have produced bit-
+    /// identical inputs in bit-identical order must hash to the same
+    /// value, regardless of `CARGO_PKG_VERSION`.
     ///
     /// # Errors
-    /// Same as [`Self::snapshot_bytes`]: snapshot encoding can fail in
-    /// the (unreachable for well-formed sims) postcard error path or
-    /// when called mid-tick during the substep API.
+    /// - [`SimError::MidTickSnapshot`](crate::error::SimError::MidTickSnapshot)
+    ///   when invoked between phases of an in-progress tick (substep
+    ///   API path).
+    /// - [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
+    ///   if postcard encoding of the payload fails. Unreachable for
+    ///   well-formed sims; callers that don't care can `unwrap`.
     pub fn snapshot_checksum(&self) -> Result<u64, crate::error::SimError> {
         // FNV-1a (64-bit). Small, allocation-free over the byte slice,
         // well-distributed for arbitrary input. Not cryptographic;
         // collision tolerance is fine for divergence detection.
         const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-        let bytes = self.snapshot_bytes()?;
+        let snapshot = self.try_snapshot()?;
+        let bytes = postcard::to_allocvec(&snapshot)
+            .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
         let mut h: u64 = FNV_OFFSET;
         for byte in &bytes {
             h ^= u64::from(*byte);

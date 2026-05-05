@@ -1,8 +1,8 @@
 # Golden snapshot checksums for contract scenarios.
 # Regenerate via: cargo run -p elevator-contract -- --update-golden
 # tick budget: 600
-default 0x9783adffd39bb643
-dense_traffic 0xc7b120b8395779e2
-extreme_load 0x7581540441aced69
-multi_group 0xcdff40926ff39006
-sparse 0x2f4eb7ad1bfd4aa3
+default 0xc39a680791d911c9
+dense_traffic 0xe728b1eada15606c
+extreme_load 0xcf6137a41eb3dc47
+multi_group 0x5244c21f6000007c
+sparse 0x96894e58f45ef6e1
