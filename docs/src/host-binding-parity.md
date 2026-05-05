@@ -111,16 +111,57 @@ ships independently, and keeps every host runnable.
    generated C header) plus a `const _: () = assert!(...)` guard
    that traps any drift. `scripts/check-abi-pins.sh` was extended to
    verify both literal and reference shapes.
-6. ⬜ **`HostBinding` trait (or pattern)** — once the four
-   capabilities above share a vocabulary, decide whether a Rust
-   trait is the right shape (it might not be — each host's I/O
-   types are too divergent for `impl HostBinding` to be useful
-   without heavy generics; a documented contract + per-host
-   adapter modules may be the better landing).
+6. ✅ **`HostBinding` pattern (closing decision: documented
+   contract, no Rust trait)** — see [Close-out](#close-out-trait-or-pattern)
+   below. The trait shape was rejected after steps 3-5 made the
+   per-host divergence concrete; the pattern landed instead is
+   *this document plus per-host adapter modules in core*
+   (`events::log_format`, `host_error::ErrorKind`, the
+   `HOST_PROTOCOL_VERSION` constant), backed by tripwire tests
+   in the FFI crate.
 
-Steps 3-5 each get their own issue once step 2 has soaked. Step 6
-is the close-out and only happens after the smaller steps prove
-out the design.
+All six steps are complete. Future per-method coverage continues
+to land via [`bindings.toml`](binding-coverage.md); cross-host
+concerns track in the parity table above.
+
+## Close-out: trait or pattern?
+
+Steps 3-5 deliberately exercised the cross-host vocabulary by
+landing real, observable changes in three host crates. With those
+in main, the trait-vs-pattern question that step 6 deferred has
+a clear answer: **shared types in `elevator-core`, hand-written
+per-host adapters, no Rust trait**. The reasoning, in plain
+terms:
+
+1. **The host I/O types are too divergent for a useful trait.**
+   FFI returns `EvStatus` integers and `*const T` slice pointers.
+   wasm returns `tsify`-derived discriminated unions over
+   `JsValue`. gdext returns Godot `Variant` dictionaries. Bevy
+   emits ECS messages. A trait abstracting these would need
+   associated types for *every* return shape — at which point
+   each host's `impl` is a thicker translation layer than the
+   direct hand-written adapter it replaces.
+
+2. **The actual sharing happens at the data layer, not the
+   method layer.** `events::log_format::format_event`,
+   `host_error::ErrorKind`, and `HOST_PROTOCOL_VERSION` are
+   plain values / enums — every host already references them
+   directly. There is no place a `trait HostBinding { fn
+   ev_status(...) }` would slot in without re-introducing the
+   per-host divergence we just removed.
+
+3. **The tripwire pattern (step 4) covers the drift risk a
+   trait would have caught.** `snapshot_dto_field_names_locked`
+   forces a deliberate sync when a snapshot DTO changes, with
+   the parity-update sequence spelled out in the test's doc
+   comment. That achieves the trait's main value (preventing
+   silent drift) without the type gymnastics.
+
+So `HostBinding` lands as: this document + the shared types in
+core + tripwire tests. Adding a Rust trait later is still
+possible if a concrete need surfaces, but speculatively
+introducing one would constrain future host evolution without
+buying real safety.
 
 ## Next steps
 
@@ -128,8 +169,9 @@ out the design.
   per-method coverage view that complements this page.
 - Pick a host you ship against in [Using the Bindings](using-the-bindings.md)
   and check the relevant column above for known gaps.
-- For the umbrella issue and the live status of each migration
-  step, see [#655] in the issue tracker.
+- The umbrella issue [#655] is closed; this document is the
+  ongoing tracker for cross-host parity changes. Edit it directly
+  when a new concern appears or an existing one shifts.
 
 ## Cross-references
 
@@ -137,7 +179,9 @@ out the design.
   coverage in `bindings.toml`.
 - [Using the Bindings](using-the-bindings.md) — host-by-host
   consumer guide.
-- Issue [#655] — the umbrella issue this document tracks.
+- Issue [#655] — the umbrella issue, closed by this document's
+  step 6. Future cross-host parity work edits this page directly
+  instead of opening a new umbrella.
 - Issue [#656] — log-drain parity, completed.
 
 [#655]: https://github.com/andymai/elevator-core/issues/655
