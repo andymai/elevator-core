@@ -49,8 +49,11 @@ pub struct RepositionCooldowns {
     /// present in the map have no cooldown (fresh state). `BTreeMap`
     /// for deterministic snapshot bytes across processes — `HashMap`
     /// iteration order varies by per-process hash seed and leaked into
-    /// the postcard byte stream (#254 follow-up).
-    pub eligible_at: BTreeMap<EntityId, u64>,
+    /// the postcard byte stream (#254 follow-up). `pub(crate)` rather
+    /// than `pub` so external consumers go through `record_arrival` /
+    /// `is_cooling_down` instead of mutating the map directly, and so a
+    /// future container swap doesn't ripple into downstream API breaks.
+    pub(crate) eligible_at: BTreeMap<EntityId, u64>,
 }
 
 impl RepositionCooldowns {

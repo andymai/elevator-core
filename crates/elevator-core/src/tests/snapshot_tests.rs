@@ -956,12 +956,12 @@ fn reposition_cooldowns_serialize_independent_of_insertion_order() {
     use crate::dispatch::reposition::RepositionCooldowns;
     use crate::entity::EntityId;
 
-    let key_a = EntityId::default();
-    let key_b = {
-        let mut sm = slotmap::SlotMap::<EntityId, ()>::with_key();
-        sm.insert(());
-        sm.insert(())
-    };
+    // Use real allocated slotmap keys (not `EntityId::default()`,
+    // which is the slotmap null sentinel that production never
+    // produces) so the fixture mirrors the runtime shape.
+    let mut sm = slotmap::SlotMap::<EntityId, ()>::with_key();
+    let key_a = sm.insert(());
+    let key_b = sm.insert(());
 
     let mut forward = RepositionCooldowns::default();
     forward.eligible_at.insert(key_a, 100);
