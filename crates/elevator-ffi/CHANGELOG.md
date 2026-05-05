@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.17.0...elevator-ffi-v0.18.0) (2026-05-05)
+
+
+### Features
+
+* **core:** expose log_format helper for non-FFI host log-drain parity ([#656](https://github.com/andymai/elevator-core/issues/656)) ([#699](https://github.com/andymai/elevator-core/issues/699)) ([5169b30](https://github.com/andymai/elevator-core/commit/5169b30dbea27816448d4fa4b28060f4bc671fa4))
+
 ## [0.17.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.16.1...elevator-ffi-v0.17.0) (2026-05-04)
 
 
