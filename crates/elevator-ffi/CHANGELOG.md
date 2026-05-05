@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.19.0...elevator-ffi-v0.20.0) (2026-05-05)
+
+
+### Features
+
+* **core:** host_error::ErrorKind for cross-host error vocabulary (step 3 of [#655](https://github.com/andymai/elevator-core/issues/655)) ([#705](https://github.com/andymai/elevator-core/issues/705)) ([e6610b4](https://github.com/andymai/elevator-core/commit/e6610b47133d0f6674a6bd792ae012cafa05ccd4))
+
 ## [0.19.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.18.0...elevator-ffi-v0.19.0) (2026-05-05)
 
 
