@@ -76,6 +76,7 @@ mod mutation_kills_tests;
 mod phase_helpers_tests;
 mod position_interpolation_tests;
 mod query_event_tests;
+mod reposition_look_boundary_tests;
 mod reposition_tests;
 mod resident_tests;
 mod rider_index_tests;
