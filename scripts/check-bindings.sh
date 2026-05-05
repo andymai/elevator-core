@@ -222,3 +222,30 @@ printf "  %-12s %10s %10s %10s\n" "tui"   "$tui_exported"   "$tui_skipped"   "$t
 printf "  %-12s %10s %10s %10s\n" "gms"   "$gms_exported"   "$gms_skipped"   "$gms_todo"
 printf "  %-12s %10s %10s %10s\n" "gdext" "$gdext_exported" "$gdext_skipped" "$gdext_todo"
 printf "  %-12s %10s %10s %10s\n" "bevy"  "$bevy_exported"  "$bevy_skipped"  "$bevy_todo"
+
+# Per-phase breakdown of `todo:` entries. The two phases are
+# semantically distinct (see the header of bindings.toml):
+# `plugin-layer` is the expected state for `bevy` until the plugin
+# layer ships; `future-binding` is the actionable queue of gdext gaps.
+# Surfacing them separately keeps the real coverage gaps visible
+# instead of buried in a generic "todo" total.
+phase_counts=$(gawk '
+  # Only count phase markers that appear as real status values, i.e.
+  # `<binding> = "todo:<phase>"`. Mentions inside comment blocks
+  # describing the schema are skipped.
+  /^\s*(wasm|ffi|tui|gms|gdext|bevy)\s*=\s*"todo:[a-z0-9-]+"/ {
+    match($0, /"todo:([a-z0-9-]+)"/, m)
+    if (m[1] != "") counts[m[1]]++
+  }
+  END {
+    for (phase in counts) print counts[phase] " " phase
+  }
+' "$MANIFEST" | sort -rn)
+
+if [[ -n "$phase_counts" ]]; then
+  echo ""
+  echo "  todo phase distribution:"
+  while read -r count phase; do
+    printf "    %-16s %4s\n" "$phase" "$count"
+  done <<<"$phase_counts"
+fi
