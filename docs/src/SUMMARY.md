@@ -54,5 +54,6 @@
 - [TUI Debugger](tui-debugger.md)
 - [Using the Bindings](using-the-bindings.md)
 - [Binding Coverage Manifest](binding-coverage.md)
+- [Host Binding Parity](host-binding-parity.md)
 - [Integration Gallery](integration-gallery.md)
 - [Performance](performance.md)

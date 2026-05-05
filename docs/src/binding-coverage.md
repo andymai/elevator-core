@@ -19,6 +19,11 @@ It is intentionally a *coverage* manifest, not a generator. Bindings are
 still hand-written so each host can shape its idiomatic surface; the
 manifest exists only to prevent silent drift.
 
+For *non-method* host concerns — error marshalling, log-drain
+semantics, ABI / wire version, snapshot field-set parity — see
+[Host Binding Parity](host-binding-parity.md), the cross-host
+contract that complements this manifest.
+
 ## Taxonomy
 
 Each entry is keyed by Rust method name and lists one status per host
