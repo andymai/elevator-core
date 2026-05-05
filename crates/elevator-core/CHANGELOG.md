@@ -1,5 +1,12 @@
 # Changelog
 
+## [16.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v16.3.0...elevator-core-v16.4.0) (2026-05-05)
+
+
+### Features
+
+* **core:** host_error::ErrorKind for cross-host error vocabulary (step 3 of [#655](https://github.com/andymai/elevator-core/issues/655)) ([#705](https://github.com/andymai/elevator-core/issues/705)) ([e6610b4](https://github.com/andymai/elevator-core/commit/e6610b47133d0f6674a6bd792ae012cafa05ccd4))
+
 ## [16.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v16.2.0...elevator-core-v16.3.0) (2026-05-05)
 
 
