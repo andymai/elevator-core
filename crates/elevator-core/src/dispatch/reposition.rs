@@ -12,7 +12,7 @@
 //!     .unwrap();
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -46,8 +46,11 @@ pub const DEFAULT_REPOSITION_COOLDOWN_TICKS: u64 = 240;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RepositionCooldowns {
     /// Tick counter when each car becomes eligible again. Cars not
-    /// present in the map have no cooldown (fresh state).
-    pub eligible_at: HashMap<EntityId, u64>,
+    /// present in the map have no cooldown (fresh state). `BTreeMap`
+    /// for deterministic snapshot bytes across processes — `HashMap`
+    /// iteration order varies by per-process hash seed and leaked into
+    /// the postcard byte stream (#254 follow-up).
+    pub eligible_at: BTreeMap<EntityId, u64>,
 }
 
 impl RepositionCooldowns {
@@ -70,7 +73,7 @@ impl RepositionCooldowns {
     /// any entries whose car wasn't re-allocated during snapshot
     /// restore. Mirrors `ArrivalLog::remap_entity_ids`.
     pub fn remap_entity_ids(&mut self, id_remap: &HashMap<EntityId, EntityId>) {
-        let remapped: HashMap<EntityId, u64> = std::mem::take(&mut self.eligible_at)
+        let remapped: BTreeMap<EntityId, u64> = std::mem::take(&mut self.eligible_at)
             .into_iter()
             .filter_map(|(old, eligible)| id_remap.get(&old).map(|&new| (new, eligible)))
             .collect();
