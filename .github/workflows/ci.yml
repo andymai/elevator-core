@@ -3,8 +3,30 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'media/**'
+      - 'AI-DISCLOSURE.md'
+      - 'STABILITY.md'
+      - 'LICENSE*'
+      - '.research/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'media/**'
+      - 'AI-DISCLOSURE.md'
+      - 'STABILITY.md'
+      - 'LICENSE*'
+      - '.research/**'
+
+# Cancel superseded PR runs to avoid wasted runner time on rapid pushes.
+# `pull_request.number` is integer-only so it is safe to interpolate; on
+# main pushes we fall back to `run_id`, which is unique per run, so two
+# main commits never cancel each other.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -272,3 +294,38 @@ jobs:
 
       - name: Build elevator-core on MSRV
         run: cargo build -p elevator-core --all-features
+
+  commitlint:
+    name: Commitlint
+    # PR-only: commits on main have already landed. The local
+    # `.githooks/commit-msg` hook covers contributors who installed it,
+    # but anyone bypassing the hook (or editing on the GitHub web UI)
+    # would otherwise sneak through. release-please commits follow the
+    # `chore(main): release` convention by construction.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the full PR commit range, not just the merge.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: playground/pnpm-lock.yaml
+      - name: Install playground deps (provides commitlint)
+        working-directory: playground
+        run: pnpm install --frozen-lockfile
+      - name: Lint PR commits
+        env:
+          # `${{ … }}` interpolation into shell would be unsafe with
+          # arbitrary strings; SHAs are hex-only so this is fine, but
+          # passing them through env keeps the pattern uniform.
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        working-directory: playground
+        run: pnpm exec commitlint --from "$PR_BASE_SHA" --to "$PR_HEAD_SHA" --verbose
