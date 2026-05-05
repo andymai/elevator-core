@@ -52,4 +52,5 @@
 - [Headless and Non-Bevy Usage](headless-non-bevy.md)
 - [TUI Debugger](tui-debugger.md)
 - [Using the Bindings](using-the-bindings.md)
+- [Binding Coverage Manifest](binding-coverage.md)
 - [Performance](performance.md)
