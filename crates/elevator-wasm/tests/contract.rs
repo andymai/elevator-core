@@ -12,12 +12,17 @@
 //! Invoked via:
 //!
 //! ```sh
-//! cargo test -p elevator-wasm --target wasm32-unknown-unknown
+//! CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner \
+//!   cargo test -p elevator-wasm --target wasm32-unknown-unknown --test contract
 //! ```
 //!
-//! Requires `wasm-bindgen-test-runner` on PATH; the workspace
-//! `.cargo/config.toml` wires this up automatically for the wasm32
-//! target.
+//! The env-var override sets cargo's runner for the wasm32 target.
+//! `.cargo/config.toml` is gitignored in this repo (it carries a
+//! machine-local `PKG_CONFIG_PATH` plus the shared `target-dir`), so
+//! the runner cannot live there; CI sets the same env var directly.
+//! `wasm-bindgen-test-runner` ships with `wasm-bindgen-cli` — install
+//! via `cargo install --locked wasm-bindgen-cli` (or `cargo binstall
+//! wasm-bindgen-cli` for a pre-built binary).
 
 use elevator_core::builder::SimulationBuilder;
 use elevator_core::config::SimConfig;
