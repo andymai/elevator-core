@@ -46,12 +46,16 @@ pub const DEFAULT_ARRIVAL_WINDOW_TICKS: u64 = 18_000;
 /// World resource controlling how far back the [`ArrivalLog`] retains
 /// entries before `Simulation::advance_tick` prunes them.
 ///
-/// Defaults to [`DEFAULT_ARRIVAL_WINDOW_TICKS`]. Strategies that query
-/// a longer window (e.g.
-/// [`PredictiveParking::with_window_ticks`](crate::dispatch::reposition::PredictiveParking::with_window_ticks)
-/// with a value greater than the default) will silently see only the
-/// last `DEFAULT_ARRIVAL_WINDOW_TICKS` unless this retention is
-/// widened via [`Simulation::set_arrival_log_retention_ticks`](crate::sim::Simulation::set_arrival_log_retention_ticks).
+/// Defaults to [`DEFAULT_ARRIVAL_WINDOW_TICKS`].
+/// [`Simulation::set_reposition`](crate::sim::Simulation::set_reposition)
+/// auto-widens this to the installed strategy's
+/// [`min_arrival_log_window`](crate::dispatch::RepositionStrategy::min_arrival_log_window)
+/// so e.g. `PredictiveParking::with_window_ticks(50_000)` keeps
+/// `50_000` ticks of arrivals retained without a separate setter call.
+/// Override manually via
+/// [`Simulation::set_arrival_log_retention_ticks`](crate::sim::Simulation::set_arrival_log_retention_ticks)
+/// when retention should differ from any strategy's window (e.g. tests
+/// or custom consumers reading the log directly).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ArrivalLogRetention(pub u64);
 

@@ -212,6 +212,78 @@ fn reroute_records_arrival_and_resets_spawn_tick() {
 }
 
 #[test]
+fn set_reposition_widens_retention_for_strategy_window() {
+    // Regression for #675: installing a `PredictiveParking` strategy
+    // with a window longer than `DEFAULT_ARRIVAL_WINDOW_TICKS` must
+    // widen `ArrivalLogRetention` so the pruner doesn't truncate the
+    // signal the strategy is asking for.
+    use crate::arrival_log::ArrivalLogRetention;
+    use crate::dispatch::BuiltinReposition;
+    use crate::dispatch::reposition::PredictiveParking;
+    use crate::ids::GroupId;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let long_window = DEFAULT_ARRIVAL_WINDOW_TICKS * 3;
+    sim.set_reposition(
+        GroupId(0),
+        Box::new(PredictiveParking::with_window_ticks(long_window)),
+        BuiltinReposition::PredictiveParking,
+    );
+
+    let retention = sim
+        .world()
+        .resource::<ArrivalLogRetention>()
+        .expect("ArrivalLogRetention installed by sim::new")
+        .0;
+    assert!(
+        retention >= long_window,
+        "set_reposition must widen retention to the strategy's window: \
+         retention={retention} expected ≥ {long_window}"
+    );
+}
+
+#[test]
+fn predictive_parking_window_survives_long_run() {
+    // Behavioural counterpart to the previous test: stepping past the
+    // default window must not silently undercount arrivals when the
+    // strategy is configured for a longer one.
+    use crate::dispatch::BuiltinReposition;
+    use crate::dispatch::reposition::PredictiveParking;
+    use crate::ids::GroupId;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let long_window = DEFAULT_ARRIVAL_WINDOW_TICKS * 3;
+    sim.set_reposition(
+        GroupId(0),
+        Box::new(PredictiveParking::with_window_ticks(long_window)),
+        BuiltinReposition::PredictiveParking,
+    );
+
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+
+    // Step past the default window but well within the strategy's.
+    let target = DEFAULT_ARRIVAL_WINDOW_TICKS + 500;
+    while sim.current_tick() < target {
+        sim.step();
+    }
+
+    let origin = sim.stop_entity(StopId(0)).unwrap();
+    let count = sim
+        .world()
+        .resource::<ArrivalLog>()
+        .unwrap()
+        .arrivals_in_window(origin, sim.current_tick(), long_window);
+    assert_eq!(
+        count, 2,
+        "arrivals must survive in the log for the strategy's full window"
+    );
+}
+
+#[test]
 fn dispatch_manifest_exposes_recent_arrivals() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();

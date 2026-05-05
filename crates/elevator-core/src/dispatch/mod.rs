@@ -1458,6 +1458,22 @@ pub trait RepositionStrategy: Send + Sync {
     fn builtin_id(&self) -> Option<BuiltinReposition> {
         None
     }
+
+    /// Minimum [`ArrivalLog`](crate::arrival_log::ArrivalLog) retention
+    /// (in ticks) the strategy needs to function. Strategies that read
+    /// the log directly with a custom rolling window must override this
+    /// so [`Simulation::set_reposition`](crate::sim::Simulation::set_reposition)
+    /// can widen
+    /// [`ArrivalLogRetention`](crate::arrival_log::ArrivalLogRetention)
+    /// to keep the data alive long enough for the query.
+    ///
+    /// Default `0` — strategies that don't read the arrival log (or that
+    /// only consume it through [`DispatchManifest::arrivals_at`], which
+    /// already tracks retention) impose no requirement.
+    #[must_use]
+    fn min_arrival_log_window(&self) -> u64 {
+        0
+    }
 }
 
 /// Serializable identifier for built-in repositioning strategies.

@@ -126,11 +126,24 @@ impl super::Simulation {
     }
 
     /// Set how far back the arrival log retains entries before
-    /// `advance_tick` prunes them. Strategies querying a window longer
-    /// than the default (`5` minutes at 60 Hz, see
-    /// [`DEFAULT_ARRIVAL_WINDOW_TICKS`](crate::arrival_log::DEFAULT_ARRIVAL_WINDOW_TICKS))
-    /// must call this with a matching retention or they will silently
-    /// see only the last 5 minutes of arrivals.
+    /// `advance_tick` prunes them.
+    ///
+    /// [`set_reposition`](super::Simulation::set_reposition) auto-widens
+    /// retention to the installed strategy's
+    /// [`min_arrival_log_window`](crate::dispatch::RepositionStrategy::min_arrival_log_window),
+    /// so most callers don't need this. Reach for it only when retention
+    /// must differ from any strategy's window — tests, custom consumers
+    /// reading [`ArrivalLog`](crate::arrival_log::ArrivalLog) directly,
+    /// or to pre-stage retention before installing a strategy.
+    ///
+    /// ## Footgun
+    /// Calling this *after* `set_reposition` with a value smaller than
+    /// the installed strategy's window silently re-introduces the
+    /// truncation bug `set_reposition` was designed to avoid: the
+    /// strategy will see only the last `retention_ticks` of arrivals,
+    /// not its configured window. The setter trusts the caller; if you
+    /// only want to ensure retention is at least N ticks, do
+    /// `max(N, current_retention)` at the call site.
     pub fn set_arrival_log_retention_ticks(&mut self, retention_ticks: u64) {
         if let Some(r) = self
             .world
