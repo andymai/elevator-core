@@ -241,3 +241,103 @@ fn rejects_empty_line_serves() {
         "empty line.serves should be rejected, got {result:?}"
     );
 }
+
+// ===== schema_version validation (#654) =====
+
+#[test]
+fn rejects_legacy_zero_schema_version() {
+    use super::helpers;
+    // `serde(default)` deserializes a missing schema_version field as
+    // `0`. The validator must surface this as an explicit migration
+    // prompt, not a silent serde-default smear.
+    let mut config = helpers::default_config();
+    config.schema_version = 0;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "schema_version",
+                ..
+            })
+        ),
+        "schema_version=0 must be rejected with a migration hint, got {result:?}"
+    );
+}
+
+#[test]
+fn rejects_forward_incompatible_schema_version() {
+    use super::helpers;
+    let mut config = helpers::default_config();
+    config.schema_version = crate::config::CURRENT_CONFIG_SCHEMA_VERSION + 1;
+    let result = crate::sim::Simulation::new(&config, helpers::scan());
+    assert!(
+        matches!(
+            result,
+            Err(SimError::InvalidConfig {
+                field: "schema_version",
+                ..
+            })
+        ),
+        "schema_version > CURRENT must be rejected as forward-incompatible, got {result:?}"
+    );
+}
+
+#[test]
+fn accepts_current_schema_version() {
+    use super::helpers;
+    let config = helpers::default_config();
+    assert_eq!(
+        config.schema_version,
+        crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+        "test fixture must pin to current version so this test isn't vacuous"
+    );
+    assert!(crate::sim::Simulation::new(&config, helpers::scan()).is_ok());
+}
+
+#[test]
+fn ron_without_schema_version_field_deserializes_to_zero() {
+    // The `#[serde(default)]` contract: a RON file with no
+    // schema_version field must deserialize successfully but with
+    // schema_version=0, which the validator then catches.
+    let ron_str = r#"
+        SimConfig(
+            building: BuildingConfig(
+                name: "Legacy",
+                stops: [
+                    StopConfig(id: StopId(0), name: "G", position: 0.0),
+                ],
+            ),
+            elevators: [],
+            simulation: SimulationParams(ticks_per_second: 60.0),
+            passenger_spawning: PassengerSpawnConfig(
+                mean_interval_ticks: 120,
+                weight_range: (50.0, 100.0),
+            ),
+        )
+    "#;
+    let config: SimConfig = ron::from_str(ron_str).expect("legacy RON deserializes");
+    assert_eq!(
+        config.schema_version, 0,
+        "RON without schema_version field must deserialize as 0, the legacy marker"
+    );
+}
+
+#[test]
+fn shipped_assets_pin_to_current_schema_version() {
+    // Every config under assets/config/ must declare the current
+    // version explicitly; otherwise the asset itself becomes a legacy
+    // file the next time someone bumps CURRENT_CONFIG_SCHEMA_VERSION.
+    for asset in [
+        include_str!("../../../../assets/config/default.ron"),
+        include_str!("../../../../assets/config/space_elevator.ron"),
+        include_str!("../../../../assets/config/annotated.ron"),
+    ] {
+        let config: SimConfig = ron::from_str(asset).expect("shipped asset deserializes");
+        assert_eq!(
+            config.schema_version,
+            crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+            "shipped asset must pin to CURRENT_CONFIG_SCHEMA_VERSION"
+        );
+    }
+}

@@ -734,6 +734,32 @@ impl Simulation {
 
     /// Validate configuration before constructing the simulation.
     pub(crate) fn validate_config(config: &SimConfig) -> Result<(), SimError> {
+        // Schema-version gate: reject forward-incompatible configs (a
+        // future build's RON would silently mis-deserialize fields a
+        // current build doesn't know about) and surface legacy
+        // pre-versioning configs (`schema_version = 0`) as an explicit
+        // upgrade prompt rather than a silent serde-default smear. See
+        // `docs/src/config-versioning.md` for the migration playbook.
+        if config.schema_version > crate::config::CURRENT_CONFIG_SCHEMA_VERSION {
+            return Err(SimError::InvalidConfig {
+                field: "schema_version",
+                reason: format!(
+                    "config schema_version={} is newer than this build's CURRENT_CONFIG_SCHEMA_VERSION={}; upgrade elevator-core or downgrade the config",
+                    config.schema_version,
+                    crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+                ),
+            });
+        }
+        if config.schema_version == 0 {
+            return Err(SimError::InvalidConfig {
+                field: "schema_version",
+                reason: format!(
+                    "config schema_version=0 (pre-versioning legacy file) — set schema_version: {} explicitly after auditing field defaults; see docs/src/config-versioning.md",
+                    crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+                ),
+            });
+        }
+
         if config.building.stops.is_empty() {
             return Err(SimError::InvalidConfig {
                 field: "building.stops",

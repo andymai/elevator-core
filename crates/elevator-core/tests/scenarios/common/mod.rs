@@ -67,6 +67,7 @@ pub fn canonical_building() -> SimConfig {
         .collect();
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Canonical".into(),
             stops,
@@ -112,6 +113,7 @@ pub fn twin_shaft_building() -> SimConfig {
     };
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Twin Shaft".into(),
             stops: vec![
@@ -157,6 +159,7 @@ pub fn twin_shaft_building() -> SimConfig {
 #[must_use]
 pub fn compact_building() -> SimConfig {
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Compact".into(),
             stops: vec![

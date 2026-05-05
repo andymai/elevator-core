@@ -12,6 +12,7 @@
 use elevator_wasm::{WasmBytesResult, WasmSim, WasmU64Result};
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Checksum",
         stops: [

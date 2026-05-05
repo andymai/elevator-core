@@ -18,6 +18,7 @@ mod common;
 
 fn basic_config() -> SimConfig {
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Basic".into(),
             stops: vec![

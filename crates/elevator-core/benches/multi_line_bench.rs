@@ -106,6 +106,7 @@ fn multi_group_config(
     }
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "MultiLineBench".into(),
             stops,
@@ -145,6 +146,7 @@ fn single_group_config(num_stops: u32, num_elevators: u32) -> SimConfig {
         .collect();
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "SingleGroupBench".into(),
             stops,

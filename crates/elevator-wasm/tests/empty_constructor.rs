@@ -31,6 +31,7 @@ fn empty_has_no_lines_or_elevators_or_stops() {
     };
     let populated = WasmSim::new(
         r#"SimConfig(
+            schema_version: 1,
             building: BuildingConfig(
                 name: "P",
                 stops: [

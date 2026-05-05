@@ -27,6 +27,7 @@ fn demo_builder_produces_valid_sim() {
 #[test]
 fn from_config_produces_valid_sim() {
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Test".into(),
             stops: vec![
@@ -181,6 +182,7 @@ fn from_config_honours_config_group_dispatch() {
     use crate::ids::GroupId;
 
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "DispatchPrecedence".into(),
             stops: vec![
@@ -268,6 +270,7 @@ fn from_config_dispatch_override_records_dispatcher_identity() {
     use crate::ids::GroupId;
 
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "DispatchOverride".into(),
             stops: vec![

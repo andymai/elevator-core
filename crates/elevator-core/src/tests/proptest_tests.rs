@@ -202,6 +202,7 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
         .collect();
 
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Proptest Building".into(),
             stops,
@@ -314,6 +315,7 @@ proptest! {
         use crate::stop::{StopConfig, StopId};
 
         let config = SimConfig {
+            schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
             building: BuildingConfig {
                 name: "Cap test".into(),
                 stops: vec![

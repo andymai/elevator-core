@@ -5,12 +5,33 @@ use crate::dispatch::{BuiltinReposition, BuiltinStrategy, HallCallMode};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
 
+/// Schema version of [`SimConfig`].
+///
+/// Bumped when the RON shape changes in a way that legacy
+/// `assets/config/*.ron` would silently mis-deserialize (a removed
+/// field, a renamed field, a changed default that materially alters
+/// behaviour). Pre-versioning configs deserialize to `0` via
+/// `#[serde(default)]` and validation flags them as legacy so
+/// consumers can migrate explicitly. See `docs/src/config-versioning.md`
+/// for the full bump-trigger policy and migration playbook.
+pub const CURRENT_CONFIG_SCHEMA_VERSION: u32 = 1;
+
 /// Top-level simulation configuration, loadable from RON.
 ///
 /// Validated at construction time by [`Simulation::new()`](crate::sim::Simulation::new)
 /// or [`SimulationBuilder::build()`](crate::builder::SimulationBuilder::build).
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimConfig {
+    /// Schema version of this config. Use [`CURRENT_CONFIG_SCHEMA_VERSION`]
+    /// for new configs; `0` (the `#[serde(default)]`) marks a legacy
+    /// pre-versioning RON file. Validation rejects versions strictly
+    /// greater than the current version (forward-incompatible) and
+    /// surfaces a `legacy_config: 0` reason for `0` so the consumer
+    /// has to opt in to running pre-versioning configs.
+    ///
+    /// See `docs/src/config-versioning.md` for the bump policy.
+    #[serde(default)]
+    pub schema_version: u32,
     /// Building layout describing the stops (floors/stations) along the shaft.
     pub building: BuildingConfig,
     /// Elevator cars to install in the building.
@@ -27,6 +48,24 @@ pub struct SimConfig {
     /// The core library does not consume these directly; they are stored here
     /// for games and traffic generators that read the config.
     pub passenger_spawning: PassengerSpawnConfig,
+}
+
+impl Default for SimConfig {
+    /// A fresh `SimConfig` pinned to [`CURRENT_CONFIG_SCHEMA_VERSION`].
+    ///
+    /// Programmatically-built configs always start at the current
+    /// version; the legacy `0` marker is reserved for RON files that
+    /// pre-date the version field, where it surfaces via
+    /// `#[serde(default)]` on missing input.
+    fn default() -> Self {
+        Self {
+            schema_version: CURRENT_CONFIG_SCHEMA_VERSION,
+            building: BuildingConfig::default(),
+            elevators: Vec::new(),
+            simulation: SimulationParams::default(),
+            passenger_spawning: PassengerSpawnConfig::default(),
+        }
+    }
 }
 
 /// Building layout.

@@ -10,6 +10,7 @@
 // `SimConfig` schema as the others; the contract harness can
 // optionally wrap it in a runtime add_group call.
 SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Mixed Tower",
         stops: [

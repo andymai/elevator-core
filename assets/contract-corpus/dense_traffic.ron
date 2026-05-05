@@ -4,6 +4,7 @@
 // harness to exercise the dispatcher's tie-breaking, the loading
 // phase, and the rider-abandonment path under saturation.
 SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Dense Tower",
         stops: [

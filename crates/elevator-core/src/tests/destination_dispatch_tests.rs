@@ -16,6 +16,7 @@ use crate::stop::{StopConfig, StopId};
 /// Single-elevator 3-stop config.
 fn single_car_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "DCS Test".into(),
             stops: vec![
@@ -71,6 +72,7 @@ fn single_car_config() -> SimConfig {
 /// 4-stop, 1-line, 2-car config. Both cars serve all 4 stops in the same group.
 fn two_cars_same_group_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "DCS Two Car".into(),
             stops: vec![
@@ -746,6 +748,7 @@ fn single_car_heavy_load_drains_within_tick_budget() {
     // up-front so the dispatcher sees the full workload at tick 0.
     const TICK_BUDGET: u64 = 8_000;
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "DCS Heavy Load".into(),
             stops: (0..4)

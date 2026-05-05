@@ -862,6 +862,7 @@ fn weight_rejection_boundary() {
 
     // 2 stops, 1 elevator with capacity 100.0.
     let config = crate::config::SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: crate::config::BuildingConfig {
             name: "WeightTest".into(),
             stops: vec![
@@ -943,6 +944,7 @@ fn passing_floor_events_emitted() {
     // Setup: 5 stops, elevator going from stop 0 (pos 0) to stop 4 (pos 40).
     // Should pass through stops 1-3 along the way.
     let config = crate::config::SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: crate::config::BuildingConfig {
             name: "PassFloor".into(),
             stops: vec![
