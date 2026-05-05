@@ -14,6 +14,15 @@ import { ControllerError } from "./controller-error";
 import { requireElement } from "./dom-utils";
 import { mountQuestEditor, type QuestEditor } from "./editor";
 import { renderHints, wireHintsDrawer, type HintsDrawerHandles } from "./hints-drawer";
+import {
+  createQuestState,
+  isRunStillBound,
+  setActiveStage,
+  setCurrentView,
+  stopRunLoop,
+  type QuestState,
+  type QuestView,
+} from "./quest-state";
 import { renderQuestGrid, wireQuestGrid, type QuestGridHandles } from "./quest-grid";
 import {
   renderReferencePanel,
@@ -29,6 +38,8 @@ import type { Stage } from "./stages";
 import { clearCode, loadBestStars, loadCode, saveBestStars, saveCode } from "./storage";
 import { CanvasRenderer } from "../../render";
 import type { Snapshot } from "../../types";
+
+export type { QuestView } from "./quest-state";
 
 /** Accent for car bodies in the Quest shaft visualization. */
 const QUEST_SHAFT_ACCENT = "#f59e0b";
@@ -60,9 +71,6 @@ export interface QuestPaneHandles {
   /** Idle-state overlay shown when no run is in flight. */
   readonly shaftIdle: HTMLElement;
 }
-
-/** Top-level Quest view modes. */
-export type QuestView = "grid" | "stage";
 
 /**
  * Wire the Quest pane DOM. Throws if any expected anchor is missing —
@@ -104,26 +112,14 @@ export function renderStage(handles: QuestPaneHandles, stage: Stage): void {
 /**
  * Toggle which view (grid or stage) is visible. Called from both
  * the boot decision and the back-button / card-click handlers.
- * Idempotent. The current value is also tracked separately by
- * `bootQuestPane` so run-completion guards can suppress UI updates
- * when the player has navigated to the grid mid-run.
+ * Idempotent. State-tracking lives in [`QuestState`](./quest-state.ts);
+ * this helper only flips DOM classes.
  */
-function setView(handles: QuestPaneHandles, view: QuestView): void {
+function setViewDom(handles: QuestPaneHandles, view: QuestView): void {
   handles.gridView.classList.toggle("hidden", view !== "grid");
   handles.gridView.classList.toggle("flex", view === "grid");
   handles.stageView.classList.toggle("hidden", view !== "stage");
   handles.stageView.classList.toggle("flex", view === "stage");
-}
-
-/**
- * Shared mutable flag so the stage-change / back-to-grid handlers
- * can stop an in-flight run's rAF loop. Without it, the loop's
- * closure-local flag stays `true` after navigation and keeps
- * painting the previous stage's snapshot through the (transparent)
- * idle overlay on whatever view follows.
- */
-interface RunLoop {
-  active: boolean;
 }
 
 /**
@@ -157,27 +153,24 @@ export async function bootQuestPane(opts: {
     return fallback;
   };
 
-  let activeStage = resolveStage(opts.initialStageId);
-  /**
-   * Mirror of the visible view. Tracked alongside `activeStage` so
-   * an in-flight run that completes after the player has clicked
-   * "← Stages" can suppress its results modal — `activeStage.id ===
-   * stage.id` alone wouldn't catch this, since `enterGrid` doesn't
-   * change `activeStage`.
-   */
-  let currentView: QuestView = "grid";
-  renderStage(handles, activeStage);
+  // QuestState owns `activeStage`, `currentView`, and the rAF kill
+  // switch — the trio of mutable bindings that used to live as
+  // closure-captured `let` variables in this function. Centralising
+  // them lets handlers/runner read and write through one record
+  // instead of stacking captures.
+  const state: QuestState = createQuestState(resolveStage(opts.initialStageId), "grid");
+  renderStage(handles, state.activeStage);
 
   // Side panel: list the methods unlocked at the active stage.
   const apiPanel: ApiPanelHandles = wireApiPanel();
-  renderApiPanel(apiPanel, activeStage);
+  renderApiPanel(apiPanel, state.activeStage);
   // Hints drawer: collapsed-by-default progressive nudges.
   const hints: HintsDrawerHandles = wireHintsDrawer();
-  renderHints(hints, activeStage);
+  renderHints(hints, state.activeStage);
   // Reference solution: hidden until the player passes the active
   // stage at least once.
   const reference: ReferencePanelHandles = wireReferencePanel();
-  renderReferencePanel(reference, activeStage);
+  renderReferencePanel(reference, state.activeStage);
   // Grid view: re-rendered on initial mount and after every grade so
   // a fresh star count propagates to the cards.
   const grid: QuestGridHandles = wireQuestGrid();
@@ -190,7 +183,6 @@ export async function bootQuestPane(opts: {
   // `dispose()` is intentionally never called since there's no
   // remount path that would benefit.
   const shaftRenderer = new CanvasRenderer(handles.shaft, QUEST_SHAFT_ACCENT);
-  const runLoop: RunLoop = { active: false };
 
   // Disable Run while the Monaco bundle loads so a click before
   // mount completes doesn't run against an undefined editor.
@@ -199,7 +191,7 @@ export async function bootQuestPane(opts: {
   handles.result.textContent = "Loading editor…";
   const editor = await mountQuestEditor({
     container: handles.editorHost,
-    initialValue: loadCode(activeStage.id) ?? activeStage.starterCode,
+    initialValue: loadCode(state.activeStage.id) ?? state.activeStage.starterCode,
     language: "typescript",
   });
   handles.runBtn.disabled = false;
@@ -220,7 +212,7 @@ export async function bootQuestPane(opts: {
     if (suppressSave) return;
     if (saveTimer !== null) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      saveCode(activeStage.id, editor.getValue());
+      saveCode(state.activeStage.id, editor.getValue());
       saveTimer = null;
     }, SAVE_DEBOUNCE_MS);
   };
@@ -228,7 +220,7 @@ export async function bootQuestPane(opts: {
     if (saveTimer === null) return;
     clearTimeout(saveTimer);
     saveTimer = null;
-    saveCode(activeStage.id, editor.getValue());
+    saveCode(state.activeStage.id, editor.getValue());
   };
   const setEditorSilently = (text: string): void => {
     suppressSave = true;
@@ -244,11 +236,11 @@ export async function bootQuestPane(opts: {
 
   // Snippet chips are rendered per-stage and re-rendered on swap.
   const snippets: SnippetPickerHandles = wireSnippetPicker();
-  renderSnippets(snippets, activeStage, editor);
+  renderSnippets(snippets, state.activeStage, editor);
 
   /** Snap any in-flight run's rAF loop and reset the canvas to idle. */
   const stopLoopAndResetCanvas = (): void => {
-    runLoop.active = false;
+    stopRunLoop(state);
     handles.shaftIdle.hidden = false;
     const ctx = handles.shaft.getContext("2d");
     if (ctx) ctx.clearRect(0, 0, handles.shaft.width, handles.shaft.height);
@@ -257,7 +249,7 @@ export async function bootQuestPane(opts: {
   /** Common prep when transitioning into a new stage's editor view. */
   const enterStage = (next: Stage, { fromGrid }: { fromGrid: boolean }): void => {
     flushSave();
-    activeStage = next;
+    setActiveStage(state, next);
     renderStage(handles, next);
     renderApiPanel(apiPanel, next);
     renderHints(hints, next);
@@ -271,8 +263,8 @@ export async function bootQuestPane(opts: {
     handles.result.textContent = "";
     handles.progress.textContent = "";
     stopLoopAndResetCanvas();
-    setView(handles, "stage");
-    currentView = "stage";
+    setViewDom(handles, "stage");
+    setCurrentView(state, "stage");
     // Notify boot.ts so the permalink picks up the new stage id.
     // `fromGrid` would skip this when the grid card click path
     // already handled URL sync — but today both paths funnel through
@@ -288,8 +280,8 @@ export async function bootQuestPane(opts: {
     stopLoopAndResetCanvas();
     handles.result.textContent = "";
     handles.progress.textContent = "";
-    setView(handles, "grid");
-    currentView = "grid";
+    setViewDom(handles, "grid");
+    setCurrentView(state, "grid");
     // Re-render the grid so star counts reflect any stages the
     // player just passed before backing out.
     renderQuestGrid(grid, (stageId) => {
@@ -308,13 +300,13 @@ export async function bootQuestPane(opts: {
   // Cold-boot view: stage if the caller asked for it (typically when
   // a `?qs=` permalink picked a specific stage), else grid.
   const initialView = opts.landOn ?? "grid";
-  setView(handles, initialView);
-  currentView = initialView;
+  setViewDom(handles, initialView);
+  setCurrentView(state, initialView);
 
-  // Run button — closure captures `activeStage` so a navigation
-  // between presses pulls the new stage cleanly.
+  // Run button — reads `state.activeStage` at click time so a
+  // navigation between presses pulls the new stage cleanly.
   const runOnce = async (): Promise<void> => {
-    const stage = activeStage;
+    const stage = state.activeStage;
     handles.runBtn.disabled = true;
     handles.result.textContent = "Running…";
     handles.progress.textContent = "";
@@ -329,9 +321,9 @@ export async function bootQuestPane(opts: {
     // between server-side updates.
     let latestSnap: Snapshot | null = null;
     let snapshotsRendered = 0;
-    runLoop.active = true;
+    state.runLoop.active = true;
     const renderTick = (): void => {
-      if (!runLoop.active) return;
+      if (!state.runLoop.active) return;
       if (latestSnap !== null) {
         shaftRenderer.draw(latestSnap, 1);
       }
@@ -344,24 +336,10 @@ export async function bootQuestPane(opts: {
       // Cap the controller's initial run at one second — long enough
       // for honest setup work, short enough that an infinite loop
       // bubbles up as a timeout.
-      // The "still active" predicate gates every player-facing UI
-      // update from a settling run. Both halves matter:
-      //
-      //   - `currentView === "stage"` — the player navigated to the
-      //     grid mid-run; pinning the modal over the curriculum
-      //     overview would be jarring and wrong.
-      //   - `activeStage.id === stage.id` — the player swapped to a
-      //     different stage; the outgoing run's result belongs to the
-      //     stage they left, not the one they're looking at now.
-      //
-      // Star banking happens unconditionally below — a passed run
-      // earns its stars regardless of where the player ended up.
-      const stillActive = (): boolean => currentView === "stage" && activeStage.id === stage.id;
-
       const result = await runStage(stage, editor.getValue(), {
         timeoutMs: 1000,
         onProgress: (grade) => {
-          if (!stillActive()) return;
+          if (!isRunStillBound(state, stage)) return;
           handles.progress.textContent = formatProgress(grade);
         },
         onSnapshot: (snap) => {
@@ -379,15 +357,15 @@ export async function bootQuestPane(opts: {
           renderQuestGrid(grid, (stageId) => {
             enterStage(resolveStage(stageId), { fromGrid: true });
           });
-          if (stillActive()) renderStage(handles, activeStage);
+          if (isRunStillBound(state, stage)) renderStage(handles, state.activeStage);
         }
-        if (stillActive()) {
+        if (isRunStillBound(state, stage)) {
           // Pass `collapse: false` so a panel the player already
           // expanded doesn't snap shut on a re-grade.
-          renderReferencePanel(reference, activeStage, { collapse: false });
+          renderReferencePanel(reference, state.activeStage, { collapse: false });
         }
       }
-      if (stillActive()) {
+      if (isRunStillBound(state, stage)) {
         handles.result.textContent = "";
         handles.progress.textContent = "";
         const next = result.passed ? nextStage(stage.id) : undefined;
@@ -399,7 +377,7 @@ export async function bootQuestPane(opts: {
         showResults(modal, result, () => void runOnce(), stage.failHint, onNext);
       }
     } catch (err) {
-      if (currentView === "stage" && activeStage.id === stage.id) {
+      if (isRunStillBound(state, stage)) {
         const msg = err instanceof Error ? err.message : String(err);
         // Errors stay inline — the modal is for graded outcomes.
         handles.result.textContent = `Error: ${msg}`;
@@ -421,7 +399,7 @@ export async function bootQuestPane(opts: {
       handles.runBtn.disabled = false;
       // Stop the rAF loop. The canvas keeps its last drawn frame so
       // the player can study the final state.
-      runLoop.active = false;
+      stopRunLoop(state);
       // Bring the idle overlay back only if no snapshot ever
       // rendered (e.g. controller threw before the first batch).
       // Clear the canvas in that branch so a previous run's frozen
@@ -440,10 +418,10 @@ export async function bootQuestPane(opts: {
   // Reset: drop the saved entry and rehydrate the starter. Confirm
   // first because it's destructive.
   handles.resetBtn.addEventListener("click", () => {
-    const ok = window.confirm(`Reset ${activeStage.title} to its starter code?`);
+    const ok = window.confirm(`Reset ${state.activeStage.title} to its starter code?`);
     if (!ok) return;
-    clearCode(activeStage.id);
-    setEditorSilently(activeStage.starterCode);
+    clearCode(state.activeStage.id);
+    setEditorSilently(state.activeStage.starterCode);
     // Drop any squiggle the previous code had — the new starter is
     // the canonical fresh state.
     editor.clearRuntimeMarker();
