@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-a79282a0.js";
+            window.path_to_searchindex_js = "searchindex-738032d6.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8a6882ef.js"></script>
+        <script src="toc-0cbcd585.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -4738,6 +4738,132 @@ for (uint32_t i = 0; i &lt; written; i++) {
 <li><a href="#stability-and-versioning">Stability and Versioning</a> — how API breaks are signaled across crates, and what the ABI version handshake protects against.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="binding-coverage-manifest"><a class="header" href="#binding-coverage-manifest">Binding Coverage Manifest</a></h1>
+<p>This page documents <code>bindings.toml</code> — the workspace-root manifest that
+records, for every public method on <code>impl Simulation</code>, whether and how
+each binding crate (FFI, wasm, gdext, Bevy, TUI, GMS) exposes it. CI
+enforces the file via <code>scripts/check-bindings.sh</code>; an unlisted method or
+a stale entry fails the workspace build.</p>
+<h2 id="why-it-exists"><a class="header" href="#why-it-exists">Why it exists</a></h2>
+<p>The core crate is the source of truth, and several host crates wrap it.
+Without a single contract, “fully supported in language X” drifts
+silently — a new core method ships, no binding picks it up, and consumers
+have to discover the gap by trying it. <code>bindings.toml</code> makes that
+decision explicit: every <code>pub fn</code> on <code>Simulation</code> either has a binding
+under each host or has a recorded reason for not having one.</p>
+<p>It is intentionally a <em>coverage</em> manifest, not a generator. Bindings are
+still hand-written so each host can shape its idiomatic surface; the
+manifest exists only to prevent silent drift.</p>
+<h2 id="taxonomy"><a class="header" href="#taxonomy">Taxonomy</a></h2>
+<p>Each entry is keyed by Rust method name and lists one status per host
+column (<code>wasm</code>, <code>ffi</code>, <code>tui</code>, <code>gms</code>, <code>gdext</code>, <code>bevy</code>). Three status
+shapes are accepted:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Status</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>&lt;exported-name&gt;</code></td><td>Bound. Value is the host-facing name (e.g. <code>stepMany</code>, <code>ev_sim_step</code>, the GDScript callable, the TUI panel that uses it).</td></tr>
+<tr><td><code>skip:&lt;reason&gt;</code></td><td>Intentionally not bound. The reason is mandatory and must explain <em>why</em> — lifetimes, internal detail, covered by a different binding, read-only viewer, etc.</td></tr>
+<tr><td><code>todo:&lt;phase&gt;</code></td><td>Planned for a named phase. CI accepts it (warning, not error); once that phase ships the entry flips to either an exported name or a skip.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Two phase markers are currently in use:</p>
+<ul>
+<li><code>plugin-layer</code> — used only in the <code>bevy</code> column. Until a Bevy plugin
+layer ships, every non-<code>internal</code> method’s <code>bevy</code> slot carries this
+marker. It is the <em>expected</em> state, not an actionable gap.</li>
+<li><code>future-binding</code> — used only in the <code>gdext</code> column. These are the
+real “pick this up next” queue entries.</li>
+</ul>
+<p>The check script breaks these out so <code>future-binding</code> work doesn’t get
+lost in <code>plugin-layer</code> noise.</p>
+<h2 id="categories"><a class="header" href="#categories">Categories</a></h2>
+<p>Every entry also carries a <code>category</code> field, which groups related
+methods so the manifest stays scannable as it grows. Definitions live in
+<code>[categories]</code> at the top of <code>bindings.toml</code>. The most useful ones to
+recognize when adding new methods:</p>
+<ul>
+<li><code>lifecycle</code> — construction, ticking, run-loops.</li>
+<li><code>dispatch</code> — strategy swap, pinning, ETA queries.</li>
+<li><code>riders</code>, <code>routes</code>, <code>topology</code>, <code>buttons</code> — domain mutations.</li>
+<li><code>introspection</code> — read-only world queries.</li>
+<li><code>parameters</code> — runtime tuning of speed/capacity/door timings.</li>
+<li><code>events</code>, <code>metrics</code>, <code>hooks</code>, <code>tagging</code> — observability.</li>
+<li><code>internal</code> — methods that return <code>&amp;World</code> / <code>&amp;mut World</code> or other
+internal slices and should never be bound.</li>
+</ul>
+<p>Choose the category that matches <em>what the method does for the host</em>,
+not the file it lives in.</p>
+<h2 id="workflow"><a class="header" href="#workflow">Workflow</a></h2>
+<h3 id="adding-a-new-simulation-method"><a class="header" href="#adding-a-new-simulation-method">Adding a new <code>Simulation</code> method</a></h3>
+<ol>
+<li>Land the implementation in <code>crates/elevator-core/src/sim.rs</code> (or
+<code>src/sim/*.rs</code>).</li>
+<li>In the same PR, add a new <code>[[methods]]</code> entry to <code>bindings.toml</code>
+alphabetized within its category section.</li>
+<li>Fill every host column. The default for a new method is usually
+<code>todo:future-binding</code> (gdext) and <code>todo:plugin-layer</code> (bevy); for
+<code>wasm</code>/<code>ffi</code>/<code>gms</code> you must either bind it now or write a <code>skip:</code>
+reason.</li>
+<li>Run <code>scripts/check-bindings.sh</code> locally — it’s also part of the
+pre-commit hook.</li>
+</ol>
+<h3 id="renaming-a-method"><a class="header" href="#renaming-a-method">Renaming a method</a></h3>
+<p>The manifest is keyed on the Rust method name. Renaming is a two-line
+edit: update the <code>name</code> field and (if the rename changes the host
+binding name) update each host’s exported name. CI catches the
+rename-without-update case as a <code>STALE</code> failure.</p>
+<h3 id="removing-a-method"><a class="header" href="#removing-a-method">Removing a method</a></h3>
+<p>Delete both the implementation and the manifest entry. CI fails on
+<code>STALE</code> entries (manifest references a method that no longer exists),
+which is the prompt to clean up.</p>
+<h3 id="choosing-skip-vs-todo"><a class="header" href="#choosing-skip-vs-todo">Choosing <code>skip</code> vs <code>todo</code></a></h3>
+<ul>
+<li>Use <code>skip:&lt;reason&gt;</code> when the method <em>cannot</em> be bound under that host
+— borrows internal state, exposes lifetimes a host can’t model, or is
+superseded by a different exported surface (e.g. wasm prefers a
+flattened DTO). The reason must read clearly enough that a future
+reader doesn’t think it’s a forgotten gap.</li>
+<li>Use <code>todo:&lt;phase&gt;</code> when binding is <em>deferred</em>, not refused. The phase
+string is what tells reviewers when to expect coverage.</li>
+</ul>
+<p>If the answer is “we just haven’t decided”, that’s a <code>todo:</code> until the
+decision is made.</p>
+<h2 id="worked-example"><a class="header" href="#worked-example">Worked example</a></h2>
+<p>A new method <code>Simulation::set_floor_pressure(&amp;mut self, stop: StopId, n: u32)</code>
+ships in <code>sim.rs</code>. The corresponding manifest entry:</p>
+<pre><code class="language-toml">[[methods]]
+name     = "set_floor_pressure"
+category = "parameters"
+wasm     = "setFloorPressure"
+ffi      = "ev_sim_set_floor_pressure"
+tui      = "skip:read-only viewer"
+gms      = "ev_sim_set_floor_pressure"
+gdext    = "todo:future-binding"
+bevy     = "todo:plugin-layer"
+</code></pre>
+<p>Reading left-to-right: bound under wasm, FFI, and GameMaker; skipped in
+the TUI because the TUI is a read-only viewer; queued for gdext under
+the standard future-binding phase; queued for bevy under the standard
+plugin-layer phase.</p>
+<h2 id="related"><a class="header" href="#related">Related</a></h2>
+<ul>
+<li><code>bindings.toml</code> — the manifest itself, with the current header comment
+kept in sync with this page.</li>
+<li><code>scripts/check-bindings.sh</code> — the CI gate.</li>
+<li><a href="#using-the-bindings">Using the Bindings</a> — host-facing usage docs.</li>
+</ul>
+<h2 id="next-steps-27"><a class="header" href="#next-steps-27">Next steps</a></h2>
+<ul>
+<li>Read <a href="#using-the-bindings">Using the Bindings</a> for hands-on usage of
+each host crate.</li>
+<li>Browse <code>bindings.toml</code> to see the current state of every method × host
+pair, and use the <code>future-binding</code> filter to find work to pick up.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="performance"><a class="header" href="#performance">Performance</a></h1>
 <p>This chapter covers complexity, memory, and practical scaling guidance. The core is designed to handle tens of thousands of riders per tick on a single thread, with per-tick cost dominated by the dispatch strategy you choose.</p>
 <h2 id="complexity-overview"><a class="header" href="#complexity-overview">Complexity overview</a></h2>
@@ -4906,7 +5032,7 @@ a 10x slowdown in loaded simulations.</p>
 <li><strong>GPU acceleration.</strong> Movement and dispatch are scalar – no SIMD or GPU backends.</li>
 <li><strong>Persistent indexes beyond per-stop population.</strong> If you need “all riders with extension X”, iterate and filter.</li>
 </ul>
-<h2 id="next-steps-27"><a class="header" href="#next-steps-27">Next steps</a></h2>
+<h2 id="next-steps-28"><a class="header" href="#next-steps-28">Next steps</a></h2>
 <ul>
 <li><a href="#bevy-integration">Bevy Integration</a> – a visual wrapper for rapid prototyping and debugging.</li>
 <li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> – save and restore simulation state for replay and testing.</li>
