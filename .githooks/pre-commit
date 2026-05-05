@@ -14,13 +14,24 @@ if echo "$staged" | grep -qvE '^playground/'; then
 fi
 
 if [ "$has_rust" = true ]; then
-    # Cargo.lock drift guard: staging Cargo.toml without Cargo.lock is almost
-    # always a mistake — the lockfile will be out of sync with deps.
-    if grep -qE '(^|/)Cargo\.toml$' <<<"$staged" \
-        && ! grep -qE '(^|/)Cargo\.lock$' <<<"$staged"; then
+    # Cargo.lock drift guard. Two complementary checks fire when
+    # Cargo.toml is staged:
+    #   (a) `cargo metadata --frozen` errors if the on-disk Cargo.lock
+    #       is inconsistent with Cargo.toml — catches the "both files
+    #       staged together but never rebuilt" case.
+    #   (b) `git diff --quiet Cargo.lock` catches the "Cargo.lock is
+    #       fresh on disk but the author forgot to stage it" case —
+    #       without this, the staged commit would capture a stale
+    #       lockfile snapshot.
+    if grep -qE '(^|/)Cargo\.toml$' <<<"$staged"; then
+        if ! cargo metadata --frozen --format-version 1 --quiet >/dev/null 2>&1; then
+            echo "pre-commit: Cargo.toml is staged but Cargo.lock is out of sync." >&2
+            echo "  Run 'cargo build' (or 'cargo update --workspace') to regenerate it, then re-stage." >&2
+            exit 1
+        fi
         if ! git diff --quiet Cargo.lock 2>/dev/null; then
             echo "pre-commit: Cargo.toml is staged but Cargo.lock has unstaged changes." >&2
-            echo "  Stage Cargo.lock too, or revert the Cargo.toml change." >&2
+            echo "  Stage Cargo.lock too." >&2
             exit 1
         fi
     fi
