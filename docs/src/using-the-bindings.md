@@ -1,25 +1,27 @@
 # Using the Bindings
 
-`elevator-core` is a Rust library, but the simulation is also exposed through two non-Rust binding crates so games and tools written in other languages can drive it without a Rust toolchain in their build pipeline:
+`elevator-core` is a Rust library, but the simulation is also exposed through several non-Rust binding crates so games and tools written in other languages can drive it without a Rust toolchain in their build pipeline:
 
 | Crate | Surface | Audience |
 |---|---|---|
 | `elevator-wasm` | `wasm-bindgen` exports + auto-generated TypeScript types | Browser playgrounds, JS/TS games, web dashboards |
 | `elevator-ffi` | C ABI shared library + auto-generated `elevator_ffi.h` | Unity (P/Invoke), .NET, native C/C++ harnesses |
+| `elevator-gdext` | gdext-registered Godot `Node` (`ElevatorSim`) | Godot games / GDScript prototypes |
+| GameMaker GML wrapper | Generated GML scripts wrapping `elevator-ffi` | GameMaker Studio 2 projects |
 
-Both bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.
+All bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.
 
 ## Coverage and stability
 
 The set of `Simulation` methods exposed through each binding is enumerated in [`bindings.toml`](https://github.com/andymai/elevator-core/blob/main/bindings.toml) at the workspace root. CI verifies the file is in sync with `pub fn` declarations, so a new core method cannot ship without an explicit decision about whether it is bound and how.
 
-Three statuses are valid per cell (one for `wasm`, one for `ffi`):
+Three statuses are valid per cell (one column per host: `wasm`, `ffi`, `tui`, `gms`, `gdext`, `bevy`):
 
 - An exported name (`stepMany`, `ev_sim_step`) means the method is bound under that name.
 - `skip:<reason>` means the method is intentionally not bound. The reason is mandatory and documents *why* (lifetime, internal detail, covered by another binding, etc.).
 - `todo:<phase>` is a temporary status during phased rollout.
 
-At the time of this chapter both bindings are at full coverage of the public surface — no `todo:` rows remain. Any future additions to `Simulation` will appear there before they ship.
+At the time of this chapter the wasm and FFI columns are at full coverage of the public surface; the gdext and bevy columns carry `todo:` markers for methods queued under the `future-binding` and `plugin-layer` phases respectively (see [Binding Coverage Manifest](binding-coverage.md) for the per-phase breakdown). Any future additions to `Simulation` will surface there before they ship.
 
 ## elevator-wasm
 
@@ -251,6 +253,66 @@ Each `EvSim` handle is **not** `Sync`. Callers must serialize all calls on a sin
 - `EvSim*` handles are owned by the caller. Create with `ev_sim_create` (or `ev_sim_create_from_config`); destroy with `ev_sim_destroy`. Failing to destroy leaks the underlying simulation.
 - `ev_sim_frame` returns pointers into an internal buffer owned by the handle. **Those pointers are valid only until the next call to `ev_sim_frame` on the same handle.** Do not retain them across frames; copy what you need.
 - The string from `ev_last_error` is valid only until the next FFI call on the same thread.
+
+## elevator-gdext
+
+The gdext binding registers an `ElevatorSim` node that GDScript can use directly — no FFI ceremony, no manual handle management. Build with `cargo build -p elevator-gdext --release`; the resulting `cdylib` is loaded by Godot via the standard `.gdextension` manifest.
+
+### ABI handshake against elevator-ffi
+
+`elevator-gdext` is pinned against a specific `elevator-ffi` ABI generation. The pin is exposed as a public constant (`ABI_VERSION`) and watched by `scripts/check-abi-pins.sh` in CI: any drift between this constant and `EV_ABI_VERSION` in the FFI header fails the gate, surfacing a stale gdext pin before runtime. GDScript callers that want to verify the binding's ABI generation can read the constant via the registered `Node` API.
+
+### Node API
+
+`ElevatorSim` is a Godot `Node` subclass. Attach it to your scene tree, set the exported properties, and the sim ticks itself in `_process`:
+
+```gdscript
+extends Node
+@export var elevator: ElevatorSim
+func _ready():
+    elevator.config_path = "/path/to/default.ron"
+    elevator.speed_multiplier = 1
+    elevator.auto_spawn = true
+```
+
+| Exported property      | Type     | Description                              |
+|------------------------|----------|------------------------------------------|
+| `config_path`          | `String` | Filesystem path to a RON config          |
+| `speed_multiplier`     | `i32`    | Sim steps per frame (`0` = paused)       |
+| `auto_spawn`           | `bool`   | Whether to auto-spawn riders             |
+| `spawn_interval_ticks` | `i32`    | Mean ticks between auto-spawns           |
+| `weight_min`           | `f64`    | Minimum auto-spawn rider weight          |
+| `weight_max`           | `f64`    | Maximum auto-spawn rider weight          |
+
+Methods exposed to GDScript fall into a small set of groups (full per-method coverage lives in `bindings.toml`):
+
+- **Rider management** — `spawn_rider`, `spawn_rider_ex`, `despawn_rider`
+- **Strategy** — `set_strategy`
+- **Per-frame reads** — `current_tick`, `stop_count`, `elevator_count`, `rider_count`, `get_stop`, `get_elevator`, `get_rider`, `get_metrics`, `eta_to_stop`, `drain_events`
+
+The set is intentionally narrower than wasm/FFI: methods that have no idiomatic GDScript shape (`Option<T>` returns, raw byte snapshots, custom dispatch trait objects) are listed as `todo:future-binding` in `bindings.toml`. Picking up a `future-binding` row is the way to broaden gdext coverage.
+
+### Memory ownership
+
+The Godot scene tree owns the `ElevatorSim` node; the underlying `Simulation` is dropped automatically when the node leaves the tree. There is no caller-side `destroy` call — adopting the gdext binding into an existing C-style flow generally means letting Godot manage lifetimes.
+
+## elevator-ffi-gms (GameMaker Studio 2 wrapper)
+
+The GameMaker binding is a thin GML wrapper around `elevator-ffi`. The C entry points (`ev_sim_*`) are declared via `external_define` and exposed to GML under the same names; the codegen step in `crates/elevator-layout-codegen` emits the matching GML record-readers from the same `MultiHostLayout` metadata that drives the Unity / .NET shapes.
+
+The GMS column in `bindings.toml` typically mirrors the FFI column 1:1 — when an `ev_sim_*` is bound under FFI, the GML wrapper exists. The few `skip:` entries on GMS exist where GameMaker's type system can't represent the underlying shape (e.g. raw byte buffers).
+
+A worked example, calling `ev_sim_step` from GameMaker:
+
+```gml
+// In a Create event, after external_define has registered ev_sim_step:
+var status = ev_sim_step(global.sim_handle);
+if (status != 0) {
+    show_debug_message("step failed: " + ev_last_error());
+}
+```
+
+Because the GML side calls into `elevator-ffi` directly, the same memory-ownership and thread-safety rules from the FFI section apply unchanged.
 
 ## Common patterns across both bindings
 
