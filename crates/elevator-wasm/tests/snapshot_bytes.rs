@@ -15,6 +15,7 @@
 use elevator_wasm::{WasmBytesResult, WasmSim};
 
 const SCENARIO: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Snapshot Round-Trip",
         stops: [

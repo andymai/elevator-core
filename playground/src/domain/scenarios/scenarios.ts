@@ -112,6 +112,7 @@ const convention: ScenarioMeta = {
   passengerMeanIntervalTicks: 30,
   passengerWeightRange: [55.0, 100.0],
   ron: `SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Convention Center",
         stops: [
@@ -389,6 +390,7 @@ function buildSkyscraperRon(): string {
                 ),`;
 
   return `SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Skyscraper",
         stops: [
@@ -638,6 +640,7 @@ const spaceElevator: ScenarioMeta = {
     showDayNight: false,
   },
   ron: `SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Orbital Tether",
         stops: [

@@ -107,6 +107,7 @@ impl SimulationBuilder {
     #[must_use]
     pub fn new() -> Self {
         let config = SimConfig {
+            schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
             building: BuildingConfig {
                 name: "Untitled".into(),
                 stops: Vec::new(),

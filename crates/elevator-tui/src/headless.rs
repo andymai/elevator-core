@@ -164,6 +164,7 @@ mod tests {
         // hand-roll one matching the demo topology for the Poisson
         // source. Mirrors what builder::demo configures internally.
         let config = SimConfig {
+            schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
             building: elevator_core::config::BuildingConfig {
                 name: "Demo".into(),
                 stops: vec![

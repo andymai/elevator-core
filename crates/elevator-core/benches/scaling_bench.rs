@@ -36,6 +36,7 @@ fn make_config(num_stops: u32, num_elevators: u32) -> SimConfig {
         .collect();
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Scaling".into(),
             stops,

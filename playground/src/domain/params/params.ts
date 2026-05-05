@@ -194,6 +194,7 @@ export function buildScenarioRon(scenario: ScenarioMeta, overrides: Overrides): 
     .join("\n");
 
   return `SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: ${ronString(scenario.buildingName)},
         stops: [

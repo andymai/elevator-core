@@ -273,6 +273,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = empty)]
     pub fn empty(strategy: &str, reposition: Option<String>) -> Result<Self, JsError> {
         const MINIMAL: &str = r#"SimConfig(
+            schema_version: 1,
             building: BuildingConfig(
                 name: "Empty",
                 stops: [StopConfig(id: StopId(0), name: "_seed", position: 0.0)],

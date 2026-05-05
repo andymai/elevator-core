@@ -5,6 +5,7 @@
 // the dispatcher. Useful for catching off-by-one / saturation
 // regressions that don't manifest at moderate load.
 SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Skyscraper",
         stops: [

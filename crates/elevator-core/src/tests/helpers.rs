@@ -7,6 +7,7 @@ use crate::stop::{StopConfig, StopId};
 /// Standard 3-stop, 1-elevator test config.
 pub fn default_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Test Building".into(),
             stops: vec![
@@ -111,6 +112,7 @@ pub fn multi_floor_config(stops: usize, cars: usize) -> SimConfig {
         })
         .collect();
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: format!("{stops}-stop test building"),
             stops: stop_configs,

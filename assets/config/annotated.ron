@@ -2,6 +2,12 @@
 // All fields are required unless noted otherwise.
 
 SimConfig(
+    // Schema version of this config file. Bumped when the RON shape
+    // changes incompatibly. Pre-versioning configs (no field) deserialize
+    // to 0, which `Simulation::new` rejects with an explicit migration
+    // hint. See docs/src/config-versioning.md for the bump policy.
+    schema_version: 1,
+
     building: BuildingConfig(
         // Human-readable building name (for display/logging).
         name: "Demo Tower",

@@ -426,6 +426,7 @@ const OFFICE_PHASES: &[Phase] = &[
 ];
 
 const OFFICE_RON: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Mid-Rise Office",
         stops: [
@@ -511,6 +512,7 @@ const SKY_PHASES: &[Phase] = &[
 ];
 
 const SKY_RON: &str = r#"SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Skyscraper (Sky Lobby)",
         stops: [

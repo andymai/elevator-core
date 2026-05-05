@@ -1,4 +1,5 @@
 SimConfig(
+    schema_version: 1,
     building: BuildingConfig(
         name: "Orbital Tether",
         stops: [

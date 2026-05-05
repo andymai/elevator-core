@@ -86,6 +86,7 @@ fn make_config() -> SimConfig {
         .collect();
 
     SimConfig {
+        schema_version: elevator_core::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Bench".into(),
             stops,

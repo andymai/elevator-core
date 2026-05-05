@@ -13,6 +13,7 @@ use crate::stop::{StopConfig, StopId};
 
 fn three_stop_config() -> SimConfig {
     SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Reroute".into(),
             stops: vec![
@@ -129,6 +130,7 @@ fn disable_stop_emits_route_invalidated_event() {
 fn disable_only_stop_causes_abandonment() {
     // Config with only 2 stops. Disable the destination — no alternative.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Two".into(),
             stops: vec![
@@ -397,6 +399,7 @@ fn remove_only_destination_with_riding_passenger_returns_to_origin() {
     // back to the origin and the car turns around to deliver them. This
     // is the graceful "demolish destination floor" outcome — no deadlock.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Two".into(),
             stops: vec![
@@ -471,6 +474,7 @@ fn remove_stop_without_alternative_emits_stop_removed_not_no_alternative() {
     // Reason should be `StopRemoved` (not `NoAlternative`) so consumers
     // can distinguish a permanent removal from a transient disable.
     let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
         building: BuildingConfig {
             name: "Two".into(),
             stops: vec![
