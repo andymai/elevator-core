@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.14.0...elevator-wasm-v0.15.0) (2026-05-05)
+
+
+### Features
+
+* **test:** wasm-host contract test runs on wasm32 ([#633](https://github.com/andymai/elevator-core/issues/633)) ([819b186](https://github.com/andymai/elevator-core/commit/819b18602896fe0efceed8d0ea3d77361ff60423))
+
 ## [0.14.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.13.0...elevator-wasm-v0.14.0) (2026-05-04)
 
 
