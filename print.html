@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6213cacd.js";
+            window.path_to_searchindex_js = "searchindex-976746c3.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-76503f4c.js"></script>
+        <script src="toc-2421e0e2.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -4911,6 +4911,10 @@ under each host or has a recorded reason for not having one.</p>
 <p>It is intentionally a <em>coverage</em> manifest, not a generator. Bindings are
 still hand-written so each host can shape its idiomatic surface; the
 manifest exists only to prevent silent drift.</p>
+<p>For <em>non-method</em> host concerns — error marshalling, log-drain
+semantics, ABI / wire version, snapshot field-set parity — see
+<a href="#host-binding-parity">Host Binding Parity</a>, the cross-host
+contract that complements this manifest.</p>
 <h2 id="taxonomy"><a class="header" href="#taxonomy">Taxonomy</a></h2>
 <p>Each entry is keyed by Rust method name and lists one status per host
 column (<code>wasm</code>, <code>ffi</code>, <code>tui</code>, <code>gms</code>, <code>gdext</code>, <code>bevy</code>). Three status
@@ -5021,6 +5025,130 @@ each host crate.</li>
 pair, and use the <code>future-binding</code> filter to find work to pick up.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="host-binding-parity"><a class="header" href="#host-binding-parity">Host Binding Parity</a></h1>
+<p>This page documents the <em>cross-host</em> contract: the surfaces that every
+binding crate (FFI, wasm, gdext, Bevy, GameMaker) is expected to
+expose, the agreed semantics, and the per-host status. It is the
+counterpart to <a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — the
+manifest tracks every <code>Simulation::*</code> method one-by-one, while this
+page tracks the <em>non-method</em> concerns that nonetheless need to behave
+consistently across hosts.</p>
+<p>This is the foundation referenced in issue #655: “Add HostBinding
+abstraction trait shared across binding crates”. The work itself is
+incremental — the <em>contract</em> lives here, while individual host
+crates migrate at their own pace as new PRs land.</p>
+<h2 id="why-a-separate-parity-document"><a class="header" href="#why-a-separate-parity-document">Why a separate parity document</a></h2>
+<p><code>bindings.toml</code> enumerates <code>pub fn</code> on <code>impl Simulation</code>. But several
+host concerns aren’t <code>Simulation</code> methods:</p>
+<ul>
+<li><strong>Snapshot encode/decode</strong> — each host shapes its own DTO from the
+shared <code>Simulation::snapshot</code> data; the <em>fields</em> should match
+even though the <em>envelope</em> differs (<code>#[repr(C)]</code> for FFI,
+<code>Tsify</code> for wasm, Godot <code>Variant</code> dict for gdext).</li>
+<li><strong>Event drain</strong> — the <em>core</em> method is <code>drain_events()</code>, but the
+host wrappers around it (lazy buffering, severity classification,
+borrowed-pointer lifetimes) live entirely in each host crate.</li>
+<li><strong>Error marshalling</strong> — <code>EvStatus</code>, <code>JsValue</code>, Godot exceptions,
+Bevy panics; same failure modes, different wire shapes.</li>
+<li><strong>ABI version</strong> — the FFI <code>EV_ABI_VERSION</code> constant has no direct
+analogue in wasm/gdext, but consumers still need <em>something</em> to
+pin against.</li>
+<li><strong>Log drain</strong> — convenience surface on top of the event stream;
+parity work landed in #656.</li>
+</ul>
+<p>These cross-host concerns previously had no canonical home. Without
+one, “fully supported in language X” drifts silently — exactly the
+risk that motivated <code>bindings.toml</code> for the per-method surface.</p>
+<h2 id="the-parity-surface"><a class="header" href="#the-parity-surface">The parity surface</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concern</th><th>Source of truth</th><th>FFI</th><th>wasm</th><th>gdext</th><th>Bevy</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Snapshot encode</td><td><code>Simulation::snapshot</code></td><td><code>EvSnapshot</code> (<code>#[repr(C)]</code>)</td><td><code>Snapshot</code> (<code>Tsify</code>)</td><td><code>Dictionary</code></td><td><code>SimSnapshot</code> resource</td><td>Fields must align — adding a field to the core snapshot requires updating every host.</td></tr>
+<tr><td>Event drain (consume)</td><td><code>Simulation::drain_events</code></td><td><code>ev_sim_drain_events</code></td><td><code>drainEvents</code></td><td><code>drain_events</code></td><td><code>EventWrapper</code> messages</td><td>All four route through <code>Simulation::drain_events</code>.</td></tr>
+<tr><td>Event peek (non-consuming)</td><td><code>Simulation::pending_events</code></td><td>(internal, used by log forwarder)</td><td><code>pendingEvents</code></td><td>(none yet)</td><td>(none yet)</td><td>gdext / Bevy parity is a follow-up.</td></tr>
+<tr><td>Log drain (formatted)</td><td><code>events::log_format::format_event</code></td><td><code>ev_drain_log_messages</code></td><td><code>peekLogMessages</code> (#656)</td><td><code>peek_log_messages</code> (#656)</td><td><em>skip — uses <code>tracing</code></em></td><td>Severity constants in <code>events::log_format</code>.</td></tr>
+<tr><td>Error marshalling</td><td>(host-specific; see below)</td><td><code>EvStatus</code> + <code>ev_last_error</code></td><td>thrown <code>Error</code></td><td>Godot exception</td><td>Rust panic</td><td>Map to a shared classification — see “Error vocabulary” below.</td></tr>
+<tr><td>ABI / wire version</td><td><code>crates/elevator-ffi/src/lib.rs::EV_ABI_VERSION</code></td><td><code>5</code> (pinned by ABI guard)</td><td><code>package.json</code> semver</td><td>crate semver</td><td>crate semver</td><td>Wasm/gdext don’t have a binary ABI; their consumers track the published crate/package version.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="error-vocabulary"><a class="header" href="#error-vocabulary">Error vocabulary</a></h2>
+<p>The FFI’s <code>EvStatus</code> enum classifies failure modes in a way that
+non-FFI hosts also need (e.g. <em>which kind of error did the wasm
+binding throw?</em>). The intended classification:</p>
+<ul>
+<li><code>Ok</code> — success.</li>
+<li><code>NullArg</code> — required pointer / handle was null.</li>
+<li><code>InvalidArg</code> — argument is not null but is malformed (bad utf-8,
+invalid entity id, out-of-range value).</li>
+<li><code>NotFound</code> — referenced entity does not exist (or has been
+removed) at the time of the call.</li>
+<li><code>Capacity</code> — operation would exceed a configured limit (rider
+weight, line size, …).</li>
+<li><code>Panic</code> — internal panic recovered at the host boundary; the
+callable is unsafe to retry without recreating the handle.</li>
+</ul>
+<p>Today only the FFI lifts this vocabulary into a typed enum. Future
+PRs will lift these to a shared module so wasm / gdext error
+constructors map their underlying language errors onto the same
+classification.</p>
+<h2 id="migration-plan-multi-pr"><a class="header" href="#migration-plan-multi-pr">Migration plan (multi-PR)</a></h2>
+<p>The work below is intentionally incremental — each step is small,
+ships independently, and keeps every host runnable.</p>
+<ol>
+<li>✅ <strong>Shared log severity constants</strong> (this PR) — <code>LEVEL_TRACE</code>
+… <code>LEVEL_ERROR</code> lifted from FFI’s hardcoded values into
+<code>elevator_core::events::log_format</code>. Hosts that surface
+formatted log records reference the constants instead of
+knowing “1 means debug” out-of-band.</li>
+<li>✅ <strong>Cross-host log drain</strong> (#656) — wasm and gdext expose
+<code>peekLogMessages</code> / <code>peek_log_messages</code> mirroring FFI’s
+<code>ev_drain_log_messages</code>. Bevy is intentionally skipped because
+it has native <code>tracing</code>.</li>
+<li>⬜ <strong>Shared error classification</strong> — extract the <code>EvStatus</code>
+shape from FFI to a shared <code>elevator_core::host_error::ErrorKind</code>
+enum. FFI re-exports it under the <code>EvStatus</code> name; wasm /
+gdext use it to tag thrown errors.</li>
+<li>⬜ <strong>Snapshot field-set guard</strong> — a CI lint that fails when the
+FFI / wasm / gdext snapshot DTOs and the core <code>Snapshot</code> drift
+in field names. Cheap version: a doc-test that lists field
+names and compares.</li>
+<li>⬜ <strong>Wire-version constant</strong> — surface a single
+<code>elevator_core::HOST_PROTOCOL_VERSION</code> consumed by every host;
+the FFI’s existing ABI-pin guard becomes a check that
+<code>EV_ABI_VERSION == HOST_PROTOCOL_VERSION</code>.</li>
+<li>⬜ <strong><code>HostBinding</code> trait (or pattern)</strong> — once the four
+capabilities above share a vocabulary, decide whether a Rust
+trait is the right shape (it might not be — each host’s I/O
+types are too divergent for <code>impl HostBinding</code> to be useful
+without heavy generics; a documented contract + per-host
+adapter modules may be the better landing).</li>
+</ol>
+<p>Steps 3-5 each get their own issue once step 2 has soaked. Step 6
+is the close-out and only happens after the smaller steps prove
+out the design.</p>
+<h2 id="next-steps-29"><a class="header" href="#next-steps-29">Next steps</a></h2>
+<ul>
+<li>Read <a href="#binding-coverage-manifest">Binding Coverage Manifest</a> for the
+per-method coverage view that complements this page.</li>
+<li>Pick a host you ship against in <a href="#using-the-bindings">Using the Bindings</a>
+and check the relevant column above for known gaps.</li>
+<li>For the umbrella issue and the live status of each migration
+step, see <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> in the issue tracker.</li>
+</ul>
+<h2 id="cross-references"><a class="header" href="#cross-references">Cross-references</a></h2>
+<ul>
+<li><a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — per-method
+coverage in <code>bindings.toml</code>.</li>
+<li><a href="#using-the-bindings">Using the Bindings</a> — host-by-host
+consumer guide.</li>
+<li>Issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> — the umbrella issue this document tracks.</li>
+<li>Issue <a href="https://github.com/andymai/elevator-core/issues/656">#656</a> — log-drain parity, completed.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="integration-gallery"><a class="header" href="#integration-gallery">Integration Gallery</a></h1>
 <p><code>elevator-core</code> ships several supporting crates that don’t surface a runtime API of their own — they exist to keep the binding crates honest, to drive cross-host code generation, or to validate snapshot determinism. This page is the narrative index for those crates; for hands-on integration with a host language see <a href="#using-the-bindings">Using the Bindings</a>.</p>
 <h2 id="elevator-tui"><a class="header" href="#elevator-tui">elevator-tui</a></h2>
@@ -5057,7 +5185,7 @@ wasm-pack test --headless --firefox crates/elevator-wasm  # wasm-side run
 <li><a href="#using-the-bindings">Using the Bindings</a> — host-facing usage docs for wasm / FFI / gdext / GameMaker.</li>
 <li><a href="#stability-and-versioning">Stability and Versioning</a> — how API breaks are signalled across these crates.</li>
 </ul>
-<h2 id="next-steps-29"><a class="header" href="#next-steps-29">Next steps</a></h2>
+<h2 id="next-steps-30"><a class="header" href="#next-steps-30">Next steps</a></h2>
 <ul>
 <li>For host-language integration with a runtime API surface, head to
 <a href="#using-the-bindings">Using the Bindings</a> — the gallery covers the
@@ -5234,7 +5362,7 @@ a 10x slowdown in loaded simulations.</p>
 <li><strong>GPU acceleration.</strong> Movement and dispatch are scalar – no SIMD or GPU backends.</li>
 <li><strong>Persistent indexes beyond per-stop population.</strong> If you need “all riders with extension X”, iterate and filter.</li>
 </ul>
-<h2 id="next-steps-30"><a class="header" href="#next-steps-30">Next steps</a></h2>
+<h2 id="next-steps-31"><a class="header" href="#next-steps-31">Next steps</a></h2>
 <ul>
 <li><a href="#bevy-integration">Bevy Integration</a> – a visual wrapper for rapid prototyping and debugging.</li>
 <li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> – save and restore simulation state for replay and testing.</li>
