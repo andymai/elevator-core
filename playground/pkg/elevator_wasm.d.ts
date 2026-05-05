@@ -77,6 +77,26 @@ export interface CarCallDto {
 }
 
 /**
+ * Debug-formatted view of a pending event, paired with a syslog-style
+ * severity level. Mirrors the `EvLogMessage` shape exposed by the FFI\'s
+ * `ev_drain_log_messages` API so JS consumers can log simulator
+ * diagnostics with the same text and level codes as Unity / `GameMaker`
+ * hosts.
+ */
+export interface LogMessageDto {
+    /**
+     * Severity (`0` trace · `1` debug · `2` info · `3` warn · `4` error).
+     * Currently always `1` — every event is surfaced at debug.
+     */
+    level: number;
+    /**
+     * Debug-rendered event text. Format matches
+     * `format!(\"{event:?}\")` for the underlying core `Event`.
+     */
+    message: string;
+}
+
+/**
  * Door state with a 0..1 transition progress for animation.
  */
 export interface DoorView {
@@ -1095,6 +1115,18 @@ export class WasmSim {
      */
     openDoor(elevator_ref: bigint): WasmVoidResult;
     /**
+     * Format the currently-pending events as log-style records,
+     * matching the FFI's `ev_drain_log_messages` shape. Non-consuming
+     * — events remain in the queue and are still returned by
+     * [`drain_events`](Self::drain_events).
+     *
+     * Severity is currently always `1` (debug); message text is the
+     * `Debug` rendering of the underlying core event. Closes the
+     * log-drain parity gap so browser hosts can surface simulator
+     * diagnostics with the same text Unity / `GameMaker` consumers see.
+     */
+    peekLogMessages(): LogMessageDto[];
+    /**
      * Peek at queued events without draining. Useful for read-only
      * inspection (e.g. UI dashboards) where the consumer doesn't
      * "own" the event stream.
@@ -1901,6 +1933,7 @@ export interface InitOutput {
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmsim_occupancy: (a: number, b: bigint) => number;
     readonly wasmsim_openDoor: (a: number, b: bigint) => any;
+    readonly wasmsim_peekLogMessages: (a: number) => [number, number];
     readonly wasmsim_pendingEvents: (a: number) => [number, number];
     readonly wasmsim_pinAssignment: (a: number, b: bigint, c: bigint, d: number, e: number) => any;
     readonly wasmsim_positionAt: (a: number, b: bigint, c: number) => [number, number];

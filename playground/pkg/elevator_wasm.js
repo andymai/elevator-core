@@ -894,6 +894,24 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Format the currently-pending events as log-style records,
+     * matching the FFI's `ev_drain_log_messages` shape. Non-consuming
+     * — events remain in the queue and are still returned by
+     * [`drain_events`](Self::drain_events).
+     *
+     * Severity is currently always `1` (debug); message text is the
+     * `Debug` rendering of the underlying core event. Closes the
+     * log-drain parity gap so browser hosts can surface simulator
+     * diagnostics with the same text Unity / `GameMaker` consumers see.
+     * @returns {LogMessageDto[]}
+     */
+    peekLogMessages() {
+        const ret = wasm.wasmsim_peekLogMessages(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Peek at queued events without draining. Useful for read-only
      * inspection (e.g. UI dashboards) where the consumer doesn't
      * "own" the event stream.
