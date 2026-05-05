@@ -102,6 +102,40 @@ pub enum EvStatus {
     Panic = 99,
 }
 
+impl From<elevator_core::host_error::ErrorKind> for EvStatus {
+    /// Map the cross-host error classification onto the FFI's
+    /// `#[repr(C)]` integer status. The two enums share a vocabulary
+    /// (see issue #655); FFI consumers continue to receive integer
+    /// codes while non-FFI hosts can produce / interpret errors via
+    /// the shared `ErrorKind`.
+    fn from(kind: elevator_core::host_error::ErrorKind) -> Self {
+        use elevator_core::host_error::ErrorKind;
+        // The explicit `Panic` arm and the `_` arm both produce
+        // `Self::Panic`, but they're semantically distinct: the
+        // first is the documented mapping for the existing
+        // variant; the second is a future-proofing fallback for
+        // variants `ErrorKind` may add. Keeping them apart makes
+        // the intent visible and lets a future PR replace the `_`
+        // with a concrete arm without rediscovering the design.
+        #[allow(clippy::match_same_arms)]
+        match kind {
+            ErrorKind::NullArg => Self::NullArg,
+            ErrorKind::InvalidUtf8 => Self::InvalidUtf8,
+            ErrorKind::ConfigLoad => Self::ConfigLoad,
+            ErrorKind::ConfigParse => Self::ConfigParse,
+            ErrorKind::BuildFailed => Self::BuildFailed,
+            ErrorKind::NotFound => Self::NotFound,
+            ErrorKind::InvalidArg => Self::InvalidArg,
+            ErrorKind::Panic => Self::Panic,
+            // ErrorKind is `#[non_exhaustive]` — a future variant
+            // the FFI hasn't enumerated surfaces as `Panic` so the
+            // caller treats it as "unsafe to retry" rather than
+            // silently mis-classifying it as `Ok`.
+            _ => Self::Panic,
+        }
+    }
+}
+
 thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
@@ -6615,6 +6649,28 @@ mod tests {
     fn abi_version_matches_constant() {
         assert_eq!(ev_abi_version(), EV_ABI_VERSION);
         assert_eq!(EV_ABI_VERSION, 5);
+    }
+
+    #[test]
+    fn error_kind_maps_to_ev_status() {
+        use elevator_core::host_error::ErrorKind;
+        assert_eq!(EvStatus::from(ErrorKind::NullArg), EvStatus::NullArg);
+        assert_eq!(
+            EvStatus::from(ErrorKind::InvalidUtf8),
+            EvStatus::InvalidUtf8
+        );
+        assert_eq!(EvStatus::from(ErrorKind::ConfigLoad), EvStatus::ConfigLoad);
+        assert_eq!(
+            EvStatus::from(ErrorKind::ConfigParse),
+            EvStatus::ConfigParse
+        );
+        assert_eq!(
+            EvStatus::from(ErrorKind::BuildFailed),
+            EvStatus::BuildFailed
+        );
+        assert_eq!(EvStatus::from(ErrorKind::NotFound), EvStatus::NotFound);
+        assert_eq!(EvStatus::from(ErrorKind::InvalidArg), EvStatus::InvalidArg);
+        assert_eq!(EvStatus::from(ErrorKind::Panic), EvStatus::Panic);
     }
 
     #[test]

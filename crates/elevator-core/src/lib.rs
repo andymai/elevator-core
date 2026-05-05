@@ -369,6 +369,9 @@ pub mod components;
 pub mod entity;
 /// Simulation error types.
 pub mod error;
+/// Shared error classification for host bindings (FFI / wasm /
+/// gdext / Bevy). See [`host_error::ErrorKind`].
+pub mod host_error;
 /// Typed identifiers for groups and other sim concepts.
 pub mod ids;
 /// ECS-style query builder for iterating entities by component composition.

@@ -45,7 +45,7 @@ risk that motivated `bindings.toml` for the per-method surface.
 | Event drain (consume)| `Simulation::drain_events`                   | `ev_sim_drain_events` | `drainEvents` | `drain_events` | `EventWrapper` messages | All four route through `Simulation::drain_events`. |
 | Event peek (non-consuming) | `Simulation::pending_events`           | (internal, used by log forwarder) | `pendingEvents` | (none yet) | (none yet) | gdext / Bevy parity is a follow-up. |
 | Log drain (formatted)| `events::log_format::format_event`           | `ev_drain_log_messages` | `peekLogMessages` (#656) | `peek_log_messages` (#656) | *skip — uses `tracing`* | Severity constants in `events::log_format`. |
-| Error marshalling    | (host-specific; see below)                   | `EvStatus` + `ev_last_error` | thrown `Error` | Godot exception | Rust panic | Map to a shared classification — see "Error vocabulary" below. |
+| Error marshalling    | `host_error::ErrorKind`                       | `EvStatus` (`From<ErrorKind>`) + `ev_last_error` | thrown `Error` | Godot exception | Rust panic | Shared classification lives in `elevator_core::host_error`; FFI maps it to `EvStatus`. wasm / gdext consume `ErrorKind::label()` for kebab-case classification strings. |
 | ABI / wire version   | `elevator_core::HOST_PROTOCOL_VERSION`        | `EV_ABI_VERSION` (literal, asserted equal to core) | `ABI_VERSION` (refs core) | `ABI_VERSION` (refs core) | crate semver | FFI keeps a literal so cbindgen can emit `#define EV_ABI_VERSION` in the generated C header; a compile-time `assert!` ties the literal to core. |
 
 ## Error vocabulary
@@ -84,10 +84,16 @@ ships independently, and keeps every host runnable.
    `peekLogMessages` / `peek_log_messages` mirroring FFI's
    `ev_drain_log_messages`. Bevy is intentionally skipped because
    it has native `tracing`.
-3. ⬜ **Shared error classification** — extract the `EvStatus`
-   shape from FFI to a shared `elevator_core::host_error::ErrorKind`
-   enum. FFI re-exports it under the `EvStatus` name; wasm /
-   gdext use it to tag thrown errors.
+3. ✅ **Shared error classification** —
+   `elevator_core::host_error::ErrorKind` is the cross-host failure
+   vocabulary (`NullArg`, `InvalidUtf8`, `ConfigLoad`,
+   `ConfigParse`, `BuildFailed`, `NotFound`, `InvalidArg`,
+   `Panic`). FFI provides `impl From<ErrorKind> for EvStatus`; new
+   FFI / wasm / gdext call sites should produce errors via the
+   shared kind so the integer / string / Variant representations
+   stay aligned. Adoption across existing call sites is
+   intentionally incremental — the shared enum is the foothold,
+   not a flag-day migration.
 4. ✅ **Snapshot field-set guard** — a tripwire test
    (`elevator_ffi::tests::snapshot_dto_field_names_locked`) locks
    the field names on every snapshot DTO (`EvElevatorView`,
@@ -98,10 +104,13 @@ ships independently, and keeps every host runnable.
    dict → bump `HOST_PROTOCOL_VERSION` if breaking → update the
    locked list). Catches the silent-drift failure mode without
    requiring CI access to wasm / gdext crate internals.
-5. ⬜ **Wire-version constant** — surface a single
-   `elevator_core::HOST_PROTOCOL_VERSION` consumed by every host;
-   the FFI's existing ABI-pin guard becomes a check that
-   `EV_ABI_VERSION == HOST_PROTOCOL_VERSION`.
+5. ✅ **Wire-version constant** — `elevator_core::HOST_PROTOCOL_VERSION`
+   is the single source of truth. wasm's `ABI_VERSION` and gdext's
+   `ABI_VERSION` reference it directly at compile time; FFI keeps a
+   literal `EV_ABI_VERSION` (so cbindgen can resolve it into the
+   generated C header) plus a `const _: () = assert!(...)` guard
+   that traps any drift. `scripts/check-abi-pins.sh` was extended to
+   verify both literal and reference shapes.
 6. ⬜ **`HostBinding` trait (or pattern)** — once the four
    capabilities above share a vocabulary, decide whether a Rust
    trait is the right shape (it might not be — each host's I/O
