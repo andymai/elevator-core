@@ -228,7 +228,6 @@ impl WorldSnapshot {
     /// To restore extension components, call
     /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
     /// on the returned simulation.
-    #[allow(clippy::too_many_lines)]
     pub fn restore(
         self,
         custom_strategy_factory: CustomStrategyFactory<'_>,
@@ -270,16 +269,64 @@ impl WorldSnapshot {
         let (mut groups, stop_lookup, dispatchers, strategy_ids) =
             self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory)?;
 
-        // Fix legacy snapshots: synthetic LineInfo entries with EntityId::default()
-        // need real line entities spawned in the world.
-        for group in &mut groups {
+        Self::fix_legacy_line_entities(&mut groups, &mut world);
+
+        // Resource installation moves several fields out of self via partial
+        // moves; remaining fields (dispatch_config, groups, entities, hall_calls,
+        // metrics, etc.) stay accessible for the construction steps below.
+        Self::install_runtime_resources(
+            &mut world,
+            &id_remap,
+            self.tick,
+            &self.extensions,
+            self.metric_tags,
+            self.arrival_log,
+            self.arrival_log_retention,
+            self.destination_log,
+            self.traffic_detector,
+            self.reposition_cooldowns,
+        );
+
+        let mut sim = crate::sim::Simulation::from_parts(
+            world,
+            self.tick,
+            self.dt,
+            groups,
+            stop_lookup,
+            dispatchers,
+            strategy_ids,
+            self.metrics,
+            self.ticks_per_second,
+        );
+
+        Self::replay_dispatcher_tuning(&mut sim, &self.dispatch_config);
+        Self::restore_reposition_strategies(&mut sim, &self.groups);
+
+        Self::emit_dangling_warnings(
+            &self.entities,
+            &self.hall_calls,
+            &id_remap,
+            self.tick,
+            &mut sim,
+        );
+
+        Ok(sim)
+    }
+
+    /// Replace synthetic legacy `LineInfo` entries (entity = `EntityId::default()`)
+    /// with real line entities spawned in the world. Pre-line snapshots stored
+    /// only group-level elevator/stop indices; the legacy single-line `LineInfo`
+    /// is materialised here so dispatch and rendering see a real entity.
+    fn fix_legacy_line_entities(
+        groups: &mut [crate::dispatch::ElevatorGroup],
+        world: &mut crate::world::World,
+    ) {
+        for group in groups.iter_mut() {
             let group_id = group.id();
-            let lines = group.lines_mut();
-            for line_info in lines.iter_mut() {
+            for line_info in group.lines_mut().iter_mut() {
                 if line_info.entity() != EntityId::default() {
                     continue;
                 }
-                // Compute min/max position from the line's served stops.
                 let (min_pos, max_pos) = line_info
                     .serves()
                     .iter()
@@ -300,7 +347,6 @@ impl WorldSnapshot {
                         max_cars: None,
                     },
                 );
-                // Update all elevators on this line to reference the new entity.
                 for &elev_eid in line_info.elevators() {
                     if let Some(car) = world.elevator_mut(elev_eid) {
                         car.line = line_eid;
@@ -309,69 +355,64 @@ impl WorldSnapshot {
                 line_info.set_entity(line_eid);
             }
         }
+    }
 
-        // Remap EntityIds in extension data for later deserialization.
-        let remapped_exts = Self::remap_extensions(&self.extensions, &id_remap);
+    /// Insert all post-entity world resources, remapping `EntityId`s where
+    /// they cross-reference. Without these `PredictiveParking`,
+    /// `DispatchManifest::arrivals_at`, the down-peak classifier branch,
+    /// host-configured retention, and reposition cooldowns silently no-op
+    /// or fall back to defaults post-restore.
+    #[allow(clippy::too_many_arguments)]
+    fn install_runtime_resources(
+        world: &mut crate::world::World,
+        id_remap: &HashMap<EntityId, EntityId>,
+        tick: u64,
+        extensions: &BTreeMap<String, BTreeMap<EntityId, String>>,
+        metric_tags: MetricTags,
+        arrival_log: crate::arrival_log::ArrivalLog,
+        arrival_log_retention: crate::arrival_log::ArrivalLogRetention,
+        destination_log: crate::arrival_log::DestinationLog,
+        traffic_detector: crate::traffic_detector::TrafficDetector,
+        reposition_cooldowns: crate::dispatch::reposition::RepositionCooldowns,
+    ) {
+        let remapped_exts = Self::remap_extensions(extensions, id_remap);
         world.insert_resource(PendingExtensions(remapped_exts));
 
-        // Restore MetricTags with remapped entity IDs (moves out of self).
-        let mut tags = self.metric_tags;
-        tags.remap_entity_ids(&id_remap);
+        let mut tags = metric_tags;
+        tags.remap_entity_ids(id_remap);
         world.insert_resource(tags);
 
-        // Restore the arrival log (per-stop spawn counts) and the
-        // tick-mirror resource — without these `PredictiveParking` and
-        // `DispatchManifest::arrivals_at` silently no-op post-restore.
-        // Also re-seat `ArrivalLogRetention`: post-restore the first
-        // `advance_tick` prunes the log, and missing this resource
-        // quietly falls back to the default window, clipping any
-        // longer retention the host configured.
-        let mut log = self.arrival_log;
-        log.remap_entity_ids(&id_remap);
+        let mut log = arrival_log;
+        log.remap_entity_ids(id_remap);
         world.insert_resource(log);
-        world.insert_resource(crate::arrival_log::CurrentTick(self.tick));
-        world.insert_resource(self.arrival_log_retention);
-        // Destination log mirrors the same remap — entries reference
-        // rider destinations, which are stop entities that were just
-        // reallocated. Without the remap every entry would reference
-        // a dead ID and the classifier's down-peak branch would
-        // silently see zero.
-        let mut dest_log = self.destination_log;
-        dest_log.remap_entity_ids(&id_remap);
+        world.insert_resource(crate::arrival_log::CurrentTick(tick));
+        world.insert_resource(arrival_log_retention);
+
+        let mut dest_log = destination_log;
+        dest_log.remap_entity_ids(id_remap);
         world.insert_resource(dest_log);
-        // The detector carries classified-mode state plus thresholds.
-        // Re-inserting it last-writer-wins means the restore carries
-        // the *classified* state forward — refresh_traffic_detector
-        // will update on the next metrics phase with fresh counts.
-        world.insert_resource(self.traffic_detector);
-        // Reposition cooldowns remap through fresh IDs so a mid-
-        // cooldown car stays grounded across snapshot round-trips.
-        let mut reposition_cooldowns = self.reposition_cooldowns;
-        reposition_cooldowns.remap_entity_ids(&id_remap);
-        world.insert_resource(reposition_cooldowns);
 
-        let mut sim = crate::sim::Simulation::from_parts(
-            world,
-            self.tick,
-            self.dt,
-            groups,
-            stop_lookup,
-            dispatchers,
-            strategy_ids,
-            self.metrics,
-            self.ticks_per_second,
-        );
+        // Detector is re-inserted last-writer-wins so the *classified* state
+        // carries forward; refresh_traffic_detector updates on the next
+        // metrics phase with fresh counts.
+        world.insert_resource(traffic_detector);
 
-        // Replay any per-group dispatcher tuning captured in the
-        // snapshot. Each built-in with `with_*` builder methods
-        // overrides `snapshot_config`/`restore_config` to round-trip
-        // its weights; strategies that don't override silently skip
-        // (default `restore_config` is `Ok(())`), preserving pre-fix
-        // behaviour. A deserialization failure (e.g. snapshot from a
-        // future version with new fields) surfaces as an event rather
-        // than a hard error — the restored sim runs with defaults,
-        // same as a legacy snapshot with no dispatch_config at all.
-        for (gid, serialized) in &self.dispatch_config {
+        let mut cooldowns = reposition_cooldowns;
+        cooldowns.remap_entity_ids(id_remap);
+        world.insert_resource(cooldowns);
+    }
+
+    /// Replay per-group dispatcher tuning captured in the snapshot. Built-ins
+    /// with `with_*` builders override `snapshot_config`/`restore_config` to
+    /// round-trip their weights; strategies that don't override silently skip
+    /// (default `restore_config` is `Ok(())`), preserving pre-fix behaviour. A
+    /// deserialization failure surfaces as an event rather than a hard error
+    /// — the restored sim runs with defaults, same as a legacy snapshot.
+    fn replay_dispatcher_tuning(
+        sim: &mut crate::sim::Simulation,
+        dispatch_config: &std::collections::BTreeMap<GroupId, String>,
+    ) {
+        for (gid, serialized) in dispatch_config {
             if let Some(dispatcher) = sim.dispatchers_mut().get_mut(gid)
                 && let Err(err) = dispatcher.restore_config(serialized)
             {
@@ -381,29 +422,24 @@ impl WorldSnapshot {
                 });
             }
         }
+    }
 
-        // Restore reposition strategies from group snapshots.
-        for gs in &self.groups {
-            if let Some(ref repo_id) = gs.reposition {
-                if let Some(strategy) = repo_id.instantiate() {
-                    sim.set_reposition(gs.id, strategy, repo_id.clone());
-                } else {
-                    sim.push_event(crate::events::Event::RepositionStrategyNotRestored {
-                        group: gs.id,
-                    });
-                }
+    /// Restore reposition strategies from group snapshots, emitting
+    /// [`Event::RepositionStrategyNotRestored`](crate::events::Event::RepositionStrategyNotRestored)
+    /// when an id can't be re-instantiated.
+    fn restore_reposition_strategies(sim: &mut crate::sim::Simulation, groups: &[GroupSnapshot]) {
+        for gs in groups {
+            let Some(ref repo_id) = gs.reposition else {
+                continue;
+            };
+            if let Some(strategy) = repo_id.instantiate() {
+                sim.set_reposition(gs.id, strategy, repo_id.clone());
+            } else {
+                sim.push_event(crate::events::Event::RepositionStrategyNotRestored {
+                    group: gs.id,
+                });
             }
         }
-
-        Self::emit_dangling_warnings(
-            &self.entities,
-            &self.hall_calls,
-            &id_remap,
-            self.tick,
-            &mut sim,
-        );
-
-        Ok(sim)
     }
 
     /// Spawn entities in the world and build the old→new `EntityId` mapping.
