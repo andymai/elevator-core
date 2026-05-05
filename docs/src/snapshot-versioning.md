@@ -121,4 +121,4 @@ fixup — for bytes consumers it is unavoidable.
   `SimError::SnapshotVersion` in
   `crates/elevator-core/src/error.rs`.
 
-[`SimError::SnapshotVersion`]: https://docs.rs/elevator-core/latest/elevator_core/error/enum.SimError.html
+[`SimError::SnapshotVersion`]: https://docs.rs/elevator-core/latest/elevator_core/error/enum.SimError.html#variant.SnapshotVersion

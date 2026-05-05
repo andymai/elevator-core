@@ -783,7 +783,7 @@ impl WorldSnapshot {
     }
 }
 
-/// Magic bytes identifying a bincode snapshot blob.
+/// Magic bytes identifying a postcard snapshot blob.
 const SNAPSHOT_MAGIC: [u8; 8] = *b"ELEVSNAP";
 
 /// Schema version for [`WorldSnapshot`]. Bump on incompatible layout
@@ -797,7 +797,7 @@ const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
 
 /// Byte-level snapshot envelope: magic + crate version + payload.
 ///
-/// Serialized via bincode. The magic and version fields are checked on
+/// Serialized via postcard. The magic and version fields are checked on
 /// restore to reject blobs from other tools or from a different
 /// `elevator-core` version.
 #[derive(Debug, Serialize, Deserialize)]
