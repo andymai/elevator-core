@@ -941,3 +941,35 @@ impl<T> Default for EventChannel<T> {
         Self::new()
     }
 }
+
+/// Helpers for surfacing simulation events as log-style records.
+///
+/// The FFI host exposes a "log drain" API ([`ev_drain_log_messages`])
+/// that polling consumers (e.g. `GameMaker`) call to surface
+/// debug-formatted strings for events emitted during the most recent
+/// step. Other binding crates wrap the same primitive via this
+/// module so every host produces the same message text and severity
+/// for a given `Event`.
+///
+/// [`ev_drain_log_messages`]: https://docs.rs/elevator-ffi/latest/elevator_ffi/fn.ev_drain_log_messages.html
+pub mod log_format {
+    use super::Event;
+
+    /// Severity level matching the syslog/FFI convention used by
+    /// host log-drain APIs: `0` trace · `1` debug · `2` info ·
+    /// `3` warn · `4` error.
+    pub const LEVEL_DEBUG: u8 = 1;
+
+    /// Format an event for log-style consumption. Returns
+    /// `(level, message)` where `message` is the `Debug` rendering
+    /// of the event and `level` is currently always
+    /// [`LEVEL_DEBUG`].
+    ///
+    /// Hosts wrap this in their idiomatic surface — e.g. a
+    /// `Vec<JsValue>` for wasm, a Godot `Array` of dictionaries,
+    /// or the FFI's borrowed `EvLogMessage` struct.
+    #[must_use]
+    pub fn format_event(event: &Event) -> (u8, String) {
+        (LEVEL_DEBUG, format!("{event:?}"))
+    }
+}

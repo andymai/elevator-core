@@ -93,6 +93,22 @@ pub struct StopDto {
     pub residents: u32,
 }
 
+/// Debug-formatted view of a pending event, paired with a syslog-style
+/// severity level. Mirrors the `EvLogMessage` shape exposed by the FFI's
+/// `ev_drain_log_messages` API so JS consumers can log simulator
+/// diagnostics with the same text and level codes as Unity / `GameMaker`
+/// hosts.
+#[derive(Serialize, Tsify)]
+#[tsify(into_wasm_abi)]
+pub struct LogMessageDto {
+    /// Severity (`0` trace · `1` debug · `2` info · `3` warn · `4` error).
+    /// Currently always `1` — every event is surfaced at debug.
+    pub level: u8,
+    /// Debug-rendered event text. Format matches
+    /// `format!("{event:?}")` for the underlying core `Event`.
+    pub message: String,
+}
+
 /// Top-level snapshot returned by [`WasmSim::snapshot`](crate::WasmSim::snapshot).
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
