@@ -1,5 +1,12 @@
 # Changelog
 
+## [16.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.3...elevator-core-v16.1.0) (2026-05-05)
+
+
+### Features
+
+* **core:** add schema_version to SimConfig with explicit migration policy ([#654](https://github.com/andymai/elevator-core/issues/654)) ([#691](https://github.com/andymai/elevator-core/issues/691)) ([170519c](https://github.com/andymai/elevator-core/commit/170519c08bb983ad9c45b9ce0570c60c9956ad32))
+
 ## [16.0.3](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.2...elevator-core-v16.0.3) (2026-05-05)
 
 
