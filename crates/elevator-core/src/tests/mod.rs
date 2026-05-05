@@ -66,6 +66,7 @@ mod hall_call_tests;
 mod home_stop_tests;
 mod idle_with_riders_tests;
 mod invariants_tests;
+mod manifest_tests;
 mod manual_mode_tests;
 mod move_count_tests;
 mod movement_boundary_tests;
