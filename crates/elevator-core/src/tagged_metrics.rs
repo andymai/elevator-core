@@ -136,15 +136,8 @@ impl MetricTags {
     }
 
     /// Iterate all registered tags in deterministic (lexicographic) order.
-    ///
-    /// The internal storage is a `HashMap`, but this accessor sorts the
-    /// keys so that repeated calls — and callers comparing output across
-    /// runs — observe a stable order. O(n log n) in the number of tags;
-    /// cheap in practice since tag counts are small.
     pub fn all_tags(&self) -> impl Iterator<Item = &str> {
-        let mut tags: Vec<&str> = self.tag_metrics.keys().map(String::as_str).collect();
-        tags.sort_unstable();
-        tags.into_iter()
+        self.tag_metrics.keys().map(String::as_str)
     }
 
     /// Call `f` on the metric accumulator for each tag attached to `entity`.

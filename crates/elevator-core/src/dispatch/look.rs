@@ -10,7 +10,7 @@
 //! the car drives to the physical shaft end between sweeps — applies to
 //! the motion layer, not dispatch.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::entity::EntityId;
 use crate::world::World;
@@ -25,8 +25,9 @@ pub struct LookDispatch {
     /// (reversed once a sweep exhausts demand ahead) and round-tripped
     /// through [`DispatchStrategy::snapshot_config`] so a restored sim
     /// continues the current sweep instead of defaulting to `Up` for
-    /// every car.
-    direction: HashMap<EntityId, SweepDirection>,
+    /// every car. `BTreeMap` so RON serialization in `snapshot_config`
+    /// is byte-identical across processes (#254 follow-up).
+    direction: BTreeMap<EntityId, SweepDirection>,
     /// Per-elevator accept mode for the current dispatch pass.
     /// Overwritten in full by `prepare_car` every pass, so no round-
     /// trip is needed.
@@ -39,7 +40,7 @@ impl LookDispatch {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            direction: HashMap::new(),
+            direction: BTreeMap::new(),
             mode: HashMap::new(),
         }
     }

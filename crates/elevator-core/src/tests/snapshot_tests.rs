@@ -940,6 +940,86 @@ fn snapshot_bytes_roundtrip_is_byte_stable() {
     );
 }
 
+/// `RepositionCooldowns` must serialize identically regardless of the
+/// order in which entries were inserted. With `HashMap`, insertion
+/// order influenced bucket layout and thus iteration order, leaking
+/// per-process hash-seed randomness into the postcard byte stream;
+/// `BTreeMap` keys are walked in `Ord` order so two maps with the
+/// same `(key, value)` set produce byte-identical output.
+///
+/// Regression guard for cross-process snapshot drift observed in the
+/// contract harness: scenarios with ≥2 cars under cooldown produced
+/// different `snapshot_bytes()` across runs, defeating golden-hash
+/// equality even though the simulation state was logically identical.
+#[test]
+fn reposition_cooldowns_serialize_independent_of_insertion_order() {
+    use crate::dispatch::reposition::RepositionCooldowns;
+    use crate::entity::EntityId;
+
+    // Use real allocated slotmap keys (not `EntityId::default()`,
+    // which is the slotmap null sentinel that production never
+    // produces) so the fixture mirrors the runtime shape.
+    let mut sm = slotmap::SlotMap::<EntityId, ()>::with_key();
+    let key_a = sm.insert(());
+    let key_b = sm.insert(());
+
+    let mut forward = RepositionCooldowns::default();
+    forward.eligible_at.insert(key_a, 100);
+    forward.eligible_at.insert(key_b, 200);
+
+    let mut reverse = RepositionCooldowns::default();
+    reverse.eligible_at.insert(key_b, 200);
+    reverse.eligible_at.insert(key_a, 100);
+
+    let bytes_forward = postcard::to_allocvec(&forward).unwrap();
+    let bytes_reverse = postcard::to_allocvec(&reverse).unwrap();
+
+    assert_eq!(
+        bytes_forward, bytes_reverse,
+        "RepositionCooldowns must serialize identically regardless of insertion order; \
+         a difference here means iteration order leaks into the byte stream",
+    );
+}
+
+/// Snapshot bytes must be stable across a `restore -> snapshot` cycle
+/// even when reposition cooldowns are populated. The cooldowns map is
+/// rebuilt from scratch on restore, so a non-deterministic container
+/// (e.g. `HashMap`) would surface here as a byte mismatch — the fresh
+/// hash seed picks a different bucket layout than the source map.
+#[test]
+fn snapshot_bytes_with_reposition_cooldowns_roundtrip_is_stable() {
+    use crate::dispatch::reposition::RepositionCooldowns;
+
+    // Need ≥2 elevators so the cooldowns map has multiple entries —
+    // a single-entry map is trivially insertion-order-independent.
+    let config = helpers::multi_floor_config(4, 3);
+    let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    for _ in 0..50 {
+        sim.step();
+    }
+
+    let elevators = sim.world().elevator_ids();
+    assert!(elevators.len() >= 2, "fixture sim has ≥2 elevators");
+
+    let mut cooldowns = RepositionCooldowns::default();
+    cooldowns.eligible_at.insert(elevators[0], 100);
+    cooldowns.eligible_at.insert(elevators[1], 200);
+    cooldowns.eligible_at.insert(elevators[2], 300);
+    sim.world_mut().insert_resource(cooldowns);
+
+    let bytes_before = sim.snapshot_bytes().expect("initial snapshot_bytes");
+    let restored =
+        crate::sim::Simulation::restore_bytes(&bytes_before, None).expect("restore_bytes");
+    let bytes_after = restored
+        .snapshot_bytes()
+        .expect("post-restore snapshot_bytes");
+
+    assert_eq!(
+        bytes_before, bytes_after,
+        "snapshot bytes must be byte-stable across restore even with populated reposition cooldowns",
+    );
+}
+
 /// RON text format must also be byte-stable across a deserialize +
 /// reserialize cycle. RON has no envelope, so this isolates the
 /// `WorldSnapshot` `Serialize` / `Deserialize` impls themselves —

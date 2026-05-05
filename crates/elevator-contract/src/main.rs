@@ -21,14 +21,12 @@
 //! seed, `make_rng` would pull from the OS entropy and every harness
 //! run would produce different metrics.
 //!
-//! We don't use `Simulation::snapshot_checksum()` directly — empirical
-//! testing showed that snapshot bytes still leak HashMap iteration
-//! order somewhere in the World plumbing (a small permutation of stop
-//! IDs visible in the postcard output). Until that's tracked down, the
-//! harness instead hashes a hand-picked deterministic projection of
-//! the sim state: `(current_tick, total_delivered, total_abandoned,
-//! total_spawned, throughput, total_distance.to_bits())`. Every value
-//! is a primitive integer/float that doesn't traverse a HashMap.
+//! The checksum is `Simulation::snapshot_checksum()` — FNV-1a over
+//! `snapshot_bytes()`. This covers the entire serializable sim state
+//! (entities, components, groups, metrics, world resources, dispatcher
+//! configs), so a behaviour change anywhere in that surface surfaces
+//! as a divergence. Snapshot bytes are deterministic across processes
+//! since every map field that gets serialized uses `BTreeMap`.
 //!
 //! ## Update protocol
 //!
@@ -225,32 +223,8 @@ fn run_scenario(cfg_path: &Path, ticks: u64, seed: u64) -> u64 {
         }
         sim.step();
     }
-    metrics_checksum(&sim)
-}
-
-/// FNV-1a over the deterministic-projection tuple. Runs in 6 mixes;
-/// no allocation. Identical across hosts so long as the underlying
-/// Simulation API computes the same values from the same inputs.
-fn metrics_checksum(sim: &Simulation) -> u64 {
-    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-    let m = sim.metrics();
-    let words: [u64; 6] = [
-        sim.current_tick(),
-        m.total_delivered(),
-        m.total_abandoned(),
-        m.total_spawned(),
-        m.throughput(),
-        m.total_distance().to_bits(),
-    ];
-    let mut h = FNV_OFFSET;
-    for w in words {
-        for byte in w.to_le_bytes() {
-            h ^= u64::from(byte);
-            h = h.wrapping_mul(FNV_PRIME);
-        }
-    }
-    h
+    sim.snapshot_checksum()
+        .unwrap_or_else(|e| panic!("snapshot_checksum {}: {e}", cfg_path.display()))
 }
 
 fn parse_golden(path: &Path) -> std::io::Result<BTreeMap<String, u64>> {

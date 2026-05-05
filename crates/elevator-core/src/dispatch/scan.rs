@@ -5,7 +5,7 @@
 //! Joint Computer Conference*, 9–21. The same sweep discipline is the
 //! textbook "elevator" algorithm.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::entity::EntityId;
 use crate::world::World;
@@ -27,8 +27,9 @@ pub struct ScanDispatch {
     /// (reversed once a sweep exhausts demand ahead) and round-tripped
     /// through [`DispatchStrategy::snapshot_config`] so a restored sim
     /// continues the current sweep instead of defaulting to `Up` for
-    /// every car.
-    direction: HashMap<EntityId, SweepDirection>,
+    /// every car. `BTreeMap` so RON serialization in `snapshot_config`
+    /// is byte-identical across processes (#254 follow-up).
+    direction: BTreeMap<EntityId, SweepDirection>,
     /// Per-elevator accept mode for the current dispatch pass.
     /// Overwritten in full by `prepare_car` every pass, so no round-
     /// trip is needed; `#[serde(skip)]` keeps snapshot bytes compact
@@ -42,7 +43,7 @@ impl ScanDispatch {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            direction: HashMap::new(),
+            direction: BTreeMap::new(),
             mode: HashMap::new(),
         }
     }
