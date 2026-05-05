@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f7c2eaca.js";
+            window.path_to_searchindex_js = "searchindex-2153c01c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -226,7 +226,7 @@ risk that motivated <code>bindings.toml</code> for the per-method surface.</p>
 <tr><td>Event drain (consume)</td><td><code>Simulation::drain_events</code></td><td><code>ev_sim_drain_events</code></td><td><code>drainEvents</code></td><td><code>drain_events</code></td><td><code>EventWrapper</code> messages</td><td>All four route through <code>Simulation::drain_events</code>.</td></tr>
 <tr><td>Event peek (non-consuming)</td><td><code>Simulation::pending_events</code></td><td>(internal, used by log forwarder)</td><td><code>pendingEvents</code></td><td>(none yet)</td><td>(none yet)</td><td>gdext / Bevy parity is a follow-up.</td></tr>
 <tr><td>Log drain (formatted)</td><td><code>events::log_format::format_event</code></td><td><code>ev_drain_log_messages</code></td><td><code>peekLogMessages</code> (#656)</td><td><code>peek_log_messages</code> (#656)</td><td><em>skip — uses <code>tracing</code></em></td><td>Severity constants in <code>events::log_format</code>.</td></tr>
-<tr><td>Error marshalling</td><td>(host-specific; see below)</td><td><code>EvStatus</code> + <code>ev_last_error</code></td><td>thrown <code>Error</code></td><td>Godot exception</td><td>Rust panic</td><td>Map to a shared classification — see “Error vocabulary” below.</td></tr>
+<tr><td>Error marshalling</td><td><code>host_error::ErrorKind</code></td><td><code>EvStatus</code> (<code>From&lt;ErrorKind&gt;</code>) + <code>ev_last_error</code></td><td>thrown <code>Error</code></td><td>Godot exception</td><td>Rust panic</td><td>Shared classification lives in <code>elevator_core::host_error</code>; FFI maps it to <code>EvStatus</code>. wasm / gdext consume <code>ErrorKind::label()</code> for kebab-case classification strings.</td></tr>
 <tr><td>ABI / wire version</td><td><code>elevator_core::HOST_PROTOCOL_VERSION</code></td><td><code>EV_ABI_VERSION</code> (literal, asserted equal to core)</td><td><code>ABI_VERSION</code> (refs core)</td><td><code>ABI_VERSION</code> (refs core)</td><td>crate semver</td><td>FFI keeps a literal so cbindgen can emit <code>#define EV_ABI_VERSION</code> in the generated C header; a compile-time <code>assert!</code> ties the literal to core.</td></tr>
 </tbody>
 </table>
@@ -264,10 +264,16 @@ knowing “1 means debug” out-of-band.</li>
 <code>peekLogMessages</code> / <code>peek_log_messages</code> mirroring FFI’s
 <code>ev_drain_log_messages</code>. Bevy is intentionally skipped because
 it has native <code>tracing</code>.</li>
-<li>⬜ <strong>Shared error classification</strong> — extract the <code>EvStatus</code>
-shape from FFI to a shared <code>elevator_core::host_error::ErrorKind</code>
-enum. FFI re-exports it under the <code>EvStatus</code> name; wasm /
-gdext use it to tag thrown errors.</li>
+<li>✅ <strong>Shared error classification</strong> —
+<code>elevator_core::host_error::ErrorKind</code> is the cross-host failure
+vocabulary (<code>NullArg</code>, <code>InvalidUtf8</code>, <code>ConfigLoad</code>,
+<code>ConfigParse</code>, <code>BuildFailed</code>, <code>NotFound</code>, <code>InvalidArg</code>,
+<code>Panic</code>). FFI provides <code>impl From&lt;ErrorKind&gt; for EvStatus</code>; new
+FFI / wasm / gdext call sites should produce errors via the
+shared kind so the integer / string / Variant representations
+stay aligned. Adoption across existing call sites is
+intentionally incremental — the shared enum is the foothold,
+not a flag-day migration.</li>
 <li>✅ <strong>Snapshot field-set guard</strong> — a tripwire test
 (<code>elevator_ffi::tests::snapshot_dto_field_names_locked</code>) locks
 the field names on every snapshot DTO (<code>EvElevatorView</code>,
@@ -278,10 +284,13 @@ developer through the parity update sequence (wasm DTO → gdext
 dict → bump <code>HOST_PROTOCOL_VERSION</code> if breaking → update the
 locked list). Catches the silent-drift failure mode without
 requiring CI access to wasm / gdext crate internals.</li>
-<li>⬜ <strong>Wire-version constant</strong> — surface a single
-<code>elevator_core::HOST_PROTOCOL_VERSION</code> consumed by every host;
-the FFI’s existing ABI-pin guard becomes a check that
-<code>EV_ABI_VERSION == HOST_PROTOCOL_VERSION</code>.</li>
+<li>✅ <strong>Wire-version constant</strong> — <code>elevator_core::HOST_PROTOCOL_VERSION</code>
+is the single source of truth. wasm’s <code>ABI_VERSION</code> and gdext’s
+<code>ABI_VERSION</code> reference it directly at compile time; FFI keeps a
+literal <code>EV_ABI_VERSION</code> (so cbindgen can resolve it into the
+generated C header) plus a <code>const _: () = assert!(...)</code> guard
+that traps any drift. <code>scripts/check-abi-pins.sh</code> was extended to
+verify both literal and reference shapes.</li>
 <li>⬜ <strong><code>HostBinding</code> trait (or pattern)</strong> — once the four
 capabilities above share a vocabulary, decide whether a Rust
 trait is the right shape (it might not be — each host’s I/O
