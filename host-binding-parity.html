@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-2153c01c.js";
+            window.path_to_searchindex_js = "searchindex-20de81a2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -291,24 +291,67 @@ literal <code>EV_ABI_VERSION</code> (so cbindgen can resolve it into the
 generated C header) plus a <code>const _: () = assert!(...)</code> guard
 that traps any drift. <code>scripts/check-abi-pins.sh</code> was extended to
 verify both literal and reference shapes.</li>
-<li>⬜ <strong><code>HostBinding</code> trait (or pattern)</strong> — once the four
-capabilities above share a vocabulary, decide whether a Rust
-trait is the right shape (it might not be — each host’s I/O
-types are too divergent for <code>impl HostBinding</code> to be useful
-without heavy generics; a documented contract + per-host
-adapter modules may be the better landing).</li>
+<li>✅ <strong><code>HostBinding</code> pattern (closing decision: documented
+contract, no Rust trait)</strong> — see <a href="#close-out-trait-or-pattern">Close-out</a>
+below. The trait shape was rejected after steps 3-5 made the
+per-host divergence concrete; the pattern landed instead is
+<em>this document plus per-host adapter modules in core</em>
+(<code>events::log_format</code>, <code>host_error::ErrorKind</code>, the
+<code>HOST_PROTOCOL_VERSION</code> constant), backed by tripwire tests
+in the FFI crate.</li>
 </ol>
-<p>Steps 3-5 each get their own issue once step 2 has soaked. Step 6
-is the close-out and only happens after the smaller steps prove
-out the design.</p>
+<p>All six steps are complete. Future per-method coverage continues
+to land via <a href="binding-coverage.html"><code>bindings.toml</code></a>; cross-host
+concerns track in the parity table above.</p>
+<h2 id="close-out-trait-or-pattern"><a class="header" href="#close-out-trait-or-pattern">Close-out: trait or pattern?</a></h2>
+<p>Steps 3-5 deliberately exercised the cross-host vocabulary by
+landing real, observable changes in three host crates. With those
+in main, the trait-vs-pattern question that step 6 deferred has
+a clear answer: <strong>shared types in <code>elevator-core</code>, hand-written
+per-host adapters, no Rust trait</strong>. The reasoning, in plain
+terms:</p>
+<ol>
+<li>
+<p><strong>The host I/O types are too divergent for a useful trait.</strong>
+FFI returns <code>EvStatus</code> integers and <code>*const T</code> slice pointers.
+wasm returns <code>tsify</code>-derived discriminated unions over
+<code>JsValue</code>. gdext returns Godot <code>Variant</code> dictionaries. Bevy
+emits ECS messages. A trait abstracting these would need
+associated types for <em>every</em> return shape — at which point
+each host’s <code>impl</code> is a thicker translation layer than the
+direct hand-written adapter it replaces.</p>
+</li>
+<li>
+<p><strong>The actual sharing happens at the data layer, not the
+method layer.</strong> <code>events::log_format::format_event</code>,
+<code>host_error::ErrorKind</code>, and <code>HOST_PROTOCOL_VERSION</code> are
+plain values / enums — every host already references them
+directly. There is no place a <code>trait HostBinding { fn ev_status(...) }</code> would slot in without re-introducing the
+per-host divergence we just removed.</p>
+</li>
+<li>
+<p><strong>The tripwire pattern (step 4) covers the drift risk a
+trait would have caught.</strong> <code>snapshot_dto_field_names_locked</code>
+forces a deliberate sync when a snapshot DTO changes, with
+the parity-update sequence spelled out in the test’s doc
+comment. That achieves the trait’s main value (preventing
+silent drift) without the type gymnastics.</p>
+</li>
+</ol>
+<p>So <code>HostBinding</code> lands as: this document + the shared types in
+core + tripwire tests. Adding a Rust trait later is still
+possible if a concrete need surfaces, but speculatively
+introducing one would constrain future host evolution without
+buying real safety.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <ul>
 <li>Read <a href="binding-coverage.html">Binding Coverage Manifest</a> for the
 per-method coverage view that complements this page.</li>
 <li>Pick a host you ship against in <a href="using-the-bindings.html">Using the Bindings</a>
 and check the relevant column above for known gaps.</li>
-<li>For the umbrella issue and the live status of each migration
-step, see <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> in the issue tracker.</li>
+<li>The umbrella issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> is closed; this document is the
+ongoing tracker for cross-host parity changes. Edit it directly
+when a new concern appears or an existing one shifts.</li>
 </ul>
 <h2 id="cross-references"><a class="header" href="#cross-references">Cross-references</a></h2>
 <ul>
@@ -316,7 +359,9 @@ step, see <a href="https://github.com/andymai/elevator-core/issues/655">#655</a>
 coverage in <code>bindings.toml</code>.</li>
 <li><a href="using-the-bindings.html">Using the Bindings</a> — host-by-host
 consumer guide.</li>
-<li>Issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> — the umbrella issue this document tracks.</li>
+<li>Issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> — the umbrella issue, closed by this document’s
+step 6. Future cross-host parity work edits this page directly
+instead of opening a new umbrella.</li>
 <li>Issue <a href="https://github.com/andymai/elevator-core/issues/656">#656</a> — log-drain parity, completed.</li>
 </ul>
 
