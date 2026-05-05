@@ -26,6 +26,8 @@
 
 #![allow(unsafe_code)]
 
+mod events_encode;
+
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::fmt::Display;
@@ -373,7 +375,7 @@ const fn door_state_tag(d: &DoorState) -> u8 {
 
 // ── Entity-id conversions ─────────────────────────────────────────────────
 
-fn entity_to_u64(id: EntityId) -> u64 {
+pub(crate) fn entity_to_u64(id: EntityId) -> u64 {
     id.data().as_ffi()
 }
 
@@ -2109,552 +2111,72 @@ pub unsafe extern "C" fn ev_sim_pending_event_count(handle: *mut EvSim) -> u32 {
 /// [`UNKNOWN`](ev_event_kind::UNKNOWN) so consumers stay
 /// forward-compatible. See the [`ev_event_kind`] module docs for the
 /// per-kind field map.
-#[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn refill_pending_events(ev: &mut EvSim) {
     use elevator_core::events::Event;
+    use events_encode as enc;
     for event in ev.sim.drain_events() {
         let record = match event {
-            // ── Hall calls ────────────────────────────────────────────
-            Event::HallButtonPressed {
-                stop,
-                direction,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::HALL_BUTTON_PRESSED, tick);
-                e.direction = encode_direction(direction);
-                e.stop = entity_to_u64(stop);
-                e
-            }
-            Event::HallCallAcknowledged {
-                stop,
-                direction,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::HALL_CALL_ACKNOWLEDGED, tick);
-                e.direction = encode_direction(direction);
-                e.stop = entity_to_u64(stop);
-                e
-            }
-            Event::HallCallCleared {
-                stop,
-                direction,
-                car,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::HALL_CALL_CLEARED, tick);
-                e.direction = encode_direction(direction);
-                e.stop = entity_to_u64(stop);
-                e.car = entity_to_u64(car);
-                e
-            }
-            Event::CarButtonPressed {
-                car,
-                floor,
-                rider,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::CAR_BUTTON_PRESSED, tick);
-                e.car = entity_to_u64(car);
-                e.rider = rider.map_or(0, entity_to_u64);
-                e.floor = entity_to_u64(floor);
-                e.tag = tag.unwrap_or(0);
-                e
-            }
+            // ── Hall calls ───────────────────────────────────────────
+            e @ Event::HallButtonPressed { .. } => enc::hall_button_pressed(e),
+            e @ Event::HallCallAcknowledged { .. } => enc::hall_call_acknowledged(e),
+            e @ Event::HallCallCleared { .. } => enc::hall_call_cleared(e),
+            e @ Event::CarButtonPressed { .. } => enc::car_button_pressed(e),
             // ── Rider lifecycle ──────────────────────────────────────
-            Event::RiderSkipped {
-                rider,
-                elevator,
-                at_stop,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_SKIPPED, tick);
-                e.stop = entity_to_u64(at_stop);
-                e.car = entity_to_u64(elevator);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderSpawned {
-                rider,
-                origin,
-                destination,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_SPAWNED, tick);
-                e.stop = entity_to_u64(origin);
-                e.rider = entity_to_u64(rider);
-                e.floor = entity_to_u64(destination);
-                e.tag = tag;
-                e
-            }
-            Event::RiderBoarded {
-                rider,
-                elevator,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_BOARDED, tick);
-                e.car = entity_to_u64(elevator);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderExited {
-                rider,
-                elevator,
-                stop,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_EXITED, tick);
-                e.stop = entity_to_u64(stop);
-                e.car = entity_to_u64(elevator);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderAbandoned {
-                rider,
-                stop,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_ABANDONED, tick);
-                e.stop = entity_to_u64(stop);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderEjected {
-                rider,
-                elevator,
-                stop,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_EJECTED, tick);
-                e.stop = entity_to_u64(stop);
-                e.car = entity_to_u64(elevator);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderRejected {
-                rider,
-                elevator,
-                reason,
-                context,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_REJECTED, tick);
-                e.car = entity_to_u64(elevator);
-                e.rider = entity_to_u64(rider);
-                e.code1 = encode_rejection_reason(reason);
-                // Surface attempted_weight + current_load for capacity-based
-                // rejections; `RejectionContext` is `None` for
-                // preference-based / access-denied rejections, in which case
-                // both floats stay NaN to signal "not applicable".
-                let (attempted, load) = context.map_or((f64::NAN, f64::NAN), |c| {
-                    (c.attempted_weight.into_inner(), c.current_load.into_inner())
-                });
-                e.f1 = attempted;
-                e.f2 = load;
-                e.tag = tag;
-                e
-            }
-            Event::RiderRerouted {
-                rider,
-                new_destination,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_REROUTED, tick);
-                e.rider = entity_to_u64(rider);
-                e.floor = entity_to_u64(new_destination);
-                e.tag = tag;
-                e
-            }
-            Event::RiderSettled {
-                rider,
-                stop,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_SETTLED, tick);
-                e.stop = entity_to_u64(stop);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RiderDespawned { rider, tag, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::RIDER_DESPAWNED, tick);
-                e.rider = entity_to_u64(rider);
-                e.tag = tag;
-                e
-            }
-            Event::RouteInvalidated {
-                rider,
-                affected_stop,
-                reason,
-                tag,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ROUTE_INVALIDATED, tick);
-                e.rider = entity_to_u64(rider);
-                e.stop = entity_to_u64(affected_stop);
-                e.code1 = encode_route_invalid_reason(reason);
-                e.tag = tag;
-                e
-            }
+            e @ Event::RiderSkipped { .. } => enc::rider_skipped(e),
+            e @ Event::RiderSpawned { .. } => enc::rider_spawned(e),
+            e @ Event::RiderBoarded { .. } => enc::rider_boarded(e),
+            e @ Event::RiderExited { .. } => enc::rider_exited(e),
+            e @ Event::RiderAbandoned { .. } => enc::rider_abandoned(e),
+            e @ Event::RiderEjected { .. } => enc::rider_ejected(e),
+            e @ Event::RiderRejected { .. } => enc::rider_rejected(e),
+            e @ Event::RiderRerouted { .. } => enc::rider_rerouted(e),
+            e @ Event::RiderSettled { .. } => enc::rider_settled(e),
+            e @ Event::RiderDespawned { .. } => enc::rider_despawned(e),
+            e @ Event::RouteInvalidated { .. } => enc::route_invalidated(e),
             // ── Elevator motion ──────────────────────────────────────
-            Event::ElevatorDeparted {
-                elevator,
-                from_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_DEPARTED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(from_stop);
-                e
-            }
-            Event::ElevatorArrived {
-                elevator,
-                at_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_ARRIVED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(at_stop);
-                e
-            }
-            Event::DoorOpened { elevator, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DOOR_OPENED, tick);
-                e.car = entity_to_u64(elevator);
-                e
-            }
-            Event::DoorClosed { elevator, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DOOR_CLOSED, tick);
-                e.car = entity_to_u64(elevator);
-                e
-            }
-            Event::PassingFloor {
-                elevator,
-                stop,
-                moving_up,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::PASSING_FLOOR, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(stop);
-                e.direction = if moving_up { 1 } else { -1 };
-                e
-            }
-            Event::MovementAborted {
-                elevator,
-                brake_target,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::MOVEMENT_ABORTED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(brake_target);
-                e
-            }
+            e @ Event::ElevatorDeparted { .. } => enc::elevator_departed(e),
+            e @ Event::ElevatorArrived { .. } => enc::elevator_arrived(e),
+            e @ Event::DoorOpened { .. } => enc::door_opened(e),
+            e @ Event::DoorClosed { .. } => enc::door_closed(e),
+            e @ Event::PassingFloor { .. } => enc::passing_floor(e),
+            e @ Event::MovementAborted { .. } => enc::movement_aborted(e),
             // ── Dispatch + repositioning ─────────────────────────────
-            Event::ElevatorAssigned {
-                elevator,
-                stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_ASSIGNED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(stop);
-                e
-            }
-            Event::ElevatorRepositioning {
-                elevator,
-                to_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_REPOSITIONING, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(to_stop);
-                e
-            }
-            Event::ElevatorRepositioned {
-                elevator,
-                at_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_REPOSITIONED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(at_stop);
-                e
-            }
-            Event::ElevatorRecalled {
-                elevator,
-                to_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_RECALLED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(to_stop);
-                e
-            }
+            e @ Event::ElevatorAssigned { .. } => enc::elevator_assigned(e),
+            e @ Event::ElevatorRepositioning { .. } => enc::elevator_repositioning(e),
+            e @ Event::ElevatorRepositioned { .. } => enc::elevator_repositioned(e),
+            e @ Event::ElevatorRecalled { .. } => enc::elevator_recalled(e),
             // ── Topology lifecycle ───────────────────────────────────
-            Event::StopAdded {
-                stop,
-                line,
-                group,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::STOP_ADDED, tick);
-                e.stop = entity_to_u64(stop);
-                e.entity = entity_to_u64(line);
-                e.group = group.0;
-                e
-            }
-            Event::ElevatorAdded {
-                elevator,
-                line,
-                group,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_ADDED, tick);
-                e.car = entity_to_u64(elevator);
-                e.entity = entity_to_u64(line);
-                e.group = group.0;
-                e
-            }
-            Event::ElevatorRemoved {
-                elevator,
-                line,
-                group,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_REMOVED, tick);
-                e.car = entity_to_u64(elevator);
-                e.entity = entity_to_u64(line);
-                e.group = group.0;
-                e
-            }
-            Event::StopRemoved { stop, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::STOP_REMOVED, tick);
-                e.stop = entity_to_u64(stop);
-                e
-            }
-            Event::EntityDisabled { entity, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ENTITY_DISABLED, tick);
-                e.entity = entity_to_u64(entity);
-                e
-            }
-            Event::EntityEnabled { entity, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ENTITY_ENABLED, tick);
-                e.entity = entity_to_u64(entity);
-                e
-            }
-            Event::LineAdded { line, group, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::LINE_ADDED, tick);
-                e.entity = entity_to_u64(line);
-                e.group = group.0;
-                e
-            }
-            Event::LineRemoved { line, group, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::LINE_REMOVED, tick);
-                e.entity = entity_to_u64(line);
-                e.group = group.0;
-                e
-            }
-            Event::LineReassigned {
-                line,
-                old_group,
-                new_group,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::LINE_REASSIGNED, tick);
-                e.entity = entity_to_u64(line);
-                e.group = new_group.0;
-                e.count = u64::from(old_group.0);
-                e
-            }
-            Event::ElevatorReassigned {
-                elevator,
-                old_line,
-                new_line,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_REASSIGNED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(new_line);
-                e.entity = entity_to_u64(old_line);
-                e
-            }
-            Event::ResidentsAtRemovedStop { stop, residents } => {
-                // No `tick` field on this variant — it's emitted at
-                // remove time and the caller knows the tick from
-                // surrounding events. Use 0 as a sentinel; the count is
-                // the meaningful payload here.
-                let mut e = ev_event_skeleton(ev_event_kind::RESIDENTS_AT_REMOVED_STOP, 0);
-                e.stop = entity_to_u64(stop);
-                e.count = residents.len() as u64;
-                e
-            }
+            e @ Event::StopAdded { .. } => enc::stop_added(e),
+            e @ Event::ElevatorAdded { .. } => enc::elevator_added(e),
+            e @ Event::ElevatorRemoved { .. } => enc::elevator_removed(e),
+            e @ Event::StopRemoved { .. } => enc::stop_removed(e),
+            e @ Event::EntityDisabled { .. } => enc::entity_disabled(e),
+            e @ Event::EntityEnabled { .. } => enc::entity_enabled(e),
+            e @ Event::LineAdded { .. } => enc::line_added(e),
+            e @ Event::LineRemoved { .. } => enc::line_removed(e),
+            e @ Event::LineReassigned { .. } => enc::line_reassigned(e),
+            e @ Event::ElevatorReassigned { .. } => enc::elevator_reassigned(e),
+            e @ Event::ResidentsAtRemovedStop { .. } => enc::residents_at_removed_stop(e),
             // ── Service mode + manual + indicators ───────────────────
-            Event::ServiceModeChanged {
-                elevator,
-                from,
-                to,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::SERVICE_MODE_CHANGED, tick);
-                e.car = entity_to_u64(elevator);
-                e.code1 = encode_service_mode(to);
-                e.code2 = encode_service_mode(from);
-                e
-            }
-            Event::ManualVelocityCommanded {
-                elevator,
-                target_velocity,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::MANUAL_VELOCITY_COMMANDED, tick);
-                e.car = entity_to_u64(elevator);
-                // OrderedFloat derefs to f64; map_or with a closure trips
-                // clippy::redundant_closure_for_method_calls, and Deref::deref
-                // is the method form clippy wants — but adding the trait
-                // import for a single call is heavier than just dereffing.
-                e.f1 = target_velocity.map_or(f64::NAN, |v| *v);
-                e
-            }
-            Event::DirectionIndicatorChanged {
-                elevator,
-                going_up,
-                going_down,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DIRECTION_INDICATOR_CHANGED, tick);
-                e.car = entity_to_u64(elevator);
-                e.code1 = u8::from(going_up);
-                e.code2 = u8::from(going_down);
-                e
-            }
+            e @ Event::ServiceModeChanged { .. } => enc::service_mode_changed(e),
+            e @ Event::ManualVelocityCommanded { .. } => enc::manual_velocity_commanded(e),
+            e @ Event::DirectionIndicatorChanged { .. } => enc::direction_indicator_changed(e),
             // ── Doors ────────────────────────────────────────────────
-            Event::DoorCommandQueued {
-                elevator,
-                command,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DOOR_COMMAND_QUEUED, tick);
-                let (code, hold_ticks) = encode_door_command(command);
-                e.car = entity_to_u64(elevator);
-                e.code1 = code;
-                e.count = u64::from(hold_ticks);
-                e
-            }
-            Event::DoorCommandApplied {
-                elevator,
-                command,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DOOR_COMMAND_APPLIED, tick);
-                let (code, hold_ticks) = encode_door_command(command);
-                e.car = entity_to_u64(elevator);
-                e.code1 = code;
-                e.count = u64::from(hold_ticks);
-                e
-            }
+            e @ Event::DoorCommandQueued { .. } => enc::door_command_queued(e),
+            e @ Event::DoorCommandApplied { .. } => enc::door_command_applied(e),
             // ── Observability ────────────────────────────────────────
-            Event::CapacityChanged {
-                elevator,
-                current_load,
-                capacity,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::CAPACITY_CHANGED, tick);
-                e.car = entity_to_u64(elevator);
-                e.f1 = current_load.into_inner();
-                e.f2 = capacity.into_inner();
-                e
-            }
-            Event::ElevatorIdle {
-                elevator,
-                at_stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_IDLE, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = at_stop.map_or(0, entity_to_u64);
-                e
-            }
-            Event::DestinationQueued {
-                elevator,
-                stop,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DESTINATION_QUEUED, tick);
-                e.car = entity_to_u64(elevator);
-                e.stop = entity_to_u64(stop);
-                e
-            }
-            Event::ElevatorUpgraded {
-                elevator,
-                field,
-                new,
-                tick,
-                ..
-            } => {
-                use elevator_core::events::UpgradeValue;
-                let mut e = ev_event_skeleton(ev_event_kind::ELEVATOR_UPGRADED, tick);
-                e.car = entity_to_u64(elevator);
-                e.code1 = encode_upgrade_field(field);
-                match new {
-                    UpgradeValue::Float(v) => {
-                        e.f1 = v.into_inner();
-                        e.count = u64::MAX;
-                    }
-                    UpgradeValue::Ticks(v) => {
-                        e.f1 = f64::NAN;
-                        e.count = u64::from(v);
-                    }
-                    _ => {
-                        e.f1 = f64::NAN;
-                        e.count = u64::MAX;
-                    }
-                }
-                e
-            }
+            e @ Event::CapacityChanged { .. } => enc::capacity_changed(e),
+            e @ Event::ElevatorIdle { .. } => enc::elevator_idle(e),
+            e @ Event::DestinationQueued { .. } => enc::destination_queued(e),
+            e @ Event::ElevatorUpgraded { .. } => enc::elevator_upgraded(e),
             #[cfg(feature = "energy")]
-            Event::EnergyConsumed {
-                elevator,
-                consumed,
-                regenerated,
-                tick,
-            } => {
-                let mut e = ev_event_skeleton(ev_event_kind::ENERGY_CONSUMED, tick);
-                e.car = entity_to_u64(elevator);
-                e.f1 = consumed.into_inner();
-                e.f2 = regenerated.into_inner();
-                e
-            }
+            e @ Event::EnergyConsumed { .. } => enc::energy_consumed(e),
             // ── Snapshot diagnostics ─────────────────────────────────
-            Event::SnapshotDanglingReference { stale_id, tick } => {
-                let mut e = ev_event_skeleton(ev_event_kind::SNAPSHOT_DANGLING_REFERENCE, tick);
-                e.entity = entity_to_u64(stale_id);
-                e
+            e @ Event::SnapshotDanglingReference { .. } => enc::snapshot_dangling_reference(e),
+            e @ Event::RepositionStrategyNotRestored { .. } => {
+                enc::reposition_strategy_not_restored(e)
             }
-            Event::RepositionStrategyNotRestored { group } => {
-                let mut e = ev_event_skeleton(ev_event_kind::REPOSITION_STRATEGY_NOT_RESTORED, 0);
-                e.group = group.0;
-                e
-            }
-            Event::DispatchConfigNotRestored { group, .. } => {
-                let mut e = ev_event_skeleton(ev_event_kind::DISPATCH_CONFIG_NOT_RESTORED, 0);
-                e.group = group.0;
-                e
-            }
+            e @ Event::DispatchConfigNotRestored { .. } => enc::dispatch_config_not_restored(e),
             // Drop unknown / non-public variants — caller saw them as
             // UNKNOWN, but emitting an actual event keeps the order
             // stable.
@@ -2836,7 +2358,7 @@ pub unsafe extern "C" fn ev_sim_despawn_rider(
 
 /// Encode a `CallDirection` for the FFI `EvEvent::direction` field.
 /// Matches the encoding used by [`EvHallCall::direction`].
-const fn encode_direction(dir: elevator_core::components::CallDirection) -> i8 {
+pub(crate) const fn encode_direction(dir: elevator_core::components::CallDirection) -> i8 {
     use elevator_core::components::CallDirection;
     match dir {
         CallDirection::Up => 1,
@@ -2847,7 +2369,7 @@ const fn encode_direction(dir: elevator_core::components::CallDirection) -> i8 {
 
 /// Encode a `RejectionReason` for [`EvEvent::code1`] on
 /// [`RIDER_REJECTED`](ev_event_kind::RIDER_REJECTED).
-const fn encode_rejection_reason(r: elevator_core::error::RejectionReason) -> u8 {
+pub(crate) const fn encode_rejection_reason(r: elevator_core::error::RejectionReason) -> u8 {
     use elevator_core::error::RejectionReason;
     match r {
         RejectionReason::OverCapacity => ev_rejection_reason::OVER_CAPACITY,
@@ -2859,7 +2381,9 @@ const fn encode_rejection_reason(r: elevator_core::error::RejectionReason) -> u8
 
 /// Encode a `RouteInvalidReason` for [`EvEvent::code1`] on
 /// [`ROUTE_INVALIDATED`](ev_event_kind::ROUTE_INVALIDATED).
-const fn encode_route_invalid_reason(r: elevator_core::events::RouteInvalidReason) -> u8 {
+pub(crate) const fn encode_route_invalid_reason(
+    r: elevator_core::events::RouteInvalidReason,
+) -> u8 {
     use elevator_core::events::RouteInvalidReason;
     match r {
         RouteInvalidReason::StopDisabled => ev_route_invalid_reason::STOP_DISABLED,
@@ -2874,7 +2398,7 @@ const fn encode_route_invalid_reason(r: elevator_core::events::RouteInvalidReaso
 /// [`DOOR_COMMAND_APPLIED`](ev_event_kind::DOOR_COMMAND_APPLIED).
 /// Returns `(code, hold_ticks)`; `hold_ticks` is non-zero only for
 /// `HoldOpen { ticks }`.
-const fn encode_door_command(c: elevator_core::door::DoorCommand) -> (u8, u32) {
+pub(crate) const fn encode_door_command(c: elevator_core::door::DoorCommand) -> (u8, u32) {
     use elevator_core::door::DoorCommand;
     match c {
         DoorCommand::Open => (ev_door_command::OPEN, 0),
@@ -2887,7 +2411,7 @@ const fn encode_door_command(c: elevator_core::door::DoorCommand) -> (u8, u32) {
 
 /// Encode an `UpgradeField` for [`EvEvent::code1`] on
 /// [`ELEVATOR_UPGRADED`](ev_event_kind::ELEVATOR_UPGRADED).
-const fn encode_upgrade_field(f: elevator_core::events::UpgradeField) -> u8 {
+pub(crate) const fn encode_upgrade_field(f: elevator_core::events::UpgradeField) -> u8 {
     use elevator_core::events::UpgradeField;
     match f {
         UpgradeField::MaxSpeed => ev_upgrade_field::MAX_SPEED,
@@ -2903,7 +2427,7 @@ const fn encode_upgrade_field(f: elevator_core::events::UpgradeField) -> u8 {
 /// Encode the `ServiceMode` enum for [`EvEvent::code1`]/`code2` on
 /// [`SERVICE_MODE_CHANGED`](ev_event_kind::SERVICE_MODE_CHANGED) using
 /// the same numbers as [`EvServiceMode`].
-const fn encode_service_mode(m: elevator_core::components::ServiceMode) -> u8 {
+pub(crate) const fn encode_service_mode(m: elevator_core::components::ServiceMode) -> u8 {
     use elevator_core::components::ServiceMode;
     match m {
         ServiceMode::Normal => EvServiceMode::Normal as u8,
@@ -2918,7 +2442,7 @@ const fn encode_service_mode(m: elevator_core::components::ServiceMode) -> u8 {
 /// Helper: produce a fully-zero [`EvEvent`] template for a given kind +
 /// tick. Per-kind `refill_pending_events` arms then overwrite the
 /// fields they need.
-const fn ev_event_skeleton(kind: u8, tick: u64) -> EvEvent {
+pub(crate) const fn ev_event_skeleton(kind: u8, tick: u64) -> EvEvent {
     EvEvent {
         kind,
         direction: 0,
