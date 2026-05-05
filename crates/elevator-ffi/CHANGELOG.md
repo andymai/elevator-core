@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.18.0...elevator-ffi-v0.19.0) (2026-05-05)
+
+
+### Features
+
+* **core:** HOST_PROTOCOL_VERSION as single wire-version source of truth (step 5 of [#655](https://github.com/andymai/elevator-core/issues/655)) ([#703](https://github.com/andymai/elevator-core/issues/703)) ([d728d72](https://github.com/andymai/elevator-core/commit/d728d725f8cdc9fb8a2836da221ae53dd041692a))
+
 ## [0.18.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.17.0...elevator-ffi-v0.18.0) (2026-05-05)
 
 
