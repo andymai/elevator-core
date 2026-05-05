@@ -58,6 +58,7 @@ mod door_control_tests;
 mod energy_tests;
 mod eta_tests;
 mod etd_age_weight_tests;
+mod etd_compute_cost_tests;
 mod etd_mutant_tests;
 mod event_payload_tests;
 mod event_tag_tests;

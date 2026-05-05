@@ -266,7 +266,12 @@ impl EtdDispatch {
     ///
     /// Cost = `wait_weight` * travel\_time + `delay_weight` * existing\_rider\_delay
     ///      + `door_weight` * door\_overhead + direction\_bonus
-    fn compute_cost(
+    ///
+    /// Crate-visible so the boundary-mutation suite under
+    /// `tests/etd_compute_cost_tests.rs` can call it directly with a
+    /// pure f64-in/f64-out shape; the public `DispatchStrategy::rank`
+    /// path remains the production caller.
+    pub(crate) fn compute_cost(
         &self,
         elev_eid: EntityId,
         elev_pos: f64,
