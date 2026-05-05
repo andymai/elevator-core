@@ -70,6 +70,14 @@ jobs:
       - name: Check ABI version pins
         run: scripts/check-abi-pins.sh
 
+      - name: Run contract harness (rust host)
+        # Replays the 5 scenarios in assets/contract-corpus/ against
+        # the elevator-core API and fails if any deterministic-projection
+        # checksum diverges from assets/contract-corpus/golden.txt.
+        # Future PRs add wasm/gms/gdext hosts that share the same
+        # golden file — divergence between hosts means a binding bug.
+        run: cargo run -p elevator-contract
+
       - name: Check layout-codegen drift
         # Regenerate the C# / GML / C-asserts files from the
         # elevator-layout-runtime registry and fail if the result

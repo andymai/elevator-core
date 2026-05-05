@@ -1,0 +1,52 @@
+// Extreme-load scenario — pathological combination of fast spawn,
+// tight capacity, and tall building. The intent is to push every
+// rider lifecycle path: many spawns, many abandonments under a
+// non-trivial wait deadline, and frequent strategy-thrashing on
+// the dispatcher. Useful for catching off-by-one / saturation
+// regressions that don't manifest at moderate load.
+SimConfig(
+    building: BuildingConfig(
+        name: "Skyscraper",
+        stops: [
+            StopConfig(id: StopId(0),  name: "Lobby", position: 0.0),
+            StopConfig(id: StopId(1),  name: "L2",    position: 4.0),
+            StopConfig(id: StopId(2),  name: "L3",    position: 8.0),
+            StopConfig(id: StopId(3),  name: "L4",    position: 12.0),
+            StopConfig(id: StopId(4),  name: "L5",    position: 16.0),
+            StopConfig(id: StopId(5),  name: "L6",    position: 20.0),
+            StopConfig(id: StopId(6),  name: "L7",    position: 24.0),
+            StopConfig(id: StopId(7),  name: "L8",    position: 28.0),
+            StopConfig(id: StopId(8),  name: "L9",    position: 32.0),
+            StopConfig(id: StopId(9),  name: "L10",   position: 36.0),
+            StopConfig(id: StopId(10), name: "L11",   position: 40.0),
+            StopConfig(id: StopId(11), name: "L12",   position: 44.0),
+            StopConfig(id: StopId(12), name: "L13",   position: 48.0),
+            StopConfig(id: StopId(13), name: "L14",   position: 52.0),
+            StopConfig(id: StopId(14), name: "Sky",   position: 56.0),
+        ],
+    ),
+    elevators: [
+        ElevatorConfig(
+            id: 0,
+            name: "Sole Car",
+            max_speed: 2.0,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            // Very tight capacity → many spawns will exceed it,
+            // exercising the over-capacity rejection path.
+            weight_capacity: 200.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 30,
+            door_transition_ticks: 10,
+        ),
+    ],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        // ~3 spawns/second against one tight-capacity car: the
+        // queue grows unbounded and abandonments dominate.
+        mean_interval_ticks: 20,
+        weight_range: (50.0, 120.0),
+    ),
+)

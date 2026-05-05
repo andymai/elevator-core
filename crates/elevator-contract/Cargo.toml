@@ -1,0 +1,18 @@
+[package]
+name = "elevator-contract"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Cross-host contract test harness — runs a fixed scenario corpus against every elevator-core consumer (ffi, wasm) and asserts they agree on the WorldSnapshot checksum."
+publish = false
+
+[[bin]]
+name = "elevator-contract"
+path = "src/main.rs"
+
+[dependencies]
+elevator-core = { path = "../elevator-core" }
+rand = { workspace = true }
+ron = { workspace = true }

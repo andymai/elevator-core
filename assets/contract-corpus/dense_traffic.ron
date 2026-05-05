@@ -1,0 +1,66 @@
+// Dense-traffic stress scenario — every stop spawns frequently.
+// Three elevators at small capacity (300 kg) keep the dispatcher
+// thrashing as the queue length never drains. Used by the contract
+// harness to exercise the dispatcher's tie-breaking, the loading
+// phase, and the rider-abandonment path under saturation.
+SimConfig(
+    building: BuildingConfig(
+        name: "Dense Tower",
+        stops: [
+            StopConfig(id: StopId(0), name: "L1",  position: 0.0),
+            StopConfig(id: StopId(1), name: "L2",  position: 4.0),
+            StopConfig(id: StopId(2), name: "L3",  position: 8.0),
+            StopConfig(id: StopId(3), name: "L4",  position: 12.0),
+            StopConfig(id: StopId(4), name: "L5",  position: 16.0),
+            StopConfig(id: StopId(5), name: "L6",  position: 20.0),
+            StopConfig(id: StopId(6), name: "L7",  position: 24.0),
+            StopConfig(id: StopId(7), name: "L8",  position: 28.0),
+            StopConfig(id: StopId(8), name: "L9",  position: 32.0),
+            StopConfig(id: StopId(9), name: "L10", position: 36.0),
+        ],
+    ),
+    elevators: [
+        ElevatorConfig(
+            id: 0,
+            name: "Car A",
+            max_speed: 2.5,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 300.0,
+            starting_stop: StopId(0),
+            door_open_ticks: 30,
+            door_transition_ticks: 12,
+        ),
+        ElevatorConfig(
+            id: 1,
+            name: "Car B",
+            max_speed: 2.5,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 300.0,
+            starting_stop: StopId(4),
+            door_open_ticks: 30,
+            door_transition_ticks: 12,
+        ),
+        ElevatorConfig(
+            id: 2,
+            name: "Car C",
+            max_speed: 2.5,
+            acceleration: 1.5,
+            deceleration: 2.0,
+            weight_capacity: 300.0,
+            starting_stop: StopId(9),
+            door_open_ticks: 30,
+            door_transition_ticks: 12,
+        ),
+    ],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        // Mean 30 ticks ≈ 0.5s between spawns — saturates a 3-car
+        // 10-stop building well past its dispatch capacity.
+        mean_interval_ticks: 30,
+        weight_range: (50.0, 100.0),
+    ),
+)
