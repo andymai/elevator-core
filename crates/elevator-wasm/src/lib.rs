@@ -697,6 +697,28 @@ impl WasmSim {
             .collect()
     }
 
+    /// Format the currently-pending events as log-style records,
+    /// matching the FFI's `ev_drain_log_messages` shape. Non-consuming
+    /// — events remain in the queue and are still returned by
+    /// [`drain_events`](Self::drain_events).
+    ///
+    /// Severity is currently always `1` (debug); message text is the
+    /// `Debug` rendering of the underlying core event. Closes the
+    /// log-drain parity gap so browser hosts can surface simulator
+    /// diagnostics with the same text Unity / `GameMaker` consumers see.
+    #[wasm_bindgen(js_name = peekLogMessages)]
+    pub fn peek_log_messages(&mut self) -> Vec<dto::LogMessageDto> {
+        use elevator_core::events::log_format;
+        self.inner
+            .pending_events()
+            .iter()
+            .map(|event| {
+                let (level, message) = log_format::format_event(event);
+                dto::LogMessageDto { level, message }
+            })
+            .collect()
+    }
+
     /// Current aggregate metrics.
     pub fn metrics(&self) -> dto::MetricsDto {
         dto::MetricsDto::build(&self.inner)

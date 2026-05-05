@@ -679,8 +679,6 @@ pub unsafe extern "C" fn ev_sim_step(handle: *mut EvSim) -> EvStatus {
     })
 }
 
-const LEVEL_DEBUG: u8 = 1;
-
 fn forward_pending_events(ev: &mut EvSim) {
     let maybe_cb = LOG_CALLBACK.lock().ok().and_then(|slot| *slot);
     // Skip both legs entirely if neither side wants the stream.
@@ -695,16 +693,16 @@ fn forward_pending_events(ev: &mut EvSim) {
         .and_then(|d| i64::try_from(d.as_nanos()).ok())
         .unwrap_or(0);
     for event in ev.sim.pending_events() {
-        let msg = format!("{event:?}");
+        let (level, msg) = elevator_core::events::log_format::format_event(event);
         let Ok(c) = CString::new(msg) else { continue };
         if let Some(cb) = maybe_cb {
             // Safety: ev_set_log_callback's contract covers pointer
             // validity for the duration of the callback installation.
-            unsafe { cb(LEVEL_DEBUG, c.as_ptr()) };
+            unsafe { cb(level, c.as_ptr()) };
         }
         if ev.log_polling_active {
             ev.pending_log_messages.push_back(LogRecord {
-                level: LEVEL_DEBUG,
+                level,
                 ts_ns: now_ns,
                 msg: c,
             });

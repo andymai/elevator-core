@@ -579,6 +579,34 @@ impl ElevatorSim {
         }
         arr
     }
+
+    /// Format the currently-pending events as log-style records,
+    /// matching the FFI's `ev_drain_log_messages` shape. Non-consuming
+    /// — events remain in the queue and are still returned by
+    /// [`drain_events`](Self::drain_events).
+    ///
+    /// Each entry is a `Dictionary` with `level` (int — `1` debug)
+    /// and `message` (String — `Debug` rendering of the core event).
+    /// Closes the log-drain parity gap so Godot hosts can surface
+    /// simulator diagnostics with the same text Unity / `GameMaker`
+    /// consumers see.
+    #[func]
+    fn peek_log_messages(&mut self) -> Array<Dictionary<Variant, Variant>> {
+        use elevator_core::events::log_format;
+        let Some(sim) = self.sim.as_mut() else {
+            return Array::new();
+        };
+        let mut arr = Array::new();
+        for event in sim.pending_events() {
+            let (level, message) = log_format::format_event(event);
+            let d = dict! {
+                "level" => i64::from(level),
+                "message" => message,
+            };
+            arr.push(&d);
+        }
+        arr
+    }
 }
 
 impl ElevatorSim {
