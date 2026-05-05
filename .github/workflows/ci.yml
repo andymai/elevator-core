@@ -239,17 +239,17 @@ jobs:
       # `assets/contract-corpus/golden.txt`; a divergence here means
       # the wasm32 build of `elevator-core` produces a different
       # `snapshot_checksum` for the same scenario inputs.
-      - name: Install cargo-binstall
-        # Pulls pre-built binaries from upstream releases instead of
-        # rebuilding from source. Saves ~3 min per run for
-        # `wasm-bindgen-cli` versus `cargo install --locked`, which
-        # rust-cache does not reliably cache.
-        uses: cargo-bins/cargo-binstall@main
       - name: Install wasm-bindgen-test-runner
-        # Version tracks the `wasm-bindgen` dependency in `Cargo.lock`;
-        # mismatched runner/library versions fail with a clear error
-        # at test startup. Bump together when upgrading either.
-        run: cargo binstall --no-confirm wasm-bindgen-cli@0.2.118
+        # `taiki-e/install-action` pulls pre-built binaries from
+        # upstream releases and reliably puts them on PATH. The
+        # cargo-binstall equivalent ran into "already installed"
+        # false positives that left the binary off PATH on a fresh
+        # runner. Version tracks `wasm-bindgen` in `Cargo.lock`;
+        # mismatched runner/library versions fail loudly at test
+        # startup.
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.118
       - name: Run wasm-host contract test (wasm32)
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
