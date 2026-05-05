@@ -7,8 +7,9 @@
 //! enumerate the *kinds* of failures separately, drifting whenever a
 //! new failure mode landed.
 //!
-//! [`ErrorKind`] is the shared vocabulary. Hosts map it to their
-//! native error type (FFI provides `From<ErrorKind> for EvStatus`).
+//! [`ErrorKind`](crate::host_error::ErrorKind) is the shared
+//! vocabulary. Hosts map it to their native error type (FFI provides
+//! `From<ErrorKind> for EvStatus`).
 //!
 //! See [Host Binding Parity](https://andymai.github.io/elevator-core/host-binding-parity.html)
 //! for the wider cross-host contract this enum is part of.
