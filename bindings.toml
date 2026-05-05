@@ -52,14 +52,31 @@
 # convention — the CI gate treats `todo:<phase>` identically across
 # every column (no failure, just summary count).
 #
-# Phase markers (see PR plan in design doc)
-# -----------------------------------------
-#   PR-B   FFI catchup, wave 1 — topology + dispatch introspection
-#   PR-C   FFI catchup, wave 2 — parameters, introspection, destinations
-#   PR-D   Mode APIs (both bindings) — service modes, manual, emergency stop
-#   PR-E   Wasm error-rewrite + log callback + metrics + tagging
-#   PR-F   Persistence — snapshot bytes/JSON, seed control
-#   PR-G   AsyncIterator event stream
+# Phase markers
+# -------------
+# Two phase markers are currently in use, semantically distinct:
+#
+#   plugin-layer    — gated by the Bevy plugin-layer rewrite. Used
+#                     exclusively in the `bevy` column. This is the
+#                     *expected* state for every non-`internal`
+#                     Simulation method until the plugin layer ships;
+#                     it is not an actionable gap.
+#
+#   future-binding  — gdext methods that have no current binding but
+#                     are slated for future coverage. Used exclusively
+#                     in the `gdext` column. These are the actionable
+#                     "next thing to implement" entries — when looking
+#                     for binding work to pick up, this is the queue.
+#
+# CI accepts both identically (no failure, just summary count). The
+# `scripts/check-bindings.sh` summary breaks them out so `future-binding`
+# (real coverage gaps) doesn't get lost in the `plugin-layer` (expected
+# state) noise.
+#
+# Earlier rollout phases (PR-B FFI catchup, PR-E wasm error-rewrite,
+# etc.) used phase-specific markers; all of those have shipped and the
+# corresponding entries are now `<exported>` — git history is the
+# canonical record of those rollouts.
 
 [categories]
 lifecycle     = "Construction, ticking"
