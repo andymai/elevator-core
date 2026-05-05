@@ -20,7 +20,6 @@ pub struct SimSpeed {
 
 /// Bevy message wrapper for core simulation events.
 #[derive(Message, Debug, Clone)]
-#[allow(dead_code)]
 pub struct EventWrapper(pub Event);
 
 /// System that ticks the simulation and emits events into Bevy.

@@ -229,6 +229,10 @@ pub struct MetricsDto {
 }
 
 impl MetricsDto {
+    // Wait/ride times are tick counts (u64) bounded by the run length;
+    // the f64 cast is exact up to 2^53 ticks, well past any plausible
+    // playground workload (>2^53 ticks would mean the sim has been
+    // running for hundreds of thousands of years at 60 Hz).
     #[allow(clippy::cast_precision_loss)]
     pub fn build(sim: &Simulation) -> Self {
         let m = sim.metrics();
@@ -1587,6 +1591,8 @@ fn event_tick(event: &Event) -> u64 {
 /// >2^32 entity destructions — far beyond any playground workload.
 fn entity_to_u32(id: EntityId) -> u32 {
     let raw = id.data().as_ffi();
+    // Truncation is intentional — see the fn-level doc comment above:
+    // the low 32 bits are stable within a sim run and fit a JS Number.
     #[allow(clippy::cast_possible_truncation)]
     let slot = raw as u32;
     slot
