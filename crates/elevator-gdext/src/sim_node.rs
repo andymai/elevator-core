@@ -36,7 +36,7 @@ use elevator_core::sim::Simulation;
 /// this constant and `EV_ABI_VERSION` in the FFI header fails the
 /// gate, surfacing a stale gdext pin before runtime. Public so a
 /// curious GDScript caller can verify the binding's ABI generation.
-pub const ABI_VERSION: u32 = 5;
+pub const ABI_VERSION: u32 = elevator_core::HOST_PROTOCOL_VERSION;
 
 /// Elevator simulation node.
 ///

@@ -345,6 +345,21 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+/// Single source of truth for the host-binding wire/ABI version.
+///
+/// Every consumer crate (FFI's `EV_ABI_VERSION`, wasm's
+/// `ABI_VERSION`, gdext's `ABI_VERSION`) references this constant
+/// at compile time so they cannot drift apart in-source. The C
+/// header (`elevator_ffi.h`) and the example harnesses still embed
+/// a literal copy; `scripts/check-abi-pins.sh` enforces that those
+/// copies match this value.
+///
+/// Bump when any host-facing wire format changes — `EvEvent`
+/// layout, `EvSnapshot` layout, an enum value re-numbering, etc.
+/// See [Host Binding Parity](https://andymai.github.io/elevator-core/host-binding-parity.html)
+/// for the cross-host contract this constant is part of.
+pub const HOST_PROTOCOL_VERSION: u32 = 5;
+
 #[cfg(doctest)]
 mod doctests;
 
