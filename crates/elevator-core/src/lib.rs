@@ -357,7 +357,9 @@
 /// Bump when any host-facing wire format changes — `EvEvent`
 /// layout, `EvSnapshot` layout, an enum value re-numbering, etc.
 /// See [Host Binding Parity](https://andymai.github.io/elevator-core/host-binding-parity.html)
-/// for the cross-host contract this constant is part of.
+/// for the cross-host contract this constant is part of (issue #655
+/// closed out the design — this constant is one of the three shared
+/// types that pattern landed on).
 pub const HOST_PROTOCOL_VERSION: u32 = 5;
 
 #[cfg(doctest)]
