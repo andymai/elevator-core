@@ -46,7 +46,7 @@ risk that motivated `bindings.toml` for the per-method surface.
 | Event peek (non-consuming) | `Simulation::pending_events`           | (internal, used by log forwarder) | `pendingEvents` | (none yet) | (none yet) | gdext / Bevy parity is a follow-up. |
 | Log drain (formatted)| `events::log_format::format_event`           | `ev_drain_log_messages` | `peekLogMessages` (#656) | `peek_log_messages` (#656) | *skip — uses `tracing`* | Severity constants in `events::log_format`. |
 | Error marshalling    | (host-specific; see below)                   | `EvStatus` + `ev_last_error` | thrown `Error` | Godot exception | Rust panic | Map to a shared classification — see "Error vocabulary" below. |
-| ABI / wire version   | `crates/elevator-ffi/src/lib.rs::EV_ABI_VERSION` | `5` (pinned by ABI guard) | `package.json` semver | crate semver | crate semver | Wasm/gdext don't have a binary ABI; their consumers track the published crate/package version. |
+| ABI / wire version   | `elevator_core::HOST_PROTOCOL_VERSION`        | `EV_ABI_VERSION` (literal, asserted equal to core) | `ABI_VERSION` (refs core) | `ABI_VERSION` (refs core) | crate semver | FFI keeps a literal so cbindgen can emit `#define EV_ABI_VERSION` in the generated C header; a compile-time `assert!` ties the literal to core. |
 
 ## Error vocabulary
 
