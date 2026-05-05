@@ -231,6 +231,24 @@ jobs:
         # combination where core with `traffic` is expected to reach wasm.
         run: cargo check -p elevator-wasm --target wasm32-unknown-unknown
 
+      # Run the cross-target contract test under a real wasm runtime.
+      # `wasm-bindgen-test-runner` shells the test wasm out to node.js,
+      # so this catches actual runtime divergence between native and
+      # wasm32 builds — `cargo check` only proves it compiles. Goldens
+      # live alongside the rust-host harness in
+      # `assets/contract-corpus/golden.txt`; a divergence here means
+      # the wasm32 build of `elevator-core` produces a different
+      # `snapshot_checksum` for the same scenario inputs.
+      - name: Install wasm-bindgen-test-runner
+        # Version tracks the `wasm-bindgen` dependency in `Cargo.lock`;
+        # mismatched runner/library versions fail with a clear error
+        # at test startup. Bump together when upgrading either.
+        run: cargo install --locked wasm-bindgen-cli@0.2.118
+      - name: Run wasm-host contract test (wasm32)
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+        run: cargo test -p elevator-wasm --target wasm32-unknown-unknown --test contract
+
   msrv:
     name: MSRV (elevator-core)
     if: |
