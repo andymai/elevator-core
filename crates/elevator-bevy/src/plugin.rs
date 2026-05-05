@@ -21,6 +21,9 @@ use elevator_core::sim::Simulation;
 pub struct ElevatorSimPlugin;
 
 impl Plugin for ElevatorSimPlugin {
+    // Plugin construction runs once at app startup. Bad config has no
+    // recovery path here — the simulation can't initialize without it —
+    // so panicking is the correct termination signal.
     #[allow(clippy::panic)]
     fn build(&self, app: &mut App) {
         // Load config — check CLI arg first, fall back to default.
