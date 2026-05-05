@@ -183,28 +183,51 @@ fn record_step(sim: &mut Simulation, state: &mut AppState) {
 
 /// Map a single keypress to a state transition (and possibly a sim
 /// mutation, for single-step).
-#[allow(clippy::too_many_lines)]
+///
+/// Top-level dispatcher: routes to the mode-specific handler based
+/// on which overlay (if any) is active. The breakdown by mode keeps
+/// each binding independently reviewable and lets new bindings land
+/// without affecting unrelated overlays.
 fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifiers: KeyModifiers) {
+    // Ctrl-C escapes every mode, including overlays.
     if matches!(code, KeyCode::Char('c')) && modifiers.contains(KeyModifiers::CONTROL) {
         state.quit = true;
         return;
     }
-    // Welcome overlay swallows the first keypress, no matter what it is —
-    // including `q`, so a user who hits q-then-q doesn't accidentally
-    // quit while reading. Ctrl-C is checked above and still escapes.
     if state.show_welcome {
-        state.show_welcome = false;
+        handle_key_welcome(state);
         return;
     }
-    // Help overlay closes on `?`, Esc, or `q` (and any of the explicit
-    // toggles below by re-pressing). `q` here means "close help", not
-    // "quit the app" — same justification as welcome above.
     if state.show_help {
-        if matches!(code, KeyCode::Char('?' | 'q') | KeyCode::Esc) {
-            state.show_help = false;
-        }
+        handle_key_help(state, code);
         return;
     }
+    handle_key_main(state, sim, code);
+}
+
+/// Welcome overlay handler.
+///
+/// Swallows the first keypress, no matter what it is — including
+/// `q`, so a user who hits q-then-q doesn't accidentally quit while
+/// reading. Ctrl-C is checked in the dispatcher and still escapes.
+const fn handle_key_welcome(state: &mut AppState) {
+    state.show_welcome = false;
+}
+
+/// Help overlay handler.
+///
+/// Closes on `?`, Esc, or `q`. `q` here means "close help", not
+/// "quit the app" — same justification as welcome above.
+const fn handle_key_help(state: &mut AppState, code: KeyCode) {
+    if matches!(code, KeyCode::Char('?' | 'q') | KeyCode::Esc) {
+        state.show_help = false;
+    }
+}
+
+/// Main viewer handler — overview / drill-down / metrics share these
+/// bindings; the right-panel toggle (Enter / Esc) flips between
+/// `Overview` and `DrillDown` without changing the keymap.
+fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
     match code {
         KeyCode::Char('?') => state.show_help = true,
         KeyCode::Char('q') => state.quit = true,
@@ -276,21 +299,29 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
             state.snapshot_slot = Some(sim.snapshot());
             state.flash(format!("snapshot saved @ tick {}", sim.current_tick()));
         }
-        KeyCode::Char('l') => match state.snapshot_slot.clone() {
-            Some(snap) => match snap.restore(None) {
-                Ok(restored) => {
-                    *sim = restored;
-                    state.event_log.clear();
-                    state.wait_sparkline = Sparkline::new(state.wait_sparkline.capacity);
-                    state.occupancy_sparkline = Sparkline::new(state.occupancy_sparkline.capacity);
-                    state.focused_car_idx = 0;
-                    state.flash(format!("restored @ tick {}", sim.current_tick()));
-                }
-                Err(e) => state.flash(format!("restore failed: {e}")),
-            },
-            None => state.flash("no snapshot saved"),
-        },
+        KeyCode::Char('l') => handle_key_main_load_snapshot(state, sim),
         _ => {}
+    }
+}
+
+/// Restore the last-saved snapshot, if any, and reset the derived
+/// view state (event log, sparklines, focused car). Extracted so the
+/// main keymap stays easy to scan.
+fn handle_key_main_load_snapshot(state: &mut AppState, sim: &mut Simulation) {
+    let Some(snap) = state.snapshot_slot.clone() else {
+        state.flash("no snapshot saved");
+        return;
+    };
+    match snap.restore(None) {
+        Ok(restored) => {
+            *sim = restored;
+            state.event_log.clear();
+            state.wait_sparkline = Sparkline::new(state.wait_sparkline.capacity);
+            state.occupancy_sparkline = Sparkline::new(state.occupancy_sparkline.capacity);
+            state.focused_car_idx = 0;
+            state.flash(format!("restored @ tick {}", sim.current_tick()));
+        }
+        Err(e) => state.flash(format!("restore failed: {e}")),
     }
 }
 
