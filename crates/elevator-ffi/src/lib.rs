@@ -6681,6 +6681,100 @@ mod tests {
         }
     }
 
+    /// Snapshot DTO field-set tripwire — see step 4 of
+    /// [host-binding-parity.md][parity] for the cross-host contract.
+    ///
+    /// When this test fails, an FFI snapshot DTO grew, shrank, or
+    /// renamed a field. Before updating the expected list below:
+    ///
+    ///   1. Update wasm's `CarDto` / `StopDto` / `Snapshot` /
+    ///      `MetricsDto` (`crates/elevator-wasm/src/dto.rs`) to
+    ///      mirror the change.
+    ///   2. Update gdext's snapshot dictionary keys
+    ///      (`crates/elevator-gdext/src/sim_node.rs`).
+    ///   3. Bump `HOST_PROTOCOL_VERSION` if the change is
+    ///      consumer-visible (a new field is additive but a rename
+    ///      is breaking).
+    ///   4. *Then* update the locked field list here.
+    ///
+    /// Skipping these steps is the structural failure mode that
+    /// motivated the parity work — silent host drift. The trip-and-update
+    /// cycle is deliberate friction.
+    ///
+    /// [parity]: https://andymai.github.io/elevator-core/host-binding-parity.html
+    #[test]
+    fn snapshot_dto_field_names_locked() {
+        use elevator_layout_runtime::LayoutInfo;
+
+        fn field_names<T: LayoutInfo>() -> Vec<&'static str> {
+            T::fields().iter().map(|f| f.name).collect()
+        }
+
+        assert_eq!(
+            field_names::<EvElevatorView>(),
+            [
+                "entity_id",
+                "group_id",
+                "line_id",
+                "phase",
+                "position",
+                "velocity",
+                "current_stop_id",
+                "target_stop_id",
+                "occupancy",
+                "capacity_kg",
+                "door_state",
+                "going_up",
+                "going_down",
+            ],
+        );
+        assert_eq!(
+            field_names::<EvStopView>(),
+            [
+                "entity_id",
+                "stop_id",
+                "position",
+                "waiting",
+                "residents",
+                "abandoned",
+                "name_ptr",
+                "name_len",
+            ],
+        );
+        assert_eq!(
+            field_names::<EvRiderView>(),
+            [
+                "entity_id",
+                "phase",
+                "origin_stop_id",
+                "destination_stop_id",
+                "elevator_id",
+            ],
+        );
+        assert_eq!(
+            field_names::<EvMetricsView>(),
+            [
+                "total_delivered",
+                "total_abandoned",
+                "avg_wait_seconds",
+                "avg_ride_seconds",
+                "current_tick",
+            ],
+        );
+        assert_eq!(
+            field_names::<EvFrame>(),
+            [
+                "elevators",
+                "elevator_count",
+                "stops",
+                "stop_count",
+                "riders",
+                "rider_count",
+                "metrics",
+            ],
+        );
+    }
+
     #[test]
     fn layout_offsets_round_trip_via_registry() {
         // Spot-check a few structs through the registry (rather than

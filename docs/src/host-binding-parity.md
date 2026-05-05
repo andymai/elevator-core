@@ -88,10 +88,16 @@ ships independently, and keeps every host runnable.
    shape from FFI to a shared `elevator_core::host_error::ErrorKind`
    enum. FFI re-exports it under the `EvStatus` name; wasm /
    gdext use it to tag thrown errors.
-4. ⬜ **Snapshot field-set guard** — a CI lint that fails when the
-   FFI / wasm / gdext snapshot DTOs and the core `Snapshot` drift
-   in field names. Cheap version: a doc-test that lists field
-   names and compares.
+4. ✅ **Snapshot field-set guard** — a tripwire test
+   (`elevator_ffi::tests::snapshot_dto_field_names_locked`) locks
+   the field names on every snapshot DTO (`EvElevatorView`,
+   `EvStopView`, `EvRiderView`, `EvMetricsView`, `EvFrame`) using
+   the existing `MultiHostLayout::fields()` registry. When a field
+   is added, removed, or renamed, the test fails and walks the
+   developer through the parity update sequence (wasm DTO → gdext
+   dict → bump `HOST_PROTOCOL_VERSION` if breaking → update the
+   locked list). Catches the silent-drift failure mode without
+   requiring CI access to wasm / gdext crate internals.
 5. ⬜ **Wire-version constant** — surface a single
    `elevator_core::HOST_PROTOCOL_VERSION` consumed by every host;
    the FFI's existing ABI-pin guard becomes a check that
