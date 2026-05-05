@@ -5,9 +5,46 @@ use crate::config::{
     BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
 };
 use crate::dispatch::scan::ScanDispatch;
-use crate::movement::tick_movement;
+use crate::movement::{braking_distance, tick_movement};
 use crate::sim::Simulation;
 use crate::stop::{StopConfig, StopId};
+
+// ── A0) braking_distance properties ─────────────────────────────────
+
+proptest! {
+    /// `braking_distance` returns a non-negative result for any input.
+    /// The formula `v² / (2·a)` is mathematically non-negative when
+    /// `a > 0`; the function returns `0.0` for `a <= 0` defensively.
+    /// Property: this contract holds for arbitrary finite floats.
+    #[test]
+    fn braking_distance_is_never_negative(
+        velocity in -1_000.0..1_000.0_f64,
+        deceleration in -100.0..100.0_f64,
+    ) {
+        let d = braking_distance(velocity, deceleration);
+        prop_assert!(d >= 0.0, "braking_distance({velocity}, {deceleration}) = {d} < 0");
+    }
+
+    /// `braking_distance` scales with `v²`, not `v`. Doubling velocity
+    /// must quadruple the distance (within float epsilon). Kills any
+    /// mutation that swaps `*` for `+` or drops the squaring step.
+    #[test]
+    fn braking_distance_scales_with_velocity_squared(
+        velocity in 0.1..50.0_f64,
+        deceleration in 0.1..50.0_f64,
+    ) {
+        let d1 = braking_distance(velocity, deceleration);
+        let d2 = braking_distance(velocity * 2.0, deceleration);
+        // Allow proportional float slop (relative epsilon), since the
+        // absolute scale of `d` varies with the input range.
+        let expected = d1 * 4.0;
+        prop_assert!(
+            (d2 - expected).abs() <= expected * 1e-9 + 1e-12,
+            "braking_distance not v²-proportional: d({velocity})={d1}, d({})={d2}, expected≈{expected}",
+            velocity * 2.0,
+        );
+    }
+}
 
 // ── A) tick_movement invariants ─────────────────────────────────────
 
@@ -91,6 +128,41 @@ proptest! {
             arrived,
             "did not converge after 100k ticks: pos={pos}, vel={vel}, target={target}",
         );
+    }
+
+    /// Deterministic stopping under parametric initial conditions.
+    /// Two runs of `tick_movement` from the same `(pos, vel, target,
+    /// params)` must produce bit-identical trajectories — the
+    /// integrator carries no hidden state. Pairs with the convergence
+    /// property above to pin both *that* and *how* the car arrives.
+    #[test]
+    fn tick_movement_is_deterministic(
+        position in -100.0..100.0_f64,
+        target in -100.0..100.0_f64,
+        max_speed in 0.5..50.0_f64,
+        acceleration in 0.1..20.0_f64,
+        deceleration in 0.1..20.0_f64,
+        dt in 0.01..0.5_f64,
+    ) {
+        prop_assume!((target - position).abs() > 1e-6);
+
+        let trajectory = || -> Vec<(f64, f64)> {
+            let mut pos = position;
+            let mut vel = 0.0;
+            let mut out = Vec::new();
+            for _ in 0..10_000 {
+                let r = tick_movement(pos, vel, target, max_speed, acceleration, deceleration, dt);
+                pos = r.position;
+                vel = r.velocity;
+                out.push((pos, vel));
+                if r.arrived {
+                    break;
+                }
+            }
+            out
+        };
+
+        prop_assert_eq!(trajectory(), trajectory());
     }
 }
 
