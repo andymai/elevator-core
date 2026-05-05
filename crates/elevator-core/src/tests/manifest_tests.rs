@@ -8,6 +8,7 @@
 //! unvisited stop in just the right way. These direct tests pin the
 //! contract.
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use crate::components::Weight;
@@ -15,11 +16,17 @@ use crate::dispatch::{DispatchManifest, RiderInfo};
 use crate::entity::EntityId;
 use slotmap::SlotMap;
 
-/// Make a fresh `EntityId` without spinning up a full `World`. Each
-/// call returns a distinct id from a private slotmap.
+thread_local! {
+    /// Per-thread `SlotMap` so successive `fresh_id()` calls produce
+    /// genuinely distinct keys. Constructing a new map per call would
+    /// always return slot 0 / version 1 — same key every time.
+    static ID_SOURCE: RefCell<SlotMap<EntityId, ()>> = RefCell::new(SlotMap::with_key());
+}
+
+/// Allocate a fresh `EntityId` without spinning up a full `World`.
+/// Each call yields a distinct id within the current thread.
 fn fresh_id() -> EntityId {
-    let mut sm: SlotMap<EntityId, ()> = SlotMap::with_key();
-    sm.insert(())
+    ID_SOURCE.with(|sm| sm.borrow_mut().insert(()))
 }
 
 #[test]
