@@ -353,6 +353,10 @@ impl RepositionStrategy for PredictiveParking {
     fn builtin_id(&self) -> Option<super::BuiltinReposition> {
         Some(super::BuiltinReposition::PredictiveParking)
     }
+
+    fn min_arrival_log_window(&self) -> u64 {
+        self.window_ticks
+    }
 }
 
 /// Mode-gated reposition: dispatches to an inner strategy chosen
@@ -455,6 +459,10 @@ impl RepositionStrategy for AdaptiveParking {
 
     fn builtin_id(&self) -> Option<super::BuiltinReposition> {
         Some(super::BuiltinReposition::Adaptive)
+    }
+
+    fn min_arrival_log_window(&self) -> u64 {
+        self.predictive.min_arrival_log_window()
     }
 }
 

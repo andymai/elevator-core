@@ -1039,6 +1039,22 @@ impl Simulation {
     /// Custom strategies that don't override `builtin_id` fall back
     /// to the caller-supplied `id`, preserving the prior API for
     /// registered custom factories.
+    ///
+    /// ## Retention
+    /// Widens [`ArrivalLogRetention`](crate::arrival_log::ArrivalLogRetention)
+    /// to the strategy's
+    /// [`min_arrival_log_window`](crate::dispatch::RepositionStrategy::min_arrival_log_window)
+    /// when that exceeds current retention, never narrows it. This is
+    /// monotonic by design — replacing a wide-window strategy with a
+    /// narrow one (or [`remove_reposition`](Self::remove_reposition))
+    /// leaves retention at the high-water mark rather than recomputing
+    /// across the remaining strategies, since shrinking would also
+    /// clobber any explicit
+    /// [`set_arrival_log_retention_ticks`](Self::set_arrival_log_retention_ticks)
+    /// the caller made afterwards. Long-running sims that hot-swap
+    /// strategies pay a memory cost equal to the largest historic
+    /// window; if that matters, call `set_arrival_log_retention_ticks`
+    /// explicitly after the swap.
     pub fn set_reposition(
         &mut self,
         group: GroupId,
@@ -1046,11 +1062,34 @@ impl Simulation {
         id: BuiltinReposition,
     ) {
         let resolved_id = strategy.builtin_id().unwrap_or(id);
+        let needed_window = strategy.min_arrival_log_window();
         self.repositioners.insert(group, strategy);
         self.reposition_ids.insert(group, resolved_id);
+        // Widen the arrival-log retention if the freshly installed
+        // strategy queries a window the pruner would otherwise truncate
+        // under it. Without this, `PredictiveParking::with_window_ticks`
+        // (or any custom strategy advertising a longer window) silently
+        // sees only the last `DEFAULT_ARRIVAL_WINDOW_TICKS` of arrivals.
+        if needed_window > 0
+            && let Some(retention) = self
+                .world
+                .resource_mut::<crate::arrival_log::ArrivalLogRetention>()
+            && needed_window > retention.0
+        {
+            retention.0 = needed_window;
+        }
     }
 
     /// Remove the reposition strategy for a group, disabling repositioning.
+    ///
+    /// Does not narrow
+    /// [`ArrivalLogRetention`](crate::arrival_log::ArrivalLogRetention)
+    /// — see the retention note on
+    /// [`set_reposition`](Self::set_reposition) for why retention is
+    /// monotonic across strategy lifecycle changes. Call
+    /// [`set_arrival_log_retention_ticks`](Self::set_arrival_log_retention_ticks)
+    /// explicitly to shrink retention after removing a wide-window
+    /// strategy.
     pub fn remove_reposition(&mut self, group: GroupId) {
         self.repositioners.remove(&group);
         self.reposition_ids.remove(&group);
