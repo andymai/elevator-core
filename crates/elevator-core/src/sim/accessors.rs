@@ -128,8 +128,8 @@ impl super::Simulation {
     /// Set how far back the arrival log retains entries before
     /// `advance_tick` prunes them.
     ///
-    /// [`Simulation::set_reposition`] auto-widens retention to the
-    /// installed strategy's
+    /// [`set_reposition`](super::Simulation::set_reposition) auto-widens
+    /// retention to the installed strategy's
     /// [`min_arrival_log_window`](crate::dispatch::RepositionStrategy::min_arrival_log_window),
     /// so most callers don't need this. Reach for it only when retention
     /// must differ from any strategy's window — tests, custom consumers
