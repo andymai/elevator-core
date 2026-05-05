@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f51e77f5.js";
+            window.path_to_searchindex_js = "searchindex-6213cacd.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-d64dc66c.js"></script>
+        <script src="toc-76503f4c.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -3645,6 +3645,113 @@ patterns and the determinism contract on the <em>encoded</em> bytes.</li>
 <code>crates/elevator-core/src/error.rs</code>.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="config-versioning"><a class="header" href="#config-versioning">Config Versioning</a></h1>
+<p><code>SimConfig</code> (the RON format under <code>assets/config/</code>) carries an explicit
+<code>schema_version: u32</code> field that the core validates at construction
+time. This page is the canonical reference for what the version means,
+when to bump it, and how to migrate older configs.</p>
+<h2 id="why-explicit-versioning"><a class="header" href="#why-explicit-versioning">Why explicit versioning</a></h2>
+<p>Without an explicit version, a legacy <code>assets/config/*.ron</code> loaded by a
+newer build would silently fall through <code>serde</code>’s <code>default</code> paths for
+any newly-added fields and reject any removed-or-renamed fields with a
+generic deserialization error. Both modes mask intent: the operator
+sees a config that “looks loaded” but is actually running a different
+shape than they wrote.</p>
+<p>The explicit <code>schema_version</code> makes the contract observable:</p>
+<ul>
+<li>A <em>legacy</em> config (no <code>schema_version</code> field) deserializes to
+<code>schema_version: 0</code> via <code>#[serde(default)]</code>.</li>
+<li><code>Simulation::new</code> rejects <code>schema_version: 0</code> with an <code>InvalidConfig</code>
+error pointing at this page, so the operator audits the field
+defaults rather than running a silent migration.</li>
+<li>A config with <code>schema_version &gt; CURRENT_CONFIG_SCHEMA_VERSION</code> is
+rejected as forward-incompatible; the operator must upgrade
+<code>elevator-core</code> or downgrade the config.</li>
+</ul>
+<h2 id="asymmetry-with-snapshot-versioning"><a class="header" href="#asymmetry-with-snapshot-versioning">Asymmetry with snapshot versioning</a></h2>
+<p>Snapshots (see <a href="#snapshot-versioning">Snapshot Versioning</a>) carry
+<em>two</em> version markers — a <code>u32</code> schema number and a crate-version
+string in the bytes envelope. Configs only need the <code>u32</code>, because:</p>
+<ul>
+<li>Configs are human-edited RON, so the <code>crate-version</code> envelope (which
+pins encoder details for postcard) has no equivalent — RON is
+text-stable across crate versions.</li>
+<li>The set of compatible mismatches is much smaller: there is no
+“savefile from a different patch release” case. Either the schema
+matches or it does not.</li>
+</ul>
+<h2 id="bump-triggers"><a class="header" href="#bump-triggers">Bump triggers</a></h2>
+<p>Bump <code>CURRENT_CONFIG_SCHEMA_VERSION</code> (in <code>crates/elevator-core/src/config.rs</code>)
+when <em>any</em> of these change in a way that legacy <code>assets/config/*.ron</code>
+files would silently mis-deserialize:</p>
+<ul>
+<li>A field is removed or renamed.</li>
+<li>A field’s type changes (<code>u32</code> → <code>Option&lt;u32&gt;</code>, <code>Vec&lt;T&gt;</code> → <code>BTreeMap&lt;K, T&gt;</code>).</li>
+<li>A field’s default value changes in a way that materially alters
+behaviour (e.g. flipping a feature flag’s default, changing a
+capacity threshold).</li>
+<li>The set of valid enum variants expands and the additions are not
+marked <code>#[non_exhaustive]</code>-safe (the legacy config would silently
+pick the deserialization fallback on the new variants).</li>
+</ul>
+<p>Do <strong>not</strong> bump for:</p>
+<ul>
+<li>Adding a new optional field with <code>#[serde(default)]</code> whose default
+matches existing behaviour. Legacy configs continue to deserialize
+correctly; bumping would force operators to audit an unchanged shape.</li>
+<li>Pure refactors that reorder fields, rename internal types, or
+reorganize modules without changing the RON shape.</li>
+</ul>
+<h2 id="migration-playbook"><a class="header" href="#migration-playbook">Migration playbook</a></h2>
+<p>When bumping the version, in the same PR:</p>
+<ol>
+<li>Update <code>CURRENT_CONFIG_SCHEMA_VERSION</code> and the doc comment on the
+constant naming the change.</li>
+<li>Update every <code>assets/config/*.ron</code> to declare the new
+<code>schema_version</code> value.</li>
+<li>Add a migration entry to this page (a “v1 → v2” subsection) listing
+every changed field and the manual edit operators must apply.</li>
+<li>If the change is mechanical, ship a one-shot upgrade tool
+(<code>elevator-config-upgrade --from 1 --to 2 &lt; old.ron &gt; new.ron</code>)
+alongside the doc.</li>
+</ol>
+<p>The migration entries are kept in this doc so an operator carrying a
+pinned config across multiple core upgrades has a single canonical
+source for the diff. Migration code does not live in <code>core</code> itself —
+the validator is intentionally strict about version mismatches; the
+upgrade lives outside the read path.</p>
+<h2 id="migrations"><a class="header" href="#migrations">Migrations</a></h2>
+<p>Versions issued so far. Each section below lists the field changes the
+operator must apply when moving a config from the previous version to
+the current one.</p>
+<h3 id="v0--v1-initial-versioning"><a class="header" href="#v0--v1-initial-versioning">v0 → v1 (initial versioning)</a></h3>
+<p>There is no shape change; v1 is the first explicit version marker. To
+adopt:</p>
+<ul>
+<li>Open the RON file and add <code>schema_version: 1,</code> as the first field
+inside the top-level <code>SimConfig(...)</code> block.</li>
+<li>Run <code>cargo run -- path/to/config.ron</code> (or <code>Simulation::new</code> from
+Rust) to confirm validation passes.</li>
+</ul>
+<p>After v1, every v(N) → v(N+1) transition will have a real shape diff
+and an entry here.</p>
+<h2 id="related"><a class="header" href="#related">Related</a></h2>
+<ul>
+<li><a href="https://docs.rs/elevator-core/latest/elevator_core/config/index.html"><code>crates/elevator-core/src/config.rs</code></a>
+— the <code>SimConfig</code> struct definition and <code>CURRENT_CONFIG_SCHEMA_VERSION</code>.</li>
+<li><a href="#snapshot-versioning">Snapshot Versioning</a> — the parallel policy
+for <code>WorldSnapshot</code> bytes.</li>
+<li><code>Simulation::new</code> — the validator that surfaces version mismatches
+as <code>SimError::InvalidConfig { field: "schema_version", reason: ... }</code>.</li>
+</ul>
+<h2 id="next-steps-21"><a class="header" href="#next-steps-21">Next steps</a></h2>
+<ul>
+<li>For new configs, copy <code>assets/config/default.ron</code> and adjust — it
+always pins to the current schema version.</li>
+<li>For older configs, use the v0 → v1 entry above as a template; future
+bumps will add new entries describing each shape change.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="testing-your-simulation"><a class="header" href="#testing-your-simulation">Testing Your Simulation</a></h1>
 <p>elevator-core’s deterministic tick loop makes it straightforward to write reliable, reproducible tests. This chapter covers the testing patterns used in the library itself and shows how to apply them to your own game code.</p>
 <h2 id="deterministic-replay"><a class="header" href="#deterministic-replay">Deterministic replay</a></h2>
@@ -3893,7 +4000,7 @@ assert!(metrics.total_delivered() &gt;= expected_minimum);
 </span><span class="boring">}</span></code></pre>
 <p><strong>Use <code>SimulationBuilder::demo()</code> for quick integration tests.</strong> It creates a minimal two-stop, one-elevator setup that is enough to test most game logic without a full config.</p>
 <p><strong>Compare f64 accumulators with <code>.to_bits()</code> for determinism checks.</strong> Exact bit equality is the right check because both runs execute the same additions in the same order. Using approximate comparison would mask subtle ordering bugs.</p>
-<h2 id="next-steps-21"><a class="header" href="#next-steps-21">Next steps</a></h2>
+<h2 id="next-steps-22"><a class="header" href="#next-steps-22">Next steps</a></h2>
 <ul>
 <li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> – the determinism guarantees that make these testing patterns possible.</li>
 <li><a href="#traffic-generation">Traffic Generation</a> – seeded traffic sources for reproducible test scenarios.</li>
@@ -3917,7 +4024,7 @@ elevator-core = "=15.2"
 <p>When you bump the minor, expect a short migration task. The CHANGELOG will call out what changed.</p>
 <h2 id="cadence-commitment"><a class="header" href="#cadence-commitment">Cadence commitment</a></h2>
 <p>The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. The commitment applies to releases after v15.1.0 — see <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> for the specific bound and retroactivity note.</p>
-<h2 id="next-steps-22"><a class="header" href="#next-steps-22">Next steps</a></h2>
+<h2 id="next-steps-23"><a class="header" href="#next-steps-23">Next steps</a></h2>
 <ul>
 <li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, and per-item day-one classification.</li>
 <li><a href="#introduction">Introduction</a> — what the library does and doesn’t do.</li>
@@ -4091,7 +4198,7 @@ fn print_metrics(sim: Res&lt;SimulationRes&gt;) {
 <p><strong>Use elevator-bevy</strong> if you want a quick visual test of your dispatch strategy or config. Run it, watch the elevators move, tweak parameters.</p>
 <p><strong>Build your own</strong> if you are making a game. The Bevy crate is intentionally simple – it is a reference, not a framework. Copy the patterns you need (the <code>SimulationRes</code> resource, the tick system, the event bridge) into your own Bevy app and build your game systems around them.</p>
 <p>The core library does not depend on Bevy at all. You can use it with any Rust game engine, a TUI, a web frontend via WASM, or pure headless batch simulation. See <a href="#headless-and-non-bevy-usage">Headless and Non-Bevy Usage</a> for engine-agnostic integration patterns.</p>
-<h2 id="next-steps-23"><a class="header" href="#next-steps-23">Next steps</a></h2>
+<h2 id="next-steps-24"><a class="header" href="#next-steps-24">Next steps</a></h2>
 <ul>
 <li><a href="#headless-and-non-bevy-usage">Headless and Non-Bevy Usage</a> – integrating elevator-core without Bevy, including macroquad and eframe patterns.</li>
 <li><a href="#events-and-metrics">Events and Metrics</a> – the <code>Event</code> enum and metric accumulators that power the HUD and your custom systems.</li>
@@ -4283,7 +4390,7 @@ fn main() -&gt; eframe::Result&lt;()&gt; {
 </div>
 <h2 id="determinism-across-hosts"><a class="header" href="#determinism-across-hosts">Determinism across hosts</a></h2>
 <p><code>elevator-core</code> is deterministic: same config + same sequence of inputs produce identical event streams across hosts. If your renderer needs to replay a saved scenario, combine <code>WorldSnapshot::restore()</code> (from <a href="#snapshots-and-determinism">Snapshots and Determinism</a>) with a seeded <code>StdRng</code> on any <code>PoissonSource</code> – the tick loop itself has no internal randomness.</p>
-<h2 id="next-steps-24"><a class="header" href="#next-steps-24">Next steps</a></h2>
+<h2 id="next-steps-25"><a class="header" href="#next-steps-25">Next steps</a></h2>
 <ul>
 <li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> – round-trip save/load so integrations can persist simulation state.</li>
 <li><a href="#events-and-metrics">Events and Metrics</a> – the <code>Event</code> enum and metric accumulators that drive UI updates.</li>
@@ -4482,7 +4589,7 @@ terminals.</p>
 real <code>Simulation</code>) and <code>app.rs</code> (terminal I/O + sim driving). The
 render layer (<code>ui/</code>) only reads from the state and a borrowed
 <code>&amp;Simulation</code> – it never mutates either.</p>
-<h2 id="next-steps-25"><a class="header" href="#next-steps-25">Next steps</a></h2>
+<h2 id="next-steps-26"><a class="header" href="#next-steps-26">Next steps</a></h2>
 <ul>
 <li>The viewer is intentionally read-only. If you want to spawn
 riders, change strategies, or pin assignments interactively, those
@@ -4781,7 +4888,7 @@ if (status != 0) {
 <p><strong>Snapshots round-trip the full simulation state.</strong> Both bindings can serialize a snapshot to bytes, ship it across a network or persist it to disk, then restore it later. See <a href="#snapshots-and-determinism">Snapshots and Determinism</a> for the determinism guarantees.</p>
 </li>
 </ul>
-<h2 id="next-steps-26"><a class="header" href="#next-steps-26">Next steps</a></h2>
+<h2 id="next-steps-27"><a class="header" href="#next-steps-27">Next steps</a></h2>
 <ul>
 <li><a href="#headless-and-non-bevy-usage">Headless and Non-Bevy Usage</a> — the same integration patterns from the Rust side; useful for understanding what each binding’s exports map back to.</li>
 <li><a href="#events-and-metrics">Events and Metrics</a> — the <code>Event</code> enum and metric accumulators that drive UI updates in either binding.</li>
@@ -4899,14 +5006,14 @@ bevy     = "todo:plugin-layer"
 the TUI because the TUI is a read-only viewer; queued for gdext under
 the standard future-binding phase; queued for bevy under the standard
 plugin-layer phase.</p>
-<h2 id="related"><a class="header" href="#related">Related</a></h2>
+<h2 id="related-1"><a class="header" href="#related-1">Related</a></h2>
 <ul>
 <li><code>bindings.toml</code> — the manifest itself, with the current header comment
 kept in sync with this page.</li>
 <li><code>scripts/check-bindings.sh</code> — the CI gate.</li>
 <li><a href="#using-the-bindings">Using the Bindings</a> — host-facing usage docs.</li>
 </ul>
-<h2 id="next-steps-27"><a class="header" href="#next-steps-27">Next steps</a></h2>
+<h2 id="next-steps-28"><a class="header" href="#next-steps-28">Next steps</a></h2>
 <ul>
 <li>Read <a href="#using-the-bindings">Using the Bindings</a> for hands-on usage of
 each host crate.</li>
@@ -4950,7 +5057,7 @@ wasm-pack test --headless --firefox crates/elevator-wasm  # wasm-side run
 <li><a href="#using-the-bindings">Using the Bindings</a> — host-facing usage docs for wasm / FFI / gdext / GameMaker.</li>
 <li><a href="#stability-and-versioning">Stability and Versioning</a> — how API breaks are signalled across these crates.</li>
 </ul>
-<h2 id="next-steps-28"><a class="header" href="#next-steps-28">Next steps</a></h2>
+<h2 id="next-steps-29"><a class="header" href="#next-steps-29">Next steps</a></h2>
 <ul>
 <li>For host-language integration with a runtime API surface, head to
 <a href="#using-the-bindings">Using the Bindings</a> — the gallery covers the
@@ -5127,7 +5234,7 @@ a 10x slowdown in loaded simulations.</p>
 <li><strong>GPU acceleration.</strong> Movement and dispatch are scalar – no SIMD or GPU backends.</li>
 <li><strong>Persistent indexes beyond per-stop population.</strong> If you need “all riders with extension X”, iterate and filter.</li>
 </ul>
-<h2 id="next-steps-29"><a class="header" href="#next-steps-29">Next steps</a></h2>
+<h2 id="next-steps-30"><a class="header" href="#next-steps-30">Next steps</a></h2>
 <ul>
 <li><a href="#bevy-integration">Bevy Integration</a> – a visual wrapper for rapid prototyping and debugging.</li>
 <li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> – save and restore simulation state for replay and testing.</li>
