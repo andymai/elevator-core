@@ -1046,8 +1046,22 @@ impl Simulation {
         id: BuiltinReposition,
     ) {
         let resolved_id = strategy.builtin_id().unwrap_or(id);
+        let needed_window = strategy.min_arrival_log_window();
         self.repositioners.insert(group, strategy);
         self.reposition_ids.insert(group, resolved_id);
+        // Widen the arrival-log retention if the freshly installed
+        // strategy queries a window the pruner would otherwise truncate
+        // under it. Without this, `PredictiveParking::with_window_ticks`
+        // (or any custom strategy advertising a longer window) silently
+        // sees only the last `DEFAULT_ARRIVAL_WINDOW_TICKS` of arrivals.
+        if needed_window > 0
+            && let Some(retention) = self
+                .world
+                .resource_mut::<crate::arrival_log::ArrivalLogRetention>()
+            && needed_window > retention.0
+        {
+            retention.0 = needed_window;
+        }
     }
 
     /// Remove the reposition strategy for a group, disabling repositioning.
