@@ -40,13 +40,22 @@ if [ "$has_rust" = true ]; then
     # lock, so it can run in parallel with clippy. clippy compiles core,
     # which is the slowest step here (~30 s cold), so overlapping fmt
     # with it shaves a small but consistent slice off every commit.
+    #
+    # Output handling: clippy stays in the foreground so its progress
+    # streams live (the developer wants to see "Compiling …"). fmt's
+    # output is buffered so its diff lines don't interleave with clippy
+    # diagnostics on a failed commit; we replay the buffer afterwards if
+    # fmt failed.
     echo "pre-commit: running fmt check + clippy in parallel..."
-    cargo fmt --check &
+    fmt_log=$(mktemp)
+    trap 'rm -f "$fmt_log"' EXIT
+    cargo fmt --check >"$fmt_log" 2>&1 &
     fmt_pid=$!
     cargo clippy -p elevator-core --all-features -- -D warnings || clippy_rc=$?
     wait $fmt_pid || fmt_rc=$?
     if [ "${fmt_rc:-0}" -ne 0 ]; then
         echo "pre-commit: fmt check failed." >&2
+        cat "$fmt_log" >&2
     fi
     if [ "${clippy_rc:-0}" -ne 0 ]; then
         echo "pre-commit: clippy failed." >&2
