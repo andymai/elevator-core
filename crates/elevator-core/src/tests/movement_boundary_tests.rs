@@ -142,19 +142,23 @@ fn tick_movement_accelerate_does_not_cap_below_max_speed() {
 /// Kills `replace * with + in tick_movement` on `velocity * sign < 0.0`
 /// (the opposing-direction detector).
 ///
-/// With velocity in one direction and target in the other:
-/// - Original `velocity * sign`: `1.0 * (-1) = -1.0`, < 0 → opposing → decelerate.
-/// - Mutant `velocity + sign`: `1.0 + (-1) = 0.0`, NOT < 0 → fall through to
-///   accelerate. The car would speed *up* away from the target instead of
-///   braking back toward it — a silent correctness disaster.
+/// With velocity in one direction and target in the other (`vel=2`,
+/// `sign=-1`):
+/// - Original `velocity * sign = -2 < 0` → `opposing = true` → decelerate
+///   branch: `fma(-decel·dt, sign(vel), vel) = fma(-5, +1, 2) = -3`,
+///   sign-flip clamp → `0`.
+/// - Mutant `velocity + sign = 1`, NOT `< 0` → `opposing = false` →
+///   falls through to accelerate: `fma(accel·dt, sign, vel) =
+///   fma(1, -1, 2) = 1`. The car *accelerates* further from the target
+///   instead of braking back toward it.
 ///
-/// Observable: velocity magnitude after one tick. Original brakes
-/// (`new_vel = 1 - 5 · 1 = -4`, sign-flip clamp → 0). Mutant accelerates
-/// further away.
+/// `vel = 1.0` would coincidentally cancel: mutant accelerate produces
+/// `fma(1, -1, 1) = 0`, identical to the original sign-flip clamp, so
+/// the mutation survives. `vel = 2.0` breaks the symmetry.
 #[test]
 fn tick_movement_opposing_velocity_decelerates() {
-    // pos=0, vel=+1 (moving up), target=-10 (down), decel=5, dt=1.
-    let result = tick_movement(0.0, 1.0, -10.0, 10.0, 1.0, 5.0, 1.0);
+    // pos=0, vel=+2 (moving up), target=-10 (down), decel=5, dt=1.
+    let result = tick_movement(0.0, 2.0, -10.0, 10.0, 1.0, 5.0, 1.0);
     assert!(
         result.velocity <= 0.0,
         "opposing-velocity branch must not accelerate further from target: got velocity={}",
