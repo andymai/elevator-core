@@ -494,6 +494,58 @@ fn predictive_parking_asymmetric_extra_car_stays_put() {
     );
 }
 
+/// Inverse asymmetry: more hot stops than cars. The 2 cars must
+/// cover the 2 hottest stops; the 3rd hot stop is unserved by
+/// design (you can't be in three places at once). Pins the
+/// "rank-by-arrivals, then take the top N" semantics.
+#[test]
+fn predictive_parking_picks_hottest_when_cars_undersupplied() {
+    let (mut world, stops) = test_world_n(5);
+    let elev_a = spawn_elevator(&mut world, 0.0);
+    let elev_b = spawn_elevator(&mut world, 4.0);
+    let group = test_group(&stops, vec![elev_a, elev_b]);
+
+    // Three hot stops with strictly different arrival counts so the
+    // ordering is deterministic. stops[2] is hottest, stops[3] second,
+    // stops[4] third.
+    let mut log = ArrivalLog::default();
+    for _ in 0..15 {
+        log.record(50, stops[2]);
+    }
+    for _ in 0..10 {
+        log.record(50, stops[3]);
+    }
+    for _ in 0..5 {
+        log.record(50, stops[4]);
+    }
+    world.insert_resource(log);
+    world.insert_resource(CurrentTick(100));
+
+    let idle = vec![(elev_a, 0.0), (elev_b, 4.0)];
+    let stop_pos: Vec<(EntityId, f64)> = stops
+        .iter()
+        .map(|&sid| (sid, world.stop_position(sid).unwrap()))
+        .collect();
+
+    let mut strategy = PredictiveParking::new();
+    let mut result = Vec::new();
+    strategy.reposition(&idle, &stop_pos, &group, &world, &mut result);
+
+    let targets: std::collections::HashSet<_> = result.iter().map(|(_, s)| *s).collect();
+    assert!(
+        targets.contains(&stops[2]) && targets.contains(&stops[3]),
+        "two cars must cover the two hottest stops; got {result:?}"
+    );
+    assert!(
+        !targets.contains(&stops[4]),
+        "third-hottest stop must not be covered when there are only 2 cars; got {result:?}"
+    );
+    assert!(
+        result.len() <= 2,
+        "must not generate more moves than idle cars; got {result:?}"
+    );
+}
+
 // ReturnToLobby with `with_home(2)`.
 #[test]
 fn return_to_lobby_custom_home() {
