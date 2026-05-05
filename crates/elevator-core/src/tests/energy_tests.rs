@@ -217,11 +217,13 @@ fn energy_zero_costs_emit_no_event() {
 }
 
 /// Energy metrics must never go negative under arbitrary sim activity.
-/// Pins the contract that `total_consumed - total_regenerated` (the
-/// `net_consumed` accessor) and the per-component totals stay
-/// non-negative — a regen-factor mutation that flipped a sign or
-/// substituted regen for consumption would push one of these below
-/// zero almost immediately.
+/// Pins the per-component non-negativity invariant and — separately —
+/// the `net_energy = total_consumed - total_regenerated >= 0` contract.
+/// Both component totals being non-negative does not imply
+/// `net_energy >= 0`: a mutation that scaled `regenerated` past
+/// `consumed` (e.g. dropped the `regen_factor` clamp or swapped
+/// `consumed * regen_factor` for `consumed + regen_factor`) leaves
+/// totals positive while driving net negative.
 #[test]
 fn energy_metrics_never_negative_under_load() {
     let cfg = config_with_energy(default_profile());
@@ -245,6 +247,14 @@ fn energy_metrics_never_negative_under_load() {
                 metrics.total_regenerated() >= 0.0,
                 "total_regenerated went negative: {}",
                 metrics.total_regenerated()
+            );
+            assert!(
+                metrics.net_energy() >= 0.0,
+                "net_energy went negative — regenerated outpaced consumed: \
+                 consumed={}, regenerated={}, net={}",
+                metrics.total_consumed(),
+                metrics.total_regenerated(),
+                metrics.net_energy()
             );
         }
     }

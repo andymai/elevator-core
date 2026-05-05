@@ -292,19 +292,29 @@ fn weight_exactly_at_capacity_boards() {
 /// `current_load * weight_capacity` magnitude that always exceeds any
 /// realistic `max_crowding_factor`, silently rejecting riders the
 /// preference rule would let through. The rider must board.
+///
+/// Stage the load by separating the boarding stops: r1 boards at stop 0
+/// heading to stop 2, r2 boards at stop 1 heading to stop 2. By the
+/// time the elevator reaches stop 1, r1 is committed aboard and
+/// `current_load = 400`, so r2's crowding check evaluates against the
+/// intended `load_ratio = 0.5`. Spawning both at the same stop would
+/// let r2's check race against r1's not-yet-committed weight, leaving
+/// the mutation undetected.
 #[test]
 fn preferences_below_crowding_threshold_boards_at_half_load() {
-    let config = default_config(); // capacity = 800
+    let config = default_config(); // capacity = 800, stops at 0/1/2
     let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
 
-    // First rider takes the elevator to half-capacity (400 / 800 = 0.5).
+    // r1 at stop 0 → stop 2, weight 400 kg.
     let r1 = sim.spawn_rider(StopId(0), StopId(2), 400.0).unwrap();
 
-    // Second rider tolerates up to 60% crowding — at 50% they should
-    // board. A mutation that multiplied instead of divided would
-    // compute load_ratio = 400 * 800 = 320_000, well above 0.6,
-    // and reject this rider.
-    let r2 = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    // r2 at stop 1 → stop 2 with a 60% crowding tolerance. The elevator
+    // picks up r1 at stop 0, commits the 400 kg to `current_load`, then
+    // arrives at stop 1 to consider r2 — at which point `load_ratio =
+    // 400 / 800 = 0.5 < 0.6` and r2 must board. Under a `/ ↔ *`
+    // mutation the computed ratio would be `400 * 800 = 320_000`,
+    // which exceeds 0.6 and rejects r2.
+    let r2 = sim.spawn_rider(StopId(1), StopId(2), 70.0).unwrap();
     sim.world_mut().set_preferences(
         r2.entity(),
         Preferences {
@@ -315,23 +325,37 @@ fn preferences_below_crowding_threshold_boards_at_half_load() {
         },
     );
 
+    let mut r1_aboard = false;
     let mut r2_boarded = false;
-    for _ in 0..1_000 {
+    for _ in 0..2_000 {
         sim.step();
-        if sim.world().rider(r2.entity()).is_some_and(|r| {
-            matches!(
-                r.phase,
-                RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
-            )
-        }) {
+        if !r1_aboard
+            && sim
+                .world()
+                .rider(r1.entity())
+                .is_some_and(|r| matches!(r.phase, RiderPhase::Riding(_) | RiderPhase::Arrived))
+        {
+            r1_aboard = true;
+        }
+        if r1_aboard
+            && sim.world().rider(r2.entity()).is_some_and(|r| {
+                matches!(
+                    r.phase,
+                    RiderPhase::Boarding(_) | RiderPhase::Riding(_) | RiderPhase::Arrived
+                )
+            })
+        {
             r2_boarded = true;
             break;
         }
     }
-    let _ = r1;
+    assert!(
+        r1_aboard,
+        "precondition: r1 must board so the elevator carries 400 kg when r2 is evaluated"
+    );
     assert!(
         r2_boarded,
         "rider with max_crowding=0.6 should board when load_ratio=0.5; \
-         a `/` ↔ `*` or `%` mutation on the ratio would silently reject"
+         a `/ ↔ *` or `/ ↔ %` mutation on the ratio would silently reject"
     );
 }
