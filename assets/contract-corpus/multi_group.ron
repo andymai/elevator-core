@@ -1,0 +1,44 @@
+// Multi-shaft scenario — six elevators on a wide, mixed-height
+// building. Two clusters of three cars each: a low-rise express
+// trio (fast, short capacity) and a high-rise heavy trio (slower,
+// large capacity). Stresses dispatch across cars with very
+// different physical parameters under one config — useful for
+// catching bugs where the dispatcher assumes homogeneous fleets.
+//
+// Note: elevator-core's "groups" abstraction is created at runtime
+// via the FFI surface, not in config. This scenario uses the same
+// `SimConfig` schema as the others; the contract harness can
+// optionally wrap it in a runtime add_group call.
+SimConfig(
+    building: BuildingConfig(
+        name: "Mixed Tower",
+        stops: [
+            StopConfig(id: StopId(0), name: "G",   position: 0.0),
+            StopConfig(id: StopId(1), name: "L1",  position: 4.0),
+            StopConfig(id: StopId(2), name: "L2",  position: 7.5),
+            StopConfig(id: StopId(3), name: "L3",  position: 11.0),
+            StopConfig(id: StopId(4), name: "L4",  position: 14.5),
+            StopConfig(id: StopId(5), name: "L5",  position: 18.0),
+            StopConfig(id: StopId(6), name: "L6",  position: 22.0),
+            StopConfig(id: StopId(7), name: "L7",  position: 26.0),
+            StopConfig(id: StopId(8), name: "Sky", position: 32.0),
+        ],
+    ),
+    elevators: [
+        // Low-rise express trio: fast, light, short capacity.
+        ElevatorConfig(id: 0, name: "Express A", max_speed: 4.0, acceleration: 2.0, deceleration: 2.5, weight_capacity: 500.0, starting_stop: StopId(0), door_open_ticks: 45, door_transition_ticks: 12),
+        ElevatorConfig(id: 1, name: "Express B", max_speed: 4.0, acceleration: 2.0, deceleration: 2.5, weight_capacity: 500.0, starting_stop: StopId(2), door_open_ticks: 45, door_transition_ticks: 12),
+        ElevatorConfig(id: 2, name: "Express C", max_speed: 4.0, acceleration: 2.0, deceleration: 2.5, weight_capacity: 500.0, starting_stop: StopId(4), door_open_ticks: 45, door_transition_ticks: 12),
+        // High-rise heavy trio: slower, larger capacity.
+        ElevatorConfig(id: 3, name: "Heavy A", max_speed: 1.8, acceleration: 1.0, deceleration: 1.5, weight_capacity: 1500.0, starting_stop: StopId(5), door_open_ticks: 75, door_transition_ticks: 18),
+        ElevatorConfig(id: 4, name: "Heavy B", max_speed: 1.8, acceleration: 1.0, deceleration: 1.5, weight_capacity: 1500.0, starting_stop: StopId(7), door_open_ticks: 75, door_transition_ticks: 18),
+        ElevatorConfig(id: 5, name: "Heavy C", max_speed: 1.8, acceleration: 1.0, deceleration: 1.5, weight_capacity: 1500.0, starting_stop: StopId(8), door_open_ticks: 75, door_transition_ticks: 18),
+    ],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        mean_interval_ticks: 90,
+        weight_range: (50.0, 100.0),
+    ),
+)
