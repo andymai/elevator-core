@@ -1,5 +1,13 @@
 # Changelog
 
+## [16.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.1...elevator-core-v16.0.2) (2026-05-05)
+
+
+### Bug Fixes
+
+* **core:** cross-process snapshot byte determinism ([#631](https://github.com/andymai/elevator-core/issues/631)) ([e6efaa2](https://github.com/andymai/elevator-core/commit/e6efaa2322b0d1aec6a7d6fd9ff37837ce1a5a9b))
+* **core:** snapshot_checksum hashes WorldSnapshot payload, not envelope ([#634](https://github.com/andymai/elevator-core/issues/634)) ([9fda023](https://github.com/andymai/elevator-core/commit/9fda02328a852fa903c347726c1a43972b11c623))
+
 ## [16.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v16.0.0...elevator-core-v16.0.1) (2026-05-01)
 
 
