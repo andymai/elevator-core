@@ -214,8 +214,6 @@ impl Metrics {
         let mut sorted: Vec<u64> = self.wait_samples.iter().copied().collect();
         sorted.sort_unstable();
         let n = sorted.len();
-        #[allow(clippy::cast_precision_loss)] // n ≤ capacity, set by user
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let rank = ((p / 100.0) * n as f64).ceil() as usize;
         let idx = rank.saturating_sub(1).min(n - 1);
         sorted[idx]
@@ -341,7 +339,6 @@ impl Metrics {
     }
 
     /// Record a rider boarding. `wait_ticks` = `tick_boarded` - `tick_spawned`.
-    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub(crate) fn record_board(&mut self, wait_ticks: u64) {
         self.boarded_count += 1;
         self.sum_wait_ticks += wait_ticks;
@@ -358,7 +355,6 @@ impl Metrics {
     }
 
     /// Record a rider exiting. `ride_ticks` = `tick_exited` - `tick_boarded`.
-    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub(crate) fn record_delivery(&mut self, ride_ticks: u64, tick: u64) {
         self.delivered_count += 1;
         self.total_delivered += 1;
@@ -368,7 +364,6 @@ impl Metrics {
     }
 
     /// Record a rider abandoning.
-    #[allow(clippy::cast_precision_loss)] // rider counts fit in f64 mantissa
     pub(crate) fn record_abandonment(&mut self) {
         self.total_abandoned += 1;
         if self.total_spawned > 0 {
@@ -404,7 +399,6 @@ impl Metrics {
     }
 
     /// Update windowed throughput. Call once per tick.
-    #[allow(clippy::cast_possible_truncation)] // window len always fits in u64
     pub(crate) fn update_throughput(&mut self, current_tick: u64) {
         let cutoff = current_tick.saturating_sub(self.throughput_window_ticks);
         // Delivery ticks are inserted in order, so expired entries are at the front.
