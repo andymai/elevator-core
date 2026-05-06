@@ -3,20 +3,437 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>elevator-core playground</title>
+    <script>
+      // Toggles the static SEO fallback off the moment JS is available,
+      // before <body> parses. Crawlers' first-pass indexer (no JS) and
+      // no-JS visitors keep the fallback; everyone else sees the app.
+      document.documentElement.classList.add("js");
+    </script>
+    <title>Elevator dispatch playground — elevator-core (Rust + wasm)</title>
     <meta
       name="description"
-      content="Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic."
+      content="In-browser playground for elevator-core: a deterministic, engine-agnostic Rust simulation library for Bevy, Unity, Godot, and the browser. Compare LOOK, ETD, SCAN, RSR, NEAREST, and DCS dispatch strategies live."
     />
+    <link rel="canonical" href="https://andymai.github.io/elevator-core/playground/" />
+    <meta name="theme-color" content="#0f0f12" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Andy Aragon" />
+    <meta
+      name="keywords"
+      content="elevator simulation, dispatch algorithm, LOOK algorithm, SCAN algorithm, ETD, destination control, RSR, Rust simulation library, wasm playground, Bevy, Godot, Unity, GameMaker, traffic generation, vertical transportation"
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="elevator-core" />
+    <meta
+      property="og:title"
+      content="Elevator dispatch playground — elevator-core (Rust + wasm)"
+    />
+    <meta
+      property="og:description"
+      content="Compare LOOK, ETD, SCAN, RSR, NEAREST, and DCS dispatch strategies side-by-side on identical rider traffic. Powered by elevator-core, a deterministic Rust simulation library with bindings for Bevy, Unity, Godot, GameMaker, and the browser."
+    />
+    <meta property="og:url" content="https://andymai.github.io/elevator-core/playground/" />
+    <meta property="og:image" content="https://andymai.github.io/elevator-core/playground/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Two elevator shafts side-by-side comparing LOOK and ETD dispatch on the skyscraper scenario."
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Elevator dispatch playground — elevator-core (Rust + wasm)"
+    />
+    <meta
+      name="twitter:description"
+      content="Compare LOOK, ETD, SCAN, RSR, NEAREST, and DCS dispatch strategies side-by-side on identical rider traffic."
+    />
+    <meta
+      name="twitter:image"
+      content="https://andymai.github.io/elevator-core/playground/og.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Two elevator shafts side-by-side comparing LOOK and ETD dispatch on the skyscraper scenario."
+    />
+
+    <!-- Icons -->
     <link
       rel="icon"
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='2' width='16' height='20' rx='3' fill='%23f59e0b'/%3E%3Crect x='8' y='6' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3Crect x='8' y='14' width='8' height='4' rx='0.5' fill='%230f0f12'/%3E%3C/svg%3E"
     />
-    <script type="module" crossorigin src="./assets/index-CAUWofxv.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+
+    <style>
+      /* The static SEO + no-JS fallback. We hide it the instant JS is
+         available (the inline script above adds .js to <html> before
+         <body> parses) so app users never see it. Crawlers' first-pass
+         indexer (which reads pre-JS HTML) and visitors with JS or
+         WebAssembly disabled still get the content. */
+      html.js #seo-fallback {
+        display: none;
+      }
+      #seo-fallback {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        line-height: 1.55;
+        color: #1f2937;
+      }
+      #seo-fallback h1 {
+        font-size: 1.75rem;
+        margin: 0 0 1rem;
+      }
+      #seo-fallback h2 {
+        font-size: 1.15rem;
+        margin: 1.75rem 0 0.5rem;
+      }
+      #seo-fallback ul,
+      #seo-fallback dl {
+        margin: 0 0 1rem;
+        padding-left: 1.25rem;
+      }
+      #seo-fallback dt {
+        font-weight: 600;
+        margin-top: 0.5rem;
+      }
+      #seo-fallback dd {
+        margin: 0 0 0.5rem;
+      }
+      #seo-fallback a {
+        color: #b45309;
+      }
+      #seo-fallback code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.95em;
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.1em 0.35em;
+        border-radius: 3px;
+      }
+    </style>
+
+    <!-- Structured data: source code repository -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "elevator-core",
+        "description": "Engine-agnostic, deterministic Rust simulation library for elevators with pluggable dispatch strategies (LOOK, ETD, SCAN, RSR, NEAREST, DCS), tick-based snapshot replay, and bindings for Bevy, Unity, Godot, GameMaker, and the browser.",
+        "codeRepository": "https://github.com/andymai/elevator-core",
+        "programmingLanguage": ["Rust", "TypeScript", "WebAssembly"],
+        "runtimePlatform": ["Native", "WebAssembly", "Bevy 0.18", "Unity", "Godot", "GameMaker"],
+        "license": "https://github.com/andymai/elevator-core/blob/main/LICENSE",
+        "author": {
+          "@type": "Person",
+          "name": "Andy Aragon",
+          "url": "https://github.com/andymai"
+        },
+        "url": "https://andymai.github.io/elevator-core/",
+        "sameAs": [
+          "https://crates.io/crates/elevator-core",
+          "https://docs.rs/elevator-core",
+          "https://github.com/andymai/elevator-core"
+        ]
+      }
+    </script>
+
+    <!-- Structured data: this playground as a web application -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "elevator-core playground",
+        "url": "https://andymai.github.io/elevator-core/playground/",
+        "description": "Live in-browser demo of the elevator-core Rust simulation library. Compare dispatch strategies side-by-side on identical rider traffic across realistic scenarios.",
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "Simulation",
+        "operatingSystem": "Any (modern browser with WebAssembly support)",
+        "browserRequirements": "Requires JavaScript and WebAssembly support",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Andy Aragon"
+        },
+        "isAccessibleForFree": true,
+        "featureList": [
+          "Compare dispatch strategies side-by-side",
+          "Six built-in dispatch algorithms (LOOK, SCAN, NEAREST, ETD, DCS, RSR)",
+          "Five idle-parking strategies (Adaptive, Predictive, Lobby, Spread, Stay)",
+          "Three scenarios (Convention center, Skyscraper, Space elevator)",
+          "Deterministic seeded traffic generation",
+          "Live metrics: wait time, ride time, abandonments, throughput",
+          "Permalink sharing of full simulator state",
+          "Quest mode: write your own dispatch controller in TypeScript"
+        ]
+      }
+    </script>
+
+    <!-- Structured data: FAQs (mirrors the in-page FAQ section) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is elevator-core?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "elevator-core is an engine-agnostic Rust simulation library for elevators. It models cars, stops, lines, riders, doors, and dispatch strategies in a tick-based loop with a struct-of-arrays world. The same crate powers the Bevy game binary, Unity / .NET / GameMaker via a C ABI wrapper, the Godot extension, and this browser playground via wasm-bindgen."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which game engines does elevator-core support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Bevy 0.18 natively, plus C-compatible bindings for Unity, .NET, and GameMaker through elevator-ffi, a gdext extension for Godot, and wasm-bindgen for the browser. The core crate has zero engine dependencies — every host wraps the same simulation library."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which dispatch strategies are built in?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Six: SCAN (sweeps end-to-end like a disk head), LOOK (SCAN with early reversal), NEAREST (closest call wins), ETD (estimated time of dispatch), DCS (destination-control system, lobby pre-assigns), and RSR (relative system response, a wait-aware variant of ETD). All implement the DispatchStrategy trait, so consumers can plug in their own."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is the simulation deterministic?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Given the same config, seed, and inputs, every host (Rust, wasm, Unity, Godot, GameMaker) produces bit-identical snapshots tick-for-tick. A cross-process snapshot harness in elevator-contract enforces this in CI."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I share a specific simulator setup with someone?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. The Share button copies a permalink that encodes the scenario, both panes' dispatch and parking strategies, the seed, intensity, traffic mode, and any tweaked physics parameters. Recipients land on the same simulation."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What's Quest mode?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A 15-stage curriculum that teaches the elevator-core API one primitive at a time. You write a controller in TypeScript inside an embedded Monaco editor and watch your code drive the cars. Star ratings reward fast, fair dispatching."
+            }
+          }
+        ]
+      }
+    </script>
+    <script type="module" crossorigin src="./assets/index-DCFMNxPG.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-B3KmyRvs.css">
   </head>
   <body>
+    <!--
+      Static SEO + no-JS fallback. Visible to crawlers (first-pass static
+      HTML indexing) and to visitors with JavaScript or WebAssembly
+      disabled; instantly hidden via the .js class set in <head> for
+      everyone else, so it never flashes on real boots. Same HTML is
+      served to bots and users — no cloaking. Keep this content
+      truthful and aligned with the live app.
+    -->
+    <main id="seo-fallback" class="seo-fallback">
+      <article>
+        <h1>Elevator dispatch algorithm playground</h1>
+        <p>
+          <strong>elevator-core</strong> is a deterministic, engine-agnostic Rust simulation library
+          for elevators. This in-browser playground lets you compare dispatch strategies
+          side-by-side on identical rider traffic, tweak car count, max speed, capacity, and door
+          cycle, and share a permalink that reproduces the exact run. The same crate runs natively
+          in <a href="https://bevy.org/">Bevy</a>, in Unity and GameMaker through a C ABI, in
+          <a href="https://godotengine.org/">Godot</a> via a gdext extension, and in the browser via
+          wasm-bindgen.
+        </p>
+
+        <h2>Why elevator-core</h2>
+        <ul>
+          <li>
+            <strong>Engine-agnostic core.</strong> The simulation library has zero engine
+            dependencies. Every host (Bevy, Unity, Godot, GameMaker, web) wraps the same crate.
+          </li>
+          <li>
+            <strong>Deterministic, snapshot-replayable.</strong> Same config + seed produces
+            bit-identical state tick-for-tick across hosts. Enforced in CI by a cross-process
+            harness.
+          </li>
+          <li>
+            <strong>Pluggable dispatch.</strong> Six built-in strategies plus a
+            <code>DispatchStrategy</code> trait for custom controllers, settable per elevator group.
+          </li>
+          <li>
+            <strong>Game-agnostic riders.</strong> A rider is anything that rides; consumers attach
+            game semantics through extension storage.
+          </li>
+          <li>
+            <strong>Stops at arbitrary distances.</strong> Floors aren't uniformly spaced — the same
+            primitives model a five-floor convention center and a kilometre-tall space elevator.
+          </li>
+        </ul>
+
+        <h2>Dispatch strategies</h2>
+        <ul>
+          <li>
+            <strong>SCAN</strong> — sweeps end-to-end like a disk head. Simple, predictable, ignores
+            who's waiting longest.
+          </li>
+          <li>
+            <strong>LOOK</strong> — like SCAN but reverses early when nothing is queued further. A
+            practical baseline.
+          </li>
+          <li>
+            <strong>NEAREST</strong> — grabs whichever call is closest right now. Fast under light
+            load, thrashes under rush.
+          </li>
+          <li>
+            <strong>ETD</strong> — estimated time of dispatch. Assigns each call to whichever car
+            can finish fastest.
+          </li>
+          <li>
+            <strong>DCS</strong> — destination-control system. Riders pick their floor at the lobby;
+            the group optimises assignments.
+          </li>
+          <li>
+            <strong>RSR</strong> — relative system response. A wait-aware variant of ETD that
+            penalises long queues.
+          </li>
+        </ul>
+
+        <h2>Idle-parking strategies</h2>
+        <ul>
+          <li>
+            <strong>Adaptive</strong> — switches based on traffic; returns to lobby during up-peak,
+            predicts hot floors otherwise. Default.
+          </li>
+          <li>
+            <strong>Predictive</strong> — parks idle cars near whichever floor has seen the most
+            recent arrivals.
+          </li>
+          <li>
+            <strong>Lobby</strong> — sends every idle car back to the ground floor to prime the
+            morning rush.
+          </li>
+          <li>
+            <strong>Spread</strong> — keeps idle cars fanned out so any floor has a nearby option.
+          </li>
+          <li>
+            <strong>Stay</strong> — leaves idle cars wherever they finished their last delivery.
+          </li>
+        </ul>
+
+        <h2>Scenarios</h2>
+        <ul>
+          <li>
+            <strong>Convention center</strong> — five named stops (Lobby, Exhibit Hall, Mezzanine,
+            Ballroom, Keynote Hall). Tests burst traffic when a keynote lets out.
+          </li>
+          <li>
+            <strong>Skyscraper</strong> — 40 named floors plus three sub-basements and a sky lobby.
+            Models morning rush, midday meetings, lunch crowd, evening commute, and late-night
+            traffic across low/high banks, an executive line, and a service line.
+          </li>
+          <li>
+            <strong>Space elevator</strong> — kilometres-long tether climbers between Earth station
+            and orbital platforms. Stress-tests dispatch and parking when stops are far apart.
+          </li>
+        </ul>
+
+        <h2>Frequently asked questions</h2>
+        <dl>
+          <dt>What is elevator-core?</dt>
+          <dd>
+            An engine-agnostic Rust simulation library for elevators. Models cars, stops, lines,
+            riders, doors, and dispatch in a tick-based loop with a struct-of-arrays world. Same
+            crate powers Bevy, Unity / .NET / GameMaker (via C ABI), Godot (via gdext), and the
+            browser (via wasm-bindgen).
+          </dd>
+          <dt>Which engines does it support?</dt>
+          <dd>
+            Bevy 0.18 natively, plus Unity, .NET, and GameMaker through
+            <code>elevator-ffi</code>, Godot through a gdext extension, and the browser through
+            <code>elevator-wasm</code>. The core crate has zero engine dependencies.
+          </dd>
+          <dt>Which dispatch strategies are built in?</dt>
+          <dd>
+            Six: SCAN, LOOK, NEAREST, ETD, DCS, and RSR. All implement the
+            <code>DispatchStrategy</code> trait so you can plug in your own.
+          </dd>
+          <dt>Is the simulation deterministic?</dt>
+          <dd>
+            Yes. Same config + seed produces bit-identical snapshots across every host.
+            <code>elevator-contract</code> enforces this in CI.
+          </dd>
+          <dt>Can I share a specific simulator setup?</dt>
+          <dd>
+            Yes. The Share button copies a permalink encoding scenario, dispatch and parking
+            strategies for both panes, the seed, intensity, traffic mode, and any tweaked physics
+            parameters.
+          </dd>
+          <dt>What is Quest mode?</dt>
+          <dd>
+            A 15-stage curriculum that teaches the elevator-core API one primitive at a time. You
+            write a controller in TypeScript inside an embedded Monaco editor and watch your code
+            drive the cars.
+          </dd>
+        </dl>
+
+        <h2>Resources</h2>
+        <ul>
+          <li>
+            <a href="https://github.com/andymai/elevator-core">Source on GitHub</a> — Cargo
+            workspace with ten crates.
+          </li>
+          <li>
+            <a href="https://crates.io/crates/elevator-core">elevator-core on crates.io</a> — the
+            simulation library crate.
+          </li>
+          <li>
+            <a href="https://docs.rs/elevator-core">API documentation on docs.rs</a> — generated
+            from rustdoc.
+          </li>
+          <li>
+            <a href="../">elevator-core guide</a> — mdBook chapters covering the simulation loop,
+            custom dispatch, snapshots and determinism, host bindings, and integration galleries for
+            Bevy, Unity, Godot, and GameMaker.
+          </li>
+          <li>
+            <a href="../dispatch-strategies.html">Dispatch strategies guide</a> — deeper write-up of
+            each built-in algorithm.
+          </li>
+          <li>
+            <a href="../custom-dispatch.html">Writing a custom dispatch strategy</a> — how to
+            implement the <code>DispatchStrategy</code> trait.
+          </li>
+        </ul>
+
+        <p>
+          If you can read this, JavaScript or WebAssembly is disabled in your browser; the
+          interactive playground requires both. The links above let you read the same material as
+          static documentation.
+        </p>
+      </article>
+    </main>
+
     <header
       class="top relative bg-gradient-to-b from-surface-secondary to-surface px-5 pt-3 pb-2.5 max-md:px-3.5 max-md:pt-2.5 max-md:pb-2"
     >
