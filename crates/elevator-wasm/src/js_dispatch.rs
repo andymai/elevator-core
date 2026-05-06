@@ -70,7 +70,7 @@ unsafe impl Send for JsDispatchStrategy {}
 unsafe impl Sync for JsDispatchStrategy {}
 
 impl DispatchStrategy for JsDispatchStrategy {
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let dto = JsRankContext {
             car: ctx.car.data().as_ffi(),
             car_position: ctx.car_position,

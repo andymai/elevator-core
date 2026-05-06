@@ -494,7 +494,7 @@ fn strict_demand_ahead_up_accepts_demand_strictly_above_car() {
     reason = "test helper threading rank context"
 )]
 fn rank_via_look(
-    look: &mut LookDispatch,
+    look: &LookDispatch,
     car: EntityId,
     car_pos: f64,
     stop: EntityId,
@@ -526,7 +526,7 @@ fn look_all_demand_strictly_above_car_keeps_up_sweep() {
     look.prepare_car(elev, 10.0, &g, &m, &world);
     // Sweep stays Up: a stop above the car must rank, the (synthetic)
     // self-stop at the car's position must not.
-    let above = rank_via_look(&mut look, elev, 10.0, stops[0], 15.0, &g, &m, &world);
+    let above = rank_via_look(&look, elev, 10.0, stops[0], 15.0, &g, &m, &world);
     assert!(above.is_some(), "Up sweep accepts stop above car");
 }
 
@@ -541,7 +541,7 @@ fn look_all_demand_strictly_below_car_reverses_to_down() {
     // Default direction is Up but no demand is up → prepare_car
     // reverses to Down + Lenient.
     look.prepare_car(elev, 10.0, &g, &m, &world);
-    let below = rank_via_look(&mut look, elev, 10.0, stops[0], 0.0, &g, &m, &world);
+    let below = rank_via_look(&look, elev, 10.0, stops[0], 0.0, &g, &m, &world);
     assert!(
         below.is_some(),
         "after reversal, a stop below the car must rank (Down sweep accepts it)"
@@ -563,7 +563,7 @@ fn look_repeated_stops_at_same_position_all_rank_equally() {
 
     let costs: Vec<_> = stops
         .iter()
-        .map(|&s| rank_via_look(&mut look, elev, 10.0, s, 20.0, &g, &m, &world))
+        .map(|&s| rank_via_look(&look, elev, 10.0, s, 20.0, &g, &m, &world))
         .collect();
     assert!(costs.iter().all(Option::is_some));
     let first = costs[0].unwrap();

@@ -565,7 +565,7 @@ fn disable_elevator_notifies_dispatcher() {
         removed: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Counter {
-        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
             Some((ctx.car_position - ctx.stop_position).abs())
         }
         fn notify_removed(&mut self, _elevator: EntityId) {
@@ -615,7 +615,7 @@ fn remove_elevator_notifies_dispatcher_exactly_once() {
         removed: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Counter {
-        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
             Some((ctx.car_position - ctx.stop_position).abs())
         }
         fn notify_removed(&mut self, _elevator: EntityId) {

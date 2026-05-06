@@ -17,7 +17,7 @@
 //! struct AlwaysFirstStop;
 //!
 //! impl DispatchStrategy for AlwaysFirstStop {
-//!     fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+//!     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
 //!         // Prefer the group's first stop; everything else is unavailable.
 //!         if Some(&ctx.stop) == ctx.group.stop_entities().first() {
 //!             Some((ctx.car_position - ctx.stop_position).abs())
@@ -928,14 +928,11 @@ pub trait DispatchStrategy: Send + Sync {
     /// Must return a finite, non-negative value if `Some` — infinities
     /// and NaN can destabilize the underlying Hungarian solver.
     ///
-    /// Implementations must not mutate per-car state inside `rank`: the
-    /// dispatch system calls `rank(car, stop_0..stop_m)` in a loop, so
-    /// mutating `self` on one call affects subsequent calls for the same
-    /// car within the same pass and produces an asymmetric cost matrix
-    /// whose results depend on iteration order. Use
-    /// [`prepare_car`](Self::prepare_car) to compute and store any
-    /// per-car state before `rank` is called.
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64>;
+    /// Takes `&self` so the assignment loop can score `(car, stop)` pairs
+    /// in any order without producing an asymmetric cost matrix. Compute
+    /// any per-car scratch in [`prepare_car`](Self::prepare_car) (which
+    /// takes `&mut self`) before this method is called.
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64>;
 
     /// Decide what an idle car should do when no stop was assigned to it.
     ///

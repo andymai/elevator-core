@@ -304,7 +304,7 @@ impl Default for RsrDispatch {
 }
 
 impl DispatchStrategy for RsrDispatch {
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         // `pair_is_useful(ctx, true)` enables the aboard-rider path
         // guard on top of the servability check. Without it, a loaded
         // RSR car gets pulled off the path to its aboard riders'

@@ -256,7 +256,7 @@ impl DispatchStrategy for DestinationDispatch {
         }
     }
 
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         // The queue is the source of truth — route each car strictly to
         // its own queue front. Every other stop is unavailable for this
         // car, so the Hungarian assignment reduces to the identity match

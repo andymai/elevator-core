@@ -83,7 +83,7 @@ impl DispatchStrategy for LookDispatch {
         }
     }
 
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         // Same guard as SCAN: deny un-servable pairs so an over-capacity
         // waiting rider at the car's own stop can't pull the car into a
         // cost-0 self-assignment during the Lenient reversal tick.

@@ -45,7 +45,7 @@ pub trait DispatchStrategy: Send + Sync {
     /// Score sending `car` to `stop`. Lower is better. `None` marks
     /// the pair unavailable (capacity limits, wrong-direction, sticky).
     /// Must return a finite, non-negative value when `Some`.
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64>;
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64>;
 
     /// Decide what a car should do when the assignment phase couldn't
     /// give it a stop (no demand or all candidate ranks were `None`).
@@ -91,7 +91,7 @@ use elevator_core::dispatch::{DispatchStrategy, RankContext};
 struct BusyStopNearest;
 
 impl DispatchStrategy for BusyStopNearest {
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let distance = (ctx.car_position - ctx.stop_position).abs();
         let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
         // Subtract a crowding bonus so busier stops look cheaper. Clamp
@@ -152,7 +152,7 @@ impl DispatchStrategy for DirectionalDispatch {
         self.sweep_up.insert(car, demand_above >= demand_below);
     }
 
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let going_up = self.sweep_up.get(&ctx.car).copied().unwrap_or(true);
         let is_ahead = if going_up {
             ctx.stop_position >= ctx.car_position
@@ -232,7 +232,7 @@ struct PriorityDispatch {
 
 impl DispatchStrategy for PriorityDispatch {
     // Real implementations score against `ctx`; see `BusyStopNearest` above.
-    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+    fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
 
     fn builtin_id(&self) -> Option<BuiltinStrategy> {
         // Identify the strategy to the snapshot layer. Keep this name
@@ -293,7 +293,7 @@ Two levels of test coverage work well:
 # use elevator_core::__doctest_prelude::*;
 # struct BusyStopNearest;
 # impl DispatchStrategy for BusyStopNearest {
-#     fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+#     fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
 # }
 #[test]
 fn custom_strategy_assigns_nearest_car() {
