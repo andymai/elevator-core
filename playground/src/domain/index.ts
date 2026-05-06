@@ -3,6 +3,7 @@ export {
   decodePermalink,
   encodePermalink,
   hashSeedWord,
+  onPermalinkSync,
   syncPermalinkUrl,
   type PermalinkState,
   type PlaygroundMode,
