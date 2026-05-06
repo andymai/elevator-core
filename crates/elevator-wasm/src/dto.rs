@@ -8,7 +8,7 @@
 
 use elevator_core::entity::EntityId;
 use elevator_core::events::Event;
-use elevator_core::prelude::{ElevatorPhase, Simulation};
+use elevator_core::prelude::Simulation;
 use serde::Serialize;
 use slotmap::Key;
 use tsify::Tsify;
@@ -170,7 +170,7 @@ impl Snapshot {
                     line: entity_to_u32(car.line()),
                     y: pos.value(),
                     v,
-                    phase: phase_label(car.phase()),
+                    phase: elevator_core::host_label::elevator_phase(car.phase()),
                     target,
                     load: car.current_load().value(),
                     capacity: car.weight_capacity().value(),
@@ -1612,18 +1612,4 @@ fn entity_to_u32(id: EntityId) -> u32 {
     #[allow(clippy::cast_possible_truncation)]
     let slot = raw as u32;
     slot
-}
-
-/// Map an `ElevatorPhase` to a short string suitable for CSS class names.
-pub fn phase_label(phase: ElevatorPhase) -> &'static str {
-    match phase {
-        ElevatorPhase::Idle => "idle",
-        ElevatorPhase::MovingToStop(_) => "moving",
-        ElevatorPhase::Repositioning(_) => "repositioning",
-        ElevatorPhase::DoorOpening => "door-opening",
-        ElevatorPhase::Loading => "loading",
-        ElevatorPhase::DoorClosing => "door-closing",
-        ElevatorPhase::Stopped => "stopped",
-        _ => "unknown",
-    }
 }

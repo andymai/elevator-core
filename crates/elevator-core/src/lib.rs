@@ -374,6 +374,9 @@ pub mod error;
 /// Shared error classification for host bindings (FFI / wasm /
 /// gdext / Bevy). See [`host_error::ErrorKind`].
 pub mod host_error;
+/// Sealed kebab-case label vocabulary shared across host bindings.
+/// See [`host_label`] for the formatter / parser pairs.
+pub mod host_label;
 /// Typed identifiers for groups and other sim concepts.
 pub mod ids;
 /// ECS-style query builder for iterating entities by component composition.

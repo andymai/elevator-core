@@ -54,36 +54,6 @@ fn u64_to_entity(raw: u64) -> EntityId {
     EntityId::from(slotmap::KeyData::from_ffi(raw))
 }
 
-/// Map a JS-facing service-mode label to its `ServiceMode` variant. The
-/// label set is part of the wasm public contract; new variants in
-/// `ServiceMode` must add a label here in the same release.
-fn parse_service_mode(label: &str) -> Option<elevator_core::components::ServiceMode> {
-    use elevator_core::components::ServiceMode;
-    match label {
-        "normal" => Some(ServiceMode::Normal),
-        "independent" => Some(ServiceMode::Independent),
-        "inspection" => Some(ServiceMode::Inspection),
-        "manual" => Some(ServiceMode::Manual),
-        "out-of-service" => Some(ServiceMode::OutOfService),
-        _ => None,
-    }
-}
-
-/// Inverse of [`parse_service_mode`]. Falls back to `"out-of-service"` for
-/// unknown variants — `ServiceMode` is `#[non_exhaustive]`, so a new core
-/// variant without a label here surfaces as that fallback rather than
-/// panicking. Add a label in the same release that adds the variant.
-const fn format_service_mode(mode: elevator_core::components::ServiceMode) -> &'static str {
-    use elevator_core::components::ServiceMode;
-    match mode {
-        ServiceMode::Normal => "normal",
-        ServiceMode::Independent => "independent",
-        ServiceMode::Inspection => "inspection",
-        ServiceMode::Manual => "manual",
-        ServiceMode::OutOfService | _ => "out-of-service",
-    }
-}
-
 /// Convert a real-time `Duration` (seconds) into integer simulation
 /// ticks at the given dt. Saturating cast — sub-tick remainders round
 /// to nearest, negative values clamp to 0, overflow clamps to `u64::MAX`.
@@ -104,29 +74,6 @@ fn duration_to_ticks(d: std::time::Duration, dt: f64) -> u64 {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let t = ticks as u64;
         t
-    }
-}
-
-/// Map a JS-facing direction label (`"up"` / `"down"`) to a
-/// [`CallDirection`]. Other inputs surface as a JS error so consumers
-/// can't smuggle an unknown direction through.
-fn parse_call_direction(label: &str) -> Result<elevator_core::components::CallDirection, String> {
-    use elevator_core::components::CallDirection;
-    match label {
-        "up" => Ok(CallDirection::Up),
-        "down" => Ok(CallDirection::Down),
-        other => Err(format!("direction must be 'up' or 'down', got {other:?}")),
-    }
-}
-
-/// Format a `Direction` as the JS-facing label string (`"up"`, `"down"`,
-/// or `"either"`). Mirrors the parsing convention used by `bestEta`.
-const fn format_direction(dir: elevator_core::components::Direction) -> &'static str {
-    use elevator_core::components::Direction;
-    match dir {
-        Direction::Up => "up",
-        Direction::Down => "down",
-        Direction::Either | _ => "either",
     }
 }
 
@@ -1165,8 +1112,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = setServiceMode)]
     pub fn set_service_mode(&mut self, elevator_ref: u64, mode: &str) -> WasmVoidResult {
         (|| -> Result<(), String> {
-            let mode =
-                parse_service_mode(mode).ok_or_else(|| format!("unknown service mode: {mode}"))?;
+            let mode = elevator_core::host_label::parse_service_mode(mode)
+                .ok_or_else(|| format!("unknown service mode: {mode}"))?;
             self.inner
                 .set_service_mode(u64_to_entity(elevator_ref), mode)
                 .map_err(|e| format!("set_service_mode: {e}"))
@@ -1181,7 +1128,10 @@ impl WasmSim {
     #[wasm_bindgen(js_name = serviceMode)]
     #[must_use]
     pub fn service_mode(&self, elevator_ref: u64) -> String {
-        format_service_mode(self.inner.service_mode(u64_to_entity(elevator_ref).into())).to_string()
+        elevator_core::host_label::service_mode(
+            self.inner.service_mode(u64_to_entity(elevator_ref).into()),
+        )
+        .to_string()
     }
 
     /// Set the target velocity for a Manual-mode elevator (distance/tick).
@@ -1309,7 +1259,7 @@ impl WasmSim {
         direction: &str,
     ) -> WasmVoidResult {
         (|| -> Result<(), String> {
-            let dir = parse_call_direction(direction)?;
+            let dir = elevator_core::host_label::parse_call_direction(direction)?;
             self.inner
                 .pin_assignment(
                     elevator_core::entity::ElevatorId::from(u64_to_entity(car_ref)),
@@ -1330,7 +1280,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = unpinAssignment)]
     pub fn unpin_assignment(&mut self, stop_ref: u64, direction: &str) -> WasmVoidResult {
         (|| -> Result<(), String> {
-            let dir = parse_call_direction(direction)?;
+            let dir = elevator_core::host_label::parse_call_direction(direction)?;
             self.inner.unpin_assignment(u64_to_entity(stop_ref), dir);
             Ok(())
         })()
@@ -1348,7 +1298,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = assignedCar)]
     pub fn assigned_car(&self, stop_ref: u64, direction: &str) -> WasmU64Result {
         (|| -> Result<u64, String> {
-            let dir = parse_call_direction(direction)?;
+            let dir = elevator_core::host_label::parse_call_direction(direction)?;
             Ok(self
                 .inner
                 .assigned_car(u64_to_entity(stop_ref), dir)
@@ -1372,7 +1322,8 @@ impl WasmSim {
         stop_ref: u64,
         direction: &str,
     ) -> Result<Vec<u64>, JsError> {
-        let dir = parse_call_direction(direction).map_err(|e| JsError::new(&e))?;
+        let dir = elevator_core::host_label::parse_call_direction(direction)
+            .map_err(|e| JsError::new(&e))?;
         Ok(self
             .inner
             .assigned_cars_by_line(u64_to_entity(stop_ref), dir)
@@ -1417,7 +1368,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = etaForCall)]
     pub fn eta_for_call(&self, stop_ref: u64, direction: &str) -> WasmU64Result {
         (|| -> Result<u64, String> {
-            let dir = parse_call_direction(direction)?;
+            let dir = elevator_core::host_label::parse_call_direction(direction)?;
             self.inner
                 .eta_for_call(u64_to_entity(stop_ref), dir)
                 .map_err(|e| format!("eta_for_call: {e}"))
@@ -1547,7 +1498,7 @@ impl WasmSim {
     pub fn elevator_direction(&self, elevator_ref: u64) -> Option<String> {
         self.inner
             .elevator_direction(u64_to_entity(elevator_ref).into())
-            .map(|d| format_direction(d).to_string())
+            .map(|d| elevator_core::host_label::direction(d).to_string())
     }
 
     /// Whether `elevator_ref` is currently committed upward. Returns

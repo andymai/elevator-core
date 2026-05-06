@@ -22,8 +22,6 @@ use serde::Serialize;
 use slotmap::Key;
 use tsify::Tsify;
 
-use crate::dto::phase_label;
-
 /// Encode an `EntityId` for the JS boundary as `u64` (`BigInt`). Same encoding
 /// the [`crate::WasmSim`] mutation API returns from `addStop` / `addElevator` /
 /// etc., so consumers can match `WorldView.cars[].id` against ids they hold.
@@ -331,7 +329,7 @@ fn build_cars(sim: &Simulation) -> Vec<CarView> {
                 group: group_id,
                 y: pos.value(),
                 v,
-                phase: phase_label(car.phase()),
+                phase: elevator_core::host_label::elevator_phase(car.phase()),
                 target,
                 load: car.current_load().value(),
                 capacity: car.weight_capacity().value(),
