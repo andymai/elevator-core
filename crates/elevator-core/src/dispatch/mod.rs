@@ -560,14 +560,53 @@ impl LineInfo {
         self.entity = entity;
     }
 
-    /// Mutable access to elevator entities on this line.
-    pub(crate) const fn elevators_mut(&mut self) -> &mut Vec<EntityId> {
-        &mut self.elevators
+    /// Add an elevator to this line, deduplicating against existing entries.
+    ///
+    /// Returns `true` if the elevator was inserted, `false` if it was
+    /// already present. Replaces direct `&mut Vec` access so callers
+    /// can't introduce duplicates the dedup invariants in
+    /// [`ElevatorGroup::rebuild_caches`] rely on.
+    pub(crate) fn add_elevator(&mut self, elevator: EntityId) -> bool {
+        if self.elevators.contains(&elevator) {
+            false
+        } else {
+            self.elevators.push(elevator);
+            true
+        }
     }
 
-    /// Mutable access to stop entities served by this line.
-    pub(crate) const fn serves_mut(&mut self) -> &mut Vec<EntityId> {
-        &mut self.serves
+    /// Remove an elevator from this line.
+    ///
+    /// Returns `true` if the elevator was present and removed, `false`
+    /// if it was absent.
+    pub(crate) fn remove_elevator(&mut self, elevator: EntityId) -> bool {
+        let len_before = self.elevators.len();
+        self.elevators.retain(|&e| e != elevator);
+        self.elevators.len() != len_before
+    }
+
+    /// Add a stop to this line's served list, deduplicating against
+    /// existing entries.
+    ///
+    /// Returns `true` if the stop was inserted, `false` if it was
+    /// already present.
+    pub(crate) fn add_stop(&mut self, stop: EntityId) -> bool {
+        if self.serves.contains(&stop) {
+            false
+        } else {
+            self.serves.push(stop);
+            true
+        }
+    }
+
+    /// Remove a stop from this line's served list.
+    ///
+    /// Returns `true` if the stop was present and removed, `false`
+    /// if it was absent.
+    pub(crate) fn remove_stop(&mut self, stop: EntityId) -> bool {
+        let len_before = self.serves.len();
+        self.serves.retain(|&s| s != stop);
+        self.serves.len() != len_before
     }
 }
 

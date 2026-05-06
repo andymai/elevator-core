@@ -78,9 +78,7 @@ impl Simulation {
         self.world.set_position(eid, Position { value: position });
 
         // Add to the line's serves list.
-        self.groups[group_idx].lines_mut()[line_idx]
-            .serves_mut()
-            .push(eid);
+        self.groups[group_idx].lines_mut()[line_idx].add_stop(eid);
 
         // Add to the group's flat cache.
         self.groups[group_idx].push_stop(eid);
@@ -192,9 +190,7 @@ impl Simulation {
         );
         self.world
             .set_destination_queue(eid, crate::components::DestinationQueue::new());
-        self.groups[group_idx].lines_mut()[line_idx]
-            .elevators_mut()
-            .push(eid);
+        self.groups[group_idx].lines_mut()[line_idx].add_elevator(eid);
         self.groups[group_idx].push_elevator(eid);
 
         // Tag the elevator with its line's "line:{name}" tag.
@@ -424,9 +420,7 @@ impl Simulation {
         // per removal.
         let resolved_group: Option<GroupId> = match self.find_line(line) {
             Ok((group_idx, line_idx)) => {
-                self.groups[group_idx].lines_mut()[line_idx]
-                    .elevators_mut()
-                    .retain(|&e| e != elevator);
+                self.groups[group_idx].lines_mut()[line_idx].remove_elevator(elevator);
                 self.groups[group_idx].rebuild_caches();
                 Some(self.groups[group_idx].id())
             }
@@ -515,7 +509,7 @@ impl Simulation {
         // Remove from all lines and groups.
         for group in &mut self.groups {
             for line_info in group.lines_mut() {
-                line_info.serves_mut().retain(|&s| s != stop);
+                line_info.remove_stop(stop);
             }
             group.rebuild_caches();
         }
@@ -686,12 +680,8 @@ impl Simulation {
         let old_group_id = self.groups[old_group_idx].id();
         let new_group_id = self.groups[new_group_idx].id();
 
-        self.groups[old_group_idx].lines_mut()[old_line_idx]
-            .elevators_mut()
-            .retain(|&e| e != elevator);
-        self.groups[new_group_idx].lines_mut()[new_line_idx]
-            .elevators_mut()
-            .push(elevator);
+        self.groups[old_group_idx].lines_mut()[old_line_idx].remove_elevator(elevator);
+        self.groups[new_group_idx].lines_mut()[new_line_idx].add_elevator(elevator);
 
         if let Some(car) = self.world.elevator_mut(elevator) {
             car.line = new_line;
@@ -737,9 +727,7 @@ impl Simulation {
         let (group_idx, line_idx) = self.find_line(line)?;
 
         let li = &mut self.groups[group_idx].lines_mut()[line_idx];
-        if !li.serves().contains(&stop) {
-            li.serves_mut().push(stop);
-        }
+        li.add_stop(stop);
 
         self.groups[group_idx].push_stop(stop);
 
@@ -759,9 +747,7 @@ impl Simulation {
     ) -> Result<(), SimError> {
         let (group_idx, line_idx) = self.find_line(line)?;
 
-        self.groups[group_idx].lines_mut()[line_idx]
-            .serves_mut()
-            .retain(|&s| s != stop);
+        self.groups[group_idx].lines_mut()[line_idx].remove_stop(stop);
 
         // Rebuild group's stop_entities from all lines.
         self.groups[group_idx].rebuild_caches();
