@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.20.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.19.0...elevator-wasm-v0.20.0) (2026-05-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** elevator accessors take ElevatorId ([#713](https://github.com/andymai/elevator-core/issues/713))
+
+### Code Refactoring
+
+* **core:** elevator accessors take ElevatorId ([#713](https://github.com/andymai/elevator-core/issues/713)) ([3e4b734](https://github.com/andymai/elevator-core/commit/3e4b734610b35fba9b97ac196c6b0be0e5f65c04))
+
 ## [0.19.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.18.0...elevator-wasm-v0.19.0) (2026-05-06)
 
 
