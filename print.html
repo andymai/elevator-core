@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-20de81a2.js";
+            window.path_to_searchindex_js = "searchindex-badbf3ba.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -2365,7 +2365,7 @@ for event in sim.drain_events() {
     /// Score sending `car` to `stop`. Lower is better. `None` marks
     /// the pair unavailable (capacity limits, wrong-direction, sticky).
     /// Must return a finite, non-negative value when `Some`.
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt;;
+    fn rank(&amp;self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt;;
 
     /// Decide what a car should do when the assignment phase couldn't
     /// give it a stop (no demand or all candidate ranks were `None`).
@@ -2405,7 +2405,7 @@ for event in sim.drain_events() {
 struct BusyStopNearest;
 
 impl DispatchStrategy for BusyStopNearest {
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
+    fn rank(&amp;self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
         let distance = (ctx.car_position - ctx.stop_position).abs();
         let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
         // Subtract a crowding bonus so busier stops look cheaper. Clamp
@@ -2462,7 +2462,7 @@ impl DispatchStrategy for DirectionalDispatch {
         self.sweep_up.insert(car, demand_above &gt;= demand_below);
     }
 
-    fn rank(&amp;mut self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
+    fn rank(&amp;self, ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; {
         let going_up = self.sweep_up.get(&amp;ctx.car).copied().unwrap_or(true);
         let is_ahead = if going_up {
             ctx.stop_position &gt;= ctx.car_position
@@ -2534,7 +2534,7 @@ struct PriorityDispatch {
 
 impl DispatchStrategy for PriorityDispatch {
     // Real implementations score against `ctx`; see `BusyStopNearest` above.
-    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
+    fn rank(&amp;self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
 
     fn builtin_id(&amp;self) -&gt; Option&lt;BuiltinStrategy&gt; {
         // Identify the strategy to the snapshot layer. Keep this name
@@ -2590,7 +2590,7 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">struct BusyStopNearest;
 </span><span class="boring">impl DispatchStrategy for BusyStopNearest {
-</span><span class="boring">    fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
+</span><span class="boring">    fn rank(&amp;self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
 </span><span class="boring">}
 </span>#[test]
 fn custom_strategy_assigns_nearest_car() {
@@ -3450,7 +3450,7 @@ let sim = snapshot.restore(None)?;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">struct HighestFirstDispatch;
 </span><span class="boring">impl DispatchStrategy for HighestFirstDispatch {
-</span><span class="boring">  fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
+</span><span class="boring">  fn rank(&amp;self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
 </span><span class="boring">}
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
 </span>let sim = snapshot.restore(Some(&amp;|name: &amp;str| match name {

@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-20de81a2.js";
+            window.path_to_searchindex_js = "searchindex-badbf3ba.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -240,7 +240,7 @@ let sim = snapshot.restore(None)?;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">struct HighestFirstDispatch;
 </span><span class="boring">impl DispatchStrategy for HighestFirstDispatch {
-</span><span class="boring">  fn rank(&amp;mut self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
+</span><span class="boring">  fn rank(&amp;self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
 </span><span class="boring">}
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
 </span>let sim = snapshot.restore(Some(&amp;|name: &amp;str| match name {
