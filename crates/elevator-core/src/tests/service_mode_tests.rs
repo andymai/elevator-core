@@ -11,7 +11,7 @@ fn default_mode_is_normal() {
     let mut sim = crate::sim::Simulation::new(&config, scan()).unwrap();
 
     let elev = sim.world().elevator_ids()[0];
-    assert_eq!(sim.service_mode(elev), ServiceMode::Normal);
+    assert_eq!(sim.service_mode(elev.into()), ServiceMode::Normal);
 
     sim.spawn_rider(StopId(0), StopId(2), 75.0).unwrap();
 

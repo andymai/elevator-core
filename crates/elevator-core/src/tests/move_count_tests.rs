@@ -97,7 +97,7 @@ fn move_count_starts_at_zero() {
         .map(|(id, _, _)| id)
         .unwrap();
 
-    assert_eq!(sim.elevator_move_count(elev), Some(0));
+    assert_eq!(sim.elevator_move_count(elev.into()), Some(0));
     assert_eq!(sim.metrics().total_moves(), 0);
 }
 
@@ -128,7 +128,7 @@ fn move_count_increments_on_arrival() {
     }
 
     assert_eq!(
-        sim.elevator_move_count(elev),
+        sim.elevator_move_count(elev.into()),
         Some(1),
         "one arrival = one move"
     );
@@ -162,7 +162,7 @@ fn move_count_counts_passing_floors() {
     }
 
     assert_eq!(
-        sim.elevator_move_count(elev),
+        sim.elevator_move_count(elev.into()),
         Some(2),
         "1 passing floor + 1 arrival"
     );
@@ -231,7 +231,7 @@ fn move_count_zero_when_stationary() {
         sim.step();
     }
 
-    assert_eq!(sim.elevator_move_count(elev), Some(0));
+    assert_eq!(sim.elevator_move_count(elev.into()), Some(0));
     assert_eq!(sim.metrics().total_moves(), 0);
 }
 
@@ -262,7 +262,7 @@ fn move_count_persists_across_snapshot() {
         .next()
         .map(|(id, _, _)| id)
         .unwrap();
-    let per_elev_before = sim.elevator_move_count(elev).unwrap();
+    let per_elev_before = sim.elevator_move_count(elev.into()).unwrap();
 
     let snap = sim.snapshot();
     let restored = snap.restore(None).unwrap();
@@ -275,7 +275,7 @@ fn move_count_persists_across_snapshot() {
         .map(|(id, _, _)| id)
         .unwrap();
     assert_eq!(
-        restored.elevator_move_count(restored_elev),
+        restored.elevator_move_count(restored_elev.into()),
         Some(per_elev_before)
     );
 }
@@ -322,7 +322,7 @@ fn move_count_counts_reposition_arrivals() {
     }
 
     // Expected: 1 passing (stop 1) + 1 arrival (stop 0) = 2 moves.
-    let count = sim.elevator_move_count(elev).unwrap();
+    let count = sim.elevator_move_count(elev.into()).unwrap();
     assert!(
         count >= 2,
         "expected at least 2 moves (passing + arrival) during reposition, got {count}",

@@ -4537,7 +4537,7 @@ pub unsafe extern "C" fn ev_sim_service_mode(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        let mode = EvServiceMode::from_core(ev.sim.service_mode(elevator));
+        let mode = EvServiceMode::from_core(ev.sim.service_mode(elevator.into()));
         // Safety: caller guarantees out_mode is writable.
         unsafe { *out_mode = mode };
         EvStatus::Ok
@@ -5191,7 +5191,7 @@ pub unsafe extern "C" fn ev_sim_occupancy(handle: *mut EvSim, elevator_entity_id
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        u32::try_from(ev.sim.occupancy(elevator)).unwrap_or(u32::MAX)
+        u32::try_from(ev.sim.occupancy(elevator.into())).unwrap_or(u32::MAX)
     })
 }
 
@@ -5218,7 +5218,7 @@ pub unsafe extern "C" fn ev_sim_elevator_direction(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        match ev.sim.elevator_direction(elevator) {
+        match ev.sim.elevator_direction(elevator.into()) {
             Some(elevator_core::components::Direction::Up) => 1,
             Some(elevator_core::components::Direction::Down) => -1,
             _ => 0,
@@ -5246,7 +5246,7 @@ pub unsafe extern "C" fn ev_sim_elevator_going_up(
         entity_from_u64(elevator_entity_id).is_some_and(|e| {
             // Safety: validity guaranteed by caller.
             let ev = unsafe { &*handle };
-            ev.sim.elevator_going_up(e).unwrap_or(false)
+            ev.sim.elevator_going_up(e.into()).unwrap_or(false)
         })
     })
 }
@@ -5271,7 +5271,7 @@ pub unsafe extern "C" fn ev_sim_elevator_going_down(
         entity_from_u64(elevator_entity_id).is_some_and(|e| {
             // Safety: validity guaranteed by caller.
             let ev = unsafe { &*handle };
-            ev.sim.elevator_going_down(e).unwrap_or(false)
+            ev.sim.elevator_going_down(e.into()).unwrap_or(false)
         })
     })
 }
@@ -5298,7 +5298,7 @@ pub unsafe extern "C" fn ev_sim_elevator_move_count(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        ev.sim.elevator_move_count(elevator).unwrap_or(0)
+        ev.sim.elevator_move_count(elevator.into()).unwrap_or(0)
     })
 }
 
@@ -5325,7 +5325,7 @@ pub unsafe extern "C" fn ev_sim_braking_distance(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        ev.sim.braking_distance(elevator).unwrap_or(f64::NAN)
+        ev.sim.braking_distance(elevator.into()).unwrap_or(f64::NAN)
     })
 }
 
@@ -5351,7 +5351,9 @@ pub unsafe extern "C" fn ev_sim_future_stop_position(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        ev.sim.future_stop_position(elevator).unwrap_or(f64::NAN)
+        ev.sim
+            .future_stop_position(elevator.into())
+            .unwrap_or(f64::NAN)
     })
 }
 
@@ -5965,7 +5967,7 @@ pub unsafe extern "C" fn ev_sim_riders_on(
         };
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        let riders = ev.sim.riders_on(elevator);
+        let riders = ev.sim.riders_on(elevator.into());
         // Safety: `out` validity guaranteed by caller.
         let written = unsafe { write_entity_buffer(riders.iter().copied(), out, capacity) };
         // Safety: out_written non-null per check above.

@@ -151,7 +151,7 @@ fn abort_mid_flight_brake_target_is_reachable_in_direction() {
 
     let pos = sim.world().position(elev.entity()).unwrap().value;
     let vel = sim.world().velocity(elev.entity()).unwrap().value;
-    let brake_pos = sim.future_stop_position(elev.entity()).unwrap();
+    let brake_pos = sim.future_stop_position(elev).unwrap();
     sim.abort_movement(elev).unwrap();
 
     let car = sim.world().elevator(elev.entity()).unwrap();

@@ -1181,7 +1181,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = serviceMode)]
     #[must_use]
     pub fn service_mode(&self, elevator_ref: u64) -> String {
-        format_service_mode(self.inner.service_mode(u64_to_entity(elevator_ref))).to_string()
+        format_service_mode(self.inner.service_mode(u64_to_entity(elevator_ref).into())).to_string()
     }
 
     /// Set the target velocity for a Manual-mode elevator (distance/tick).
@@ -1536,7 +1536,7 @@ impl WasmSim {
     #[wasm_bindgen(js_name = occupancy)]
     #[must_use]
     pub fn occupancy(&self, elevator_ref: u64) -> u32 {
-        u32::try_from(self.inner.occupancy(u64_to_entity(elevator_ref))).unwrap_or(u32::MAX)
+        u32::try_from(self.inner.occupancy(u64_to_entity(elevator_ref).into())).unwrap_or(u32::MAX)
     }
 
     /// Indicator-lamp direction of `elevator_ref`: `"up"`, `"down"`, or
@@ -1546,7 +1546,7 @@ impl WasmSim {
     #[must_use]
     pub fn elevator_direction(&self, elevator_ref: u64) -> Option<String> {
         self.inner
-            .elevator_direction(u64_to_entity(elevator_ref))
+            .elevator_direction(u64_to_entity(elevator_ref).into())
             .map(|d| format_direction(d).to_string())
     }
 
@@ -1556,7 +1556,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = elevatorGoingUp)]
     #[must_use]
     pub fn elevator_going_up(&self, elevator_ref: u64) -> Option<bool> {
-        self.inner.elevator_going_up(u64_to_entity(elevator_ref))
+        self.inner
+            .elevator_going_up(u64_to_entity(elevator_ref).into())
     }
 
     /// Whether `elevator_ref` is currently committed downward. Returns
@@ -1564,7 +1565,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = elevatorGoingDown)]
     #[must_use]
     pub fn elevator_going_down(&self, elevator_ref: u64) -> Option<bool> {
-        self.inner.elevator_going_down(u64_to_entity(elevator_ref))
+        self.inner
+            .elevator_going_down(u64_to_entity(elevator_ref).into())
     }
 
     /// Total number of completed trips by `elevator_ref` since spawn.
@@ -1572,7 +1574,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = elevatorMoveCount)]
     #[must_use]
     pub fn elevator_move_count(&self, elevator_ref: u64) -> Option<u64> {
-        self.inner.elevator_move_count(u64_to_entity(elevator_ref))
+        self.inner
+            .elevator_move_count(u64_to_entity(elevator_ref).into())
     }
 
     /// Distance `elevator_ref` would travel if it began decelerating
@@ -1581,7 +1584,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = brakingDistance)]
     #[must_use]
     pub fn braking_distance(&self, elevator_ref: u64) -> Option<f64> {
-        self.inner.braking_distance(u64_to_entity(elevator_ref))
+        self.inner
+            .braking_distance(u64_to_entity(elevator_ref).into())
     }
 
     /// Position of the next stop in `elevator_ref`'s destination queue,
@@ -1590,7 +1594,8 @@ impl WasmSim {
     #[wasm_bindgen(js_name = futureStopPosition)]
     #[must_use]
     pub fn future_stop_position(&self, elevator_ref: u64) -> Option<f64> {
-        self.inner.future_stop_position(u64_to_entity(elevator_ref))
+        self.inner
+            .future_stop_position(u64_to_entity(elevator_ref).into())
     }
 
     /// Total number of currently-idle elevators across the simulation.
@@ -1809,7 +1814,7 @@ impl WasmSim {
     #[must_use]
     pub fn riders_on(&self, elevator_ref: u64) -> Vec<u64> {
         self.inner
-            .riders_on(u64_to_entity(elevator_ref))
+            .riders_on(u64_to_entity(elevator_ref).into())
             .iter()
             .copied()
             .map(entity_to_u64)
