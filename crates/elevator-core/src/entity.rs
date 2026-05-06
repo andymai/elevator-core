@@ -35,13 +35,44 @@ macro_rules! typed_entity_id {
             }
         }
 
+        impl $name {
+            /// Wrap an `EntityId` in this typed newtype **without** verifying
+            /// the entity is actually of that kind. Wrong-kind IDs surface
+            /// later as `EntityNotFound` / `NotAnElevator` from accessor
+            /// calls.
+            ///
+            /// The explicit name signals the unsafety that the silent
+            /// [`From<EntityId>`] impl on this type also exposes — both
+            /// constructors are intended for callers that already hold a
+            /// confirmed-kind id (typed-ID accessors like
+            /// [`World::elevator_ids`](crate::world::World::elevator_ids),
+            /// snapshot deserialization, defense-in-depth tests). At host
+            /// boundaries, prefer [`Simulation::elevator_id`](crate::sim::Simulation::elevator_id)
+            /// / [`Simulation::rider_id`](crate::sim::Simulation::rider_id),
+            /// which return `Option` after a runtime kind check.
+            #[inline]
+            #[must_use]
+            pub const fn wrap_unchecked(id: EntityId) -> Self {
+                Self(id)
+            }
+        }
+
+        impl From<$name> for EntityId {
+            #[inline]
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
         impl From<EntityId> for $name {
             /// Wrap an `EntityId` in this typed newtype **without** verifying
-            /// the entity is actually of that kind. Wrong-type IDs surface
+            /// the entity is actually of that kind. Wrong-kind IDs surface
             /// later as `EntityNotFound` / `NotAnElevator` from accessor
-            /// calls — for compile-time safety, prefer the typed
-            /// `_id` accessors on `Simulation` (`elevator_ids`,
-            /// `rider_ids`, etc.) that yield typed IDs directly. (#290)
+            /// calls. Equivalent to [`wrap_unchecked`](Self::wrap_unchecked);
+            /// at host boundaries, prefer the verified
+            /// [`Simulation::elevator_id`](crate::sim::Simulation::elevator_id)
+            /// / [`Simulation::rider_id`](crate::sim::Simulation::rider_id)
+            /// accessors, which return `Option` after a runtime kind check.
             #[inline]
             fn from(id: EntityId) -> Self {
                 Self(id)

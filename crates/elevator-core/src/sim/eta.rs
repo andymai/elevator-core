@@ -167,7 +167,9 @@ impl super::Simulation {
                 if !direction_ok {
                     return None;
                 }
-                self.eta(ElevatorId::from(eid), stop).ok().map(|d| (eid, d))
+                self.eta(ElevatorId::wrap_unchecked(eid), stop)
+                    .ok()
+                    .map(|d| (eid, d))
             })
             .min_by_key(|(_, d)| *d)
     }

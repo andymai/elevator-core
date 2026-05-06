@@ -341,7 +341,7 @@ impl RiderBuilder<'_> {
             self.sim.world.set_access_control(eid, ac);
         }
 
-        Ok(RiderId::from(eid))
+        Ok(RiderId::wrap_unchecked(eid))
     }
 }
 
