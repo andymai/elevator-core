@@ -91,7 +91,7 @@ impl super::Simulation {
         let group = self.auto_detect_group(origin, destination)?;
 
         let route = Route::direct(origin, destination, group);
-        Ok(RiderId::from(self.spawn_rider_inner(
+        Ok(RiderId::wrap_unchecked(self.spawn_rider_inner(
             origin,
             destination,
             weight,
