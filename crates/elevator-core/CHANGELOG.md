@@ -1,5 +1,16 @@
 # Changelog
 
+## [18.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v17.0.0...elevator-core-v18.0.0) (2026-05-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** elevator accessors take ElevatorId ([#713](https://github.com/andymai/elevator-core/issues/713))
+
+### Code Refactoring
+
+* **core:** elevator accessors take ElevatorId ([#713](https://github.com/andymai/elevator-core/issues/713)) ([3e4b734](https://github.com/andymai/elevator-core/commit/3e4b734610b35fba9b97ac196c6b0be0e5f65c04))
+
 ## [17.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v16.4.0...elevator-core-v17.0.0) (2026-05-06)
 
 
