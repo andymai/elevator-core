@@ -1019,6 +1019,40 @@ impl Simulation {
         self.world.stop(id).is_some()
     }
 
+    /// Verified [`ElevatorId`] constructor for host code holding a raw
+    /// [`EntityId`] (FFI marshalling, wasm boundary, etc).
+    ///
+    /// Returns `Some` only if `id` is alive and has an elevator
+    /// component. Hosts that previously used `ElevatorId::from(id)` —
+    /// which silently produced wrong-kind IDs — should switch here:
+    /// the runtime kind check catches the bug at the boundary instead
+    /// of letting a `RiderId`-shaped value flow into elevator-only
+    /// accessors and surface as `None`/`0` deeper in.
+    ///
+    /// Internal core code that already holds a confirmed-kind id
+    /// (snapshot deserialization, lifecycle helpers, defense-in-depth
+    /// tests) uses [`ElevatorId::wrap_unchecked`] instead.
+    #[must_use]
+    pub fn elevator_id(&self, id: EntityId) -> Option<ElevatorId> {
+        if self.world.elevator(id).is_some() {
+            Some(ElevatorId::from(id))
+        } else {
+            None
+        }
+    }
+
+    /// Verified [`RiderId`] constructor for host code holding a raw
+    /// [`EntityId`]. Mirror of [`Simulation::elevator_id`]; same
+    /// rationale.
+    #[must_use]
+    pub fn rider_id(&self, id: EntityId) -> Option<RiderId> {
+        if self.world.rider(id).is_some() {
+            Some(RiderId::from(id))
+        } else {
+            None
+        }
+    }
+
     // ── Aggregate queries ───────────────────────────────────────────
 
     /// Count of elevators currently in the [`Idle`](ElevatorPhase::Idle) phase.
