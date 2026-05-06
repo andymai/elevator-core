@@ -1035,7 +1035,7 @@ impl Simulation {
     #[must_use]
     pub fn elevator_id(&self, id: EntityId) -> Option<ElevatorId> {
         if self.world.elevator(id).is_some() {
-            Some(ElevatorId::from(id))
+            Some(ElevatorId::wrap_unchecked(id))
         } else {
             None
         }
@@ -1047,7 +1047,7 @@ impl Simulation {
     #[must_use]
     pub fn rider_id(&self, id: EntityId) -> Option<RiderId> {
         if self.world.rider(id).is_some() {
-            Some(RiderId::from(id))
+            Some(RiderId::wrap_unchecked(id))
         } else {
             None
         }

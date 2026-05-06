@@ -1162,6 +1162,26 @@ gdext = "todo:future-binding"
 bevy = "todo:plugin-layer"
 
 [[methods]]
+name = "elevator_id"
+category = "introspection"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
+name = "rider_id"
+category = "introspection"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
 name = "is_disabled"
 category = "introspection"
 wasm = "isDisabled"
