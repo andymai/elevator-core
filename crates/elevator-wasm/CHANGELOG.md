@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.18.0...elevator-wasm-v0.19.0) (2026-05-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** dispatch rank takes &self ([#711](https://github.com/andymai/elevator-core/issues/711))
+
+### Code Refactoring
+
+* **core:** dispatch rank takes &self ([#711](https://github.com/andymai/elevator-core/issues/711)) ([181d44a](https://github.com/andymai/elevator-core/commit/181d44a0efcb5b6b983d7ee14032e916f3b93f9e))
+
 ## [0.18.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.17.0...elevator-wasm-v0.18.0) (2026-05-05)
 
 
