@@ -90,6 +90,10 @@ fn sample_indices(
     // and silently disabling the bias. `(n - 1) / 2` keeps `mid` strictly
     // below `upper_start` for even n while preserving the same value for
     // odd n. (#269)
+    //
+    // Keep in sync with the `Lunchtime` partition (`upper_start = n.div_ceil(2)`)
+    // below. The two indices must satisfy `mid < upper_start` for every n;
+    // mutating one without the other reintroduces the silent-overlap bug.
     let mid = (n - 1) / 2;
 
     match pattern {

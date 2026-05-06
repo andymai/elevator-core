@@ -1155,7 +1155,10 @@ impl DispatchScratch {
 /// cars or stops before any arithmetic risk appears.
 const ASSIGNMENT_SENTINEL: i64 = 1 << 48;
 /// Fixed-point scale for converting `f64` costs to the `i64` values the
-/// Hungarian solver requires. One unit ≈ one micro-tick / millimeter.
+/// Hungarian solver requires. One unit ≈ one micro-tick / millimeter:
+/// the smallest meaningful rank delta is sub-tick / sub-millimeter, so
+/// scaling by 1e6 keeps that delta as a 1-unit `i64` difference and
+/// preserves the strategy's tie-breaking precision through the cast.
 const ASSIGNMENT_SCALE: f64 = 1_000_000.0;
 
 /// Convert a `f64` rank cost into the fixed-point `i64` the Hungarian

@@ -203,6 +203,10 @@ impl Simulation {
         // switches and predictive parking. The destination mirror is
         // what powers down-peak detection — without it the classifier
         // sees `total_dest = 0` and silently never emits `DownPeak`.
+        // Both resources must exist before the first `RiderSpawned`
+        // event fires (i.e. before any user-driven `spawn_rider` call):
+        // `record_spawn` is fire-and-forget on missing resources, so a
+        // later insert wouldn't replay history.
         world.insert_resource(crate::arrival_log::ArrivalLog::default());
         world.insert_resource(crate::arrival_log::DestinationLog::default());
         world.insert_resource(crate::arrival_log::CurrentTick::default());
