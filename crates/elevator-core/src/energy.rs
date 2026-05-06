@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 
 /// Per-elevator energy cost parameters.
 ///
-/// Attach to an elevator entity via [`World::set_energy_profile`](crate::world::World::set_energy_profile)
-/// to enable energy tracking for that car. The energy system automatically
-/// initializes [`EnergyMetrics`] if not already present.
+/// Attach to an elevator entity through the simulation's curated energy
+/// profile setter to enable energy tracking for that car. The energy system
+/// automatically initializes [`EnergyMetrics`] if not already present.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnergyProfile {
     /// Energy consumed per tick while idle (doors closed, stationary).
