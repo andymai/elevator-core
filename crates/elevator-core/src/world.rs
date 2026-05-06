@@ -275,7 +275,7 @@ impl World {
     }
 
     /// Set an entity's position.
-    pub fn set_position(&mut self, id: EntityId, pos: Position) {
+    pub(crate) fn set_position(&mut self, id: EntityId, pos: Position) {
         self.positions.insert(id, pos);
     }
 
@@ -314,7 +314,7 @@ impl World {
     }
 
     /// Set an entity's velocity.
-    pub fn set_velocity(&mut self, id: EntityId, vel: Velocity) {
+    pub(crate) fn set_velocity(&mut self, id: EntityId, vel: Velocity) {
         self.velocities.insert(id, vel);
     }
 
@@ -332,7 +332,7 @@ impl World {
     }
 
     /// Set an entity's elevator component.
-    pub fn set_elevator(&mut self, id: EntityId, elev: Elevator) {
+    pub(crate) fn set_elevator(&mut self, id: EntityId, elev: Elevator) {
         self.elevators.insert(id, elev);
     }
 
@@ -374,7 +374,7 @@ impl World {
     }
 
     /// Set an entity's stop component.
-    pub fn set_stop(&mut self, id: EntityId, stop: Stop) {
+    pub(crate) fn set_stop(&mut self, id: EntityId, stop: Stop) {
         self.stops.insert(id, stop);
     }
 
@@ -392,7 +392,7 @@ impl World {
     }
 
     /// Set an entity's route.
-    pub fn set_route(&mut self, id: EntityId, route: Route) {
+    pub(crate) fn set_route(&mut self, id: EntityId, route: Route) {
         self.routes.insert(id, route);
     }
 
@@ -410,7 +410,7 @@ impl World {
     }
 
     /// Set an entity's line component.
-    pub fn set_line(&mut self, id: EntityId, line: Line) {
+    pub(crate) fn set_line(&mut self, id: EntityId, line: Line) {
         self.lines.insert(id, line);
     }
 
@@ -438,7 +438,7 @@ impl World {
     }
 
     /// Set an entity's patience.
-    pub fn set_patience(&mut self, id: EntityId, patience: Patience) {
+    pub(crate) fn set_patience(&mut self, id: EntityId, patience: Patience) {
         self.patience.insert(id, patience);
     }
 
@@ -451,7 +451,7 @@ impl World {
     }
 
     /// Set an entity's preferences.
-    pub fn set_preferences(&mut self, id: EntityId, prefs: Preferences) {
+    pub(crate) fn set_preferences(&mut self, id: EntityId, prefs: Preferences) {
         self.preferences.insert(id, prefs);
     }
 
@@ -469,7 +469,7 @@ impl World {
     }
 
     /// Set an entity's access control.
-    pub fn set_access_control(&mut self, id: EntityId, ac: AccessControl) {
+    pub(crate) fn set_access_control(&mut self, id: EntityId, ac: AccessControl) {
         self.access_controls.insert(id, ac);
     }
 
@@ -497,13 +497,13 @@ impl World {
 
     #[cfg(feature = "energy")]
     /// Set an entity's energy profile.
-    pub fn set_energy_profile(&mut self, id: EntityId, profile: EnergyProfile) {
+    pub(crate) fn set_energy_profile(&mut self, id: EntityId, profile: EnergyProfile) {
         self.energy_profiles.insert(id, profile);
     }
 
     #[cfg(feature = "energy")]
     /// Set an entity's energy metrics.
-    pub fn set_energy_metrics(&mut self, id: EntityId, metrics: EnergyMetrics) {
+    pub(crate) fn set_energy_metrics(&mut self, id: EntityId, metrics: EnergyMetrics) {
         self.energy_metrics.insert(id, metrics);
     }
 
@@ -516,7 +516,7 @@ impl World {
     }
 
     /// Set an entity's service mode.
-    pub fn set_service_mode(&mut self, id: EntityId, mode: ServiceMode) {
+    pub(crate) fn set_service_mode(&mut self, id: EntityId, mode: ServiceMode) {
         self.service_modes.insert(id, mode);
     }
 
@@ -535,7 +535,7 @@ impl World {
     }
 
     /// Set an entity's destination queue.
-    pub fn set_destination_queue(&mut self, id: EntityId, queue: DestinationQueue) {
+    pub(crate) fn set_destination_queue(&mut self, id: EntityId, queue: DestinationQueue) {
         self.destination_queues.insert(id, queue);
     }
 
