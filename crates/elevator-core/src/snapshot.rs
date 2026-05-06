@@ -1093,6 +1093,8 @@ impl crate::sim::Simulation {
         // FNV-1a (64-bit). Small, allocation-free over the byte slice,
         // well-distributed for arbitrary input. Not cryptographic;
         // collision tolerance is fine for divergence detection.
+        // Constants are the standard 64-bit FNV-1a parameters from
+        // RFC draft-eastlake-fnv (offset basis and prime), not arbitrary.
         const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
         let snapshot = self.try_snapshot()?;

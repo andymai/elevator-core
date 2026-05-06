@@ -109,6 +109,14 @@ impl DoorState {
     }
 
     /// Advance the door state by one tick. Returns the transition that occurred.
+    ///
+    /// This drives the FSM's timer only — it does **not** consult rider
+    /// safety (e.g. inflight boarders blocking the threshold) before
+    /// transitioning `Open → Closing`. The doors phase
+    /// (`systems::doors`) layers the safety check on top of this FSM:
+    /// an `Open` cycle whose rider-safety predicate is still active
+    /// has its `ticks_remaining` reset, so `tick` here observes the
+    /// reset and stays in `Open` for another cycle.
     pub const fn tick(&mut self) -> DoorTransition {
         match self {
             Self::Closed => DoorTransition::None,

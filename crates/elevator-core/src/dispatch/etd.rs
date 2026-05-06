@@ -338,6 +338,15 @@ impl EtdDispatch {
         // Scoring model requires non-negative costs, so clamp at zero — losing
         // a small amount of discriminative power vs. a pure free-for-all when
         // two assignments tie.
+        //
+        // The 0.5 / 0.3 weights are tunings that bias dispatch towards
+        // already-committed cars: a moving car serving an in-direction
+        // pickup gets half its travel time discounted (strong preference
+        // — the car was going past anyway), while an idle car gets a
+        // smaller 30% nudge so a fresh idle-but-closer car doesn't lose
+        // every tie to a slightly-farther moving car. The split between
+        // the two is empirical — surfaced in the canonical-benchmark
+        // suite tuning for up-peak / down-peak.
         let direction_bonus = match car.phase.moving_target() {
             Some(current_target) => world.stop_position(current_target).map_or(0.0, |ctp| {
                 let moving_up = ctp > elev_pos;
