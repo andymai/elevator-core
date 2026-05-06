@@ -234,11 +234,10 @@ impl WorldSnapshot {
     ) -> Result<crate::sim::Simulation, crate::error::SimError> {
         use crate::world::{SortedStops, World};
 
-        // Reject snapshots from incompatible schema versions. The bytes
-        // envelope path also checks the crate semver string, but the RON/
-        // JSON path was previously unguarded — older snapshots silently
-        // deserialized with `#[serde(default)]` filling new fields, masking
-        // schema mismatches. (#295)
+        // Reject snapshots from incompatible schema versions. Without this
+        // guard, `#[serde(default)]` on newly-added fields would silently
+        // fill them in and mask the mismatch. The bytes envelope path
+        // separately checks the crate semver string.
         if self.version != SNAPSHOT_SCHEMA_VERSION {
             return Err(crate::error::SimError::SnapshotVersion {
                 saved: format!("schema {}", self.version),

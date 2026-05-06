@@ -203,9 +203,6 @@ impl SimulationBuilder {
     /// [`.dispatch_for_group()`](Self::dispatch_for_group) to override the
     /// per-group strategy from code; otherwise the config's choice (or
     /// `ScanDispatch` if neither config nor builder specifies) is used.
-    /// Pre-fix this function unconditionally seeded `ScanDispatch` for
-    /// `GroupId(0)` and the override loop in construction stomped any
-    /// config-supplied strategy for that group (#287).
     #[must_use]
     pub fn from_config(config: SimConfig) -> Self {
         Self {
