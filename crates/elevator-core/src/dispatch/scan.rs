@@ -86,7 +86,7 @@ impl DispatchStrategy for ScanDispatch {
         }
     }
 
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         // Reject un-servable pairs so a full car with only
         // over-capacity waiting demand at its own stop can't open/close
         // doors indefinitely. SCAN's direction reversal normally lifts

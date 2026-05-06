@@ -210,7 +210,7 @@ impl DispatchStrategy for EtdDispatch {
         }
     }
 
-    fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         // Exclude `(car, stop)` pairs that can't produce any useful work.
         // Without this guard, a full car whose only candidate stop is a
         // pickup it lacks capacity to serve collapses to a zero-cost

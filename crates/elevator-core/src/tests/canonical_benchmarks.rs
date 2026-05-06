@@ -257,7 +257,7 @@ impl DispatchStrategy for BoxedStrategy {
         self.0.prepare_car(car, pos, group, manifest, world);
     }
 
-    fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+    fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
         self.0.rank(ctx)
     }
 

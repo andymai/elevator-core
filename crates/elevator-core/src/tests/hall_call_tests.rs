@@ -740,7 +740,7 @@ fn custom_strategy_reads_hall_calls_from_manifest() {
     }
 
     impl DispatchStrategy for Observer {
-        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             let target = *self.target_stop.lock().unwrap();
             if Some(ctx.stop) == target
                 && ctx
@@ -793,7 +793,7 @@ fn custom_strategy_reads_car_calls_from_manifest() {
         saw_car_call: Arc<AtomicUsize>,
     }
     impl DispatchStrategy for Observer {
-        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             if !ctx.manifest.car_calls_for(ctx.car).is_empty() {
                 self.saw_car_call.fetch_add(1, Ordering::Relaxed);
             }
@@ -857,7 +857,7 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
             self.visible_call_count.fetch_max(count, Ordering::Relaxed);
         }
 
-        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             Some((ctx.car_position - ctx.stop_position).abs())
         }
     }

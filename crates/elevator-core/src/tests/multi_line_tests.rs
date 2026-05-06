@@ -1751,7 +1751,7 @@ fn reassign_elevator_to_line_notifies_old_group_dispatcher_on_cross_group() {
         inner: ScanDispatch,
     }
     impl DispatchStrategy for TrackingDispatch {
-        fn rank(&mut self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
             self.inner.rank(ctx)
         }
         fn notify_removed(&mut self, elevator: EntityId) {
