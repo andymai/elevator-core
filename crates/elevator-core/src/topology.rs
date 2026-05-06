@@ -21,9 +21,6 @@ struct Edge {
     to: EntityId,
     /// Group that connects these stops.
     group: GroupId,
-    /// Line within the group (retained for future per-line routing).
-    #[allow(dead_code)]
-    line: EntityId,
 }
 
 /// Lazy-rebuilt connectivity graph for topology queries.
@@ -72,7 +69,6 @@ impl TopologyGraph {
                             self.adjacency.entry(from).or_default().push(Edge {
                                 to,
                                 group: group.id(),
-                                line: line_info.entity(),
                             });
                         }
                     }
@@ -166,7 +162,6 @@ impl TopologyGraph {
             }
         }
 
-        // If `to` was never reached, return None.
         if !visited.contains_key(&to) {
             return None;
         }
