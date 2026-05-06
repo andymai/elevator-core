@@ -147,6 +147,21 @@ function parseReposition(
     : fallback;
 }
 
+type PermalinkListener = (state: PermalinkState) => void;
+const permalinkListeners = new Set<PermalinkListener>();
+
+/**
+ * Subscribe to permalink commits. The listener fires after the URL is
+ * replaced, only when the encoded query string actually changed.
+ * Returns an unsubscribe handle. Used by the shell to keep document
+ * <title>, OG tags, and other state-derived chrome in lock-step with
+ * the live permalink without making every feature aware of meta.
+ */
+export function onPermalinkSync(listener: PermalinkListener): () => void {
+  permalinkListeners.add(listener);
+  return () => permalinkListeners.delete(listener);
+}
+
 /**
  * Replace the current address-bar URL with one that reflects the given
  * permalink state. Uses `replaceState` (not `pushState`) so the back
@@ -159,6 +174,7 @@ export function syncPermalinkUrl(state: PermalinkState): void {
   const qs = encodePermalink(state);
   if (window.location.search === qs) return;
   window.history.replaceState(null, "", qs);
+  for (const fn of permalinkListeners) fn(state);
 }
 
 function parseMode(raw: string | null, fallback: PlaygroundMode): PlaygroundMode {

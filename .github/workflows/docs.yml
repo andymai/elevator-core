@@ -77,6 +77,17 @@ jobs:
           mkdir -p target/book/playground
           cp -r playground/dist/. target/book/playground/
 
+      - name: Stage sitemap.xml at site root
+        run: |
+          # docs/static/* are SEO files (currently sitemap.xml) that
+          # need to land at the gh-pages root, not under a book chapter
+          # slug. Copying after `mdbook build` so they aren't treated as
+          # book content. (No robots.txt: RFC 9309 requires it at the
+          # origin root, which GitHub Pages owns for project sites —
+          # crawl-control lives in <meta name="robots"> in the page head
+          # instead, and the sitemap is submitted via Search Console.)
+          cp -r docs/static/. target/book/
+
       # Publish to gh-pages branch (not the workflow Pages artifact) so the
       # nightly-bench dashboard at /bench/ — pushed by
       # benchmark-action/github-action-benchmark — can coexist on the same

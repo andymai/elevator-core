@@ -58,7 +58,7 @@ export default tseslint.config(
       "node_modules/",
       "public/pkg/",
       ".screenshots/",
-      "scripts/snap.mjs",
+      "scripts/*.mjs",
       "eslint.config.js",
       "commitlint.config.js",
     ],

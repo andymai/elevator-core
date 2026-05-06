@@ -16,7 +16,9 @@
     "test:watch": "vitest",
     "knip": "knip",
     "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run knip && pnpm run test",
-    "snap": "vite build && vite preview --port 4173 & sleep 2 && node scripts/snap.mjs ; kill %1 2>/dev/null || true"
+    "snap": "vite build && vite preview --port 4173 & sleep 2 && node scripts/snap.mjs ; kill %1 2>/dev/null || true",
+    "og:capture": "node scripts/og-capture.mjs",
+    "og:capture:full": "vite build && vite preview --port 4173 & sleep 2 && node scripts/og-capture.mjs ; kill %1 2>/dev/null || true"
   },
   "lint-staged": {
     "*.ts": [
