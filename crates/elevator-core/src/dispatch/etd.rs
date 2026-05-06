@@ -221,7 +221,8 @@ impl DispatchStrategy for EtdDispatch {
         if !pair_is_useful(ctx, false) {
             return None;
         }
-        let mut cost = self.compute_cost(ctx.car, ctx.car_position, ctx.stop_position, ctx.world);
+        let mut cost =
+            self.compute_cost(ctx.car, ctx.car_position(), ctx.stop_position(), ctx.world);
         if self.wait_squared_weight > 0.0 {
             let wait_sq: f64 = ctx
                 .manifest

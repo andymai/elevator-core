@@ -92,7 +92,7 @@ struct BusyStopNearest;
 
 impl DispatchStrategy for BusyStopNearest {
     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
-        let distance = (ctx.car_position - ctx.stop_position).abs();
+        let distance = (ctx.car_position() - ctx.stop_position()).abs();
         let waiting = ctx.manifest.waiting_count_at(ctx.stop) as f64;
         // Subtract a crowding bonus so busier stops look cheaper. Clamp
         // so the solver never sees a negative cost.
@@ -155,15 +155,15 @@ impl DispatchStrategy for DirectionalDispatch {
     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let going_up = self.sweep_up.get(&ctx.car).copied().unwrap_or(true);
         let is_ahead = if going_up {
-            ctx.stop_position >= ctx.car_position
+            ctx.stop_position() >= ctx.car_position()
         } else {
-            ctx.stop_position <= ctx.car_position
+            ctx.stop_position() <= ctx.car_position()
         };
         if is_ahead {
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         } else {
             // Penalize stops behind the sweep direction.
-            Some((ctx.car_position - ctx.stop_position).abs() + 1000.0)
+            Some((ctx.car_position() - ctx.stop_position()).abs() + 1000.0)
         }
     }
 

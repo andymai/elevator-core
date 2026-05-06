@@ -319,7 +319,7 @@ impl DispatchStrategy for RsrDispatch {
         let car = ctx.world.elevator(ctx.car)?;
 
         // ETA — travel time to the candidate stop.
-        let distance = (ctx.car_position - ctx.stop_position).abs();
+        let distance = (ctx.car_position() - ctx.stop_position()).abs();
         let max_speed = car.max_speed.value();
         if max_speed <= 0.0 {
             return None;
@@ -334,10 +334,10 @@ impl DispatchStrategy for RsrDispatch {
             && let Some(target) = car.phase.moving_target()
             && let Some(target_pos) = ctx.world.stop_position(target)
         {
-            let car_going_up = target_pos > ctx.car_position;
-            let car_going_down = target_pos < ctx.car_position;
-            let cand_above = ctx.stop_position > ctx.car_position;
-            let cand_below = ctx.stop_position < ctx.car_position;
+            let car_going_up = target_pos > ctx.car_position();
+            let car_going_down = target_pos < ctx.car_position();
+            let cand_above = ctx.stop_position() > ctx.car_position();
+            let cand_below = ctx.stop_position() < ctx.car_position();
             if (car_going_up && cand_below) || (car_going_down && cand_above) {
                 // During up-peak/down-peak the directional invariant
                 // is load-bearing (a committed car shouldn't reverse

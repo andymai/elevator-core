@@ -566,7 +566,7 @@ fn disable_elevator_notifies_dispatcher() {
     }
     impl DispatchStrategy for Counter {
         fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         }
         fn notify_removed(&mut self, _elevator: EntityId) {
             self.removed.fetch_add(1, Ordering::Relaxed);
@@ -616,7 +616,7 @@ fn remove_elevator_notifies_dispatcher_exactly_once() {
     }
     impl DispatchStrategy for Counter {
         fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         }
         fn notify_removed(&mut self, _elevator: EntityId) {
             self.removed.fetch_add(1, Ordering::Relaxed);

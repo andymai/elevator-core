@@ -91,7 +91,7 @@ impl DispatchStrategy for IdlePenaltyDispatch {
     /// used recently. Returning `None` would exclude a `(car, stop)`
     /// pair entirely — useful for capacity limits or restricted stops.
     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
-        let distance = (ctx.car_position - ctx.stop_position).abs();
+        let distance = (ctx.car_position() - ctx.stop_position()).abs();
         let idle_for = self.idle_for.get(&ctx.car).copied().unwrap_or(0.0);
         // Bias toward long-idle cars; clamp so cost stays non-negative.
         Some(0.01f64.mul_add(-idle_for, distance).max(0.0))

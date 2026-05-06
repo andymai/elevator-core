@@ -416,9 +416,7 @@ fn rank_age_linear_weight_subtracts_from_cost_when_active() {
 
     let ctx = RankContext {
         car: elev,
-        car_position: 0.0,
         stop: stops[1],
-        stop_position: 10.0,
         group: &g,
         manifest: &m,
         world: &world,
@@ -450,9 +448,7 @@ fn rank_zero_age_weight_skips_the_subtraction() {
 
     let ctx = RankContext {
         car: elev,
-        car_position: 0.0,
         stop: stops[1],
-        stop_position: 10.0,
         group: &g,
         manifest: &m,
         world: &world,
@@ -497,9 +493,7 @@ fn rank_wait_squared_weight_subtracts_quadratically() {
 
     let ctx = RankContext {
         car: elev,
-        car_position: 0.0,
         stop: stops[1],
-        stop_position: 10.0,
         group: &g,
         manifest: &m,
         world: &world,
@@ -535,9 +529,7 @@ fn rank_returns_none_when_compute_cost_returns_infinity() {
     etd.pre_dispatch(&g, &m, &mut world);
     let ctx = RankContext {
         car: elev,
-        car_position: 0.0,
         stop: stops[1],
-        stop_position: 10.0,
         group: &g,
         manifest: &m,
         world: &world,

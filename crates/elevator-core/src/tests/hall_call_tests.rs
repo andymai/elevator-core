@@ -750,7 +750,7 @@ fn custom_strategy_reads_hall_calls_from_manifest() {
             {
                 self.saw_call.fetch_add(1, Ordering::Relaxed);
             }
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         }
     }
 
@@ -797,7 +797,7 @@ fn custom_strategy_reads_car_calls_from_manifest() {
             if !ctx.manifest.car_calls_for(ctx.car).is_empty() {
                 self.saw_car_call.fetch_add(1, Ordering::Relaxed);
             }
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         }
     }
 
@@ -858,7 +858,7 @@ fn unacknowledged_hall_calls_hidden_from_manifest() {
         }
 
         fn rank(&self, ctx: &crate::dispatch::RankContext<'_>) -> Option<f64> {
-            Some((ctx.car_position - ctx.stop_position).abs())
+            Some((ctx.car_position() - ctx.stop_position()).abs())
         }
     }
 
