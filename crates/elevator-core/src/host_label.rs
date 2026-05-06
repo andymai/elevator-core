@@ -109,10 +109,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn elevator_phase_round_trip_covers_every_variant() {
+    fn elevator_phase_label_covers_every_variant() {
         // The labels are part of the host contract; rely on a literal
         // table here rather than building it dynamically so a renamed
-        // variant fails the test loudly.
+        // variant fails the test loudly. There is no `parse_elevator_phase`
+        // inverse, so this is a one-way label table check (not a round-trip).
         assert_eq!(elevator_phase(ElevatorPhase::Idle), "idle");
         assert_eq!(
             elevator_phase(ElevatorPhase::MovingToStop(
