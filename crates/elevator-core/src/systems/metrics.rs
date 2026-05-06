@@ -112,7 +112,6 @@ pub fn run(
                 }
             }
         }
-        #[allow(clippy::cast_precision_loss)]
         let util = if total > 0 {
             moving as f64 / total as f64
         } else {

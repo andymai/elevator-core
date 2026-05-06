@@ -296,17 +296,11 @@ impl RiderBuilder<'_> {
                 }
                 Route::direct(self.origin, self.destination, group)
             } else {
-                // Single-group case first (fast path). `NoRoute` falls
-                // back to the multi-leg topology-graph search — zoned
-                // buildings (low-bank + sky-lobby + high-bank) work
-                // through the plain `spawn_rider` API without callers
-                // knowing about transfer points. `AmbiguousRoute` also
-                // defers to `shortest_route`, which picks one concrete
-                // group deterministically; the alternative (surfacing
-                // the error to callers) would make specialty-overlap
-                // floors like a lobby served by both a passenger bank
-                // and an executive elevator un-spawnable without
-                // threading a group pick all the way up.
+                // Auto-detect the single-group case first; on `NoRoute` or
+                // `AmbiguousRoute`, fall back to the multi-leg topology
+                // search so zoned buildings and specialty-overlap floors
+                // work through the plain `spawn_rider` API without callers
+                // having to thread a group pick through transfer points.
                 match self.sim.auto_detect_group(self.origin, self.destination) {
                     Ok(group) => Route::direct(self.origin, self.destination, group),
                     Err(

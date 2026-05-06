@@ -75,6 +75,15 @@ impl<T> Default for ExtKey<T> {
 /// Built-in components are accessed via typed methods. Games can attach
 /// custom data via the extension storage (`insert_ext` / `ext`).
 /// The query builder (`world.query::<...>()`) provides ECS-style iteration.
+///
+/// # Component-accessor semantics
+///
+/// All `<component>(&self, id)` accessors return `Option`. They return `None`
+/// when the entity is dead **or** when it is alive but lacks that component —
+/// slotmap semantics make these two cases indistinguishable through this
+/// surface. Use [`World::is_alive`] (or check the typed component you expect
+/// to be present, e.g. `elevator()` for an elevator entity) when the
+/// distinction matters.
 pub struct World {
     /// Primary key storage. An entity exists iff its key is here.
     pub(crate) alive: SlotMap<EntityId, ()>,
