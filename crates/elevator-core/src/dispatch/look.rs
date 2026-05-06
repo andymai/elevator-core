@@ -93,8 +93,8 @@ impl DispatchStrategy for LookDispatch {
         sweep::rank(
             self.mode_for(ctx.car),
             self.direction_for(ctx.car),
-            ctx.car_position,
-            ctx.stop_position,
+            ctx.car_position(),
+            ctx.stop_position(),
         )
     }
 

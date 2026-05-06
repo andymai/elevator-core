@@ -543,6 +543,8 @@ fn scan_notify_removed_cleans_state() {
     scan.notify_removed(elev);
 
     // Re-query same elevator from position 4.0 with demand above AND below.
+    // Move it in the world so RankContext's cached `car_position()` reflects it.
+    world.set_position(elev, Position { value: 4.0 });
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
     let d2 = decide_one(&mut scan, elev, 4.0, &group, &manifest, &mut world);
     // If notify_removed worked: default direction is Up → goes to stops[2] (pos 8.0).
@@ -565,6 +567,8 @@ fn look_notify_removed_cleans_state() {
     // Remove elevator.
     look.notify_removed(elev);
     // Reuse the same ID — direction should be gone.
+    // Move the elevator in the world so the cached `car_position()` matches.
+    world.set_position(elev, Position { value: 4.0 });
     add_demand(&mut manifest, &mut world, stops[2], 70.0);
     let decision = decide_one(&mut look, elev, 4.0, &group, &manifest, &mut world);
     // Default direction is Up, should go up to stop[2] (pos 8.0).
@@ -911,7 +915,7 @@ fn strategy_rank_is_order_independent_when_state_lives_in_prepare_car() {
             let boost = self.idle.get(&ctx.car).copied().unwrap_or(0.0);
             Some(
                 0.001f64
-                    .mul_add(-boost, (ctx.car_position - ctx.stop_position).abs())
+                    .mul_add(-boost, (ctx.car_position() - ctx.stop_position()).abs())
                     .max(0.0),
             )
         }

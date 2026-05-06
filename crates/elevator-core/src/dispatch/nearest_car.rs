@@ -41,7 +41,7 @@ impl DispatchStrategy for NearestCarDispatch {
         if !pair_is_useful(ctx, true) {
             return None;
         }
-        Some((ctx.car_position - ctx.stop_position).abs())
+        Some((ctx.car_position() - ctx.stop_position()).abs())
     }
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {

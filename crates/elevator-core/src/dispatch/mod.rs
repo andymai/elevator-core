@@ -20,7 +20,7 @@
 //!     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
 //!         // Prefer the group's first stop; everything else is unavailable.
 //!         if Some(&ctx.stop) == ctx.group.stop_entities().first() {
-//!             Some((ctx.car_position - ctx.stop_position).abs())
+//!             Some((ctx.car_position() - ctx.stop_position()).abs())
 //!         } else {
 //!             None
 //!         }
@@ -168,7 +168,7 @@ pub fn pair_is_useful(ctx: &RankContext<'_>, respect_aboard_path: bool) -> bool 
     // Pickups allowed only on the path to an aboard rider's destination.
     // Candidate at the car's position (to_cand = 0) trivially qualifies —
     // useful for same-floor boards.
-    let to_cand = ctx.stop_position - ctx.car_position;
+    let to_cand = ctx.stop_position() - ctx.car_position();
     car.riders().iter().any(|&rid| {
         let Some(dest) = ctx.world.route(rid).and_then(Route::current_destination) else {
             return false;
@@ -176,7 +176,7 @@ pub fn pair_is_useful(ctx: &RankContext<'_>, respect_aboard_path: bool) -> bool 
         let Some(dest_pos) = ctx.world.stop_position(dest) else {
             return false;
         };
-        let to_dest = dest_pos - ctx.car_position;
+        let to_dest = dest_pos - ctx.car_position();
         to_dest * to_cand >= 0.0 && to_cand.abs() <= to_dest.abs()
     })
 }
@@ -206,10 +206,10 @@ fn rider_can_board(
     let Some(dest_pos) = ctx.world.stop_position(dest) else {
         return true;
     };
-    if dest_pos > ctx.stop_position && !car.going_up() {
+    if dest_pos > ctx.stop_position() && !car.going_up() {
         return false;
     }
-    if dest_pos < ctx.stop_position && !car.going_down() {
+    if dest_pos < ctx.stop_position() && !car.going_down() {
         return false;
     }
     true
@@ -227,8 +227,8 @@ fn bypass_in_current_direction(car: &crate::components::Elevator, ctx: &RankCont
     let Some(target_pos) = ctx.world.stop_position(target) else {
         return false;
     };
-    let going_up = target_pos > ctx.car_position;
-    let going_down = target_pos < ctx.car_position;
+    let going_up = target_pos > ctx.car_position();
+    let going_down = target_pos < ctx.car_position();
     if !going_up && !going_down {
         return false;
     }
@@ -249,8 +249,8 @@ fn bypass_in_current_direction(car: &crate::components::Elevator, ctx: &RankCont
         return false;
     }
     // Only same-direction pickups get bypassed.
-    let stop_above = ctx.stop_position > ctx.car_position;
-    let stop_below = ctx.stop_position < ctx.car_position;
+    let stop_above = ctx.stop_position() > ctx.car_position();
+    let stop_below = ctx.stop_position() < ctx.car_position();
     (going_up && stop_above) || (going_down && stop_below)
 }
 
@@ -845,12 +845,8 @@ pub fn elevator_line_serves_indexed<'a>(
 pub struct RankContext<'a> {
     /// The elevator being evaluated.
     pub car: EntityId,
-    /// Current position of the car along the shaft axis.
-    pub car_position: f64,
     /// The stop being evaluated as a candidate destination.
     pub stop: EntityId,
-    /// Position of the candidate stop along the shaft axis.
-    pub stop_position: f64,
     /// The dispatch group this assignment belongs to.
     pub group: &'a ElevatorGroup,
     /// Demand snapshot for the current dispatch pass.
@@ -859,13 +855,39 @@ pub struct RankContext<'a> {
     pub world: &'a World,
 }
 
+impl RankContext<'_> {
+    /// Position of [`car`](Self::car) along the shaft axis.
+    ///
+    /// Returns `0.0` for an entity that has no `Position` component
+    /// (which would never reach this method through normal dispatch
+    /// — `compute_assignments` filters out cars without positions
+    /// upstream — but the defensive default protects custom callers).
+    /// Derived from [`world`](Self::world) on each call: the dispatch
+    /// loop never moves elevators between rank calls, so re-deriving
+    /// is free, and skipping the duplicate field eliminates the
+    /// synchronisation risk of the old shape.
+    #[must_use]
+    pub fn car_position(&self) -> f64 {
+        self.world.position(self.car).map_or(0.0, |p| p.value)
+    }
+
+    /// Position of [`stop`](Self::stop) along the shaft axis.
+    ///
+    /// Returns `0.0` for an entity that has no `Stop` component (same
+    /// rationale as [`car_position`](Self::car_position)).
+    #[must_use]
+    pub fn stop_position(&self) -> f64 {
+        self.world.stop_position(self.stop).unwrap_or(0.0)
+    }
+}
+
 impl std::fmt::Debug for RankContext<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RankContext")
             .field("car", &self.car)
-            .field("car_position", &self.car_position)
+            .field("car_position", &self.car_position())
             .field("stop", &self.stop)
-            .field("stop_position", &self.stop_position)
+            .field("stop_position", &self.stop_position())
             .field("group", &self.group)
             .field("manifest", &self.manifest)
             .field("world", &"World { .. }")
@@ -1374,7 +1396,7 @@ pub(crate) fn assign_with_scratch(
                 "car {car_eid:?} on line not present in its group's lines list"
             );
 
-            for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
+            for (j, &(stop_eid, _stop_pos)) in pending_stops.iter().enumerate() {
                 if restricted.is_some_and(|r| r.contains(&stop_eid)) {
                     continue; // leave SENTINEL — this pair is unavailable
                 }
@@ -1383,9 +1405,7 @@ pub(crate) fn assign_with_scratch(
                 }
                 let ctx = RankContext {
                     car: car_eid,
-                    car_position: car_pos,
                     stop: stop_eid,
-                    stop_position: stop_pos,
                     group,
                     manifest,
                     world,

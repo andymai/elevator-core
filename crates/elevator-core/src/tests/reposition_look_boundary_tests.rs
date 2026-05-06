@@ -489,25 +489,17 @@ fn strict_demand_ahead_up_accepts_demand_strictly_above_car() {
 
 // ===== LookDispatch degenerate request shapes =====
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "test helper threading rank context"
-)]
 fn rank_via_look(
     look: &LookDispatch,
     car: EntityId,
-    car_pos: f64,
     stop: EntityId,
-    stop_pos: f64,
     g: &ElevatorGroup,
     m: &DispatchManifest,
     world: &World,
 ) -> Option<f64> {
     let ctx = RankContext {
         car,
-        car_position: car_pos,
         stop,
-        stop_position: stop_pos,
         group: g,
         manifest: m,
         world,
@@ -526,7 +518,7 @@ fn look_all_demand_strictly_above_car_keeps_up_sweep() {
     look.prepare_car(elev, 10.0, &g, &m, &world);
     // Sweep stays Up: a stop above the car must rank, the (synthetic)
     // self-stop at the car's position must not.
-    let above = rank_via_look(&look, elev, 10.0, stops[0], 15.0, &g, &m, &world);
+    let above = rank_via_look(&look, elev, stops[0], &g, &m, &world);
     assert!(above.is_some(), "Up sweep accepts stop above car");
 }
 
@@ -541,7 +533,7 @@ fn look_all_demand_strictly_below_car_reverses_to_down() {
     // Default direction is Up but no demand is up → prepare_car
     // reverses to Down + Lenient.
     look.prepare_car(elev, 10.0, &g, &m, &world);
-    let below = rank_via_look(&look, elev, 10.0, stops[0], 0.0, &g, &m, &world);
+    let below = rank_via_look(&look, elev, stops[0], &g, &m, &world);
     assert!(
         below.is_some(),
         "after reversal, a stop below the car must rank (Down sweep accepts it)"
@@ -563,7 +555,7 @@ fn look_repeated_stops_at_same_position_all_rank_equally() {
 
     let costs: Vec<_> = stops
         .iter()
-        .map(|&s| rank_via_look(&look, elev, 10.0, s, 20.0, &g, &m, &world))
+        .map(|&s| rank_via_look(&look, elev, s, &g, &m, &world))
         .collect();
     assert!(costs.iter().all(Option::is_some));
     let first = costs[0].unwrap();
