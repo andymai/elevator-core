@@ -75,7 +75,7 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`, `Rsr`, `Destination`) 
 # use elevator_core::snapshot::WorldSnapshot;
 # struct HighestFirstDispatch;
 # impl DispatchStrategy for HighestFirstDispatch {
-#   fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
+#   fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
 # }
 # fn run(snapshot: WorldSnapshot) {
 let sim = snapshot.restore(Some(&|name: &str| match name {

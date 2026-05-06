@@ -651,7 +651,7 @@ fn nearest_car_distance_calculation() {
 struct AlwaysIdleDispatch;
 
 impl DispatchStrategy for AlwaysIdleDispatch {
-    fn rank(&mut self, _ctx: &RankContext<'_>) -> Option<f64> {
+    fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> {
         None
     }
 }
@@ -907,7 +907,7 @@ fn strategy_rank_is_order_independent_when_state_lives_in_prepare_car() {
             // Snapshot once; `rank` reads only.
             self.idle.insert(car, self.tick as f64);
         }
-        fn rank(&mut self, ctx: &RankContext<'_>) -> Option<f64> {
+        fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
             let boost = self.idle.get(&ctx.car).copied().unwrap_or(0.0);
             Some(
                 0.001f64
