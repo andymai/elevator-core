@@ -1,6 +1,7 @@
 //! Tests for the public braking-distance helpers.
 
 use crate::components::ElevatorPhase;
+use crate::entity::ElevatorId;
 use crate::movement::braking_distance;
 use crate::sim::Simulation;
 use crate::stop::StopId;
@@ -37,7 +38,7 @@ fn braking_distance_rejects_nonpositive_deceleration() {
 fn sim_braking_distance_stationary_elevator_is_zero() {
     let sim = Simulation::new(&default_config(), scan()).unwrap();
     let elev = first_elevator(&sim);
-    assert_eq!(sim.braking_distance(elev.entity()), Some(0.0));
+    assert_eq!(sim.braking_distance(elev), Some(0.0));
 }
 
 #[test]
@@ -59,7 +60,7 @@ fn sim_braking_distance_nonzero_while_moving() {
         }
     }
 
-    let d = sim.braking_distance(elev.entity()).expect("is an elevator");
+    let d = sim.braking_distance(elev).expect("is an elevator");
     assert!(d > 0.0, "expected nonzero braking distance while moving");
 }
 
@@ -68,7 +69,7 @@ fn sim_future_stop_position_stationary_equals_current() {
     let sim = Simulation::new(&default_config(), scan()).unwrap();
     let elev = first_elevator(&sim);
     let pos = sim.world().position(elev.entity()).unwrap().value;
-    assert_eq!(sim.future_stop_position(elev.entity()), Some(pos));
+    assert_eq!(sim.future_stop_position(elev), Some(pos));
 }
 
 #[test]
@@ -86,7 +87,7 @@ fn sim_future_stop_position_ahead_while_moving_up() {
     }
 
     let pos = sim.world().position(elev.entity()).unwrap().value;
-    let future = sim.future_stop_position(elev.entity()).unwrap();
+    let future = sim.future_stop_position(elev).unwrap();
     assert!(
         future > pos,
         "future stop position {future} should be above current {pos} while moving up",
@@ -97,6 +98,10 @@ fn sim_future_stop_position_ahead_while_moving_up() {
 fn sim_braking_distance_none_for_non_elevator() {
     let mut sim = Simulation::new(&default_config(), scan()).unwrap();
     let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
-    assert_eq!(sim.braking_distance(rider.entity()), None);
-    assert_eq!(sim.future_stop_position(rider.entity()), None);
+    // Defense-in-depth: a caller that bypasses the type system with
+    // `ElevatorId::from(non_elevator_entity)` still gets `None` from the
+    // accessor's runtime kind check.
+    let bogus = ElevatorId::from(rider.entity());
+    assert_eq!(sim.braking_distance(bogus), None);
+    assert_eq!(sim.future_stop_position(bogus), None);
 }

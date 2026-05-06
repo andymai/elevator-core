@@ -586,7 +586,7 @@ fn riders_on_returns_empty_for_idle_elevator() {
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
     let elevator_id = sim.groups()[0].elevator_entities()[0];
-    assert!(sim.riders_on(elevator_id).is_empty());
+    assert!(sim.riders_on(elevator_id.into()).is_empty());
 }
 
 #[test]
@@ -613,7 +613,8 @@ fn riders_on_returns_rider_ids_after_boarding() {
         RiderPhase::Riding(_)
     ) {
         assert!(
-            sim.riders_on(elevator_id).contains(&rider_id.entity()),
+            sim.riders_on(elevator_id.into())
+                .contains(&rider_id.entity()),
             "rider should appear in riders_on after boarding"
         );
     }
@@ -624,7 +625,7 @@ fn riders_on_returns_empty_for_nonexistent_elevator() {
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
     let fake_id = EntityId::default();
-    assert!(sim.riders_on(fake_id).is_empty());
+    assert!(sim.riders_on(fake_id.into()).is_empty());
 }
 
 // ── occupancy ─────────────────────────────────────────────────────────────────
@@ -634,7 +635,7 @@ fn occupancy_returns_zero_for_idle_elevator() {
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
     let elevator_id = sim.groups()[0].elevator_entities()[0];
-    assert_eq!(sim.occupancy(elevator_id), 0);
+    assert_eq!(sim.occupancy(elevator_id.into()), 0);
 }
 
 #[test]
@@ -661,7 +662,7 @@ fn occupancy_returns_correct_count_after_boarding() {
         RiderPhase::Riding(_)
     ) {
         assert_eq!(
-            sim.occupancy(elevator_id),
+            sim.occupancy(elevator_id.into()),
             1,
             "occupancy should be 1 after one rider boards"
         );
@@ -673,7 +674,7 @@ fn occupancy_returns_zero_for_nonexistent_elevator() {
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
     let fake_id = EntityId::default();
-    assert_eq!(sim.occupancy(fake_id), 0);
+    assert_eq!(sim.occupancy(fake_id.into()), 0);
 }
 
 // ── iter_repositioning_elevators ──────────────────────────────────────────────
@@ -1100,7 +1101,7 @@ fn remove_elevator_then_riders_on_returns_empty() {
     sim.remove_elevator(elevator_id).unwrap();
 
     // After removal, riders_on should return empty (not panic).
-    assert!(sim.riders_on(elevator_id).is_empty());
+    assert!(sim.riders_on(elevator_id.into()).is_empty());
 }
 
 #[test]
@@ -1111,7 +1112,7 @@ fn remove_elevator_then_occupancy_returns_zero() {
 
     sim.remove_elevator(elevator_id).unwrap();
 
-    assert_eq!(sim.occupancy(elevator_id), 0);
+    assert_eq!(sim.occupancy(elevator_id.into()), 0);
 }
 
 #[test]
