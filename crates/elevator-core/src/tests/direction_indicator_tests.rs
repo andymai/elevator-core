@@ -19,8 +19,8 @@ fn default_indicators_both_true() {
     let sim = Simulation::new(&config, scan()).unwrap();
     let elev = first_elevator(&sim);
 
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
 }
 
 #[test]
@@ -42,8 +42,8 @@ fn dispatch_upward_sets_going_up_only() {
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(false));
 }
 
 #[test]
@@ -67,8 +67,8 @@ fn dispatch_downward_sets_going_down_only() {
         }
     }
     assert!(saw_moving, "elevator should start moving within 1000 ticks");
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(false));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_up(elev), Some(false));
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
 }
 
 /// Regression: a car that just delivered a down-bound rider and
@@ -115,8 +115,8 @@ fn indicators_reset_at_door_close_not_at_next_dispatch() {
     // Without the fix, `going_up` would still be `false` from the
     // delivery trip and a subsequent up-bound rider at this stop would
     // be rejected by `pair_is_useful`.
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
 }
 
 #[test]
@@ -139,8 +139,8 @@ fn becoming_idle_resets_both_true() {
     }
 
     let elev = first_elevator(&sim);
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
 }
 
 #[test]
@@ -324,25 +324,18 @@ fn snapshot_roundtrip_preserves_indicators() {
     // Step until indicators are (true, false) — upward-only.
     for _ in 0..1_000 {
         sim.step();
-        if sim.elevator_going_up(elev.entity()) == Some(true)
-            && sim.elevator_going_down(elev.entity()) == Some(false)
+        if sim.elevator_going_up(elev) == Some(true) && sim.elevator_going_down(elev) == Some(false)
         {
             break;
         }
     }
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(false));
 
     let snap = sim.snapshot();
     let restored = snap.restore(None).unwrap();
     let restored_elev = ElevatorId::from(restored.world().elevator_ids()[0]);
 
-    assert_eq!(
-        restored.elevator_going_up(restored_elev.entity()),
-        Some(true)
-    );
-    assert_eq!(
-        restored.elevator_going_down(restored_elev.entity()),
-        Some(false)
-    );
+    assert_eq!(restored.elevator_going_up(restored_elev), Some(true));
+    assert_eq!(restored.elevator_going_down(restored_elev), Some(false));
 }

@@ -306,8 +306,8 @@ fn redirect_via_push_front_updates_direction_indicators() {
             break;
         }
     }
-    assert_eq!(sim.elevator_going_up(elev.entity()), Some(true));
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(false));
+    assert_eq!(sim.elevator_going_up(elev), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(false));
 
     // Game imperatively redirects to a stop below the current position.
     let stop_0 = sim.stop_entity(StopId(0)).unwrap();
@@ -316,11 +316,11 @@ fn redirect_via_push_front_updates_direction_indicators() {
     sim.step();
 
     assert_eq!(
-        sim.elevator_going_up(elev.entity()),
+        sim.elevator_going_up(elev),
         Some(false),
         "push_destination_front to a lower stop must clear going_up",
     );
-    assert_eq!(sim.elevator_going_down(elev.entity()), Some(true));
+    assert_eq!(sim.elevator_going_down(elev), Some(true));
 }
 
 // ── recall_to ──────────────────────────────────────────────────────

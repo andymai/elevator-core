@@ -495,9 +495,9 @@ impl Simulation {
     ///
     /// Returns an empty slice if the elevator does not exist.
     #[must_use]
-    pub fn riders_on(&self, elevator: EntityId) -> &[EntityId] {
+    pub fn riders_on(&self, elevator: ElevatorId) -> &[EntityId] {
         self.world
-            .elevator(elevator)
+            .elevator(elevator.entity())
             .map_or(&[], |car| car.riders())
     }
 
@@ -505,9 +505,9 @@ impl Simulation {
     ///
     /// Returns 0 if the elevator does not exist.
     #[must_use]
-    pub fn occupancy(&self, elevator: EntityId) -> usize {
+    pub fn occupancy(&self, elevator: ElevatorId) -> usize {
         self.world
-            .elevator(elevator)
+            .elevator(elevator.entity())
             .map_or(0, |car| car.riders().len())
     }
 
@@ -1054,51 +1054,51 @@ impl Simulation {
 
     /// Whether the elevator's up-direction indicator lamp is lit.
     ///
-    /// Returns `None` if the entity is not an elevator. See
+    /// Returns `None` if the elevator does not exist. See
     /// [`Elevator::going_up`] for semantics.
     #[must_use]
-    pub fn elevator_going_up(&self, id: EntityId) -> Option<bool> {
-        self.world.elevator(id).map(Elevator::going_up)
+    pub fn elevator_going_up(&self, id: ElevatorId) -> Option<bool> {
+        self.world.elevator(id.entity()).map(Elevator::going_up)
     }
 
     /// Whether the elevator's down-direction indicator lamp is lit.
     ///
-    /// Returns `None` if the entity is not an elevator. See
+    /// Returns `None` if the elevator does not exist. See
     /// [`Elevator::going_down`] for semantics.
     #[must_use]
-    pub fn elevator_going_down(&self, id: EntityId) -> Option<bool> {
-        self.world.elevator(id).map(Elevator::going_down)
+    pub fn elevator_going_down(&self, id: ElevatorId) -> Option<bool> {
+        self.world.elevator(id.entity()).map(Elevator::going_down)
     }
 
     /// Direction the elevator is currently signalling, derived from the
-    /// indicator-lamp pair. Returns `None` if the entity is not an elevator.
+    /// indicator-lamp pair. Returns `None` if the elevator does not exist.
     #[must_use]
-    pub fn elevator_direction(&self, id: EntityId) -> Option<crate::components::Direction> {
-        self.world.elevator(id).map(Elevator::direction)
+    pub fn elevator_direction(&self, id: ElevatorId) -> Option<crate::components::Direction> {
+        self.world.elevator(id.entity()).map(Elevator::direction)
     }
 
     /// Count of rounded-floor transitions for an elevator (passing-floor
-    /// crossings plus arrivals). Returns `None` if the entity is not an
-    /// elevator.
+    /// crossings plus arrivals). Returns `None` if the elevator does not
+    /// exist.
     #[must_use]
-    pub fn elevator_move_count(&self, id: EntityId) -> Option<u64> {
-        self.world.elevator(id).map(Elevator::move_count)
+    pub fn elevator_move_count(&self, id: ElevatorId) -> Option<u64> {
+        self.world.elevator(id.entity()).map(Elevator::move_count)
     }
 
     /// Distance the elevator would travel while braking to a stop from its
     /// current velocity, at its configured deceleration rate.
     ///
     /// Uses the standard `v² / (2·a)` kinematic formula. A stationary
-    /// elevator returns `Some(0.0)`. Returns `None` if the entity is not
-    /// an elevator or lacks a velocity component.
+    /// elevator returns `Some(0.0)`. Returns `None` if the elevator does
+    /// not exist or lacks a velocity component.
     ///
     /// Useful for writing opportunistic dispatch strategies (e.g. "stop at
     /// this floor if we can brake in time") without duplicating the physics
     /// computation.
     #[must_use]
-    pub fn braking_distance(&self, id: EntityId) -> Option<f64> {
-        let car = self.world.elevator(id)?;
-        let vel = self.world.velocity(id)?.value;
+    pub fn braking_distance(&self, id: ElevatorId) -> Option<f64> {
+        let car = self.world.elevator(id.entity())?;
+        let vel = self.world.velocity(id.entity())?.value;
         Some(crate::movement::braking_distance(
             vel,
             car.deceleration.value(),
@@ -1109,13 +1109,13 @@ impl Simulation {
     /// this instant. Current position plus a signed braking distance in the
     /// direction of travel.
     ///
-    /// Returns `None` if the entity is not an elevator or lacks the required
+    /// Returns `None` if the elevator does not exist or lacks the required
     /// components.
     #[must_use]
-    pub fn future_stop_position(&self, id: EntityId) -> Option<f64> {
-        let pos = self.world.position(id)?.value;
-        let vel = self.world.velocity(id)?.value;
-        let car = self.world.elevator(id)?;
+    pub fn future_stop_position(&self, id: ElevatorId) -> Option<f64> {
+        let pos = self.world.position(id.entity())?.value;
+        let vel = self.world.velocity(id.entity())?.value;
+        let car = self.world.elevator(id.entity())?;
         let dist = crate::movement::braking_distance(vel, car.deceleration.value());
         Some(crate::fp::fma(vel.signum(), dist, pos))
     }
@@ -1190,9 +1190,9 @@ impl Simulation {
 
     /// Get the current service mode for an elevator.
     #[must_use]
-    pub fn service_mode(&self, elevator: EntityId) -> crate::components::ServiceMode {
+    pub fn service_mode(&self, elevator: ElevatorId) -> crate::components::ServiceMode {
         self.world
-            .service_mode(elevator)
+            .service_mode(elevator.entity())
             .copied()
             .unwrap_or_default()
     }

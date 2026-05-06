@@ -154,7 +154,7 @@ impl super::Simulation {
 
         let pos = self.world.position(eid).map_or(0.0, |p| p.value);
         let vel = self.world.velocity(eid).map_or(0.0, |v| v.value);
-        let Some(brake_pos) = self.future_stop_position(eid) else {
+        let Some(brake_pos) = self.future_stop_position(elev) else {
             return Ok(());
         };
 

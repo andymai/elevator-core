@@ -67,7 +67,7 @@ Read the lamps through the simulation API:
 ```rust,no_run
 # use elevator_core::prelude::*;
 # use elevator_core::__doctest_prelude::*;
-# fn run(sim: &Simulation, elevator_id: EntityId) {
+# fn run(sim: &Simulation, elevator_id: ElevatorId) {
 let going_up = sim.elevator_going_up(elevator_id);
 let going_down = sim.elevator_going_down(elevator_id);
 # let _ = (going_up, going_down);
