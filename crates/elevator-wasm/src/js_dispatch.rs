@@ -73,9 +73,9 @@ impl DispatchStrategy for JsDispatchStrategy {
     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let dto = JsRankContext {
             car: ctx.car.data().as_ffi(),
-            car_position: ctx.car_position,
+            car_position: ctx.car_position(),
             stop: ctx.stop.data().as_ffi(),
-            stop_position: ctx.stop_position,
+            stop_position: ctx.stop_position(),
         };
         // `to_value` defaults to f64 numbers for `u64`, which truncates
         // any slotmap key above 2^53. Switching to bigint preserves
