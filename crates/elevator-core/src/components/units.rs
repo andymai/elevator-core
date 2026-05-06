@@ -35,6 +35,22 @@ impl fmt::Display for UnitError {
 
 impl std::error::Error for UnitError {}
 
+/// Implements `From<f64>` for a unit newtype by delegating to its `try_new`
+/// constructor and panicking on validation failure.
+///
+/// The panic is the documented contract for the infallible conversion;
+/// callers that need fallibility use `try_new` directly.
+macro_rules! impl_unit_from_f64 {
+    ($ty:ident) => {
+        #[allow(clippy::panic)]
+        impl From<f64> for $ty {
+            fn from(value: f64) -> Self {
+                Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
+            }
+        }
+    };
+}
+
 /// Weight / mass (always non-negative).
 ///
 /// Used for rider weight, elevator load, and weight capacity.
@@ -92,12 +108,7 @@ impl fmt::Display for Weight {
     }
 }
 
-#[allow(clippy::panic)]
-impl From<f64> for Weight {
-    fn from(value: f64) -> Self {
-        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
-    }
-}
+impl_unit_from_f64!(Weight);
 
 impl std::ops::Add for Weight {
     type Output = Self;
@@ -179,12 +190,7 @@ impl fmt::Display for Speed {
     }
 }
 
-#[allow(clippy::panic)]
-impl From<f64> for Speed {
-    fn from(value: f64) -> Self {
-        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
-    }
-}
+impl_unit_from_f64!(Speed);
 
 /// Acceleration / deceleration rate (always non-negative, distance units per second²).
 ///
@@ -236,9 +242,4 @@ impl fmt::Display for Accel {
     }
 }
 
-#[allow(clippy::panic)]
-impl From<f64> for Accel {
-    fn from(value: f64) -> Self {
-        Self::try_new(value).unwrap_or_else(|e| panic!("{e}"))
-    }
-}
+impl_unit_from_f64!(Accel);

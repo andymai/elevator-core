@@ -69,7 +69,6 @@ impl TaggedMetric {
     }
 
     /// Record a board event with wait time.
-    #[allow(clippy::cast_precision_loss)]
     pub(crate) fn record_board(&mut self, wait_ticks: u64) {
         self.boarded_count += 1;
         self.sum_wait_ticks += wait_ticks;

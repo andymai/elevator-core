@@ -436,29 +436,18 @@ impl Simulation {
 
         let group = ElevatorGroup::new(GroupId(0), "Default".into(), vec![default_line_info]);
 
-        // Legacy topology has exactly one group: GroupId(0). Honour a
-        // builder-provided dispatcher for that group; ignore any builder
-        // entry keyed on a different GroupId (it would have nothing to
-        // attach to). Pre-fix this used `into_iter().next()` which
-        // discarded the GroupId entirely and could attach a dispatcher
-        // intended for a different group to GroupId(0). (#288)
+        // Legacy topology has exactly one group: GroupId(0). Take a builder
+        // entry keyed on that group; ignore entries keyed on any other group
+        // (they would have nothing to attach to in the legacy schema).
         let mut dispatchers = BTreeMap::new();
         let mut strategy_ids = BTreeMap::new();
         let user_dispatcher = builder_dispatchers
             .into_iter()
             .find_map(|(gid, d)| if gid == GroupId(0) { Some(d) } else { None });
-        // Infer the snapshot identity from the dispatcher itself via
-        // `DispatchStrategy::builtin_id`. Pre-fix this was hard-coded to
-        // `BuiltinStrategy::Scan` regardless of the impl actually passed,
-        // so `Simulation::new(config, NearestCarDispatch::new())` would
-        // record `Scan` as the group's identity — and a snapshot round-
-        // trip would silently swap the running strategy back to Scan,
-        // breaking determinism. Built-ins override `builtin_id` to
-        // return their own variant; custom strategies can override it
-        // to return `BuiltinStrategy::Custom(name)` for snapshot fidelity.
-        // Strategies that don't override (returning `None`) still fall
-        // back to Scan, matching the previous behaviour for callers that
-        // never cared about round-trip identity.
+        // Snapshot identity comes from the dispatcher's own `builtin_id`, not
+        // from a hard-coded variant — otherwise a snapshot round-trip would
+        // silently swap a custom strategy back to Scan. Strategies that
+        // return `None` fall back to Scan for snapshot fidelity.
         let inferred_id = user_dispatcher
             .as_ref()
             .and_then(|d| d.builtin_id())
@@ -615,15 +604,10 @@ impl Simulation {
             strategy_ids.insert(group_id, BuiltinStrategy::Scan);
         }
 
-        // Override with builder-provided dispatchers (they take precedence).
-        // Pre-fix this could mismatch `strategy_ids` against `dispatchers`
-        // when both config and builder specified a strategy for the same
-        // group (#287). The new precedence: builder wins for the dispatcher
-        // and, for snapshot fidelity, we prefer the dispatcher's own
-        // `builtin_id()` over any stale config-supplied id. Falling back
-        // to the config id when the dispatcher is unidentified matches
-        // the pre-fix behaviour for custom strategies that don't override
-        // `builtin_id`.
+        // Builder-provided dispatchers override the config. For the matching
+        // `strategy_ids` entry, prefer the dispatcher's own `builtin_id()`
+        // (snapshot fidelity); fall back to the config id only when the
+        // dispatcher is unidentified (custom strategies that don't override).
         for (gid, d) in builder_dispatchers {
             let inferred_id = d.builtin_id();
             dispatchers.insert(gid, d);
@@ -657,20 +641,13 @@ impl Simulation {
     ) -> Self {
         let mut rider_index = RiderIndex::default();
         rider_index.rebuild(&world);
-        // Ensure the dispatch-visible tick rate matches the simulation
-        // tick rate after a snapshot restore; a snapshot that predates
-        // the `TickRate` resource leaves it absent and dispatch would
-        // otherwise fall back to the 60 Hz default even for a 30 Hz
-        // sim, silently halving ETD's door-cost scale.
+        // Forward-compat: snapshots predating these resources won't carry
+        // them. `TickRate` would otherwise default to 60 Hz and silently
+        // halve ETD's door-cost scale on a 30 Hz sim; the traffic detector
+        // would no-op forever in the metrics phase. `insert_resource` is
+        // last-writer-wins, so snapshots that already carry them are kept.
         let mut world = world;
         world.insert_resource(crate::time::TickRate(ticks_per_second));
-        // Re-insert the traffic detector for the same forward-compat
-        // reason as `TickRate`: a snapshot taken before this resource
-        // existed wouldn't carry it, and `refresh_traffic_detector` in
-        // the metrics phase would silently no-op forever post-restore
-        // (greptile review of #361). `insert_resource` is
-        // last-writer-wins, so snapshots that already carry a
-        // detector keep their stored state.
         if world
             .resource::<crate::traffic_detector::TrafficDetector>()
             .is_none()

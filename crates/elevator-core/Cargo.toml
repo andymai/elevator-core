@@ -37,7 +37,7 @@ ron.workspace = true
 rand = { workspace = true, optional = true }
 slotmap.workspace = true
 ordered-float = { version = "5", features = ["serde"] }
-smallvec = { version = "1", features = ["serde"] }
+smallvec = "1"
 postcard.workspace = true
 pathfinding = { version = "4", default-features = false }
 

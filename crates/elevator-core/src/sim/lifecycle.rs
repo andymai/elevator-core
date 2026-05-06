@@ -125,11 +125,6 @@ impl Simulation {
     ///   are recorded so dispatch sees the rider as fresh demand.
     /// - **Any other phase**: returns [`SimError::WrongRiderPhase`].
     ///
-    /// Replaces the prior `reroute(RiderId, EntityId)` /
-    /// `reroute_rider(EntityId, Route)` / `set_rider_route(EntityId, Route)`
-    /// trio. Callers that previously passed only a destination should
-    /// construct a `Route::direct(rider_current_stop, destination, group)`.
-    ///
     /// # Errors
     ///
     /// - [`SimError::EntityNotFound`] if `rider` does not exist.

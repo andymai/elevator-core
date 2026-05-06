@@ -236,13 +236,11 @@ impl TrafficDetector {
             self.current = TrafficMode::Idle;
             return;
         }
-        #[allow(clippy::cast_precision_loss)] // counts fit in f64 mantissa
         let rate_per_tick = total_origin as f64 / self.window_ticks as f64;
         if rate_per_tick < self.idle_rate_threshold {
             self.current = TrafficMode::Idle;
             return;
         }
-        #[allow(clippy::cast_precision_loss)]
         let up_fraction = lobby_origin_count as f64 / total_origin as f64;
         if up_fraction >= self.up_peak_fraction {
             self.current = TrafficMode::UpPeak;
@@ -254,7 +252,6 @@ impl TrafficDetector {
         // spuriously match the threshold at `0/0 = NaN` — falling
         // through to `InterFloor` is the safer default.
         if total_dest > 0 {
-            #[allow(clippy::cast_precision_loss)]
             let down_fraction = lobby_dest_count as f64 / total_dest as f64;
             if down_fraction >= self.down_peak_fraction {
                 self.current = TrafficMode::DownPeak;

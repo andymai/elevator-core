@@ -398,7 +398,6 @@ impl SpawnSchedule {
             // Exponential inter-arrival time, clamped to avoid ln(0).
             let u: f64 = rng.random_range(0.0001..1.0);
             let interval = -(f64::from(mean_interval_ticks)) * u.ln();
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let step = (interval as u64).max(1);
             tick = tick.saturating_add(step);
             if tick >= duration_ticks {
