@@ -368,6 +368,10 @@ impl DestinationDispatch {
         }
 
         // Idle bias: empty cars get a small bonus so the load spreads.
+        // 10% of pickup travel time is enough to break ties towards an
+        // idle-and-near car over a slightly-closer-but-already-loaded
+        // peer, without overpowering the load_penalty term below for
+        // genuinely heavily-loaded cars.
         let idle_bonus = if car.phase() == ElevatorPhase::Idle && car.riders().is_empty() {
             -0.1 * pickup_travel
         } else {
@@ -376,6 +380,10 @@ impl DestinationDispatch {
 
         // Load bias: include both aboard and already-assigned-but-waiting
         // riders so dispatch spreads load even before any boarding happens.
+        // The `* 4.0` multiplier on door overhead means a fully-loaded car
+        // pays roughly 4 extra door-cycles of cost relative to an empty
+        // peer; clamping `ratio` at 2.0 caps that penalty at 8 cycles to
+        // prevent over-committed cars from being effectively un-rankable.
         let load_penalty = if car.weight_capacity().value() > 0.0 {
             let effective = car.current_load().value().max(committed_load);
             let ratio = (effective / car.weight_capacity().value()).min(2.0);

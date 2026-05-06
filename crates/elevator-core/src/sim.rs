@@ -281,7 +281,10 @@ impl RiderBuilder<'_> {
             // No explicit route: must build one from origin → destination.
             // Same origin/destination produces a Route::direct that no hall
             // call can summon a car for — rider deadlocks Waiting (#273).
-            // Trust users that supply their own route.
+            // The route-supplied path above is exempt from this check: a
+            // caller that constructs their own Route presumably also drives
+            // the corresponding hall-call / dispatch path, so the
+            // same-stop case there is their responsibility, not ours.
             if self.origin == self.destination {
                 return Err(SimError::InvalidConfig {
                     field: "destination",
