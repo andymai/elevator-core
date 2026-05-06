@@ -6,14 +6,17 @@ import {
   compactOverrides,
   decodePermalink,
   hashSeedWord,
+  onPermalinkSync,
   scenarioById,
   syncPermalinkUrl,
 } from "../domain";
+import { removeStaticSeoBlock } from "../platform";
 import { loadWasm, TrafficDriver } from "../sim";
 import type { State } from "./state";
 import { wireUi } from "./wire-ui";
 import { applyPermalinkToUi, randomSeedWord } from "./apply-permalink";
 import { attachListeners } from "./listeners";
+import { updateRuntimeMeta } from "./document-meta";
 import { resetAll } from "./reset";
 import { loop } from "./loop";
 
@@ -92,6 +95,18 @@ export async function boot(): Promise<void> {
     seeding: null,
   };
   attachListeners(state, ui);
+  // Keep <title>, description, OG, and Twitter copy in lock-step with
+  // permalink commits. Subscribe once; every scenario / strategy /
+  // parking / compare / quest-stage change funnels through
+  // syncPermalinkUrl, which fans out to subscribers.
+  onPermalinkSync(updateRuntimeMeta);
+  // Sync once at boot so the title reflects the resolved permalink
+  // before the first frame paints (the subscription only fires on
+  // *changes*, not on initial state).
+  updateRuntimeMeta(permalink);
+  // Static SEO + no-JS fallback was hidden via CSS the moment the inline
+  // `<head>` script set html.js, so this is purely a DOM clean-up.
+  removeStaticSeoBlock();
   await resetAll(state, ui);
   state.ready = true;
   loop(state, ui);

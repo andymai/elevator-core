@@ -77,6 +77,14 @@ jobs:
           mkdir -p target/book/playground
           cp -r playground/dist/. target/book/playground/
 
+      - name: Stage robots.txt + sitemap.xml at site root
+        run: |
+          # docs/static/* are SEO files (robots, sitemap) that need to
+          # land at the gh-pages root, not under a book chapter slug.
+          # Copying after `mdbook build` so they aren't treated as book
+          # content.
+          cp -r docs/static/. target/book/
+
       # Publish to gh-pages branch (not the workflow Pages artifact) so the
       # nightly-bench dashboard at /bench/ — pushed by
       # benchmark-action/github-action-benchmark — can coexist on the same

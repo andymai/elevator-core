@@ -1,0 +1,13 @@
+# Robots policy for the elevator-core docs + playground.
+# Both surfaces are deployed under https://andymai.github.io/elevator-core/.
+# Crawlers are welcome on every public page; we publish a sitemap that
+# enumerates the book chapters and the playground entry point.
+
+User-agent: *
+Allow: /
+
+# /bench/ is a nightly benchmark dashboard pushed by github-action-benchmark.
+# It's auto-generated, JS-rendered, and not useful for general SEO.
+Disallow: /elevator-core/bench/
+
+Sitemap: https://andymai.github.io/elevator-core/sitemap.xml
