@@ -35,9 +35,11 @@ async function captureOg(browser) {
   });
   const page = await context.newPage();
   await page.goto(OG_URL, { waitUntil: "networkidle" });
-  // Pause so the canvas is deterministic, then run a few extra ticks
-  // by un-pausing briefly and re-pausing so cars are mid-flight rather
-  // than parked at idle — visually richer thumbnail.
+  // Cars are mid-flight by t=2.5s — the sim auto-runs from boot, so
+  // we just let it spin, then click pause once to freeze the frame
+  // before snapping. The trailing 150 ms gives the renderer one more
+  // RAF tick to settle the now-static canvas. `.catch` swallows the
+  // case where the toggle is mid-transition.
   await page.waitForTimeout(2500);
   await page
     .getByRole("button", { name: /^(pause|play)$/i })
