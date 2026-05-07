@@ -78,13 +78,21 @@ export function drawCar(
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wasm boundary: phase may hold a variant the TS union hasn't caught up with
   const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
 
-  const grad = ctx.createLinearGradient(cx, top, cx, bottom);
-  grad.addColorStop(0, shade(base, 0.14));
-  grad.addColorStop(1, shade(base, -0.18));
-  ctx.fillStyle = grad;
+  // Solid fill — the previous top→bottom gradient added bevel-style
+  // depth that read as fussy chrome. A flat phase colour keeps each
+  // car readable at a glance and lets the rider silhouettes inside
+  // carry the visual interest.
+  ctx.fillStyle = base;
   ctx.fillRect(cx - halfW, top, carW, carH);
-  ctx.strokeStyle = "rgba(10, 12, 16, 0.9)";
+  // 1 px inset highlight on the top edge gives the car a subtle
+  // sense of depth without painting a gradient on the whole body.
+  ctx.strokeStyle = shade(base, 0.18);
   ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - halfW + 0.5, top + 0.5);
+  ctx.lineTo(cx + halfW - 0.5, top + 0.5);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(10, 12, 16, 0.9)";
   ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
 
   // 0.95 = within one typical rider weight (~75 kg) of capacity; once

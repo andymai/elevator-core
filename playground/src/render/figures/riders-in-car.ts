@@ -1,4 +1,5 @@
 import type { Scale } from "../layout";
+import { CANVAS_FONT_SANS } from "../palette";
 import { roundedRect } from "../primitives";
 import type { RiderVariant } from "./rider";
 import { drawRider, pickRiderVariant } from "./rider";
@@ -51,7 +52,7 @@ export function drawRidersInCar(
   if (count > visible) {
     const text = `+${count - visible}`;
     const fontSize = Math.max(8, s.fontSmall - 1);
-    ctx.font = `700 ${fontSize.toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `700 ${fontSize.toFixed(1)}px ${CANVAS_FONT_SANS}`;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     const textW = ctx.measureText(text).width;
@@ -72,7 +73,7 @@ export function drawRidersInCar(
   // Drawn after silhouettes + pill so the F reads as the dominant signal.
   if (isFull) {
     const fSize = Math.max(10, Math.min(carH * 0.7, carW * 0.55));
-    ctx.font = `800 ${fSize.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `800 ${fSize.toFixed(0)}px ${CANVAS_FONT_SANS}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cy = carBottom - carH / 2;
