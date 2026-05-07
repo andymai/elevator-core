@@ -24,7 +24,7 @@ export const STRATEGY_LABELS: Record<StrategyName, string> = {
  * one who doesn't gets a single accurate sentence to act on.
  */
 export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
-  scan: "Sweep end-to-end, reverse at the top.",
+  scan: "Sweep end-to-end, reverse at each end.",
   look: "Sweep until last call, then reverse.",
   nearest: "Assign each call to the closest car.",
   etd: "Assign by estimated time-to-destination.",
