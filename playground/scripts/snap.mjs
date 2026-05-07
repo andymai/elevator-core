@@ -94,14 +94,16 @@ async function main() {
   });
 
   const outputs = [];
-  for (const scene of SCENES) {
-    outputs.push(await snapOne(desktop, scene, "desktop"));
-    outputs.push(await snapOne(mobileSe, scene, "mobile-se"));
-    outputs.push(await snapOne(mobile, scene, "mobile"));
-    outputs.push(await snapOne(mobileSeLandscape, scene, "mobile-se-landscape"));
+  try {
+    for (const scene of SCENES) {
+      outputs.push(await snapOne(desktop, scene, "desktop"));
+      outputs.push(await snapOne(mobileSe, scene, "mobile-se"));
+      outputs.push(await snapOne(mobile, scene, "mobile"));
+      outputs.push(await snapOne(mobileSeLandscape, scene, "mobile-se-landscape"));
+    }
+  } finally {
+    await browser.close();
   }
-
-  await browser.close();
 
   await writeFile(
     join(OUT_DIR, "index.json"),
