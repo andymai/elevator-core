@@ -4,6 +4,25 @@
 @source not "../dist";
 @source not "../public";
 
+/* Geist (Vercel, OFL) — self-hosted variable woff2. Bundled by Vite from
+ * src/fonts/ so the same files work under any deploy base path
+ * (`base: "./"` in vite.config.ts). `font-display: swap` keeps first paint
+ * unblocked; we accept a brief FOUT in exchange for no third-party request. */
+@font-face {
+  font-family: "Geist";
+  src: url("./fonts/GeistVariableVF.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./fonts/GeistMonoVariableVF.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Tailwind v4 semantic design tokens. Follows the gridfinity-layout-tool
  * convention: primitive palette lives in `:root`, and `@theme` aliases it
  * into Tailwind's `--color-*`, `--radius-*`, `--shadow-*`, `--ease-*`,
@@ -86,6 +105,13 @@
   --text-lg: 1rem; /* 16px */
   --text-xl: 1.125rem; /* 18px */
   --text-2xl: 1.5rem; /* 24px */
+
+  /* Font families — Geist self-hosted (see @font-face above), with system
+   * fallbacks that match Geist's metrics closely so the FOUT swap is
+   * unobtrusive. Aliased here so Tailwind's `font-sans` / `font-mono`
+   * utilities resolve to these stacks. */
+  --font-sans: var(--font-stack-sans);
+  --font-mono: var(--font-stack-mono);
 }
 
 :root {
@@ -145,6 +171,12 @@
   --transition-normal: var(--duration-normal) var(--ease-normal);
   --transition-slow: var(--duration-slow) var(--ease-slow);
   --transition-spring: var(--duration-slow) var(--ease-spring);
+
+  /* Font stacks — Geist for UI, Geist Mono for numerals + metric labels.
+   * System fallbacks match Geist's x-height/width to keep FOUT subtle. */
+  --font-stack-sans:
+    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-stack-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 /* Custom CSS is layered so Tailwind utilities (utilities layer) cleanly
@@ -172,13 +204,8 @@
       ),
       var(--bg-primary);
     color: var(--text-primary);
-    font:
-      13.5px / 1.45 system-ui,
-      -apple-system,
-      "Segoe UI",
-      Helvetica,
-      Arial,
-      sans-serif;
+    font: 13.5px / 1.45 var(--font-stack-sans);
+    letter-spacing: -0.005em;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -1012,7 +1039,7 @@
     border-bottom-width: 2px;
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-stack-mono);
     font-size: 10.5px;
     font-weight: 500;
   }

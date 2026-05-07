@@ -1,6 +1,7 @@
 import { drawFigureRow } from "./figures/figure-row";
 import type { Scale } from "./layout";
 import {
+  CANVAS_FONT_SANS,
   DOOR_ACTIVE,
   DOOR_INACTIVE,
   DOWN_COLOR,
@@ -48,7 +49,7 @@ export function drawShaftLabels(
   s: Scale,
 ): void {
   if (labels.length === 0) return;
-  ctx.font = `600 ${s.fontSmall.toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = `600 ${s.fontSmall.toFixed(0)}px ${CANVAS_FONT_SANS}`;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "center";
   // Car headers (drawn separately) live in the same `padTop` band, so a
@@ -79,7 +80,7 @@ export function drawFloors(
   stopsTop: number,
   isTether: boolean,
 ): void {
-  ctx.font = `${s.fontMain.toFixed(0)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `${s.fontMain.toFixed(0)}px ${CANVAS_FONT_SANS}`;
   ctx.textBaseline = "middle";
   const labelX = s.padX;
   const slabLeft = s.padX + s.labelW;

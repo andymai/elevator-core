@@ -2,7 +2,7 @@ import { hexWithAlpha, shade, withAlpha } from "./color-utils";
 import type { RiderVariant } from "./figures/rider";
 import { drawRidersInCar } from "./figures/riders-in-car";
 import type { Scale } from "./layout";
-import { PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
+import { CANVAS_FONT_SANS, PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
 import { roundedRect } from "./primitives";
 import type { CarDto, CarBubble, Snapshot } from "../types";
 
@@ -115,8 +115,7 @@ export function drawBubbles(
   const tailH = 4;
   const radius = 6;
   const gap = 2;
-  const font = `600 ${s.fontSmall + 0.5}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.font = font;
+  ctx.font = `600 ${s.fontSmall + 0.5}px ${CANVAS_FONT_SANS}`;
   ctx.textBaseline = "middle";
   const FADE_FRAC = 0.3;
   const now = performance.now();
