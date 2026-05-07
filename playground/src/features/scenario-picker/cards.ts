@@ -2,7 +2,7 @@ import { el } from "../../platform";
 import { SCENARIOS } from "../../domain";
 
 // Tabular switcher — replaces the previous card-pill chrome. Each
-// scenario is a flat text label with a 1px accent rule under the
+// scenario is a flat text label with a 2px accent rule under the
 // active one (no filled background), reserving the accent for the
 // "current scenario" signal alone (rubric #6).
 const SCENARIO_CARD_CLS =
