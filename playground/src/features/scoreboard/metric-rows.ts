@@ -109,9 +109,11 @@ export function initMetricRows(root: HTMLElement): void {
     // data-verdict on the row drives delta + sparkline color via
     // attribute selectors in style.css.
     const row = el("div", "metric-row flex flex-col gap-[2px] px-2 py-1 text-right");
-    // SVG sparkline lives in the metric row and is mutated in place each
-    // frame. SVG (not canvas) keeps it crisp at any DPR and lets CSS drive
-    // the stroke color via `currentColor` / data-verdict on the row.
+    // SVG sparkline lives in the metric row and is mutated in place
+    // each frame. SVG (not canvas) keeps it crisp at any DPR and lets
+    // CSS drive the stroke colour via the `.metric-row[data-verdict]`
+    // selectors in style.css (tertiary by default; --ok / --bad on
+    // win / lose).
     const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     spark.classList.add("metric-spark");
     spark.setAttribute("viewBox", "0 0 100 14");
@@ -149,9 +151,9 @@ export function renderMetricRows(
     if (vs.textContent !== val) vs.textContent = val;
     const ds = row.children[2] as HTMLElement;
     // Show delta only in compare mode and only when the verdict is
-    // non-tie — ties hide entirely so the row collapses cleanly to label
-    // + value + sparkline in single-pane mode and on indistinguishable
-    // values.
+    // non-tie — ties + single-pane render an empty string so no
+    // arrow/sign is drawn. The slot itself stays at `.metric-d`'s
+    // reserved height so toggling Compare doesn't reflow the strip.
     const showDelta = other !== null && verdict !== "tie" && verdict !== "";
     const deltaText = showDelta ? metricDelta(m, other, key) : "";
     if (ds.textContent !== deltaText) ds.textContent = deltaText;

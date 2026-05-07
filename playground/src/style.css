@@ -1040,8 +1040,11 @@
       "ss01" 1;
     line-height: 1.15;
   }
-  /* Delta hides cleanly when the row mutates `textContent` to ""; no
-   * visibility toggle needed because it has no padding/margin of its own. */
+  /* Reserved height (`min-height: 10.5px`) keeps the row at a stable
+   * vertical size whether the delta string is empty (single-pane or
+   * tie) or filled — toggling Compare doesn't shift the strip. We
+   * intentionally trade that 10.5px of always-on space for layout
+   * stability across modes. */
   .metric-d {
     font-family: var(--font-stack-mono);
     font-size: 10.5px;
