@@ -17,6 +17,13 @@ export const PHASE_COLORS: Record<CarDto["phase"], string> = {
 
 export const FLOOR_LINE = "#2a2a35"; // --border-subtle — floor-slab stroke
 export const STOP_LABEL = "#a1a1aa"; // --text-secondary
+
+// Canvas sans stack — mirrors `--font-stack-sans` in style.css `:root`.
+// Canvas's `ctx.font` takes a CSS shorthand string and cannot read CSS
+// variables, so the stack is duplicated here. If `--font-stack-sans`
+// changes in style.css, change this too.
+export const CANVAS_FONT_SANS =
+  '"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 // Shaft channel fill + rail colours. Indexed by the line's position in
 // the scenario's sorted line list so banks get distinct colour
 // identities: the main banks share a quiet neutral grey, while

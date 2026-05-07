@@ -7,7 +7,7 @@
 
 import { shade } from "./color-utils";
 import type { Scale } from "./layout";
-import { PHASE_COLORS } from "./palette";
+import { CANVAS_FONT_SANS, PHASE_COLORS } from "./palette";
 import { roundedRect } from "./primitives";
 import {
   atmosphericLayer,
@@ -108,7 +108,7 @@ export function drawClimberHuds(
   const padY = 4;
   const lh = s.fontSmall + 2;
   const gap = carW / 2 + 8;
-  ctx.font = `600 ${(s.fontSmall + 0.5).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = `600 ${(s.fontSmall + 0.5).toFixed(1)}px ${CANVAS_FONT_SANS}`;
 
   interface Placement {
     hud: ClimberHud;
@@ -239,7 +239,7 @@ export function drawTetherSideCard(
 
   // Title ("Climbers" eyebrow — same uppercase tracking as the pane labels).
   ctx.fillStyle = "#a1a1aa"; // text-secondary
-  ctx.font = `600 ${(s.fontSmall - 0.5).toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = `600 ${(s.fontSmall - 0.5).toFixed(0)}px ${CANVAS_FONT_SANS}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText("CLIMBERS", cardX + padX, cardYStart + titleH / 2 + 2);
@@ -256,13 +256,13 @@ export function drawTetherSideCard(
     const labelX = cardX + padX + 4;
     const valueX = cardX + cardW - padX;
     let y = cursorY + padY + lineH / 2;
-    ctx.font = `600 ${(s.fontSmall + 0.5).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.font = `600 ${(s.fontSmall + 0.5).toFixed(1)}px ${CANVAS_FONT_SANS}`;
     ctx.fillStyle = "#fafafa"; // text-primary
     ctx.textAlign = "left";
     ctx.fillText(hud.carName, labelX, y);
     ctx.textAlign = "right";
     ctx.fillStyle = PHASE_HUE[hud.phase];
-    ctx.font = `600 ${(s.fontSmall - 1).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.font = `600 ${(s.fontSmall - 1).toFixed(1)}px ${CANVAS_FONT_SANS}`;
     ctx.fillText(PHASE_LABEL[hud.phase].toUpperCase(), valueX, y);
 
     const eta =
@@ -275,7 +275,7 @@ export function drawTetherSideCard(
       ["Dest", hud.destinationName ?? "—"],
       ["ETA", eta],
     ];
-    ctx.font = `500 ${(s.fontSmall - 0.5).toFixed(1)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.font = `500 ${(s.fontSmall - 0.5).toFixed(1)}px ${CANVAS_FONT_SANS}`;
     for (const [label, value] of stats) {
       y += lineH;
       ctx.textAlign = "left";
