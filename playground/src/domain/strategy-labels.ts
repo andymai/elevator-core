@@ -18,20 +18,18 @@ export const STRATEGY_LABELS: Record<StrategyName, string> = {
 };
 
 /**
- * One-liners shown under the strategy selector. Tuned to be readable
- * at a glance without jargon while still being specific enough to
- * differentiate the six strategies. The phrasing leads with behavior,
- * not mechanism — a reader new to vertical-transport theory should
- * still come away with a sense of what each controller does.
+ * One-liners shown under the strategy selector. Each names *what* the
+ * controller does in one short sentence — no marketing, no jargon
+ * gloss. A reader who recognises the acronym already knows the lore;
+ * one who doesn't gets a single accurate sentence to act on.
  */
 export const STRATEGY_DESCRIPTIONS: Record<StrategyName, string> = {
-  scan: "Sweeps end-to-end like a disk head — simple, predictable, ignores who's waiting longest.",
-  look: "Like SCAN but reverses early when nothing's queued further — a practical baseline.",
-  nearest: "Grabs whichever call is closest right now. Fast under light load, thrashes under rush.",
-  etd: "Estimated time of dispatch — assigns calls to whichever car can finish fastest.",
-  destination:
-    "Destination-control: riders pick their floor at the lobby; the group optimises assignments.",
-  rsr: "Relative System Response — a wait-aware variant of ETD that penalises long queues.",
+  scan: "Sweep end-to-end, reverse at the top.",
+  look: "Sweep until last call, then reverse.",
+  nearest: "Assign each call to the closest car.",
+  etd: "Assign by estimated time-to-destination.",
+  destination: "Riders enter destination at the lobby; the group optimises.",
+  rsr: "ETD penalised by queue length.",
 };
 
 export const UI_REPOSITION_STRATEGIES: RepositionStrategyName[] = [
@@ -49,15 +47,15 @@ export const REPOSITION_LABELS: Record<RepositionStrategyName, string> = {
   none: "Stay",
 };
 /**
- * One-liners surfaced in the reposition-strategy popover. Each names
- * *what* an idle car does, not the mechanism — users pick by
- * observable behaviour rather than implementation detail.
+ * One-liners shown under the reposition-strategy selector. Names the
+ * observable behaviour of an idle car in one short sentence, no
+ * mechanism gloss. Phrasing matches STRATEGY_DESCRIPTIONS above so
+ * the two popovers feel like the same UI.
  */
 export const REPOSITION_DESCRIPTIONS: Record<RepositionStrategyName, string> = {
-  adaptive:
-    "Switches based on traffic — returns to lobby during up-peak, predicts hot floors otherwise. The default.",
-  predictive: "Always parks idle cars near whichever floor has seen the most recent arrivals.",
-  lobby: "Sends every idle car back to the ground floor to prime the morning-rush pickup.",
-  spread: "Keeps idle cars fanned out across the shaft so any floor has a nearby option.",
-  none: "Leaves idle cars wherever they finished their last delivery.",
+  adaptive: "Switch by traffic mode; the default.",
+  predictive: "Park near the most-active floor.",
+  lobby: "Return idle cars to the lobby.",
+  spread: "Fan idle cars across the shaft.",
+  none: "Idle cars stay where they finished.",
 };

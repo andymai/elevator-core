@@ -1124,46 +1124,45 @@
     }
   }
 
+  /* Vercel command-menu pattern: rows are flat, separated only by
+   * hover state; the active row gets a 2px left accent rule (no
+   * filled background, no tinted border). The hover bg keeps a
+   * subtle ::scaled-bg-elevated surface so the cursor target reads
+   * without competing with the active-row signal. */
   .strategy-option {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding: 8px 10px;
+    padding: 8px 10px 8px 8px;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border: 0;
+    border-left: 2px solid transparent;
+    border-radius: 0;
     cursor: pointer;
     text-align: left;
     font: inherit;
     color: var(--text-secondary);
-    letter-spacing: 0.005em;
     transition:
       background var(--transition-fast),
-      border-color var(--transition-fast);
+      border-left-color var(--transition-fast);
   }
   .strategy-option:hover,
   .strategy-option:focus-visible {
     background: var(--bg-hover);
-    border-color: var(--border-subtle);
     outline: none;
   }
   .strategy-option[aria-checked="true"] {
-    background: color-mix(in srgb, var(--pane-accent, var(--accent)) 12%, transparent);
-    border-color: color-mix(in srgb, var(--pane-accent, var(--accent)) 40%, transparent);
+    border-left-color: var(--pane-accent, var(--accent));
   }
   .strategy-option-name {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
-    font-weight: 600;
+    font-family: var(--font-stack-mono);
+    font-size: 12px;
+    font-weight: 500;
     letter-spacing: 0.02em;
     color: var(--text-primary);
-  }
-  .strategy-option[aria-checked="true"] .strategy-option-label::before {
-    content: "\2713\00a0";
-    color: var(--pane-accent, var(--accent));
-    font-weight: 700;
   }
   .strategy-option-sibling {
     margin-left: auto;
