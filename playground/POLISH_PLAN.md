@@ -20,8 +20,10 @@ until each looks designed, not generated.
 
 ## Type system
 
-- **Sans (UI):** Geist Sans, self-hosted under `public/fonts/`. Weights
-  400 / 500 / 600. `-letter-spacing: -0.005em` at 13–14px.
+- **Sans (UI):** Geist Sans, self-hosted under `src/fonts/` so Vite
+  bundles + content-hashes them and the same files work under any
+  deploy base path. Weights 400 / 500 / 600. `letter-spacing: -0.005em`
+  at 13–14px.
 - **Mono (numerals + metric labels):** Geist Mono, self-hosted. Weight
   400 / 500. `font-feature-settings: "tnum", "ss01"` for the slashed-zero.
 - **No third font.** No serif, no display face.
