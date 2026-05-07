@@ -434,11 +434,11 @@
     </main>
 
     <header
-      class="top relative bg-gradient-to-b from-surface-secondary to-surface px-5 pt-3 pb-2.5 max-md:px-3.5 max-md:pt-2.5 max-md:pb-2"
+      class="top relative bg-surface px-5 pt-3 pb-2.5 max-md:px-3.5 max-md:pt-2.5 max-md:pb-2"
     >
       <div class="flex flex-wrap items-center gap-y-1 gap-x-5 min-w-0 max-md:gap-x-3">
         <h1
-          class="m-0 text-[14px] font-semibold tracking-[-0.005em] inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent before:shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)] max-md:text-[12.5px] max-md:gap-2 max-md:tracking-[-0.01em]"
+          class="m-0 text-[13px] font-mono font-medium tracking-[0] inline-flex items-center gap-2.5 whitespace-nowrap min-w-0 before:content-[''] before:inline-block before:flex-none before:w-2 before:h-2 before:rounded-[2px] before:bg-accent max-md:text-[12px] max-md:gap-2"
         >
           <span class="truncate"
             ><span class="text-content-tertiary max-md:hidden">elevator-core / </span
@@ -693,6 +693,13 @@
         </div>
       </section>
     </main>
+
+    <footer
+      class="text-content-disabled text-[10.5px] tracking-[0.04em] font-mono px-5 pb-2 pt-1 select-none max-md:hidden"
+      aria-label="Authorship"
+    >
+      engine: elevator-core (rust) · playground: vanilla ts · — a.m.
+    </footer>
 
     <!-- Bottom status bar — fixed, edge-to-edge, always visible. Hosts the
          phase indicator (with progress fill on the top edge) and the

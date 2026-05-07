@@ -1,19 +1,17 @@
 import { el } from "../../platform";
 import { SCENARIOS } from "../../domain";
 
-// Compact pill tabs — used to be full-sized cards with a description
-// block; that was ~55 px of vertical chrome. Now a single row of
-// short buttons that show the scenario name and a numeric shortcut
-// badge. Description is accessible via the `title` tooltip so
-// nothing is lost, just de-weighted.
+// Tabular switcher — replaces the previous card-pill chrome. Each
+// scenario is a flat text label with a 1px accent rule under the
+// active one (no filled background), reserving the accent for the
+// "current scenario" signal alone (rubric #6).
 const SCENARIO_CARD_CLS =
-  "scenario-card inline-flex items-center gap-1.5 px-2.5 py-1 " +
-  "bg-surface-elevated border border-stroke-subtle rounded-md " +
-  "text-content-secondary text-[12px] font-medium cursor-pointer " +
+  "scenario-card inline-flex items-center gap-1.5 px-2 py-1 " +
+  "border-b-2 border-b-transparent " +
+  "text-content-tertiary text-[12px] font-medium cursor-pointer " +
   "transition-colors duration-fast select-none whitespace-nowrap " +
-  "hover:bg-surface-hover hover:border-stroke " +
-  "aria-pressed:bg-accent-muted aria-pressed:text-content " +
-  "aria-pressed:border-[color-mix(in_srgb,var(--accent)_55%,transparent)] " +
+  "hover:text-content " +
+  "aria-pressed:text-content aria-pressed:border-b-accent " +
   "max-md:flex-none max-md:snap-start";
 const SCENARIO_KBD_CLS =
   "inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 " +
