@@ -11,10 +11,22 @@ function updateScoreboard(state: State): void {
   const paneB = state.paneB;
   if (paneB?.latestMetrics) {
     const compare = diffMetrics(paneA.latestMetrics, paneB.latestMetrics);
-    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, compare.a, paneA.metricHistory);
-    renderMetricRows(paneB.metricsEl, paneB.latestMetrics, compare.b, paneB.metricHistory);
+    renderMetricRows(
+      paneA.metricsEl,
+      paneA.latestMetrics,
+      compare.a,
+      paneA.metricHistory,
+      paneB.latestMetrics,
+    );
+    renderMetricRows(
+      paneB.metricsEl,
+      paneB.latestMetrics,
+      compare.b,
+      paneB.metricHistory,
+      paneA.latestMetrics,
+    );
   } else {
-    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null, paneA.metricHistory);
+    renderMetricRows(paneA.metricsEl, paneA.latestMetrics, null, paneA.metricHistory, null);
   }
   updateModeBadge(paneA);
   if (paneB) updateModeBadge(paneB);
