@@ -1,5 +1,6 @@
-// Screenshot harness for the playground. Spins up Chromium at two
-// viewports (desktop 1440×900, iPhone 14 390×844), loads the preview
+// Screenshot harness for the playground. Spins up Chromium at four
+// viewports (desktop 1440×900, iPhone SE 375×667 portrait, iPhone 14
+// 390×844 portrait, iPhone SE 667×375 landscape), loads the preview
 // server, and captures a handful of scenes per viewport so a visual
 // polish pass has something concrete to diff against.
 //
@@ -79,14 +80,25 @@ async function main() {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 2,
   });
+  // Mobile viewports cover the polish-pass acceptance check from
+  // playground/POLISH_PLAN.md: narrow stress (SE portrait), common case
+  // (iPhone 14 portrait), compare-pane stress (SE landscape).
+  const mobileSe = await browser.newContext({
+    ...devices["iPhone SE"],
+  });
   const mobile = await browser.newContext({
     ...devices["iPhone 14"],
+  });
+  const mobileSeLandscape = await browser.newContext({
+    ...devices["iPhone SE landscape"],
   });
 
   const outputs = [];
   for (const scene of SCENES) {
     outputs.push(await snapOne(desktop, scene, "desktop"));
+    outputs.push(await snapOne(mobileSe, scene, "mobile-se"));
     outputs.push(await snapOne(mobile, scene, "mobile"));
+    outputs.push(await snapOne(mobileSeLandscape, scene, "mobile-se-landscape"));
   }
 
   await browser.close();
