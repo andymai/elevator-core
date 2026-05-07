@@ -77,7 +77,7 @@ export function drawRidersInCar(
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const cy = carBottom - carH / 2;
-    // Soft halo so the glyph reads even against bright cabin gradients.
+    // Soft halo so the glyph reads even against bright phase-colour fills.
     ctx.fillStyle = "rgba(15, 15, 18, 0.6)";
     ctx.fillText("F", cx, cy + 1);
     ctx.fillStyle = "rgba(239, 68, 68, 0.92)"; // var(--bad) at high alpha

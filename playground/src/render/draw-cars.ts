@@ -84,16 +84,20 @@ export function drawCar(
   // carry the visual interest.
   ctx.fillStyle = base;
   ctx.fillRect(cx - halfW, top, carW, carH);
-  // 1 px inset highlight on the top edge gives the car a subtle
-  // sense of depth without painting a gradient on the whole body.
-  ctx.strokeStyle = shade(base, 0.18);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(cx - halfW + 0.5, top + 0.5);
-  ctx.lineTo(cx + halfW - 0.5, top + 0.5);
-  ctx.stroke();
+  // Dark outer border first so the inset highlight on the next row
+  // (`top + 1.5`) is not overwritten — painting both at `top + 0.5`
+  // would let the dark stroke win and erase the highlight.
   ctx.strokeStyle = "rgba(10, 12, 16, 0.9)";
+  ctx.lineWidth = 1;
   ctx.strokeRect(cx - halfW + 0.5, top + 0.5, carW - 1, carH - 1);
+  // 1 px inset highlight one row below the dark border — gives the
+  // cabin a subtle sense of depth without painting a gradient over
+  // the whole body.
+  ctx.strokeStyle = shade(base, 0.18);
+  ctx.beginPath();
+  ctx.moveTo(cx - halfW + 1, top + 1.5);
+  ctx.lineTo(cx + halfW - 1, top + 1.5);
+  ctx.stroke();
 
   // 0.95 = within one typical rider weight (~75 kg) of capacity; once
   // load is in this envelope no more riders can board.
