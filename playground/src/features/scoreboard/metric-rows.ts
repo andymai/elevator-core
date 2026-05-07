@@ -3,14 +3,14 @@ import type { MetricKey, MetricsDto } from "../../types";
 import { buildSparklinePath } from "./sparkline";
 
 // Metric row layout: 5 fixed rows, always the same keys in the same order.
-// We build the DOM once and mutate text + verdict + sparkline in place
-// every frame.
+// We build the DOM once and mutate text + verdict + sparkline + delta in
+// place every frame.
 export const METRIC_DEFS: Array<[string, MetricKey]> = [
-  ["Avg wait", "avg_wait_s"],
-  ["Max wait", "max_wait_s"],
-  ["Delivered", "delivered"],
-  ["Abandoned", "abandoned"],
-  ["Utilization", "utilization"],
+  ["wait avg", "avg_wait_s"],
+  ["wait max", "max_wait_s"],
+  ["delivered", "delivered"],
+  ["abandoned", "abandoned"],
+  ["util", "utilization"],
 ];
 
 export function metricValue(m: MetricsDto, key: MetricKey): string {
@@ -25,6 +25,44 @@ export function metricValue(m: MetricsDto, key: MetricKey): string {
       return String(m.abandoned);
     case "utilization":
       return `${(m.utilization * 100).toFixed(0)}%`;
+  }
+}
+
+// Arithmetic delta from `self` to `other` for the cell's metric. Sign
+// reflects raw difference; the verdict (win/lose/tie) drives color
+// independently. Returned `text` is "▲ +0.3 s" / "▼ −2 %"; callers hide
+// the element on tie to mirror the verdict's epsilon-based smoothing.
+function metricDelta(self: MetricsDto, other: MetricsDto, key: MetricKey): string {
+  const sv = numericMetric(self, key);
+  const ov = numericMetric(other, key);
+  const diff = sv - ov;
+  const arrow = diff > 0 ? "▲" : "▼";
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  const mag = Math.abs(diff);
+  switch (key) {
+    case "avg_wait_s":
+    case "max_wait_s":
+      return `${arrow} ${sign}${mag.toFixed(1)} s`;
+    case "delivered":
+    case "abandoned":
+      return `${arrow} ${sign}${mag.toFixed(0)}`;
+    case "utilization":
+      return `${arrow} ${sign}${(mag * 100).toFixed(0)}%`;
+  }
+}
+
+function numericMetric(m: MetricsDto, key: MetricKey): number {
+  switch (key) {
+    case "avg_wait_s":
+      return m.avg_wait_s;
+    case "max_wait_s":
+      return m.max_wait_s;
+    case "delivered":
+      return m.delivered;
+    case "abandoned":
+      return m.abandoned;
+    case "utilization":
+      return m.utilization;
   }
 }
 
@@ -65,26 +103,24 @@ export function diffMetrics(
 export function initMetricRows(root: HTMLElement): void {
   const frag = document.createDocumentFragment();
   for (const [label] of METRIC_DEFS) {
-    const row = el(
-      "div",
-      "metric-row flex flex-col gap-[3px] px-2.5 py-[7px] bg-surface-elevated border border-stroke-subtle rounded-md transition-colors duration-normal",
-    );
+    // Hairline column rules between cells, no card chrome — the row
+    // floats on the surface. Column rules are grid-aware (CSS in
+    // style.css handles 5-col desktop vs 3-col mobile wrapping).
+    // data-verdict on the row drives delta + sparkline color via
+    // attribute selectors in style.css.
+    const row = el("div", "metric-row flex flex-col gap-[2px] px-2 py-1 text-right");
     // SVG sparkline lives in the metric row and is mutated in place each
-    // frame. Using SVG (not another canvas) keeps it crisp at any DPR
-    // and lets CSS drive the stroke color via `currentColor` / the
-    // `data-verdict` attribute on the row.
+    // frame. SVG (not canvas) keeps it crisp at any DPR and lets CSS drive
+    // the stroke color via `currentColor` / data-verdict on the row.
     const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     spark.classList.add("metric-spark");
     spark.setAttribute("viewBox", "0 0 100 14");
     spark.setAttribute("preserveAspectRatio", "none");
     spark.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path"));
     row.append(
-      el(
-        "span",
-        "text-[9.5px] uppercase tracking-[0.08em] text-content-disabled font-medium",
-        label,
-      ),
-      el("span", "metric-v text-[15px] text-content font-medium [font-feature-settings:'tnum'_1]"),
+      el("span", "metric-k", label),
+      el("span", "metric-v"),
+      el("span", "metric-d"),
       spark,
     );
     frag.appendChild(row);
@@ -97,6 +133,7 @@ export function renderMetricRows(
   m: MetricsDto,
   verdicts: MetricVerdicts | null,
   history: Record<MetricKey, number[]>,
+  other: MetricsDto | null,
 ): void {
   const rows = root.children;
   for (let i = 0; i < METRIC_DEFS.length; i++) {
@@ -110,7 +147,15 @@ export function renderMetricRows(
     const vs = row.children[1] as HTMLElement;
     const val = metricValue(m, key);
     if (vs.textContent !== val) vs.textContent = val;
-    const spark = row.children[2] as SVGSVGElement;
+    const ds = row.children[2] as HTMLElement;
+    // Show delta only in compare mode and only when the verdict is
+    // non-tie — ties hide entirely so the row collapses cleanly to label
+    // + value + sparkline in single-pane mode and on indistinguishable
+    // values.
+    const showDelta = other !== null && verdict !== "tie" && verdict !== "";
+    const deltaText = showDelta ? metricDelta(m, other, key) : "";
+    if (ds.textContent !== deltaText) ds.textContent = deltaText;
+    const spark = row.children[3] as SVGSVGElement;
     const path = spark.firstElementChild as SVGPathElement;
     const d = buildSparklinePath(history[key]);
     if (path.getAttribute("d") !== d) path.setAttribute("d", d);
