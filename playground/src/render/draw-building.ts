@@ -80,7 +80,9 @@ export function drawFloors(
   stopsTop: number,
   isTether: boolean,
 ): void {
-  ctx.font = `${s.fontMain.toFixed(0)}px ${CANVAS_FONT_SANS}`;
+  // Geist Sans at 500 reads cleaner than the default 600 here — heavier
+  // weight made the long stop-name strings feel chunky at small sizes.
+  ctx.font = `500 ${s.fontMain.toFixed(0)}px ${CANVAS_FONT_SANS}`;
   ctx.textBaseline = "middle";
   const labelX = s.padX;
   const slabLeft = s.padX + s.labelW;
