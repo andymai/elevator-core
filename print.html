@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
+            window.path_to_searchindex_js = "searchindex-32ed1560.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-2421e0e2.js"></script>
+        <script src="toc-74aa4021.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -221,7 +221,7 @@
 <tbody>
 <tr><td><strong>Core</strong></td><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
 <tr><td><strong>Hosts</strong></td><td><code>elevator-bevy</code>, <code>elevator-ffi</code>, <code>elevator-wasm</code>, <code>elevator-gdext</code>, <code>elevator-tui</code></td><td>Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner.</td></tr>
-<tr><td><strong>Supporting</strong></td><td><code>elevator-contract</code>, <code>elevator-layout-derive</code>, <code>elevator-layout-runtime</code>, <code>elevator-layout-codegen</code></td><td>Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See <a href="#integration-gallery">Integration Gallery</a>.</td></tr>
+<tr><td><strong>Supporting</strong></td><td><code>elevator-contract</code>, <code>elevator-layout-derive</code>, <code>elevator-layout-runtime</code>, <code>elevator-layout-codegen</code></td><td>Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See <a href="#supporting-crates">Supporting Crates</a>.</td></tr>
 </tbody>
 </table>
 </div>
@@ -236,7 +236,7 @@
 <ul>
 <li><a href="#quick-start">Quick Start</a> — build your first simulation in under 30 lines.</li>
 <li><a href="#stops-lines-and-groups">Stops, Lines, and Groups</a> — the topology model that lets the same engine run an office or a 1,000-unit space tether.</li>
-<li><a href="#integration-gallery">Integration Gallery</a> — supporting crates that keep the host bindings honest.</li>
+<li><a href="#supporting-crates">Supporting Crates</a> — supporting crates that keep the host bindings honest.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h1>
@@ -4013,26 +4013,47 @@ assert!(metrics.total_delivered() &gt;= expected_minimum);
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="stability-and-versioning"><a class="header" href="#stability-and-versioning">Stability and Versioning</a></h1>
-<p><code>elevator-core</code> classifies every public item as <strong>stable</strong>, <strong>experimental</strong>, or <strong>internal</strong>, and the crate makes a specific promise about how quickly each kind can break. This chapter summarises the rules; the repo’s <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> is the authoritative source.</p>
-<h2 id="three-status-levels"><a class="header" href="#three-status-levels">Three status levels</a></h2>
-<p><strong>Stable.</strong> Breaking changes ship only in planned major versions. Majors that touch a stable API are announced in a GitHub issue at least 60 days before the release, with a CHANGELOG migration note. <code>#[deprecated]</code> precedes removal by at least one major.</p>
-<p><strong>Experimental.</strong> The shape is still being discovered. May break in any minor version with no deprecation cycle. The API is real — fully implemented and tested — but the contract can shift as the design matures.</p>
-<p><strong>Internal.</strong> <code>pub(crate)</code> or <code>#[doc(hidden)]</code>. Not supported for use outside the crate.</p>
-<h2 id="where-to-find-the-current-classification"><a class="header" href="#where-to-find-the-current-classification">Where to find the current classification</a></h2>
-<p>The module table at the top of the <a href="https://docs.rs/elevator-core"><code>elevator-core</code> crate docs</a> has a Stability column for every row and is the canonical list. <code>STABILITY.md</code> lists the per-item day-one classification — check it before taking a dependency on a specific module.</p>
-<h2 id="depending-on-experimental-apis"><a class="header" href="#depending-on-experimental-apis">Depending on experimental APIs</a></h2>
-<p>Pin to an exact minor version:</p>
-<pre><code class="language-toml"># Use this if you touch hooks, topology, traffic, extensions, or any
-# other experimental area. Replace X.Y with the minor you are targeting.
+<p><code>elevator-core</code> classifies every public item as <strong>stable</strong>, <strong>experimental</strong>, or <strong>internal</strong>. Each level has a different break-rate guarantee. This page covers what those guarantees mean and how to work with them; the repo’s <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> is the authoritative source for the per-item classification.</p>
+<h2 id="the-three-status-levels"><a class="header" href="#the-three-status-levels">The three status levels</a></h2>
+<h3 id="stable"><a class="header" href="#stable">Stable</a></h3>
+<p>A stable API ships breaking changes <strong>only in planned major versions</strong>. Three rules back the guarantee:</p>
+<ul>
+<li><strong>Majors are announced.</strong> A major bump that touches a stable API opens a GitHub issue at least 60 days before the release, with a migration note staged in the CHANGELOG preamble.</li>
+<li><strong>Deprecation precedes removal.</strong> A stable API on its way out is marked <code>#[deprecated]</code> for at least one major before deletion. Compiler warnings point you at the replacement.</li>
+<li><strong>Semver is honoured strictly.</strong> Bug fixes that change behaviour either land behind a new function or wait for the next major.</li>
+</ul>
+<p>The current stable surface includes <code>Simulation</code>, <code>SimulationBuilder</code>, <code>Event</code>, <code>SimError</code>, <code>Metrics</code>, the entity IDs (<code>StopId</code>, <code>RiderId</code>, <code>ElevatorId</code> — declared in <code>entity::</code> and <code>stop::</code>), <code>WorldSnapshot</code>, and the <code>DispatchStrategy</code> trait with all built-in strategies. See <code>STABILITY.md</code> for the full enumeration.</p>
+<h3 id="experimental"><a class="header" href="#experimental">Experimental</a></h3>
+<p>Experimental APIs signal <em>the shape is still being discovered</em>. They may break in any minor version with no deprecation cycle. The API is real — fully implemented and tested — but the contract can shift as the design matures.</p>
+<p>Currently experimental: <code>hooks::*</code>, <code>topology::*</code>, <code>tagged_metrics::*</code>, <code>scenario::*</code>, <code>traffic::*</code>, <code>query::*</code>, the extension-component APIs on <code>World</code>, the RON <code>config::*</code> surface, <code>movement::*</code> primitives, <code>energy::*</code>, <code>time::TimeAdapter</code>, and <code>ids::*</code> (config-level identifiers like <code>GroupId</code> — distinct from the entity IDs above, which are stable).</p>
+<p>If you depend on one of these, pin the minor version:</p>
+<pre><code class="language-toml"># Replace X.Y with the minor you are targeting.
 elevator-core = "=X.Y"
 </code></pre>
-<p>When you bump the minor, expect a short migration task. The CHANGELOG will call out what changed.</p>
+<p>When you bump the pin, expect a short migration. The CHANGELOG calls out what moved.</p>
+<h3 id="internal"><a class="header" href="#internal">Internal</a></h3>
+<p>Items marked <code>pub(crate)</code> or <code>#[doc(hidden)]</code> are not part of the supported surface. Anything in <code>systems::*</code>, low-level door/ETA primitives, and <code>#[doc(hidden)]</code> re-exports falls here. Using these from outside the crate (via reflection, macros, or forks) is unsupported.</p>
+<h2 id="non-breaking-changes-you-should-expect"><a class="header" href="#non-breaking-changes-you-should-expect">Non-breaking changes you should expect</a></h2>
+<p>Several kinds of change look like API breaks but are deliberately <em>not</em> covered by the stability policy:</p>
+<ul>
+<li><strong>Adding variants to <code>#[non_exhaustive]</code> enums.</strong> <code>Event</code> and <code>SimError</code> are non-exhaustive; new variants ship in <code>feat:</code> commits, not <code>feat!:</code>.</li>
+<li><strong>Adding fields with <code>#[serde(default)]</code>.</strong> RON config additions are gated by serde defaults whenever possible; older configs continue to load.</li>
+<li><strong>Adding optional builder methods.</strong> <code>SimulationBuilder</code> and <code>RiderBuilder</code> accept new methods without breaking existing call sites.</li>
+</ul>
+<p>These appear in the CHANGELOG under feature additions, not migrations.</p>
 <h2 id="cadence-commitment"><a class="header" href="#cadence-commitment">Cadence commitment</a></h2>
-<p>The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. See <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> for the specific bound and the retroactivity note that scopes when the commitment took effect.</p>
+<p>The stable surface has a bounded break rate; planned majors bundle changes to minimise consumer-side churn. The experimental surface has no such cap. The bound and its scope are spelled out in <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md#cadence-commitment"><code>STABILITY.md</code> § Cadence commitment</a>.</p>
+<h2 id="where-to-look-up-an-items-status"><a class="header" href="#where-to-look-up-an-items-status">Where to look up an item’s status</a></h2>
+<p>Two sources, in order of recency:</p>
+<ol>
+<li><strong>The crate-root module table</strong> in the <a href="https://docs.rs/elevator-core"><code>elevator-core</code> rustdoc</a>. Every module row carries a Stability column; this is the live snapshot.</li>
+<li><strong><code>STABILITY.md</code></strong> in the repo. The History section there records when items graduated from experimental to stable, which the rustdoc table does not.</li>
+</ol>
 <h2 id="next-steps-23"><a class="header" href="#next-steps-23">Next steps</a></h2>
 <ul>
-<li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, and per-item classification.</li>
+<li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, graduation history.</li>
 <li><a href="#testing-your-simulation">Testing Your Simulation</a> — the invariants you can rely on under the stability policy.</li>
+<li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> — the determinism contract that anchors what “stable behaviour” means.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="bevy-integration"><a class="header" href="#bevy-integration">Bevy Integration</a></h1>
@@ -5030,39 +5051,7 @@ pair, and use the <code>future-binding</code> filter to find work to pick up.</l
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="host-binding-parity"><a class="header" href="#host-binding-parity">Host Binding Parity</a></h1>
-<p>This page documents the <em>cross-host</em> contract: the surfaces that every
-binding crate (FFI, wasm, gdext, Bevy, GameMaker) is expected to
-expose, the agreed semantics, and the per-host status. It is the
-counterpart to <a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — the
-manifest tracks every <code>Simulation::*</code> method one-by-one, while this
-page tracks the <em>non-method</em> concerns that nonetheless need to behave
-consistently across hosts.</p>
-<p>This is the foundation referenced in issue #655: “Add HostBinding
-abstraction trait shared across binding crates”. The work itself is
-incremental — the <em>contract</em> lives here, while individual host
-crates migrate at their own pace as new PRs land.</p>
-<h2 id="why-a-separate-parity-document"><a class="header" href="#why-a-separate-parity-document">Why a separate parity document</a></h2>
-<p><code>bindings.toml</code> enumerates <code>pub fn</code> on <code>impl Simulation</code>. But several
-host concerns aren’t <code>Simulation</code> methods:</p>
-<ul>
-<li><strong>Snapshot encode/decode</strong> — each host shapes its own DTO from the
-shared <code>Simulation::snapshot</code> data; the <em>fields</em> should match
-even though the <em>envelope</em> differs (<code>#[repr(C)]</code> for FFI,
-<code>Tsify</code> for wasm, Godot <code>Variant</code> dict for gdext).</li>
-<li><strong>Event drain</strong> — the <em>core</em> method is <code>drain_events()</code>, but the
-host wrappers around it (lazy buffering, severity classification,
-borrowed-pointer lifetimes) live entirely in each host crate.</li>
-<li><strong>Error marshalling</strong> — <code>EvStatus</code>, <code>JsValue</code>, Godot exceptions,
-Bevy panics; same failure modes, different wire shapes.</li>
-<li><strong>ABI version</strong> — the FFI <code>EV_ABI_VERSION</code> constant has no direct
-analogue in wasm/gdext, but consumers still need <em>something</em> to
-pin against.</li>
-<li><strong>Log drain</strong> — convenience surface on top of the event stream;
-parity work landed in #656.</li>
-</ul>
-<p>These cross-host concerns previously had no canonical home. Without
-one, “fully supported in language X” drifts silently — exactly the
-risk that motivated <code>bindings.toml</code> for the per-method surface.</p>
+<p>This page is the cross-host contract for <code>elevator-core</code>’s binding crates: the non-method surfaces that every host (FFI, wasm, gdext, Bevy, GameMaker) is expected to expose, and the agreed semantics for each. It is the counterpart to the <a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — the manifest tracks every <code>Simulation::*</code> method one-by-one; this page tracks the snapshot, event, error, and ABI-version concerns that don’t live on <code>Simulation</code> but still have to align across hosts.</p>
 <h2 id="the-parity-surface"><a class="header" href="#the-parity-surface">The parity surface</a></h2>
 <div class="table-wrapper">
 <table>
@@ -5099,122 +5088,56 @@ callable is unsafe to retry without recreating the handle.</li>
 PRs will lift these to a shared module so wasm / gdext error
 constructors map their underlying language errors onto the same
 classification.</p>
-<h2 id="migration-plan-multi-pr"><a class="header" href="#migration-plan-multi-pr">Migration plan (multi-PR)</a></h2>
-<p>The work below is intentionally incremental — each step is small,
-ships independently, and keeps every host runnable.</p>
-<ol>
-<li>✅ <strong>Shared log severity constants</strong> (this PR) — <code>LEVEL_TRACE</code>
-… <code>LEVEL_ERROR</code> lifted from FFI’s hardcoded values into
-<code>elevator_core::events::log_format</code>. Hosts that surface
-formatted log records reference the constants instead of
-knowing “1 means debug” out-of-band.</li>
-<li>✅ <strong>Cross-host log drain</strong> (#656) — wasm and gdext expose
-<code>peekLogMessages</code> / <code>peek_log_messages</code> mirroring FFI’s
-<code>ev_drain_log_messages</code>. Bevy is intentionally skipped because
-it has native <code>tracing</code>.</li>
-<li>✅ <strong>Shared error classification</strong> —
-<code>elevator_core::host_error::ErrorKind</code> is the cross-host failure
-vocabulary (<code>NullArg</code>, <code>InvalidUtf8</code>, <code>ConfigLoad</code>,
-<code>ConfigParse</code>, <code>BuildFailed</code>, <code>NotFound</code>, <code>InvalidArg</code>,
-<code>Panic</code>). FFI provides <code>impl From&lt;ErrorKind&gt; for EvStatus</code>; new
-FFI / wasm / gdext call sites should produce errors via the
-shared kind so the integer / string / Variant representations
-stay aligned. Adoption across existing call sites is
-intentionally incremental — the shared enum is the foothold,
-not a flag-day migration.</li>
-<li>✅ <strong>Snapshot field-set guard</strong> — a tripwire test
-(<code>elevator_ffi::tests::snapshot_dto_field_names_locked</code>) locks
-the field names on every snapshot DTO (<code>EvElevatorView</code>,
-<code>EvStopView</code>, <code>EvRiderView</code>, <code>EvMetricsView</code>, <code>EvFrame</code>) using
-the existing <code>MultiHostLayout::fields()</code> registry. When a field
-is added, removed, or renamed, the test fails and walks the
-developer through the parity update sequence (wasm DTO → gdext
-dict → bump <code>HOST_PROTOCOL_VERSION</code> if breaking → update the
-locked list). Catches the silent-drift failure mode without
-requiring CI access to wasm / gdext crate internals.</li>
-<li>✅ <strong>Wire-version constant</strong> — <code>elevator_core::HOST_PROTOCOL_VERSION</code>
-is the single source of truth. wasm’s <code>ABI_VERSION</code> and gdext’s
-<code>ABI_VERSION</code> reference it directly at compile time; FFI keeps a
-literal <code>EV_ABI_VERSION</code> (so cbindgen can resolve it into the
-generated C header) plus a <code>const _: () = assert!(...)</code> guard
-that traps any drift. <code>scripts/check-abi-pins.sh</code> was extended to
-verify both literal and reference shapes.</li>
-<li>✅ <strong><code>HostBinding</code> pattern (closing decision: documented
-contract, no Rust trait)</strong> — see <a href="#close-out-trait-or-pattern">Close-out</a>
-below. The trait shape was rejected after steps 3-5 made the
-per-host divergence concrete; the pattern landed instead is
-<em>this document plus per-host adapter modules in core</em>
-(<code>events::log_format</code>, <code>host_error::ErrorKind</code>, the
-<code>HOST_PROTOCOL_VERSION</code> constant), backed by tripwire tests
-in the FFI crate.</li>
-</ol>
-<p>All six steps are complete. Future per-method coverage continues
-to land via <a href="#binding-coverage-manifest"><code>bindings.toml</code></a>; cross-host
-concerns track in the parity table above.</p>
-<h2 id="close-out-trait-or-pattern"><a class="header" href="#close-out-trait-or-pattern">Close-out: trait or pattern?</a></h2>
-<p>Steps 3-5 deliberately exercised the cross-host vocabulary by
-landing real, observable changes in three host crates. With those
-in main, the trait-vs-pattern question that step 6 deferred has
-a clear answer: <strong>shared types in <code>elevator-core</code>, hand-written
-per-host adapters, no Rust trait</strong>. The reasoning, in plain
-terms:</p>
-<ol>
-<li>
-<p><strong>The host I/O types are too divergent for a useful trait.</strong>
-FFI returns <code>EvStatus</code> integers and <code>*const T</code> slice pointers.
-wasm returns <code>tsify</code>-derived discriminated unions over
-<code>JsValue</code>. gdext returns Godot <code>Variant</code> dictionaries. Bevy
-emits ECS messages. A trait abstracting these would need
-associated types for <em>every</em> return shape — at which point
-each host’s <code>impl</code> is a thicker translation layer than the
-direct hand-written adapter it replaces.</p>
-</li>
-<li>
-<p><strong>The actual sharing happens at the data layer, not the
-method layer.</strong> <code>events::log_format::format_event</code>,
-<code>host_error::ErrorKind</code>, and <code>HOST_PROTOCOL_VERSION</code> are
-plain values / enums — every host already references them
-directly. There is no place a <code>trait HostBinding { fn ev_status(...) }</code> would slot in without re-introducing the
-per-host divergence we just removed.</p>
-</li>
-<li>
-<p><strong>The tripwire pattern (step 4) covers the drift risk a
-trait would have caught.</strong> <code>snapshot_dto_field_names_locked</code>
-forces a deliberate sync when a snapshot DTO changes, with
-the parity-update sequence spelled out in the test’s doc
-comment. That achieves the trait’s main value (preventing
-silent drift) without the type gymnastics.</p>
-</li>
-</ol>
-<p>So <code>HostBinding</code> lands as: this document + the shared types in
-core + tripwire tests. Adding a Rust trait later is still
-possible if a concrete need surfaces, but speculatively
-introducing one would constrain future host evolution without
-buying real safety.</p>
 <h2 id="next-steps-29"><a class="header" href="#next-steps-29">Next steps</a></h2>
 <ul>
-<li>Read <a href="#binding-coverage-manifest">Binding Coverage Manifest</a> for the
-per-method coverage view that complements this page.</li>
-<li>Pick a host you ship against in <a href="#using-the-bindings">Using the Bindings</a>
-and check the relevant column above for known gaps.</li>
-<li>The umbrella issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> is closed; this document is the
-ongoing tracker for cross-host parity changes. Edit it directly
-when a new concern appears or an existing one shifts.</li>
+<li><a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — the per-method coverage view that complements this page.</li>
+<li><a href="#using-the-bindings">Using the Bindings</a> — host-by-host consumer guide; cross-reference the parity table above for known gaps in the host you ship against.</li>
+<li><a href="#supporting-crates">Supporting Crates</a> — the build-time crates (<code>elevator-layout-*</code>, <code>elevator-contract</code>) that enforce the parity contract in CI.</li>
 </ul>
-<h2 id="cross-references"><a class="header" href="#cross-references">Cross-references</a></h2>
+<h2 id="history"><a class="header" href="#history">History</a></h2>
+<p>The contract above is the result of incremental work across several
+PRs, originally tracked under issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> (“Add HostBinding
+abstraction trait shared across binding crates”). The umbrella issue
+is closed; further cross-host parity changes edit this page directly
+instead of opening a new umbrella.</p>
+<details>
+<summary>Migration plan (all complete)</summary>
+<p>The work was intentionally incremental — each step shipped
+independently and kept every host runnable.</p>
+<ol>
+<li><strong>Shared log severity constants</strong> — <code>LEVEL_TRACE</code> … <code>LEVEL_ERROR</code> lifted from FFI’s hardcoded values into <code>elevator_core::events::log_format</code>. Hosts that surface formatted log records reference the constants instead of knowing “1 means debug” out-of-band.</li>
+<li><strong>Cross-host log drain</strong> (<a href="https://github.com/andymai/elevator-core/issues/656">#656</a>) — wasm and gdext expose <code>peekLogMessages</code> / <code>peek_log_messages</code> mirroring FFI’s <code>ev_drain_log_messages</code>. Bevy is intentionally skipped because it has native <code>tracing</code>.</li>
+<li><strong>Shared error classification</strong> — <code>elevator_core::host_error::ErrorKind</code> is the cross-host failure vocabulary (<code>NullArg</code>, <code>InvalidUtf8</code>, <code>ConfigLoad</code>, <code>ConfigParse</code>, <code>BuildFailed</code>, <code>NotFound</code>, <code>InvalidArg</code>, <code>Panic</code>). FFI provides <code>impl From&lt;ErrorKind&gt; for EvStatus</code>; new FFI / wasm / gdext call sites should produce errors via the shared kind so the integer / string / Variant representations stay aligned. Adoption across existing call sites is intentionally incremental — the shared enum is the foothold, not a flag-day migration.</li>
+<li><strong>Snapshot field-set guard</strong> — a tripwire test (<code>elevator_ffi::tests::snapshot_dto_field_names_locked</code>) locks the field names on every snapshot DTO (<code>EvElevatorView</code>, <code>EvStopView</code>, <code>EvRiderView</code>, <code>EvMetricsView</code>, <code>EvFrame</code>) using the existing <code>MultiHostLayout::fields()</code> registry. When a field is added, removed, or renamed, the test fails and walks the developer through the parity update sequence (wasm DTO → gdext dict → bump <code>HOST_PROTOCOL_VERSION</code> if breaking → update the locked list). Catches the silent-drift failure mode without requiring CI access to wasm / gdext crate internals.</li>
+<li><strong>Wire-version constant</strong> — <code>elevator_core::HOST_PROTOCOL_VERSION</code> is the single source of truth. wasm’s <code>ABI_VERSION</code> and gdext’s <code>ABI_VERSION</code> reference it directly at compile time; FFI keeps a literal <code>EV_ABI_VERSION</code> (so cbindgen can resolve it into the generated C header) plus a <code>const _: () = assert!(...)</code> guard that traps any drift. <code>scripts/check-abi-pins.sh</code> verifies both literal and reference shapes.</li>
+<li><strong><code>HostBinding</code> pattern</strong> — see the close-out section below.</li>
+</ol>
+</details>
+<details>
+<summary>Close-out: documented contract, no Rust trait</summary>
+<p>Steps 3–5 deliberately exercised the cross-host vocabulary by landing
+real, observable changes in three host crates. With those in main,
+the trait-vs-pattern question that step 6 deferred had a clear
+answer: <strong>shared types in <code>elevator-core</code>, hand-written per-host
+adapters, no Rust trait</strong>. The reasoning:</p>
+<ol>
+<li><strong>The host I/O types are too divergent for a useful trait.</strong> FFI returns <code>EvStatus</code> integers and <code>*const T</code> slice pointers. wasm returns <code>tsify</code>-derived discriminated unions over <code>JsValue</code>. gdext returns Godot <code>Variant</code> dictionaries. Bevy emits ECS messages. A trait abstracting these would need associated types for <em>every</em> return shape — at which point each host’s <code>impl</code> is a thicker translation layer than the direct hand-written adapter it replaces.</li>
+<li><strong>The actual sharing happens at the data layer, not the method layer.</strong> <code>events::log_format::format_event</code>, <code>host_error::ErrorKind</code>, and <code>HOST_PROTOCOL_VERSION</code> are plain values / enums — every host already references them directly. There is no place a <code>trait HostBinding { fn ev_status(...) }</code> would slot in without re-introducing the per-host divergence we just removed.</li>
+<li><strong>The tripwire pattern (step 4) covers the drift risk a trait would have caught.</strong> <code>snapshot_dto_field_names_locked</code> forces a deliberate sync when a snapshot DTO changes, with the parity-update sequence spelled out in the test’s doc comment. That achieves the trait’s main value (preventing silent drift) without the type gymnastics.</li>
+</ol>
+<p>So <code>HostBinding</code> landed as: this document + the shared types in core</p>
 <ul>
-<li><a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — per-method
-coverage in <code>bindings.toml</code>.</li>
-<li><a href="#using-the-bindings">Using the Bindings</a> — host-by-host
-consumer guide.</li>
-<li>Issue <a href="https://github.com/andymai/elevator-core/issues/655">#655</a> — the umbrella issue, closed by this document’s
-step 6. Future cross-host parity work edits this page directly
-instead of opening a new umbrella.</li>
-<li>Issue <a href="https://github.com/andymai/elevator-core/issues/656">#656</a> — log-drain parity, completed.</li>
+<li>tripwire tests. Adding a Rust trait later is still possible if a
+concrete need surfaces, but speculatively introducing one would
+constrain future host evolution without buying real safety.</li>
 </ul>
+</details>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="integration-gallery"><a class="header" href="#integration-gallery">Integration Gallery</a></h1>
-<p><code>elevator-core</code> ships several supporting crates that don’t surface a runtime API of their own — they exist to keep the binding crates honest, to drive cross-host code generation, or to validate snapshot determinism. This page is the narrative index for those crates; for hands-on integration with a host language see <a href="#using-the-bindings">Using the Bindings</a>.</p>
+<h1 id="supporting-crates"><a class="header" href="#supporting-crates">Supporting Crates</a></h1>
+<p>The workspace ships a handful of crates that don’t surface a runtime API to consumers — they exist to keep the host bindings in sync, to drive cross-host code generation, or to validate snapshot determinism. This page is the narrative index for those crates.</p>
+<blockquote>
+<p>Looking for a host crate (Bevy, wasm, FFI, gdext) you can actually depend on? See <a href="#using-the-bindings">Using the Bindings</a>. The crates below are about <em>building and validating</em> those hosts, not consuming them.</p>
+</blockquote>
 <h2 id="elevator-tui"><a class="header" href="#elevator-tui">elevator-tui</a></h2>
 <p>A terminal viewer with pause / step / strategy-swap controls, doubling as a headless smoke runner. The TUI never mutates state outside the simulation it owns, so it is also the canonical example of a “read-only host” — its column in <code>bindings.toml</code> shows the inverse pattern from a write-heavy host like GMS.</p>
 <pre><code class="language-bash">cargo run -p elevator-tui                # interactive viewer
@@ -5243,19 +5166,11 @@ wasm-pack test --headless --firefox crates/elevator-wasm  # wasm-side run
 <pre><code class="language-bash">cargo run -p elevator-layout-codegen
 </code></pre>
 <p>CI runs this in dry-run mode and fails if the output drifts from what’s checked in, so a Rust-side struct edit can’t ship without the host bindings being regenerated in the same PR.</p>
-<h2 id="see-also"><a class="header" href="#see-also">See also</a></h2>
-<ul>
-<li><a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — <code>bindings.toml</code> policy.</li>
-<li><a href="#using-the-bindings">Using the Bindings</a> — host-facing usage docs for wasm / FFI / gdext / GameMaker.</li>
-<li><a href="#stability-and-versioning">Stability and Versioning</a> — how API breaks are signalled across these crates.</li>
-</ul>
 <h2 id="next-steps-30"><a class="header" href="#next-steps-30">Next steps</a></h2>
 <ul>
-<li>For host-language integration with a runtime API surface, head to
-<a href="#using-the-bindings">Using the Bindings</a> — the gallery covers the
-<em>supporting</em> crates rather than the binding crates themselves.</li>
-<li>For the determinism contract that <code>elevator-contract</code> checksums
-enforce, read <a href="#snapshots-and-determinism">Snapshots and Determinism</a>.</li>
+<li><a href="#using-the-bindings">Using the Bindings</a> — host-language integration with a runtime API surface (the page that complements this one).</li>
+<li><a href="#snapshots-and-determinism">Snapshots and Determinism</a> — the determinism contract that <code>elevator-contract</code> checksums enforce.</li>
+<li><a href="#binding-coverage-manifest">Binding Coverage Manifest</a> — the per-method <code>bindings.toml</code> policy these crates help enforce.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="performance"><a class="header" href="#performance">Performance</a></h1>
