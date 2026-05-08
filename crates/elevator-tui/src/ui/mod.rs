@@ -313,12 +313,13 @@ struct OverviewRects {
     metrics: Option<PaneBox>,
 }
 
-/// Threshold (in rows) below which the metrics panel collapses its
-/// 4-row big-text headline into a single counter line, reclaiming
-/// 5 rows for the events panel above. 32 rows is roughly "average
-/// terminal" — anything shorter starts to feel cramped with the
-/// glyph headline taking a quarter of the right column.
-const COMPACT_LAYOUT_THRESHOLD: u16 = 32;
+/// Body-height threshold (in rows) below which the metrics panel
+/// collapses its 4-row big-text headline. The body excludes the
+/// 1-row title bar and 1-row footer, so this maps to a terminal
+/// height of 32 (= 30 body rows + 2 chrome). Anything shorter
+/// starts to feel cramped with the glyph headline taking a
+/// quarter of the right column.
+const COMPACT_LAYOUT_THRESHOLD: u16 = 30;
 
 /// Right column = Dispatch / Events / Traffic / Metrics stacked.
 fn draw_overview(
