@@ -277,9 +277,7 @@ impl WasmSim {
     /// Step the simulation forward `n` ticks.
     #[wasm_bindgen(js_name = stepMany)]
     pub fn step_many(&mut self, n: u32) {
-        for _ in 0..n {
-            self.inner.step();
-        }
+        self.inner.step_many(n);
     }
 
     /// Tick duration in seconds.

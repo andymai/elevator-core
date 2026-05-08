@@ -357,6 +357,32 @@ impl super::Simulation {
         self.advance_tick();
     }
 
+    /// Advance the simulation by `n` ticks.
+    ///
+    /// Equivalent to calling [`step`](Self::step) `n` times. Hosts driving
+    /// the sim across an FFI / wasm boundary should prefer this over a
+    /// per-tick loop on their side: keeping the loop in Rust avoids
+    /// per-tick boundary crossings that add up at scale.
+    ///
+    /// Events from each tick accumulate in the internal queue; consumers
+    /// call [`drain_events`](Self::drain_events) once after the batch to
+    /// read the cumulative stream.
+    ///
+    /// `n == 0` is a no-op.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// sim.step_many(60);
+    /// assert_eq!(sim.current_tick(), 60);
+    /// ```
+    pub fn step_many(&mut self, n: u32) {
+        for _ in 0..n {
+            self.step();
+        }
+    }
+
     /// Step the simulation until every rider reaches a terminal phase
     /// (`Arrived`, `Abandoned`, or `Resident`), draining events each
     /// tick so event-driven metrics stay up to date.

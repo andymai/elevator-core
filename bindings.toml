@@ -110,10 +110,20 @@ bevy = "todo:plugin-layer"
 [[methods]]
 name = "step"
 category = "lifecycle"
-wasm = "stepMany"  # exposes batched step, internally calls step in loop
+wasm = "skip:exposed via stepMany batch"
 ffi  = "ev_sim_step"
 tui  = "auto_tick_or_dot_hotkey"
 gms  = "ev_sim_step"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
+name = "step_many"
+category = "lifecycle"
+wasm = "stepMany"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
 gdext = "todo:future-binding"
 bevy = "todo:plugin-layer"
 
