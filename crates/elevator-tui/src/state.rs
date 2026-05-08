@@ -29,6 +29,66 @@ pub enum RightPanel {
     DrillDown,
 }
 
+/// Which panel currently has keyboard focus.
+///
+/// Tab cycles forward through the visible panes, Shift+Tab cycles
+/// backward. The focused panel gets an accent-colored bold border;
+/// non-focused panels render with the dim border tint. Focus persists
+/// while the right column toggles between Overview and `DrillDown` —
+/// when `DrillDown` is active the right-column entries are simply not
+/// painted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusedPane {
+    /// Left-column shaft view.
+    Shaft,
+    /// Per-car dispatch summary in the right column.
+    Dispatch,
+    /// Filtered rolling event log in the right column.
+    Events,
+    /// Aggregate-health counters and sparklines in the right column.
+    Metrics,
+    /// Arrivals/sec sparkline in the right column.
+    Traffic,
+}
+
+impl FocusedPane {
+    /// Step to the next pane in cycle order.
+    #[must_use]
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Shaft => Self::Dispatch,
+            Self::Dispatch => Self::Events,
+            Self::Events => Self::Metrics,
+            Self::Metrics => Self::Traffic,
+            Self::Traffic => Self::Shaft,
+        }
+    }
+
+    /// Step to the previous pane in cycle order.
+    #[must_use]
+    pub const fn prev(self) -> Self {
+        match self {
+            Self::Shaft => Self::Traffic,
+            Self::Dispatch => Self::Shaft,
+            Self::Events => Self::Dispatch,
+            Self::Metrics => Self::Events,
+            Self::Traffic => Self::Metrics,
+        }
+    }
+
+    /// Lowercase short label, used in the status bar and panel titles.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Shaft => "shaft",
+            Self::Dispatch => "dispatch",
+            Self::Events => "events",
+            Self::Metrics => "metrics",
+            Self::Traffic => "traffic",
+        }
+    }
+}
+
 /// A captured event plus the tick it was drained on.
 ///
 /// Tagged with the drain tick because [`Event`] variants don't all
@@ -121,6 +181,8 @@ pub struct AppState {
     pub follow_focused: bool,
     /// Right-column mode: overview vs. per-car drill-down.
     pub right_panel: RightPanel,
+    /// Currently focused pane (accent border, mode-aware footer keys).
+    pub focused_pane: FocusedPane,
     /// Bounded ring of drained events (newest at end).
     pub event_log: std::collections::VecDeque<LoggedEvent>,
     /// Cap for `event_log`.
@@ -172,6 +234,7 @@ impl AppState {
             focused_car_idx: 0,
             follow_focused: false,
             right_panel: RightPanel::Overview,
+            focused_pane: FocusedPane::Shaft,
             event_log: std::collections::VecDeque::with_capacity(EVENT_LOG_CAP),
             event_log_cap: EVENT_LOG_CAP,
             wait_sparkline: Sparkline::new(SPARKLINE_CAP),

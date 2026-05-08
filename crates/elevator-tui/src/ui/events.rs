@@ -8,7 +8,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, List, ListItem};
 
-use crate::state::AppState;
+use crate::state::{AppState, FocusedPane};
 use crate::ui::{palette, shaft};
 
 /// Render the events panel.
@@ -16,10 +16,11 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let cars: Vec<_> = shaft::cars_iter(sim).collect();
     let focused = cars.get(state.focused_car_idx).map(|c| c.id);
 
+    let pane_focused = state.focused_pane == FocusedPane::Events;
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .border_style(palette::border_style(pane_focused))
         .title(super::bracketed_title(
             "events",
             Some(filter_summary(state, focused)),
