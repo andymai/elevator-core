@@ -15,7 +15,7 @@ use crate::ui::palette;
 
 /// Render a centered help modal over `area`.
 pub fn draw(frame: &mut Frame<'_>, area: Rect) {
-    let modal = super::centered_rect(area, 72, 30);
+    let modal = super::centered_rect(area, 72, 36);
     frame.render_widget(Clear, modal);
 
     let block = Block::default()
@@ -42,6 +42,12 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect) {
         kv("Enter", "toggle right panel: overview ↔ drill-down"),
         kv("Esc", "close drill-down or this overlay"),
         kv("m", "toggle shaft layout: index ↔ distance"),
+        Line::from(""),
+        section("Events pane (when focused)"),
+        kv("j / k", "scroll one event older / newer"),
+        kv("C-f / C-b", "half-page scroll"),
+        kv("g g / G", "jump to newest / oldest event"),
+        kv("/", "filter events (Enter commit, Esc cancel)"),
         Line::from(""),
         section("Filters & Snapshots"),
         kv("1..7", "toggle event categories (1 Elev, 2 Rdr, 3 Dsp,"),

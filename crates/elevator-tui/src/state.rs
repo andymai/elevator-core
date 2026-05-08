@@ -148,6 +148,27 @@ impl Sparkline {
     }
 }
 
+/// Vim-style scroll motions the events pane responds to.
+///
+/// The motions are intentionally pane-agnostic — once the metrics
+/// or drilldown panes pick up scrollable content (PR4) the same
+/// helper can drive their offsets too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScrollMotion {
+    /// `j` / Down — one line older.
+    Down,
+    /// `k` / Up — one line newer.
+    Up,
+    /// `Ctrl+f` / `Ctrl+d` — half page older.
+    HalfPageDown,
+    /// `Ctrl+b` / `Ctrl+u` — half page newer.
+    HalfPageUp,
+    /// `gg` — newest event.
+    Top,
+    /// `G` — oldest visible event (clamped at render).
+    Bottom,
+}
+
 /// Mutually-exclusive UI overlays the viewer can show on top of the
 /// active panels.
 ///
@@ -164,7 +185,14 @@ pub enum UiOverlay {
 }
 
 /// Top-level interactive app state.
+///
+/// `clippy::struct_excessive_bools` triggers because `paused`,
+/// `follow_focused`, `gg_pending`, and `quit` are all distinct viewer
+/// modes — each is genuinely independent and refactoring into a
+/// bitflag struct would just add ceremony without making the state
+/// machine clearer.
 #[derive(Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AppState {
     /// Sim is paused (no auto-stepping). `space` toggles, `.` single-steps.
     pub paused: bool,
@@ -218,6 +246,24 @@ pub struct AppState {
     /// "never both `true`" invariant; the enum makes the contract
     /// explicit.
     pub overlay: Option<UiOverlay>,
+    /// Scroll offset (in events, newest-first) into the events panel.
+    /// `0` keeps the newest event glued to the top; positive values
+    /// scroll older events into view. Vim-style `j` / `k` step by one;
+    /// `Ctrl+f` / `Ctrl+b` step by `EVENTS_HALF_PAGE`; `gg` / `G` jump
+    /// to bounds.
+    pub events_scroll: usize,
+    /// Committed substring filter applied to the events log
+    /// (case-insensitive match against the rendered event body). Empty
+    /// = no filter. `/` opens an input that writes here on Enter.
+    pub events_filter: String,
+    /// In-progress filter input. `Some` means the user is typing a
+    /// filter (footer becomes a `/ {text}` prompt and most other keys
+    /// are routed to the input). `Enter` commits to `events_filter`,
+    /// `Esc` cancels.
+    pub pending_filter: Option<String>,
+    /// `gg` chord state — `true` after a `g` keypress, cleared on the
+    /// next key. The second `g` jumps the active scroll to the top.
+    pub gg_pending: bool,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -246,6 +292,10 @@ impl AppState {
             status: None,
             status_seq: 0,
             overlay: Some(UiOverlay::Welcome),
+            events_scroll: 0,
+            events_filter: String::new(),
+            pending_filter: None,
+            gg_pending: false,
             quit: false,
         }
     }
@@ -317,6 +367,59 @@ impl AppState {
             }
             follow.is_none_or(|target| event_touches(&logged.event, target))
         })
+    }
+
+    /// Half-page step used by `Ctrl+f` / `Ctrl+b`. Tuned to roughly
+    /// match a typical events-panel half-height; the renderer clamps
+    /// the resulting scroll offset to the available content.
+    pub const EVENTS_HALF_PAGE: usize = 5;
+
+    /// Apply a vim-style scroll motion to `events_scroll`. Clamping
+    /// against the live event count happens at render time; this
+    /// helper just performs the arithmetic so handlers can stay terse.
+    pub const fn scroll_events(&mut self, motion: ScrollMotion) {
+        self.events_scroll = match motion {
+            ScrollMotion::Down => self.events_scroll.saturating_add(1),
+            ScrollMotion::Up => self.events_scroll.saturating_sub(1),
+            ScrollMotion::HalfPageDown => self.events_scroll.saturating_add(Self::EVENTS_HALF_PAGE),
+            ScrollMotion::HalfPageUp => self.events_scroll.saturating_sub(Self::EVENTS_HALF_PAGE),
+            ScrollMotion::Top => 0,
+            ScrollMotion::Bottom => usize::MAX,
+        };
+    }
+
+    /// Begin filter-input mode, pre-filling the buffer with the
+    /// currently-committed filter so a user editing an existing query
+    /// doesn't have to retype it.
+    pub fn open_filter_input(&mut self) {
+        self.pending_filter = Some(self.events_filter.clone());
+    }
+
+    /// Append a typed character to the in-progress filter input.
+    pub fn filter_input_push(&mut self, c: char) {
+        if let Some(buf) = self.pending_filter.as_mut() {
+            buf.push(c);
+        }
+    }
+
+    /// Backspace one char from the in-progress filter input.
+    pub fn filter_input_backspace(&mut self) {
+        if let Some(buf) = self.pending_filter.as_mut() {
+            buf.pop();
+        }
+    }
+
+    /// Commit the in-progress filter, leaving filter-input mode.
+    pub fn filter_input_commit(&mut self) {
+        if let Some(text) = self.pending_filter.take() {
+            self.events_filter = text;
+        }
+    }
+
+    /// Cancel the in-progress filter, leaving filter-input mode and
+    /// keeping the previously-committed filter intact.
+    pub fn filter_input_cancel(&mut self) {
+        self.pending_filter = None;
     }
 
     /// Set a transient status banner.
