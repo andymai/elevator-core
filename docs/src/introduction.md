@@ -19,7 +19,7 @@ The library models stops at arbitrary distances along a shaft axis, not uniform 
 |---|---|
 | Office building with 5 floors | Stops at 0, 4, 8, 12, 16 |
 | Skyscraper with sky lobbies | Multi-group dispatch with express zones |
-| Space elevator / orbital tether | Stops at 0 and 1,000,000 — same engine |
+| Space elevator / orbital tether | Stops at 0 and 1,000 — same engine |
 | Player-controlled car | `ServiceMode::Manual` + direct velocity commands |
 | Custom AI dispatch | Implement `DispatchStrategy::rank()` |
 | VIP passengers, cargo, robots | Extension storage — attach any typed data |

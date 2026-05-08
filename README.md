@@ -72,7 +72,7 @@ cargo run --example basic -p elevator-core   # try it now
 |---|---|
 | Office building with 5 floors | Stops at 0, 4, 8, 12, 16 |
 | Skyscraper with sky lobbies | Multi-group dispatch, express zones |
-| Space elevator | Stops at 0 and 1,000,000 — same engine |
+| Space elevator | Stops at 0 and 1,000 — same engine |
 | Player-controlled car | `ServiceMode::Manual` + velocity commands |
 | Custom AI dispatch | Implement `DispatchStrategy::rank()` |
 | VIP passengers, cargo, robots | Extension storage — attach any data |
