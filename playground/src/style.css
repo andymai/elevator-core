@@ -1069,17 +1069,23 @@
   .metric-spark-dot {
     fill: var(--text-tertiary);
   }
-  .metric-row[data-verdict="win"] .metric-spark path,
-  .metric-row[data-verdict="win"] .metric-spark-dot {
+  /* Path is stroked-only (the base rule sets `fill: none`); only the
+   * trailing-dot circle picks up `fill`. The previous combined
+   * selector applied `fill: var(--ok|bad)` to both, which filled the
+   * area under the trace. */
+  .metric-row[data-verdict="win"] .metric-spark path {
     stroke: var(--ok);
     stroke: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
+  }
+  .metric-row[data-verdict="win"] .metric-spark-dot {
     fill: var(--ok);
     fill: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
   }
-  .metric-row[data-verdict="lose"] .metric-spark path,
-  .metric-row[data-verdict="lose"] .metric-spark-dot {
+  .metric-row[data-verdict="lose"] .metric-spark path {
     stroke: var(--bad);
     stroke: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
+  }
+  .metric-row[data-verdict="lose"] .metric-spark-dot {
     fill: var(--bad);
     fill: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
   }
