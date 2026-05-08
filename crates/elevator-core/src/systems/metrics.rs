@@ -154,12 +154,14 @@ fn refresh_traffic_detector(world: &mut World, tick: u64) {
     let destinations = world
         .resource::<crate::arrival_log::DestinationLog>()
         .unwrap_or(&destinations_fallback);
-    let mut stops: Vec<_> = world
-        .iter_stops()
-        .map(|(eid, s)| (eid, s.position))
-        .collect();
-    stops.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-    let stop_ids: Vec<crate::entity::EntityId> = stops.into_iter().map(|(eid, _)| eid).collect();
+    // Stops in declaration order: `iter_stops()` walks the world's
+    // SecondaryMap by ascending `EntityId`, and `Simulation::new` spawns
+    // stops in the order they appear in `BuildingConfig::stops`. The
+    // detector treats `stops[0]` as the lobby; sorting by position would
+    // hand it whichever stop sits lowest on the shaft (a basement) in
+    // any building with below-grade floors, suppressing UpPeak/DownPeak
+    // detection entirely. The convention is "declare the lobby first."
+    let stop_ids: Vec<crate::entity::EntityId> = world.iter_stops().map(|(eid, _)| eid).collect();
     detector.update(arrivals, destinations, tick, &stop_ids);
     world.insert_resource(detector);
 }
