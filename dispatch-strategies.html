@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-32ed1560.js";
+            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -185,6 +185,16 @@
 <p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the built-in strategies, and how to choose between them.</p>
 <h2 id="how-dispatch-works"><a class="header" href="#how-dispatch-works">How dispatch works</a></h2>
 <p>Each tick, the Dispatch phase runs four steps:</p>
+<pre class="mermaid">flowchart LR
+    demand["per-stop demand&lt;br/&gt;(waiting riders,&lt;br/&gt;weights, wait times)"] --&gt; manifest["DispatchManifest"]
+    riding["riding riders&lt;br/&gt;(per destination)"] --&gt; manifest
+    cars["idle / stopped&lt;br/&gt;elevators per group"] --&gt; rank
+    manifest --&gt; rank["DispatchStrategy::rank()&lt;br/&gt;scores (car, stop) pairs"]
+    rank --&gt; hungarian["Hungarian&lt;br/&gt;(Kuhn-Munkres)&lt;br/&gt;solver"]
+    hungarian --&gt; decision["DispatchDecision&lt;br/&gt;per elevator:&lt;br/&gt;GoToStop(s) or Idle"]
+    decision --&gt; phase["ElevatorPhase update&lt;br/&gt;+ direction indicator"]
+</pre>
+
 <ol>
 <li><strong>Build manifest.</strong> The simulation collects per-stop demand (waiting riders, weights, wait times) and per-destination riding riders into a <code>DispatchManifest</code>.</li>
 <li><strong>Collect idle elevators.</strong> Each group gathers its idle/stopped elevators and their current positions.</li>
