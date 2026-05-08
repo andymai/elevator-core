@@ -181,6 +181,69 @@ pub const SNAPSHOT_INTERVAL_TICKS: u64 = 30;
 /// Capacity of the ring; oldest entries drop when full.
 pub const SNAPSHOT_RING_CAP: usize = 30;
 
+/// Last-rendered bounding box for one pane, in terminal cells.
+/// State holds a plain tuple so it doesn't need a ratatui dep — the
+/// renderer is the only place that constructs these.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PaneBox {
+    /// Inclusive left column.
+    pub x: u16,
+    /// Inclusive top row.
+    pub y: u16,
+    /// Width in cells (border-inclusive).
+    pub w: u16,
+    /// Height in cells (border-inclusive).
+    pub h: u16,
+}
+
+impl PaneBox {
+    /// `true` when the cell at `(col, row)` lies inside this box.
+    #[must_use]
+    pub const fn contains(&self, col: u16, row: u16) -> bool {
+        col >= self.x
+            && col < self.x.saturating_add(self.w)
+            && row >= self.y
+            && row < self.y.saturating_add(self.h)
+    }
+}
+
+/// Most recently rendered bounding boxes for each focusable pane.
+/// `None` for a pane means it wasn't on screen this frame.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PaneRects {
+    /// Left-column shaft view bounds.
+    pub shaft: Option<PaneBox>,
+    /// Dispatch panel bounds (right column).
+    pub dispatch: Option<PaneBox>,
+    /// Events panel bounds (right column).
+    pub events: Option<PaneBox>,
+    /// Metrics panel bounds (right column).
+    pub metrics: Option<PaneBox>,
+    /// Traffic panel bounds (right column).
+    pub traffic: Option<PaneBox>,
+}
+
+impl PaneRects {
+    /// Hit-test a `(col, row)` against every recorded pane and return
+    /// the matching `FocusedPane`. `None` if the click landed in a
+    /// gap or outside any tracked pane (footer, title bar, popup).
+    #[must_use]
+    pub fn hit(&self, col: u16, row: u16) -> Option<FocusedPane> {
+        for (pane, b) in [
+            (FocusedPane::Shaft, &self.shaft),
+            (FocusedPane::Dispatch, &self.dispatch),
+            (FocusedPane::Events, &self.events),
+            (FocusedPane::Metrics, &self.metrics),
+            (FocusedPane::Traffic, &self.traffic),
+        ] {
+            if b.is_some_and(|b| b.contains(col, row)) {
+                return Some(pane);
+            }
+        }
+        None
+    }
+}
+
 /// Vim-style scroll motions the events pane responds to.
 ///
 /// The motions are intentionally pane-agnostic — once the metrics
@@ -316,6 +379,16 @@ pub struct AppState {
     /// `Esc` cancels. Mutually exclusive with `pending_filter` —
     /// the dispatcher checks both.
     pub pending_command: Option<String>,
+    /// Most recently rendered panel bounding boxes, keyed by pane.
+    /// Populated each frame by `ui::draw` and consumed by the mouse
+    /// handler to map a click to a focus target. `None` (default)
+    /// values mean the pane wasn't on screen this frame.
+    ///
+    /// Wrapped in [`std::cell::Cell`] so the renderer can write to it
+    /// through a `&AppState` borrow without cascading `&mut` through
+    /// every panel's `draw` signature; `PaneRects: Copy` makes
+    /// `Cell::set` / `Cell::get` cheap.
+    pub pane_rects: std::cell::Cell<PaneRects>,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -352,6 +425,7 @@ impl AppState {
             pending_filter: None,
             gg_pending: false,
             pending_command: None,
+            pane_rects: std::cell::Cell::default(),
             quit: false,
         }
     }

@@ -8,7 +8,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::state::{AppState, FocusedPane, RightPanel, UiOverlay};
+use crate::state::{AppState, FocusedPane, PaneBox, PaneRects, RightPanel, UiOverlay};
 
 pub mod dispatch;
 pub mod drilldown;
@@ -46,7 +46,19 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
     // a centered popup overlaid on top, not a panel that steals the
     // column. Preserves spatial context (you can still see where the
     // car sits in the shaft behind the popup).
-    draw_overview(frame, body[1], state, sim);
+    let right_rects = draw_overview(frame, body[1], state, sim);
+
+    // Track the bounding boxes of every focusable pane so the mouse
+    // handler can map a click back to a `FocusedPane`. Cell-based
+    // interior mutability lets us write through `&AppState` without
+    // cascading `&mut` through every panel's `draw` signature.
+    state.pane_rects.set(PaneRects {
+        shaft: Some(rect_to_box(body[0])),
+        dispatch: right_rects.dispatch,
+        events: right_rects.events,
+        metrics: right_rects.metrics,
+        traffic: right_rects.traffic,
+    });
 
     draw_footer(frame, outer[2], state);
 
@@ -275,8 +287,39 @@ fn extend_with_key_hints(
     }
 }
 
+/// Convert a ratatui `Rect` to the state-side `PaneBox` (which lives
+/// in `state.rs` to keep that module dep-free of ratatui).
+const fn rect_to_box(r: Rect) -> PaneBox {
+    PaneBox {
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        h: r.height,
+    }
+}
+
+/// Bounding boxes for the four right-column panes, returned from
+/// `draw_overview` so the top-level draw can stitch them into
+/// `state.pane_rects` for mouse hit-testing.
+#[derive(Debug, Default, Clone, Copy)]
+struct OverviewRects {
+    /// Dispatch panel bounds (right column, top).
+    dispatch: Option<PaneBox>,
+    /// Events panel bounds (right column, fills slack).
+    events: Option<PaneBox>,
+    /// Traffic panel bounds (right column).
+    traffic: Option<PaneBox>,
+    /// Metrics panel bounds (right column, bottom).
+    metrics: Option<PaneBox>,
+}
+
 /// Right column = Dispatch / Events / Traffic / Metrics stacked.
-fn draw_overview(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+fn draw_overview(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &AppState,
+    sim: &Simulation,
+) -> OverviewRects {
     // Dispatch fills proportionally to the car count so the panel keeps
     // every car visible even on busier configs (group line + 1 row/car
     // + a 2-row title border = `cars + 3`). Traffic is one sparkline
@@ -300,6 +343,12 @@ fn draw_overview(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simu
     events::draw(frame, chunks[1], state, sim);
     traffic::draw(frame, chunks[2], state, sim);
     metrics::draw(frame, chunks[3], state, sim);
+    OverviewRects {
+        dispatch: Some(rect_to_box(chunks[0])),
+        events: Some(rect_to_box(chunks[1])),
+        traffic: Some(rect_to_box(chunks[2])),
+        metrics: Some(rect_to_box(chunks[3])),
+    }
 }
 
 /// Center a fixed-size rectangle inside `area`. If `area` is smaller
