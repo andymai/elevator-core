@@ -76,7 +76,7 @@ Given the same initial config and the same sequence of API calls, the simulation
 
 - **MSRV:** Rust 1.88 (uses let-chains, stabilised in 1.88; a CI job pinned to the exact MSRV keeps this honest).
 - **Versioning:** Semver. Breaking changes bump the major version. Adding variants to `#[non_exhaustive]` enums (events, errors) is *not* breaking.
-- **Release cadence:** managed via release-please; see [`CHANGELOG.md`](https://github.com/andymai/elevator-core/blob/main/CHANGELOG.md).
+- **Release cadence:** managed via release-please; per-crate changelogs live under [`crates/*/CHANGELOG.md`](https://github.com/andymai/elevator-core/tree/main/crates).
 - **Per-item classification:** see [Stability and Versioning](stability.md).
 
 ## Links

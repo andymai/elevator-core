@@ -61,9 +61,14 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
+The README snippet above prints `Tick N: rider … delivered!` once the rider arrives. To run a slightly more elaborate example, with three riders and aggregate metrics:
+
 ```sh
-cargo run --example basic -p elevator-core   # try it now
-# Tick 89: rider RiderId(0) delivered!
+cargo run --example basic -p elevator-core
+# All riders arrived at tick 335!
+# Delivered: 3
+# Avg wait: 5.0 ticks
+# Avg ride: 328.0 ticks
 ```
 
 ## Use cases
