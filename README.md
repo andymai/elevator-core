@@ -61,8 +61,14 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
+The README snippet above prints `Tick N: rider … delivered!` once the rider arrives. To run a slightly more elaborate example, with three riders and aggregate metrics:
+
 ```sh
-cargo run --example basic -p elevator-core   # try it now
+cargo run --example basic -p elevator-core
+# All riders arrived at tick 335!
+# Delivered: 3
+# Avg wait: 5.0 ticks
+# Avg ride: 328.0 ticks
 ```
 
 ## Use cases
@@ -71,7 +77,7 @@ cargo run --example basic -p elevator-core   # try it now
 |---|---|
 | Office building with 5 floors | Stops at 0, 4, 8, 12, 16 |
 | Skyscraper with sky lobbies | Multi-group dispatch, express zones |
-| Space elevator | Stops at 0 and 1,000,000 — same engine |
+| Space elevator | Stops at 0 and 1,000 — same engine |
 | Player-controlled car | `ServiceMode::Manual` + velocity commands |
 | Custom AI dispatch | Implement `DispatchStrategy::rank()` |
 | VIP passengers, cargo, robots | Extension storage — attach any data |
@@ -87,11 +93,25 @@ cargo run --example basic -p elevator-core   # try it now
 - **Snapshot save/load:** serialize full simulation state for replays or networking
 - **Metrics:** wait times, ride times, throughput, delivered counts, all built-in
 
+## Hosts
+
+`elevator-core` itself is headless. Pick the host that matches your engine:
+
+| Host | Crate | Use it for |
+|---|---|---|
+| Bevy | [`elevator-bevy`](crates/elevator-bevy) | 2-D Rust game with HUD, mesh, and keyboard controls |
+| Browser | [`elevator-wasm`](crates/elevator-wasm) | wasm-bindgen surface; powers the live playground |
+| Unity / .NET / GameMaker | [`elevator-ffi`](crates/elevator-ffi) | C ABI wrapper for native consumers |
+| Godot | [`elevator-gdext`](crates/elevator-gdext) | gdext extension |
+| Terminal | [`elevator-tui`](crates/elevator-tui) | tick-by-tick debugger and headless smoke runner |
+
+Anything not on the list? Drive `Simulation::step()` yourself — the API is engine-agnostic.
+
 ## Non-goals
 
 This is a simulation library, not a game. It deliberately does **not** include:
 
-- Rendering or UI — wrap it with [Bevy](crates/elevator-bevy), Unity ([FFI](crates/elevator-ffi)), [Godot (gdext)](crates/elevator-gdext), or anything else
+- Rendering or UI — see the host crates above, or roll your own
 - AI passengers or traffic generation — use the optional `traffic` feature flag, or drive arrivals yourself
 - Building layout or 2-D floor plans — the sim is 1-D by design
 
@@ -122,7 +142,13 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 
 ## Workspace
 
-The `crates/` directory ships a host crate per supported engine ([`elevator-bevy`](crates/elevator-bevy), [`elevator-ffi`](crates/elevator-ffi), [`elevator-wasm`](crates/elevator-wasm), [`elevator-gdext`](crates/elevator-gdext), [`elevator-tui`](crates/elevator-tui)) plus build-time / test-only supporting crates. See [CLAUDE.md](CLAUDE.md#project-structure) for the full breakdown.
+`elevator-core` is the simulation library. The hosts above wrap it. A handful of supporting crates (`elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen`) are build-time / test-only and exist to keep the host bindings in sync. See [CLAUDE.md](CLAUDE.md#project-structure) for the full layout.
+
+## See also
+
+- [Stability and Versioning](STABILITY.md) — what counts as a breaking change and what doesn't.
+- [`elevator-core` changelog](crates/elevator-core/CHANGELOG.md) — release-please-managed.
+- [AI disclosure](AI-DISCLOSURE.md) — how AI tools are used in this repo.
 
 ## License
 
