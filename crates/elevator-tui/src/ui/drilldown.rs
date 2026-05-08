@@ -1,32 +1,38 @@
-//! Per-car drill-down panel — replaces the right column with a deep
-//! view of the focused car: phase, queue, riders aboard, and the recent
-//! events that touch it.
+//! Per-car drill-down — a floating popup over the active view that
+//! shows phase, queue, riders aboard, and the recent events touching
+//! the focused car.
 
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::text::Line;
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 
-use crate::state::{AppState, FocusedPane};
+use crate::state::AppState;
 use crate::ui::{events, palette, shaft};
 
-/// Render the drill-down panel.
-pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
-    // Drill-down owns the right column while it's open, so it reads
-    // as "the focal point" unless focus is explicitly on the shaft.
-    // PR4 will turn this into a floating popup; until then, this rule
-    // keeps exactly one panel visually focused at a time.
-    let pane_focused = state.focused_pane != FocusedPane::Shaft;
+/// Render the drill-down as a centered popup over `area`.
+///
+/// The underlying overview keeps rendering so spatial context (the
+/// car's shaft position, the live event log) stays visible behind
+/// the popup. `Clear` punches a hole in the buffer so the popup
+/// body doesn't pick up bleed-through from underneath.
+pub fn draw_popup(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+    // 70x24 keeps the popup readable on terminals down to ~80x30.
+    // `centered_rect` shrinks to fit on smaller windows.
+    let modal = super::centered_rect(area, 70, 24);
+    frame.render_widget(Clear, modal);
+
     let cars: Vec<_> = shaft::cars_iter(sim).collect();
     let Some(focused) = cars.get(state.focused_car_idx) else {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(palette::border_style(pane_focused))
+            .border_style(Style::default().fg(palette::ACCENT))
             .title(super::bracketed_title("drill-down", None));
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
+        let inner = block.inner(modal);
+        frame.render_widget(block, modal);
         frame.render_widget(Paragraph::new("no cars in this sim"), inner);
         return;
     };
@@ -34,13 +40,13 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(palette::border_style(pane_focused))
+        .border_style(Style::default().fg(palette::ACCENT))
         .title(super::bracketed_title(
             "drill-down",
-            Some(format!("{:?}", focused.id)),
+            Some(format!("{:?} · Esc to close", focused.id)),
         ));
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
+    let inner = block.inner(modal);
+    frame.render_widget(block, modal);
 
     let mut lines: Vec<Line<'_>> = Vec::new();
     let elev = focused.elevator;

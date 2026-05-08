@@ -3,32 +3,32 @@ source: crates/elevator-tui/tests/render_snapshot.rs
 expression: frame
 ---
  elevator-tui · tick 60 · ▶ 1.00× · index · drilldown                                               
-╭┤ shaft · 1 cars · index ├──╮╭┤ drill-down · EntityId(4v1) ├──────────────────────────────────────╮
-│  Top         10.0      │ · ││phase     MovingToStop(EntityId(2v1))                               │
-│  Ground       0.0      │ ▲ ││door      Closed                                                    │
-│                            ││load      75.00kg / 800.00kg                                        │
-│                            ││speed     max 2.00m/s / accel 1.50m/s² / decel 2.00m/s²             │
-│                            ││position  0.34                                                      │
-│                            ││                                                                    │
-│                            ││queue (1 stops)                                                     │
-│                            ││  → EntityId(2v1)                                                   │
-│                            ││                                                                    │
-│                            ││riders aboard (1)                                                   │
-│                            ││  · EntityId(5v1)                                                   │
-│                            ││                                                                    │
-│                            ││recent events touching this car                                     │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
-│                            ││                                                                    │
+╭┤ shaft · 1 cars · index ├──╮╭┤ dispatch · per-car state and load ├───────────────────────────────╮
+│  Top         10.0      │ · ││Default      strategy=Scan  cars=1  waiting=0                       │
+│  Ground      ╭┤ drill-down · EntityId(4v1) · Esc to close ├───────────────────────╮              │
+│              │phase     MovingToStop(EntityId(2v1))                               │              │
+│              │door      Closed                                                    │              │
+│              │load      75.00kg / 800.00kg                                        │──────────────╯
+│              │speed     max 2.00m/s / accel 1.50m/s² / decel 2.00m/s²             │──────────────╮
+│              │position  0.34                                                      │              │
+│              │                                                                    │              │
+│              │queue (1 stops)                                                     │              │
+│              │  → EntityId(2v1)                                                   │              │
+│              │                                                                    │              │
+│              │riders aboard (1)                                                   │              │
+│              │  · EntityId(5v1)                                                   │              │
+│              │                                                                    │              │
+│              │recent events touching this car                                     │──────────────╯
+│              │                                                                    │──────────────╮
+│              │                                                                    │              │
+│              │                                                                    │              │
+│              │                                                                    │──────────────╯
+│              │                                                                    │──────────────╮
+│              │                                                                    │              │
+│              │                                                                    │              │
+│              │                                                                    │              │
+│              │                                                                    │              │
+│              ╰────────────────────────────────────────────────────────────────────╯              │
+│                            ││total occupancy                                                     │
 ╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
  RUNNING  drill-down  │  Spc pause · [/] car · Esc close · ? help
