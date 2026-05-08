@@ -82,21 +82,53 @@ fn stops_top_down(sim: &Simulation) -> Vec<(EntityId, &Stop)> {
     stops
 }
 
+/// Width of the per-row text + delim prefix inside the shaft block,
+/// in cells.
+///
+/// Layout: 2 hall-call lamps + 10-char name + 6-char position +
+/// 5-char waiting count + 3-char delimiter (` │ `). Excludes the
+/// outer borders and the per-car columns. Exposed so the input
+/// handlers (mouse hit-test in `app.rs`) can resolve a click column
+/// to a car index without re-deriving the layout.
+pub const TEXT_PREFIX_CELLS: u16 = 26;
+
+/// Cells per car column in the per-row layout: 1-char glyph + 1-char
+/// trailing space.
+pub const CELLS_PER_CAR: u16 = 2;
+
 /// Recommended panel width in cells. Each row is laid out as:
 ///
 /// ```text
 /// │  ↑Lobby  0.0 (12) │ c c c │
 /// ```
 ///
-/// The fixed prefix is 2 hall-call lamps + 10-char name + 6-char
-/// position + 5-char waiting count + a delimiter. Each car adds a
-/// glyph plus trailing space (2 cells), all wrapped in a 1-cell border.
+/// The fixed prefix is `TEXT_PREFIX_CELLS` cells (hall lamps + name +
+/// position + waiting + delim). Each car adds `CELLS_PER_CAR` cells,
+/// and the whole row is wrapped in a 1-cell border on each side.
 #[must_use]
 pub fn recommended_width(sim: &Simulation) -> u16 {
     let car_count: usize = cars_iter(sim).count();
     let cars: u16 = u16::try_from(car_count).unwrap_or(u16::MAX);
-    let base: u16 = 28; // hall-lamps + label + pos + waiting + delim + borders
-    base.saturating_add(cars.saturating_mul(2))
+    let base: u16 = TEXT_PREFIX_CELLS + 2; // + left/right border
+    base.saturating_add(cars.saturating_mul(CELLS_PER_CAR))
+}
+
+/// Map a click column inside the shaft pane to a car index, if the
+/// column lands on a car cell. Pure function so the math is unit-
+/// testable without instantiating a multi-car sim.
+///
+/// `shaft_x` is the panel's left edge (the border column); cars
+/// start at `shaft_x + 1 + TEXT_PREFIX_CELLS`. Returns `None` for
+/// clicks on the prefix region or past the last car column.
+#[must_use]
+pub fn column_to_car_idx(shaft_x: u16, click_col: u16, car_count: usize) -> Option<usize> {
+    let cars_origin = shaft_x.saturating_add(1).saturating_add(TEXT_PREFIX_CELLS);
+    if click_col < cars_origin {
+        return None;
+    }
+    let offset = click_col - cars_origin;
+    let idx = (offset / CELLS_PER_CAR) as usize;
+    (idx < car_count).then_some(idx)
 }
 
 /// Render the shaft panel.
@@ -396,5 +428,65 @@ fn truncate(s: &str, max: usize) -> String {
         format!("{s:<max$}")
     } else {
         s.chars().take(max).collect()
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Layout-prefix sanity: the constants must add up to the
+    /// `recommended_width` formula. If anyone tweaks `TEXT_PREFIX_CELLS`
+    /// without updating the layout, this catches it.
+    #[test]
+    fn recommended_width_constants_consistent() {
+        // shaft.x = 0, panel x = 0..30 for 1 car: 1 border + 26 text +
+        // 2 cells (1 car * CELLS_PER_CAR) + 1 border = 30.
+        let expected_for_one_car = 1 + TEXT_PREFIX_CELLS + CELLS_PER_CAR + 1;
+        assert_eq!(expected_for_one_car, 30);
+    }
+
+    #[test]
+    fn column_to_car_idx_at_first_car_glyph() {
+        // shaft.x = 0 → cars_origin = 0 + 1 + 26 = 27.
+        assert_eq!(column_to_car_idx(0, 27, 3), Some(0));
+    }
+
+    #[test]
+    fn column_to_car_idx_at_first_cars_trailing_space() {
+        // The 1-cell trailing space is part of car 0's column.
+        assert_eq!(column_to_car_idx(0, 28, 3), Some(0));
+    }
+
+    #[test]
+    fn column_to_car_idx_at_second_car_glyph() {
+        assert_eq!(column_to_car_idx(0, 29, 3), Some(1));
+    }
+
+    #[test]
+    fn column_to_car_idx_at_third_car_glyph() {
+        assert_eq!(column_to_car_idx(0, 31, 3), Some(2));
+    }
+
+    #[test]
+    fn column_to_car_idx_past_last_car() {
+        // Click one cell past the last car's trailing space — not a
+        // valid car column.
+        assert_eq!(column_to_car_idx(0, 33, 3), None);
+    }
+
+    #[test]
+    fn column_to_car_idx_in_text_prefix() {
+        // Click in the stop-name region.
+        assert_eq!(column_to_car_idx(0, 5, 3), None);
+    }
+
+    #[test]
+    fn column_to_car_idx_with_offset_shaft_x() {
+        // Shaft pane starts at column 10 in the terminal. First car
+        // is at 10 + 1 + 26 = 37.
+        assert_eq!(column_to_car_idx(10, 37, 1), Some(0));
+        assert_eq!(column_to_car_idx(10, 36, 1), None);
     }
 }
