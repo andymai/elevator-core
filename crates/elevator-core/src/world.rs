@@ -649,6 +649,14 @@ impl World {
     /// per-tick paths where the result is consumed immediately. The
     /// allocating form remains for callers that genuinely need indexed
     /// access (e.g. gdext mapping integer indices from `GDScript`).
+    ///
+    /// Yields `EntityId` rather than the typed [`ElevatorId`] newtype to
+    /// match the rest of the `World`-keyed accessor surface (`elevator`,
+    /// `iter_elevators`, `elevator_ids`). Callers crossing the
+    /// `Simulation` boundary should wrap with `ElevatorId::wrap_unchecked`
+    /// per the project ID-type convention.
+    ///
+    /// [`ElevatorId`]: crate::entity::ElevatorId
     pub fn iter_elevator_ids(&self) -> impl Iterator<Item = EntityId> + '_ {
         self.elevators.keys()
     }

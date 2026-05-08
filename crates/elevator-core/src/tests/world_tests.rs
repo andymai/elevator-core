@@ -336,3 +336,67 @@ fn despawn_cleans_up_hall_and_car_calls() {
         "car_calls should be cleaned up after despawn"
     );
 }
+
+#[test]
+fn iter_id_methods_match_allocating_forms() {
+    let mut world = World::new();
+    let elev = world.spawn();
+    world.set_elevator(
+        elev,
+        Elevator {
+            phase: ElevatorPhase::Idle,
+            door: DoorState::Closed,
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            current_load: Weight::from(0.0),
+            riders: vec![],
+            target_stop: None,
+            door_transition_ticks: 15,
+            door_open_ticks: 60,
+            line: crate::entity::EntityId::default(),
+            repositioning: false,
+            restricted_stops: HashSet::new(),
+            inspection_speed_factor: 0.25,
+            going_up: true,
+            going_down: true,
+            move_count: 0,
+            door_command_queue: Vec::new(),
+            manual_target_velocity: None,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
+            home_stop: None,
+        },
+    );
+    let stop = world.spawn();
+    world.set_stop(
+        stop,
+        Stop {
+            name: "S".into(),
+            position: 0.0,
+        },
+    );
+    let rider = world.spawn();
+    world.set_rider(
+        rider,
+        Rider {
+            weight: Weight::from(70.0),
+            phase: RiderPhase::Waiting,
+            current_stop: Some(stop),
+            spawn_tick: 0,
+            tag: 0,
+            board_tick: None,
+        },
+    );
+
+    assert_eq!(
+        world.iter_elevator_ids().collect::<Vec<_>>(),
+        world.elevator_ids()
+    );
+    assert_eq!(
+        world.iter_rider_ids().collect::<Vec<_>>(),
+        world.rider_ids()
+    );
+    assert_eq!(world.iter_stop_ids().collect::<Vec<_>>(), world.stop_ids());
+}
