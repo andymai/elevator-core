@@ -101,25 +101,33 @@ impl PhaseHooks {
             .push(hook);
     }
 
-    /// Invoke every hook registered for the given scope, in registration order.
-    fn run(&self, phase: Phase, when: When, group: Option<GroupId>, world: &mut World) {
-        if let Some(hooks) = self.hooks.get(&(phase, when, group)) {
-            for hook in hooks {
-                hook(world);
-            }
+    /// Invoke every hook registered for the given scope, in
+    /// registration order. Returns `true` when at least one hook ran;
+    /// the ungrouped wrappers use this to scope the debug invariant
+    /// check, preserving the original semantic of "only check when a
+    /// hook actually touched the world".
+    fn run(&self, phase: Phase, when: When, group: Option<GroupId>, world: &mut World) -> bool {
+        let Some(hooks) = self.hooks.get(&(phase, when, group)) else {
+            return false;
+        };
+        for hook in hooks {
+            hook(world);
         }
+        true
     }
 
     /// Run all before-hooks for the given phase.
     pub(crate) fn run_before(&self, phase: Phase, world: &mut World) {
-        self.run(phase, When::Before, None, world);
-        Self::debug_check_invariants(phase, world);
+        if self.run(phase, When::Before, None, world) {
+            Self::debug_check_invariants(phase, world);
+        }
     }
 
     /// Run all after-hooks for the given phase.
     pub(crate) fn run_after(&self, phase: Phase, world: &mut World) {
-        self.run(phase, When::After, None, world);
-        Self::debug_check_invariants(phase, world);
+        if self.run(phase, When::After, None, world) {
+            Self::debug_check_invariants(phase, world);
+        }
     }
 
     /// In debug builds, verify that hooks did not break core invariants.
