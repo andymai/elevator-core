@@ -95,6 +95,11 @@ export class CanvasRenderer {
   readonly #sortedYs: number[] = [];
   readonly #lineIds: number[] = [];
   readonly #stopsSorted: StopDto[] = [];
+  // Per-frame "boards landed at this stop" accumulator used by the
+  // abandonment classifier downstream in `#computeTweens`. Reused
+  // across frames so the tween hot path doesn't allocate a fresh
+  // Map every draw call.
+  readonly #boardsAtStop: Map<number, number> = new Map();
 
   constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
@@ -535,8 +540,8 @@ export class CanvasRenderer {
     const duration = TWEEN_BASE_MS / scale;
     const stagger = 30 / scale;
 
-    const boardsAtStop = new Map<number, number>();
-    const carTweens: Array<() => void> = [];
+    const boardsAtStop = this.#boardsAtStop;
+    boardsAtStop.clear();
     for (const car of snap.cars) {
       const prev = this.#carStates.get(car.id);
       const riders = car.riders;
@@ -576,40 +581,35 @@ export class CanvasRenderer {
               if (byLine.size === 0) this.#stopAssignments.delete(loadStop.entity_id);
             }
             for (let k = 0; k < count; k++) {
-              carTweens.push(() =>
-                this.#tweens.push({
-                  kind: "board",
-                  bornAt: now + k * stagger,
-                  duration,
-                  startX: originX,
-                  startY: stopY,
-                  endX: cx,
-                  endY: cabinCenterY,
-                  color,
-                }),
-              );
+              this.#tweens.push({
+                kind: "board",
+                bornAt: now + k * stagger,
+                duration,
+                startX: originX,
+                startY: stopY,
+                endX: cx,
+                endY: cabinCenterY,
+                color,
+              });
             }
           } else {
             for (let k = 0; k < count; k++) {
-              carTweens.push(() =>
-                this.#tweens.push({
-                  kind: "alight",
-                  bornAt: now + k * stagger,
-                  duration,
-                  startX: cx,
-                  startY: cabinCenterY,
-                  endX: cx + 18,
-                  endY: cabinCenterY + 10,
-                  color: CAR_DOT_COLOR,
-                }),
-              );
+              this.#tweens.push({
+                kind: "alight",
+                bornAt: now + k * stagger,
+                duration,
+                startX: cx,
+                startY: cabinCenterY,
+                endX: cx + 18,
+                endY: cabinCenterY + 10,
+                color: CAR_DOT_COLOR,
+              });
             }
           }
         }
       }
 
       // --- Roster + facing management ---
-      const prevRoster = prev?.roster ?? [];
       let roster: RiderVariant[];
       if (!prev) {
         // First frame for this car — seed the roster from the car's own id.
@@ -619,26 +619,34 @@ export class CanvasRenderer {
         }
       } else {
         const delta = riders - prev.riders;
-        roster = prevRoster.slice();
-        if (delta > 0 && loadStop !== undefined) {
-          // Riders boarded from this stop. Replicate the gutter's variant
-          // picks so the silhouettes visually match who was waiting.
-          const isUp = loadStop.waiting_up >= loadStop.waiting_down;
-          const dirOffset = isUp ? 0 : 10_000;
-          // The gutter's nearest-shaft figures are at low slot indices —
-          // those are the ones who board first.
-          for (let k = 0; k < delta; k++) {
-            roster.push(pickRiderVariant(loadStop.entity_id, k + dirOffset));
+        // When delta is zero we can keep the previous roster reference
+        // — the trailing length-correction loops are no-ops in steady
+        // state, and overwriting `#carStates` with the same array below
+        // is harmless.
+        if (delta === 0) {
+          roster = prev.roster;
+        } else {
+          roster = prev.roster.slice();
+          if (delta > 0 && loadStop !== undefined) {
+            // Riders boarded from this stop. Replicate the gutter's variant
+            // picks so the silhouettes visually match who was waiting.
+            const isUp = loadStop.waiting_up >= loadStop.waiting_down;
+            const dirOffset = isUp ? 0 : 10_000;
+            // The gutter's nearest-shaft figures are at low slot indices —
+            // those are the ones who board first.
+            for (let k = 0; k < delta; k++) {
+              roster.push(pickRiderVariant(loadStop.entity_id, k + dirOffset));
+            }
+          } else if (delta > 0) {
+            // Riders appeared but no load stop (e.g., first snapshot or
+            // teleport). Fall back to car-id hashing.
+            for (let k = 0; k < delta; k++) {
+              roster.push(pickRiderVariant(car.id, roster.length + k));
+            }
+          } else {
+            // Riders alighted — remove from end (LIFO).
+            roster.splice(roster.length + delta, -delta);
           }
-        } else if (delta > 0) {
-          // Riders appeared but no load stop (e.g., first snapshot or
-          // teleport). Fall back to car-id hashing.
-          for (let k = 0; k < delta; k++) {
-            roster.push(pickRiderVariant(car.id, roster.length + k));
-          }
-        } else if (delta < 0) {
-          // Riders alighted — remove from end (LIFO).
-          roster.splice(roster.length + delta, -delta);
         }
       }
       // Correct any length drift from accumulated rounding.
@@ -676,15 +684,19 @@ export class CanvasRenderer {
       this.#stopStates.set(stop.entity_id, { waiting });
     }
 
-    for (const enqueue of carTweens) {
-      enqueue();
-    }
-
-    // Reap completed tweens.
-    for (let i = this.#tweens.length - 1; i >= 0; i--) {
-      const t = this.#tweens[i];
-      if (t === undefined) continue;
-      if (now - t.bornAt > t.duration) this.#tweens.splice(i, 1);
+    // Reap completed tweens via in-place compaction. The previous
+    // `splice(i, 1)` per expired tween was O(n) per removal — this is
+    // O(n) total for the pass and writes survivors forward in place.
+    {
+      let writeIdx = 0;
+      for (let i = 0; i < this.#tweens.length; i++) {
+        const t = this.#tweens[i];
+        if (t === undefined) continue;
+        if (now - t.bornAt <= t.duration) {
+          this.#tweens[writeIdx++] = t;
+        }
+      }
+      this.#tweens.length = writeIdx;
     }
 
     // Drop state for cars no longer in the snapshot. Reuse the
