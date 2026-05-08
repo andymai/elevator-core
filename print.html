@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3d1db293.js";
+            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -233,7 +233,11 @@
 <li><a href="https://github.com/andymai/elevator-core">GitHub</a></li>
 </ul>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
-<p>Head to <a href="#quick-start">Quick Start</a> to build your first simulation in under 30 lines of Rust.</p>
+<ul>
+<li><a href="#quick-start">Quick Start</a> — build your first simulation in under 30 lines.</li>
+<li><a href="#stops-lines-and-groups">Stops, Lines, and Groups</a> — the topology model that lets the same engine run an office or a 1,000-unit space tether.</li>
+<li><a href="#integration-gallery">Integration Gallery</a> — supporting crates that keep the host bindings honest.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h1>
 <p>Build a minimal elevator simulation from scratch: a 3-stop building with one elevator, a single rider, and a loop that runs until the rider arrives.</p>
@@ -241,7 +245,7 @@
 <pre><code class="language-bash">cargo add elevator-core
 </code></pre>
 <h2 id="import-the-prelude"><a class="header" href="#import-the-prelude">Import the prelude</a></h2>
-<p>The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
+<p>The prelude re-exports the names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::prelude::*;
@@ -297,7 +301,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">}</span></code></pre>
 <p><code>spawn_rider</code> maps config-level <code>StopId</code> values to runtime <code>EntityId</code> values internally. It returns <code>Result&lt;RiderId, SimError&gt;</code> – it fails if you pass a <code>StopId</code> that doesn’t exist in your building. <code>RiderId</code> is a typed wrapper around <code>EntityId</code>; use <code>.entity()</code> to get the inner <code>EntityId</code> when needed.</p>
 <h2 id="run-the-simulation-loop"><a class="header" href="#run-the-simulation-loop">Run the simulation loop</a></h2>
-<p>Each call to <code>sim.step()</code> advances the simulation by one tick, running all <a href="#the-simulation-loop">eight phases</a> of the tick loop. After stepping, drain events to see what happened:</p>
+<p>Each call to <code>sim.step()</code> advances the simulation by one tick, running every phase of the <a href="#the-simulation-loop">tick loop</a>. After stepping, drain events to see what happened:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
@@ -387,7 +391,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <ol>
 <li>The <strong>builder</strong> created a <code>Simulation</code> containing a <code>World</code> with three stop entities and one elevator entity, plus a SCAN dispatch strategy (the default).</li>
 <li><code>spawn_rider</code> created a rider entity at the Lobby with a route to Floor 3.</li>
-<li>Each <code>step()</code> ran the <a href="#the-simulation-loop">eight-phase tick loop</a>. <strong>Dispatch</strong> noticed a waiting rider and sent the elevator to the Lobby. <strong>Movement</strong> moved the elevator using a trapezoidal velocity profile. <strong>Doors</strong> opened and closed. <strong>Loading</strong> boarded and exited the rider. <strong>Metrics</strong> updated aggregate stats.</li>
+<li>Each <code>step()</code> ran the <a href="#the-simulation-loop">tick loop</a>. <strong>Dispatch</strong> noticed a waiting rider and sent the elevator to the Lobby. <strong>Movement</strong> moved the elevator using a trapezoidal velocity profile. <strong>Doors</strong> opened and closed. <strong>Loading</strong> boarded and exited the rider. <strong>Metrics</strong> updated aggregate stats.</li>
 <li>Events fired at each significant moment, and we pattern-matched on them to detect arrival.</li>
 </ol>
 <h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next steps</a></h2>
@@ -1280,7 +1284,7 @@ sim.advance_tick(); // flush events and increment tick counter
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="dispatch-strategies"><a class="header" href="#dispatch-strategies">Dispatch Strategies</a></h1>
-<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the six built-in strategies, and how to choose between them.</p>
+<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the built-in strategies, and how to choose between them.</p>
 <h2 id="how-dispatch-works"><a class="header" href="#how-dispatch-works">How dispatch works</a></h2>
 <p>Each tick, the Dispatch phase runs four steps:</p>
 <ol>
@@ -1359,7 +1363,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .build()?;
     Ok(())
 }</code></pre>
-<p>All six strategies live in their respective modules:</p>
+<p>Each built-in lives in its own module:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::dispatch::scan::ScanDispatch;
@@ -2584,7 +2588,7 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 <h2 id="step-5--testing-a-custom-strategy"><a class="header" href="#step-5--testing-a-custom-strategy">Step 5 – Testing a custom strategy</a></h2>
 <p>Two levels of test coverage work well:</p>
 <p><strong>Unit-test through <code>dispatch::assign</code> in isolation.</strong> Construct a minimal <code>World</code>, an <code>ElevatorGroup</code>, and a <code>DispatchManifest</code>, then run one assignment pass. This exercises the Hungarian matching and <code>fallback</code> path end-to-end, so the test reflects real runtime behavior. See <code>crates/elevator-core/src/tests/dispatch_tests.rs</code> for the helper pattern (<code>test_world()</code>, <code>test_group()</code>, <code>spawn_elevator()</code>, <code>add_demand()</code>).</p>
-<p><strong>Integration-test via a full <code>Simulation</code>.</strong> Spawn riders, step the loop, assert on events (<code>ElevatorAssigned</code>, <code>RiderBoarded</code>, etc.). This catches bugs that only surface through the 8-phase interaction – e.g., a strategy that excludes every <code>(car, stop)</code> pair it shouldn’t, or one whose <code>prepare_car</code> mutation leaves stale state between passes.</p>
+<p><strong>Integration-test via a full <code>Simulation</code>.</strong> Spawn riders, step the loop, assert on events (<code>ElevatorAssigned</code>, <code>RiderBoarded</code>, etc.). This catches bugs that only surface through the full <a href="#the-simulation-loop">tick loop</a> – e.g., a strategy that excludes every <code>(car, stop)</code> pair it shouldn’t, or one whose <code>prepare_car</code> mutation leaves stale state between passes.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
@@ -3399,9 +3403,9 @@ TrafficSchedule(
 <ol>
 <li>The same initial <code>SimConfig</code> (same stops, elevators, groups, lines, dispatch strategy).</li>
 <li>The same sequence of API calls (<code>spawn_rider</code>, <code>despawn_rider</code>, <code>tag_entity</code>, hook mutations, etc.).</li>
-<li>A deterministic dispatch strategy. All six built-ins – <code>ScanDispatch</code>, <code>LookDispatch</code>, <code>NearestCarDispatch</code>, <code>EtdDispatch</code>, <code>RsrDispatch</code>, <code>DestinationDispatch</code> – are deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through <code>WorldSnapshot</code> so <code>snapshot + restore</code> produces an indistinguishable simulation.</li>
+<li>A deterministic dispatch strategy. Every built-in (see <a href="#built-in-strategies">Dispatch Strategies</a>) is deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through <code>WorldSnapshot</code> so <code>snapshot + restore</code> produces an indistinguishable simulation.</li>
 </ol>
-<p>Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in <code>crates/elevator-core/src/tests/invariants_tests.rs</code> pins this tick-for-tick for all six built-ins.</p>
+<p>Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in <code>crates/elevator-core/src/tests/invariants_tests.rs</code> pins this tick-for-tick across all built-ins.</p>
 <p>Sources of <em>non</em>-determinism to watch for:</p>
 <ul>
 <li><strong><code>PoissonSource</code> and similar traffic generators</strong> use a thread-local RNG. See <a href="#determinism-and-seeding">Traffic Generation – Determinism and seeding</a>.</li>
@@ -4027,8 +4031,7 @@ elevator-core = "=X.Y"
 <p>The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. See <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> for the specific bound and the retroactivity note that scopes when the commitment took effect.</p>
 <h2 id="next-steps-23"><a class="header" href="#next-steps-23">Next steps</a></h2>
 <ul>
-<li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, and per-item day-one classification.</li>
-<li><a href="#introduction">Introduction</a> — what the library does and doesn’t do.</li>
+<li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, and per-item classification.</li>
 <li><a href="#testing-your-simulation">Testing Your Simulation</a> — the invariants you can rely on under the stability policy.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>

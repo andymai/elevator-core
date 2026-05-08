@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3d1db293.js";
+            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -182,7 +182,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="dispatch-strategies"><a class="header" href="#dispatch-strategies">Dispatch Strategies</a></h1>
-<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the six built-in strategies, and how to choose between them.</p>
+<p>Dispatch is the brain of an elevator system – it decides which elevator goes where. This chapter covers imperative dispatch, the built-in strategies, and how to choose between them.</p>
 <h2 id="how-dispatch-works"><a class="header" href="#how-dispatch-works">How dispatch works</a></h2>
 <p>Each tick, the Dispatch phase runs four steps:</p>
 <ol>
@@ -261,7 +261,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .build()?;
     Ok(())
 }</code></pre>
-<p>All six strategies live in their respective modules:</p>
+<p>Each built-in lives in its own module:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::dispatch::scan::ScanDispatch;

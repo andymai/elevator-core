@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3d1db293.js";
+            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -187,7 +187,7 @@
 <pre><code class="language-bash">cargo add elevator-core
 </code></pre>
 <h2 id="import-the-prelude"><a class="header" href="#import-the-prelude">Import the prelude</a></h2>
-<p>The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
+<p>The prelude re-exports the names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use elevator_core::prelude::*;
@@ -243,7 +243,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 </span><span class="boring">}</span></code></pre>
 <p><code>spawn_rider</code> maps config-level <code>StopId</code> values to runtime <code>EntityId</code> values internally. It returns <code>Result&lt;RiderId, SimError&gt;</code> – it fails if you pass a <code>StopId</code> that doesn’t exist in your building. <code>RiderId</code> is a typed wrapper around <code>EntityId</code>; use <code>.entity()</code> to get the inner <code>EntityId</code> when needed.</p>
 <h2 id="run-the-simulation-loop"><a class="header" href="#run-the-simulation-loop">Run the simulation loop</a></h2>
-<p>Each call to <code>sim.step()</code> advances the simulation by one tick, running all <a href="simulation-loop.html">eight phases</a> of the tick loop. After stepping, drain events to see what happened:</p>
+<p>Each call to <code>sim.step()</code> advances the simulation by one tick, running every phase of the <a href="simulation-loop.html">tick loop</a>. After stepping, drain events to see what happened:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
@@ -333,7 +333,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <ol>
 <li>The <strong>builder</strong> created a <code>Simulation</code> containing a <code>World</code> with three stop entities and one elevator entity, plus a SCAN dispatch strategy (the default).</li>
 <li><code>spawn_rider</code> created a rider entity at the Lobby with a route to Floor 3.</li>
-<li>Each <code>step()</code> ran the <a href="simulation-loop.html">eight-phase tick loop</a>. <strong>Dispatch</strong> noticed a waiting rider and sent the elevator to the Lobby. <strong>Movement</strong> moved the elevator using a trapezoidal velocity profile. <strong>Doors</strong> opened and closed. <strong>Loading</strong> boarded and exited the rider. <strong>Metrics</strong> updated aggregate stats.</li>
+<li>Each <code>step()</code> ran the <a href="simulation-loop.html">tick loop</a>. <strong>Dispatch</strong> noticed a waiting rider and sent the elevator to the Lobby. <strong>Movement</strong> moved the elevator using a trapezoidal velocity profile. <strong>Doors</strong> opened and closed. <strong>Loading</strong> boarded and exited the rider. <strong>Metrics</strong> updated aggregate stats.</li>
 <li>Events fired at each significant moment, and we pattern-matched on them to detect arrival.</li>
 </ol>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
