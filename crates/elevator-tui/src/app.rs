@@ -538,8 +538,14 @@ fn handle_key_scrub_back(state: &mut AppState, sim: &mut Simulation) {
     let max_offset = state.snapshot_ring.len() - 1;
     let next_offset = match state.scrub_offset {
         None => {
-            // Entering scrub mode for the first time.
-            state.live_snapshot = Some(sim.snapshot());
+            // Entering scrub mode for the first time. Capture the
+            // *pre-scrub* pause state so `Esc` can restore it
+            // verbatim — a user who manually paused before scrubbing
+            // expects to stay paused after exiting.
+            state.live_snapshot = Some(crate::state::LiveSnapshot {
+                snapshot: sim.snapshot(),
+                was_paused: state.paused,
+            });
             state.paused = true;
             0
         }
@@ -567,16 +573,32 @@ fn handle_key_scrub_forward(state: &mut AppState, sim: &mut Simulation) {
 
 /// Exit scrub mode and restore the live snapshot taken on entry.
 /// `Esc` triggers this when scrubbing, mirroring how `>` would walk
-/// all the way forward.
+/// all the way forward. Preserves the pre-scrub pause state so a
+/// user who manually paused stays paused after exiting.
+///
+/// On restore failure (snapshot missing or `restore` errors) we
+/// flash the error and *don't* clear the scrub indicator — the sim
+/// would otherwise silently drift, with the user looking at a
+/// replayed past state but no REPLAY badge to flag it.
 fn handle_key_scrub_exit(state: &mut AppState, sim: &mut Simulation) {
-    if let Some(snap) = state.live_snapshot.take()
-        && let Ok(restored) = snap.restore(None)
-    {
-        *sim = restored;
-        state.flash(format!("live @ tick {}", sim.current_tick()));
+    let Some(live) = state.live_snapshot.take() else {
+        state.flash("scrub exit: no live snapshot to restore");
+        return;
+    };
+    // Clone the snapshot for `restore` so we can stash the original
+    // back on failure — no retry path otherwise.
+    match live.snapshot.clone().restore(None) {
+        Ok(restored) => {
+            *sim = restored;
+            state.scrub_offset = None;
+            state.paused = live.was_paused;
+            state.flash(format!("live @ tick {}", sim.current_tick()));
+        }
+        Err(e) => {
+            state.live_snapshot = Some(live);
+            state.flash(format!("scrub exit failed: {e}"));
+        }
     }
-    state.scrub_offset = None;
-    state.paused = false;
 }
 
 /// Restore the ring entry at `offset` (counted from newest) and
@@ -949,6 +971,23 @@ mod tests {
         assert!(sim.current_tick() <= live_tick);
         handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
         assert_eq!(state.scrub_offset, Some(1));
+    }
+
+    #[test]
+    fn scrub_exit_preserves_pre_scrub_pause() {
+        // Greptile P1: user-paused → scrub → exit must stay paused.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        for _ in 0..(crate::state::SNAPSHOT_INTERVAL_TICKS * 2) {
+            handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        }
+        // User pauses manually before scrubbing.
+        state.paused = true;
+        handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_some());
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_none());
+        assert!(state.paused, "pre-scrub pause should survive scrub exit");
     }
 
     #[test]

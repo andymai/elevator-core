@@ -157,6 +157,19 @@ pub struct RingEntry {
     pub snapshot: elevator_core::snapshot::WorldSnapshot,
 }
 
+/// Snapshot of the live sim plus the pre-scrub pause state.
+///
+/// Captured when the user first enters scrub mode. Restoring both
+/// fields on `Esc` returns the user exactly to the moment they
+/// started inspecting — the pause state isn't silently un-paused.
+#[derive(Debug, Clone)]
+pub struct LiveSnapshot {
+    /// The live sim snapshot.
+    pub snapshot: elevator_core::snapshot::WorldSnapshot,
+    /// Whether the sim was paused before scrub mode entered.
+    pub was_paused: bool,
+}
+
 /// Take an auto-snapshot every N ticks.
 ///
 /// Tuned so that 30 entries (`SNAPSHOT_RING_CAP`) covers roughly 15
@@ -254,10 +267,11 @@ pub struct AppState {
     /// [`SNAPSHOT_INTERVAL_TICKS`] ticks. Drives the time scrubber:
     /// `<` steps back, `>` steps forward, `Esc` resumes live.
     pub snapshot_ring: std::collections::VecDeque<RingEntry>,
-    /// Snapshot taken on entry into scrub mode so `Esc` can restore
-    /// the user to the moment they started inspecting. `None` outside
-    /// scrub mode.
-    pub live_snapshot: Option<elevator_core::snapshot::WorldSnapshot>,
+    /// Context captured on entry into scrub mode so `Esc` can fully
+    /// restore the user to the moment they started inspecting —
+    /// including their pre-scrub pause state. `None` outside scrub
+    /// mode.
+    pub live_snapshot: Option<LiveSnapshot>,
     /// Position in `snapshot_ring` currently being viewed. `None` =
     /// live (not scrubbing); `Some(N)` = `N` entries back from the
     /// newest auto-snapshot. Bounded by `snapshot_ring.len() - 1`.
