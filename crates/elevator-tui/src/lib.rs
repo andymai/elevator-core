@@ -16,5 +16,6 @@ pub mod app;
 pub mod cli;
 pub mod config_io;
 pub mod headless;
+pub mod picker;
 pub mod state;
 pub mod ui;

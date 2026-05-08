@@ -9,7 +9,10 @@ use clap::Parser;
 #[command(version, about)]
 pub struct Cli {
     /// Path to a RON `SimConfig` file (e.g. `assets/config/default.ron`).
-    pub config: PathBuf,
+    /// Optional in interactive mode — when omitted, the startup
+    /// scenario picker browses `assets/config/*.ron`. Required in
+    /// headless mode (no terminal loop is available for the picker).
+    pub config: Option<PathBuf>,
 
     /// Run non-interactively: step the sim, print summary, exit.
     #[arg(long)]
