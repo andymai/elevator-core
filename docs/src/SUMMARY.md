@@ -55,5 +55,5 @@
 - [Using the Bindings](using-the-bindings.md)
 - [Binding Coverage Manifest](binding-coverage.md)
 - [Host Binding Parity](host-binding-parity.md)
-- [Integration Gallery](integration-gallery.md)
+- [Supporting Crates](supporting-crates.md)
 - [Performance](performance.md)

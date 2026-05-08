@@ -1,6 +1,8 @@
-# Integration Gallery
+# Supporting Crates
 
-`elevator-core` ships several supporting crates that don't surface a runtime API of their own — they exist to keep the binding crates honest, to drive cross-host code generation, or to validate snapshot determinism. This page is the narrative index for those crates; for hands-on integration with a host language see [Using the Bindings](using-the-bindings.md).
+The workspace ships a handful of crates that don't surface a runtime API to consumers — they exist to keep the host bindings in sync, to drive cross-host code generation, or to validate snapshot determinism. This page is the narrative index for those crates.
+
+> Looking for a host crate (Bevy, wasm, FFI, gdext) you can actually depend on? See [Using the Bindings](using-the-bindings.md). The crates below are about *building and validating* those hosts, not consuming them.
 
 ## elevator-tui
 
@@ -50,16 +52,8 @@ cargo run -p elevator-layout-codegen
 
 CI runs this in dry-run mode and fails if the output drifts from what's checked in, so a Rust-side struct edit can't ship without the host bindings being regenerated in the same PR.
 
-## See also
-
-- [Binding Coverage Manifest](binding-coverage.md) — `bindings.toml` policy.
-- [Using the Bindings](using-the-bindings.md) — host-facing usage docs for wasm / FFI / gdext / GameMaker.
-- [Stability and Versioning](stability.md) — how API breaks are signalled across these crates.
-
 ## Next steps
 
-- For host-language integration with a runtime API surface, head to
-  [Using the Bindings](using-the-bindings.md) — the gallery covers the
-  *supporting* crates rather than the binding crates themselves.
-- For the determinism contract that `elevator-contract` checksums
-  enforce, read [Snapshots and Determinism](snapshots-determinism.md).
+- [Using the Bindings](using-the-bindings.md) — host-language integration with a runtime API surface (the page that complements this one).
+- [Snapshots and Determinism](snapshots-determinism.md) — the determinism contract that `elevator-contract` checksums enforce.
+- [Binding Coverage Manifest](binding-coverage.md) — the per-method `bindings.toml` policy these crates help enforce.
