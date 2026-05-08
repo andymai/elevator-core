@@ -1,5 +1,12 @@
 # Changelog
 
+## [18.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v18.0.0...elevator-core-v18.0.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **traffic-detector:** use declaration order, not position, to identify the lobby ([#732](https://github.com/andymai/elevator-core/issues/732)) ([e61f89b](https://github.com/andymai/elevator-core/commit/e61f89bf69d9e2f91d1cc0f5dc5307c83193cf17))
+
 ## [18.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v17.0.0...elevator-core-v18.0.0) (2026-05-06)
 
 
