@@ -5,6 +5,7 @@ import {
   drawClimberHuds,
   drawTetherSideCard,
   type AltitudeAxis,
+  type ClimberHud,
 } from "./draw-tether-hud";
 import type { Scale } from "./layout";
 import { TARGET_FILL } from "./palette";
@@ -359,7 +360,9 @@ function applyDayPhase(elapsedSec: number): number {
 /**
  * Mutable per-frame state the renderer threads through tether mode:
  * carries velocity history (for kinematic-phase classification), the
- * active physics knobs, and the day/night cycle baseline.
+ * active physics knobs, the day/night cycle baseline, and reusable
+ * scratch buffers so the per-frame draw doesn't churn fresh Maps and
+ * Arrays for the GC.
  */
 export interface TetherRenderState {
   prevVelocity: Map<number, number>;
@@ -368,6 +371,14 @@ export interface TetherRenderState {
   deceleration: number;
   /** Performance-now timestamp of the first tether draw (0 if uninitialized). */
   firstDrawAt: number;
+  /** Reusable car-id → cabin screen-y map; cleared and refilled per frame. */
+  carCenters: Map<number, number>;
+  /** Reusable stop entity-id → snap.stops index; cleared and refilled per frame. */
+  stopIdxById: Map<number, number>;
+  /** Reusable HUD-list buffer; truncated and refilled per frame. */
+  hudBuf: ClimberHud[];
+  /** Reusable car-id buffer used to assign stable A/B/C labels by id rank. */
+  idSortBuf: number[];
 }
 
 /**
@@ -421,9 +432,14 @@ export function drawTetherScene(
   s.carH = carH;
   s.carW = carW;
 
-  const carCenters = new Map<number, number>();
-  const stopIdxById = new Map<number, number>();
-  snap.stops.forEach((st, i) => stopIdxById.set(st.entity_id, i));
+  const carCenters = state.carCenters;
+  const stopIdxById = state.stopIdxById;
+  carCenters.clear();
+  stopIdxById.clear();
+  for (let i = 0; i < snap.stops.length; i++) {
+    const st = snap.stops[i];
+    if (st !== undefined) stopIdxById.set(st.entity_id, i);
+  }
   for (const car of snap.cars) {
     carCenters.set(car.id, axis.toScreenAlt(car.y));
   }
@@ -443,12 +459,17 @@ export function drawTetherScene(
     state.maxSpeed,
     state.acceleration,
     state.deceleration,
+    stopIdxById,
+    state.hudBuf,
+    state.idSortBuf,
   );
-  const sortedHud = [...hudList].sort((a, b) => b.altitudeM - a.altitudeM);
-  drawClimberHuds(ctx, sortedHud, carW, w - cardW - cardGap, s);
+  // Sort the same buffer in-place for altitude order; `drawClimberHuds`
+  // and `drawTetherSideCard` both consume it sorted top-to-bottom.
+  hudList.sort((a, b) => b.altitudeM - a.altitudeM);
+  drawClimberHuds(ctx, hudList, carW, w - cardW - cardGap, s);
 
   if (wantsCard) {
-    drawTetherSideCard(ctx, sortedHud, w - s.padX - cardW, cardW, shaftTop, s);
+    drawTetherSideCard(ctx, hudList, w - s.padX - cardW, cardW, shaftTop, s);
   }
 
   // Refresh per-car velocity history for next frame's phase classifier.
@@ -456,9 +477,10 @@ export function drawTetherScene(
     state.prevVelocity.set(car.id, car.v);
   }
   if (state.prevVelocity.size > snap.cars.length) {
-    const live = new Set(snap.cars.map((c) => c.id));
+    // Reuse `carCenters` (already keyed by live car id) instead of
+    // allocating a fresh Set just to test membership.
     for (const id of state.prevVelocity.keys()) {
-      if (!live.has(id)) state.prevVelocity.delete(id);
+      if (!carCenters.has(id)) state.prevVelocity.delete(id);
     }
   }
 }
