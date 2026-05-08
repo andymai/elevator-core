@@ -1,5 +1,12 @@
 # Changelog
 
+## [18.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.1.0...elevator-core-v18.2.0) (2026-05-08)
+
+
+### Features
+
+* **core:** add Display impls for public enums ([#760](https://github.com/andymai/elevator-core/issues/760)) ([7a69973](https://github.com/andymai/elevator-core/commit/7a6997354d9599b0dbfbcf96a2c6e2607ab39da9))
+
 ## [18.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.0.1...elevator-core-v18.1.0) (2026-05-08)
 
 
