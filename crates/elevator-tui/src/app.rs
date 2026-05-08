@@ -530,32 +530,40 @@ const fn handle_events_scroll(
 /// press snapshots the live state (so `Esc` can restore it),
 /// pauses, and lands on the newest ring entry. Subsequent presses
 /// walk further back until the ring is exhausted.
+///
+/// The scrub-entry mutations (`live_snapshot`, `paused`,
+/// `scrub_offset`) are committed only *after* the ring restore
+/// succeeds, so a failed restore leaves the user in their original
+/// state — no orphan `live_snapshot`, no silent pause without the
+/// REPLAY badge.
 fn handle_key_scrub_back(state: &mut AppState, sim: &mut Simulation) {
     if state.snapshot_ring.is_empty() {
         state.flash("no history yet — keep stepping");
         return;
     }
     let max_offset = state.snapshot_ring.len() - 1;
-    let next_offset = match state.scrub_offset {
-        None => {
-            // Entering scrub mode for the first time. Capture the
-            // *pre-scrub* pause state so `Esc` can restore it
-            // verbatim — a user who manually paused before scrubbing
-            // expects to stay paused after exiting.
-            state.live_snapshot = Some(crate::state::LiveSnapshot {
-                snapshot: sim.snapshot(),
-                was_paused: state.paused,
-            });
-            state.paused = true;
-            0
-        }
-        Some(o) if o < max_offset => o + 1,
+    let (next_offset, is_entry) = match state.scrub_offset {
+        None => (0, true),
+        Some(o) if o < max_offset => (o + 1, false),
         Some(_) => {
             state.flash("at oldest snapshot");
             return;
         }
     };
-    apply_scrub_offset(state, sim, next_offset);
+    let live_to_capture = is_entry.then(|| crate::state::LiveSnapshot {
+        snapshot: sim.snapshot(),
+        was_paused: state.paused,
+    });
+    if apply_scrub_offset(state, sim, next_offset).is_err() {
+        // Restore failed — apply_scrub_offset already flashed the
+        // error and left scrub_offset alone. Drop our staged live
+        // snapshot too so we don't carry it back to a future call.
+        return;
+    }
+    if let Some(live) = live_to_capture {
+        state.live_snapshot = Some(live);
+        state.paused = true;
+    }
 }
 
 /// Step the scrubber forward by one entry. At offset 0, exits scrub
@@ -567,7 +575,10 @@ fn handle_key_scrub_forward(state: &mut AppState, sim: &mut Simulation) {
     if o == 0 {
         handle_key_scrub_exit(state, sim);
     } else {
-        apply_scrub_offset(state, sim, o - 1);
+        // Failure here leaves scrub_offset on the prior step, which
+        // is the right behavior — user just sees the flash and can
+        // try `>` again or `Esc` out.
+        let _ = apply_scrub_offset(state, sim, o - 1);
     }
 }
 
@@ -603,22 +614,31 @@ fn handle_key_scrub_exit(state: &mut AppState, sim: &mut Simulation) {
 
 /// Restore the ring entry at `offset` (counted from newest) and
 /// update the scrub indicator. Helper used by both `<` and `>`.
-fn apply_scrub_offset(state: &mut AppState, sim: &mut Simulation, offset: usize) {
+/// Returns `Ok` after a successful restore (with `scrub_offset`
+/// committed), `Err(())` on either a missing entry or a restore
+/// failure (in which case the indicator is *not* mutated, so the
+/// caller can leave the user's prior state intact).
+fn apply_scrub_offset(state: &mut AppState, sim: &mut Simulation, offset: usize) -> Result<(), ()> {
     let idx = state
         .snapshot_ring
         .len()
         .saturating_sub(1)
         .saturating_sub(offset);
     let Some(entry) = state.snapshot_ring.get(idx) else {
-        return;
+        state.flash("scrub: snapshot ring entry missing");
+        return Err(());
     };
     match entry.snapshot.clone().restore(None) {
         Ok(restored) => {
             *sim = restored;
             state.scrub_offset = Some(offset);
             state.flash(format!("replay -{offset} @ tick {tick}", tick = entry.tick));
+            Ok(())
         }
-        Err(e) => state.flash(format!("scrub failed: {e}")),
+        Err(e) => {
+            state.flash(format!("scrub failed: {e}"));
+            Err(())
+        }
     }
 }
 
