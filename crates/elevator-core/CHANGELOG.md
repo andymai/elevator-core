@@ -1,5 +1,12 @@
 # Changelog
 
+## [18.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.0.1...elevator-core-v18.1.0) (2026-05-08)
+
+
+### Features
+
+* **core:** add step_many for batched ticks ([#759](https://github.com/andymai/elevator-core/issues/759)) ([e9636a9](https://github.com/andymai/elevator-core/commit/e9636a9525e3d786297f14b596231f605fefbec7))
+
 ## [18.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v18.0.0...elevator-core-v18.0.1) (2026-05-08)
 
 
