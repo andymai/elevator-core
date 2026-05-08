@@ -255,10 +255,16 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
 /// also refocuses it as a side effect of the wheel motion. Click
 /// on a car or event row is deferred to a follow-up PR.
 fn handle_mouse(state: &mut AppState, _sim: &mut Simulation, mouse: MouseEvent) {
+    // While the drilldown popup is up it overlays parts of the right
+    // column. `pane_rects` still tracks the panes underneath, so a
+    // click landing inside the popup that happens to fall over the
+    // events / metrics rect would silently change focus on hidden
+    // content. Skip click-to-focus entirely until the popup closes.
+    let popup_active = state.right_panel == RightPanel::DrillDown;
     let rects = state.pane_rects.get();
     let (col, row) = (mouse.column, mouse.row);
     match mouse.kind {
-        MouseEventKind::Down(MouseButton::Left) => {
+        MouseEventKind::Down(MouseButton::Left) if !popup_active => {
             if let Some(pane) = rects.hit(col, row) {
                 state.focused_pane = pane;
                 state.flash(format!("focus → {}", pane.label()));
