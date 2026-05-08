@@ -103,10 +103,12 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
 /// status bar — the user shouldn't have to memorize the full keymap to
 /// know what's possible right now.
 fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    // Padded literals so the badge can be styled directly without a
+    // per-frame `format!` allocation.
     let (badge_text, badge_color) = if state.paused {
-        ("PAUSED", palette::WARN)
+        (" PAUSED ", palette::WARN)
     } else {
-        ("RUNNING", palette::SUCCESS)
+        (" RUNNING ", palette::SUCCESS)
     };
 
     // When DrillDown owns the right column, the dispatch / events /
@@ -120,10 +122,13 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
             RightPanel::DrillDown => ("drill-down", DRILLDOWN_HINTS),
             RightPanel::Overview => (state.focused_pane.label(), pane_hints(state.focused_pane)),
         };
+    // Tab is a no-op in DrillDown, so omit it from the footer so users
+    // don't press it expecting a pane change.
+    let include_tab = state.right_panel == RightPanel::Overview;
 
     let mut spans = vec![
         Span::styled(
-            format!(" {badge_text} "),
+            badge_text,
             Style::default()
                 .fg(badge_color)
                 .add_modifier(Modifier::BOLD)
@@ -133,7 +138,7 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Span::styled(label, palette::title_style()),
         Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
-    extend_with_key_hints(&mut spans, hints);
+    extend_with_key_hints(&mut spans, hints, include_tab);
 
     if let Some(status) = &state.status {
         spans.push(Span::styled("   ◇ ", Style::default().fg(palette::DIM)));
@@ -170,8 +175,10 @@ const fn pane_hints(focus: FocusedPane) -> &'static [(&'static str, &'static str
 }
 
 /// Append the key hints to the footer span buffer, separated by ` · `.
-/// Universal trailers (`Tab`, `?`) come last so they appear in a stable
-/// position regardless of focus.
+/// `?` always comes last; `Tab pane` is appended only when
+/// `include_tab` is true — `DrillDown` mode no-ops Tab and surfacing
+/// the hint there would mislead the user into pressing a key that
+/// does nothing.
 ///
 /// The list is kept short (≤ 6 hints) so the row fits comfortably in
 /// 80 columns alongside the status badge — the full keymap lives in
@@ -179,11 +186,14 @@ const fn pane_hints(focus: FocusedPane) -> &'static [(&'static str, &'static str
 fn extend_with_key_hints(
     spans: &mut Vec<Span<'static>>,
     pane_hints: &'static [(&'static str, &'static str)],
+    include_tab: bool,
 ) {
-    let hints = pane_hints
-        .iter()
-        .copied()
-        .chain([("Tab", " pane"), ("?", " help")]);
+    let trailers: &[(&'static str, &'static str)] = if include_tab {
+        &[("Tab", " pane"), ("?", " help")]
+    } else {
+        &[("?", " help")]
+    };
+    let hints = pane_hints.iter().copied().chain(trailers.iter().copied());
     let mut first = true;
     for (key, label) in hints {
         if first {

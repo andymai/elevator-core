@@ -31,4 +31,4 @@ expression: frame
 │                            ││                                                                    │
 │                            ││                                                                    │
 ╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
- RUNNING  drill-down  │  Spc pause · [/] car · Esc close · Tab pane · ? help
+ RUNNING  drill-down  │  Spc pause · [/] car · Esc close · ? help
