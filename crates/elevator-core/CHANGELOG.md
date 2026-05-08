@@ -1,5 +1,12 @@
 # Changelog
 
+## [19.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.0.0...elevator-core-v19.1.0) (2026-05-08)
+
+
+### Features
+
+* **world:** add non-allocating iter_elevator_ids / iter_rider_ids / iter_stop_ids ([#765](https://github.com/andymai/elevator-core/issues/765)) ([1528f6d](https://github.com/andymai/elevator-core/commit/1528f6d5087d7f209159ef15dc8d6a76a3fdbc87))
+
 ## [19.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.2.0...elevator-core-v19.0.0) (2026-05-08)
 
 
