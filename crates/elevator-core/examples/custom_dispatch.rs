@@ -29,17 +29,27 @@
     clippy::missing_const_for_fn
 )]
 
-use std::collections::HashMap;
-
 use elevator_core::components::CallDirection;
 use elevator_core::dispatch::{
-    BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup, RankContext,
+    BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup, PrepareScratch, RankContext,
 };
 use elevator_core::entity::EntityId;
 use elevator_core::ids::GroupId;
 use elevator_core::prelude::*;
 use elevator_core::stop::StopConfig;
 use elevator_core::world::World;
+
+/// Per-car bookkeeping for the idle-penalty heuristic. Bundling the two
+/// related fields means `notify_removed` only needs to drop one entry,
+/// not remember to clean both — an easy class of bug to introduce when
+/// each piece of state lives in its own `HashMap`.
+#[derive(Default)]
+struct CarStats {
+    /// Tick of the last call this car was assigned to.
+    last_served_tick: u64,
+    /// Idle ticks resolved once per car in `prepare_car` and read by `rank`.
+    idle_for: f64,
+}
 
 /// Weighted nearest-car: distance plus a penalty proportional to how
 /// many ticks this car has been idle since it last served a call.
@@ -49,12 +59,9 @@ use elevator_core::world::World;
 /// so two cars are never sent to the same hall call.
 #[derive(Default)]
 struct IdlePenaltyDispatch {
-    /// Tick of the last call each car was assigned to. Used to penalize
-    /// cars that have sat unused for a while so the fleet rotates fairly.
-    last_served_tick: HashMap<EntityId, u64>,
-    /// Idle ticks resolved once per car in `prepare_car` and read by `rank`.
-    /// Keeping mutation out of `rank` keeps the cost matrix order-independent.
-    idle_for: HashMap<EntityId, f64>,
+    /// Per-car scratch: managed by `PrepareScratch` so a single
+    /// `notify_removed` call drops every per-car field at once.
+    stats: PrepareScratch<CarStats>,
     /// Current tick, refreshed once per group pass via `pre_dispatch`.
     tick: u64,
 }
@@ -81,10 +88,9 @@ impl DispatchStrategy for IdlePenaltyDispatch {
         _manifest: &DispatchManifest,
         _world: &World,
     ) {
-        let last = self.last_served_tick.get(&car).copied().unwrap_or(0);
-        let idle = self.tick.saturating_sub(last) as f64;
-        self.idle_for.insert(car, idle);
-        self.last_served_tick.insert(car, self.tick);
+        let stats = self.stats.entry(car);
+        stats.idle_for = self.tick.saturating_sub(stats.last_served_tick) as f64;
+        stats.last_served_tick = self.tick;
     }
 
     /// Cost is distance minus a small bonus for cars that haven't been
@@ -92,17 +98,17 @@ impl DispatchStrategy for IdlePenaltyDispatch {
     /// pair entirely — useful for capacity limits or restricted stops.
     fn rank(&self, ctx: &RankContext<'_>) -> Option<f64> {
         let distance = (ctx.car_position() - ctx.stop_position()).abs();
-        let idle_for = self.idle_for.get(&ctx.car).copied().unwrap_or(0.0);
+        let idle_for = self.stats.get(ctx.car).map_or(0.0, |s| s.idle_for);
         // Bias toward long-idle cars; clamp so cost stays non-negative.
         Some(0.01f64.mul_add(-idle_for, distance).max(0.0))
     }
 
     /// The framework calls this when an elevator leaves the group — via
-    /// `Simulation::remove_elevator` or cross-group reassignment. Drop
-    /// per-elevator state here to prevent unbounded growth.
+    /// `Simulation::remove_elevator` or cross-group reassignment. The
+    /// `PrepareScratch` wrapper means one drop covers every per-car
+    /// field; with hand-rolled `HashMap`s this is where bugs hide.
     fn notify_removed(&mut self, elevator: EntityId) {
-        self.last_served_tick.remove(&elevator);
-        self.idle_for.remove(&elevator);
+        self.stats.remove(elevator);
     }
 }
 
