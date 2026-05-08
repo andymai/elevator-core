@@ -678,6 +678,194 @@ pub enum Event {
     },
 }
 
+/// Discriminant for [`Event`] — the unit-variant projection of the
+/// payload-carrying enum.
+///
+/// Strategies, hosts, and FFI consumers use [`EventKind`] to filter
+/// events without pattern-matching against payload-laden variants.
+/// Filtering is the primary use case;
+/// [`Simulation::drain_events_by_kind`](crate::sim::Simulation::drain_events_by_kind)
+/// takes a `&[EventKind]` so closure-free filtering crosses the
+/// FFI/wasm/gdext boundary that closure-based
+/// [`drain_events_where`](crate::sim::Simulation::drain_events_where)
+/// can't.
+///
+/// One-to-one with [`Event`] variants. Mirrors the same `#[non_exhaustive]`
+/// and `#[cfg(feature = "energy")]` gates so hosts compiled without the
+/// `energy` feature don't see [`EventKind::EnergyConsumed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum EventKind {
+    /// See [`Event::ElevatorDeparted`].
+    ElevatorDeparted,
+    /// See [`Event::ElevatorArrived`].
+    ElevatorArrived,
+    /// See [`Event::DoorOpened`].
+    DoorOpened,
+    /// See [`Event::DoorClosed`].
+    DoorClosed,
+    /// See [`Event::PassingFloor`].
+    PassingFloor,
+    /// See [`Event::MovementAborted`].
+    MovementAborted,
+    /// See [`Event::RiderSpawned`].
+    RiderSpawned,
+    /// See [`Event::RiderBoarded`].
+    RiderBoarded,
+    /// See [`Event::RiderExited`].
+    RiderExited,
+    /// See [`Event::RiderRejected`].
+    RiderRejected,
+    /// See [`Event::RiderAbandoned`].
+    RiderAbandoned,
+    /// See [`Event::RiderEjected`].
+    RiderEjected,
+    /// See [`Event::ElevatorAssigned`].
+    ElevatorAssigned,
+    /// See [`Event::StopAdded`].
+    StopAdded,
+    /// See [`Event::ElevatorAdded`].
+    ElevatorAdded,
+    /// See [`Event::EntityDisabled`].
+    EntityDisabled,
+    /// See [`Event::EntityEnabled`].
+    EntityEnabled,
+    /// See [`Event::RouteInvalidated`].
+    RouteInvalidated,
+    /// See [`Event::RiderRerouted`].
+    RiderRerouted,
+    /// See [`Event::RiderSettled`].
+    RiderSettled,
+    /// See [`Event::RiderDespawned`].
+    RiderDespawned,
+    /// See [`Event::LineAdded`].
+    LineAdded,
+    /// See [`Event::LineRemoved`].
+    LineRemoved,
+    /// See [`Event::LineReassigned`].
+    LineReassigned,
+    /// See [`Event::ElevatorReassigned`].
+    ElevatorReassigned,
+    /// See [`Event::ElevatorRepositioning`].
+    ElevatorRepositioning,
+    /// See [`Event::ElevatorRepositioned`].
+    ElevatorRepositioned,
+    /// See [`Event::ElevatorRecalled`].
+    ElevatorRecalled,
+    /// See [`Event::ServiceModeChanged`].
+    ServiceModeChanged,
+    /// See [`Event::EnergyConsumed`].
+    #[cfg(feature = "energy")]
+    EnergyConsumed,
+    /// See [`Event::CapacityChanged`].
+    CapacityChanged,
+    /// See [`Event::ElevatorIdle`].
+    ElevatorIdle,
+    /// See [`Event::DirectionIndicatorChanged`].
+    DirectionIndicatorChanged,
+    /// See [`Event::ElevatorRemoved`].
+    ElevatorRemoved,
+    /// See [`Event::DestinationQueued`].
+    DestinationQueued,
+    /// See [`Event::StopRemoved`].
+    StopRemoved,
+    /// See [`Event::DoorCommandQueued`].
+    DoorCommandQueued,
+    /// See [`Event::DoorCommandApplied`].
+    DoorCommandApplied,
+    /// See [`Event::ElevatorUpgraded`].
+    ElevatorUpgraded,
+    /// See [`Event::ManualVelocityCommanded`].
+    ManualVelocityCommanded,
+    /// See [`Event::HallButtonPressed`].
+    HallButtonPressed,
+    /// See [`Event::HallCallAcknowledged`].
+    HallCallAcknowledged,
+    /// See [`Event::HallCallCleared`].
+    HallCallCleared,
+    /// See [`Event::CarButtonPressed`].
+    CarButtonPressed,
+    /// See [`Event::RiderSkipped`].
+    RiderSkipped,
+    /// See [`Event::SnapshotDanglingReference`].
+    SnapshotDanglingReference,
+    /// See [`Event::RepositionStrategyNotRestored`].
+    RepositionStrategyNotRestored,
+    /// See [`Event::DispatchConfigNotRestored`].
+    DispatchConfigNotRestored,
+    /// See [`Event::ResidentsAtRemovedStop`].
+    ResidentsAtRemovedStop,
+}
+
+impl Event {
+    /// Project this [`Event`] to its [`EventKind`] discriminant.
+    ///
+    /// ```
+    /// # use elevator_core::events::{Event, EventKind};
+    /// # use elevator_core::entity::EntityId;
+    /// let e = Event::DoorOpened {
+    ///     elevator: EntityId::default(),
+    ///     tick: 0,
+    /// };
+    /// assert_eq!(e.kind(), EventKind::DoorOpened);
+    /// ```
+    #[must_use]
+    pub const fn kind(&self) -> EventKind {
+        match self {
+            Self::ElevatorDeparted { .. } => EventKind::ElevatorDeparted,
+            Self::ElevatorArrived { .. } => EventKind::ElevatorArrived,
+            Self::DoorOpened { .. } => EventKind::DoorOpened,
+            Self::DoorClosed { .. } => EventKind::DoorClosed,
+            Self::PassingFloor { .. } => EventKind::PassingFloor,
+            Self::MovementAborted { .. } => EventKind::MovementAborted,
+            Self::RiderSpawned { .. } => EventKind::RiderSpawned,
+            Self::RiderBoarded { .. } => EventKind::RiderBoarded,
+            Self::RiderExited { .. } => EventKind::RiderExited,
+            Self::RiderRejected { .. } => EventKind::RiderRejected,
+            Self::RiderAbandoned { .. } => EventKind::RiderAbandoned,
+            Self::RiderEjected { .. } => EventKind::RiderEjected,
+            Self::ElevatorAssigned { .. } => EventKind::ElevatorAssigned,
+            Self::StopAdded { .. } => EventKind::StopAdded,
+            Self::ElevatorAdded { .. } => EventKind::ElevatorAdded,
+            Self::EntityDisabled { .. } => EventKind::EntityDisabled,
+            Self::EntityEnabled { .. } => EventKind::EntityEnabled,
+            Self::RouteInvalidated { .. } => EventKind::RouteInvalidated,
+            Self::RiderRerouted { .. } => EventKind::RiderRerouted,
+            Self::RiderSettled { .. } => EventKind::RiderSettled,
+            Self::RiderDespawned { .. } => EventKind::RiderDespawned,
+            Self::LineAdded { .. } => EventKind::LineAdded,
+            Self::LineRemoved { .. } => EventKind::LineRemoved,
+            Self::LineReassigned { .. } => EventKind::LineReassigned,
+            Self::ElevatorReassigned { .. } => EventKind::ElevatorReassigned,
+            Self::ElevatorRepositioning { .. } => EventKind::ElevatorRepositioning,
+            Self::ElevatorRepositioned { .. } => EventKind::ElevatorRepositioned,
+            Self::ElevatorRecalled { .. } => EventKind::ElevatorRecalled,
+            Self::ServiceModeChanged { .. } => EventKind::ServiceModeChanged,
+            #[cfg(feature = "energy")]
+            Self::EnergyConsumed { .. } => EventKind::EnergyConsumed,
+            Self::CapacityChanged { .. } => EventKind::CapacityChanged,
+            Self::ElevatorIdle { .. } => EventKind::ElevatorIdle,
+            Self::DirectionIndicatorChanged { .. } => EventKind::DirectionIndicatorChanged,
+            Self::ElevatorRemoved { .. } => EventKind::ElevatorRemoved,
+            Self::DestinationQueued { .. } => EventKind::DestinationQueued,
+            Self::StopRemoved { .. } => EventKind::StopRemoved,
+            Self::DoorCommandQueued { .. } => EventKind::DoorCommandQueued,
+            Self::DoorCommandApplied { .. } => EventKind::DoorCommandApplied,
+            Self::ElevatorUpgraded { .. } => EventKind::ElevatorUpgraded,
+            Self::ManualVelocityCommanded { .. } => EventKind::ManualVelocityCommanded,
+            Self::HallButtonPressed { .. } => EventKind::HallButtonPressed,
+            Self::HallCallAcknowledged { .. } => EventKind::HallCallAcknowledged,
+            Self::HallCallCleared { .. } => EventKind::HallCallCleared,
+            Self::CarButtonPressed { .. } => EventKind::CarButtonPressed,
+            Self::RiderSkipped { .. } => EventKind::RiderSkipped,
+            Self::SnapshotDanglingReference { .. } => EventKind::SnapshotDanglingReference,
+            Self::RepositionStrategyNotRestored { .. } => EventKind::RepositionStrategyNotRestored,
+            Self::DispatchConfigNotRestored { .. } => EventKind::DispatchConfigNotRestored,
+            Self::ResidentsAtRemovedStop { .. } => EventKind::ResidentsAtRemovedStop,
+        }
+    }
+}
+
 /// Identifies which elevator parameter was changed in an
 /// [`Event::ElevatorUpgraded`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

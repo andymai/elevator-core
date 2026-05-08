@@ -285,6 +285,32 @@ impl super::Simulation {
         matched
     }
 
+    /// Drain events whose [`kind`](Event::kind) is in `kinds`.
+    ///
+    /// Closure-free counterpart to
+    /// [`drain_events_where`](Self::drain_events_where) — useful from
+    /// FFI / wasm / gdext call sites that can't marshal a Rust closure
+    /// across the language boundary. `kinds` is treated as a small
+    /// set; for very large filter sets prefer the closure form.
+    ///
+    /// Events whose kind is not in the set remain in the buffer and
+    /// will be returned by future `drain_events*` calls.
+    ///
+    /// ```
+    /// use elevator_core::events::EventKind;
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.step();
+    ///
+    /// let spawns = sim.drain_events_by_kind(&[EventKind::RiderSpawned]);
+    /// assert!(spawns.iter().all(|e| matches!(e, Event::RiderSpawned { .. })));
+    /// ```
+    pub fn drain_events_by_kind(&mut self, kinds: &[crate::events::EventKind]) -> Vec<Event> {
+        self.drain_events_where(|e| kinds.contains(&e.kind()))
+    }
+
     // ── Rider tag (opaque consumer-attached id) ──────────────────────
 
     /// Read the opaque tag attached to a rider.

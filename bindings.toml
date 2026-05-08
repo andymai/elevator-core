@@ -520,6 +520,16 @@ gdext = "todo:future-binding"
 bevy = "todo:plugin-layer"
 
 [[methods]]
+name = "drain_events_by_kind"
+category = "events"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
 name = "pending_events"
 category = "events"
 wasm = "pendingEvents"
