@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3d1db293.js";
+            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -188,9 +188,9 @@
 <ol>
 <li>The same initial <code>SimConfig</code> (same stops, elevators, groups, lines, dispatch strategy).</li>
 <li>The same sequence of API calls (<code>spawn_rider</code>, <code>despawn_rider</code>, <code>tag_entity</code>, hook mutations, etc.).</li>
-<li>A deterministic dispatch strategy. All six built-ins – <code>ScanDispatch</code>, <code>LookDispatch</code>, <code>NearestCarDispatch</code>, <code>EtdDispatch</code>, <code>RsrDispatch</code>, <code>DestinationDispatch</code> – are deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through <code>WorldSnapshot</code> so <code>snapshot + restore</code> produces an indistinguishable simulation.</li>
+<li>A deterministic dispatch strategy. Every built-in (see <a href="dispatch-strategies.html#built-in-strategies">Dispatch Strategies</a>) is deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through <code>WorldSnapshot</code> so <code>snapshot + restore</code> produces an indistinguishable simulation.</li>
 </ol>
-<p>Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in <code>crates/elevator-core/src/tests/invariants_tests.rs</code> pins this tick-for-tick for all six built-ins.</p>
+<p>Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in <code>crates/elevator-core/src/tests/invariants_tests.rs</code> pins this tick-for-tick across all built-ins.</p>
 <p>Sources of <em>non</em>-determinism to watch for:</p>
 <ul>
 <li><strong><code>PoissonSource</code> and similar traffic generators</strong> use a thread-local RNG. See <a href="traffic-generation.html#determinism-and-seeding">Traffic Generation – Determinism and seeding</a>.</li>

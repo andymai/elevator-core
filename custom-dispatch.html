@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3d1db293.js";
+            window.path_to_searchindex_js = "searchindex-a5d52b96.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -438,7 +438,7 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 <h2 id="step-5--testing-a-custom-strategy"><a class="header" href="#step-5--testing-a-custom-strategy">Step 5 – Testing a custom strategy</a></h2>
 <p>Two levels of test coverage work well:</p>
 <p><strong>Unit-test through <code>dispatch::assign</code> in isolation.</strong> Construct a minimal <code>World</code>, an <code>ElevatorGroup</code>, and a <code>DispatchManifest</code>, then run one assignment pass. This exercises the Hungarian matching and <code>fallback</code> path end-to-end, so the test reflects real runtime behavior. See <code>crates/elevator-core/src/tests/dispatch_tests.rs</code> for the helper pattern (<code>test_world()</code>, <code>test_group()</code>, <code>spawn_elevator()</code>, <code>add_demand()</code>).</p>
-<p><strong>Integration-test via a full <code>Simulation</code>.</strong> Spawn riders, step the loop, assert on events (<code>ElevatorAssigned</code>, <code>RiderBoarded</code>, etc.). This catches bugs that only surface through the 8-phase interaction – e.g., a strategy that excludes every <code>(car, stop)</code> pair it shouldn’t, or one whose <code>prepare_car</code> mutation leaves stale state between passes.</p>
+<p><strong>Integration-test via a full <code>Simulation</code>.</strong> Spawn riders, step the loop, assert on events (<code>ElevatorAssigned</code>, <code>RiderBoarded</code>, etc.). This catches bugs that only surface through the full <a href="simulation-loop.html">tick loop</a> – e.g., a strategy that excludes every <code>(car, stop)</code> pair it shouldn’t, or one whose <code>prepare_car</code> mutation leaves stale state between passes.</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span><span class="boring">use elevator_core::prelude::*;
