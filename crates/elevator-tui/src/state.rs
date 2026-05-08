@@ -592,7 +592,14 @@ impl AppState {
     /// Take the in-progress command for execution. Returns the buffer
     /// (so the caller can parse + dispatch) and exits palette mode.
     /// `None` if the palette wasn't open.
-    pub const fn command_input_take(&mut self) -> Option<String> {
+    ///
+    /// `#[allow(clippy::missing_const_for_fn)]` keeps this consistent
+    /// with every other `&mut self` method on `AppState` — the
+    /// receiver type contains heap collections so this could never
+    /// actually be called in a const context, and marking it `const`
+    /// would mislead readers into thinking otherwise.
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn command_input_take(&mut self) -> Option<String> {
         self.pending_command.take()
     }
 

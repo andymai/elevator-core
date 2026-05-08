@@ -1087,12 +1087,13 @@ mod tests {
         // by `record_step` rather than accumulating indefinitely.
         let mut state = AppState::new(1.0).without_welcome();
         let mut sim = demo_sim();
-        // Seed a flash that already expired.
-        let stale = elevator_core::entity::EntityId::from(slotmap::KeyData::from_ffi(99));
-        state.flash_until.insert(stale, 0);
+        // Seed a flash that already expired (key chosen to avoid
+        // colliding with `state` per clippy::similar_names).
+        let phantom_id = elevator_core::entity::EntityId::from(slotmap::KeyData::from_ffi(99));
+        state.flash_until.insert(phantom_id, 0);
         // Step once to trigger record_step's GC pass.
         handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
-        assert!(!state.flash_until.contains_key(&stale));
+        assert!(!state.flash_until.contains_key(&phantom_id));
     }
 
     #[test]
