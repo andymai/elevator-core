@@ -39,13 +39,15 @@ The built-in `PoissonSource` traffic generator uses an OS-seeded RNG and is **no
 
 ## Project structure
 
-The repository is a Cargo workspace with three crates:
+The repository is a Cargo workspace grouped by role:
 
-| Crate | Purpose |
-|---|---|
-| `elevator-core` | The simulation library. Pure Rust, no engine dependencies. This is what you add to your project. |
-| `elevator-bevy` | A Bevy 0.18 binary that wraps the core sim with 2D rendering, a HUD, and keyboard controls. Useful as a reference implementation and visual debugger. |
-| `elevator-ffi` | C ABI wrapper for Unity, .NET, and other native consumers. Not published to crates.io. |
+| Group | Crates | Purpose |
+|---|---|---|
+| **Core** | `elevator-core` | The simulation library. Pure Rust, no engine dependencies. This is what you add to your project. |
+| **Hosts** | `elevator-bevy`, `elevator-ffi`, `elevator-wasm`, `elevator-gdext`, `elevator-tui` | Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner. |
+| **Supporting** | `elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen` | Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See [Integration Gallery](integration-gallery.md). |
+
+`elevator-core` is the only crate published to crates.io. The host crates set `publish = false` and ship through their target ecosystems instead — pulled directly from this repo, vendored into a Unity package, packaged as a Godot extension, or distributed as a GameMaker extension.
 
 ## Links
 

@@ -94,10 +94,16 @@ Per `step()` cost at three scales, holding everything else constant:
 | 20e, 50s | 436 us | 395 us | 423 us | 413 us |
 | 50e, 200s | 2.18 ms | 2.00 ms | 2.04 ms | 1.96 ms |
 
-The four built-in strategies land within ~15 % of each other at every
+The strategies in the table land within ~15 % of each other at every
 scale. ETD is competitive despite its richer cost model because the
 other phases dominate wall-clock time. Pick the strategy that fits
 your dispatch *behavior* needs; they're all fast enough.
+
+`RsrDispatch` and `DestinationDispatch` are also covered by
+[`dispatch_bench`][bench] but are not yet captured in the numbers
+above. Run the bench locally for current values.
+
+[bench]: https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/benches/dispatch_bench.rs
 
 #### Query surface (`query_bench`)
 
