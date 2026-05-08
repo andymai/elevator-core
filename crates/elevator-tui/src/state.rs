@@ -170,6 +170,13 @@ pub struct LiveSnapshot {
     pub was_paused: bool,
 }
 
+/// How many sim ticks an accent flash on a car glyph stays bright.
+///
+/// Tuned for ~100 ms at 60 t/s — long enough to register
+/// peripherally but short enough that the panel doesn't strobe
+/// under heavy traffic.
+pub const FLASH_DURATION_TICKS: u64 = 6;
+
 /// Take an auto-snapshot every N ticks.
 ///
 /// Tuned so that 30 entries (`SNAPSHOT_RING_CAP`) covers roughly 15
@@ -389,6 +396,11 @@ pub struct AppState {
     /// every panel's `draw` signature; `PaneRects: Copy` makes
     /// `Cell::set` / `Cell::get` cheap.
     pub pane_rects: std::cell::Cell<PaneRects>,
+    /// Per-entity accent-flash expiry: entity → tick at which the
+    /// flash fades. `record_step` writes here on `ElevatorArrived`
+    /// and `DoorOpened`; the shaft renderer overlays an accent style
+    /// while `current_tick < expiry`.
+    pub flash_until: std::collections::HashMap<elevator_core::entity::EntityId, u64>,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -426,6 +438,7 @@ impl AppState {
             gg_pending: false,
             pending_command: None,
             pane_rects: std::cell::Cell::default(),
+            flash_until: std::collections::HashMap::new(),
             quit: false,
         }
     }
@@ -579,7 +592,14 @@ impl AppState {
     /// Take the in-progress command for execution. Returns the buffer
     /// (so the caller can parse + dispatch) and exits palette mode.
     /// `None` if the palette wasn't open.
-    pub const fn command_input_take(&mut self) -> Option<String> {
+    ///
+    /// `#[allow(clippy::missing_const_for_fn)]` keeps this consistent
+    /// with every other `&mut self` method on `AppState` — the
+    /// receiver type contains heap collections so this could never
+    /// actually be called in a const context, and marking it `const`
+    /// would mislead readers into thinking otherwise.
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn command_input_take(&mut self) -> Option<String> {
         self.pending_command.take()
     }
 

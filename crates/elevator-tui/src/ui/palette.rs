@@ -61,6 +61,20 @@ pub fn focused_style() -> Style {
         .add_modifier(Modifier::REVERSED)
 }
 
+/// Brief accent flash overlay used for a few frames after a car
+/// arrives or its doors open.
+///
+/// Different shape from `focused_style` (warn-on-accent vs
+/// accent-reverse) so the two cues read distinctly when both are
+/// active on the same glyph.
+#[must_use]
+pub fn flash_style() -> Style {
+    Style::default()
+        .fg(WARN)
+        .bg(ACCENT)
+        .add_modifier(Modifier::BOLD)
+}
+
 /// Border style for a panel: accent-bold when focused, dim otherwise.
 ///
 /// Centralizing this means the focus visual lights up consistently
