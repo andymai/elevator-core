@@ -40,7 +40,8 @@ your `Cargo.toml` and expect a migration task when you upgrade:
 
 ```toml
 # Depending on an experimental API? Pin the minor, not the major.
-elevator-core = "=15.1"
+# Replace X.Y with the minor you are targeting.
+elevator-core = "=X.Y"
 ```
 
 Experimental APIs graduate to stable by explicit CHANGELOG entry. The
@@ -52,9 +53,9 @@ Internal items are `pub(crate)` or `#[doc(hidden)]`. They are not part
 of the supported surface; using them from outside the crate (via reflection,
 macros, or forks) is unsupported and subject to change without notice.
 
-## Day-one classification
+## Stable surface
 
-As of `elevator-core` v15.1.0, these items are **stable**:
+These items are **stable**:
 
 - `sim::Simulation::{new, step, spawn_rider, build_rider, drain_events,
   drain_events_where, metrics, snapshot, current_tick, dt, world,
@@ -67,11 +68,11 @@ As of `elevator-core` v15.1.0, these items are **stable**:
 - `entity::{ElevatorId, RiderId, EntityId}`
 - `components::{Weight, Speed, Accel}` and `components::units::UnitError`
 - `snapshot::WorldSnapshot`
-- `dispatch::DispatchStrategy` trait and the five built-in strategies
+- `dispatch::DispatchStrategy` trait and the built-in strategies
   (`ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`,
-  `DestinationDispatch`). Trait method signatures and built-in public
-  API are frozen; covered by the standard deprecation policy.
-  *(Graduated from experimental in v15.2.0 — see [History](#history).)*
+  `DestinationDispatch`, `RsrDispatch`). Trait method signatures and
+  built-in public API are frozen; covered by the standard deprecation
+  policy. See [History](#history) for graduations.
 
 These items are **experimental** and may change in any minor version:
 

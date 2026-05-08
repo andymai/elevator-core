@@ -20,15 +20,15 @@ Pin to an exact minor version:
 
 ```toml
 # Use this if you touch hooks, topology, traffic, extensions, or any
-# other experimental area:
-elevator-core = "=15.2"
+# other experimental area. Replace X.Y with the minor you are targeting.
+elevator-core = "=X.Y"
 ```
 
 When you bump the minor, expect a short migration task. The CHANGELOG will call out what changed.
 
 ## Cadence commitment
 
-The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. The commitment applies to releases after v15.1.0 — see [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md) for the specific bound and retroactivity note.
+The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. See [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md) for the specific bound and the retroactivity note that scopes when the commitment took effect.
 
 ## Next steps
 
