@@ -1,5 +1,16 @@
 # Changelog
 
+## [19.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.2.0...elevator-core-v19.0.0) (2026-05-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **error:** drop From<EntityId/StopId/GroupId> for SimError ([#763](https://github.com/andymai/elevator-core/issues/763))
+
+### Code Refactoring
+
+* **error:** drop From&lt;EntityId/StopId/GroupId&gt; for SimError ([#763](https://github.com/andymai/elevator-core/issues/763)) ([2227b94](https://github.com/andymai/elevator-core/commit/2227b94c457bb8d573acb3cdd91ffe19b601f159))
+
 ## [18.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v18.1.0...elevator-core-v18.2.0) (2026-05-08)
 
 
