@@ -149,12 +149,18 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
         })
         .collect();
 
+    // Filter the flash-until map down to live entries for this tick.
+    // Carrying the whole map into row rendering would be fine but the
+    // closure capture is cleaner with a `Fn(EntityId) -> bool`.
+    let now = sim.current_tick();
+    let is_flashing = |id: EntityId| state.flash_until.get(&id).is_some_and(|&exp| exp > now);
     let ctx = RenderCtx {
         cars: &cars,
         nearest_stop_by_car: &nearest_stop_by_car,
         focused,
         hall_calls: &hall_calls,
         sim,
+        flashing: &is_flashing,
     };
     let lines: Vec<Line<'_>> = match state.shaft_mode {
         ShaftMode::Index => render_index_mode(&stops, &ctx, inner.height),
@@ -176,6 +182,8 @@ struct RenderCtx<'a> {
     hall_calls: &'a HashMap<EntityId, (bool, bool)>,
     /// Borrowed simulation, used for waiting-rider counts and stop lookups.
     sim: &'a Simulation,
+    /// `true` for entities whose accent flash is still live this frame.
+    flashing: &'a dyn Fn(EntityId) -> bool,
 }
 
 /// One row per stop. Stop list truncates to fit the available height.
@@ -282,7 +290,8 @@ fn stop_row<'a>(stop_id: EntityId, stop: &'a Stop, ctx: &RenderCtx<'a>) -> Line<
     ));
     for car in ctx.cars {
         let here = ctx.nearest_stop_by_car.get(&car.id) == Some(&stop_id);
-        spans.push(car_glyph_for_stop(car, here, ctx.focused));
+        let flashing = (ctx.flashing)(car.id);
+        spans.push(car_glyph_for_stop(car, here, ctx.focused, flashing));
         spans.push(Span::raw(" "));
     }
     Line::from(spans)
@@ -324,8 +333,16 @@ fn spacer_row<'a>(
     Line::from(spans)
 }
 
-/// Pick the glyph + style for a car at a given stop.
-fn car_glyph_for_stop<'a>(car: &CarView<'a>, here: bool, focused: Option<EntityId>) -> Span<'a> {
+/// Pick the glyph + style for a car at a given stop. `flashing`
+/// overlays an accent style when the car just arrived or its doors
+/// just opened — a per-frame visual cue that decays over
+/// `FLASH_DURATION_TICKS`.
+fn car_glyph_for_stop<'a>(
+    car: &CarView<'a>,
+    here: bool,
+    focused: Option<EntityId>,
+    flashing: bool,
+) -> Span<'a> {
     if !here {
         return Span::styled("·", Style::default().fg(palette::DIM));
     }
@@ -349,6 +366,8 @@ fn car_glyph_for_stop<'a>(car: &CarView<'a>, here: bool, focused: Option<EntityI
     };
     let style = if focused == Some(car.id) {
         palette::focused_style()
+    } else if flashing {
+        palette::flash_style()
     } else {
         Style::default().fg(color)
     };
