@@ -126,8 +126,11 @@ export function loop(state: State, ui: UiHandles): void {
       }
 
       // Re-snapshot each pane post-spawn so waiting dots reflect the
-      // new riders. When no spawns landed this frame, paneA's snapshot
-      // is unchanged from `snapA` and we can pass it through directly.
+      // new riders. When `specs.length === 0` no riders were added on
+      // this frame, so paneA's pre-spawn `snapA` already reflects the
+      // sim state the renderer wants — pass it through directly. The
+      // `specs.length > 0` arm forces a fresh snapshot whenever
+      // `spawnRider` actually mutated the sim.
       const speed = state.permalink.speed;
       const renderSnapA = specs.length > 0 || snapA === null ? paneA.sim.snapshot() : snapA;
       renderPane(paneA, renderSnapA, speed);

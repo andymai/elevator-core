@@ -28,11 +28,19 @@ export interface ShaftLabel {
 // hot-path lookup is a numeric Set membership check instead of per-frame
 // string allocation. Both halves are well under 2²⁰ in practice — the
 // playground caps shafts at single digits and stop entity ids stay below
-// a few hundred — leaving plenty of room inside Number's 53 safe-integer
-// bits.
+// a few hundred (stops are allocated at scenario init, not continuously)
+// — leaving plenty of room inside Number's 53 safe-integer bits.
 const LOADING_KEY_STRIDE = 1_000_000;
 
 export function loadingKey(shaftIdx: number, stopId: number): number {
+  // Guard against a future scenario or sim variant pushing stopId past
+  // the stride: collisions would silently flip door-active highlights
+  // to the wrong floor. Dev-only; tree-shaken in production builds.
+  if (import.meta.env.DEV && stopId >= LOADING_KEY_STRIDE) {
+    console.warn(
+      `loadingKey: stopId ${stopId} exceeds stride ${LOADING_KEY_STRIDE}; keys may collide`,
+    );
+  }
   return shaftIdx * LOADING_KEY_STRIDE + stopId;
 }
 
