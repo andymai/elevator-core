@@ -182,13 +182,26 @@ fn step_no_traffic(sim: &mut Simulation, state: &mut AppState) {
 fn record_step(sim: &mut Simulation, state: &mut AppState) {
     let tick = sim.current_tick();
     let drained = sim.drain_events();
-    let spawned: u64 = drained
-        .iter()
-        .filter(|e| matches!(e, elevator_core::events::Event::RiderSpawned { .. }))
-        .count() as u64;
+    let mut spawned: u64 = 0;
+    let flash_expiry = tick + crate::state::FLASH_DURATION_TICKS;
+    for event in &drained {
+        match event {
+            elevator_core::events::Event::RiderSpawned { .. } => spawned += 1,
+            // Set / refresh the accent flash for the elevator that
+            // arrived or whose doors opened — the eye-catch readers
+            // rely on at-a-glance.
+            elevator_core::events::Event::ElevatorArrived { elevator, .. }
+            | elevator_core::events::Event::DoorOpened { elevator, .. } => {
+                state.flash_until.insert(*elevator, flash_expiry);
+            }
+            _ => {}
+        }
+    }
     for _ in 0..spawned {
         state.observe_spawn();
     }
+    // GC expired flashes so the map stays bounded by live entity count.
+    state.flash_until.retain(|_, exp| *exp > tick);
     state.push_events(tick, drained);
 
     state.wait_sparkline.push(sim.metrics().p95_wait_time());
@@ -1066,6 +1079,21 @@ mod tests {
         assert!(state.scrub_offset.is_none());
         assert!(!state.paused);
         assert_eq!(sim.current_tick(), live_tick);
+    }
+
+    #[test]
+    fn flash_until_gc_drops_expired_entries() {
+        // After enough ticks pass, expired flash entries are reaped
+        // by `record_step` rather than accumulating indefinitely.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        // Seed a flash that already expired (key chosen to avoid
+        // colliding with `state` per clippy::similar_names).
+        let phantom_id = elevator_core::entity::EntityId::from(slotmap::KeyData::from_ffi(99));
+        state.flash_until.insert(phantom_id, 0);
+        // Step once to trigger record_step's GC pass.
+        handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        assert!(!state.flash_until.contains_key(&phantom_id));
     }
 
     #[test]
