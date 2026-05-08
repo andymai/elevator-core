@@ -138,7 +138,14 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Span::styled(label, palette::title_style()),
         Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
-    extend_with_key_hints(&mut spans, hints, include_tab);
+    // Filter-input mode replaces the normal hints with a `/ <text>█`
+    // prompt so the user sees their query as they type it. `Esc`
+    // cancels and `⏎` commits — both shown alongside.
+    if let Some(input) = state.pending_filter.as_deref() {
+        extend_with_filter_prompt(&mut spans, input);
+    } else {
+        extend_with_key_hints(&mut spans, hints, include_tab);
+    }
 
     if let Some(status) = &state.status {
         spans.push(Span::styled("   ◇ ", Style::default().fg(palette::DIM)));
@@ -150,6 +157,38 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// Render the in-progress filter as `/ <text>█  Esc cancel · ⏎ commit`.
+/// The trailing block (`█`) reverses to act as a faux text cursor —
+/// ratatui doesn't ship a real one and a styled glyph is cheap.
+fn extend_with_filter_prompt(spans: &mut Vec<Span<'static>>, input: &str) {
+    spans.push(Span::styled(
+        "/ ",
+        Style::default()
+            .fg(palette::ACCENT)
+            .add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::styled(
+        input.to_string(),
+        Style::default().fg(palette::TITLE),
+    ));
+    spans.push(Span::styled(
+        "█",
+        Style::default()
+            .fg(palette::ACCENT)
+            .add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::styled("  Esc", Style::default().fg(palette::ACCENT)));
+    spans.push(Span::styled(
+        " cancel · ",
+        Style::default().fg(palette::DIM_STRONG),
+    ));
+    spans.push(Span::styled("⏎", Style::default().fg(palette::ACCENT)));
+    spans.push(Span::styled(
+        " commit",
+        Style::default().fg(palette::DIM_STRONG),
+    ));
 }
 
 /// Verbs surfaced when `DrillDown` owns the right column. Same shape
