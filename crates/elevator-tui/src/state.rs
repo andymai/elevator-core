@@ -148,6 +148,26 @@ impl Sparkline {
     }
 }
 
+/// One entry in the rolling auto-snapshot ring used by the scrubber.
+#[derive(Debug, Clone)]
+pub struct RingEntry {
+    /// Tick at which the snapshot was taken.
+    pub tick: u64,
+    /// The world snapshot itself.
+    pub snapshot: elevator_core::snapshot::WorldSnapshot,
+}
+
+/// Take an auto-snapshot every N ticks.
+///
+/// Tuned so that 30 entries (`SNAPSHOT_RING_CAP`) covers roughly 15
+/// seconds of sim time at the default 60 t/s — enough history to
+/// step back and watch what just happened without burning memory on
+/// every tick.
+pub const SNAPSHOT_INTERVAL_TICKS: u64 = 30;
+
+/// Capacity of the ring; oldest entries drop when full.
+pub const SNAPSHOT_RING_CAP: usize = 30;
+
 /// Vim-style scroll motions the events pane responds to.
 ///
 /// The motions are intentionally pane-agnostic — once the metrics
@@ -230,6 +250,18 @@ pub struct AppState {
     pub bucket_started_at: u64,
     /// In-memory snapshot slot (`s` saves, `l` restores).
     pub snapshot_slot: Option<elevator_core::snapshot::WorldSnapshot>,
+    /// Rolling ring of auto-snapshots taken every
+    /// [`SNAPSHOT_INTERVAL_TICKS`] ticks. Drives the time scrubber:
+    /// `<` steps back, `>` steps forward, `Esc` resumes live.
+    pub snapshot_ring: std::collections::VecDeque<RingEntry>,
+    /// Snapshot taken on entry into scrub mode so `Esc` can restore
+    /// the user to the moment they started inspecting. `None` outside
+    /// scrub mode.
+    pub live_snapshot: Option<elevator_core::snapshot::WorldSnapshot>,
+    /// Position in `snapshot_ring` currently being viewed. `None` =
+    /// live (not scrubbing); `Some(N)` = `N` entries back from the
+    /// newest auto-snapshot. Bounded by `snapshot_ring.len() - 1`.
+    pub scrub_offset: Option<usize>,
     /// Status banner (transient feedback after a hotkey action).
     pub status: Option<String>,
     /// Monotonically incrementing counter bumped each time [`flash`] is
@@ -295,6 +327,9 @@ impl AppState {
             spawn_bucket: 0,
             bucket_started_at: 0,
             snapshot_slot: None,
+            snapshot_ring: std::collections::VecDeque::with_capacity(SNAPSHOT_RING_CAP),
+            live_snapshot: None,
+            scrub_offset: None,
             status: None,
             status_seq: 0,
             overlay: Some(UiOverlay::Welcome),

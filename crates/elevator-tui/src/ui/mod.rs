@@ -73,7 +73,7 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
     } else {
         Style::default().fg(palette::SUCCESS)
     };
-    let spans = vec![
+    let mut spans = vec![
         Span::styled(
             " elevator-tui ",
             Style::default()
@@ -85,6 +85,21 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
             format!("tick {}", sim.current_tick()),
             Style::default().fg(palette::DIM_STRONG),
         ),
+    ];
+    // Scrub-mode badge — accent-colored so it visually leaps off the
+    // title row, paired with the offset so the user knows how far
+    // back they've stepped.
+    if let Some(offset) = state.scrub_offset {
+        spans.push(Span::styled(" · ", Style::default().fg(palette::DIM)));
+        spans.push(Span::styled(
+            format!(" REPLAY -{offset} "),
+            Style::default()
+                .fg(palette::WARN)
+                .add_modifier(Modifier::BOLD)
+                .add_modifier(Modifier::REVERSED),
+        ));
+    }
+    spans.extend([
         Span::styled(" · ", Style::default().fg(palette::DIM)),
         Span::styled(run_glyph.to_string(), run_style),
         Span::styled(
@@ -101,7 +116,7 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
             format!("{:?}", state.right_panel).to_lowercase(),
             Style::default().fg(palette::DIM_STRONG),
         ),
-    ];
+    ]);
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
