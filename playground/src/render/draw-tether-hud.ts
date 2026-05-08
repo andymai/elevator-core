@@ -298,28 +298,69 @@ export function buildHudList(
   maxSpeed: number,
   acceleration: number,
   deceleration: number,
+  // Reusable scratch supplied by the renderer so we can reach steady
+  // state with zero per-frame allocations.
+  stopIdxById: ReadonlyMap<number, number>,
+  outBuf: ClimberHud[],
+  idSortBuf: number[],
+  idRankBuf: Map<number, number>,
 ): ClimberHud[] {
-  // Snapshot order is stable across frames, so deriving "Climber A/B/…"
-  // from the car's index in the sorted snapshot keeps the label tied
-  // to the same cabin even though the engine's entity id is opaque.
-  const cars = [...snap.cars].sort((a, b) => a.id - b.id);
-  return cars.map((car, idx) => {
+  // Stable A/B/C labels are assigned by id rank — sort a tiny scratch
+  // buffer instead of cloning + sorting `snap.cars` itself, then build
+  // a reverse-lookup so the per-car label resolves in O(1) instead of
+  // O(n) via `indexOf` (matters for consistency with the rest of the
+  // hot path, even though n is tiny).
+  idSortBuf.length = snap.cars.length;
+  for (let i = 0; i < snap.cars.length; i++) {
+    const car = snap.cars[i];
+    if (car !== undefined) idSortBuf[i] = car.id;
+  }
+  idSortBuf.sort((a, b) => a - b);
+  idRankBuf.clear();
+  for (let i = 0; i < idSortBuf.length; i++) {
+    const id = idSortBuf[i];
+    if (id !== undefined) idRankBuf.set(id, i);
+  }
+
+  outBuf.length = snap.cars.length;
+  for (let i = 0; i < snap.cars.length; i++) {
+    const car = snap.cars[i];
+    if (car === undefined) continue;
     const altitudeM = car.y;
-    const targetStop =
-      car.target !== undefined ? snap.stops.find((s) => s.entity_id === car.target) : undefined;
+    // Map lookup beats the previous O(stops × cars) `snap.stops.find()` —
+    // matters once a scenario adds platforms past the lobby/GEO pair.
+    const targetIdx = car.target !== undefined ? stopIdxById.get(car.target) : undefined;
+    const targetStop = targetIdx !== undefined ? snap.stops[targetIdx] : undefined;
     const etaSeconds = targetStop
       ? tetherEta(altitudeM, targetStop.y, car.v, maxSpeed, acceleration, deceleration)
       : undefined;
-    return {
-      cx,
-      cy: axis.toScreenAlt(altitudeM),
-      altitudeM,
-      velocity: car.v,
-      phase: classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed),
-      layer: atmosphericLayer(altitudeM),
-      carName: `Climber ${String.fromCharCode(65 + idx)}`,
-      destinationName: targetStop?.name,
-      etaSeconds,
-    };
-  });
+    const labelIdx = idRankBuf.get(car.id) ?? 0;
+    const slot = outBuf[i];
+    if (slot === undefined) {
+      outBuf[i] = {
+        cx,
+        cy: axis.toScreenAlt(altitudeM),
+        altitudeM,
+        velocity: car.v,
+        phase: classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed),
+        layer: atmosphericLayer(altitudeM),
+        carName: `Climber ${String.fromCharCode(65 + labelIdx)}`,
+        destinationName: targetStop?.name,
+        etaSeconds,
+      };
+    } else {
+      // Mutate the pooled object in place so the per-frame steady state
+      // is zero ClimberHud allocations once the buffer has been seeded.
+      slot.cx = cx;
+      slot.cy = axis.toScreenAlt(altitudeM);
+      slot.altitudeM = altitudeM;
+      slot.velocity = car.v;
+      slot.phase = classifyKinematicPhase(car.v, prevVelocity.get(car.id) ?? 0, maxSpeed);
+      slot.layer = atmosphericLayer(altitudeM);
+      slot.carName = `Climber ${String.fromCharCode(65 + labelIdx)}`;
+      slot.destinationName = targetStop?.name;
+      slot.etaSeconds = etaSeconds;
+    }
+  }
+  return outBuf;
 }

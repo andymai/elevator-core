@@ -5,6 +5,21 @@ import type { Scale } from "./layout";
 import { CANVAS_FONT_SANS, PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
 import type { CarDto, CarBubble, Snapshot } from "../types";
 
+// Trail colours are a fixed function of the moving phase + step index,
+// so we resolve them once at module load instead of paying for a
+// regex-match + rgba string allocation per ghost step per moving car
+// per frame (TRAIL_STEPS × moving_cars allocations otherwise).
+const TRAIL_COLORS: readonly string[] = Array.from({ length: TRAIL_STEPS }, (_, i) =>
+  hexWithAlpha(PHASE_COLORS["moving"], 0.18 * (1 - i / TRAIL_STEPS)),
+);
+
+// Each PHASE_COLORS entry resolves to a single shade value used as the
+// car's inset highlight; precompute so the per-car draw loop is a map
+// lookup instead of a regex-match + rgb() string allocation per frame.
+const SHADE_HIGHLIGHT: Record<CarDto["phase"], string> = Object.fromEntries(
+  Object.entries(PHASE_COLORS).map(([phase, color]) => [phase, shade(color, 0.18)]),
+) as Record<CarDto["phase"], string>;
+
 export function drawTargetMarkers(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
@@ -49,13 +64,10 @@ export function drawCarTrail(
   toScreenY: (y: number) => number,
 ): void {
   if (car.phase !== "moving" || Math.abs(car.v) < 0.1) return;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wasm boundary: phase may hold a variant the TS union hasn't caught up with
-  const base = PHASE_COLORS[car.phase] ?? "#6b6b75";
   const halfW = carW / 2;
   for (let i = 1; i <= TRAIL_STEPS; i++) {
     const behindBottom = toScreenY(car.y - car.v * TRAIL_DT * i);
-    const alpha = 0.18 * (1 - (i - 1) / TRAIL_STEPS);
-    ctx.fillStyle = hexWithAlpha(base, alpha);
+    ctx.fillStyle = TRAIL_COLORS[i - 1] ?? "rgba(107, 107, 117, 0.06)";
     ctx.fillRect(cx - halfW, behindBottom - carH, carW, carH);
   }
 }
@@ -92,7 +104,8 @@ export function drawCar(
   // 1 px inset highlight one row below the dark border — gives the
   // cabin a subtle sense of depth without painting a gradient over
   // the whole body.
-  ctx.strokeStyle = shade(base, 0.18);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wasm boundary: phase may hold a variant the TS union hasn't caught up with
+  ctx.strokeStyle = SHADE_HIGHLIGHT[car.phase] ?? SHADE_HIGHLIGHT["unknown"];
   ctx.beginPath();
   ctx.moveTo(cx - halfW + 1, top + 1.5);
   ctx.lineTo(cx + halfW - 1, top + 1.5);

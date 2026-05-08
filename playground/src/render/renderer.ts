@@ -7,6 +7,7 @@ import {
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
+import type { ClimberHud } from "./draw-tether-hud";
 import type { RiderVariant } from "./figures/rider";
 import { pickRiderVariant } from "./figures/rider";
 import {
@@ -55,6 +56,13 @@ export class CanvasRenderer {
   #tether: TetherMeta | null = null;
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
+  // Tether-mode scratch reused across frames so the per-frame draw
+  // reaches steady state with zero Map / Array / ClimberHud allocations.
+  readonly #tetherCarCenters: Map<number, number> = new Map();
+  readonly #tetherStopIdxById: Map<number, number> = new Map();
+  readonly #tetherHudBuf: ClimberHud[] = [];
+  readonly #tetherIdSortBuf: number[] = [];
+  readonly #tetherIdRankBuf: Map<number, number> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
   #activeMaxSpeed = 1;
   #activeAcceleration = 1;
@@ -502,6 +510,11 @@ export class CanvasRenderer {
       acceleration: this.#activeAcceleration,
       deceleration: this.#activeDeceleration,
       firstDrawAt: this.#firstDrawAt,
+      carCenters: this.#tetherCarCenters,
+      stopIdxById: this.#tetherStopIdxById,
+      hudBuf: this.#tetherHudBuf,
+      idSortBuf: this.#tetherIdSortBuf,
+      idRankBuf: this.#tetherIdRankBuf,
     };
     drawTetherScene(this.#ctx, snap, w, h, s, tether, state);
     this.#firstDrawAt = state.firstDrawAt;
