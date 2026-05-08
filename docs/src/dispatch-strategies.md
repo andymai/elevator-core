@@ -6,6 +6,17 @@ Dispatch is the brain of an elevator system -- it decides which elevator goes wh
 
 Each tick, the Dispatch phase runs four steps:
 
+```mermaid
+flowchart LR
+    demand["per-stop demand<br/>(waiting riders,<br/>weights, wait times)"] --> manifest["DispatchManifest"]
+    riding["riding riders<br/>(per destination)"] --> manifest
+    cars["idle / stopped<br/>elevators per group"] --> rank
+    manifest --> rank["DispatchStrategy::rank()<br/>scores (car, stop) pairs"]
+    rank --> hungarian["Hungarian<br/>(Kuhn-Munkres)<br/>solver"]
+    hungarian --> decision["DispatchDecision<br/>per elevator:<br/>GoToStop(s) or Idle"]
+    decision --> phase["ElevatorPhase update<br/>+ direction indicator"]
+```
+
 1. **Build manifest.** The simulation collects per-stop demand (waiting riders, weights, wait times) and per-destination riding riders into a `DispatchManifest`.
 2. **Collect idle elevators.** Each group gathers its idle/stopped elevators and their current positions.
 3. **Rank and match.** The group's `DispatchStrategy` scores every `(car, stop)` pair via `rank()`. The dispatch system feeds all scores into a Hungarian (Kuhn-Munkres) solver to produce the globally optimal assignment -- one car per hall call, automatically.
