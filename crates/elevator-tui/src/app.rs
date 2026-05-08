@@ -5,7 +5,10 @@ use std::io::{self, Stdout};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
-use crossterm::event::{self, Event as TermEvent, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event as TermEvent, KeyCode, KeyEventKind,
+    KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use crossterm::execute;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use elevator_core::config::SimConfig;
@@ -86,10 +89,12 @@ fn event_loop(
             if !event::poll(remaining).context("polling input")? {
                 break;
             }
-            if let TermEvent::Key(key) = event::read().context("reading input")?
-                && key.kind == KeyEventKind::Press
-            {
-                handle_key(&mut state, &mut sim, key.code, key.modifiers);
+            match event::read().context("reading input")? {
+                TermEvent::Key(key) if key.kind == KeyEventKind::Press => {
+                    handle_key(&mut state, &mut sim, key.code, key.modifiers);
+                }
+                TermEvent::Mouse(mouse) => handle_mouse(&mut state, &mut sim, mouse),
+                _ => {}
             }
             if state.quit {
                 return Ok(());
@@ -243,6 +248,42 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
         return;
     }
     handle_key_main(state, sim, code, modifiers);
+}
+
+/// Mouse handler — wheel scrolls the events pane (when focused),
+/// left-click on a tracked pane refocuses it, scroll over a pane
+/// also refocuses it as a side effect of the wheel motion. Click
+/// on a car or event row is deferred to a follow-up PR.
+fn handle_mouse(state: &mut AppState, _sim: &mut Simulation, mouse: MouseEvent) {
+    // While the drilldown popup is up it overlays parts of the right
+    // column. `pane_rects` still tracks the panes underneath, so a
+    // click landing inside the popup that happens to fall over the
+    // events / metrics rect would silently change focus on hidden
+    // content. Skip click-to-focus entirely until the popup closes.
+    let popup_active = state.right_panel == RightPanel::DrillDown;
+    let rects = state.pane_rects.get();
+    let (col, row) = (mouse.column, mouse.row);
+    match mouse.kind {
+        MouseEventKind::Down(MouseButton::Left) if !popup_active => {
+            if let Some(pane) = rects.hit(col, row) {
+                state.focused_pane = pane;
+                state.flash(format!("focus → {}", pane.label()));
+            }
+        }
+        MouseEventKind::ScrollUp
+            if rects.events.is_some_and(|b| b.contains(col, row))
+                || state.focused_pane == FocusedPane::Events =>
+        {
+            state.scroll_events(crate::state::ScrollMotion::Up);
+        }
+        MouseEventKind::ScrollDown
+            if rects.events.is_some_and(|b| b.contains(col, row))
+                || state.focused_pane == FocusedPane::Events =>
+        {
+            state.scroll_events(crate::state::ScrollMotion::Down);
+        }
+        _ => {}
+    }
 }
 
 /// Filter-input handler — keys flow into `state.pending_filter`
@@ -679,12 +720,13 @@ const fn digit_to_category(d: char) -> Option<EventCategory> {
     })
 }
 
-/// Switch the terminal into raw mode + alternate screen and wrap it
-/// in a [`Terminal`] backed by [`CrosstermBackend`].
+/// Switch the terminal into raw mode + alternate screen, enable
+/// mouse capture, and wrap stdout in a [`Terminal`] backed by
+/// [`CrosstermBackend`].
 fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     Terminal::new(CrosstermBackend::new(stdout))
 }
 
@@ -695,7 +737,7 @@ struct TerminalGuard;
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let _ = crossterm::terminal::disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+        let _ = execute!(io::stdout(), DisableMouseCapture, LeaveAlternateScreen);
     }
 }
 
