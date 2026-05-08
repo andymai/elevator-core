@@ -337,20 +337,24 @@ fn despawn_cleans_up_hall_and_car_calls() {
     );
 }
 
-#[test]
-fn iter_id_methods_match_allocating_forms() {
-    let mut world = World::new();
-    let elev = world.spawn();
+fn make_elevator(
+    world: &mut World,
+    position: f64,
+    capacity: f64,
+    load: f64,
+) -> crate::entity::EntityId {
+    let id = world.spawn();
+    world.set_position(id, Position { value: position });
     world.set_elevator(
-        elev,
+        id,
         Elevator {
             phase: ElevatorPhase::Idle,
             door: DoorState::Closed,
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
             deceleration: Accel::from(2.0),
-            weight_capacity: Weight::from(800.0),
-            current_load: Weight::from(0.0),
+            weight_capacity: Weight::from(capacity),
+            current_load: Weight::from(load),
             riders: vec![],
             target_stop: None,
             door_transition_ticks: 15,
@@ -369,34 +373,50 @@ fn iter_id_methods_match_allocating_forms() {
             home_stop: None,
         },
     );
-    let stop = world.spawn();
-    world.set_stop(
-        stop,
-        Stop {
-            name: "S".into(),
-            position: 0.0,
-        },
-    );
-    let rider = world.spawn();
-    world.set_rider(
-        rider,
-        Rider {
-            weight: Weight::from(70.0),
-            phase: RiderPhase::Waiting,
-            current_stop: Some(stop),
-            spawn_tick: 0,
-            tag: 0,
-            board_tick: None,
-        },
-    );
+    id
+}
 
+#[test]
+fn elevator_load_ratio_clamps_and_handles_non_elevator() {
+    let mut world = World::new();
+    let elev = make_elevator(&mut world, 0.0, 800.0, 200.0);
+    let non_elev = world.spawn();
+
+    assert!((world.elevator_load_ratio(elev).unwrap() - 0.25).abs() < 1e-9);
+    assert!(world.elevator_load_ratio(non_elev).is_none());
+
+    let overloaded = make_elevator(&mut world, 0.0, 100.0, 999.0);
+    assert!((world.elevator_load_ratio(overloaded).unwrap() - 1.0).abs() < 1e-9);
+}
+
+#[test]
+fn elevator_occupants_returns_riders_slice() {
+    let mut world = World::new();
+    let elev = make_elevator(&mut world, 0.0, 800.0, 0.0);
+    let bare = world.spawn();
+    assert_eq!(world.elevator_occupants(elev).map(<[_]>::len), Some(0));
+    assert!(world.elevator_occupants(bare).is_none());
+}
+
+#[test]
+fn find_elevator_at_position_matches_within_epsilon() {
+    let mut world = World::new();
+    let elev = make_elevator(&mut world, 10.0, 800.0, 0.0);
+    let _ = make_elevator(&mut world, 50.0, 800.0, 0.0);
+
+    assert_eq!(world.find_elevator_at_position(10.0), Some(elev));
     assert_eq!(
-        world.iter_elevator_ids().collect::<Vec<_>>(),
-        world.elevator_ids()
+        world.find_elevator_at_position(10.0 + World::STOP_POSITION_EPSILON / 2.0),
+        Some(elev),
     );
-    assert_eq!(
-        world.iter_rider_ids().collect::<Vec<_>>(),
-        world.rider_ids()
+    // Strict `<` epsilon: a query a few epsilons away must miss. Using
+    // exactly `+ EPSILON` would be flaky under f64 rounding (the
+    // computed delta lands on either side of EPSILON depending on the
+    // bit pattern), so step out by 2× to make the boundary intent clear.
+    assert!(
+        world
+            .find_elevator_at_position(2.0_f64.mul_add(World::STOP_POSITION_EPSILON, 10.0))
+            .is_none()
     );
-    assert_eq!(world.iter_stop_ids().collect::<Vec<_>>(), world.stop_ids());
+    assert!(world.find_elevator_at_position(20.0).is_none());
 }
