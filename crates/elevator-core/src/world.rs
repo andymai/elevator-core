@@ -336,6 +336,50 @@ impl World {
         self.elevators.insert(id, elev);
     }
 
+    /// Current load divided by weight capacity, in `[0.0, 1.0]`.
+    ///
+    /// Returns `None` if `id` is not an elevator. Several systems and
+    /// hosts compute this ratio inline against [`Elevator::current_load`]
+    /// and [`Elevator::weight_capacity`]; centralising it removes the
+    /// duplicate division and preserves the construction-time invariant
+    /// that capacity is always strictly positive.
+    #[must_use]
+    pub fn elevator_load_ratio(&self, id: EntityId) -> Option<f64> {
+        self.elevators.get(id).map(|e| {
+            let cap = e.weight_capacity().value();
+            if cap > 0.0 {
+                (e.current_load().value() / cap).clamp(0.0, 1.0)
+            } else {
+                0.0
+            }
+        })
+    }
+
+    /// Riders currently aboard `id`.
+    ///
+    /// Slimmer than `world.elevator(id).map(|e| e.riders())` and matches
+    /// the `World`-keyed accessor pattern. Returns `None` if `id` is not
+    /// an elevator.
+    #[must_use]
+    pub fn elevator_occupants(&self, id: EntityId) -> Option<&[EntityId]> {
+        self.elevators.get(id).map(Elevator::riders)
+    }
+
+    /// Find any elevator whose physical position matches `position`
+    /// within [`STOP_POSITION_EPSILON`](Self::STOP_POSITION_EPSILON).
+    ///
+    /// Mirrors [`find_stop_at_position`](Self::find_stop_at_position) for
+    /// stops. Useful for "is there a car parked here right now?" queries
+    /// where the caller already has a position from a hall call or a
+    /// stop. O(n) over elevators; n is small in practice.
+    #[must_use]
+    pub fn find_elevator_at_position(&self, position: f64) -> Option<EntityId> {
+        self.elevators.iter().find_map(|(id, _)| {
+            let pos = self.positions.get(id)?;
+            ((pos.value() - position).abs() < Self::STOP_POSITION_EPSILON).then_some(id)
+        })
+    }
+
     // ── Rider accessors ──────────────────────────────────────────────
 
     /// Get an entity's rider component.
