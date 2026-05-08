@@ -160,7 +160,7 @@ fn draw(frame: &mut ratatui::Frame<'_>, scenarios: &[PathBuf], list_state: &mut 
     // pathological config dir with 65k+ entries can't overflow the
     // u16 height used by `centered_rect`.
     let modal_h = u16::try_from(scenarios.len())
-        .unwrap_or(u16::MAX - 4)
+        .unwrap_or(u16::MAX)
         .saturating_add(4);
     let modal = centered_rect(outer[1], 64, modal_h);
     let block = Block::default()
