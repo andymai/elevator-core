@@ -90,8 +90,39 @@ impl<T: Default> PrepareScratch<T> {
     /// if absent. Mirrors `HashMap::entry(...).or_default()` but takes
     /// the typed `EntityId` directly and returns `&mut T` so callers can
     /// chain field updates (`scratch.entry(car).field = …`).
+    ///
+    /// Intended for use inside `prepare_car`, where the framework
+    /// guarantees the elevator exists. Calling this from other
+    /// `&mut self` hooks (e.g. `pre_dispatch`) on an `eid` that has
+    /// not yet been through `prepare_car` will silently insert a
+    /// `T::default()` entry; prefer [`get`](Self::get) or
+    /// [`get_mut`](Self::get_mut) there.
     pub fn entry(&mut self, eid: EntityId) -> &mut T {
         self.inner.entry(eid).or_default()
+    }
+
+    /// Iterate `(EntityId, &T)` for every populated slot.
+    ///
+    /// Useful from `pre_dispatch` for fleet-wide scans (aging, decay,
+    /// tick-bound counters) without keeping a side-channel
+    /// `Vec<EntityId>` to track the populated set.
+    pub fn iter(&self) -> impl Iterator<Item = (EntityId, &T)> + '_ {
+        self.inner.iter().map(|(id, t)| (*id, t))
+    }
+
+    /// Iterate `(EntityId, &mut T)` for every populated slot.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (EntityId, &mut T)> + '_ {
+        self.inner.iter_mut().map(|(id, t)| (*id, t))
+    }
+
+    /// Iterate `&T` over every populated slot.
+    pub fn values(&self) -> impl Iterator<Item = &T> + '_ {
+        self.inner.values()
+    }
+
+    /// Iterate `&mut T` over every populated slot.
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut T> + '_ {
+        self.inner.values_mut()
     }
 
     /// Replace the scratch value for `eid`, returning the previous value
