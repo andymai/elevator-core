@@ -642,6 +642,44 @@ pub fn all_categories() -> HashSet<EventCategory> {
 /// ones a follow filter would care about (cars and riders). Stops
 /// aren't followed today, so `at_stop`/`from_stop` are not consulted
 /// here.
+/// Extract the elevator entity an event most directly concerns, if
+/// any. Used by mouse click-on-event-row to map the clicked event
+/// back to a focusable car. Rider-only events return `None` — the
+/// follow target is keyed off cars in the current UI.
+#[must_use]
+pub const fn event_elevator(event: &Event) -> Option<elevator_core::entity::EntityId> {
+    use Event::{
+        CapacityChanged, DoorClosed, DoorCommandApplied, DoorCommandQueued, DoorOpened,
+        ElevatorArrived, ElevatorAssigned, ElevatorDeparted, ElevatorIdle, ElevatorRecalled,
+        ElevatorRepositioned, ElevatorRepositioning, MovementAborted, PassingFloor, RiderBoarded,
+        RiderEjected, RiderExited, RiderRejected, ServiceModeChanged,
+    };
+    match event {
+        ElevatorDeparted { elevator, .. }
+        | ElevatorArrived { elevator, .. }
+        | DoorOpened { elevator, .. }
+        | DoorClosed { elevator, .. }
+        | DoorCommandQueued { elevator, .. }
+        | DoorCommandApplied { elevator, .. }
+        | PassingFloor { elevator, .. }
+        | MovementAborted { elevator, .. }
+        | ElevatorIdle { elevator, .. }
+        | ElevatorRepositioning { elevator, .. }
+        | ElevatorRepositioned { elevator, .. }
+        | ElevatorRecalled { elevator, .. }
+        | CapacityChanged { elevator, .. }
+        | ServiceModeChanged { elevator, .. }
+        | ElevatorAssigned { elevator, .. }
+        | RiderBoarded { elevator, .. }
+        | RiderExited { elevator, .. }
+        | RiderRejected { elevator, .. }
+        | RiderEjected { elevator, .. } => Some(*elevator),
+        _ => None,
+    }
+}
+
+/// True when an event references the given entity in any of its
+/// commonly-named slots.
 #[must_use]
 pub fn event_touches(event: &Event, target: elevator_core::entity::EntityId) -> bool {
     use Event::{

@@ -93,7 +93,7 @@ fn event_loop(
                 TermEvent::Key(key) if key.kind == KeyEventKind::Press => {
                     handle_key(&mut state, &mut sim, key.code, key.modifiers);
                 }
-                TermEvent::Mouse(mouse) => handle_mouse(&mut state, &mut sim, mouse),
+                TermEvent::Mouse(mouse) => handle_mouse(&mut state, &sim, mouse),
                 _ => {}
             }
             if state.quit {
@@ -266,8 +266,10 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
 /// Mouse handler — wheel scrolls the events pane (when focused),
 /// left-click on a tracked pane refocuses it, scroll over a pane
 /// also refocuses it as a side effect of the wheel motion. Click
-/// on a car or event row is deferred to a follow-up PR.
-fn handle_mouse(state: &mut AppState, _sim: &mut Simulation, mouse: MouseEvent) {
+/// on an events-pane row enables follow-mode for the clicked event's
+/// elevator (when the event has one); rider-only events fall through
+/// to plain pane focus.
+fn handle_mouse(state: &mut AppState, sim: &Simulation, mouse: MouseEvent) {
     // While the drilldown popup is up it overlays parts of the right
     // column. `pane_rects` still tracks the panes underneath, so a
     // click landing inside the popup that happens to fall over the
@@ -278,6 +280,15 @@ fn handle_mouse(state: &mut AppState, _sim: &mut Simulation, mouse: MouseEvent) 
     let (col, row) = (mouse.column, mouse.row);
     match mouse.kind {
         MouseEventKind::Down(MouseButton::Left) if !popup_active => {
+            // If the click landed on a row inside the events pane, try
+            // to follow the underlying event's elevator. Falls back to
+            // plain pane-focus if the row is empty or the event isn't
+            // elevator-bound.
+            if rects.events.is_some_and(|b| b.contains(col, row))
+                && handle_event_row_click(state, sim, row)
+            {
+                return;
+            }
             if let Some(pane) = rects.hit(col, row) {
                 state.focused_pane = pane;
                 state.flash(format!("focus → {}", pane.label()));
@@ -297,6 +308,61 @@ fn handle_mouse(state: &mut AppState, _sim: &mut Simulation, mouse: MouseEvent) 
         }
         _ => {}
     }
+}
+
+/// Resolve a click on a row inside the events pane to the underlying
+/// event, and if it carries an elevator id, focus that car and
+/// enable follow mode. Returns `true` when the click was consumed
+/// (i.e. landed on a real event row); `false` means the caller
+/// should fall through to normal pane-focus behavior.
+fn handle_event_row_click(state: &mut AppState, sim: &Simulation, row: u16) -> bool {
+    let Some(events_box) = state.pane_rects.get().events else {
+        return false;
+    };
+    // Inside the bordered block: row 0 is the top border, content
+    // starts at row 1, last row is the bottom border. Reject clicks
+    // on the borders.
+    let inner_top = events_box.y.saturating_add(1);
+    let inner_bottom = events_box.y.saturating_add(events_box.h.saturating_sub(1));
+    if row < inner_top || row >= inner_bottom {
+        return false;
+    }
+    let visible_row = (row - inner_top) as usize;
+
+    // Reproduce the events::draw filter pipeline so visible_row maps
+    // to the same event the renderer painted on that cell. Keeping
+    // this in sync with the renderer is enforced by tests below.
+    let cars: Vec<_> = ui::shaft::cars_iter(sim).collect();
+    let focused_entity = cars.get(state.focused_car_idx).map(|c| c.id);
+    let needle = state.events_filter.to_lowercase();
+    let visible: Vec<&crate::state::LoggedEvent> = state
+        .visible_events(focused_entity)
+        .rev()
+        .filter(|logged| {
+            needle.is_empty()
+                || ui::events::format_event_body(&logged.event)
+                    .to_lowercase()
+                    .contains(&needle)
+        })
+        .collect();
+    let inner_height = (inner_bottom - inner_top) as usize;
+    let max_scroll = visible.len().saturating_sub(inner_height.max(1));
+    let clamped_scroll = state.events_scroll.min(max_scroll);
+    let target_idx = clamped_scroll + visible_row;
+    let Some(logged) = visible.get(target_idx) else {
+        return false;
+    };
+    let Some(elevator_id) = crate::state::event_elevator(&logged.event) else {
+        return false;
+    };
+    if let Some((idx, _)) = cars.iter().enumerate().find(|(_, c)| c.id == elevator_id) {
+        state.focused_car_idx = idx;
+        state.follow_focused = true;
+        state.focused_pane = FocusedPane::Events;
+        state.flash(format!("follow → car {}", idx + 1));
+        return true;
+    }
+    false
 }
 
 /// Filter-input handler — keys flow into `state.pending_filter`
@@ -1094,6 +1160,78 @@ mod tests {
         // Step once to trigger record_step's GC pass.
         handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
         assert!(!state.flash_until.contains_key(&phantom_id));
+    }
+
+    #[test]
+    fn click_on_event_row_follows_elevator() {
+        // Spawn a rider then step so the log carries elevator-bound
+        // events (Assigned / Boarded / Arrived) that resolve to the
+        // demo sim's only car.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        sim.spawn_rider(
+            elevator_core::stop::StopId(0),
+            elevator_core::stop::StopId(1),
+            75.0,
+        )
+        .expect("spawn rider");
+        for _ in 0..30 {
+            handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        }
+        assert!(
+            !state.event_log.is_empty(),
+            "demo sim should produce events"
+        );
+        // Stage a pane rect so the hit-test passes (in practice the
+        // renderer fills this every frame).
+        state.pane_rects.set(crate::state::PaneRects {
+            events: Some(crate::state::PaneBox {
+                x: 30,
+                y: 5,
+                w: 70,
+                h: 10,
+            }),
+            ..Default::default()
+        });
+        // Click the first content row inside the events pane.
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 50,
+            row: 6,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert!(!state.follow_focused);
+        handle_mouse(&mut state, &sim, mouse);
+        assert!(state.follow_focused, "click should enable follow");
+        assert_eq!(state.focused_pane, FocusedPane::Events);
+    }
+
+    #[test]
+    fn click_on_events_border_falls_through() {
+        // Clicking the top border row (not a content row) should
+        // route to plain pane-focus, not follow.
+        let mut state = AppState::new(1.0).without_welcome();
+        let sim = demo_sim();
+        state.pane_rects.set(crate::state::PaneRects {
+            events: Some(crate::state::PaneBox {
+                x: 30,
+                y: 5,
+                w: 70,
+                h: 10,
+            }),
+            ..Default::default()
+        });
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 50,
+            row: 5, // top border
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse(&mut state, &sim, mouse);
+        assert!(!state.follow_focused);
+        // Pane focus did still update — the click landed in the
+        // events pane bounding box.
+        assert_eq!(state.focused_pane, FocusedPane::Events);
     }
 
     #[test]
