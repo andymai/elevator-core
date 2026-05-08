@@ -379,12 +379,7 @@ impl DispatchStrategy for RsrDispatch {
         // prevents fresh lobby-side demand from indefinitely preempting
         // older upper-floor waiters. Mirrors ETD's `age_linear_weight`.
         if self.age_linear_weight > 0.0 {
-            let wait_sum: f64 = ctx
-                .manifest
-                .waiting_riders_at(ctx.stop)
-                .iter()
-                .map(|r| r.wait_ticks as f64)
-                .sum();
+            let wait_sum = super::wait_ticks_sum(ctx.manifest.waiting_riders_at(ctx.stop));
             cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost);
         }
 

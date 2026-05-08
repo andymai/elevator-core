@@ -224,24 +224,11 @@ impl DispatchStrategy for EtdDispatch {
         let mut cost =
             self.compute_cost(ctx.car, ctx.car_position(), ctx.stop_position(), ctx.world);
         if self.wait_squared_weight > 0.0 {
-            let wait_sq: f64 = ctx
-                .manifest
-                .waiting_riders_at(ctx.stop)
-                .iter()
-                .map(|r| {
-                    let w = r.wait_ticks as f64;
-                    w * w
-                })
-                .sum();
+            let wait_sq = super::wait_ticks_squared_sum(ctx.manifest.waiting_riders_at(ctx.stop));
             cost = crate::fp::fma(self.wait_squared_weight, -wait_sq, cost).max(0.0);
         }
         if self.age_linear_weight > 0.0 {
-            let wait_sum: f64 = ctx
-                .manifest
-                .waiting_riders_at(ctx.stop)
-                .iter()
-                .map(|r| r.wait_ticks as f64)
-                .sum();
+            let wait_sum = super::wait_ticks_sum(ctx.manifest.waiting_riders_at(ctx.stop));
             cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost).max(0.0);
         }
         if cost.is_finite() { Some(cost) } else { None }
