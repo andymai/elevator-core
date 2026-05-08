@@ -23,17 +23,17 @@ expression: frame
 │             │            `:drill` `:close` `:follow` `:help` `:quit`               │             │
 │             │                                                                      │             │
 │             │  Events pane (when focused)                                          │             │
-│             │    j / k   scroll one event older / newer                            │             │
-│             │    C-f / C-bhalf-page scroll                                         │             │
+│             │    j / k   scroll one event older / newer                            │─────────────╯
+│             │    C-f / C-bhalf-page scroll                                         │─────────────╮
 │             │    g g / G jump to newest / oldest event                             │             │
 │             │    /       filter events (Enter commit, Esc cancel)                  │             │
-│             │                                                                      │             │
-│             │  Filters & Snapshots                                                 │─────────────╯
-│             │    1..7    toggle event categories (1 Elev, 2 Rdr, 3 Dsp,            │─────────────╮
+│             │                                                                      │─────────────╯
+│             │  Filters & Snapshots                                                 │─────────────╮
+│             │    1..7    toggle event categories (1 Elev, 2 Rdr, 3 Dsp,            │             │
 │             │            4 Top, 5 Rep, 6 Dir, 7 Obs)                               │             │
 │             │    s / l   save / restore in-memory snapshot                         │             │
-│             │                                                                      │─────────────╯
-│             │  Glyphs                                                              │─────────────╮
+│             │                                                                      │             │
+│             │  Glyphs                                                              │             │
 │             │    ▲ ▼     going up / going down                                     │             │
 │             │    ■       stopped                                                   │             │
 │             │    L       loading riders                                            │             │
