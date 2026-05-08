@@ -23,6 +23,21 @@ pub enum Orientation {
     Horizontal,
 }
 
+impl std::fmt::Display for Orientation {
+    /// ```
+    /// # use elevator_core::components::Orientation;
+    /// assert_eq!(format!("{}", Orientation::Vertical), "vertical");
+    /// assert_eq!(format!("{}", Orientation::Angled { degrees: 30.0 }), "30°");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Vertical => f.write_str("vertical"),
+            Self::Horizontal => f.write_str("horizontal"),
+            Self::Angled { degrees } => write!(f, "{degrees}°"),
+        }
+    }
+}
+
 /// 2D position on a floor plan (for spatial queries and rendering).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SpatialPosition {

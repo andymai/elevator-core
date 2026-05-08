@@ -18,6 +18,22 @@ pub enum TransportMode {
     Walk,
 }
 
+impl std::fmt::Display for TransportMode {
+    /// ```
+    /// # use elevator_core::components::TransportMode;
+    /// # use elevator_core::ids::GroupId;
+    /// assert_eq!(format!("{}", TransportMode::Group(GroupId(0))), "group GroupId(0)");
+    /// assert_eq!(format!("{}", TransportMode::Walk), "walk");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Group(g) => write!(f, "group {g}"),
+            Self::Line(eid) => write!(f, "line {eid:?}"),
+            Self::Walk => f.write_str("walk"),
+        }
+    }
+}
+
 /// One segment of a multi-leg route.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteLeg {

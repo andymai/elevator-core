@@ -647,6 +647,20 @@ pub enum HallCallMode {
     Destination,
 }
 
+impl std::fmt::Display for HallCallMode {
+    /// ```
+    /// # use elevator_core::dispatch::HallCallMode;
+    /// assert_eq!(format!("{}", HallCallMode::Classic), "classic");
+    /// assert_eq!(format!("{}", HallCallMode::Destination), "destination");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Classic => f.write_str("classic"),
+            Self::Destination => f.write_str("destination"),
+        }
+    }
+}
+
 /// Runtime elevator group: a set of lines sharing a dispatch strategy.
 ///
 /// A group is the logical dispatch unit. It contains one or more
