@@ -15,6 +15,13 @@ SimConfig(
         // Stops along the elevator shaft. At least one required.
         // Positions are in arbitrary distance units from origin.
         // Stops need not be uniformly spaced — supports buildings and space elevators.
+        //
+        // Declare the lobby (or equivalent main entry stop) FIRST. The
+        // built-in TrafficDetector treats `stops[0]` as the lobby for
+        // UpPeak/DownPeak classification; listing a basement or other
+        // sub-grade stop first silently suppresses peak detection,
+        // which in turn disables RsrDispatch's peak-direction multiplier
+        // and AdaptiveParking's lobby-return branch.
         stops: [
             // id: unique StopId — referenced by elevator starting_stop and rider routes.
             // name: display label for the stop.

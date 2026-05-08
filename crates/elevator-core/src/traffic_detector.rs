@@ -184,11 +184,15 @@ impl TrafficDetector {
 
     /// Re-classify using arrivals and destinations as of tick
     /// `now`. `stops` is the list of stop entities to aggregate
-    /// over; the *first* entry is treated as the lobby for both
-    /// up-peak and down-peak classification, so callers must pass
-    /// them in position order (lobby first). `destinations` may be
-    /// an empty (default-constructed) `DestinationLog` — in that
-    /// case down-peak detection silently no-ops and only the
+    /// over; `stops[0]` is treated as the lobby for both up-peak
+    /// and down-peak classification. The metrics phase passes
+    /// stops in declaration order (the order they appear in
+    /// `BuildingConfig::stops`), so the convention is **declare
+    /// the lobby first**. Sorting by position would silently swap
+    /// in the lowest below-grade stop on any building with
+    /// basements, suppressing peak detection. `destinations` may
+    /// be an empty (default-constructed) `DestinationLog` — in
+    /// that case down-peak detection silently no-ops and only the
     /// origin-driven modes fire.
     ///
     /// Precedence when both peaks meet their thresholds (rare —
