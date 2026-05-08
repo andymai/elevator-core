@@ -190,6 +190,20 @@ fn record_step(sim: &mut Simulation, state: &mut AppState) {
     let total_occupancy: usize = ui::shaft::cars_iter(sim).map(|car| car.riders.len()).sum();
     state.occupancy_sparkline.push(total_occupancy as u64);
     state.advance_spawn_bucket(tick, sim.time().ticks_per_second());
+
+    // Auto-snapshot for the time scrubber. Skipped while the user is
+    // *in* scrub mode — record_step still runs there if they manual-
+    // step `.` while paused, but we don't want to pollute the ring
+    // with replay-induced snapshots.
+    if state.scrub_offset.is_none() && tick.is_multiple_of(crate::state::SNAPSHOT_INTERVAL_TICKS) {
+        if state.snapshot_ring.len() == crate::state::SNAPSHOT_RING_CAP {
+            state.snapshot_ring.pop_front();
+        }
+        state.snapshot_ring.push_back(crate::state::RingEntry {
+            tick,
+            snapshot: sim.snapshot(),
+        });
+    }
 }
 
 /// Map a single keypress to a state transition (and possibly a sim
@@ -330,6 +344,10 @@ const fn handle_key_help(state: &mut AppState, code: KeyCode) {
 /// Main viewer handler — overview / drill-down / metrics share these
 /// bindings; the right-panel toggle (Enter / Esc) flips between
 /// `Overview` and `DrillDown` without changing the keymap.
+///
+/// Long because every binding is a one-arm match; splitting across
+/// helpers loses scannability without separating concerns.
+#[allow(clippy::too_many_lines)]
 fn handle_key_main(
     state: &mut AppState,
     sim: &mut Simulation,
@@ -438,13 +456,26 @@ fn handle_key_main(
             };
         }
         KeyCode::Esc => {
-            state.right_panel = RightPanel::Overview;
+            // Exit scrub mode first (the user's "go back to live"
+            // gesture); fall through to close drilldown only when
+            // not scrubbing.
+            if state.scrub_offset.is_some() {
+                handle_key_scrub_exit(state, sim);
+            } else {
+                state.right_panel = RightPanel::Overview;
+            }
         }
         KeyCode::Char('s') => {
             state.snapshot_slot = Some(sim.snapshot());
             state.flash(format!("snapshot saved @ tick {}", sim.current_tick()));
         }
         KeyCode::Char('l') => handle_key_main_load_snapshot(state, sim),
+        // `<` / `>` step the time scrubber. The first `<` snapshots
+        // the live state, pauses, and restores the newest ring entry;
+        // subsequent `<` go further back. `>` walks toward live; `Esc`
+        // jumps back to live in one go.
+        KeyCode::Char('<') => handle_key_scrub_back(state, sim),
+        KeyCode::Char('>') => handle_key_scrub_forward(state, sim),
         _ => {}
     }
 }
@@ -492,6 +523,122 @@ const fn handle_events_scroll(
             true
         }
         _ => false,
+    }
+}
+
+/// Step the time scrubber backward by one ring entry. The first
+/// press snapshots the live state (so `Esc` can restore it),
+/// pauses, and lands on the newest ring entry. Subsequent presses
+/// walk further back until the ring is exhausted.
+///
+/// The scrub-entry mutations (`live_snapshot`, `paused`,
+/// `scrub_offset`) are committed only *after* the ring restore
+/// succeeds, so a failed restore leaves the user in their original
+/// state — no orphan `live_snapshot`, no silent pause without the
+/// REPLAY badge.
+fn handle_key_scrub_back(state: &mut AppState, sim: &mut Simulation) {
+    if state.snapshot_ring.is_empty() {
+        state.flash("no history yet — keep stepping");
+        return;
+    }
+    let max_offset = state.snapshot_ring.len() - 1;
+    let (next_offset, is_entry) = match state.scrub_offset {
+        None => (0, true),
+        Some(o) if o < max_offset => (o + 1, false),
+        Some(_) => {
+            state.flash("at oldest snapshot");
+            return;
+        }
+    };
+    let live_to_capture = is_entry.then(|| crate::state::LiveSnapshot {
+        snapshot: sim.snapshot(),
+        was_paused: state.paused,
+    });
+    if apply_scrub_offset(state, sim, next_offset).is_err() {
+        // Restore failed — apply_scrub_offset already flashed the
+        // error and left scrub_offset alone. Drop our staged live
+        // snapshot too so we don't carry it back to a future call.
+        return;
+    }
+    if let Some(live) = live_to_capture {
+        state.live_snapshot = Some(live);
+        state.paused = true;
+    }
+}
+
+/// Step the scrubber forward by one entry. At offset 0, exits scrub
+/// mode and restores the live snapshot.
+fn handle_key_scrub_forward(state: &mut AppState, sim: &mut Simulation) {
+    let Some(o) = state.scrub_offset else {
+        return;
+    };
+    if o == 0 {
+        handle_key_scrub_exit(state, sim);
+    } else {
+        // Failure here leaves scrub_offset on the prior step, which
+        // is the right behavior — user just sees the flash and can
+        // try `>` again or `Esc` out.
+        let _ = apply_scrub_offset(state, sim, o - 1);
+    }
+}
+
+/// Exit scrub mode and restore the live snapshot taken on entry.
+/// `Esc` triggers this when scrubbing, mirroring how `>` would walk
+/// all the way forward. Preserves the pre-scrub pause state so a
+/// user who manually paused stays paused after exiting.
+///
+/// On restore failure (snapshot missing or `restore` errors) we
+/// flash the error and *don't* clear the scrub indicator — the sim
+/// would otherwise silently drift, with the user looking at a
+/// replayed past state but no REPLAY badge to flag it.
+fn handle_key_scrub_exit(state: &mut AppState, sim: &mut Simulation) {
+    let Some(live) = state.live_snapshot.take() else {
+        state.flash("scrub exit: no live snapshot to restore");
+        return;
+    };
+    // Clone the snapshot for `restore` so we can stash the original
+    // back on failure — no retry path otherwise.
+    match live.snapshot.clone().restore(None) {
+        Ok(restored) => {
+            *sim = restored;
+            state.scrub_offset = None;
+            state.paused = live.was_paused;
+            state.flash(format!("live @ tick {}", sim.current_tick()));
+        }
+        Err(e) => {
+            state.live_snapshot = Some(live);
+            state.flash(format!("scrub exit failed: {e}"));
+        }
+    }
+}
+
+/// Restore the ring entry at `offset` (counted from newest) and
+/// update the scrub indicator. Helper used by both `<` and `>`.
+/// Returns `Ok` after a successful restore (with `scrub_offset`
+/// committed), `Err(())` on either a missing entry or a restore
+/// failure (in which case the indicator is *not* mutated, so the
+/// caller can leave the user's prior state intact).
+fn apply_scrub_offset(state: &mut AppState, sim: &mut Simulation, offset: usize) -> Result<(), ()> {
+    let idx = state
+        .snapshot_ring
+        .len()
+        .saturating_sub(1)
+        .saturating_sub(offset);
+    let Some(entry) = state.snapshot_ring.get(idx) else {
+        state.flash("scrub: snapshot ring entry missing");
+        return Err(());
+    };
+    match entry.snapshot.clone().restore(None) {
+        Ok(restored) => {
+            *sim = restored;
+            state.scrub_offset = Some(offset);
+            state.flash(format!("replay -{offset} @ tick {tick}", tick = entry.tick));
+            Ok(())
+        }
+        Err(e) => {
+            state.flash(format!("scrub failed: {e}"));
+            Err(())
+        }
     }
 }
 
@@ -824,6 +971,59 @@ mod tests {
         handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
         assert!(state.pending_command.is_none());
         assert!(!state.quit);
+    }
+
+    #[test]
+    fn scrub_back_pauses_and_walks_history() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        // Build up a small snapshot ring so the scrubber has somewhere
+        // to go. Three intervals → three ring entries.
+        for _ in 0..(crate::state::SNAPSHOT_INTERVAL_TICKS * 3) {
+            handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        }
+        assert_eq!(state.snapshot_ring.len(), 3);
+        let live_tick = sim.current_tick();
+        handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
+        assert_eq!(state.scrub_offset, Some(0));
+        assert!(state.paused);
+        assert!(state.live_snapshot.is_some());
+        assert!(sim.current_tick() <= live_tick);
+        handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
+        assert_eq!(state.scrub_offset, Some(1));
+    }
+
+    #[test]
+    fn scrub_exit_preserves_pre_scrub_pause() {
+        // Greptile P1: user-paused → scrub → exit must stay paused.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        for _ in 0..(crate::state::SNAPSHOT_INTERVAL_TICKS * 2) {
+            handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        }
+        // User pauses manually before scrubbing.
+        state.paused = true;
+        handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_some());
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_none());
+        assert!(state.paused, "pre-scrub pause should survive scrub exit");
+    }
+
+    #[test]
+    fn esc_while_scrubbing_returns_to_live() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        for _ in 0..(crate::state::SNAPSHOT_INTERVAL_TICKS * 2) {
+            handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
+        }
+        let live_tick = sim.current_tick();
+        handle_key(&mut state, &mut sim, KeyCode::Char('<'), KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_some());
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert!(state.scrub_offset.is_none());
+        assert!(!state.paused);
+        assert_eq!(sim.current_tick(), live_tick);
     }
 
     #[test]
