@@ -5,21 +5,25 @@
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use crate::state::AppState;
+use crate::state::{AppState, FocusedPane};
 use crate::ui::{events, palette, shaft};
 
 /// Render the drill-down panel.
 pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+    // Drill-down owns the right column while it's open, so it reads
+    // as "the focal point" unless focus is explicitly on the shaft.
+    // PR4 will turn this into a floating popup; until then, this rule
+    // keeps exactly one panel visually focused at a time.
+    let pane_focused = state.focused_pane != FocusedPane::Shaft;
     let cars: Vec<_> = shaft::cars_iter(sim).collect();
     let Some(focused) = cars.get(state.focused_car_idx) else {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::default().fg(palette::DIM_STRONG))
+            .border_style(palette::border_style(pane_focused))
             .title(super::bracketed_title("drill-down", None));
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -30,7 +34,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .border_style(palette::border_style(pane_focused))
         .title(super::bracketed_title(
             "drill-down",
             Some(format!("{:?}", focused.id)),

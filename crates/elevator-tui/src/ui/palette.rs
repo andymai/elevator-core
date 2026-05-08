@@ -61,6 +61,20 @@ pub fn focused_style() -> Style {
         .add_modifier(Modifier::REVERSED)
 }
 
+/// Border style for a panel: accent-bold when focused, dim otherwise.
+///
+/// Centralizing this means the focus visual lights up consistently
+/// across every panel, and a future theme swap (PR7) flips the whole
+/// app's accent in one place rather than per-panel.
+#[must_use]
+pub fn border_style(focused: bool) -> Style {
+    if focused {
+        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(DIM)
+    }
+}
+
 /// Choose a color along the green→yellow→red ramp from a 0..=1 fill ratio.
 /// `<60%` → green, `<85%` → yellow, otherwise red.
 #[must_use]

@@ -1,5 +1,5 @@
-//! Frame composition: title bar, legend strip, body (shaft + right
-//! column), footer, and modal overlays (welcome / help) on top.
+//! Frame composition: title bar, body (shaft + right column), mode-aware
+//! footer, and modal overlays (welcome / help) on top.
 
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
@@ -8,13 +8,12 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::state::{AppState, RightPanel, UiOverlay};
+use crate::state::{AppState, FocusedPane, RightPanel, UiOverlay};
 
 pub mod dispatch;
 pub mod drilldown;
 pub mod events;
 pub mod help;
-pub mod legend;
 pub mod metrics;
 pub mod palette;
 pub mod shaft;
@@ -27,14 +26,12 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // title bar
-            Constraint::Length(1), // legend strip
             Constraint::Min(0),    // body
-            Constraint::Length(1), // footer
+            Constraint::Length(1), // footer (mode-aware)
         ])
         .split(frame.area());
 
     draw_title(frame, outer[0], state, sim);
-    legend::draw(frame, outer[1]);
 
     let body = Layout::default()
         .direction(Direction::Horizontal)
@@ -42,7 +39,7 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
             Constraint::Length(shaft::recommended_width(sim)),
             Constraint::Min(0),
         ])
-        .split(outer[2]);
+        .split(outer[1]);
 
     shaft::draw(frame, body[0], state, sim);
 
@@ -51,7 +48,7 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
         RightPanel::DrillDown => drilldown::draw(frame, body[1], state, sim),
     }
 
-    draw_footer(frame, outer[3], state);
+    draw_footer(frame, outer[2], state);
 
     // Modal overlays render last so they sit above every panel.
     match state.overlay {
@@ -101,27 +98,48 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-/// Footer: minimal hotkey hint + transient status flash.
-///
-/// The full keybinding list lives in the help overlay (`?`); this row
-/// stays under terminal-width pressure so it never truncates.
+/// Mode-aware footer: status badge, focused-pane label, and the 4–6
+/// keys most relevant to the current focus. Modeled on helix/zellij's
+/// status bar — the user shouldn't have to memorize the full keymap to
+/// know what's possible right now.
 fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    // Padded literals so the badge can be styled directly without a
+    // per-frame `format!` allocation.
+    let (badge_text, badge_color) = if state.paused {
+        (" PAUSED ", palette::WARN)
+    } else {
+        (" RUNNING ", palette::SUCCESS)
+    };
+
+    // When DrillDown owns the right column, the dispatch / events /
+    // metrics / traffic panels aren't on screen — so the label and
+    // hints describe drilldown rather than the underlying focused
+    // pane. Prevents the misleading "events │ 1-7 filter" footer
+    // greptile flagged. PR4 turns drilldown into a popup, at which
+    // point this short-circuit goes away.
+    let (label, hints): (&'static str, &'static [(&'static str, &'static str)]) =
+        match state.right_panel {
+            RightPanel::DrillDown => ("drill-down", DRILLDOWN_HINTS),
+            RightPanel::Overview => (state.focused_pane.label(), pane_hints(state.focused_pane)),
+        };
+    // Tab is a no-op in DrillDown, so omit it from the footer so users
+    // don't press it expecting a pane change.
+    let include_tab = state.right_panel == RightPanel::Overview;
+
     let mut spans = vec![
-        Span::styled(" ?", Style::default().fg(palette::ACCENT)),
-        Span::styled(" help", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("space", Style::default().fg(palette::ACCENT)),
-        Span::styled(" pause", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("[ ]", Style::default().fg(palette::ACCENT)),
-        Span::styled(" car", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("Enter", Style::default().fg(palette::ACCENT)),
-        Span::styled(" drill", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("q", Style::default().fg(palette::ACCENT)),
-        Span::styled(" quit", Style::default().fg(palette::DIM_STRONG)),
+        Span::styled(
+            badge_text,
+            Style::default()
+                .fg(badge_color)
+                .add_modifier(Modifier::BOLD)
+                .add_modifier(Modifier::REVERSED),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(label, palette::title_style()),
+        Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
+    extend_with_key_hints(&mut spans, hints, include_tab);
+
     if let Some(status) = &state.status {
         spans.push(Span::styled("   ◇ ", Style::default().fg(palette::DIM)));
         spans.push(Span::styled(
@@ -132,6 +150,66 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// Verbs surfaced when `DrillDown` owns the right column. Same shape
+/// as the per-pane tables so the renderer doesn't need a separate path.
+///
+/// Label values carry their leading space (e.g. `" pause"`) so the
+/// renderer can pass them through to `Span::styled` without an
+/// allocating `format!` on the 144 fps frame path.
+const DRILLDOWN_HINTS: &[(&str, &str)] = &[("Spc", " pause"), ("[/]", " car"), ("Esc", " close")];
+
+/// Per-pane verb table — pane-specific keys first, universal trailers
+/// (`Tab`, `?`) appended at render time. Same leading-space convention
+/// as `DRILLDOWN_HINTS`.
+const fn pane_hints(focus: FocusedPane) -> &'static [(&'static str, &'static str)] {
+    match focus {
+        FocusedPane::Shaft => &[("Spc", " pause"), ("[/]", " car"), ("m", " mode")],
+        FocusedPane::Dispatch => &[("Spc", " pause"), ("[/]", " car"), ("⏎", " drill")],
+        FocusedPane::Events => &[("Spc", " pause"), ("1-7", " filter"), ("f", " follow")],
+        FocusedPane::Metrics | FocusedPane::Traffic => {
+            &[("Spc", " pause"), (".", " step"), ("+/-", " rate")]
+        }
+    }
+}
+
+/// Append the key hints to the footer span buffer, separated by ` · `.
+/// `?` always comes last; `Tab pane` is appended only when
+/// `include_tab` is true — `DrillDown` mode no-ops Tab and surfacing
+/// the hint there would mislead the user into pressing a key that
+/// does nothing.
+///
+/// The list is kept short (≤ 6 hints) so the row fits comfortably in
+/// 80 columns alongside the status badge — the full keymap lives in
+/// the `?` overlay.
+fn extend_with_key_hints(
+    spans: &mut Vec<Span<'static>>,
+    pane_hints: &'static [(&'static str, &'static str)],
+    include_tab: bool,
+) {
+    let trailers: &[(&'static str, &'static str)] = if include_tab {
+        &[("Tab", " pane"), ("?", " help")]
+    } else {
+        &[("?", " help")]
+    };
+    let hints = pane_hints.iter().copied().chain(trailers.iter().copied());
+    let mut first = true;
+    for (key, label) in hints {
+        if first {
+            first = false;
+        } else {
+            spans.push(Span::styled(" · ", Style::default().fg(palette::DIM)));
+        }
+        // Both `key` and `label` are `&'static str` literals — labels in
+        // the hint tables include their leading space, so the renderer
+        // passes them through without any per-frame allocation.
+        spans.push(Span::styled(key, Style::default().fg(palette::ACCENT)));
+        spans.push(Span::styled(
+            label,
+            Style::default().fg(palette::DIM_STRONG),
+        ));
+    }
 }
 
 /// Right column = Dispatch / Events / Traffic / Metrics stacked.

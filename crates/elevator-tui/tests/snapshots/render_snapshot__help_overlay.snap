@@ -2,8 +2,7 @@
 source: crates/elevator-tui/tests/render_snapshot.rs
 expression: frame
 ---
- elevator-tui · tick 60 · ▶ 1.00× · index · overview                                                
- legend ▲ up  ╭┤ help · press ? or Esc to close ├────────────────────────────────────╮              
+ elevator-tui ╭┤ help · press ? or Esc to close ├────────────────────────────────────╮              
 ╭┤ shaft · 1 c│                                                                      │─────────────╮
 │  Top        │  Playback                                                            │             │
 │  Ground     │    space   pause / resume                                            │             │
@@ -11,6 +10,7 @@ expression: frame
 │             │    + / -   halve or double tick rate (0.0625× – 64×)                 │             │
 │             │                                                                      │─────────────╯
 │             │  Navigation                                                          │─────────────╮
+│             │    Tab     focus next pane (Shift+Tab for previous)                  │             │
 │             │    [ / ]   focus previous / next car                                 │             │
 │             │    f       follow focused car (event filter)                         │             │
 │             │    Enter   toggle right panel: overview ↔ drill-down                 │             │
@@ -30,5 +30,5 @@ expression: frame
 │             │    ↑↓      active hall call (up / down)                              │             │
 │             │    (n)     n riders waiting at this stop                             │             │
 │             │                                                                      │             │
-╰─────────────╰──────────────────────────────────────────────────────────────────────╯─────────────╯
- ? help · space pause · [ ] car · Enter drill · q quit
+╰─────────────│                                                                      │─────────────╯
+ RUNNING  shaf╰──────────────────────────────────────────────────────────────────────╯

@@ -27,7 +27,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use crate::state::{AppState, ShaftMode};
+use crate::state::{AppState, FocusedPane, ShaftMode};
 use crate::ui::palette;
 
 /// Resolved view of one car for rendering.
@@ -106,10 +106,11 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     let focused = cars.get(state.focused_car_idx).map(|c| c.id);
 
     let suffix = format!("{} cars · {:?}", cars.len(), state.shaft_mode).to_lowercase();
+    let pane_focused = state.focused_pane == FocusedPane::Shaft;
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .border_style(palette::border_style(pane_focused))
         .title(super::bracketed_title("shaft", Some(suffix)));
     let inner = block.inner(area);
     frame.render_widget(block, area);

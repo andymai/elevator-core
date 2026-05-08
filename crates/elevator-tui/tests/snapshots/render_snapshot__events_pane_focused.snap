@@ -31,4 +31,4 @@ expression: frame
 │                            ││                                                                    │
 │                            ││total occupancy                                                     │
 ╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
- RUNNING  shaft  │  Spc pause · [/] car · m mode · Tab pane · ? help
+ RUNNING  events  │  Spc pause · 1-7 filter · f follow · Tab pane · ? help

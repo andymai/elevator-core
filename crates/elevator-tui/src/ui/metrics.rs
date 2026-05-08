@@ -9,16 +9,17 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Sparkline};
 
-use crate::state::AppState;
+use crate::state::{AppState, FocusedPane};
 use crate::ui::palette;
 
 /// Render the metrics panel.
 #[allow(clippy::too_many_lines)]
 pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+    let focused = state.focused_pane == FocusedPane::Metrics;
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .border_style(palette::border_style(focused))
         .title(super::bracketed_title(
             "metrics",
             Some("aggregate health".into()),
