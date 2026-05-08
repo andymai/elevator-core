@@ -23,13 +23,15 @@ const BUBBLE_TTL_DEFAULT_MS = 1000;
  * contain many events per car, and keeping just the last keeps the
  * UI readable without pathologically long message queues.
  *
- * Uses stop name/id lookups from the pane's latest snapshot via
- * [`resolveStopName`]; unresolved stop ids fall back to the numeric
- * id rather than dropping the bubble.
+ * Builds a single id→name map from the snapshot up front so resolving
+ * stop names per event is an O(1) Map lookup instead of an
+ * O(stops × events) linear scan.
  */
 export function updateBubbles(pane: Pane, events: EventDto[], snap: Snapshot): void {
   const bornAt = performance.now();
-  const stopName = (id: number): string => resolveStopName(snap, id);
+  const nameById = new Map<number, string>();
+  for (const stop of snap.stops) nameById.set(stop.entity_id, stop.name);
+  const stopName = (id: number): string => nameById.get(id) ?? `stop #${id}`;
   for (const ev of events) {
     const content = bubbleTextFor(ev, stopName);
     if (content === null) continue;
