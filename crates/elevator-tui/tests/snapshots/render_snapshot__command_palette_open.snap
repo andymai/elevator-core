@@ -1,0 +1,34 @@
+---
+source: crates/elevator-tui/tests/render_snapshot.rs
+expression: frame
+---
+ elevator-tui · tick 120 · ▶ 1.00× · index · overview                                               
+╭┤ shaft · 1 cars · index ├──╮╭┤ dispatch · per-car state and load ├───────────────────────────────╮
+│  Top         10.0      │ · ││Default      strategy=Scan  cars=1  waiting=0                       │
+│  Ground       0.0      │ ▲ ││  car 1    movg →Top       [█░░░░░░░░░]   75/800  q=1               │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ events · filter [all] ├───────────────────────────────────────────╮
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ traffic · arrivals/sec ├──────────────────────────────────────────╮
+│                            ││   0/s now   avg  0.0/s   total 1                                   │
+│                            ││                                                                    │
+│                            │╰────────────────────────────────────────────────────────────────────╯
+│                            │╭┤ metrics · aggregate health ├──────────────────────────────────────╮
+│                            ││spawned 1   delivered 0   abandoned 0 (0.0%)                        │
+│                            ││wait avg 4.0t   p95 4t   max 4t                                     │
+│                            ││ride avg 0.0t   throughput 0/3600t   util 100%                      │
+│                            ││p95 wait (ticks)                                                    │
+│                            ││                                                                    │
+│                            ││total occupancy                                                     │
+╰────────────────────────────╯╰────────────────────────────────────────────────────────────────────╯
+ RUNNING  shaft  │  : metr█  Esc cancel · ⏎ run
