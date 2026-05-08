@@ -13,16 +13,16 @@ expression: frame
 │              │position  0.34                                                      │              │
 │              │                                                                    │              │
 │              │queue (1 stops)                                                     │              │
-│              │  → EntityId(2v1)                                                   │──────────────╯
-│              │                                                                    │──────────────╮
+│              │  → EntityId(2v1)                                                   │              │
+│              │                                                                    │              │
 │              │riders aboard (1)                                                   │              │
 │              │  · EntityId(5v1)                                                   │              │
 │              │                                                                    │──────────────╯
 │              │recent events touching this car                                     │──────────────╮
 │              │                                                                    │              │
 │              │                                                                    │              │
-│              │                                                                    │              │
-│              │                                                                    │              │
+│              │                                                                    │──────────────╯
+│              │                                                                    │──────────────╮
 │              │                                                                    │              │
 │              │                                                                    │              │
 │              │                                                                    │              │
