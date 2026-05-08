@@ -47,6 +47,27 @@ pub enum Phase {
     Metrics,
 }
 
+impl std::fmt::Display for Phase {
+    /// ```
+    /// # use elevator_core::hooks::Phase;
+    /// assert_eq!(format!("{}", Phase::Dispatch), "dispatch");
+    /// assert_eq!(format!("{}", Phase::AdvanceTransient), "advance_transient");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::AdvanceTransient => "advance_transient",
+            Self::Dispatch => "dispatch",
+            Self::Movement => "movement",
+            Self::Doors => "doors",
+            Self::Loading => "loading",
+            Self::Reposition => "reposition",
+            Self::AdvanceQueue => "advance_queue",
+            Self::Metrics => "metrics",
+        };
+        f.write_str(s)
+    }
+}
+
 /// A boxed closure that receives mutable world access during a phase hook.
 pub(crate) type PhaseHook = Box<dyn Fn(&mut World) + Send + Sync>;
 

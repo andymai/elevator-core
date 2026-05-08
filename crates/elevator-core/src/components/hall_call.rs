@@ -65,6 +65,20 @@ impl CallDirection {
     }
 }
 
+impl std::fmt::Display for CallDirection {
+    /// ```
+    /// # use elevator_core::components::CallDirection;
+    /// assert_eq!(format!("{}", CallDirection::Up), "up");
+    /// assert_eq!(format!("{}", CallDirection::Down), "down");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Up => f.write_str("up"),
+            Self::Down => f.write_str("down"),
+        }
+    }
+}
+
 /// A pressed hall button at `stop` requesting service in `direction`.
 ///
 /// Stored per `(stop, direction)` pair — at most two per stop. Built-in
