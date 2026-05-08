@@ -362,21 +362,3 @@ impl fmt::Display for RejectionContext {
         }
     }
 }
-
-impl From<EntityId> for SimError {
-    fn from(id: EntityId) -> Self {
-        Self::EntityNotFound(id)
-    }
-}
-
-impl From<StopId> for SimError {
-    fn from(id: StopId) -> Self {
-        Self::StopNotFound(id)
-    }
-}
-
-impl From<GroupId> for SimError {
-    fn from(id: GroupId) -> Self {
-        Self::GroupNotFound(id)
-    }
-}
