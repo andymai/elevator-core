@@ -1,6 +1,8 @@
 import { el } from "../../platform";
 import type { MetricKey, MetricsDto } from "../../types";
-import { buildSparklinePath } from "./sparkline";
+import { buildSparkline } from "./sparkline";
+
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Metric row layout: 5 fixed rows, always the same keys in the same order.
 // We build the DOM once and mutate text + verdict + sparkline + delta in
@@ -30,13 +32,18 @@ export function metricValue(m: MetricsDto, key: MetricKey): string {
 
 // Arithmetic delta from `self` to `other` for the cell's metric. Sign
 // reflects raw difference; the verdict (win/lose/tie) drives color
-// independently. Returned `text` is "▲ +0.3 s" / "▼ −2 %"; callers hide
+// independently. Returned text is "▴ +0.3 s" / "▾ −2 %"; callers hide
 // the element on tie to mirror the verdict's epsilon-based smoothing.
+//
+// Glyphs use the smaller `▴`/`▾` (U+25B4 / U+25BE) rather than the
+// chunkier `▲`/`▼`; under the mono family they line up vertically with
+// the sign character, and they read as a delta indicator without
+// dominating the delta row visually.
 function metricDelta(self: MetricsDto, other: MetricsDto, key: MetricKey): string {
   const sv = numericMetric(self, key);
   const ov = numericMetric(other, key);
   const diff = sv - ov;
-  const arrow = diff > 0 ? "▲" : "▼";
+  const arrow = diff > 0 ? "▴" : "▾";
   const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
   const mag = Math.abs(diff);
   switch (key) {
@@ -103,22 +110,31 @@ export function diffMetrics(
 export function initMetricRows(root: HTMLElement): void {
   const frag = document.createDocumentFragment();
   for (const [label] of METRIC_DEFS) {
-    // Hairline column rules between cells, no card chrome — the row
-    // floats on the surface. Column rules are grid-aware (CSS in
-    // style.css handles 5-col desktop vs 3-col mobile wrapping).
-    // data-verdict on the row drives delta + sparkline color via
+    // Layout flips between desktop (vertical stack inside each cell of
+    // a 5-col strip) and mobile (single-col list with the row laid out
+    // horizontally as label / value / delta / sparkline). The split is
+    // entirely CSS-driven via `.metric-strip` + `.metric-row` rules in
+    // style.css, so the DOM here is the same in both modes.
+    // `data-verdict` on the row drives delta + sparkline color via
     // attribute selectors in style.css.
-    const row = el("div", "metric-row flex flex-col gap-[2px] px-2 py-1 text-right");
+    const row = el("div", "metric-row");
     // SVG sparkline lives in the metric row and is mutated in place
     // each frame. SVG (not canvas) keeps it crisp at any DPR and lets
     // CSS drive the stroke colour via the `.metric-row[data-verdict]`
     // selectors in style.css (tertiary by default; --ok / --bad on
     // win / lose).
-    const spark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const spark = document.createElementNS(SVG_NS, "svg");
     spark.classList.add("metric-spark");
     spark.setAttribute("viewBox", "0 0 100 14");
     spark.setAttribute("preserveAspectRatio", "none");
-    spark.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path"));
+    spark.appendChild(document.createElementNS(SVG_NS, "path"));
+    // Trailing-dot anchor at the latest sample. Sized in viewBox units
+    // (slight oval under the non-uniform 100×14 stretch is fine — at
+    // sparkline screen sizes it reads as a small "now" marker).
+    const dot = document.createElementNS(SVG_NS, "circle");
+    dot.classList.add("metric-spark-dot");
+    dot.setAttribute("r", "1.4");
+    spark.appendChild(dot);
     row.append(
       el("span", "metric-k", label),
       el("span", "metric-v"),
@@ -159,7 +175,10 @@ export function renderMetricRows(
     if (ds.textContent !== deltaText) ds.textContent = deltaText;
     const spark = row.children[3] as SVGSVGElement;
     const path = spark.firstElementChild as SVGPathElement;
-    const d = buildSparklinePath(history[key]);
-    if (path.getAttribute("d") !== d) path.setAttribute("d", d);
+    const dot = spark.children[1] as SVGCircleElement;
+    const sl = buildSparkline(history[key]);
+    if (path.getAttribute("d") !== sl.d) path.setAttribute("d", sl.d);
+    dot.setAttribute("cx", sl.lastX.toFixed(2));
+    dot.setAttribute("cy", sl.lastY.toFixed(2));
   }
 }

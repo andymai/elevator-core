@@ -975,29 +975,29 @@
     min-height: 1.35em;
   }
 
-  /* ── Metric row (Bloomberg-style) ──────────────────────────────────── */
+  /* ── Metric strip / row (Bloomberg-style instrument panel) ─────────── */
 
-  /* The row floats on the surface — no card bg, no border. Vertical
-   * column rules sit on every cell except the rightmost-of-its-visible-row
-   * (5 cols on desktop, 3 on mobile — the strip wraps the 5 cells into
-   * 2 mobile rows so we kill the 5n rule and gate by last-child instead).
+  /* Layout flips between desktop (5-cell horizontal strip with the row
+   * stacked vertically inside each cell) and mobile (single-column list
+   * with each row laid out horizontally as label / value / delta /
+   * sparkline). The DOM is identical in both modes; only CSS swaps.
    * Verdict drives delta + sparkline color; the row itself stays neutral. */
+  .metric-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding: 4px 0;
+  }
   .metric-row {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 8px;
+    text-align: right;
     border-right: 1px solid var(--border-subtle);
   }
-  .metric-strip .metric-row:nth-child(5n),
   .metric-strip .metric-row:last-child {
     border-right: 0;
-  }
-  @media (max-width: 767px) {
-    .metric-strip .metric-row:nth-child(5n) {
-      border-right: 1px solid var(--border-subtle);
-    }
-    .metric-strip .metric-row:nth-child(3n),
-    .metric-strip .metric-row:last-child {
-      border-right: 0;
-    }
   }
   .metric-k {
     font-family: var(--font-stack-mono);
@@ -1008,10 +1008,12 @@
     color: var(--text-tertiary);
     line-height: 1;
   }
+  /* Hero of the cell — punchy mono with tabular figures so columns of
+   * numbers across panes line up at a glance. */
   .metric-v {
     font-family: var(--font-stack-mono);
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--text-primary);
     font-feature-settings:
       "tnum" 1,
@@ -1032,34 +1034,82 @@
     color: var(--text-tertiary);
     font-feature-settings: "tnum" 1;
   }
+  /* Verdict tints use a slightly desaturated mix of `--ok` / `--bad`
+   * with `--text-secondary` so a row of red deltas (which can happen
+   * after a bad strategy swap) doesn't read as a red alarm — the
+   * strip stays informational, not anxious. */
   .metric-row[data-verdict="win"] .metric-d {
-    color: var(--ok);
+    color: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
   }
   .metric-row[data-verdict="lose"] .metric-d {
-    color: var(--bad);
+    color: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
   }
   .metric-spark {
-    margin-top: 1px;
+    margin-top: 2px;
     width: 100%;
-    max-width: 56px;
-    height: 8px;
-    margin-left: auto;
+    height: 12px;
     display: block;
-    opacity: 0.7;
+    overflow: visible;
+    opacity: 0.95;
   }
   .metric-spark path {
     fill: none;
     stroke: var(--text-tertiary);
-    stroke-width: 1;
+    stroke-width: 1.25;
     stroke-linecap: round;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
   }
-  .metric-row[data-verdict="win"] .metric-spark path {
-    stroke: var(--ok);
+  .metric-spark-dot {
+    fill: var(--text-tertiary);
   }
-  .metric-row[data-verdict="lose"] .metric-spark path {
-    stroke: var(--bad);
+  .metric-row[data-verdict="win"] .metric-spark path,
+  .metric-row[data-verdict="win"] .metric-spark-dot {
+    stroke: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
+    fill: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
+  }
+  .metric-row[data-verdict="lose"] .metric-spark path,
+  .metric-row[data-verdict="lose"] .metric-spark-dot {
+    stroke: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
+    fill: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
+  }
+
+  /* Mobile (<768px): collapse the 5-cell strip into a single column
+   * where each row spreads its label, value, delta, and sparkline
+   * across the full width. Saves vertical space (one row per metric
+   * instead of four) and uses the available width for the sparkline. */
+  @media (max-width: 767px) {
+    .metric-strip {
+      grid-template-columns: 1fr;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: 78px max-content max-content 1fr;
+      align-items: baseline;
+      column-gap: 10px;
+      gap: 0;
+      padding: 5px 8px;
+      text-align: left;
+      border-right: 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .metric-strip .metric-row:last-child {
+      border-bottom: 0;
+    }
+    .metric-k {
+      justify-self: start;
+    }
+    .metric-v {
+      justify-self: end;
+    }
+    .metric-d {
+      justify-self: start;
+    }
+    .metric-spark {
+      margin-top: 0;
+      align-self: center;
+      height: 14px;
+    }
   }
 
   /* ── Shortcut sheet overlay ─────────────────────────────────────────── */
