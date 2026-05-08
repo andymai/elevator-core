@@ -44,8 +44,12 @@ elevator-layout-derive = { path = "../elevator-layout-derive" }
 elevator-layout-runtime = { path = "../elevator-layout-runtime" }
 linkme = "0.3"
 ron = { workspace = true }
-serde = { workspace = true }
 slotmap = { workspace = true }
+
+# linkme is used via paths emitted by the MultiHostLayout derive macro
+# (`::linkme::distributed_slice`), so cargo-machete does not see it.
+[package.metadata.cargo-machete]
+ignored = ["linkme"]
 
 [build-dependencies]
 cbindgen = "0.29"

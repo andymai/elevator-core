@@ -2659,7 +2659,6 @@ dependencies = [
  "elevator-core",
  "rand 0.10.1",
  "ron",
- "serde",
 ]
 
 [[package]]
@@ -2698,7 +2697,6 @@ dependencies = [
  "elevator-layout-runtime",
  "linkme",
  "ron",
- "serde",
  "slotmap",
 ]
 

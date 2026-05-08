@@ -11,6 +11,5 @@ workspace = true
 [dependencies]
 elevator-core = { path = "../elevator-core" }
 bevy = { version = "0.18", default-features = false, features = ["2d"] }
-serde.workspace = true
 ron.workspace = true
 rand.workspace = true
