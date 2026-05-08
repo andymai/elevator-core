@@ -303,15 +303,24 @@ export function buildHudList(
   stopIdxById: ReadonlyMap<number, number>,
   outBuf: ClimberHud[],
   idSortBuf: number[],
+  idRankBuf: Map<number, number>,
 ): ClimberHud[] {
   // Stable A/B/C labels are assigned by id rank — sort a tiny scratch
-  // buffer instead of cloning + sorting `snap.cars` itself.
+  // buffer instead of cloning + sorting `snap.cars` itself, then build
+  // a reverse-lookup so the per-car label resolves in O(1) instead of
+  // O(n) via `indexOf` (matters for consistency with the rest of the
+  // hot path, even though n is tiny).
   idSortBuf.length = snap.cars.length;
   for (let i = 0; i < snap.cars.length; i++) {
     const car = snap.cars[i];
     if (car !== undefined) idSortBuf[i] = car.id;
   }
   idSortBuf.sort((a, b) => a - b);
+  idRankBuf.clear();
+  for (let i = 0; i < idSortBuf.length; i++) {
+    const id = idSortBuf[i];
+    if (id !== undefined) idRankBuf.set(id, i);
+  }
 
   outBuf.length = snap.cars.length;
   for (let i = 0; i < snap.cars.length; i++) {
@@ -325,7 +334,7 @@ export function buildHudList(
     const etaSeconds = targetStop
       ? tetherEta(altitudeM, targetStop.y, car.v, maxSpeed, acceleration, deceleration)
       : undefined;
-    const labelIdx = idSortBuf.indexOf(car.id);
+    const labelIdx = idRankBuf.get(car.id) ?? 0;
     const slot = outBuf[i];
     if (slot === undefined) {
       outBuf[i] = {

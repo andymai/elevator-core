@@ -62,6 +62,7 @@ export class CanvasRenderer {
   readonly #tetherStopIdxById: Map<number, number> = new Map();
   readonly #tetherHudBuf: ClimberHud[] = [];
   readonly #tetherIdSortBuf: number[] = [];
+  readonly #tetherIdRankBuf: Map<number, number> = new Map();
   /** Active `max_speed` for HUD/ETA math; updated from the snapshot's max served range. */
   #activeMaxSpeed = 1;
   #activeAcceleration = 1;
@@ -513,6 +514,7 @@ export class CanvasRenderer {
       stopIdxById: this.#tetherStopIdxById,
       hudBuf: this.#tetherHudBuf,
       idSortBuf: this.#tetherIdSortBuf,
+      idRankBuf: this.#tetherIdRankBuf,
     };
     drawTetherScene(this.#ctx, snap, w, h, s, tether, state);
     this.#firstDrawAt = state.firstDrawAt;

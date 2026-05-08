@@ -379,6 +379,9 @@ export interface TetherRenderState {
   hudBuf: ClimberHud[];
   /** Reusable car-id buffer used to assign stable A/B/C labels by id rank. */
   idSortBuf: number[];
+  /** Reverse-lookup of `idSortBuf` (id → rank) so label assignment is
+   *  O(1) per car instead of O(n) via `indexOf`. */
+  idRankBuf: Map<number, number>;
 }
 
 /**
@@ -462,6 +465,7 @@ export function drawTetherScene(
     stopIdxById,
     state.hudBuf,
     state.idSortBuf,
+    state.idRankBuf,
   );
   // Sort the same buffer in-place for altitude order; `drawClimberHuds`
   // and `drawTetherSideCard` both consume it sorted top-to-bottom.
