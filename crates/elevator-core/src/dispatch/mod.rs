@@ -181,6 +181,32 @@ pub fn pair_is_useful(ctx: &RankContext<'_>, respect_aboard_path: bool) -> bool 
     })
 }
 
+/// Sum of `wait_ticks` across `riders`, as `f64`.
+///
+/// Helper used by ETD and RSR fairness terms — both compute the same
+/// `riders.iter().map(|r| r.wait_ticks as f64).sum()` and feed the
+/// result into a fused-multiply-add against a configured weight.
+#[must_use]
+pub(crate) fn wait_ticks_sum(riders: &[RiderInfo]) -> f64 {
+    riders.iter().map(|r| r.wait_ticks as f64).sum()
+}
+
+/// Sum of squared `wait_ticks` across `riders`, as `f64`.
+///
+/// Used by ETD's quadratic-fairness term to escalate cost as old
+/// waiters age. RSR has no quadratic fairness; the linear form lives
+/// in [`wait_ticks_sum`].
+#[must_use]
+pub(crate) fn wait_ticks_squared_sum(riders: &[RiderInfo]) -> f64 {
+    riders
+        .iter()
+        .map(|r| {
+            let w = r.wait_ticks as f64;
+            w * w
+        })
+        .sum()
+}
+
 /// Whether a waiting rider could actually board this car, matching the
 /// same filters the loading phase applies. Prevents `pair_is_useful`
 /// from approving a pickup whose only demand is direction-filtered or
