@@ -63,6 +63,7 @@ fn main() -> Result<(), SimError> {
 
 ```sh
 cargo run --example basic -p elevator-core   # try it now
+# Tick 89: rider RiderId(0) delivered!
 ```
 
 ## Use cases
@@ -87,11 +88,25 @@ cargo run --example basic -p elevator-core   # try it now
 - **Snapshot save/load:** serialize full simulation state for replays or networking
 - **Metrics:** wait times, ride times, throughput, delivered counts, all built-in
 
+## Hosts
+
+`elevator-core` itself is headless. Pick the host that matches your engine:
+
+| Host | Crate | Use it for |
+|---|---|---|
+| Bevy | [`elevator-bevy`](crates/elevator-bevy) | 2-D Rust game with HUD, mesh, and keyboard controls |
+| Browser | [`elevator-wasm`](crates/elevator-wasm) | wasm-bindgen surface; powers the live playground |
+| Unity / .NET / GameMaker | [`elevator-ffi`](crates/elevator-ffi) | C ABI wrapper for native consumers |
+| Godot | [`elevator-gdext`](crates/elevator-gdext) | gdext extension |
+| Terminal | [`elevator-tui`](crates/elevator-tui) | tick-by-tick debugger and headless smoke runner |
+
+Anything not on the list? Drive `Simulation::step()` yourself — the API is engine-agnostic.
+
 ## Non-goals
 
 This is a simulation library, not a game. It deliberately does **not** include:
 
-- Rendering or UI — wrap it with [Bevy](crates/elevator-bevy), Unity ([FFI](crates/elevator-ffi)), [Godot (gdext)](crates/elevator-gdext), or anything else
+- Rendering or UI — see the host crates above, or roll your own
 - AI passengers or traffic generation — use the optional `traffic` feature flag, or drive arrivals yourself
 - Building layout or 2-D floor plans — the sim is 1-D by design
 
@@ -122,7 +137,13 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 
 ## Workspace
 
-The `crates/` directory ships a host crate per supported engine ([`elevator-bevy`](crates/elevator-bevy), [`elevator-ffi`](crates/elevator-ffi), [`elevator-wasm`](crates/elevator-wasm), [`elevator-gdext`](crates/elevator-gdext), [`elevator-tui`](crates/elevator-tui)) plus build-time / test-only supporting crates. See [CLAUDE.md](CLAUDE.md#project-structure) for the full breakdown.
+`elevator-core` is the simulation library. The hosts above wrap it. A handful of supporting crates (`elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen`) are build-time / test-only and exist to keep the host bindings in sync. See [CLAUDE.md](CLAUDE.md#project-structure) for the full layout.
+
+## See also
+
+- [Stability and Versioning](STABILITY.md) — what counts as a breaking change and what doesn't.
+- [`elevator-core` changelog](crates/elevator-core/CHANGELOG.md) — release-please-managed.
+- [AI disclosure](AI-DISCLOSURE.md) — how AI tools are used in this repo.
 
 ## License
 

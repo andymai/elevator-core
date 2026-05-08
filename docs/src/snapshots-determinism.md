@@ -22,6 +22,23 @@ Sources of *non*-determinism to watch for:
 
 A `WorldSnapshot` captures the full simulation state -- all entities, components, groups, lines, metrics, tagged metrics, tick counter -- in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are **not** captured.
 
+```mermaid
+flowchart LR
+    simA["Simulation A<br/>(at tick N)"] -->|sim.snapshot| ws1["WorldSnapshot"]
+    ws1 -->|serde<br/>(RON / JSON /<br/>bincode / …)| bytes["bytes"]
+    bytes -->|deserialize| ws2["WorldSnapshot"]
+    ws2 -->|Simulation::from_snapshot| simB["Simulation B<br/>(at tick N)"]
+
+    simA -.snapshot_checksum.-> chk["checksum"]
+    simB -.snapshot_checksum.-> chk
+    chk -.compared in.-> harness["elevator-contract<br/>vs. golden.txt"]
+
+    classDef artifact fill:#1c1c1c,stroke:#666,color:#eee
+    class ws1,ws2,bytes,chk artifact
+```
+
+Two simulations restored from the same bytes produce byte-identical snapshots forever after, given the same input sequence. The `elevator-contract` harness pins this across hosts: the core run and the wasm-bindgen run share a single `golden.txt` checksum.
+
 ### Saving
 
 ```rust,no_run
