@@ -643,6 +643,16 @@ impl World {
             .filter_map(|(id, car)| self.positions.get(id).map(|pos| (id, pos, car)))
     }
 
+    /// Iterate all elevator entity IDs without allocating.
+    ///
+    /// Prefer this over [`elevator_ids`](Self::elevator_ids) in tight
+    /// per-tick paths where the result is consumed immediately. The
+    /// allocating form remains for callers that genuinely need indexed
+    /// access (e.g. gdext mapping integer indices from `GDScript`).
+    pub fn iter_elevator_ids(&self) -> impl Iterator<Item = EntityId> + '_ {
+        self.elevators.keys()
+    }
+
     /// Iterate all elevator entity IDs (allocates).
     #[must_use]
     pub fn elevator_ids(&self) -> Vec<EntityId> {
@@ -665,6 +675,14 @@ impl World {
         self.riders.iter_mut()
     }
 
+    /// Iterate all rider entity IDs without allocating.
+    ///
+    /// Companion to [`iter_riders`](Self::iter_riders) when only the IDs
+    /// are needed.
+    pub fn iter_rider_ids(&self) -> impl Iterator<Item = EntityId> + '_ {
+        self.riders.keys()
+    }
+
     /// Iterate all rider entity IDs (allocates).
     #[must_use]
     pub fn rider_ids(&self) -> Vec<EntityId> {
@@ -674,6 +692,14 @@ impl World {
     /// Iterate all stop entities.
     pub fn iter_stops(&self) -> impl Iterator<Item = (EntityId, &Stop)> {
         self.stops.iter()
+    }
+
+    /// Iterate all stop entity IDs without allocating.
+    ///
+    /// Companion to [`iter_stops`](Self::iter_stops) when only the IDs
+    /// are needed.
+    pub fn iter_stop_ids(&self) -> impl Iterator<Item = EntityId> + '_ {
+        self.stops.keys()
     }
 
     /// Iterate all stop entity IDs (allocates).
