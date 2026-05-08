@@ -12,12 +12,12 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 use crate::state::AppState;
 use crate::ui::{events, palette, shaft};
 
-/// Render the drill-down as a centered popup over `area`. Unlike the
-/// pre-PR4 layout this no longer steals the right column — the
-/// underlying overview keeps rendering so spatial context (the car's
-/// shaft position, the live event log) stays visible behind the
-/// popup. `Clear` punches a hole in the buffer so the popup body
-/// doesn't pick up bleed-through from underneath.
+/// Render the drill-down as a centered popup over `area`.
+///
+/// The underlying overview keeps rendering so spatial context (the
+/// car's shaft position, the live event log) stays visible behind
+/// the popup. `Clear` punches a hole in the buffer so the popup
+/// body doesn't pick up bleed-through from underneath.
 pub fn draw_popup(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
     // 70x24 keeps the popup readable on terminals down to ~80x30.
     // `centered_rect` shrinks to fit on smaller windows.
