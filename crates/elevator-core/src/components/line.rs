@@ -23,6 +23,29 @@ pub enum Orientation {
     Horizontal,
 }
 
+impl std::fmt::Display for Orientation {
+    /// Bounded precision keeps TUI/HUD output stable when `degrees` is the
+    /// result of a radians→degrees conversion that doesn't round-trip cleanly.
+    ///
+    /// ```
+    /// # use elevator_core::components::Orientation;
+    /// assert_eq!(format!("{}", Orientation::Vertical), "vertical");
+    /// assert_eq!(format!("{}", Orientation::Horizontal), "horizontal");
+    /// assert_eq!(format!("{}", Orientation::Angled { degrees: 30.0 }), "30.0°");
+    /// assert_eq!(
+    ///     format!("{}", Orientation::Angled { degrees: 22.123_456_789 }),
+    ///     "22.1°",
+    /// );
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Vertical => f.write_str("vertical"),
+            Self::Horizontal => f.write_str("horizontal"),
+            Self::Angled { degrees } => write!(f, "{degrees:.1}°"),
+        }
+    }
+}
+
 /// 2D position on a floor plan (for spatial queries and rendering).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SpatialPosition {
