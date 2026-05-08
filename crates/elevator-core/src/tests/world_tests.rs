@@ -415,7 +415,7 @@ fn find_elevator_at_position_matches_within_epsilon() {
     // bit pattern), so step out by 2× to make the boundary intent clear.
     assert!(
         world
-            .find_elevator_at_position(10.0 + 2.0 * World::STOP_POSITION_EPSILON)
+            .find_elevator_at_position(2.0_f64.mul_add(World::STOP_POSITION_EPSILON, 10.0))
             .is_none()
     );
     assert!(world.find_elevator_at_position(20.0).is_none());
