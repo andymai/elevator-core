@@ -131,6 +131,17 @@ fn frame_with_filter_input_open() {
 }
 
 #[test]
+fn frame_with_command_palette_open() {
+    // Pins the `:` palette prompt visible in the footer while the
+    // user is typing a verb.
+    let sim = demo_sim(120);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.pending_command = Some("metr".into());
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("command_palette_open", frame);
+}
+
+#[test]
 fn frame_with_committed_filter_and_scroll() {
     // Pins the events-panel suffix updating when a filter is active
     // and the user has scrolled into the log.

@@ -264,6 +264,12 @@ pub struct AppState {
     /// `gg` chord state — `true` after a `g` keypress, cleared on the
     /// next key. The second `g` jumps the active scroll to the top.
     pub gg_pending: bool,
+    /// In-progress `:` command-palette buffer. `Some` means the user
+    /// is typing a command (footer becomes `: <text>` prompt and most
+    /// keys are routed to the buffer). `Enter` parses + executes,
+    /// `Esc` cancels. Mutually exclusive with `pending_filter` —
+    /// the dispatcher checks both.
+    pub pending_command: Option<String>,
     /// User has requested a clean exit.
     pub quit: bool,
 }
@@ -296,6 +302,7 @@ impl AppState {
             events_filter: String::new(),
             pending_filter: None,
             gg_pending: false,
+            pending_command: None,
             quit: false,
         }
     }
@@ -420,6 +427,37 @@ impl AppState {
     /// keeping the previously-committed filter intact.
     pub fn filter_input_cancel(&mut self) {
         self.pending_filter = None;
+    }
+
+    /// Begin command-palette mode with an empty buffer.
+    pub fn open_command_palette(&mut self) {
+        self.pending_command = Some(String::new());
+    }
+
+    /// Append a typed character to the in-progress command.
+    pub fn command_input_push(&mut self, c: char) {
+        if let Some(buf) = self.pending_command.as_mut() {
+            buf.push(c);
+        }
+    }
+
+    /// Backspace one char from the in-progress command.
+    pub fn command_input_backspace(&mut self) {
+        if let Some(buf) = self.pending_command.as_mut() {
+            buf.pop();
+        }
+    }
+
+    /// Cancel the in-progress command, leaving palette mode.
+    pub fn command_input_cancel(&mut self) {
+        self.pending_command = None;
+    }
+
+    /// Take the in-progress command for execution. Returns the buffer
+    /// (so the caller can parse + dispatch) and exits palette mode.
+    /// `None` if the palette wasn't open.
+    pub const fn command_input_take(&mut self) -> Option<String> {
+        self.pending_command.take()
     }
 
     /// Set a transient status banner.

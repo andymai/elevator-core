@@ -138,11 +138,15 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Span::styled(label, palette::title_style()),
         Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
-    // Filter-input mode replaces the normal hints with a `/ <text>█`
-    // prompt so the user sees their query as they type it. `Esc`
-    // cancels and `⏎` commits — both shown alongside.
+    // Footer-prompt modes replace the normal hints with whatever the
+    // user is typing. `pending_filter` (`/`) and `pending_command`
+    // (`:`) are mutually exclusive — the dispatcher routes keys to
+    // exactly one of them at a time. Filter wins if both are somehow
+    // set, matching the dispatcher precedence.
     if let Some(input) = state.pending_filter.as_deref() {
-        extend_with_filter_prompt(&mut spans, input);
+        extend_with_input_prompt(&mut spans, "/ ", input, "commit");
+    } else if let Some(input) = state.pending_command.as_deref() {
+        extend_with_input_prompt(&mut spans, ": ", input, "run");
     } else {
         extend_with_key_hints(&mut spans, hints, include_tab);
     }
@@ -159,26 +163,24 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-/// Render the in-progress filter as `/ <text>█  Esc cancel · ⏎ commit`.
-/// The trailing block (`█`) reverses to act as a faux text cursor —
-/// ratatui doesn't ship a real one and a styled glyph is cheap.
-fn extend_with_filter_prompt(spans: &mut Vec<Span<'static>>, input: &str) {
-    spans.push(Span::styled(
-        "/ ",
-        Style::default()
-            .fg(palette::ACCENT)
-            .add_modifier(Modifier::BOLD),
-    ));
+/// Render an input-mode prompt as `<sigil><text>█  Esc cancel · ⏎ <verb>`.
+/// The trailing block (`█`) acts as a faux text cursor — ratatui
+/// doesn't ship a real one and a styled glyph is cheap.
+fn extend_with_input_prompt(
+    spans: &mut Vec<Span<'static>>,
+    sigil: &'static str,
+    input: &str,
+    enter_verb: &'static str,
+) {
+    let accent_bold = Style::default()
+        .fg(palette::ACCENT)
+        .add_modifier(Modifier::BOLD);
+    spans.push(Span::styled(sigil, accent_bold));
     spans.push(Span::styled(
         input.to_string(),
         Style::default().fg(palette::TITLE),
     ));
-    spans.push(Span::styled(
-        "█",
-        Style::default()
-            .fg(palette::ACCENT)
-            .add_modifier(Modifier::BOLD),
-    ));
+    spans.push(Span::styled("█", accent_bold));
     spans.push(Span::styled("  Esc", Style::default().fg(palette::ACCENT)));
     spans.push(Span::styled(
         " cancel · ",
@@ -186,7 +188,7 @@ fn extend_with_filter_prompt(spans: &mut Vec<Span<'static>>, input: &str) {
     ));
     spans.push(Span::styled("⏎", Style::default().fg(palette::ACCENT)));
     spans.push(Span::styled(
-        " commit",
+        format!(" {enter_verb}"),
         Style::default().fg(palette::DIM_STRONG),
     ));
 }
