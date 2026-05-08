@@ -45,7 +45,7 @@ The repository is a Cargo workspace grouped by role:
 |---|---|---|
 | **Core** | `elevator-core` | The simulation library. Pure Rust, no engine dependencies. This is what you add to your project. |
 | **Hosts** | `elevator-bevy`, `elevator-ffi`, `elevator-wasm`, `elevator-gdext`, `elevator-tui` | Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner. |
-| **Supporting** | `elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen` | Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See [Integration Gallery](integration-gallery.md). |
+| **Supporting** | `elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen` | Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See [Supporting Crates](supporting-crates.md). |
 
 `elevator-core` is the only crate published to crates.io. The host crates set `publish = false` and ship through their target ecosystems instead — pulled directly from this repo, vendored into a Unity package, packaged as a Godot extension, or distributed as a GameMaker extension.
 
