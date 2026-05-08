@@ -224,6 +224,10 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
         handle_key_filter_input(state, code);
         return;
     }
+    if state.pending_command.is_some() {
+        handle_key_command_input(state, sim, code);
+        return;
+    }
     handle_key_main(state, sim, code, modifiers);
 }
 
@@ -236,6 +240,71 @@ fn handle_key_filter_input(state: &mut AppState, code: KeyCode) {
         KeyCode::Backspace => state.filter_input_backspace(),
         KeyCode::Char(c) => state.filter_input_push(c),
         _ => {}
+    }
+}
+
+/// Command-palette handler — keys flow into `state.pending_command`
+/// until Enter dispatches the verb or Esc cancels.
+fn handle_key_command_input(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
+    match code {
+        KeyCode::Esc => state.command_input_cancel(),
+        KeyCode::Enter => {
+            if let Some(buf) = state.command_input_take() {
+                execute_command(state, sim, buf.trim());
+            }
+        }
+        KeyCode::Backspace => state.command_input_backspace(),
+        KeyCode::Char(c) => state.command_input_push(c),
+        _ => {}
+    }
+}
+
+/// Parse and execute a command typed into the `:` palette. Unknown
+/// commands raise a status flash so the user sees the typo without a
+/// silent failure.
+fn execute_command(state: &mut AppState, _sim: &mut Simulation, raw: &str) {
+    if raw.is_empty() {
+        return;
+    }
+    let mut parts = raw.split_whitespace();
+    let Some(verb) = parts.next() else { return };
+    match verb {
+        "shaft" | "dispatch" | "events" | "metrics" | "traffic" => {
+            // Pane targets only meaningful in Overview mode; Esc out
+            // of drilldown first to make the focus change visible.
+            if state.right_panel == RightPanel::DrillDown {
+                state.right_panel = RightPanel::Overview;
+            }
+            let pane = match verb {
+                "shaft" => FocusedPane::Shaft,
+                "dispatch" => FocusedPane::Dispatch,
+                "events" => FocusedPane::Events,
+                "metrics" => FocusedPane::Metrics,
+                "traffic" => FocusedPane::Traffic,
+                _ => unreachable!("verb matched by outer arm"),
+            };
+            state.focused_pane = pane;
+            state.flash(format!("focus → {verb}"));
+        }
+        "drill" | "drilldown" => {
+            state.right_panel = RightPanel::DrillDown;
+            state.flash("drill-down");
+        }
+        "close" | "overview" => {
+            state.right_panel = RightPanel::Overview;
+            state.flash("overview");
+        }
+        "follow" => {
+            state.follow_focused = !state.follow_focused;
+            state.flash(if state.follow_focused {
+                "follow on"
+            } else {
+                "follow off"
+            });
+        }
+        "help" | "?" => state.overlay = Some(UiOverlay::Help),
+        "quit" | "q" | "exit" => state.quit = true,
+        other => state.flash(format!("unknown command: {other}")),
     }
 }
 
@@ -344,6 +413,10 @@ fn handle_key_main(
         {
             state.open_filter_input();
         }
+        // `:` opens the command palette — view-switch verbs and a few
+        // global actions (`:quit`, `:help`). The palette captures most
+        // keys until Enter dispatches or Esc cancels.
+        KeyCode::Char(':') => state.open_command_palette(),
         // While DrillDown owns the right column the right-side panes
         // aren't on screen, so cycling focus would leave the user with a
         // flash announcing a change that nothing visible reflects (the
@@ -687,6 +760,70 @@ mod tests {
         assert_eq!(state.focused_pane, FocusedPane::Shaft);
         handle_key(&mut state, &mut sim, KeyCode::Char('j'), KeyModifiers::NONE);
         assert_eq!(state.events_scroll, 0);
+    }
+
+    #[test]
+    fn colon_opens_command_palette() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        handle_key(&mut state, &mut sim, KeyCode::Char(':'), KeyModifiers::NONE);
+        assert_eq!(state.pending_command.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn command_palette_dispatches_view_switch() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        handle_key(&mut state, &mut sim, KeyCode::Char(':'), KeyModifiers::NONE);
+        for c in "events".chars() {
+            handle_key(&mut state, &mut sim, KeyCode::Char(c), KeyModifiers::NONE);
+        }
+        handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
+        assert!(state.pending_command.is_none());
+        assert_eq!(state.focused_pane, FocusedPane::Events);
+    }
+
+    #[test]
+    fn command_palette_unknown_verb_flashes() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        handle_key(&mut state, &mut sim, KeyCode::Char(':'), KeyModifiers::NONE);
+        for c in "nonsense".chars() {
+            handle_key(&mut state, &mut sim, KeyCode::Char(c), KeyModifiers::NONE);
+        }
+        handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
+        assert!(state.pending_command.is_none());
+        assert!(
+            state
+                .status
+                .as_deref()
+                .is_some_and(|s| s.contains("unknown command")),
+            "expected unknown-command flash, got {:?}",
+            state.status
+        );
+    }
+
+    #[test]
+    fn command_palette_quit_sets_quit_flag() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        handle_key(&mut state, &mut sim, KeyCode::Char(':'), KeyModifiers::NONE);
+        for c in "quit".chars() {
+            handle_key(&mut state, &mut sim, KeyCode::Char(c), KeyModifiers::NONE);
+        }
+        handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
+        assert!(state.quit);
+    }
+
+    #[test]
+    fn command_palette_esc_cancels() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        handle_key(&mut state, &mut sim, KeyCode::Char(':'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Char('q'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert!(state.pending_command.is_none());
+        assert!(!state.quit);
     }
 
     #[test]
