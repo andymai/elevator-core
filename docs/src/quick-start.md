@@ -10,7 +10,7 @@ cargo add elevator-core
 
 ## Import the prelude
 
-The prelude re-exports the 22 names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:
+The prelude re-exports the names that cover most usage — building a simulation, stepping it, querying world state, writing custom dispatch, and reading aggregate metrics:
 
 ```rust
 use elevator_core::prelude::*;
@@ -76,7 +76,7 @@ let rider_id = sim.spawn_rider(
 
 ## Run the simulation loop
 
-Each call to `sim.step()` advances the simulation by one tick, running all [eight phases](simulation-loop.md) of the tick loop. After stepping, drain events to see what happened:
+Each call to `sim.step()` advances the simulation by one tick, running every phase of the [tick loop](simulation-loop.md). After stepping, drain events to see what happened:
 
 ```rust,no_run
 # use elevator_core::prelude::*;
@@ -175,7 +175,7 @@ fn main() -> Result<(), SimError> {
 
 1. The **builder** created a `Simulation` containing a `World` with three stop entities and one elevator entity, plus a SCAN dispatch strategy (the default).
 2. `spawn_rider` created a rider entity at the Lobby with a route to Floor 3.
-3. Each `step()` ran the [eight-phase tick loop](simulation-loop.md). **Dispatch** noticed a waiting rider and sent the elevator to the Lobby. **Movement** moved the elevator using a trapezoidal velocity profile. **Doors** opened and closed. **Loading** boarded and exited the rider. **Metrics** updated aggregate stats.
+3. Each `step()` ran the [tick loop](simulation-loop.md). **Dispatch** noticed a waiting rider and sent the elevator to the Lobby. **Movement** moved the elevator using a trapezoidal velocity profile. **Doors** opened and closed. **Loading** boarded and exited the rider. **Metrics** updated aggregate stats.
 4. Events fired at each significant moment, and we pattern-matched on them to detect arrival.
 
 ## Next steps
