@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.20.0...elevator-wasm-v0.21.0) (2026-05-08)
+
+
+### Features
+
+* **core:** add step_many for batched ticks ([#759](https://github.com/andymai/elevator-core/issues/759)) ([e9636a9](https://github.com/andymai/elevator-core/commit/e9636a9525e3d786297f14b596231f605fefbec7))
+
 ## [0.20.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.19.0...elevator-wasm-v0.20.0) (2026-05-06)
 
 
