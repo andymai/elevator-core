@@ -319,18 +319,64 @@ fn spacer_row<'a>(
         Span::styled(row_pos_label, Style::default().fg(palette::DIM)),
         Span::styled(" │ ", Style::default().fg(palette::DIM_STRONG)),
     ];
+    let rows_f = (rows as f64 - 1.0).max(1.0);
     for car in ctx.cars {
-        let car_row = ((max_pos - car.position) / span * (rows as f64 - 1.0)).round() as usize;
-        let car_row = car_row.min(rows - 1);
-        let glyph = if car_row == row {
-            Span::styled("*", car_style(car.id, ctx.focused))
-        } else {
-            Span::styled("·", Style::default().fg(palette::DIM))
-        };
+        let exact_row = (max_pos - car.position) / span * rows_f;
+        let integer_row = (exact_row.floor() as usize).min(rows - 1);
+        let fraction = exact_row - integer_row as f64;
+
+        // Sub-cell motion: divide each cell into upper / lower halves
+        // using `▀` and `▄` so a car between two integer rows reads
+        // visibly between them at 144 fps. Four positions per cell
+        // pair = twice the resolution of `round()` snapping.
+        let glyph = sub_cell_glyph(car, ctx.focused, row, integer_row, fraction);
         spans.push(glyph);
         spans.push(Span::raw(" "));
     }
     Line::from(spans)
+}
+
+/// Pick the per-row sub-cell glyph for one car. `integer_row` is the
+/// row containing the car's primary half; `fraction` is the 0..1
+/// offset within that row (0.0 = top, 0.5 = halfway, 1.0 = bottom).
+fn sub_cell_glyph<'a>(
+    car: &CarView<'a>,
+    focused: Option<EntityId>,
+    row: usize,
+    integer_row: usize,
+    fraction: f64,
+) -> Span<'a> {
+    let direction_color = if car.elevator.going_up() {
+        palette::UP
+    } else if car.elevator.going_down() {
+        palette::DOWN
+    } else {
+        palette::DIM_STRONG
+    };
+    let style = if Some(car.id) == focused {
+        palette::focused_style()
+    } else {
+        Style::default().fg(direction_color)
+    };
+    if integer_row == row {
+        if fraction < 0.25 {
+            Span::styled("*", style)
+        } else if fraction < 0.5 {
+            Span::styled("▄", style)
+        } else {
+            Span::styled("·", Style::default().fg(palette::DIM))
+        }
+    } else if integer_row + 1 == row {
+        if fraction >= 0.75 {
+            Span::styled("*", style)
+        } else if fraction >= 0.5 {
+            Span::styled("▀", style)
+        } else {
+            Span::styled("·", Style::default().fg(palette::DIM))
+        }
+    } else {
+        Span::styled("·", Style::default().fg(palette::DIM))
+    }
 }
 
 /// Pick the glyph + style for a car at a given stop. `flashing`
@@ -372,17 +418,6 @@ fn car_glyph_for_stop<'a>(
         Style::default().fg(color)
     };
     Span::styled(glyph, style)
-}
-
-/// Style applied to a focused car glyph when no contextual color exists
-/// (e.g. `*` in distance mode). Bold + reverse for legibility under any
-/// background; falls through to the default style otherwise.
-fn car_style(id: EntityId, focused: Option<EntityId>) -> Style {
-    if focused == Some(id) {
-        palette::focused_style()
-    } else {
-        Style::default().fg(palette::DIM_STRONG)
-    }
 }
 
 /// Trim a string to `max` chars, padding with spaces if shorter.
