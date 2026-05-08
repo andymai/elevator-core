@@ -12,13 +12,13 @@ A stable API ships breaking changes **only in planned major versions**. Three ru
 - **Deprecation precedes removal.** A stable API on its way out is marked `#[deprecated]` for at least one major before deletion. Compiler warnings point you at the replacement.
 - **Semver is honoured strictly.** Bug fixes that change behaviour either land behind a new function or wait for the next major.
 
-The current stable surface includes `Simulation`, `SimulationBuilder`, `Event`, `SimError`, `Metrics`, the typed IDs (`StopId`, `RiderId`, `ElevatorId`), `WorldSnapshot`, and the `DispatchStrategy` trait with all built-in strategies. See `STABILITY.md` for the full enumeration.
+The current stable surface includes `Simulation`, `SimulationBuilder`, `Event`, `SimError`, `Metrics`, the entity IDs (`StopId`, `RiderId`, `ElevatorId` — declared in `entity::` and `stop::`), `WorldSnapshot`, and the `DispatchStrategy` trait with all built-in strategies. See `STABILITY.md` for the full enumeration.
 
 ### Experimental
 
 Experimental APIs signal *the shape is still being discovered*. They may break in any minor version with no deprecation cycle. The API is real — fully implemented and tested — but the contract can shift as the design matures.
 
-Currently experimental: `hooks::*`, `topology::*`, `tagged_metrics::*`, `scenario::*`, `traffic::*`, `query::*`, the extension-component APIs on `World`, the RON `config::*` surface, `movement::*` primitives, `energy::*`, `time::TimeAdapter`, and `ids::*`.
+Currently experimental: `hooks::*`, `topology::*`, `tagged_metrics::*`, `scenario::*`, `traffic::*`, `query::*`, the extension-component APIs on `World`, the RON `config::*` surface, `movement::*` primitives, `energy::*`, `time::TimeAdapter`, and `ids::*` (config-level identifiers like `GroupId` — distinct from the entity IDs above, which are stable).
 
 If you depend on one of these, pin the minor version:
 

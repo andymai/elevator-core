@@ -52,12 +52,6 @@ cargo run -p elevator-layout-codegen
 
 CI runs this in dry-run mode and fails if the output drifts from what's checked in, so a Rust-side struct edit can't ship without the host bindings being regenerated in the same PR.
 
-## See also
-
-- [Binding Coverage Manifest](binding-coverage.md) — `bindings.toml` policy.
-- [Using the Bindings](using-the-bindings.md) — host-facing usage docs for wasm / FFI / gdext / GameMaker.
-- [Stability and Versioning](stability.md) — how API breaks are signalled across these crates.
-
 ## Next steps
 
 - [Using the Bindings](using-the-bindings.md) — host-language integration with a runtime API surface (the page that complements this one).

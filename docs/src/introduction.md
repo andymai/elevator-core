@@ -59,4 +59,4 @@ The repository is a Cargo workspace grouped by role:
 
 - [Quick Start](quick-start.md) — build your first simulation in under 30 lines.
 - [Stops, Lines, and Groups](stops-lines-groups.md) — the topology model that lets the same engine run an office or a 1,000-unit space tether.
-- [Integration Gallery](integration-gallery.md) — supporting crates that keep the host bindings honest.
+- [Supporting Crates](supporting-crates.md) — supporting crates that keep the host bindings honest.
