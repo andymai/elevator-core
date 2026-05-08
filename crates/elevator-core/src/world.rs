@@ -372,6 +372,12 @@ impl World {
     /// stops. Useful for "is there a car parked here right now?" queries
     /// where the caller already has a position from a hall call or a
     /// stop. O(n) over elevators; n is small in practice.
+    ///
+    /// When two cars momentarily share the same physical position — e.g.
+    /// one arriving as another departs a common lobby floor — the result
+    /// is whichever wins the linear scan, which is rarely what the caller
+    /// actually wants. Callers that need a specific car should filter the
+    /// candidates by line or group themselves.
     #[must_use]
     pub fn find_elevator_at_position(&self, position: f64) -> Option<EntityId> {
         self.elevators.iter().find_map(|(id, _)| {

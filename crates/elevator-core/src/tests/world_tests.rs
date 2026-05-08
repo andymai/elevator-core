@@ -409,5 +409,14 @@ fn find_elevator_at_position_matches_within_epsilon() {
         world.find_elevator_at_position(10.0 + World::STOP_POSITION_EPSILON / 2.0),
         Some(elev),
     );
+    // Strict `<` epsilon: a query a few epsilons away must miss. Using
+    // exactly `+ EPSILON` would be flaky under f64 rounding (the
+    // computed delta lands on either side of EPSILON depending on the
+    // bit pattern), so step out by 2× to make the boundary intent clear.
+    assert!(
+        world
+            .find_elevator_at_position(10.0 + 2.0 * World::STOP_POSITION_EPSILON)
+            .is_none()
+    );
     assert!(world.find_elevator_at_position(20.0).is_none());
 }
