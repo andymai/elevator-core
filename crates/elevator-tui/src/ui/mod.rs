@@ -149,17 +149,22 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
 
 /// Verbs surfaced when `DrillDown` owns the right column. Same shape
 /// as the per-pane tables so the renderer doesn't need a separate path.
-const DRILLDOWN_HINTS: &[(&str, &str)] = &[("Spc", "pause"), ("[/]", "car"), ("Esc", "close")];
+///
+/// Label values carry their leading space (e.g. `" pause"`) so the
+/// renderer can pass them through to `Span::styled` without an
+/// allocating `format!` on the 144 fps frame path.
+const DRILLDOWN_HINTS: &[(&str, &str)] = &[("Spc", " pause"), ("[/]", " car"), ("Esc", " close")];
 
 /// Per-pane verb table — pane-specific keys first, universal trailers
-/// (`Tab`, `?`) appended at render time.
+/// (`Tab`, `?`) appended at render time. Same leading-space convention
+/// as `DRILLDOWN_HINTS`.
 const fn pane_hints(focus: FocusedPane) -> &'static [(&'static str, &'static str)] {
     match focus {
-        FocusedPane::Shaft => &[("Spc", "pause"), ("[/]", "car"), ("m", "mode")],
-        FocusedPane::Dispatch => &[("Spc", "pause"), ("[/]", "car"), ("⏎", "drill")],
-        FocusedPane::Events => &[("Spc", "pause"), ("1-7", "filter"), ("f", "follow")],
+        FocusedPane::Shaft => &[("Spc", " pause"), ("[/]", " car"), ("m", " mode")],
+        FocusedPane::Dispatch => &[("Spc", " pause"), ("[/]", " car"), ("⏎", " drill")],
+        FocusedPane::Events => &[("Spc", " pause"), ("1-7", " filter"), ("f", " follow")],
         FocusedPane::Metrics | FocusedPane::Traffic => {
-            &[("Spc", "pause"), (".", "step"), ("+/-", "rate")]
+            &[("Spc", " pause"), (".", " step"), ("+/-", " rate")]
         }
     }
 }
@@ -178,7 +183,7 @@ fn extend_with_key_hints(
     let hints = pane_hints
         .iter()
         .copied()
-        .chain([("Tab", "pane"), ("?", "help")]);
+        .chain([("Tab", " pane"), ("?", " help")]);
     let mut first = true;
     for (key, label) in hints {
         if first {
@@ -186,11 +191,12 @@ fn extend_with_key_hints(
         } else {
             spans.push(Span::styled(" · ", Style::default().fg(palette::DIM)));
         }
-        // `key` and `label` are `&'static str` literals — pass through
-        // without allocating; ratatui's `Span` accepts `Cow<'static, str>`.
+        // Both `key` and `label` are `&'static str` literals — labels in
+        // the hint tables include their leading space, so the renderer
+        // passes them through without any per-frame allocation.
         spans.push(Span::styled(key, Style::default().fg(palette::ACCENT)));
         spans.push(Span::styled(
-            format!(" {label}"),
+            label,
             Style::default().fg(palette::DIM_STRONG),
         ));
     }

@@ -298,11 +298,17 @@ fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
                 state.flash(format!("toggle {category:?}"));
             }
         }
-        KeyCode::Tab => {
+        // While DrillDown owns the right column the right-side panes
+        // aren't on screen, so cycling focus would leave the user with a
+        // flash announcing a change that nothing visible reflects (the
+        // footer ignores `focused_pane` in that mode). Treat Tab as a
+        // no-op until they Esc out — matches "Tab cycles among visible
+        // panes." PR4 dissolves this once drilldown becomes a popup.
+        KeyCode::Tab if state.right_panel == RightPanel::Overview => {
             state.focused_pane = state.focused_pane.next();
             state.flash(format!("focus → {}", state.focused_pane.label()));
         }
-        KeyCode::BackTab => {
+        KeyCode::BackTab if state.right_panel == RightPanel::Overview => {
             state.focused_pane = state.focused_pane.prev();
             state.flash(format!("focus → {}", state.focused_pane.label()));
         }
@@ -480,6 +486,22 @@ mod tests {
             handle_key(&mut state, &mut sim, KeyCode::Tab, KeyModifiers::NONE);
             assert_eq!(state.focused_pane, expected);
         }
+    }
+
+    #[test]
+    fn tab_is_noop_while_drilldown_open() {
+        // Tab while DrillDown owns the right column would announce a
+        // focus change the footer doesn't reflect (the footer ignores
+        // focused_pane in that mode). Tab must be a no-op until the
+        // user Esc's out of drilldown.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.right_panel = RightPanel::DrillDown;
+        let initial = state.focused_pane;
+        handle_key(&mut state, &mut sim, KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(state.focused_pane, initial);
+        handle_key(&mut state, &mut sim, KeyCode::BackTab, KeyModifiers::SHIFT);
+        assert_eq!(state.focused_pane, initial);
     }
 
     #[test]
