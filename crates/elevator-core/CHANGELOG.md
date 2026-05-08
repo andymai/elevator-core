@@ -1,5 +1,13 @@
 # Changelog
 
+## [19.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.1.0...elevator-core-v19.2.0) (2026-05-08)
+
+
+### Features
+
+* **dispatch:** add PrepareScratch helper for custom strategies ([#769](https://github.com/andymai/elevator-core/issues/769)) ([01e9fd0](https://github.com/andymai/elevator-core/commit/01e9fd0140df45f3229410116e9f8fa107d5b3bc))
+* **world:** elevator_load_ratio, elevator_occupants, find_elevator_at_position ([#762](https://github.com/andymai/elevator-core/issues/762)) ([f65c068](https://github.com/andymai/elevator-core/commit/f65c0687682ffb58e57a0de665139a5261b1d212))
+
 ## [19.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.0.0...elevator-core-v19.1.0) (2026-05-08)
 
 
