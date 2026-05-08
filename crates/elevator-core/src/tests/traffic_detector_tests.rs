@@ -244,6 +244,114 @@ fn rider_spawn_appends_to_both_logs() {
     assert_eq!(destinations_len, 1, "destination log must carry 1 entry");
 }
 
+/// Buildings with below-grade stops must still classify a lobby-heavy
+/// rush as `UpPeak`. Regression for the position-sort bug in
+/// `refresh_traffic_detector`: sorting by position handed `stops[0]`
+/// to whichever stop sat lowest on the shaft (a basement), so an
+/// honest 76 %-Lobby morning rush registered ~0 % at the synthetic
+/// "lobby" and never tripped the threshold. The fix is to feed the
+/// detector stops in declaration order — `BuildingConfig` puts the
+/// lobby first by convention.
+#[test]
+fn up_peak_detected_in_building_with_basement() {
+    use crate::components::{Accel, Speed, Weight};
+    use crate::config::{
+        BuildingConfig, ElevatorConfig, PassengerSpawnConfig, SimConfig, SimulationParams,
+    };
+    use crate::stop::StopConfig;
+
+    // Lobby declared first; basements after the upper floor so the
+    // position sort would put `B1` at `stops[0]` if reintroduced. The
+    // upper floor exists only to give riders a destination — peak
+    // classification reads the origin distribution, not destinations.
+    let cfg = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+        building: BuildingConfig {
+            name: "Basement-fronted tower".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "Lobby".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "Floor 2".into(),
+                    position: 4.0,
+                },
+                StopConfig {
+                    id: StopId(2),
+                    name: "B1".into(),
+                    position: -4.0,
+                },
+            ],
+            lines: None,
+            groups: None,
+        },
+        elevators: vec![ElevatorConfig {
+            id: 0,
+            name: "Main".into(),
+            max_speed: Speed::from(2.0),
+            acceleration: Accel::from(1.5),
+            deceleration: Accel::from(2.0),
+            weight_capacity: Weight::from(800.0),
+            starting_stop: StopId(0),
+            door_open_ticks: 10,
+            door_transition_ticks: 5,
+            restricted_stops: Vec::new(),
+            #[cfg(feature = "energy")]
+            energy_profile: None,
+            service_mode: None,
+            inspection_speed_factor: 0.25,
+            bypass_load_up_pct: None,
+            bypass_load_down_pct: None,
+        }],
+        simulation: SimulationParams {
+            ticks_per_second: 60.0,
+        },
+        passenger_spawning: PassengerSpawnConfig {
+            mean_interval_ticks: 120,
+            weight_range: (50.0, 100.0),
+        },
+    };
+    let mut sim = Simulation::new(&cfg, scan()).unwrap();
+
+    // Seed the arrival log directly — we want to test the classifier's
+    // reading of an existing distribution, not the spawn pipeline. 70
+    // arrivals at the lobby vs 0 elsewhere is a clean ≥60 % up-peak.
+    // Records are stamped at tick 0 so a single `step()` can see them
+    // all in its rolling window (the metrics phase reads
+    // `arrivals_in_window(..., now=1, ...)`, which only counts records
+    // with `tick <= now`).
+    let lobby = sim.stop_entity(StopId(0)).unwrap();
+    {
+        let log = sim
+            .world_mut()
+            .resource_mut::<ArrivalLog>()
+            .expect("arrival log auto-installed");
+        for _ in 0..70u64 {
+            log.record(0, lobby);
+        }
+    }
+
+    // One step is enough — the metrics phase runs every tick and reads
+    // the seeded log.
+    sim.step();
+
+    let mode = sim
+        .world()
+        .resource::<TrafficDetector>()
+        .expect("detector installed")
+        .current_mode();
+    assert_eq!(
+        mode,
+        TrafficMode::UpPeak,
+        "70/70 lobby-origin arrivals must trip UpPeak even when basement \
+         floors at negative positions exist (got {mode:?} — the position-sort \
+         bug would return InterFloor here)"
+    );
+}
+
 /// The metrics phase must refresh the detector each tick. After a
 /// burst of lobby-spawns and enough sim time for the window to fill,
 /// the detector's `last_update_tick` must be recent relative to the
