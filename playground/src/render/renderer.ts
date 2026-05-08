@@ -1,5 +1,4 @@
-import type { CarDto, CarBubble, Snapshot, TetherMeta } from "../types";
-import { arcPoint, easeOutNorm, hexWithAlpha } from "./color-utils";
+import type { CarDto, CarBubble, Snapshot, StopDto, TetherMeta } from "../types";
 import {
   drawFloors,
   drawShaftChannels,
@@ -10,8 +9,17 @@ import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-ca
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { RiderVariant } from "./figures/rider";
 import { pickRiderVariant } from "./figures/rider";
+import {
+  type LoadingMask,
+  type QueueRegion,
+  type ShaftExtent,
+  type ShaftLabel,
+  loadingKey,
+  loadingMaskFromSet,
+} from "./frame-buffers";
 import type { Scale } from "./layout";
 import { findNearestStop, scaleFor } from "./layout";
+import { type CarState, type StopState, type Tween, drawTweens } from "./tweens";
 import {
   CAR_DOT_COLOR,
   DOWN_COLOR,
@@ -29,29 +37,6 @@ import {
   UP_COLOR,
   VIP_RIDER_COLOR,
 } from "./palette";
-
-/** One-shot animation tween — board into a car, alight out, or abandon the queue. */
-interface Tween {
-  kind: "board" | "alight" | "abandon";
-  bornAt: number;
-  duration: number;
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  color: string;
-}
-
-/** Per-car frame-to-frame memory used to detect board/alight transitions. */
-interface CarState {
-  riders: number;
-  roster: RiderVariant[];
-}
-
-/** Per-stop frame-to-frame memory used to detect abandonment. */
-interface StopState {
-  waiting: number;
-}
 
 export class CanvasRenderer {
   readonly #canvas: HTMLCanvasElement;
@@ -83,6 +68,25 @@ export class CanvasRenderer {
   // the renderer pairs each line's slice of `waiting_by_line` (from
   // core) with that line's active car.
   readonly #stopAssignments: Map<number, Map<number, number>> = new Map();
+
+  // ── Per-frame transient buffers (cleared, never re-allocated) ─────
+  readonly #carById: Map<number, CarDto> = new Map();
+  readonly #carX: Map<number, number> = new Map();
+  readonly #carQueueRegion: Map<number, QueueRegion> = new Map();
+  readonly #queueRegionPool: QueueRegion[] = [];
+  readonly #stopIdxById: Map<number, number> = new Map();
+  readonly #loadingAtFloor: Set<number> = new Set();
+  readonly #loadingMask: LoadingMask = loadingMaskFromSet(this.#loadingAtFloor);
+  readonly #shaftCenters: number[] = [];
+  readonly #shaftExtents: ShaftExtent[] = [];
+  readonly #shaftLabelList: ShaftLabel[] = [];
+  readonly #shaftInnerPerCar: Map<number, number> = new Map();
+  readonly #carWPerCar: Map<number, number> = new Map();
+  readonly #carHPerCar: Map<number, number> = new Map();
+  readonly #riderColorPerCar: Map<number, string> = new Map();
+  readonly #sortedYs: number[] = [];
+  readonly #lineIds: number[] = [];
+  readonly #stopsSorted: StopDto[] = [];
 
   constructor(canvas: HTMLCanvasElement, accent: string) {
     this.#canvas = canvas;
@@ -154,6 +158,25 @@ export class CanvasRenderer {
     this.#ctx.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
   }
 
+  /** Return a queue-region slot from the pool, expanding lazily. */
+  #takeQueueRegion(start: number, end: number): QueueRegion {
+    const slot = this.#queueRegionPool.pop();
+    if (slot !== undefined) {
+      slot.start = start;
+      slot.end = end;
+      return slot;
+    }
+    return { start, end };
+  }
+
+  /** Recycle queue-region slots from the previous frame back into the pool. */
+  #recycleQueueRegions(): void {
+    for (const region of this.#carQueueRegion.values()) {
+      this.#queueRegionPool.push(region);
+    }
+    this.#carQueueRegion.clear();
+  }
+
   draw(snap: Snapshot, speedMultiplier: number, bubbles?: Map<number, CarBubble>): void {
     this.#resize();
     const { clientWidth: w, clientHeight: h } = this.#canvas;
@@ -178,6 +201,26 @@ export class CanvasRenderer {
     // happens to have a long single-shaft layout.
     const isTether = snap.stops.length === 2;
 
+    // Index cars by id once so every later lookup is O(1).
+    const carById = this.#carById;
+    carById.clear();
+    for (const car of snap.cars) carById.set(car.id, car);
+
+    // Sort stops once and reuse the sorted view for axis math, draw helpers,
+    // and minimum-story-height detection. Cheaper than `[...stops].sort()` per
+    // helper and keeps scratch allocations off the per-frame path.
+    const stopsSorted = this.#stopsSorted;
+    stopsSorted.length = snap.stops.length;
+    for (let i = 0; i < snap.stops.length; i++) stopsSorted[i] = snap.stops[i] as StopDto;
+    stopsSorted.sort((a, b) => a.y - b.y);
+
+    const sortedYs = this.#sortedYs;
+    sortedYs.length = stopsSorted.length;
+    for (let i = 0; i < stopsSorted.length; i++) {
+      const st = stopsSorted[i];
+      sortedYs[i] = st === undefined ? 0 : st.y;
+    }
+
     // Vertical axis.
     const firstStop = snap.stops[0];
     if (firstStop === undefined) return;
@@ -190,7 +233,6 @@ export class CanvasRenderer {
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
     }
-    const sortedYs = snap.stops.map((st) => st.y).sort((a, b) => a - b);
     const topGap = sortedYs.length >= 3 ? (sortedYs.at(-1) ?? 0) - (sortedYs.at(-2) ?? 0) : 1;
     const bottomPadding = 1;
     const axisMin = minY - bottomPadding;
@@ -204,15 +246,15 @@ export class CanvasRenderer {
       stopsTop = s.padTop + endpointPad;
       stopsBottom = h - s.padBottom - endpointPad;
     } else {
-      const gaps: number[] = [];
+      let refGap = Infinity;
       for (let i = 1; i < sortedYs.length; i++) {
         const cur = sortedYs[i];
         const prev = sortedYs[i - 1];
         if (cur === undefined || prev === undefined) continue;
         const g = cur - prev;
-        if (g > 0) gaps.push(g);
+        if (g > 0 && g < refGap) refGap = g;
       }
-      const refGap = gaps.length > 0 ? Math.min(...gaps) : 1;
+      if (!Number.isFinite(refGap)) refGap = 1;
       const maxStoryPx = 48;
       const maxPxPerM = maxStoryPx / refGap;
       const availableShaftPx = Math.max(0, h - s.padTop - s.padBottom);
@@ -233,8 +275,12 @@ export class CanvasRenderer {
       if (arr) arr.push(car);
       else byLine.set(car.line, [car]);
     }
-    const lineIds = [...byLine.keys()].sort((a, b) => a - b);
-    const totalShafts = lineIds.reduce((n, id) => n + (byLine.get(id)?.length ?? 0), 0);
+    const lineIds = this.#lineIds;
+    lineIds.length = 0;
+    for (const id of byLine.keys()) lineIds.push(id);
+    lineIds.sort((a, b) => a - b);
+    let totalShafts = 0;
+    for (const id of lineIds) totalShafts += byLine.get(id)?.length ?? 0;
 
     // Layout — spread each car into its own column with a queue slot.
     const innerW = Math.max(0, w - 2 * s.padX - s.labelW);
@@ -284,9 +330,12 @@ export class CanvasRenderer {
     const colW = shaftInnerW + queueW;
 
     // Resolve each shaft's center x and queue region.
-    const shaftCenters: number[] = [];
-    const carX = new Map<number, number>();
-    const carQueueRegion = new Map<number, { start: number; end: number }>();
+    const shaftCenters = this.#shaftCenters;
+    shaftCenters.length = 0;
+    const carX = this.#carX;
+    carX.clear();
+    this.#recycleQueueRegions();
+    const carQueueRegion = this.#carQueueRegion;
     let shaftIdx = 0;
     for (const lineId of lineIds) {
       const cars = byLine.get(lineId) ?? [];
@@ -297,16 +346,21 @@ export class CanvasRenderer {
         const cx = qEnd + shaftInnerW / 2;
         shaftCenters.push(cx);
         carX.set(car.id, cx);
-        carQueueRegion.set(car.id, { start: qStart, end: qEnd });
+        carQueueRegion.set(car.id, this.#takeQueueRegion(qStart, qEnd));
         shaftIdx++;
       }
     }
 
-    const stopIdxById = new Map<number, number>();
-    snap.stops.forEach((st, i) => stopIdxById.set(st.entity_id, i));
+    const stopIdxById = this.#stopIdxById;
+    stopIdxById.clear();
+    for (let i = 0; i < snap.stops.length; i++) {
+      const st = snap.stops[i];
+      if (st !== undefined) stopIdxById.set(st.entity_id, i);
+    }
 
     // Pre-compute which floors have a car mid-load at each shaft.
-    const loadingAtFloor = new Set<string>();
+    const loadingAtFloor = this.#loadingAtFloor;
+    loadingAtFloor.clear();
     {
       let idx = 0;
       for (const lineId of lineIds) {
@@ -319,7 +373,7 @@ export class CanvasRenderer {
           ) {
             const nearest = findNearestStop(snap.stops, car.y);
             if (nearest !== undefined && nearest.dist < 0.5) {
-              loadingAtFloor.add(`${idx}:${nearest.stop.entity_id}`);
+              loadingAtFloor.add(loadingKey(idx, nearest.stop.entity_id));
             }
           }
           idx++;
@@ -328,19 +382,18 @@ export class CanvasRenderer {
     }
 
     // Build per-shaft extents.
-    const shaftInnerPerCar = new Map<number, number>();
-    const carWPerCar = new Map<number, number>();
-    const carHPerCar = new Map<number, number>();
-    const riderColorPerCar = new Map<number, string>();
-    const shaftExtents: Array<{
-      cx: number;
-      top: number;
-      bottom: number;
-      fill: string;
-      frame: string;
-      width: number;
-    }> = [];
-    const shaftLabelList: Array<{ cx: number; top: number; text: string; color: string }> = [];
+    const shaftInnerPerCar = this.#shaftInnerPerCar;
+    const carWPerCar = this.#carWPerCar;
+    const carHPerCar = this.#carHPerCar;
+    const riderColorPerCar = this.#riderColorPerCar;
+    shaftInnerPerCar.clear();
+    carWPerCar.clear();
+    carHPerCar.clear();
+    riderColorPerCar.clear();
+    const shaftExtents = this.#shaftExtents;
+    shaftExtents.length = 0;
+    const shaftLabelList = this.#shaftLabelList;
+    shaftLabelList.length = 0;
     let shaftExtIdx = 0;
     for (let lineIdx = 0; lineIdx < lineIds.length; lineIdx++) {
       const lineId = lineIds[lineIdx];
@@ -390,26 +443,39 @@ export class CanvasRenderer {
 
     drawShaftChannels(ctx, shaftExtents);
     drawShaftLabels(ctx, shaftLabelList, s);
-    drawFloors(ctx, snap, toScreenY, s, shaftCenters, w, loadingAtFloor, stopsTop, isTether);
+    drawFloors(
+      ctx,
+      stopsSorted,
+      toScreenY,
+      s,
+      shaftCenters,
+      w,
+      this.#loadingMask,
+      stopsTop,
+      isTether,
+    );
     drawWaitingFigures(ctx, snap, toScreenY, s, carQueueRegion, this.#stopAssignments);
     drawTargetMarkers(ctx, snap, carX, shaftInnerPerCar, toScreenY, s, stopIdxById);
 
-    for (const [carId, cx] of carX) {
-      const car = snap.cars.find((c) => c.id === carId);
-      if (!car) continue;
-      const thisCarW = carWPerCar.get(carId) ?? s.carW;
-      const thisCarH = carHPerCar.get(carId) ?? s.carH;
-      const thisRiderColor = riderColorPerCar.get(carId) ?? CAR_DOT_COLOR;
-      const state = this.#carStates.get(carId);
+    // Iterate snap.cars directly: order matches how carX was populated
+    // and skips both the previous O(n²) `.find()` scan and the implicit
+    // re-iteration of carX entries.
+    for (const car of snap.cars) {
+      const cx = carX.get(car.id);
+      if (cx === undefined) continue;
+      const thisCarW = carWPerCar.get(car.id) ?? s.carW;
+      const thisCarH = carHPerCar.get(car.id) ?? s.carH;
+      const thisRiderColor = riderColorPerCar.get(car.id) ?? CAR_DOT_COLOR;
+      const state = this.#carStates.get(car.id);
       drawCarTrail(ctx, car, cx, thisCarW, thisCarH, toScreenY);
       drawCar(ctx, car, cx, thisCarW, thisCarH, thisRiderColor, toScreenY, s, state?.roster);
     }
 
     this.#computeTweens(snap, carX, carQueueRegion, toScreenY, s, speedMultiplier);
-    this.#drawTweens(s);
+    drawTweens(ctx, this.#tweens, s);
 
     if (bubbles && bubbles.size > 0) {
-      drawBubbles(ctx, this.#accent, snap, carX, toScreenY, s, bubbles, w);
+      drawBubbles(ctx, this.#accent, carById, bubbles, carX, toScreenY, s, w);
     }
   }
 
@@ -446,7 +512,7 @@ export class CanvasRenderer {
   #computeTweens(
     snap: Snapshot,
     carX: Map<number, number>,
-    carQueueRegion: Map<number, { start: number; end: number }>,
+    carQueueRegion: Map<number, QueueRegion>,
     toScreenY: (y: number) => number,
     s: Scale,
     speedMultiplier: number,
@@ -608,40 +674,18 @@ export class CanvasRenderer {
       if (now - t.bornAt > t.duration) this.#tweens.splice(i, 1);
     }
 
-    // Drop state for cars no longer in the snapshot.
+    // Drop state for cars no longer in the snapshot. Reuse the
+    // `#carById` map populated at the top of `draw()` so we don't have
+    // to allocate a fresh `Set` of live ids per frame.
     if (this.#carStates.size > snap.cars.length) {
-      const liveIds = new Set(snap.cars.map((c) => c.id));
       for (const id of this.#carStates.keys()) {
-        if (!liveIds.has(id)) this.#carStates.delete(id);
+        if (!this.#carById.has(id)) this.#carStates.delete(id);
       }
     }
     if (this.#stopStates.size > snap.stops.length) {
-      const liveIds = new Set(snap.stops.map((st) => st.entity_id));
       for (const id of this.#stopStates.keys()) {
-        if (!liveIds.has(id)) this.#stopStates.delete(id);
+        if (!this.#stopIdxById.has(id)) this.#stopStates.delete(id);
       }
-    }
-  }
-
-  #drawTweens(s: Scale): void {
-    const now = performance.now();
-    const ctx = this.#ctx;
-    for (const t of this.#tweens) {
-      const age = now - t.bornAt;
-      if (age < 0) continue;
-      const tx = Math.min(1, Math.max(0, age / t.duration));
-      const eased = easeOutNorm(tx);
-      const [x, y] =
-        t.kind === "board"
-          ? arcPoint(t.startX, t.startY, t.endX, t.endY, eased)
-          : [t.startX + (t.endX - t.startX) * eased, t.startY + (t.endY - t.startY) * eased];
-      const alpha =
-        t.kind === "board" ? 0.9 : t.kind === "abandon" ? (1 - eased) ** 1.5 : 1 - eased;
-      const radius = t.kind === "abandon" ? s.carDotR * 0.85 : s.carDotR;
-      ctx.fillStyle = hexWithAlpha(t.color, alpha);
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
 }
