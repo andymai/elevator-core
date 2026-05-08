@@ -125,12 +125,9 @@ const BUBBLE_GLYPH_TEXT_GAP = 3;
 const BUBBLE_LIFETIME_FADE_FRAC = 0.3;
 const BUBBLE_ENTRANCE_MS = 140;
 const BUBBLE_ENTRANCE_SCALE_FROM = 0.85;
-const BUBBLE_ENTRANCE_DRIFT_PX = 2.5;
-
 interface BubblePlacement {
   bubble: CarBubble;
   glyphW: number;
-  textW: number;
   alpha: number;
   cx: number;
   carTop: number;
@@ -198,8 +195,8 @@ export function drawBubbles(
     if (alpha <= 0) continue;
 
     const glyphW = ctx.measureText(bubble.glyph).width;
-    const textW = ctx.measureText(bubble.text).width;
-    const bubbleW = glyphW + BUBBLE_GLYPH_TEXT_GAP + textW + BUBBLE_PAD_X * 2;
+    const bubbleW =
+      glyphW + BUBBLE_GLYPH_TEXT_GAP + ctx.measureText(bubble.text).width + BUBBLE_PAD_X * 2;
     const bubbleH = fontSize + BUBBLE_PAD_Y * 2 + 2;
 
     const aboveTop = carTop - BUBBLE_GAP - BUBBLE_TAIL_H - bubbleH;
@@ -217,7 +214,6 @@ export function drawBubbles(
     placements.push({
       bubble,
       glyphW,
-      textW,
       alpha,
       cx,
       carTop,
@@ -295,15 +291,17 @@ export function drawBubbles(
 
     const ease = easeOutNorm(entrance);
     const scale = BUBBLE_ENTRANCE_SCALE_FROM + (1 - BUBBLE_ENTRANCE_SCALE_FROM) * ease;
-    const driftY = (1 - ease) * BUBBLE_ENTRANCE_DRIFT_PX;
-    const centerX = bx + bubbleW / 2;
-    const centerY = by + bubbleH / 2;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.translate(centerX, centerY + driftY);
+    // Anchor the entrance scale at the tail tip so the tip stays glued
+    // to the car for the full 140 ms — the body grows away from the
+    // car instead of floating in. This produces the same visual rise
+    // the previous explicit drift was trying to fake, without leaving a
+    // visible gap between the tail and the cabin while scale < 1.
+    ctx.translate(tailCenter, tipY);
     ctx.scale(scale, scale);
-    ctx.translate(-centerX, -centerY);
+    ctx.translate(-tailCenter, -tipY);
 
     // Single combined path: rounded body + integrated tail. Filling and
     // stroking once eliminates the seam where the old separate-tail
