@@ -8,6 +8,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Sparkline};
+use tui_big_text::{BigText, PixelSize};
 
 use crate::state::{AppState, FocusedPane};
 use crate::ui::palette;
@@ -31,11 +32,15 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
         return;
     }
 
-    // Inside the panel:
-    //   3 counter rows, then two single-row labels + sparklines.
+    // Inside the panel: a 4-row big-text headline (p95 wait, the
+    // single number worth checking at a glance), followed by the
+    // counter rows + sparklines. The headline uses `PixelSize::Quadrant`
+    // (each cell is a 2×2 pixel grid) so 4 rows of glyphs render
+    // tall, readable digits without dominating the panel.
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(4), // big-text p95 headline
             Constraint::Min(3),    // 3 counter lines
             Constraint::Length(2), // wait sparkline header + bar
             Constraint::Length(2), // occupancy sparkline header + bar
@@ -96,7 +101,21 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             value(format!("{:.0}%", m.avg_utilization() * 100.0)),
         ]),
     ];
-    frame.render_widget(Paragraph::new(counters), chunks[0]);
+    // Big-text headline: just the p95 number (no units / no label —
+    // the panel title and the counter row below already disambiguate).
+    // Colored on the same green→yellow→red ramp as the sparkline.
+    let big = BigText::builder()
+        .pixel_size(PixelSize::Quadrant)
+        .style(
+            Style::default()
+                .fg(palette::wait_color_for(p95))
+                .add_modifier(Modifier::BOLD),
+        )
+        .lines(vec![Line::from(format!("p95 {p95}t"))])
+        .build();
+    frame.render_widget(big, chunks[0]);
+
+    frame.render_widget(Paragraph::new(counters), chunks[1]);
 
     // p95 wait sparkline — color follows the most-recent sample.
     let wait_color = state
@@ -113,7 +132,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             ))))
             .style(Style::default().fg(wait_color))
             .data(state.wait_sparkline.as_slice()),
-        chunks[1],
+        chunks[2],
     );
 
     // Occupancy sparkline — uses the accent so it visually pairs with
@@ -126,7 +145,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             ))))
             .style(Style::default().fg(palette::ACCENT))
             .data(state.occupancy_sparkline.as_slice()),
-        chunks[2],
+        chunks[3],
     );
 }
 

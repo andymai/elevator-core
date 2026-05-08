@@ -327,7 +327,9 @@ fn draw_overview(
     let car_count = u16::try_from(shaft::cars_iter(sim).count()).unwrap_or(u16::MAX);
     let dispatch_h = car_count.saturating_add(4).clamp(6, 14);
     let traffic_h = 4u16;
-    let metrics_h = 8u16;
+    // 4 rows for the big-text p95 headline + 3 counter lines + 2
+    // sparkline pairs + 2 borders = 13.
+    let metrics_h = 13u16;
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
