@@ -31,39 +31,48 @@ export function updateBubbles(pane: Pane, events: EventDto[], snap: Snapshot): v
   const bornAt = performance.now();
   const stopName = (id: number): string => resolveStopName(snap, id);
   for (const ev of events) {
-    const text = bubbleTextFor(ev, stopName);
-    if (text === null) continue;
+    const content = bubbleTextFor(ev, stopName);
+    if (content === null) continue;
     // Some events are rider-scoped rather than car-scoped (spawn,
     // abandon). bubbleTextFor returns `null` for those, so we only
     // get here when `ev` carries an `elevator` field.
     const carId = (ev as { elevator?: number }).elevator;
     if (carId === undefined) continue;
     const ttl = BUBBLE_TTL_BY_KIND[ev.kind] ?? BUBBLE_TTL_DEFAULT_MS;
-    pane.bubbles.set(carId, { text, bornAt, expiresAt: bornAt + ttl });
+    pane.bubbles.set(carId, {
+      glyph: content.glyph,
+      text: content.text,
+      bornAt,
+      expiresAt: bornAt + ttl,
+    });
   }
 }
 
-/** Map an event to a short bubble string (icon glyph + phrase), or
+/** Map an event to a leading icon glyph plus the body phrase, or
  *  `null` when the event has no car to attach to, or when emitting a
  *  bubble for it would add more noise than signal. `elevator-departed`
  *  and `door-closed` are intentionally suppressed because the prior
  *  bubble ("Arrived at X", "Doors open") already narrates the context
  *  and re-firing on closure makes the car feel chatty without adding
- *  information. */
-function bubbleTextFor(ev: EventDto, stopName: (id: number) => string): string | null {
+ *  information. The renderer paints the glyph in the pane accent and
+ *  the body in a neutral off-white. */
+function bubbleTextFor(
+  ev: EventDto,
+  stopName: (id: number) => string,
+): { glyph: string; text: string } | null {
   switch (ev.kind) {
     case "elevator-assigned":
-      return `\u203a To ${stopName(ev.stop)}`;
+      return { glyph: "›", text: `To ${stopName(ev.stop)}` };
     case "elevator-repositioning":
-      return `\u21BB Reposition to ${stopName(ev.stop)}`;
+      return { glyph: "↻", text: `Reposition to ${stopName(ev.stop)}` };
     case "elevator-arrived":
-      return `\u25cf At ${stopName(ev.stop)}`;
+      return { glyph: "●", text: `At ${stopName(ev.stop)}` };
     case "door-opened":
-      return "\u25cc Doors open";
+      return { glyph: "◌", text: "Doors open" };
     case "rider-boarded":
-      return "\u002b Boarding";
+      return { glyph: "+", text: "Boarding" };
     case "rider-exited":
-      return `\u2193 Off at ${stopName(ev.stop)}`;
+      return { glyph: "↓", text: `Off at ${stopName(ev.stop)}` };
     default:
       return null;
   }

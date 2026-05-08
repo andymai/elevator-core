@@ -1,9 +1,8 @@
-import { hexWithAlpha, shade, withAlpha } from "./color-utils";
+import { easeOutNorm, hexWithAlpha, shade, withAlpha } from "./color-utils";
 import type { RiderVariant } from "./figures/rider";
 import { drawRidersInCar } from "./figures/riders-in-car";
 import type { Scale } from "./layout";
 import { CANVAS_FONT_SANS, PHASE_COLORS, TARGET_FILL, TRAIL_DT, TRAIL_STEPS } from "./palette";
-import { roundedRect } from "./primitives";
 import type { CarDto, CarBubble, Snapshot } from "../types";
 
 export function drawTargetMarkers(
@@ -107,9 +106,51 @@ export function drawCar(
   }
 }
 
+// Layout + style constants for the speech bubbles. Tuned for a tight,
+// warm-dark surface aesthetic that matches the broader playground:
+// translucent fill anchored to `--bg-elevated`, hairline accent stroke,
+// soft accent halo, and a small integrated tail. Padding is asymmetric
+// because the body text sits between a dim accent glyph and a neutral
+// off-white run, and we want the row to read as one tight chip.
+const BUBBLE_PAD_X = 6;
+const BUBBLE_PAD_Y = 3;
+const BUBBLE_RADIUS = 4;
+const BUBBLE_TAIL_W = 3;
+const BUBBLE_TAIL_H = 2.5;
+const BUBBLE_GAP = 2;
+const BUBBLE_HALO_BLUR = 12;
+const BUBBLE_FILL = "rgba(37, 37, 48, 0.80)"; // --bg-elevated (#252530) at 0.80
+const BUBBLE_TEXT_COLOR = "#ECECEE"; // warm off-white
+const BUBBLE_GLYPH_TEXT_GAP = 3;
+const BUBBLE_LIFETIME_FADE_FRAC = 0.3;
+const BUBBLE_ENTRANCE_MS = 140;
+const BUBBLE_ENTRANCE_SCALE_FROM = 0.85;
+const BUBBLE_ENTRANCE_DRIFT_PX = 2.5;
+
+interface BubblePlacement {
+  bubble: CarBubble;
+  glyphW: number;
+  textW: number;
+  alpha: number;
+  cx: number;
+  carTop: number;
+  carBottom: number;
+  bubbleW: number;
+  bubbleH: number;
+  side: "above" | "below";
+  bx: number;
+  by: number;
+  entrance: number;
+}
+
 /**
- * Draw a small rounded speech-bubble with a tail pointing down (or
- * up) to each car with a fresh action.
+ * Draw a small rounded speech-bubble with a tail pointing down (or up)
+ * to each car with a fresh action.
+ *
+ * Visual: translucent warm-dark fill, hairline pane-accent stroke, soft
+ * accent halo, leading glyph tinted with the pane accent, body text in
+ * a neutral off-white. Each bubble does a 140 ms ease-out entrance
+ * (opacity, scale, slight upward drift) when it first appears.
  */
 export function drawBubbles(
   ctx: CanvasRenderingContext2D,
@@ -121,31 +162,19 @@ export function drawBubbles(
   s: Scale,
   canvasWidth: number,
 ): void {
-  const padX = 7;
-  const padY = 4;
-  const tailW = 5;
-  const tailH = 4;
-  const radius = 6;
-  const gap = 2;
-  ctx.font = `600 ${s.fontSmall + 0.5}px ${CANVAS_FONT_SANS}`;
+  const fontSize = s.fontSmall + 0.5;
+  ctx.font = `500 ${fontSize}px ${CANVAS_FONT_SANS}`;
   ctx.textBaseline = "middle";
-  const FADE_FRAC = 0.3;
+  // Slight negative tracking so the chip stays compact at small sizes.
+  // Property is ignored on browsers without Canvas letterSpacing support
+  // (Safari < 17.2). measureText reflects the active spacing on engines
+  // that do honour it, which keeps width math accurate.
+  setLetterSpacing(ctx, "-0.1px");
   const now = performance.now();
-  const strokeBase = accent;
-
-  interface Placement {
-    bubble: CarBubble;
-    alpha: number;
-    cx: number;
-    carTop: number;
-    carBottom: number;
-    bubbleW: number;
-    bubbleH: number;
-    side: "above" | "below";
-    bx: number;
-    by: number;
-  }
-  const placements: Placement[] = [];
+  const strokeColor = withAlpha(accent, 0.45);
+  const haloColor = withAlpha(accent, 0.5);
+  const glyphColor = withAlpha(accent, 0.75);
+  const placements: BubblePlacement[] = [];
   // Iterate the (typically small) bubbles map directly — looking up the
   // car via the prepared id map skips a full pass over `snap.cars` per
   // frame when only a handful of cars have active bubbles.
@@ -159,17 +188,27 @@ export function drawBubbles(
 
     const ttl = Math.max(1, bubble.expiresAt - bubble.bornAt);
     const remaining = bubble.expiresAt - now;
-    const alpha = remaining > ttl * FADE_FRAC ? 1 : Math.max(0, remaining / (ttl * FADE_FRAC));
+    const lifetimeFade =
+      remaining > ttl * BUBBLE_LIFETIME_FADE_FRAC
+        ? 1
+        : Math.max(0, remaining / (ttl * BUBBLE_LIFETIME_FADE_FRAC));
+    const age = Math.max(0, now - bubble.bornAt);
+    const entrance = Math.min(1, age / BUBBLE_ENTRANCE_MS);
+    const alpha = lifetimeFade * entrance;
     if (alpha <= 0) continue;
 
+    const glyphW = ctx.measureText(bubble.glyph).width;
     const textW = ctx.measureText(bubble.text).width;
-    const bubbleW = textW + padX * 2;
-    const bubbleH = s.fontSmall + padY * 2 + 2;
+    const bubbleW = glyphW + BUBBLE_GLYPH_TEXT_GAP + textW + BUBBLE_PAD_X * 2;
+    const bubbleH = fontSize + BUBBLE_PAD_Y * 2 + 2;
 
-    const aboveTop = carTop - gap - tailH - bubbleH;
-    const belowOverflow = carBottom + gap + tailH + bubbleH > canvasWidth;
+    const aboveTop = carTop - BUBBLE_GAP - BUBBLE_TAIL_H - bubbleH;
+    const belowOverflow = carBottom + BUBBLE_GAP + BUBBLE_TAIL_H + bubbleH > canvasWidth;
     const initialSide: "above" | "below" = aboveTop < 2 && !belowOverflow ? "below" : "above";
-    const by = initialSide === "above" ? carTop - gap - tailH - bubbleH : carBottom + gap + tailH;
+    const by =
+      initialSide === "above"
+        ? carTop - BUBBLE_GAP - BUBBLE_TAIL_H - bubbleH
+        : carBottom + BUBBLE_GAP + BUBBLE_TAIL_H;
     let bx = cx - bubbleW / 2;
     const minX = 2;
     const maxX = canvasWidth - bubbleW - 2;
@@ -177,6 +216,8 @@ export function drawBubbles(
     if (bx > maxX) bx = maxX;
     placements.push({
       bubble,
+      glyphW,
+      textW,
       alpha,
       cx,
       carTop,
@@ -186,11 +227,12 @@ export function drawBubbles(
       side: initialSide,
       bx,
       by,
+      entrance,
     });
   }
 
-  // Collision pass.
-  const rectsIntersect = (a: Placement, b: Placement): boolean =>
+  // Collision pass — flip side when overlapping a previously-placed bubble.
+  const rectsIntersect = (a: BubblePlacement, b: BubblePlacement): boolean =>
     !(
       a.bx + a.bubbleW <= b.bx ||
       b.bx + b.bubbleW <= a.bx ||
@@ -212,8 +254,10 @@ export function drawBubbles(
     if (!collides) continue;
     const flipSide: "above" | "below" = p.side === "above" ? "below" : "above";
     const flipBy =
-      flipSide === "above" ? p.carTop - gap - tailH - p.bubbleH : p.carBottom + gap + tailH;
-    const flipped: Placement = { ...p, side: flipSide, by: flipBy };
+      flipSide === "above"
+        ? p.carTop - BUBBLE_GAP - BUBBLE_TAIL_H - p.bubbleH
+        : p.carBottom + BUBBLE_GAP + BUBBLE_TAIL_H;
+    const flipped: BubblePlacement = { ...p, side: flipSide, by: flipBy };
     let flipClears = true;
     for (let j = 0; j < i; j++) {
       const pj = placements[j];
@@ -229,42 +273,120 @@ export function drawBubbles(
   }
 
   for (const p of placements) {
-    const { bubble, alpha, cx, carTop, carBottom, bubbleW, bubbleH, side, bx, by } = p;
-    const tipY = side === "above" ? carTop - gap : carBottom + gap;
-    const baseY = side === "above" ? by + bubbleH : by;
+    const {
+      bubble,
+      glyphW,
+      alpha,
+      cx,
+      carTop,
+      carBottom,
+      bubbleW,
+      bubbleH,
+      side,
+      bx,
+      by,
+      entrance,
+    } = p;
+    const tipY = side === "above" ? carTop - BUBBLE_GAP : carBottom + BUBBLE_GAP;
     const tailCenter = Math.min(
-      Math.max(cx, bx + radius + tailW / 2),
-      bx + bubbleW - radius - tailW / 2,
+      Math.max(cx, bx + BUBBLE_RADIUS + BUBBLE_TAIL_W / 2),
+      bx + bubbleW - BUBBLE_RADIUS - BUBBLE_TAIL_W / 2,
     );
+
+    const ease = easeOutNorm(entrance);
+    const scale = BUBBLE_ENTRANCE_SCALE_FROM + (1 - BUBBLE_ENTRANCE_SCALE_FROM) * ease;
+    const driftY = (1 - ease) * BUBBLE_ENTRANCE_DRIFT_PX;
+    const centerX = bx + bubbleW / 2;
+    const centerY = by + bubbleH / 2;
 
     ctx.save();
     ctx.globalAlpha = alpha;
+    ctx.translate(centerX, centerY + driftY);
+    ctx.scale(scale, scale);
+    ctx.translate(-centerX, -centerY);
 
-    ctx.shadowColor = strokeBase;
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = "rgba(16, 19, 26, 0.94)";
-    roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
+    // Single combined path: rounded body + integrated tail. Filling and
+    // stroking once eliminates the seam where the old separate-tail
+    // implementation overlapped its strokes against the body edge.
+    bubblePath(ctx, bx, by, bubbleW, bubbleH, BUBBLE_RADIUS, side, tailCenter, tipY);
+
+    ctx.shadowColor = haloColor;
+    ctx.shadowBlur = BUBBLE_HALO_BLUR;
+    ctx.fillStyle = BUBBLE_FILL;
     ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
 
-    ctx.strokeStyle = withAlpha(strokeBase, 0.65);
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1;
-    roundedRect(ctx, bx, by, bubbleW, bubbleH, radius);
     ctx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(tailCenter - tailW / 2, baseY);
-    ctx.lineTo(tailCenter + tailW / 2, baseY);
-    ctx.lineTo(tailCenter, tipY);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(16, 19, 26, 0.94)";
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#f0f3fb";
-    ctx.textAlign = "center";
-    ctx.fillText(bubble.text, bx + bubbleW / 2, by + bubbleH / 2);
+    // Glyph + text run. We left-align both on the same baseline; the
+    // glyph leads in dim accent, then the body in warm off-white.
+    const textY = by + bubbleH / 2;
+    const runStartX = bx + BUBBLE_PAD_X;
+    ctx.textAlign = "left";
+    ctx.fillStyle = glyphColor;
+    ctx.fillText(bubble.glyph, runStartX, textY);
+    ctx.fillStyle = BUBBLE_TEXT_COLOR;
+    ctx.fillText(bubble.text, runStartX + glyphW + BUBBLE_GLYPH_TEXT_GAP, textY);
 
     ctx.restore();
   }
+
+  // Reset letterSpacing so we don't leak the tighter tracking onto the
+  // next pane's draw pass. Other text in the renderer assumes default.
+  setLetterSpacing(ctx, "0px");
+}
+
+/**
+ * Build a single closed path for the bubble body with the tail
+ * integrated into either the bottom (above-mode) or top (below-mode)
+ * edge. Drawn clockwise from `(bx + radius, by)`.
+ */
+function bubblePath(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  by: number,
+  w: number,
+  h: number,
+  radius: number,
+  side: "above" | "below",
+  tailCenter: number,
+  tipY: number,
+): void {
+  const r = Math.min(radius, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  if (side === "below") {
+    // Tail on the top edge, pointing up to the car above.
+    ctx.lineTo(tailCenter - BUBBLE_TAIL_W / 2, by);
+    ctx.lineTo(tailCenter, tipY);
+    ctx.lineTo(tailCenter + BUBBLE_TAIL_W / 2, by);
+  }
+  ctx.lineTo(bx + w - r, by);
+  ctx.arcTo(bx + w, by, bx + w, by + r, r);
+  ctx.lineTo(bx + w, by + h - r);
+  ctx.arcTo(bx + w, by + h, bx + w - r, by + h, r);
+  if (side === "above") {
+    // Tail on the bottom edge, pointing down to the car below.
+    ctx.lineTo(tailCenter + BUBBLE_TAIL_W / 2, by + h);
+    ctx.lineTo(tailCenter, tipY);
+    ctx.lineTo(tailCenter - BUBBLE_TAIL_W / 2, by + h);
+  }
+  ctx.lineTo(bx + r, by + h);
+  ctx.arcTo(bx, by + h, bx, by + h - r, r);
+  ctx.lineTo(bx, by + r);
+  ctx.arcTo(bx, by, bx + r, by, r);
+  ctx.closePath();
+}
+
+/**
+ * Apply Canvas letterSpacing without typing the experimental property
+ * across all tsconfig targets. The property write is silently ignored
+ * on browsers that don't implement it, and the slightly tighter run is
+ * a polish, not a correctness concern.
+ */
+function setLetterSpacing(ctx: CanvasRenderingContext2D, value: string): void {
+  (ctx as unknown as { letterSpacing?: string }).letterSpacing = value;
 }
