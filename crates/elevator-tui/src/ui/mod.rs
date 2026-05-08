@@ -42,13 +42,20 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
         .split(outer[1]);
 
     shaft::draw(frame, body[0], state, sim);
-
-    match state.right_panel {
-        RightPanel::Overview => draw_overview(frame, body[1], state, sim),
-        RightPanel::DrillDown => drilldown::draw(frame, body[1], state, sim),
-    }
+    // Right column always carries the overview now — the drilldown is
+    // a centered popup overlaid on top, not a panel that steals the
+    // column. Preserves spatial context (you can still see where the
+    // car sits in the shaft behind the popup).
+    draw_overview(frame, body[1], state, sim);
 
     draw_footer(frame, outer[2], state);
+
+    // Drilldown popup sits between the body panels and the help/
+    // welcome modals so a user reading help over a focused car still
+    // gets help on top.
+    if state.right_panel == RightPanel::DrillDown {
+        drilldown::draw_popup(frame, frame.area(), state, sim);
+    }
 
     // Modal overlays render last so they sit above every panel.
     match state.overlay {
