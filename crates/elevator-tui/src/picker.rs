@@ -9,7 +9,7 @@
 //! This is its own tiny ratatui sub-app with its own terminal
 //! lifetime so the main viewer's setup/teardown stays untouched.
 
-use std::io::{self, Stdout};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -47,8 +47,17 @@ pub fn pick_scenario() -> Result<Option<PathBuf>> {
         );
     }
 
-    let mut terminal = setup_terminal().context("setting up picker terminal")?;
+    // Construct the guard *immediately* after raw mode is enabled,
+    // before entering the alt screen. If `EnterAlternateScreen`
+    // fails the guard's drop still restores raw mode — otherwise a
+    // partial setup leaves the user's shell unusable for the rest
+    // of the session.
+    crossterm::terminal::enable_raw_mode().context("enabling raw mode")?;
     let _guard = TerminalGuard;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen).context("entering alternate screen")?;
+    let mut terminal =
+        Terminal::new(CrosstermBackend::new(stdout)).context("constructing ratatui terminal")?;
     let mut list_state = ListState::default();
     list_state.select(Some(0));
 
@@ -96,8 +105,18 @@ fn collect_scenarios(dir: &Path) -> Result<Vec<PathBuf>> {
     }
     let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
         .with_context(|| format!("reading {}", dir.display()))?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
+        .filter_map(|res| match res {
+            Ok(entry) => Some(entry.path()),
+            Err(e) => {
+                // Surface but don't abort — a single unreadable
+                // entry shouldn't sink the whole picker.
+                eprintln!(
+                    "warning: skipping unreadable entry in {}: {e}",
+                    dir.display(),
+                );
+                None
+            }
+        })
         .filter(|path| {
             path.extension().is_some_and(|ext| ext == "ron")
                 && path
@@ -137,7 +156,13 @@ fn draw(frame: &mut ratatui::Frame<'_>, scenarios: &[PathBuf], list_state: &mut 
     ]);
     frame.render_widget(Paragraph::new(title), outer[0]);
 
-    let modal = centered_rect(outer[1], 64, scenarios.len() as u16 + 4);
+    // `scenarios.len()` is a `usize`; clamp before casting so a
+    // pathological config dir with 65k+ entries can't overflow the
+    // u16 height used by `centered_rect`.
+    let modal_h = u16::try_from(scenarios.len())
+        .unwrap_or(u16::MAX - 4)
+        .saturating_add(4);
+    let modal = centered_rect(outer[1], 64, modal_h);
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -198,15 +223,6 @@ fn centered_rect(area: Rect, w: u16, h: u16) -> Rect {
         width: w,
         height: h,
     }
-}
-
-/// Switch the terminal into raw mode + alternate screen, returning
-/// a ratatui `Terminal` for the duration of the picker.
-fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
-    crossterm::terminal::enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    Terminal::new(CrosstermBackend::new(stdout))
 }
 
 /// RAII guard that restores raw mode + leaves the alternate screen
