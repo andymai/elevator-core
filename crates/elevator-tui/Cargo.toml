@@ -29,3 +29,4 @@ anyhow = "1"
 [dev-dependencies]
 insta = "1"
 slotmap = { workspace = true }
+tempfile = "3"
