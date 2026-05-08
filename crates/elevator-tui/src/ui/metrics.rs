@@ -101,9 +101,11 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             value(format!("{:.0}%", m.avg_utilization() * 100.0)),
         ]),
     ];
-    // Big-text headline: just the p95 number (no units / no label —
-    // the panel title and the counter row below already disambiguate).
-    // Colored on the same green→yellow→red ramp as the sparkline.
+    // Big-text headline: `p95 {N}t` — the label disambiguates from
+    // any other "big number" we'd add later (e.g. throughput) and
+    // the trailing `t` keeps it consistent with the counter row's
+    // unit notation. Colored on the same green→yellow→red ramp as
+    // the sparkline below.
     let big = BigText::builder()
         .pixel_size(PixelSize::Quadrant)
         .style(
