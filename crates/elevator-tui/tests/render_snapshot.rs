@@ -107,9 +107,38 @@ fn frame_with_events_pane_focused() {
 
 #[test]
 fn frame_with_help_overlay() {
+    // The help modal grew with the events-pane scroll/filter section
+    // landing in PR2. Render at a taller viewport so every binding is
+    // legible — most terminals are >= 30 rows in practice. PR7 will
+    // revisit the layout for ≤ 24-row terminals.
     let sim = demo_sim(60);
     let mut state = AppState::new(1.0).without_welcome();
     state.overlay = Some(elevator_tui::state::UiOverlay::Help);
-    let frame = render(&sim, &state, 100, 30);
+    let frame = render(&sim, &state, 100, 40);
     insta::assert_snapshot!("help_overlay", frame);
+}
+
+#[test]
+fn frame_with_filter_input_open() {
+    // Pins the / filter prompt visible in the footer while the user
+    // is typing.
+    let sim = demo_sim(120);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.focused_pane = elevator_tui::state::FocusedPane::Events;
+    state.pending_filter = Some("rider".into());
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("filter_input_open", frame);
+}
+
+#[test]
+fn frame_with_committed_filter_and_scroll() {
+    // Pins the events-panel suffix updating when a filter is active
+    // and the user has scrolled into the log.
+    let sim = demo_sim(120);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.focused_pane = elevator_tui::state::FocusedPane::Events;
+    state.events_filter = "rider".into();
+    state.events_scroll = 3;
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("filter_and_scroll", frame);
 }

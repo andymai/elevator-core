@@ -29,20 +29,32 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
     frame.render_widget(block, area);
 
     let visible_height = inner.height as usize;
-    let items: Vec<ListItem<'_>> = state
+    // Pre-format each visible event so we can feed the body string both
+    // to the substring filter and to the rendered span without doing
+    // the work twice.
+    let needle = state.events_filter.to_lowercase();
+    let mut formatted: Vec<(u64, String, EventCategory)> = state
         .visible_events(focused)
-        .rev() // newest at the top
+        .rev() // newest first
+        .filter_map(|logged| {
+            let body = format_event_body(&logged.event);
+            if !needle.is_empty() && !body.to_lowercase().contains(&needle) {
+                return None;
+            }
+            Some((logged.tick, body, logged.event.category()))
+        })
+        .collect();
+    // `events_scroll` is in events; clamp here so the renderer never
+    // shows an empty pane when the user has scrolled past the end.
+    let max_scroll = formatted.len().saturating_sub(visible_height.max(1));
+    let scroll = state.events_scroll.min(max_scroll);
+    let items: Vec<ListItem<'_>> = formatted
+        .drain(scroll..)
         .take(visible_height)
-        .map(|logged| {
+        .map(|(tick, body, category)| {
             ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!("t={:>6} ", logged.tick),
-                    Style::default().fg(palette::DIM),
-                ),
-                Span::styled(
-                    format_event_body(&logged.event),
-                    Style::default().fg(category_color(logged.event.category())),
-                ),
+                Span::styled(format!("t={tick:>6} "), Style::default().fg(palette::DIM)),
+                Span::styled(body, Style::default().fg(category_color(category))),
             ]))
         })
         .collect();
@@ -70,7 +82,17 @@ fn filter_summary(state: &AppState, focused: Option<elevator_core::entity::Entit
         (true, None) => " · follow=(no car)".to_string(),
         (false, _) => String::new(),
     };
-    format!("filter [{cats_str}]{follow}")
+    let needle = if state.events_filter.is_empty() {
+        String::new()
+    } else {
+        format!(" · /{}", state.events_filter)
+    };
+    let scroll = if state.events_scroll == 0 {
+        String::new()
+    } else {
+        format!(" · scroll {}", state.events_scroll)
+    };
+    format!("filter [{cats_str}]{follow}{needle}{scroll}")
 }
 
 /// Pick a tint per event category so the rolling log reads at a glance.

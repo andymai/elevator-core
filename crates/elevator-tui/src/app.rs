@@ -15,7 +15,9 @@ use elevator_core::traffic::{PoissonSource, TrafficSource as _};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
-use crate::state::{AppState, RightPanel, ShaftMode, Sparkline, UiOverlay};
+use crate::state::{
+    AppState, FocusedPane, RightPanel, ScrollMotion, ShaftMode, Sparkline, UiOverlay,
+};
 use crate::ui;
 
 /// Run the interactive TUI until the user quits.
@@ -198,7 +200,7 @@ fn record_step(sim: &mut Simulation, state: &mut AppState) {
 /// each binding independently reviewable and lets new bindings land
 /// without affecting unrelated overlays.
 fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifiers: KeyModifiers) {
-    // Ctrl-C escapes every mode, including overlays.
+    // Ctrl-C escapes every mode, including overlays and filter input.
     if matches!(code, KeyCode::Char('c')) && modifiers.contains(KeyModifiers::CONTROL) {
         state.quit = true;
         return;
@@ -214,7 +216,27 @@ fn handle_key(state: &mut AppState, sim: &mut Simulation, code: KeyCode, modifie
         }
         None => {}
     }
-    handle_key_main(state, sim, code);
+    // Filter-input mode swallows most keys so the user can type a
+    // query containing `q`, `j`, `:`, etc. without firing the global
+    // bindings. Only Ctrl-C above and the four control keys below
+    // affect the input itself.
+    if state.pending_filter.is_some() {
+        handle_key_filter_input(state, code);
+        return;
+    }
+    handle_key_main(state, sim, code, modifiers);
+}
+
+/// Filter-input handler — keys flow into `state.pending_filter`
+/// until Enter commits or Esc cancels.
+fn handle_key_filter_input(state: &mut AppState, code: KeyCode) {
+    match code {
+        KeyCode::Esc => state.filter_input_cancel(),
+        KeyCode::Enter => state.filter_input_commit(),
+        KeyCode::Backspace => state.filter_input_backspace(),
+        KeyCode::Char(c) => state.filter_input_push(c),
+        _ => {}
+    }
 }
 
 /// Welcome overlay handler.
@@ -239,7 +261,23 @@ const fn handle_key_help(state: &mut AppState, code: KeyCode) {
 /// Main viewer handler — overview / drill-down / metrics share these
 /// bindings; the right-panel toggle (Enter / Esc) flips between
 /// `Overview` and `DrillDown` without changing the keymap.
-fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
+fn handle_key_main(
+    state: &mut AppState,
+    sim: &mut Simulation,
+    code: KeyCode,
+    modifiers: KeyModifiers,
+) {
+    // Vim scroll motions on the focused-events pane. Routed before the
+    // letter-key match so j/k/g/G never collide with global bindings.
+    // `gg_pending` is cleared inside `handle_events_scroll` regardless
+    // of whether the key was a scroll motion, so a stray `g` followed
+    // by an unrelated key doesn't leave the chord half-armed.
+    if state.focused_pane == FocusedPane::Events
+        && state.right_panel == RightPanel::Overview
+        && handle_events_scroll(state, code, modifiers)
+    {
+        return;
+    }
     match code {
         KeyCode::Char('?') => state.overlay = Some(UiOverlay::Help),
         KeyCode::Char('q') => state.quit = true,
@@ -298,6 +336,14 @@ fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
                 state.flash(format!("toggle {category:?}"));
             }
         }
+        // Filter input only meaningful for the events pane today.
+        // PR4 (popup drilldown) will widen this to the rider list.
+        KeyCode::Char('/')
+            if state.focused_pane == FocusedPane::Events
+                && state.right_panel == RightPanel::Overview =>
+        {
+            state.open_filter_input();
+        }
         // While DrillDown owns the right column the right-side panes
         // aren't on screen, so cycling focus would leave the user with a
         // flash announcing a change that nothing visible reflects (the
@@ -330,6 +376,52 @@ fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
     }
 }
 
+/// Vim-style scroll motions on the events pane. Returns `true` if the
+/// key was consumed; the caller skips the global binding match in that
+/// case. Always clears `gg_pending` on a non-`g` key so the chord
+/// can't get half-armed by a stray keypress.
+const fn handle_events_scroll(
+    state: &mut AppState,
+    code: KeyCode,
+    modifiers: KeyModifiers,
+) -> bool {
+    let ctrl = modifiers.contains(KeyModifiers::CONTROL);
+    let was_gg_pending = state.gg_pending;
+    state.gg_pending = false;
+    match code {
+        KeyCode::Char('j') | KeyCode::Down => {
+            state.scroll_events(ScrollMotion::Down);
+            true
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            state.scroll_events(ScrollMotion::Up);
+            true
+        }
+        // Both Ctrl+f and Ctrl+d (helix / vim) — same outcome.
+        KeyCode::Char('f' | 'd') if ctrl => {
+            state.scroll_events(ScrollMotion::HalfPageDown);
+            true
+        }
+        KeyCode::Char('b' | 'u') if ctrl => {
+            state.scroll_events(ScrollMotion::HalfPageUp);
+            true
+        }
+        KeyCode::Char('g') => {
+            if was_gg_pending {
+                state.scroll_events(ScrollMotion::Top);
+            } else {
+                state.gg_pending = true;
+            }
+            true
+        }
+        KeyCode::Char('G') => {
+            state.scroll_events(ScrollMotion::Bottom);
+            true
+        }
+        _ => false,
+    }
+}
+
 /// Restore the last-saved snapshot, if any, and reset the derived
 /// view state (event log, sparklines, focused car). Extracted so the
 /// main keymap stays easy to scan.
@@ -345,6 +437,7 @@ fn handle_key_main_load_snapshot(state: &mut AppState, sim: &mut Simulation) {
             state.wait_sparkline = Sparkline::new(state.wait_sparkline.capacity);
             state.occupancy_sparkline = Sparkline::new(state.occupancy_sparkline.capacity);
             state.focused_car_idx = 0;
+            state.events_scroll = 0;
             state.flash(format!("restored @ tick {}", sim.current_tick()));
         }
         Err(e) => state.flash(format!("restore failed: {e}")),
@@ -514,6 +607,86 @@ mod tests {
         assert_eq!(state.focused_pane, FocusedPane::Traffic);
         handle_key(&mut state, &mut sim, KeyCode::BackTab, KeyModifiers::SHIFT);
         assert_eq!(state.focused_pane, FocusedPane::Metrics);
+    }
+
+    #[test]
+    fn slash_opens_filter_when_events_focused() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.focused_pane = FocusedPane::Events;
+        handle_key(&mut state, &mut sim, KeyCode::Char('/'), KeyModifiers::NONE);
+        assert_eq!(state.pending_filter.as_deref(), Some(""));
+    }
+
+    #[test]
+    fn slash_noop_when_other_pane_focused() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.focused_pane = FocusedPane::Shaft;
+        handle_key(&mut state, &mut sim, KeyCode::Char('/'), KeyModifiers::NONE);
+        assert!(state.pending_filter.is_none());
+    }
+
+    #[test]
+    fn filter_input_typing_then_commit() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.focused_pane = FocusedPane::Events;
+        handle_key(&mut state, &mut sim, KeyCode::Char('/'), KeyModifiers::NONE);
+        for c in "rider".chars() {
+            handle_key(&mut state, &mut sim, KeyCode::Char(c), KeyModifiers::NONE);
+        }
+        assert_eq!(state.pending_filter.as_deref(), Some("rider"));
+        handle_key(&mut state, &mut sim, KeyCode::Enter, KeyModifiers::NONE);
+        assert!(state.pending_filter.is_none());
+        assert_eq!(state.events_filter, "rider");
+    }
+
+    #[test]
+    fn filter_input_esc_cancels() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.events_filter = "previous".into();
+        state.focused_pane = FocusedPane::Events;
+        handle_key(&mut state, &mut sim, KeyCode::Char('/'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Char('x'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
+        assert!(state.pending_filter.is_none());
+        // Esc keeps the previously committed filter intact.
+        assert_eq!(state.events_filter, "previous");
+    }
+
+    #[test]
+    fn vim_keys_scroll_events_pane() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        state.focused_pane = FocusedPane::Events;
+        handle_key(&mut state, &mut sim, KeyCode::Char('j'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Char('j'), KeyModifiers::NONE);
+        assert_eq!(state.events_scroll, 2);
+        handle_key(&mut state, &mut sim, KeyCode::Char('k'), KeyModifiers::NONE);
+        assert_eq!(state.events_scroll, 1);
+        handle_key(
+            &mut state,
+            &mut sim,
+            KeyCode::Char('f'),
+            KeyModifiers::CONTROL,
+        );
+        assert_eq!(state.events_scroll, 1 + AppState::EVENTS_HALF_PAGE);
+        handle_key(&mut state, &mut sim, KeyCode::Char('g'), KeyModifiers::NONE);
+        handle_key(&mut state, &mut sim, KeyCode::Char('g'), KeyModifiers::NONE);
+        assert_eq!(state.events_scroll, 0);
+    }
+
+    #[test]
+    fn vim_keys_inert_when_other_pane_focused() {
+        // The j/k scroll path is gated on focused_pane == Events. When
+        // shaft is focused, `j` should be ignored entirely.
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        assert_eq!(state.focused_pane, FocusedPane::Shaft);
+        handle_key(&mut state, &mut sim, KeyCode::Char('j'), KeyModifiers::NONE);
+        assert_eq!(state.events_scroll, 0);
     }
 
     #[test]
