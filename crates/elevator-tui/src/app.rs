@@ -320,31 +320,17 @@ fn handle_mouse(state: &mut AppState, sim: &Simulation, mouse: MouseEvent) {
 }
 
 /// Resolve a click on a car-glyph column in the shaft pane and
-/// focus the matching car.
-///
-/// `shaft::stop_row` lays out each row as
-/// `[2 hall lamps][10 name][6 position][5 waiting][3 delim] then
-///  [glyph][space] per car`. After the 1-cell left border that's a
-/// fixed `1 + 26 = 27` cell prefix before the first car glyph;
-/// each car occupies 2 cells. A click in the prefix region falls
-/// through to plain pane-focus; a click past the last car-cell
-/// likewise falls through.
+/// focus the matching car. Layout knowledge lives in
+/// [`ui::shaft::column_to_car_idx`] so the prefix width can't drift
+/// out of sync with [`ui::shaft::recommended_width`].
 fn handle_shaft_car_click(state: &mut AppState, sim: &Simulation, col: u16) -> bool {
-    const SHAFT_TEXT_PREFIX: u16 = 27; // 1 border + 26 text/delim cells
-    const CELLS_PER_CAR: u16 = 2;
     let Some(shaft_box) = state.pane_rects.get().shaft else {
         return false;
     };
-    let cars_origin = shaft_box.x.saturating_add(SHAFT_TEXT_PREFIX);
-    if col < cars_origin {
-        return false;
-    }
-    let offset = col - cars_origin;
-    let car_idx = (offset / CELLS_PER_CAR) as usize;
     let car_count = ui::shaft::cars_iter(sim).count();
-    if car_idx >= car_count {
+    let Some(car_idx) = ui::shaft::column_to_car_idx(shaft_box.x, col, car_count) else {
         return false;
-    }
+    };
     state.focused_car_idx = car_idx;
     state.focused_pane = FocusedPane::Shaft;
     state.flash(format!("focus → car {}", car_idx + 1));
