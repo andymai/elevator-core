@@ -1037,11 +1037,17 @@
   /* Verdict tints use a slightly desaturated mix of `--ok` / `--bad`
    * with `--text-secondary` so a row of red deltas (which can happen
    * after a bad strategy swap) doesn't read as a red alarm — the
-   * strip stays informational, not anxious. */
+   * strip stays informational, not anxious. The plain `color`
+   * declaration before each `color-mix()` is a graceful fallback for
+   * browsers older than Chrome 111 / Firefox 113 / Safari 16.2; they
+   * land on the unmixed `--ok` / `--bad` instead of an undefined
+   * value and show full-strength verdict color rather than nothing. */
   .metric-row[data-verdict="win"] .metric-d {
+    color: var(--ok);
     color: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
   }
   .metric-row[data-verdict="lose"] .metric-d {
+    color: var(--bad);
     color: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
   }
   .metric-spark {
@@ -1065,12 +1071,16 @@
   }
   .metric-row[data-verdict="win"] .metric-spark path,
   .metric-row[data-verdict="win"] .metric-spark-dot {
+    stroke: var(--ok);
     stroke: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
+    fill: var(--ok);
     fill: color-mix(in srgb, var(--ok) 85%, var(--text-secondary) 15%);
   }
   .metric-row[data-verdict="lose"] .metric-spark path,
   .metric-row[data-verdict="lose"] .metric-spark-dot {
+    stroke: var(--bad);
     stroke: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
+    fill: var(--bad);
     fill: color-mix(in srgb, var(--bad) 85%, var(--text-secondary) 15%);
   }
 

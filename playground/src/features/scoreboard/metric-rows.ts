@@ -178,7 +178,9 @@ export function renderMetricRows(
     const dot = spark.children[1] as SVGCircleElement;
     const sl = buildSparkline(history[key]);
     if (path.getAttribute("d") !== sl.d) path.setAttribute("d", sl.d);
-    dot.setAttribute("cx", sl.lastX.toFixed(2));
-    dot.setAttribute("cy", sl.lastY.toFixed(2));
+    const cx = sl.lastX.toFixed(2);
+    const cy = sl.lastY.toFixed(2);
+    if (dot.getAttribute("cx") !== cx) dot.setAttribute("cx", cx);
+    if (dot.getAttribute("cy") !== cy) dot.setAttribute("cy", cy);
   }
 }
