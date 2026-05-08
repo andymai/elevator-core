@@ -19,11 +19,18 @@ pub enum TransportMode {
 }
 
 impl std::fmt::Display for TransportMode {
+    /// `Line` delegates to `EntityId`'s `Debug` since slotmap keys do not
+    /// implement `Display`; the doctest pins the prefix so the format is
+    /// observable even though the trailing key id is opaque.
+    ///
     /// ```
     /// # use elevator_core::components::TransportMode;
     /// # use elevator_core::ids::GroupId;
+    /// # use elevator_core::entity::EntityId;
     /// assert_eq!(format!("{}", TransportMode::Group(GroupId(0))), "group GroupId(0)");
     /// assert_eq!(format!("{}", TransportMode::Walk), "walk");
+    /// let line_str = format!("{}", TransportMode::Line(EntityId::default()));
+    /// assert!(line_str.starts_with("line "), "unexpected: {line_str}");
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
