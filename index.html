@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-e1aac457.js";
+            window.path_to_searchindex_js = "searchindex-3d1db293.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -214,19 +214,20 @@
 <li><strong>Release cadence:</strong> Managed via release-please; see <code>CHANGELOG.md</code> in the repo.</li>
 </ul>
 <h2 id="project-structure"><a class="header" href="#project-structure">Project structure</a></h2>
-<p>The repository is a Cargo workspace with three crates:</p>
+<p>The repository is a Cargo workspace grouped by role:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Crate</th><th>Purpose</th></tr>
+<tr><th>Group</th><th>Crates</th><th>Purpose</th></tr>
 </thead>
 <tbody>
-<tr><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
-<tr><td><code>elevator-bevy</code></td><td>A Bevy 0.18 binary that wraps the core sim with 2D rendering, a HUD, and keyboard controls. Useful as a reference implementation and visual debugger.</td></tr>
-<tr><td><code>elevator-ffi</code></td><td>C ABI wrapper for Unity, .NET, and other native consumers. Not published to crates.io.</td></tr>
+<tr><td><strong>Core</strong></td><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
+<tr><td><strong>Hosts</strong></td><td><code>elevator-bevy</code>, <code>elevator-ffi</code>, <code>elevator-wasm</code>, <code>elevator-gdext</code>, <code>elevator-tui</code></td><td>Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner.</td></tr>
+<tr><td><strong>Supporting</strong></td><td><code>elevator-contract</code>, <code>elevator-layout-derive</code>, <code>elevator-layout-runtime</code>, <code>elevator-layout-codegen</code></td><td>Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See <a href="integration-gallery.html">Integration Gallery</a>.</td></tr>
 </tbody>
 </table>
 </div>
+<p><code>elevator-core</code> is the only crate published to crates.io. The host crates set <code>publish = false</code> and ship through their target ecosystems instead — pulled directly from this repo, vendored into a Unity package, packaged as a Godot extension, or distributed as a GameMaker extension.</p>
 <h2 id="links"><a class="header" href="#links">Links</a></h2>
 <ul>
 <li><a href="https://docs.rs/elevator-core">API Reference (docs.rs)</a></li>
