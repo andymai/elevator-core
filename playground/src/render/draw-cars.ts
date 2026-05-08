@@ -114,11 +114,11 @@ export function drawCar(
 export function drawBubbles(
   ctx: CanvasRenderingContext2D,
   accent: string,
-  snap: Snapshot,
+  carById: ReadonlyMap<number, CarDto>,
+  bubbles: Map<number, CarBubble>,
   carX: Map<number, number>,
   toScreenY: (y: number) => number,
   s: Scale,
-  bubbles: Map<number, CarBubble>,
   canvasWidth: number,
 ): void {
   const padX = 7;
@@ -146,10 +146,13 @@ export function drawBubbles(
     by: number;
   }
   const placements: Placement[] = [];
-  for (const car of snap.cars) {
-    const bubble = bubbles.get(car.id);
-    if (!bubble) continue;
-    const cx = carX.get(car.id);
+  // Iterate the (typically small) bubbles map directly — looking up the
+  // car via the prepared id map skips a full pass over `snap.cars` per
+  // frame when only a handful of cars have active bubbles.
+  for (const [carId, bubble] of bubbles) {
+    const car = carById.get(carId);
+    if (car === undefined) continue;
+    const cx = carX.get(carId);
     if (cx === undefined) continue;
     const carBottom = toScreenY(car.y);
     const carTop = carBottom - s.carH;

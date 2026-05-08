@@ -1,9 +1,39 @@
 import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-strip";
 import { diffMetrics, renderMetricRows } from "../features/scoreboard";
+import type { Pane } from "../features/compare-pane";
 import { forEachPane, renderPane, updateBubbles, updateModeBadge } from "../features/compare-pane";
+import type { Snapshot } from "../types";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { drainSeedBatch } from "./reset";
+
+/**
+ * Step the pane and return the post-step snapshot if any events fired
+ * (so the bubbles + assignment paths could consume it). Returning the
+ * snapshot lets the caller reuse it as the spawn driver's input,
+ * cutting a redundant WASM/JS boundary crossing per pane per frame.
+ */
+function stepPaneAndDrain(pane: Pane, ticks: number): Snapshot | null {
+  pane.sim.step(ticks);
+  const events = pane.sim.drainEvents();
+  if (events.length === 0) return null;
+  const snap = pane.sim.snapshot();
+  updateBubbles(pane, events, snap);
+  // Resolve line at event time from the current snapshot so the
+  // renderer can key assignments per-(stop, line). Unknown cars
+  // (disabled, despawned) skip the map — they wouldn't draw anyway.
+  const carLine = new Map<number, number>();
+  for (const car of snap.cars) carLine.set(car.id, car.line);
+  for (const ev of events) {
+    if (ev.kind === "elevator-assigned") {
+      const line = carLine.get(ev.elevator);
+      if (line !== undefined) {
+        pane.renderer.pushAssignment(ev.stop, ev.elevator, line);
+      }
+    }
+  }
+  return snap;
+}
 
 function updateScoreboard(state: State): void {
   const paneA = state.paneA;
@@ -50,27 +80,11 @@ export function loop(state: State, ui: UiHandles): void {
     const panesReady = paneA !== null && (!state.permalink.compare || paneB !== null);
     if (state.running && state.ready && panesReady) {
       const ticks = state.permalink.speed;
-      forEachPane(state, (pane) => {
-        pane.sim.step(ticks);
-        const events = pane.sim.drainEvents();
-        if (events.length > 0) {
-          const snap = pane.sim.snapshot();
-          updateBubbles(pane, events, snap);
-          // Resolve line at event time from the current snapshot so the
-          // renderer can key assignments per-(stop, line). Unknown cars
-          // (disabled, despawned) skip the map — they wouldn't draw anyway.
-          const carLine = new Map<number, number>();
-          for (const car of snap.cars) carLine.set(car.id, car.line);
-          for (const ev of events) {
-            if (ev.kind === "elevator-assigned") {
-              const line = carLine.get(ev.elevator);
-              if (line !== undefined) {
-                pane.renderer.pushAssignment(ev.stop, ev.elevator, line);
-              }
-            }
-          }
-        }
-      });
+      // Step both panes; capture paneA's post-step snapshot when its
+      // events branch already paid for one so the spawn driver below
+      // can reuse it instead of double-paying the WASM/JS crossing.
+      let snapA = stepPaneAndDrain(paneA, ticks);
+      if (paneB) stepPaneAndDrain(paneB, ticks);
 
       // Progressive pre-seed: drain the remaining quota in per-frame
       // batches. While seeding is active we suppress the normal
@@ -80,9 +94,8 @@ export function loop(state: State, ui: UiHandles): void {
       // scenario's day cycle starts from t=0.
       if (state.seeding) {
         drainSeedBatch(state);
+        snapA = null;
       }
-
-      const snapA = paneA.sim.snapshot();
       // Fan-out spawns to both sims so the comparison is apples-to-apples.
       // Clamp wall-clock first (to guard against tab-switch catch-up, which
       // restores rAF with a multi-second delta), *then* scale by speed so
@@ -92,7 +105,12 @@ export function loop(state: State, ui: UiHandles): void {
       // and silently throttle phases to half speed. Skipped while seeding.
       const clampedWall = Math.min(elapsed, 4 / 60);
       const simElapsed = clampedWall * ticks;
-      const specs = state.seeding ? [] : state.traffic.drainSpawns(snapA, simElapsed);
+      let specs: ReturnType<typeof state.traffic.drainSpawns> = [];
+      if (!state.seeding) {
+        const driverSnap = snapA ?? paneA.sim.snapshot();
+        specs = state.traffic.drainSpawns(driverSnap, simElapsed);
+        snapA = driverSnap;
+      }
       for (const spec of specs) {
         forEachPane(state, (pane) => {
           const r = pane.sim.spawnRider(
@@ -107,9 +125,15 @@ export function loop(state: State, ui: UiHandles): void {
         });
       }
 
-      // Re-snapshot each pane post-spawn so waiting dots reflect the new riders.
+      // Re-snapshot each pane post-spawn so waiting dots reflect the
+      // new riders. When `specs.length === 0` no riders were added on
+      // this frame, so paneA's pre-spawn `snapA` already reflects the
+      // sim state the renderer wants — pass it through directly. The
+      // `specs.length > 0` arm forces a fresh snapshot whenever
+      // `spawnRider` actually mutated the sim.
       const speed = state.permalink.speed;
-      renderPane(paneA, paneA.sim.snapshot(), speed);
+      const renderSnapA = specs.length > 0 || snapA === null ? paneA.sim.snapshot() : snapA;
+      renderPane(paneA, renderSnapA, speed);
       if (paneB) {
         renderPane(paneB, paneB.sim.snapshot(), speed);
       }
