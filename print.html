@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-e1aac457.js";
+            window.path_to_searchindex_js = "searchindex-3d1db293.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -212,19 +212,20 @@
 <li><strong>Release cadence:</strong> Managed via release-please; see <code>CHANGELOG.md</code> in the repo.</li>
 </ul>
 <h2 id="project-structure"><a class="header" href="#project-structure">Project structure</a></h2>
-<p>The repository is a Cargo workspace with three crates:</p>
+<p>The repository is a Cargo workspace grouped by role:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Crate</th><th>Purpose</th></tr>
+<tr><th>Group</th><th>Crates</th><th>Purpose</th></tr>
 </thead>
 <tbody>
-<tr><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
-<tr><td><code>elevator-bevy</code></td><td>A Bevy 0.18 binary that wraps the core sim with 2D rendering, a HUD, and keyboard controls. Useful as a reference implementation and visual debugger.</td></tr>
-<tr><td><code>elevator-ffi</code></td><td>C ABI wrapper for Unity, .NET, and other native consumers. Not published to crates.io.</td></tr>
+<tr><td><strong>Core</strong></td><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
+<tr><td><strong>Hosts</strong></td><td><code>elevator-bevy</code>, <code>elevator-ffi</code>, <code>elevator-wasm</code>, <code>elevator-gdext</code>, <code>elevator-tui</code></td><td>Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner.</td></tr>
+<tr><td><strong>Supporting</strong></td><td><code>elevator-contract</code>, <code>elevator-layout-derive</code>, <code>elevator-layout-runtime</code>, <code>elevator-layout-codegen</code></td><td>Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See <a href="#integration-gallery">Integration Gallery</a>.</td></tr>
 </tbody>
 </table>
 </div>
+<p><code>elevator-core</code> is the only crate published to crates.io. The host crates set <code>publish = false</code> and ship through their target ecosystems instead — pulled directly from this repo, vendored into a Unity package, packaged as a Godot extension, or distributed as a GameMaker extension.</p>
 <h2 id="links"><a class="header" href="#links">Links</a></h2>
 <ul>
 <li><a href="https://docs.rs/elevator-core">API Reference (docs.rs)</a></li>
@@ -4018,12 +4019,12 @@ assert!(metrics.total_delivered() &gt;= expected_minimum);
 <h2 id="depending-on-experimental-apis"><a class="header" href="#depending-on-experimental-apis">Depending on experimental APIs</a></h2>
 <p>Pin to an exact minor version:</p>
 <pre><code class="language-toml"># Use this if you touch hooks, topology, traffic, extensions, or any
-# other experimental area:
-elevator-core = "=15.2"
+# other experimental area. Replace X.Y with the minor you are targeting.
+elevator-core = "=X.Y"
 </code></pre>
 <p>When you bump the minor, expect a short migration task. The CHANGELOG will call out what changed.</p>
 <h2 id="cadence-commitment"><a class="header" href="#cadence-commitment">Cadence commitment</a></h2>
-<p>The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. The commitment applies to releases after v15.1.0 — see <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> for the specific bound and retroactivity note.</p>
+<p>The stable surface has a bounded break rate; planned majors bundle changes together. Experimental surface has no such cap. See <a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> for the specific bound and the retroactivity note that scopes when the commitment took effect.</p>
 <h2 id="next-steps-23"><a class="header" href="#next-steps-23">Next steps</a></h2>
 <ul>
 <li><a href="https://github.com/andymai/elevator-core/blob/main/STABILITY.md"><code>STABILITY.md</code></a> — full policy text, deprecation rules, and per-item day-one classification.</li>
@@ -5364,10 +5365,13 @@ tick in well under a millisecond on a single core.</p>
 </tbody>
 </table>
 </div>
-<p>The four built-in strategies land within ~15 % of each other at every
+<p>The strategies in the table land within ~15 % of each other at every
 scale. ETD is competitive despite its richer cost model because the
 other phases dominate wall-clock time. Pick the strategy that fits
 your dispatch <em>behavior</em> needs; they’re all fast enough.</p>
+<p><code>RsrDispatch</code> and <code>DestinationDispatch</code> are also covered by
+<a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/benches/dispatch_bench.rs"><code>dispatch_bench</code></a> but are not yet captured in the numbers
+above. Run the bench locally for current values.</p>
 <h4 id="query-surface-query_bench"><a class="header" href="#query-surface-query_bench">Query surface (<code>query_bench</code>)</a></h4>
 <p>O(n) over entity population, as the API docs promise:</p>
 <div class="table-wrapper">

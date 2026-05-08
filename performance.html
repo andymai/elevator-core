@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-e1aac457.js";
+            window.path_to_searchindex_js = "searchindex-3d1db293.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-2421e0e2.js"></script>
@@ -291,10 +291,13 @@ tick in well under a millisecond on a single core.</p>
 </tbody>
 </table>
 </div>
-<p>The four built-in strategies land within ~15 % of each other at every
+<p>The strategies in the table land within ~15 % of each other at every
 scale. ETD is competitive despite its richer cost model because the
 other phases dominate wall-clock time. Pick the strategy that fits
 your dispatch <em>behavior</em> needs; they’re all fast enough.</p>
+<p><code>RsrDispatch</code> and <code>DestinationDispatch</code> are also covered by
+<a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/benches/dispatch_bench.rs"><code>dispatch_bench</code></a> but are not yet captured in the numbers
+above. Run the bench locally for current values.</p>
 <h4 id="query-surface-query_bench"><a class="header" href="#query-surface-query_bench">Query surface (<code>query_bench</code>)</a></h4>
 <p>O(n) over entity population, as the API docs promise:</p>
 <div class="table-wrapper">
