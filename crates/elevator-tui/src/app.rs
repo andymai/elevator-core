@@ -47,8 +47,15 @@ pub fn run(
     event_loop(&mut terminal, sim, config, initial_tick_rate, show_welcome)
 }
 
-/// Frame budget — caps render rate at ~30 fps.
-const FRAME_BUDGET: Duration = Duration::from_millis(33);
+/// Frame budget — caps render rate at ~144 fps.
+///
+/// The aggressive cap is what sells the sub-cell shaft motion landing
+/// in PR4: at 144 Hz a car interpolating between rows updates roughly
+/// every 7 ms, which is below the threshold most viewers perceive as
+/// discrete steps. ratatui's diffing only writes changed cells, so the
+/// per-frame work is small even on slow terminals; the cap is a safety
+/// net, not a target the loop has to hit every iteration.
+const FRAME_BUDGET: Duration = Duration::from_millis(7);
 
 /// Inner loop, broken out so the terminal restoration in [`run`] runs
 /// even when this returns an error.
@@ -291,6 +298,14 @@ fn handle_key_main(state: &mut AppState, sim: &mut Simulation, code: KeyCode) {
                 state.flash(format!("toggle {category:?}"));
             }
         }
+        KeyCode::Tab => {
+            state.focused_pane = state.focused_pane.next();
+            state.flash(format!("focus → {}", state.focused_pane.label()));
+        }
+        KeyCode::BackTab => {
+            state.focused_pane = state.focused_pane.prev();
+            state.flash(format!("focus → {}", state.focused_pane.label()));
+        }
         KeyCode::Enter => {
             state.right_panel = match state.right_panel {
                 RightPanel::Overview => RightPanel::DrillDown,
@@ -369,6 +384,7 @@ impl Drop for TerminalGuard {
 #[allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::state::FocusedPane;
     use elevator_core::dispatch::scan::ScanDispatch;
 
     fn demo_sim() -> Simulation {
@@ -447,6 +463,35 @@ mod tests {
         assert_eq!(state.right_panel, RightPanel::DrillDown);
         handle_key(&mut state, &mut sim, KeyCode::Esc, KeyModifiers::NONE);
         assert_eq!(state.right_panel, RightPanel::Overview);
+    }
+
+    #[test]
+    fn tab_cycles_focus_forward() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        assert_eq!(state.focused_pane, FocusedPane::Shaft);
+        for expected in [
+            FocusedPane::Dispatch,
+            FocusedPane::Events,
+            FocusedPane::Metrics,
+            FocusedPane::Traffic,
+            FocusedPane::Shaft,
+        ] {
+            handle_key(&mut state, &mut sim, KeyCode::Tab, KeyModifiers::NONE);
+            assert_eq!(state.focused_pane, expected);
+        }
+    }
+
+    #[test]
+    fn shift_tab_cycles_focus_backward() {
+        let mut state = AppState::new(1.0).without_welcome();
+        let mut sim = demo_sim();
+        assert_eq!(state.focused_pane, FocusedPane::Shaft);
+        // BackTab is what crossterm reports for Shift+Tab.
+        handle_key(&mut state, &mut sim, KeyCode::BackTab, KeyModifiers::SHIFT);
+        assert_eq!(state.focused_pane, FocusedPane::Traffic);
+        handle_key(&mut state, &mut sim, KeyCode::BackTab, KeyModifiers::SHIFT);
+        assert_eq!(state.focused_pane, FocusedPane::Metrics);
     }
 
     #[test]

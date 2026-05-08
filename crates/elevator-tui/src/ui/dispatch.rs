@@ -10,16 +10,17 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use crate::state::AppState;
+use crate::state::{AppState, FocusedPane};
 use crate::ui::{palette, shaft};
 
 /// Render the dispatch panel.
 #[allow(clippy::too_many_lines)]
 pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+    let focused = state.focused_pane == FocusedPane::Dispatch;
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(palette::DIM_STRONG))
+        .border_style(palette::border_style(focused))
         .title(super::bracketed_title(
             "dispatch",
             Some("per-car state and load".into()),

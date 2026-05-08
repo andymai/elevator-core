@@ -15,7 +15,7 @@ use crate::ui::palette;
 
 /// Render a centered help modal over `area`.
 pub fn draw(frame: &mut Frame<'_>, area: Rect) {
-    let modal = super::centered_rect(area, 72, 28);
+    let modal = super::centered_rect(area, 72, 30);
     frame.render_widget(Clear, modal);
 
     let block = Block::default()
@@ -36,6 +36,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect) {
         kv("+ / -", "halve or double tick rate (0.0625× – 64×)"),
         Line::from(""),
         section("Navigation"),
+        kv("Tab", "focus next pane (Shift+Tab for previous)"),
         kv("[ / ]", "focus previous / next car"),
         kv("f", "follow focused car (event filter)"),
         kv("Enter", "toggle right panel: overview ↔ drill-down"),

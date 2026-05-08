@@ -1,5 +1,5 @@
-//! Frame composition: title bar, legend strip, body (shaft + right
-//! column), footer, and modal overlays (welcome / help) on top.
+//! Frame composition: title bar, body (shaft + right column), mode-aware
+//! footer, and modal overlays (welcome / help) on top.
 
 use elevator_core::sim::Simulation;
 use ratatui::Frame;
@@ -8,13 +8,12 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::state::{AppState, RightPanel, UiOverlay};
+use crate::state::{AppState, FocusedPane, RightPanel, UiOverlay};
 
 pub mod dispatch;
 pub mod drilldown;
 pub mod events;
 pub mod help;
-pub mod legend;
 pub mod metrics;
 pub mod palette;
 pub mod shaft;
@@ -27,14 +26,12 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // title bar
-            Constraint::Length(1), // legend strip
             Constraint::Min(0),    // body
-            Constraint::Length(1), // footer
+            Constraint::Length(1), // footer (mode-aware)
         ])
         .split(frame.area());
 
     draw_title(frame, outer[0], state, sim);
-    legend::draw(frame, outer[1]);
 
     let body = Layout::default()
         .direction(Direction::Horizontal)
@@ -42,7 +39,7 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
             Constraint::Length(shaft::recommended_width(sim)),
             Constraint::Min(0),
         ])
-        .split(outer[2]);
+        .split(outer[1]);
 
     shaft::draw(frame, body[0], state, sim);
 
@@ -51,7 +48,7 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState, sim: &Simulation) {
         RightPanel::DrillDown => drilldown::draw(frame, body[1], state, sim),
     }
 
-    draw_footer(frame, outer[3], state);
+    draw_footer(frame, outer[2], state);
 
     // Modal overlays render last so they sit above every panel.
     match state.overlay {
@@ -101,27 +98,31 @@ fn draw_title(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulat
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-/// Footer: minimal hotkey hint + transient status flash.
-///
-/// The full keybinding list lives in the help overlay (`?`); this row
-/// stays under terminal-width pressure so it never truncates.
+/// Mode-aware footer: status badge, focused-pane label, and the 4–6
+/// keys most relevant to the current focus. Modeled on helix/zellij's
+/// status bar — the user shouldn't have to memorize the full keymap to
+/// know what's possible right now.
 fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    let (badge_text, badge_color) = if state.paused {
+        ("PAUSED", palette::WARN)
+    } else {
+        ("RUNNING", palette::SUCCESS)
+    };
+
     let mut spans = vec![
-        Span::styled(" ?", Style::default().fg(palette::ACCENT)),
-        Span::styled(" help", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("space", Style::default().fg(palette::ACCENT)),
-        Span::styled(" pause", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("[ ]", Style::default().fg(palette::ACCENT)),
-        Span::styled(" car", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("Enter", Style::default().fg(palette::ACCENT)),
-        Span::styled(" drill", Style::default().fg(palette::DIM_STRONG)),
-        Span::styled(" · ", Style::default().fg(palette::DIM)),
-        Span::styled("q", Style::default().fg(palette::ACCENT)),
-        Span::styled(" quit", Style::default().fg(palette::DIM_STRONG)),
+        Span::styled(
+            format!(" {badge_text} "),
+            Style::default()
+                .fg(badge_color)
+                .add_modifier(Modifier::BOLD)
+                .add_modifier(Modifier::REVERSED),
+        ),
+        Span::styled(" ", Style::default()),
+        Span::styled(state.focused_pane.label(), palette::title_style()),
+        Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
+    extend_with_key_hints(&mut spans, state.focused_pane);
+
     if let Some(status) = &state.status {
         spans.push(Span::styled("   ◇ ", Style::default().fg(palette::DIM)));
         spans.push(Span::styled(
@@ -132,6 +133,44 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// Append the per-pane key hints to the footer span buffer. Universal
+/// keys (`Tab`, `?`) come last so they appear in a stable position
+/// regardless of which pane is focused.
+///
+/// The list is kept short (≤ 6 hints) so the row fits comfortably in
+/// 80 columns alongside the status badge — the full keymap lives in
+/// the `?` overlay.
+fn extend_with_key_hints(spans: &mut Vec<Span<'static>>, focus: FocusedPane) {
+    let pane_hints: &[(&str, &str)] = match focus {
+        FocusedPane::Shaft => &[("Spc", "pause"), ("[/]", "car"), ("m", "mode")],
+        FocusedPane::Dispatch => &[("Spc", "pause"), ("[/]", "car"), ("⏎", "drill")],
+        FocusedPane::Events => &[("Spc", "pause"), ("1-7", "filter"), ("f", "follow")],
+        FocusedPane::Metrics | FocusedPane::Traffic => {
+            &[("Spc", "pause"), (".", "step"), ("+/-", "rate")]
+        }
+    };
+    let hints = pane_hints
+        .iter()
+        .copied()
+        .chain([("Tab", "pane"), ("?", "help")]);
+    let mut first = true;
+    for (key, label) in hints {
+        if first {
+            first = false;
+        } else {
+            spans.push(Span::styled(" · ", Style::default().fg(palette::DIM)));
+        }
+        spans.push(Span::styled(
+            key.to_string(),
+            Style::default().fg(palette::ACCENT),
+        ));
+        spans.push(Span::styled(
+            format!(" {label}"),
+            Style::default().fg(palette::DIM_STRONG),
+        ));
+    }
 }
 
 /// Right column = Dispatch / Events / Traffic / Metrics stacked.

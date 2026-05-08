@@ -81,6 +81,17 @@ fn frame_with_welcome_overlay() {
 }
 
 #[test]
+fn frame_with_events_pane_focused() {
+    // Pins the "Tab cycled to events" outcome: events panel border
+    // brightens to the accent, footer hints adapt to events-pane verbs.
+    let sim = demo_sim(120);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.focused_pane = elevator_tui::state::FocusedPane::Events;
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("events_pane_focused", frame);
+}
+
+#[test]
 fn frame_with_help_overlay() {
     let sim = demo_sim(60);
     let mut state = AppState::new(1.0).without_welcome();
