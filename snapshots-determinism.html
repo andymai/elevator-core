@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-32ed1560.js";
+            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -199,6 +199,21 @@
 </ul>
 <h2 id="snapshots"><a class="header" href="#snapshots">Snapshots</a></h2>
 <p>A <code>WorldSnapshot</code> captures the full simulation state – all entities, components, groups, lines, metrics, tagged metrics, tick counter – in a serializable struct. Extension components are captured by type name and need a matching registration on restore. Resources and hooks are <strong>not</strong> captured.</p>
+<pre class="mermaid">flowchart LR
+    simA["Simulation A&lt;br/&gt;(at tick N)"] --&gt;|sim.snapshot| ws1["WorldSnapshot"]
+    ws1 --&gt;|serde&lt;br/&gt;(RON / JSON /&lt;br/&gt;bincode / …)| bytes["bytes"]
+    bytes --&gt;|deserialize| ws2["WorldSnapshot"]
+    ws2 --&gt;|Simulation::from_snapshot| simB["Simulation B&lt;br/&gt;(at tick N)"]
+
+    simA -.snapshot_checksum.-&gt; chk["checksum"]
+    simB -.snapshot_checksum.-&gt; chk
+    chk -.compared in.-&gt; harness["elevator-contract&lt;br/&gt;vs. golden.txt"]
+
+    classDef artifact fill:#1c1c1c,stroke:#666,color:#eee
+    class ws1,ws2,bytes,chk artifact
+</pre>
+
+<p>Two simulations restored from the same bytes produce byte-identical snapshots forever after, given the same input sequence. The <code>elevator-contract</code> harness pins this across hosts: the core run and the wasm-bindgen run share a single <code>golden.txt</code> checksum.</p>
 <h3 id="saving"><a class="header" href="#saving">Saving</a></h3>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::__doctest_prelude::*;

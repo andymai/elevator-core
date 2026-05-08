@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-32ed1560.js";
+            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -182,52 +182,82 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p><strong>elevator-core</strong> is an engine-agnostic elevator simulation library written in pure Rust. You define stops at arbitrary positions on a 1-D axis, spawn riders, and step the tick loop — the engine handles dispatch, trapezoidal motion, doors, boarding, and metrics. Your code reacts to a typed event stream.</p>
 <blockquote>
-<p><strong>Try it live:</strong> the <a href="./playground/index.html">in-browser playground</a> runs the full simulation — race two dispatch strategies on the same traffic, side-by-side, without installing anything.</p>
+<p><strong>▶ Try it live:</strong> the <a href="./playground/index.html">in-browser playground</a> runs the full simulation. Race two dispatch strategies on the same traffic, side-by-side, no install.</p>
 </blockquote>
-<p><strong>elevator-core</strong> is an engine-agnostic elevator simulation library written in pure Rust. It gives you a tick-based simulation with realistic trapezoidal motion profiles, pluggable dispatch algorithms, and a typed event bus – everything you need to build elevator games, building management tools, or algorithm testbeds without coupling to any particular game engine or rendering framework.</p>
-<h2 id="who-is-this-for"><a class="header" href="#who-is-this-for">Who is this for?</a></h2>
+<h2 id="who-this-is-for"><a class="header" href="#who-this-is-for">Who this is for</a></h2>
 <ul>
-<li><strong>Game developers</strong> who want a ready-made elevator simulation they can drop into Bevy, macroquad, or any Rust game engine.</li>
-<li><strong>Algorithm researchers</strong> exploring dispatch strategies (SCAN, LOOK, ETD, or your own) on realistic elevator physics.</li>
-<li><strong>Educators</strong> looking for a visual, interactive way to teach scheduling and real-time systems concepts.</li>
-<li><strong>Hobbyists</strong> who just think elevators are neat.</li>
+<li><strong>Game developers</strong> dropping a ready-made elevator into Bevy, macroquad, Godot, Unity, or a homebrew engine.</li>
+<li><strong>Algorithm researchers</strong> prototyping dispatch strategies (SCAN, LOOK, ETD, RSR, or your own) on a deterministic, snapshot-able simulation.</li>
+<li><strong>Educators</strong> teaching scheduling, real-time systems, or queueing through a visual, interactive testbed.</li>
+<li><strong>Hobbyists</strong> who think elevators are neat. (You’re correct.)</li>
 </ul>
-<h2 id="what-can-you-build"><a class="header" href="#what-can-you-build">What can you build?</a></h2>
-<p>The library models <strong>stops at arbitrary distances</strong> along a shaft axis, not uniform floors. That means you can simulate a 5-story office where each floor is 4 metres apart, a 160-story skyscraper with sky lobbies and express zones, or a 2.4 km mine shaft where a single hoist serves the surface, a mid-level, and the working face. The engine doesn’t enforce any particular unit – positions are plain <code>f64</code> values, and the bundled <code>assets/config/space_elevator.ron</code> stretches that to 1,000 distance units between two stops as an upper-bound stress test.</p>
-<p>The core crate provides primitives, not opinions. Riders are generic entities that ride elevators. Caller code decides whether they are office tenants, hotel guests, hospital patients, miners, or freight pallets. You attach semantics through the <a href="extensions.html">extension storage system</a>, and the simulation handles the physics and logistics.</p>
-<h2 id="what-elevator-core-is-not"><a class="header" href="#what-elevator-core-is-not">What elevator-core is <em>not</em></a></h2>
-<ul>
-<li><strong>Not a renderer.</strong> No graphics, no windowing, no audio. The core crate is headless; see <a href="bevy-integration.html">Bevy Integration</a> for a 2D visual wrapper.</li>
-<li><strong>Not real-time.</strong> The tick loop runs as fast as you drive it. There is no wall-clock coupling – a tick is whatever <code>ticks_per_second</code> says it is. Games layer real-time scheduling on top.</li>
-<li><strong>Not an ECS framework.</strong> It uses an ECS-inspired internal layout but exposes a focused simulation API, not a general-purpose ECS.</li>
-<li><strong>Not networked or multi-building.</strong> One simulation per process. Federation, multiplayer, and cross-building routing are out of scope.</li>
-<li><strong>Not an optimizer.</strong> Built-in dispatch strategies (SCAN, LOOK, NearestCar, ETD, Destination) are reference implementations – not tuned for any specific building. Bring your own algorithm if you need optimal performance.</li>
-</ul>
-<h2 id="determinism"><a class="header" href="#determinism">Determinism</a></h2>
-<p>Given the same initial config and the same sequence of inputs (<code>spawn_rider</code>, hook mutations, etc.), the simulation is fully deterministic. The core loop contains no internal randomness – every tick phase is pure over the world state.</p>
-<p>The built-in <code>PoissonSource</code> traffic generator uses an OS-seeded RNG and is <strong>not</strong> deterministic across runs. For reproducible traffic, implement a custom <a href="traffic-generation.html"><code>TrafficSource</code></a> over a seeded RNG. See <a href="snapshots-determinism.html">Snapshots and Determinism</a> for save/load, replay, and seeded traffic patterns.</p>
-<h2 id="stability-and-msrv"><a class="header" href="#stability-and-msrv">Stability and MSRV</a></h2>
-<ul>
-<li><strong>MSRV:</strong> Rust 1.88 (uses let-chains, which stabilized in 1.88; a CI job pinned to the exact MSRV keeps this honest).</li>
-<li><strong>Versioning:</strong> Semver. Breaking API changes bump the major version. Adding variants to <code>#[non_exhaustive]</code> enums (events, errors) is <strong>not</strong> considered breaking.</li>
-<li><strong>Release cadence:</strong> Managed via release-please; see <code>CHANGELOG.md</code> in the repo.</li>
-</ul>
-<h2 id="project-structure"><a class="header" href="#project-structure">Project structure</a></h2>
-<p>The repository is a Cargo workspace grouped by role:</p>
+<h2 id="what-you-can-build"><a class="header" href="#what-you-can-build">What you can build</a></h2>
+<p>The library models stops at arbitrary distances along a shaft axis, not uniform floors. Position is a plain <code>f64</code>; the bundled <code>assets/config/space_elevator.ron</code> stretches the same engine to 1,000 distance units between two stops as a stress test. A few examples:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Group</th><th>Crates</th><th>Purpose</th></tr>
+<tr><th>Scenario</th><th>How</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>Core</strong></td><td><code>elevator-core</code></td><td>The simulation library. Pure Rust, no engine dependencies. This is what you add to your project.</td></tr>
-<tr><td><strong>Hosts</strong></td><td><code>elevator-bevy</code>, <code>elevator-ffi</code>, <code>elevator-wasm</code>, <code>elevator-gdext</code>, <code>elevator-tui</code></td><td>Engine wrappers: a Bevy 0.18 visual frontend, a C ABI wrapper for Unity / .NET / GameMaker, a wasm-bindgen surface for the browser playground, a Godot (gdext) extension, and a terminal viewer / smoke runner.</td></tr>
-<tr><td><strong>Supporting</strong></td><td><code>elevator-contract</code>, <code>elevator-layout-derive</code>, <code>elevator-layout-runtime</code>, <code>elevator-layout-codegen</code></td><td>Build-time and test-only crates that keep host bindings in sync and validate cross-process snapshot determinism. See <a href="supporting-crates.html">Supporting Crates</a>.</td></tr>
+<tr><td>Office building with 5 floors</td><td>Stops at 0, 4, 8, 12, 16</td></tr>
+<tr><td>Skyscraper with sky lobbies</td><td>Multi-group dispatch with express zones</td></tr>
+<tr><td>Space elevator / orbital tether</td><td>Stops at 0 and 1,000 — same engine</td></tr>
+<tr><td>Player-controlled car</td><td><code>ServiceMode::Manual</code> + direct velocity commands</td></tr>
+<tr><td>Custom AI dispatch</td><td>Implement <code>DispatchStrategy::rank()</code></td></tr>
+<tr><td>VIP passengers, cargo, robots</td><td>Extension storage — attach any typed data</td></tr>
 </tbody>
 </table>
 </div>
-<p><code>elevator-core</code> is the only crate published to crates.io. The host crates set <code>publish = false</code> and ship through their target ecosystems instead — pulled directly from this repo, vendored into a Unity package, packaged as a Godot extension, or distributed as a GameMaker extension.</p>
+<p>The core crate provides primitives, not opinions. A rider is anything that rides; you decide whether they are tenants, hotel guests, hospital patients, miners, or freight pallets, and attach the semantics through the <a href="extensions.html">extension storage system</a>.</p>
+<h2 id="what-it-isnt"><a class="header" href="#what-it-isnt">What it isn’t</a></h2>
+<ul>
+<li><strong>Not a renderer.</strong> No graphics, no windowing, no audio. The core crate is headless; see <a href="bevy-integration.html">Bevy Integration</a> for a 2-D visual wrapper.</li>
+<li><strong>Not real-time.</strong> The tick loop runs as fast as you drive it. There is no wall-clock coupling — a tick is whatever <code>ticks_per_second</code> says it is. Games layer real-time scheduling on top.</li>
+<li><strong>Not an ECS framework.</strong> It uses an ECS-inspired internal layout but exposes a focused simulation API, not a general-purpose ECS.</li>
+<li><strong>Not networked or multi-building.</strong> One simulation per process. Federation, multiplayer, and cross-building routing are out of scope.</li>
+<li><strong>Not an optimizer.</strong> Built-in dispatch strategies are reference implementations — fast enough for most consumers, but not tuned for any specific building. Bring your own algorithm if you need optimal performance.</li>
+</ul>
+<h2 id="workspace-at-a-glance"><a class="header" href="#workspace-at-a-glance">Workspace at a glance</a></h2>
+<p>The simulation core sits at the centre. Host crates wrap it for a target engine; supporting crates exist only to keep the hosts in sync.</p>
+<pre class="mermaid">flowchart TB
+    core["&lt;b&gt;elevator-core&lt;/b&gt;&lt;br/&gt;simulation library&lt;br/&gt;(pure Rust, no engine deps)"]
+
+    subgraph hosts ["Hosts"]
+        bevy["elevator-bevy&lt;br/&gt;2-D visual frontend"]
+        wasm["elevator-wasm&lt;br/&gt;browser playground"]
+        ffi["elevator-ffi&lt;br/&gt;C ABI: Unity, .NET, GameMaker"]
+        gdext["elevator-gdext&lt;br/&gt;Godot extension"]
+        tui["elevator-tui&lt;br/&gt;terminal viewer / smoke runner"]
+    end
+
+    subgraph supporting ["Supporting"]
+        contract["elevator-contract&lt;br/&gt;cross-host determinism harness"]
+        layout["elevator-layout-*&lt;br/&gt;repr(C) codegen for hosts"]
+    end
+
+    core --&gt; bevy
+    core --&gt; wasm
+    core --&gt; ffi
+    core --&gt; gdext
+    core --&gt; tui
+
+    contract -.validates.-&gt; ffi
+    contract -.validates.-&gt; wasm
+    layout -.codegens for.-&gt; ffi
+</pre>
+
+<p><code>elevator-core</code> is the only crate published to crates.io as a library; the hosts ship through their target ecosystems. See <a href="supporting-crates.html">Supporting Crates</a> for what each supporting crate does and <a href="using-the-bindings.html">Using the Bindings</a> for host integration walkthroughs.</p>
+<h2 id="determinism-in-one-paragraph"><a class="header" href="#determinism-in-one-paragraph">Determinism in one paragraph</a></h2>
+<p>Given the same initial config and the same sequence of API calls, the simulation is byte-for-byte deterministic. The core loop contains no internal randomness; every tick phase is pure over the world state. The built-in <code>PoissonSource</code> traffic generator uses an OS-seeded RNG and is <em>not</em> deterministic — for reproducible traffic, plug in a seeded <code>TrafficSource</code>. See <a href="snapshots-determinism.html">Snapshots and Determinism</a> for the contract, save/load, and replay patterns.</p>
+<h2 id="stability-and-msrv"><a class="header" href="#stability-and-msrv">Stability and MSRV</a></h2>
+<ul>
+<li><strong>MSRV:</strong> Rust 1.88 (uses let-chains, stabilised in 1.88; a CI job pinned to the exact MSRV keeps this honest).</li>
+<li><strong>Versioning:</strong> Semver. Breaking changes bump the major version. Adding variants to <code>#[non_exhaustive]</code> enums (events, errors) is <em>not</em> breaking.</li>
+<li><strong>Release cadence:</strong> managed via release-please; per-crate changelogs live under <a href="https://github.com/andymai/elevator-core/tree/main/crates"><code>crates/*/CHANGELOG.md</code></a>.</li>
+<li><strong>Per-item classification:</strong> see <a href="stability.html">Stability and Versioning</a>.</li>
+</ul>
 <h2 id="links"><a class="header" href="#links">Links</a></h2>
 <ul>
 <li><a href="https://docs.rs/elevator-core">API Reference (docs.rs)</a></li>
@@ -237,7 +267,7 @@
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <ul>
 <li><a href="quick-start.html">Quick Start</a> — build your first simulation in under 30 lines.</li>
-<li><a href="stops-lines-groups.html">Stops, Lines, and Groups</a> — the topology model that lets the same engine run an office or a 1,000-unit space tether.</li>
+<li><a href="stops-lines-groups.html">Stops, Lines, and Groups</a> — the topology model that lets one engine run an office, a skyscraper, or a space tether.</li>
 <li><a href="supporting-crates.html">Supporting Crates</a> — supporting crates that keep the host bindings honest.</li>
 </ul>
 
