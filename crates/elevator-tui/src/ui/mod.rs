@@ -109,6 +109,18 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ("RUNNING", palette::SUCCESS)
     };
 
+    // When DrillDown owns the right column, the dispatch / events /
+    // metrics / traffic panels aren't on screen — so the label and
+    // hints describe drilldown rather than the underlying focused
+    // pane. Prevents the misleading "events │ 1-7 filter" footer
+    // greptile flagged. PR4 turns drilldown into a popup, at which
+    // point this short-circuit goes away.
+    let (label, hints): (&'static str, &'static [(&'static str, &'static str)]) =
+        match state.right_panel {
+            RightPanel::DrillDown => ("drill-down", DRILLDOWN_HINTS),
+            RightPanel::Overview => (state.focused_pane.label(), pane_hints(state.focused_pane)),
+        };
+
     let mut spans = vec![
         Span::styled(
             format!(" {badge_text} "),
@@ -118,10 +130,10 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
                 .add_modifier(Modifier::REVERSED),
         ),
         Span::styled(" ", Style::default()),
-        Span::styled(state.focused_pane.label(), palette::title_style()),
+        Span::styled(label, palette::title_style()),
         Span::styled("  │  ", Style::default().fg(palette::DIM)),
     ];
-    extend_with_key_hints(&mut spans, state.focused_pane);
+    extend_with_key_hints(&mut spans, hints);
 
     if let Some(status) = &state.status {
         spans.push(Span::styled("   ◇ ", Style::default().fg(palette::DIM)));
@@ -135,22 +147,34 @@ fn draw_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-/// Append the per-pane key hints to the footer span buffer. Universal
-/// keys (`Tab`, `?`) come last so they appear in a stable position
-/// regardless of which pane is focused.
-///
-/// The list is kept short (≤ 6 hints) so the row fits comfortably in
-/// 80 columns alongside the status badge — the full keymap lives in
-/// the `?` overlay.
-fn extend_with_key_hints(spans: &mut Vec<Span<'static>>, focus: FocusedPane) {
-    let pane_hints: &[(&str, &str)] = match focus {
+/// Verbs surfaced when `DrillDown` owns the right column. Same shape
+/// as the per-pane tables so the renderer doesn't need a separate path.
+const DRILLDOWN_HINTS: &[(&str, &str)] = &[("Spc", "pause"), ("[/]", "car"), ("Esc", "close")];
+
+/// Per-pane verb table — pane-specific keys first, universal trailers
+/// (`Tab`, `?`) appended at render time.
+const fn pane_hints(focus: FocusedPane) -> &'static [(&'static str, &'static str)] {
+    match focus {
         FocusedPane::Shaft => &[("Spc", "pause"), ("[/]", "car"), ("m", "mode")],
         FocusedPane::Dispatch => &[("Spc", "pause"), ("[/]", "car"), ("⏎", "drill")],
         FocusedPane::Events => &[("Spc", "pause"), ("1-7", "filter"), ("f", "follow")],
         FocusedPane::Metrics | FocusedPane::Traffic => {
             &[("Spc", "pause"), (".", "step"), ("+/-", "rate")]
         }
-    };
+    }
+}
+
+/// Append the key hints to the footer span buffer, separated by ` · `.
+/// Universal trailers (`Tab`, `?`) come last so they appear in a stable
+/// position regardless of focus.
+///
+/// The list is kept short (≤ 6 hints) so the row fits comfortably in
+/// 80 columns alongside the status badge — the full keymap lives in
+/// the `?` overlay.
+fn extend_with_key_hints(
+    spans: &mut Vec<Span<'static>>,
+    pane_hints: &'static [(&'static str, &'static str)],
+) {
     let hints = pane_hints
         .iter()
         .copied()
@@ -162,10 +186,9 @@ fn extend_with_key_hints(spans: &mut Vec<Span<'static>>, focus: FocusedPane) {
         } else {
             spans.push(Span::styled(" · ", Style::default().fg(palette::DIM)));
         }
-        spans.push(Span::styled(
-            key.to_string(),
-            Style::default().fg(palette::ACCENT),
-        ));
+        // `key` and `label` are `&'static str` literals — pass through
+        // without allocating; ratatui's `Span` accepts `Cow<'static, str>`.
+        spans.push(Span::styled(key, Style::default().fg(palette::ACCENT)));
         spans.push(Span::styled(
             format!(" {label}"),
             Style::default().fg(palette::DIM_STRONG),

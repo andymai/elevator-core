@@ -81,6 +81,20 @@ fn frame_with_welcome_overlay() {
 }
 
 #[test]
+fn frame_with_drilldown_open_overrides_footer() {
+    // Pins the fix for greptile's DrillDown/footer-hint mismatch:
+    // when the right column is owned by drilldown, the footer label
+    // and key hints describe drilldown rather than the underlying
+    // focused pane (which is hidden behind the drilldown panel).
+    let sim = demo_sim(60);
+    let mut state = AppState::new(1.0).without_welcome();
+    state.focused_pane = elevator_tui::state::FocusedPane::Events;
+    state.right_panel = elevator_tui::state::RightPanel::DrillDown;
+    let frame = render(&sim, &state, 100, 30);
+    insta::assert_snapshot!("drilldown_footer_overrides_pane_hints", frame);
+}
+
+#[test]
 fn frame_with_events_pane_focused() {
     // Pins the "Tab cycled to events" outcome: events panel border
     // brightens to the accent, footer hints adapt to events-pane verbs.
