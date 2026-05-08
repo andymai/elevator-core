@@ -47,6 +47,8 @@ pub mod reposition;
 pub mod rsr;
 /// SCAN dispatch algorithm.
 pub mod scan;
+/// Per-elevator scratch helper for custom strategies.
+pub mod scratch;
 /// Shared sweep-direction logic used by SCAN and LOOK.
 pub(crate) mod sweep;
 
@@ -56,6 +58,7 @@ pub use look::LookDispatch;
 pub use nearest_car::NearestCarDispatch;
 pub use rsr::RsrDispatch;
 pub use scan::ScanDispatch;
+pub use scratch::PrepareScratch;
 
 use serde::{Deserialize, Serialize};
 
