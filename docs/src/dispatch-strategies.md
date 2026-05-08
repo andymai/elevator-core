@@ -1,6 +1,6 @@
 # Dispatch Strategies
 
-Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the six built-in strategies, and how to choose between them.
+Dispatch is the brain of an elevator system -- it decides which elevator goes where. This chapter covers imperative dispatch, the built-in strategies, and how to choose between them.
 
 ## How dispatch works
 
@@ -92,7 +92,7 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-All six strategies live in their respective modules:
+Each built-in lives in its own module:
 
 ```rust,no_run
 use elevator_core::dispatch::scan::ScanDispatch;

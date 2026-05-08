@@ -32,6 +32,5 @@ The stable surface has a bounded break rate; planned majors bundle changes toget
 
 ## Next steps
 
-- [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md) — full policy text, deprecation rules, and per-item day-one classification.
-- [Introduction](introduction.md) — what the library does and doesn't do.
+- [`STABILITY.md`](https://github.com/andymai/elevator-core/blob/main/STABILITY.md) — full policy text, deprecation rules, and per-item classification.
 - [Testing Your Simulation](testing.md) — the invariants you can rely on under the stability policy.
