@@ -10,7 +10,8 @@ import {
   UP_COLOR,
 } from "./palette";
 import { truncate } from "./primitives";
-import type { Snapshot } from "../types";
+import type { LoadingMask } from "./frame-buffers";
+import type { Snapshot, StopDto } from "../types";
 
 export function drawShaftChannels(
   ctx: CanvasRenderingContext2D,
@@ -71,12 +72,12 @@ export function drawShaftLabels(
 
 export function drawFloors(
   ctx: CanvasRenderingContext2D,
-  snap: Snapshot,
+  stopsSorted: readonly StopDto[],
   toScreenY: (y: number) => number,
   s: Scale,
   shaftCenters: number[],
   w: number,
-  loadingAtFloor: Set<string>,
+  loadingAtFloor: LoadingMask,
   stopsTop: number,
   isTether: boolean,
 ): void {
@@ -90,13 +91,11 @@ export function drawFloors(
   const half = s.shaftInnerW / 2;
   const platformHalfW = Math.min(s.shaftInnerW * 1.8, (slabRight - slabLeft) / 2);
 
-  const sorted = [...snap.stops].sort((a, b) => a.y - b.y);
-
-  for (let i = 0; i < sorted.length; i++) {
-    const stop = sorted[i];
+  for (let i = 0; i < stopsSorted.length; i++) {
+    const stop = stopsSorted[i];
     if (stop === undefined) continue;
     const slabY = toScreenY(stop.y);
-    const nextStop = sorted[i + 1];
+    const nextStop = stopsSorted[i + 1];
     const ceilingY = nextStop !== undefined ? toScreenY(nextStop.y) : stopsTop;
 
     ctx.strokeStyle = FLOOR_LINE;
@@ -128,7 +127,7 @@ export function drawFloors(
     for (let j = 0; j < shaftCenters.length; j++) {
       const cx = shaftCenters[j];
       if (cx === undefined) continue;
-      const active = loadingAtFloor.has(`${j}:${stop.entity_id}`);
+      const active = loadingAtFloor.has(j, stop.entity_id);
       ctx.strokeStyle = active ? DOOR_ACTIVE : DOOR_INACTIVE;
       ctx.lineWidth = active ? 1.4 : 1;
       ctx.beginPath();
