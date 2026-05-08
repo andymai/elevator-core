@@ -289,6 +289,15 @@ fn handle_mouse(state: &mut AppState, sim: &Simulation, mouse: MouseEvent) {
             {
                 return;
             }
+            // Click on a car column in the shaft pane focuses that
+            // car. Falls back to plain pane-focus if the click hits
+            // the text portion (stop name / position / waiting count)
+            // rather than a car column.
+            if rects.shaft.is_some_and(|b| b.contains(col, row))
+                && handle_shaft_car_click(state, sim, col)
+            {
+                return;
+            }
             if let Some(pane) = rects.hit(col, row) {
                 state.focused_pane = pane;
                 state.flash(format!("focus → {}", pane.label()));
@@ -308,6 +317,38 @@ fn handle_mouse(state: &mut AppState, sim: &Simulation, mouse: MouseEvent) {
         }
         _ => {}
     }
+}
+
+/// Resolve a click on a car-glyph column in the shaft pane and
+/// focus the matching car.
+///
+/// `shaft::stop_row` lays out each row as
+/// `[2 hall lamps][10 name][6 position][5 waiting][3 delim] then
+///  [glyph][space] per car`. After the 1-cell left border that's a
+/// fixed `1 + 26 = 27` cell prefix before the first car glyph;
+/// each car occupies 2 cells. A click in the prefix region falls
+/// through to plain pane-focus; a click past the last car-cell
+/// likewise falls through.
+fn handle_shaft_car_click(state: &mut AppState, sim: &Simulation, col: u16) -> bool {
+    const SHAFT_TEXT_PREFIX: u16 = 27; // 1 border + 26 text/delim cells
+    const CELLS_PER_CAR: u16 = 2;
+    let Some(shaft_box) = state.pane_rects.get().shaft else {
+        return false;
+    };
+    let cars_origin = shaft_box.x.saturating_add(SHAFT_TEXT_PREFIX);
+    if col < cars_origin {
+        return false;
+    }
+    let offset = col - cars_origin;
+    let car_idx = (offset / CELLS_PER_CAR) as usize;
+    let car_count = ui::shaft::cars_iter(sim).count();
+    if car_idx >= car_count {
+        return false;
+    }
+    state.focused_car_idx = car_idx;
+    state.focused_pane = FocusedPane::Shaft;
+    state.flash(format!("focus → car {}", car_idx + 1));
+    true
 }
 
 /// Resolve a click on a row inside the events pane to the underlying
@@ -1160,6 +1201,61 @@ mod tests {
         // Step once to trigger record_step's GC pass.
         handle_key(&mut state, &mut sim, KeyCode::Char('.'), KeyModifiers::NONE);
         assert!(!state.flash_until.contains_key(&phantom_id));
+    }
+
+    #[test]
+    fn click_on_car_column_focuses_that_car() {
+        // Demo sim has 1 car; click anywhere in its column (cols
+        // 27..29 of the shaft pane) should set focused_car_idx = 0.
+        let mut state = AppState::new(1.0).without_welcome();
+        let sim = demo_sim();
+        state.pane_rects.set(crate::state::PaneRects {
+            shaft: Some(crate::state::PaneBox {
+                x: 0,
+                y: 1,
+                w: 30,
+                h: 28,
+            }),
+            ..Default::default()
+        });
+        // Bump the focused index off zero so the assert is meaningful.
+        state.focused_car_idx = 99;
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 27, // start of car-0 glyph
+            row: 5,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse(&mut state, &sim, mouse);
+        assert_eq!(state.focused_car_idx, 0);
+        assert_eq!(state.focused_pane, FocusedPane::Shaft);
+    }
+
+    #[test]
+    fn click_on_shaft_text_falls_through_to_pane_focus() {
+        // Click on the stop-name region (col 5) is not a car column
+        // — pane-focus updates but focused_car_idx must stay put.
+        let mut state = AppState::new(1.0).without_welcome();
+        let sim = demo_sim();
+        state.pane_rects.set(crate::state::PaneRects {
+            shaft: Some(crate::state::PaneBox {
+                x: 0,
+                y: 1,
+                w: 30,
+                h: 28,
+            }),
+            ..Default::default()
+        });
+        state.focused_car_idx = 7;
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5, // inside the stop-name region
+            row: 5,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse(&mut state, &sim, mouse);
+        assert_eq!(state.focused_car_idx, 7);
+        assert_eq!(state.focused_pane, FocusedPane::Shaft);
     }
 
     #[test]
