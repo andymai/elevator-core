@@ -14,8 +14,12 @@ use crate::state::{AppState, FocusedPane};
 use crate::ui::palette;
 
 /// Render the metrics panel.
+///
+/// `compact` collapses the 4-row big-text headline into a single
+/// emphasized counter line, reclaiming rows for the events panel
+/// above on short terminals (`< COMPACT_LAYOUT_THRESHOLD` rows).
 #[allow(clippy::too_many_lines)]
-pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation) {
+pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulation, compact: bool) {
     let focused = state.focused_pane == FocusedPane::Metrics;
     let block = Block::default()
         .borders(Borders::ALL)
@@ -32,19 +36,29 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
         return;
     }
 
-    // Inside the panel: a 4-row big-text headline (p95 wait, the
-    // single number worth checking at a glance), followed by the
-    // counter rows + sparklines. The headline uses `PixelSize::Quadrant`
-    // (each cell is a 2×2 pixel grid) so 4 rows of glyphs render
-    // tall, readable digits without dominating the panel.
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
+    // Inside the panel: an optional 4-row big-text p95 headline
+    // (skipped in compact mode), followed by counter rows and two
+    // sparkline pairs. The headline uses `PixelSize::Quadrant` (each
+    // cell is a 2×2 pixel grid) so 4 rows of glyphs render tall,
+    // readable digits without dominating the panel — when there's
+    // room for them.
+    let constraints: Vec<Constraint> = if compact {
+        vec![
+            Constraint::Min(3),    // 3 counter lines
+            Constraint::Length(2), // wait sparkline header + bar
+            Constraint::Length(2), // occupancy sparkline header + bar
+        ]
+    } else {
+        vec![
             Constraint::Length(4), // big-text p95 headline
             Constraint::Min(3),    // 3 counter lines
             Constraint::Length(2), // wait sparkline header + bar
             Constraint::Length(2), // occupancy sparkline header + bar
-        ])
+        ]
+    };
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(constraints)
         .split(inner);
 
     let m = sim.metrics();
@@ -101,23 +115,31 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             value(format!("{:.0}%", m.avg_utilization() * 100.0)),
         ]),
     ];
-    // Big-text headline: `p95 {N}t` — the label disambiguates from
-    // any other "big number" we'd add later (e.g. throughput) and
-    // the trailing `t` keeps it consistent with the counter row's
-    // unit notation. Colored on the same green→yellow→red ramp as
-    // the sparkline below.
-    let big = BigText::builder()
-        .pixel_size(PixelSize::Quadrant)
-        .style(
-            Style::default()
-                .fg(palette::wait_color_for(p95))
-                .add_modifier(Modifier::BOLD),
-        )
-        .lines(vec![Line::from(format!("p95 {p95}t"))])
-        .build();
-    frame.render_widget(big, chunks[0]);
+    // Compact mode skips the big-text headline; the counter row's
+    // `p95` cell is already wait-colored, so we don't lose the
+    // at-a-glance signal — just the typographic emphasis.
+    let (counters_idx, wait_idx, occ_idx) = if compact {
+        (0, 1, 2)
+    } else {
+        // Big-text headline: `p95 {N}t` — the label disambiguates
+        // from any other "big number" we'd add later (e.g.
+        // throughput) and the trailing `t` keeps it consistent with
+        // the counter row's unit notation. Colored on the same
+        // green→yellow→red ramp as the sparkline below.
+        let big = BigText::builder()
+            .pixel_size(PixelSize::Quadrant)
+            .style(
+                Style::default()
+                    .fg(palette::wait_color_for(p95))
+                    .add_modifier(Modifier::BOLD),
+            )
+            .lines(vec![Line::from(format!("p95 {p95}t"))])
+            .build();
+        frame.render_widget(big, chunks[0]);
+        (1, 2, 3)
+    };
 
-    frame.render_widget(Paragraph::new(counters), chunks[1]);
+    frame.render_widget(Paragraph::new(counters), chunks[counters_idx]);
 
     // p95 wait sparkline — color follows the most-recent sample.
     let wait_color = state
@@ -134,7 +156,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             ))))
             .style(Style::default().fg(wait_color))
             .data(state.wait_sparkline.as_slice()),
-        chunks[2],
+        chunks[wait_idx],
     );
 
     // Occupancy sparkline — uses the accent so it visually pairs with
@@ -147,7 +169,7 @@ pub fn draw(frame: &mut Frame<'_>, area: Rect, state: &AppState, sim: &Simulatio
             ))))
             .style(Style::default().fg(palette::ACCENT))
             .data(state.occupancy_sparkline.as_slice()),
-        chunks[3],
+        chunks[occ_idx],
     );
 }
 
