@@ -8,9 +8,9 @@ The simulation is deterministic given:
 
 1. The same initial `SimConfig` (same stops, elevators, groups, lines, dispatch strategy).
 2. The same sequence of API calls (`spawn_rider`, `despawn_rider`, `tag_entity`, hook mutations, etc.).
-3. A deterministic dispatch strategy. All six built-ins -- `ScanDispatch`, `LookDispatch`, `NearestCarDispatch`, `EtdDispatch`, `RsrDispatch`, `DestinationDispatch` -- are deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through `WorldSnapshot` so `snapshot + restore` produces an indistinguishable simulation.
+3. A deterministic dispatch strategy. Every built-in (see [Dispatch Strategies](dispatch-strategies.md#built-in-strategies)) is deterministic, and each one round-trips its identity, tunable weights, and internal per-car state through `WorldSnapshot` so `snapshot + restore` produces an indistinguishable simulation.
 
-Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in `crates/elevator-core/src/tests/invariants_tests.rs` pins this tick-for-tick for all six built-ins.
+Under those conditions two runs produce byte-identical snapshots and event streams. The cross-strategy invariant harness in `crates/elevator-core/src/tests/invariants_tests.rs` pins this tick-for-tick across all built-ins.
 
 Sources of *non*-determinism to watch for:
 

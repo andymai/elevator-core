@@ -286,7 +286,7 @@ Two levels of test coverage work well:
 
 **Unit-test through `dispatch::assign` in isolation.** Construct a minimal `World`, an `ElevatorGroup`, and a `DispatchManifest`, then run one assignment pass. This exercises the Hungarian matching and `fallback` path end-to-end, so the test reflects real runtime behavior. See `crates/elevator-core/src/tests/dispatch_tests.rs` for the helper pattern (`test_world()`, `test_group()`, `spawn_elevator()`, `add_demand()`).
 
-**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the 8-phase interaction -- e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
+**Integration-test via a full `Simulation`.** Spawn riders, step the loop, assert on events (`ElevatorAssigned`, `RiderBoarded`, etc.). This catches bugs that only surface through the full [tick loop](simulation-loop.md) -- e.g., a strategy that excludes every `(car, stop)` pair it shouldn't, or one whose `prepare_car` mutation leaves stale state between passes.
 
 ```rust,no_run
 # use elevator_core::prelude::*;
