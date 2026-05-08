@@ -313,6 +313,13 @@ struct OverviewRects {
     metrics: Option<PaneBox>,
 }
 
+/// Threshold (in rows) below which the metrics panel collapses its
+/// 4-row big-text headline into a single counter line, reclaiming
+/// 5 rows for the events panel above. 32 rows is roughly "average
+/// terminal" — anything shorter starts to feel cramped with the
+/// glyph headline taking a quarter of the right column.
+const COMPACT_LAYOUT_THRESHOLD: u16 = 32;
+
 /// Right column = Dispatch / Events / Traffic / Metrics stacked.
 fn draw_overview(
     frame: &mut Frame<'_>,
@@ -323,13 +330,16 @@ fn draw_overview(
     // Dispatch fills proportionally to the car count so the panel keeps
     // every car visible even on busier configs (group line + 1 row/car
     // + a 2-row title border = `cars + 3`). Traffic is one sparkline
-    // line + border; metrics is 3 counter rows + 2 sparklines + border.
+    // line + border; metrics expands or collapses by terminal height.
     let car_count = u16::try_from(shaft::cars_iter(sim).count()).unwrap_or(u16::MAX);
     let dispatch_h = car_count.saturating_add(4).clamp(6, 14);
     let traffic_h = 4u16;
-    // 4 rows for the big-text p95 headline + 3 counter lines + 2
-    // sparkline pairs + 2 borders = 13.
-    let metrics_h = 13u16;
+    let compact = area.height < COMPACT_LAYOUT_THRESHOLD;
+    // Compact: 3 counter lines + 2 sparkline pairs + 2 borders = 9
+    // (we shave 1 by replacing the big-text headline + spacer with a
+    // single emphasized counter line).
+    // Full:    4 big-text + 3 counter + 4 sparkline + 2 borders = 13.
+    let metrics_h: u16 = if compact { 9 } else { 13 };
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -344,7 +354,7 @@ fn draw_overview(
     dispatch::draw(frame, chunks[0], state, sim);
     events::draw(frame, chunks[1], state, sim);
     traffic::draw(frame, chunks[2], state, sim);
-    metrics::draw(frame, chunks[3], state, sim);
+    metrics::draw(frame, chunks[3], state, sim, compact);
     OverviewRects {
         dispatch: Some(rect_to_box(chunks[0])),
         events: Some(rect_to_box(chunks[1])),

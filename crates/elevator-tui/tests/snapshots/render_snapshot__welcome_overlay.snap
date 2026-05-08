@@ -13,16 +13,16 @@ expression: frame
 │                 │                                                              │                 │
 │                 │                        elevator-tui                          │                 │
 │                 │         live debugger for the elevator-core engine           │                 │
-│                 │                                                              │─────────────────╯
-│                 │    • loaded sim · 1 car(s) · 2 stop(s) · 60 t/s              │─────────────────╮
+│                 │                                                              │                 │
+│                 │    • loaded sim · 1 car(s) · 2 stop(s) · 60 t/s              │                 │
 │                 │    • the shaft on the left shows each car against its served │                 │
 │                 │    • the right column streams events, dispatch, traffic, and │                 │
 │                 │    • color-coded gauges fill up as cars get crowded — green→y│─────────────────╯
 │                 │                                                              │─────────────────╮
 │                 │      press ? at any time for the full keybinding list        │                 │
 │                 │                                                              │                 │
-│                 │                      any key to begin                        │                 │
-│                 │                                                              │                 │
+│                 │                      any key to begin                        │─────────────────╯
+│                 │                                                              │─────────────────╮
 │                 │                                                              │                 │
 │                 │                                                              │                 │
 │                 ╰──────────────────────────────────────────────────────────────╯                 │
