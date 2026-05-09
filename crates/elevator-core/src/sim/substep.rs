@@ -65,7 +65,7 @@ impl super::Simulation {
     /// elevators to move before dispatch, or transient states to persist
     /// across tick boundaries.
     pub fn run_advance_transient(&mut self) {
-        self.tick_in_progress = true;
+        self.set_tick_in_progress(true);
         self.sync_world_tick();
         self.hooks
             .run_before(Phase::AdvanceTransient, &mut self.world);
@@ -291,7 +291,7 @@ impl super::Simulation {
     pub fn advance_tick(&mut self) {
         self.pending_output.extend(self.events.drain());
         self.tick += 1;
-        self.tick_in_progress = false;
+        self.set_tick_in_progress(false);
         // Keep the `CurrentTick` world resource in lockstep after the tick
         // counter advances; substep consumers driving phases manually
         // will see the fresh value on their next call.

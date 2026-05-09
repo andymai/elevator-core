@@ -943,7 +943,7 @@ impl crate::sim::Simulation {
     /// when invoked between a `run_*` phase call and the matching
     /// `advance_tick`.
     pub fn try_snapshot(&self) -> Result<WorldSnapshot, crate::error::SimError> {
-        if self.tick_in_progress {
+        if self.tick_in_progress() {
             return Err(crate::error::SimError::MidTickSnapshot);
         }
         Ok(self.snapshot())

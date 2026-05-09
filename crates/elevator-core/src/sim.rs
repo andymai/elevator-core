@@ -386,6 +386,12 @@ pub struct Simulation {
     /// pending-stops list, servicing slice, pinned / committed /
     /// idle-elevator filters. Holding them on the sim means each
     /// dispatch pass reuses capacity instead of re-allocating.
+    ///
+    /// Stays `pub(crate)` rather than method-encapsulated because the
+    /// dispatch phase needs simultaneous disjoint mutable borrows of
+    /// `world`, `events`, and the scratch — a getter returning
+    /// `&mut DispatchScratch` would borrow all of `self`, conflicting
+    /// with `&mut self.world` in the same call.
     pub(crate) dispatch_scratch: crate::dispatch::DispatchScratch,
     /// Lazy-rebuilt connectivity graph for cross-line topology queries.
     topo_graph: Mutex<TopologyGraph>,
@@ -396,8 +402,31 @@ pub struct Simulation {
     /// reject mid-tick captures that would lose in-progress event-bus
     /// state. Always false outside the substep API path because
     /// [`step()`](Self::step) takes `&mut self` and snapshots take
-    /// `&self`. (#297)
-    pub(crate) tick_in_progress: bool,
+    /// `&self`. (#297) Read via [`tick_in_progress`](Self::tick_in_progress);
+    /// the substep loop owns the mutation through
+    /// [`set_tick_in_progress`](Self::set_tick_in_progress).
+    tick_in_progress: bool,
+}
+
+impl Simulation {
+    /// Whether the sim is between [`run_advance_transient`] and
+    /// [`advance_tick`] — i.e. mid-tick. Snapshot capture needs this
+    /// to reject mid-tick saves that would lose in-progress
+    /// event-bus state.
+    ///
+    /// [`run_advance_transient`]: Self::run_advance_transient
+    /// [`advance_tick`]: Self::advance_tick
+    #[must_use]
+    pub(crate) const fn tick_in_progress(&self) -> bool {
+        self.tick_in_progress
+    }
+
+    /// Set the mid-tick guard. Owned by the substep runner — only
+    /// `run_advance_transient` flips it on and `advance_tick` flips
+    /// it off.
+    pub(crate) const fn set_tick_in_progress(&mut self, in_progress: bool) {
+        self.tick_in_progress = in_progress;
+    }
 }
 
 impl fmt::Debug for Simulation {
