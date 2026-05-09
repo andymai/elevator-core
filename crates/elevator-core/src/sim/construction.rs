@@ -42,6 +42,31 @@ type TopologyResult = (
     BTreeMap<GroupId, BuiltinStrategy>,
 );
 
+/// Canonical [`HallCallMode`](crate::dispatch::HallCallMode) for a
+/// built-in dispatch strategy.
+///
+/// Returns `None` for [`BuiltinStrategy::Custom`] — custom strategies
+/// don't have a canonical mode and keep whatever the group already
+/// carries. Returns `Some(Destination)` only for the destination
+/// dispatch; every other built-in is `Some(Classic)`.
+///
+/// One source of truth for the construction-time and runtime sync paths
+/// (`sync_hall_call_modes` and [`Simulation::set_dispatch`]). Add the
+/// match arm here when introducing a new built-in dispatch.
+pub(super) const fn canonical_hall_call_mode(
+    strategy: &BuiltinStrategy,
+) -> Option<crate::dispatch::HallCallMode> {
+    match strategy {
+        BuiltinStrategy::Destination => Some(crate::dispatch::HallCallMode::Destination),
+        BuiltinStrategy::Custom(_) => None,
+        BuiltinStrategy::Scan
+        | BuiltinStrategy::Look
+        | BuiltinStrategy::NearestCar
+        | BuiltinStrategy::Etd
+        | BuiltinStrategy::Rsr => Some(crate::dispatch::HallCallMode::Classic),
+    }
+}
+
 /// Ensure DCS groups have `HallCallMode::Destination` at construction
 /// time. Non-DCS groups are left at whatever the config specified —
 /// forcing Classic here would clobber explicit config overrides (e.g. a
@@ -55,7 +80,10 @@ fn sync_hall_call_modes(
     strategy_ids: &BTreeMap<GroupId, BuiltinStrategy>,
 ) {
     for group in groups.iter_mut() {
-        if strategy_ids.get(&group.id()) == Some(&BuiltinStrategy::Destination) {
+        if let Some(strategy) = strategy_ids.get(&group.id())
+            && canonical_hall_call_mode(strategy)
+                == Some(crate::dispatch::HallCallMode::Destination)
+        {
             group.set_hall_call_mode(crate::dispatch::HallCallMode::Destination);
         }
     }
@@ -1014,16 +1042,7 @@ impl Simulation {
         id: crate::dispatch::BuiltinStrategy,
     ) {
         let resolved_id = strategy.builtin_id().unwrap_or(id);
-        let mode = match &resolved_id {
-            BuiltinStrategy::Destination => Some(crate::dispatch::HallCallMode::Destination),
-            BuiltinStrategy::Custom(_) => None,
-            BuiltinStrategy::Scan
-            | BuiltinStrategy::Look
-            | BuiltinStrategy::NearestCar
-            | BuiltinStrategy::Etd
-            | BuiltinStrategy::Rsr => Some(crate::dispatch::HallCallMode::Classic),
-        };
-        if let Some(mode) = mode
+        if let Some(mode) = canonical_hall_call_mode(&resolved_id)
             && let Some(g) = self.groups.iter_mut().find(|g| g.id() == group)
         {
             g.set_hall_call_mode(mode);
