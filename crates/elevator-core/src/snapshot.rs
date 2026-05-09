@@ -214,6 +214,51 @@ pub(crate) struct PendingExtensions(pub(crate) BTreeMap<String, BTreeMap<EntityI
 type CustomStrategyFactory<'a> =
     Option<&'a dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>;
 
+/// Options for [`WorldSnapshot::restore`] and
+/// [`Simulation::restore_bytes`](crate::sim::Simulation::restore_bytes).
+///
+/// Construct via [`Default::default`] when the snapshot only uses
+/// built-in strategies, or via [`with_factory`](Self::with_factory)
+/// when groups in the snapshot reference [`Custom`] dispatch strategies
+/// that need to be re-instantiated by name. The struct is
+/// `#[non_exhaustive]` so future restore knobs can land without an API
+/// break.
+///
+/// [`Custom`]: crate::dispatch::BuiltinStrategy::Custom
+///
+/// ```no_run
+/// # use elevator_core::snapshot::{RestoreOptions, WorldSnapshot};
+/// # fn doit(snap: WorldSnapshot) -> Result<(), elevator_core::error::SimError> {
+/// // Built-ins only:
+/// let _sim = snap.restore(RestoreOptions::default())?;
+/// # Ok(()) }
+/// ```
+#[derive(Default)]
+#[non_exhaustive]
+pub struct RestoreOptions<'a> {
+    /// Factory mapping [`Custom`](crate::dispatch::BuiltinStrategy::Custom)
+    /// strategy names to fresh trait-object instances. `None` when the
+    /// snapshot only uses built-in strategies — restore returns
+    /// [`SimError::UnresolvedCustomStrategy`](crate::error::SimError::UnresolvedCustomStrategy)
+    /// if a snapshot group needs a custom strategy and the factory isn't
+    /// supplied (or returns `None`).
+    pub custom_strategy_factory: CustomStrategyFactory<'a>,
+}
+
+impl<'a> RestoreOptions<'a> {
+    /// Build a [`RestoreOptions`] with a custom-strategy factory wired
+    /// up. Use [`Default::default`] when no custom strategies are in
+    /// play.
+    #[must_use]
+    pub fn with_factory(
+        factory: &'a dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>,
+    ) -> Self {
+        Self {
+            custom_strategy_factory: Some(factory),
+        }
+    }
+}
+
 impl WorldSnapshot {
     /// Schema version this build of `elevator-core` writes and accepts.
     ///
@@ -230,9 +275,9 @@ impl WorldSnapshot {
     /// first:
     ///
     /// ```no_run
-    /// # use elevator_core::snapshot::WorldSnapshot;
+    /// # use elevator_core::snapshot::{RestoreOptions, WorldSnapshot};
     /// # fn load(snap: WorldSnapshot) -> Result<(), elevator_core::error::SimError> {
-    /// let sim = snap.migrate()?.restore(None)?;
+    /// let sim = snap.migrate()?.restore(RestoreOptions::default())?;
     /// # let _ = sim;
     /// # Ok(()) }
     /// ```
@@ -284,22 +329,34 @@ impl WorldSnapshot {
 
     /// Restore a simulation from this snapshot.
     ///
-    /// Built-in strategies (Scan, Look, `NearestCar`, ETD) are auto-restored.
-    /// For `Custom` strategies, provide a factory function that maps strategy
-    /// names to instances. Pass `None` if only using built-in strategies.
+    /// Built-in strategies (Scan, Look, `NearestCar`, ETD, RSR,
+    /// Destination) are auto-restored. For [`Custom`] strategies,
+    /// configure [`RestoreOptions`] with a factory; pass
+    /// [`RestoreOptions::default()`] when only built-in strategies are
+    /// in play. The struct is `#[non_exhaustive]` so future restore
+    /// knobs land without an API break.
+    ///
+    /// [`Custom`]: crate::dispatch::BuiltinStrategy::Custom
     ///
     /// # Errors
     /// Returns [`SimError::UnresolvedCustomStrategy`](crate::error::SimError::UnresolvedCustomStrategy)
-    /// if a snapshot group uses a `Custom` strategy and the factory returns `None`.
+    /// if a snapshot group uses a `Custom` strategy and the factory
+    /// returns `None` (or no factory was supplied).
     ///
     /// To restore extension components, call
     /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
     /// on the returned simulation.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn restore(
         self,
-        custom_strategy_factory: CustomStrategyFactory<'_>,
+        options: RestoreOptions<'_>,
     ) -> Result<crate::sim::Simulation, crate::error::SimError> {
         use crate::world::{SortedStops, World};
+
+        let RestoreOptions {
+            custom_strategy_factory,
+            ..
+        } = options;
 
         // Reject snapshots from incompatible schema versions. Without this
         // guard, `#[serde(default)]` on newly-added fields would silently
@@ -1179,7 +1236,9 @@ impl crate::sim::Simulation {
     ///
     /// Built-in dispatch strategies are auto-restored. For groups using
     /// [`BuiltinStrategy::Custom`](crate::dispatch::BuiltinStrategy::Custom),
-    /// provide a factory; pass `None` otherwise.
+    /// configure [`RestoreOptions`] with a factory; pass
+    /// [`RestoreOptions::default()`] when the snapshot only carries
+    /// built-in strategies.
     ///
     /// # Errors
     /// - [`SimError::SnapshotFormat`](crate::error::SimError::SnapshotFormat)
@@ -1191,7 +1250,7 @@ impl crate::sim::Simulation {
     ///   if a group uses a custom strategy that the factory cannot resolve.
     pub fn restore_bytes(
         bytes: &[u8],
-        custom_strategy_factory: CustomStrategyFactory<'_>,
+        options: RestoreOptions<'_>,
     ) -> Result<Self, crate::error::SimError> {
         let (envelope, tail): (SnapshotEnvelope, &[u8]) = postcard::take_from_bytes(bytes)
             .map_err(|e| crate::error::SimError::SnapshotFormat(e.to_string()))?;
@@ -1214,6 +1273,6 @@ impl crate::sim::Simulation {
                 current: current.to_owned(),
             });
         }
-        envelope.payload.restore(custom_strategy_factory)
+        envelope.payload.restore(options)
     }
 }

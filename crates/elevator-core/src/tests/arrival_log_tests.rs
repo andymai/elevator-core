@@ -91,7 +91,9 @@ fn arrival_log_survives_snapshot_round_trip() {
     assert!(before >= 2, "precondition: snapshot source has arrivals");
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let origin_after = restored.stop_entity(StopId(0)).unwrap();
     let log_after = restored

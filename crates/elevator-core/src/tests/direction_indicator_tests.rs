@@ -333,7 +333,9 @@ fn snapshot_roundtrip_preserves_indicators() {
     assert_eq!(sim.elevator_going_down(elev), Some(false));
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
     let restored_elev = ElevatorId::from(restored.world().elevator_ids()[0]);
 
     assert_eq!(restored.elevator_going_up(restored_elev), Some(true));

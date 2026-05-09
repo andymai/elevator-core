@@ -181,7 +181,7 @@
 //!
 //! 1. Capture: `sim.snapshot()` → [`WorldSnapshot`](snapshot::WorldSnapshot)
 //! 2. Serialize: serde (RON, JSON, bincode, etc.)
-//! 3. Deserialize + restore: `snapshot.restore(factory)` → new `Simulation`
+//! 3. Deserialize + restore: `snapshot.restore(RestoreOptions::default())` → new `Simulation`
 //! 4. Re-register extensions: `world.register_ext::<T>(key)` per type
 //! 5. Load extension data: `sim.load_extensions()`
 //!

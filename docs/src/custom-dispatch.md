@@ -264,7 +264,8 @@ fn run(snapshot: WorldSnapshot) -> Result<(), SimError> {
 
     // When restoring, the factory maps names back to strategy instances.
     // `restore_config` replays `urgency_boost` onto the new instance.
-    let sim = snapshot.restore(Some(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
+    use elevator_core::snapshot::RestoreOptions;
+    let sim = snapshot.restore(RestoreOptions::with_factory(&|name: &str| -> Option<Box<dyn DispatchStrategy>> {
         match name {
             PRIORITY_NAME => Some(Box::new(PriorityDispatch::default())),
             // Return `None` for unknown names -- the restore records a

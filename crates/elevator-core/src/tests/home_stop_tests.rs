@@ -288,7 +288,8 @@ fn home_stop_survives_snapshot_round_trip() {
     let target = stop_entity(&sim, StopId(2));
 
     let bytes = sim.snapshot_bytes().expect("snapshot");
-    let restored = Simulation::restore_bytes(&bytes, None).expect("restore");
+    let restored = Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+        .expect("restore");
 
     assert_eq!(restored.elevator_home_stop(elev).unwrap(), Some(target));
 }

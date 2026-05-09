@@ -59,16 +59,18 @@ impl Simulation {
     /// # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
     /// # #[derive(Clone, Serialize, Deserialize)] struct TeamId;
     /// # fn before(snapshot: WorldSnapshot) -> Result<(), SimError> {
+    /// # use elevator_core::snapshot::RestoreOptions;
     /// // Before (3-step ceremony):
-    /// let mut sim = snapshot.restore(None)?;
+    /// let mut sim = snapshot.restore(RestoreOptions::default())?;
     /// sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
     /// sim.world_mut().register_ext::<TeamId>(ExtKey::from_type_name());
     /// sim.load_extensions();
     /// # Ok(()) }
     /// # fn after(snapshot: WorldSnapshot) -> Result<(), SimError> {
+    /// # use elevator_core::snapshot::RestoreOptions;
     ///
     /// // After:
-    /// let mut sim = snapshot.restore(None)?;
+    /// let mut sim = snapshot.restore(RestoreOptions::default())?;
     /// let unregistered = sim.load_extensions_with(|world| {
     ///     register_extensions!(world, VipTag, TeamId);
     /// });

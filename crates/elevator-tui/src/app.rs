@@ -745,7 +745,11 @@ fn handle_key_scrub_exit(state: &mut AppState, sim: &mut Simulation) {
     };
     // Clone the snapshot for `restore` so we can stash the original
     // back on failure — no retry path otherwise.
-    match live.snapshot.clone().restore(None) {
+    match live
+        .snapshot
+        .clone()
+        .restore(elevator_core::snapshot::RestoreOptions::default())
+    {
         Ok(restored) => {
             *sim = restored;
             state.scrub_offset = None;
@@ -775,7 +779,11 @@ fn apply_scrub_offset(state: &mut AppState, sim: &mut Simulation, offset: usize)
         state.flash("scrub: snapshot ring entry missing");
         return Err(());
     };
-    match entry.snapshot.clone().restore(None) {
+    match entry
+        .snapshot
+        .clone()
+        .restore(elevator_core::snapshot::RestoreOptions::default())
+    {
         Ok(restored) => {
             *sim = restored;
             state.scrub_offset = Some(offset);
@@ -797,7 +805,7 @@ fn handle_key_main_load_snapshot(state: &mut AppState, sim: &mut Simulation) {
         state.flash("no snapshot saved");
         return;
     };
-    match snap.restore(None) {
+    match snap.restore(elevator_core::snapshot::RestoreOptions::default()) {
         Ok(restored) => {
             *sim = restored;
             state.event_log.clear();
