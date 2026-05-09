@@ -297,7 +297,6 @@ impl super::Simulation {
     /// will be returned by future `drain_events*` calls.
     ///
     /// ```
-    /// use elevator_core::events::EventKind;
     /// use elevator_core::prelude::*;
     ///
     /// let mut sim = SimulationBuilder::demo().build().unwrap();

@@ -537,7 +537,7 @@ pub mod prelude {
     pub use crate::dispatch::{BuiltinReposition, BuiltinStrategy, DispatchStrategy};
     pub use crate::entity::{ElevatorId, EntityId, RiderId};
     pub use crate::error::{RejectionReason, SimError};
-    pub use crate::events::Event;
+    pub use crate::events::{Event, EventKind};
     pub use crate::ids::GroupId;
     pub use crate::metrics::Metrics;
     pub use crate::sim::{RiderBuilder, Simulation};
