@@ -1,5 +1,12 @@
 # Changelog
 
+## [19.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.3.0...elevator-core-v19.4.0) (2026-05-09)
+
+
+### Features
+
+* **snapshot:** add WorldSnapshot::migrate forward-migration shim ([#777](https://github.com/andymai/elevator-core/issues/777)) ([a54fbc8](https://github.com/andymai/elevator-core/commit/a54fbc835409f439be18fed3cd0e166330fc6dfc))
+
 ## [19.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.2.0...elevator-core-v19.3.0) (2026-05-09)
 
 
