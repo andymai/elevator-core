@@ -211,7 +211,14 @@ pub struct GroupSnapshot {
 pub(crate) struct PendingExtensions(pub(crate) BTreeMap<String, BTreeMap<EntityId, String>>);
 
 /// Factory function type for instantiating custom dispatch strategies by name.
-type CustomStrategyFactory<'a> =
+///
+/// Wired into [`RestoreOptions::custom_strategy_factory`] and used
+/// internally by [`WorldSnapshot::restore`] /
+/// [`Simulation::restore_bytes`](crate::sim::Simulation::restore_bytes)
+/// to look up dispatch strategies that aren't built-ins. Callers that
+/// need to hold or pass the factory by value can name this alias
+/// directly instead of repeating the trait-object spelling.
+pub type CustomStrategyFactory<'a> =
     Option<&'a dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>;
 
 /// Options for [`WorldSnapshot::restore`] and
@@ -233,7 +240,7 @@ type CustomStrategyFactory<'a> =
 /// let _sim = snap.restore(RestoreOptions::default())?;
 /// # Ok(()) }
 /// ```
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 #[non_exhaustive]
 pub struct RestoreOptions<'a> {
     /// Factory mapping [`Custom`](crate::dispatch::BuiltinStrategy::Custom)
@@ -346,7 +353,6 @@ impl WorldSnapshot {
     /// To restore extension components, call
     /// [`Simulation::load_extensions_with`](crate::sim::Simulation::load_extensions_with)
     /// on the returned simulation.
-    #[allow(clippy::needless_pass_by_value)]
     pub fn restore(
         self,
         options: RestoreOptions<'_>,
