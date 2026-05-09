@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.1.0...elevator-core-v20.2.0) (2026-05-09)
+
+
+### Features
+
+* **dispatch:** top-K candidate pruning for ETD/RSR/Destination ([#793](https://github.com/andymai/elevator-core/issues/793)) ([0cbafd9](https://github.com/andymai/elevator-core/commit/0cbafd909f27243bd250d2a0577049c57173735e))
+
 ## [20.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.0.0...elevator-core-v20.1.0) (2026-05-09)
 
 
