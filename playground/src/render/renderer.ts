@@ -6,6 +6,7 @@ import {
   drawWaitingFigures,
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
+import { drawPedwayScene } from "./draw-pedway";
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { ClimberHud } from "./draw-tether-hud";
 import type { RiderVariant } from "./figures/rider";
@@ -214,6 +215,14 @@ export class CanvasRenderer {
 
     if (this.#tether !== null) {
       this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);
+      return;
+    }
+    // Pedway mode dispatch — any horizontal line swaps the multi-shaft
+    // column layout for stacked horizontal lanes. Driven from
+    // `Line.orientation` so future mixed-orientation scenarios opt in
+    // per-line rather than via a scenario-level flag.
+    if (snap.lines.some((ln) => ln.orientation === "horizontal")) {
+      drawPedwayScene(ctx, snap, w, h, s);
       return;
     }
 

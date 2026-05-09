@@ -26,6 +26,10 @@ export interface ScenarioSwitchUi {
   paneB: ScenarioPaneHandles;
   scenarioCards: HTMLElement;
   toast: HTMLElement;
+  /** Compare-mode toggle; gated when the next scenario disables compare. */
+  compareToggle: HTMLInputElement;
+  /** Layout root whose `data-mode` reflects compare vs single. */
+  layout: HTMLElement;
 }
 
 /**
@@ -63,12 +67,20 @@ export async function switchScenario(
   hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
+  // Scenarios that opt out of compare (horizontal pedway, where the
+  // stacked-lane render doesn't tile vertically) coerce compare off
+  // before the rest of the switch resolves so `resetAll` rebuilds the
+  // single pane instead of two.
+  const compareCapable = scenario.disableCompare !== true;
+  const effectiveCompare = state.permalink.compare && compareCapable;
+  ui.compareToggle.checked = effectiveCompare;
+  ui.compareToggle.disabled = !compareCapable;
+  ui.compareToggle.title = compareCapable ? "" : "Compare is unavailable for this scenario";
+  ui.layout.dataset["mode"] = effectiveCompare ? "compare" : "single";
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
   // panes alone so the user's comparison setup survives.
-  const nextStrategyA = state.permalink.compare
-    ? state.permalink.strategyA
-    : scenario.defaultStrategy;
+  const nextStrategyA = effectiveCompare ? state.permalink.strategyA : scenario.defaultStrategy;
   // Reposition is snapped on scenario switch only when the scenario
   // opts in via `defaultReposition` — carrying a Lobby pick from a
   // skyscraper into the space elevator made every idle climber
@@ -77,7 +89,7 @@ export async function switchScenario(
   // preference, and a long-haul scenario where individual trips
   // take minutes is intentional, not a UX bug.
   const nextReposition: RepositionStrategyName =
-    scenario.defaultReposition !== undefined && !state.permalink.compare
+    scenario.defaultReposition !== undefined && !effectiveCompare
       ? scenario.defaultReposition
       : state.permalink.repositionA;
   state.permalink = {
@@ -85,6 +97,7 @@ export async function switchScenario(
     scenario: scenario.id,
     strategyA: nextStrategyA,
     repositionA: nextReposition,
+    compare: effectiveCompare,
     overrides: {},
   };
   syncPermalinkUrl(state.permalink);

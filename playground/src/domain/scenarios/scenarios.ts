@@ -1,4 +1,5 @@
 import type { Phase, ScenarioMeta, TweakRanges } from "../../types";
+import { airportPedway } from "./airport-pedway";
 
 // ─── Default tweak bounds ───────────────────────────────────────────
 //
@@ -681,14 +682,17 @@ const spaceElevator: ScenarioMeta = {
 )`,
 };
 
+// Airport pedway lives in its own module — see ./airport-pedway.ts.
+
 // Order is "first-impression first": skyscraper leads because its
 // 40-floor multi-bank topology + sky-lobby transfers showcase the
 // playground's signature features the moment a visitor lands. Space
-// elevator second sets up the "zoom out" jump in scale. Convention
+// elevator second sets up the "zoom out" jump in scale. Airport
+// pedway third introduces the horizontal-line story. Convention
 // center last — it's an acute stress-test scenario rather than a
 // typical day cycle, useful but niche, so it sits at the end of the
 // row instead of greeting cold visitors.
-export const SCENARIOS: ScenarioMeta[] = [skyscraper, spaceElevator, convention];
+export const SCENARIOS: ScenarioMeta[] = [skyscraper, spaceElevator, airportPedway, convention];
 
 export function scenarioById(id: string): ScenarioMeta {
   const match = SCENARIOS.find((s) => s.id === id);
