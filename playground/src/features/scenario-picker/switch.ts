@@ -1,5 +1,6 @@
 import { scenarioById, STRATEGY_LABELS, syncPermalinkUrl, type PermalinkState } from "../../domain";
 import { toast } from "../../platform";
+import { syncCompareToggle } from "../../shell/apply-permalink";
 import type { RepositionStrategyName, StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
 
@@ -71,12 +72,9 @@ export async function switchScenario(
   // stacked-lane render doesn't tile vertically) coerce compare off
   // before the rest of the switch resolves so `resetAll` rebuilds the
   // single pane instead of two.
-  const compareCapable = scenario.disableCompare !== true;
-  const effectiveCompare = state.permalink.compare && compareCapable;
-  ui.compareToggle.checked = effectiveCompare;
-  ui.compareToggle.disabled = !compareCapable;
-  ui.compareToggle.title = compareCapable ? "" : "Compare is unavailable for this scenario";
-  ui.layout.dataset["mode"] = effectiveCompare ? "compare" : "single";
+  const scenarioDisablesCompare = scenario.disableCompare === true;
+  const effectiveCompare = state.permalink.compare && !scenarioDisablesCompare;
+  syncCompareToggle(ui, scenarioDisablesCompare, state.permalink.compare);
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
   // panes alone so the user's comparison setup survives.

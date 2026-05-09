@@ -58,6 +58,10 @@ pub struct CarDto {
 pub struct LineDto {
     /// Line entity id (matches `CarDto.line`).
     pub id: u32,
+    /// Human-readable line name from the scenario config (e.g. "Low
+    /// bank", "Outbound"). Renderers use this for lane / shaft headers
+    /// instead of hardcoding scenario-specific strings.
+    pub name: String,
     /// Physical orientation. `"vertical"` is the default for buildings
     /// and tethers; `"horizontal"` covers people-movers and transit
     /// lines; `"angled"` carries an `angle_deg` payload.
@@ -243,6 +247,7 @@ impl Snapshot {
                 let (orientation, angle_deg) = orientation_label(line.orientation());
                 LineDto {
                     id: entity_to_u32(id),
+                    name: line.name().to_string(),
                     orientation,
                     angle_deg,
                 }

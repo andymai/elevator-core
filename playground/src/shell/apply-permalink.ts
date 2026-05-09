@@ -8,13 +8,19 @@ import type { UiHandles } from "./wire-ui";
 export const speedLabel = (v: number): string => `${v}\u00d7`;
 export const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
 
+/** Narrow shape both `applyPermalinkToUi` and `switchScenario` can satisfy. */
+export interface CompareToggleHandles {
+  compareToggle: HTMLInputElement;
+  layout: HTMLElement;
+}
+
 /**
  * Drive the compare-toggle's checked / disabled / mode-class triplet.
  * Called from both permalink application and scenario switching so a
  * scenario that opts out of compare can't drift between them.
  */
 export function syncCompareToggle(
-  ui: UiHandles,
+  ui: CompareToggleHandles,
   scenarioDisablesCompare: boolean,
   preferredCompare: boolean,
 ): void {

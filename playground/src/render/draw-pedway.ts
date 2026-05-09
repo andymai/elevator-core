@@ -115,7 +115,6 @@ function drawLane(
   lane: LaneLayout,
   laneLeft: number,
   laneRight: number,
-  s: Scale,
 ): void {
   // Lane fill — faint stripe darker than the canvas bg so it reads as a track gutter.
   ctx.fillStyle = "rgba(10, 12, 16, 0.55)";
@@ -158,8 +157,6 @@ function drawLane(
   ctx.lineTo(chevX2, lane.cy + CHEVRON_PX / 2);
   ctx.closePath();
   ctx.fill();
-
-  void s;
 }
 
 /** Draw vertical platform markers spanning all lanes at each station. */
@@ -381,20 +378,28 @@ export function drawPedwayScene(
 
   // 2. Lanes (background + dashed centerline + chevron).
   for (const lane of lanes) {
-    drawLane(ctx, lane, laneLeft, laneRight, s);
+    drawLane(ctx, lane, laneLeft, laneRight);
   }
 
-  // 3. Lane header labels (above the top lane).
+  // 3. Lane header labels — sourced from each line's `name` in the
+  // snapshot so a future scenario with different terminology
+  // ("Terminal A → Terminal B") doesn't read "Outbound / Inbound".
+  // The arrow glyph follows the lane's render direction.
   ctx.font = `500 ${s.fontSmall}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textBaseline = "bottom";
   ctx.fillStyle = STOP_LABEL;
-  if (lanes[0]) {
-    ctx.textAlign = "left";
-    ctx.fillText("Outbound →", laneLeft + 18, lanes[0].top - 2);
-  }
-  if (lanes[1]) {
-    ctx.textAlign = "right";
-    ctx.fillText("← Inbound", laneRight - 18, lanes[1].top - 2);
+  for (let i = 0; i < lanes.length; i++) {
+    const lane = lanes[i];
+    const lineId = horizontalLineIds[i];
+    if (lane === undefined || lineId === undefined) continue;
+    const name = snap.lines.find((ln) => ln.id === lineId)?.name ?? `Line ${lineId}`;
+    if (lane.dir === 1) {
+      ctx.textAlign = "left";
+      ctx.fillText(`${name} →`, laneLeft + 18, lane.top - 2);
+    } else {
+      ctx.textAlign = "right";
+      ctx.fillText(`← ${name}`, laneRight - 18, lane.top - 2);
+    }
   }
 
   // 4. Station markers across all lanes + station labels under the floor.
@@ -436,15 +441,26 @@ export function drawPedwayScene(
     drawTrain(ctx, cx, lane.cy, trainW, trainH, lane.dir, car);
   }
 
-  // 6. Per-station waiting count badges on the lane that serves it.
-  // Show the count above each platform on the top lane, below on the
-  // bottom lane, so badges don't collide with the rest of the UI.
+  // 6. Per-lane waiting badges — split using `waiting_by_line` so a
+  // platform shared by both directions shows one badge per direction
+  // rather than conflating the two into the outbound count. Badges
+  // straddle each lane (above the top lane, below the bottom lane)
+  // so they don't collide with the lane chrome or station labels.
+  const badgeOffset = 8;
   for (const stop of snap.stops) {
     if (stop.waiting === 0) continue;
     const x = toScreenX(stop.y);
-    const top = lanes[0];
-    if (top) {
-      drawWaitingCount(ctx, stop.waiting, x, top.top - 8, s);
+    for (let i = 0; i < lanes.length; i++) {
+      const lane = lanes[i];
+      const lineId = horizontalLineIds[i];
+      if (lane === undefined || lineId === undefined) continue;
+      const slice = stop.waiting_by_line.find((w) => w.line === lineId);
+      const count = slice?.count ?? 0;
+      if (count === 0) continue;
+      // First lane: badge above; subsequent lanes: badge below so
+      // stacked lanes don't all crowd the top edge.
+      const cy = i === 0 ? lane.top - badgeOffset : lane.bottom + badgeOffset;
+      drawWaitingCount(ctx, count, x, cy, s);
     }
   }
 }
