@@ -1,4 +1,5 @@
 import type { Phase, ScenarioMeta, TweakRanges } from "../../types";
+import type { PermalinkState } from "../permalink";
 import { airportPedway } from "./airport-pedway";
 
 // ─── Default tweak bounds ───────────────────────────────────────────
@@ -700,4 +701,10 @@ export function scenarioById(id: string): ScenarioMeta {
   const fallback = SCENARIOS[0];
   if (fallback) return fallback;
   throw new Error(`unknown scenario "${id}" and empty registry`);
+}
+
+// User preference (`permalink.compare`) is preserved across scenario
+// switches; the *effective* value is what the loop / reset paths read.
+export function effectiveCompare(p: PermalinkState): boolean {
+  return p.compare && scenarioById(p.scenario).disableCompare !== true;
 }

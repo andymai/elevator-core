@@ -1,19 +1,19 @@
 import type { Phase, ScenarioMeta } from "../../types";
 
-// ─── Airport pedway — opposing-loop people-mover ────────────────────
+// ─── Airport pedway — horizontal people-mover ──────────────────────
 //
 // Four stations along a ~1.8 km concourse: Main Terminal at the head
-// and three concourses spaced 600 m apart. Two opposing one-way lines
-// each serve every stop; three trains per line spaced for roughly
-// equal headway. Real airport people-movers (DFW Skylink, ATL Plane
-// Train, IAD AeroTrain) work this way — the dispatch story isn't
+// and three concourses spaced 600 m apart. Two parallel tracks each
+// serve every stop; three trains per line spaced for roughly equal
+// headway. Real airport people-movers (DFW Skylink, ATL Plane Train,
+// IAD AeroTrain) inspire the layout — the dispatch story isn't
 // "which car responds first" but "is the train spacing consistent
 // enough that riders don't pile up?".
 //
 // Lines opt into Orientation::Horizontal so the renderer lays them
-// out as stacked horizontal lanes instead of vertical shafts. Bypass
-// thresholds are intentionally omitted — every train stops at every
-// station.
+// out as stacked horizontal lanes; the per-lane chevron expresses a
+// *visual* outbound/inbound bias rather than a hard direction lock,
+// since elevator-core's 1D axis doesn't model directional tracks.
 
 const STOPS = [
   { name: "Main Terminal", positionM: 0 },
@@ -27,8 +27,6 @@ function weights(perIndex: (i: number) => number): number[] {
 }
 
 const phases: Phase[] = [
-  // Steady operations — diffuse symmetric flow with the Main Terminal
-  // slightly heavier as the canonical entry point.
   {
     name: "Steady operations",
     durationSec: 90,
@@ -36,9 +34,6 @@ const phases: Phase[] = [
     originWeights: weights((i) => (i === 0 ? 2 : 1)),
     destWeights: weights((i) => (i === 0 ? 1.6 : 1)),
   },
-  // A flight lands at Concourse B — surge of arriving passengers
-  // boarding the inbound line back toward the Main Terminal, plus
-  // spillover heading further along the concourse.
   {
     name: "Arrival at Concourse B",
     durationSec: 60,
@@ -50,7 +45,6 @@ const phases: Phase[] = [
       return 1;
     }),
   },
-  // Crowd thins, light symmetric flow.
   {
     name: "Quiet between flights",
     durationSec: 60,
@@ -58,7 +52,6 @@ const phases: Phase[] = [
     originWeights: weights(() => 1),
     destWeights: weights(() => 1),
   },
-  // Mid-concourse landing at C — pulls riders to both terminals.
   {
     name: "Arrival at Concourse C",
     durationSec: 60,
@@ -70,7 +63,6 @@ const phases: Phase[] = [
       return 1.5;
     }),
   },
-  // Far-end arrival at Concourse D — the longest haul back.
   {
     name: "Arrival at Concourse D",
     durationSec: 60,
@@ -88,7 +80,7 @@ export const airportPedway: ScenarioMeta = {
   id: "airport-pedway",
   label: "Airport pedway",
   description:
-    "Two opposing one-way people-mover tracks linking the main terminal to three concourses 600 m apart. Three trains per loop run on roughly equal headway and stop at every station — the dispatch story is keeping the trains evenly spaced as flight arrivals dump passengers onto specific platforms.",
+    "Two parallel people-mover tracks linking the main terminal to three concourses 600 m apart. Three trains per track run on roughly equal headway and stop at every station — the dispatch story is keeping the trains evenly spaced as flight arrivals dump passengers onto specific platforms.",
   defaultStrategy: "scan",
   defaultReposition: "spread",
   disableCompare: true,
@@ -96,19 +88,17 @@ export const airportPedway: ScenarioMeta = {
   seedSpawns: 0,
   abandonAfterSec: 600,
   featureHint:
-    "Two opposing one-way tracks, three trains each, every train stops at every station. Watch how the headway evolves when a flight dumps riders onto one platform at once.",
+    "Two parallel tracks, three trains each, every train stops at every station. Watch how the headway evolves when a flight dumps riders onto one platform at once.",
   buildingName: "Airport Concourse",
   stops: STOPS.map((s) => ({ name: s.name, positionM: s.positionM })),
-  // Six trains total — three per direction. Locked because the line
-  // structure is fixed in the RON (the drawer's car stepper assumes a
-  // single-line scenario it can regenerate from defaults).
+  // Locked: the multi-line RON can't be regenerated from a single-car
+  // template the way flat scenarios can.
   defaultCars: 6,
   elevatorDefaults: {
     maxSpeed: 15.0,
     acceleration: 1.5,
     deceleration: 1.5,
     weightCapacity: 2400.0,
-    // 600 ticks dwell ≈ 10 s at 60 Hz; 60-tick transitions = 1 s open / 1 s close.
     doorOpenTicks: 600,
     doorTransitionTicks: 60,
   },

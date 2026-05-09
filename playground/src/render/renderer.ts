@@ -217,10 +217,6 @@ export class CanvasRenderer {
       this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);
       return;
     }
-    // Pedway mode dispatch — any horizontal line swaps the multi-shaft
-    // column layout for stacked horizontal lanes. Driven from
-    // `Line.orientation` so future mixed-orientation scenarios opt in
-    // per-line rather than via a scenario-level flag.
     if (snap.lines.some((ln) => ln.orientation === "horizontal")) {
       drawPedwayScene(ctx, snap, w, h, s);
       return;

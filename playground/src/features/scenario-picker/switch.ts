@@ -68,17 +68,17 @@ export async function switchScenario(
   hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
-  // Scenarios that opt out of compare (horizontal pedway, where the
-  // stacked-lane render doesn't tile vertically) coerce compare off
-  // before the rest of the switch resolves so `resetAll` rebuilds the
-  // single pane instead of two.
+  // The user's compare preference is preserved across scenarios — only
+  // its *effective* value flips off when the new scenario disables
+  // compare. Persisting the preference means switching back to a
+  // compare-capable scenario restores the prior pane setup.
   const scenarioDisablesCompare = scenario.disableCompare === true;
-  const effectiveCompare = state.permalink.compare && !scenarioDisablesCompare;
+  const compare = state.permalink.compare && !scenarioDisablesCompare;
   syncCompareToggle(ui, scenarioDisablesCompare, state.permalink.compare);
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
   // panes alone so the user's comparison setup survives.
-  const nextStrategyA = effectiveCompare ? state.permalink.strategyA : scenario.defaultStrategy;
+  const nextStrategyA = compare ? state.permalink.strategyA : scenario.defaultStrategy;
   // Reposition is snapped on scenario switch only when the scenario
   // opts in via `defaultReposition` — carrying a Lobby pick from a
   // skyscraper into the space elevator made every idle climber
@@ -87,7 +87,7 @@ export async function switchScenario(
   // preference, and a long-haul scenario where individual trips
   // take minutes is intentional, not a UX bug.
   const nextReposition: RepositionStrategyName =
-    scenario.defaultReposition !== undefined && !effectiveCompare
+    scenario.defaultReposition !== undefined && !compare
       ? scenario.defaultReposition
       : state.permalink.repositionA;
   state.permalink = {
@@ -95,7 +95,6 @@ export async function switchScenario(
     scenario: scenario.id,
     strategyA: nextStrategyA,
     repositionA: nextReposition,
-    compare: effectiveCompare,
     overrides: {},
   };
   syncPermalinkUrl(state.permalink);

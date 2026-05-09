@@ -50,25 +50,18 @@ pub struct CarDto {
     pub max_served_y: f64,
 }
 
-/// Per-line rendering snapshot. Lines are physical paths (shafts,
-/// tethers, tracks) and carry an orientation that renderers branch on
-/// to lay out vertical shafts vs horizontal pedways.
+/// Per-line rendering snapshot. Renderers branch on `orientation` to
+/// lay out vertical shafts vs horizontal pedways and read `name` for
+/// lane / shaft header copy.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
 pub struct LineDto {
-    /// Line entity id (matches `CarDto.line`).
     pub id: u32,
-    /// Human-readable line name from the scenario config (e.g. "Low
-    /// bank", "Outbound"). Renderers use this for lane / shaft headers
-    /// instead of hardcoding scenario-specific strings.
     pub name: String,
-    /// Physical orientation. `"vertical"` is the default for buildings
-    /// and tethers; `"horizontal"` covers people-movers and transit
-    /// lines; `"angled"` carries an `angle_deg` payload.
     #[tsify(type = r#""vertical" | "horizontal" | "angled""#)]
     pub orientation: &'static str,
     /// Angle in degrees from horizontal, set only when
-    /// `orientation == "angled"`. `None` for vertical/horizontal.
+    /// `orientation == "angled"`.
     pub angle_deg: Option<f64>,
 }
 
@@ -143,8 +136,7 @@ pub struct Snapshot {
     pub cars: Vec<CarDto>,
     /// Configured stops.
     pub stops: Vec<StopDto>,
-    /// Configured lines. Renderers branch on `orientation` to choose
-    /// vertical-shaft vs horizontal-pedway layout.
+    /// Configured lines.
     pub lines: Vec<LineDto>,
 }
 
