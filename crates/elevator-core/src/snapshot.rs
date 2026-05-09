@@ -238,9 +238,10 @@ impl WorldSnapshot {
     /// ```
     ///
     /// Future schema bumps wire their step-up migrations into the match
-    /// arm below; the current shape lets each step take a snapshot at
-    /// version `n` and produce one at `n + 1`, then re-enters `migrate`
-    /// recursively until `version == CURRENT_SCHEMA_VERSION`.
+    /// arm below; each step consumes a snapshot at version `n` and
+    /// produces one at `n + 1`. The outer `while` drives the chain to
+    /// [`CURRENT_SCHEMA_VERSION`](Self::CURRENT_SCHEMA_VERSION) with
+    /// O(1) stack depth regardless of how far behind the input is.
     ///
     /// # Errors
     ///
@@ -250,20 +251,35 @@ impl WorldSnapshot {
     /// `version < CURRENT_SCHEMA_VERSION` with no migration path
     /// registered).
     pub fn migrate(self) -> Result<Self, crate::error::SimError> {
-        // Step-up migrations slot in as match arms. Each arm consumes
-        // self at version N and produces a Self at version N+1, then
-        // tail-calls migrate() until it reaches CURRENT_SCHEMA_VERSION.
-        // No upgrades exist yet — schema is at v1 — so the only
-        // accepted version is the current one.
-        match self.version {
-            v if v == Self::CURRENT_SCHEMA_VERSION => Ok(self),
-            // Example pattern for the next bump (uncomment when v2 lands):
-            // 1 => migrate_v1_to_v2(self).migrate(),
-            saved => Err(crate::error::SimError::SnapshotVersion {
-                saved: format!("schema {saved}"),
+        // Snapshots from a future build can't be down-migrated — the
+        // newer build defines what the new shape *is*.
+        if self.version > Self::CURRENT_SCHEMA_VERSION {
+            return Err(crate::error::SimError::SnapshotVersion {
+                saved: format!("schema {}", self.version),
                 current: format!("schema {}", Self::CURRENT_SCHEMA_VERSION),
-            }),
+            });
         }
+        if self.version == Self::CURRENT_SCHEMA_VERSION {
+            return Ok(self);
+        }
+        // Schema is at v1 today, so no step-up arms exist; any
+        // version below current with no migration path errors out.
+        // The intended shape once schema bumps land is an iterative
+        // step_up loop with O(1) stack depth regardless of how many
+        // schema versions an archived snapshot has to traverse:
+        //
+        //     let mut snap = self;
+        //     while snap.version < Self::CURRENT_SCHEMA_VERSION {
+        //         snap = step_up_one(snap)?;
+        //     }
+        //     Ok(snap)
+        //
+        // where `step_up_one` matches on `snap.version` and emits one
+        // arm per `n -> n + 1` upgrade.
+        Err(crate::error::SimError::SnapshotVersion {
+            saved: format!("schema {}", self.version),
+            current: format!("schema {}", Self::CURRENT_SCHEMA_VERSION),
+        })
     }
 
     /// Restore a simulation from this snapshot.
