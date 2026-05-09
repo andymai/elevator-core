@@ -556,8 +556,8 @@ impl Simulation {
         self.groups
             .push(ElevatorGroup::new(group_id, name.into(), Vec::new()));
 
-        self.dispatchers.insert(group_id, Box::new(dispatch));
-        self.strategy_ids.insert(group_id, BuiltinStrategy::Scan);
+        self.dispatcher_set
+            .insert(group_id, Box::new(dispatch), BuiltinStrategy::Scan);
         self.mark_topo_dirty();
         group_id
     }
@@ -597,7 +597,7 @@ impl Simulation {
         let elevators_to_notify: Vec<EntityId> = self.groups[old_group_idx].lines()[line_idx]
             .elevators()
             .to_vec();
-        if let Some(dispatcher) = self.dispatchers.get_mut(&old_group_id) {
+        if let Some(dispatcher) = self.dispatcher_set.strategies_mut().get_mut(&old_group_id) {
             for eid in &elevators_to_notify {
                 dispatcher.notify_removed(*eid);
             }
@@ -694,7 +694,9 @@ impl Simulation {
             // Notify the old group's dispatcher so it clears per-elevator
             // state (ScanDispatch/LookDispatch track direction by
             // EntityId). Matches the symmetry with `remove_elevator`.
-            if let Some(old_dispatcher) = self.dispatchers.get_mut(&old_group_id) {
+            if let Some(old_dispatcher) =
+                self.dispatcher_set.strategies_mut().get_mut(&old_group_id)
+            {
                 old_dispatcher.notify_removed(elevator);
             }
         }

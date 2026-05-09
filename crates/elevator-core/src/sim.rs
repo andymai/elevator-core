@@ -75,16 +75,19 @@ mod lifecycle;
 mod manual;
 mod rider;
 mod runtime;
+pub(crate) mod strategy_set;
 mod substep;
 mod tagging;
 mod topology;
+
+pub(crate) use strategy_set::{DispatcherSet, RepositionerSet};
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) mod transition;
 
 use crate::components::{
     Accel, AccessControl, Orientation, Patience, Preferences, Route, SpatialPosition, Speed, Weight,
 };
-use crate::dispatch::{BuiltinReposition, DispatchStrategy, ElevatorGroup, RepositionStrategy};
+use crate::dispatch::ElevatorGroup;
 use crate::entity::{EntityId, RiderId};
 use crate::error::SimError;
 use crate::events::{Event, EventBus};
@@ -96,7 +99,7 @@ use crate::stop::StopId;
 use crate::time::TimeAdapter;
 use crate::topology::TopologyGraph;
 use crate::world::World;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Mutex;
 
@@ -364,14 +367,13 @@ pub struct Simulation {
     groups: Vec<ElevatorGroup>,
     /// Config `StopId` to `EntityId` mapping for spawn helpers.
     stop_lookup: HashMap<StopId, EntityId>,
-    /// Dispatch strategies keyed by group.
-    dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
-    /// Serializable strategy identifiers (for snapshot).
-    strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
-    /// Reposition strategies keyed by group (optional per group).
-    repositioners: BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
-    /// Serializable reposition strategy identifiers (for snapshot).
-    reposition_ids: BTreeMap<GroupId, BuiltinReposition>,
+    /// Dispatch strategies + their snapshot identities, keyed by group.
+    /// Owns both halves so insert/remove stay atomic — see
+    /// [`DispatcherSet`].
+    dispatcher_set: DispatcherSet,
+    /// Reposition strategies + their snapshot identities, keyed by group.
+    /// Empty when no group opts into the reposition phase.
+    repositioner_set: RepositionerSet,
     /// Aggregated metrics.
     metrics: Metrics,
     /// Time conversion utility.
