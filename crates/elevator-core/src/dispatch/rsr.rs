@@ -384,10 +384,14 @@ impl DispatchStrategy for RsrDispatch {
         }
 
         // Clamp the running cost to the Hungarian's non-negative floor.
-        // The fairness helper above already clamps, but the
-        // coincident-car-call bonus earlier subtracts unconditionally
-        // and can push the intermediate cost negative on a small-eta
-        // pairing.
+        // Two paths reach here without a guaranteed prior clamp:
+        //   1. `age_linear_weight == 0.0` skips the fairness branch
+        //      entirely, leaving the coincident-car-call subtraction
+        //      unclamped.
+        //   2. Even when fairness runs, the coincident-call subtraction
+        //      happens before it on a small-eta pairing.
+        // Either way, this trailing clamp is the only floor the
+        // assigner sees.
         let cost = cost.max(0.0);
         if cost.is_finite() { Some(cost) } else { None }
     }
