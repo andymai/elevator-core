@@ -117,6 +117,19 @@ export function drawCar(
   if (car.riders > 0 || isFull) {
     drawRidersInCar(ctx, cx, bottom, carW, carH, car.riders, riderColor, s, roster, isFull);
   }
+
+  // Door notch: a small bright segment at the cabin's bottom edge during
+  // loading-related phases, suggesting an open door without painting
+  // sliding panels. Drawn last so it sits on top of the dark border.
+  if (car.phase === "door-opening" || car.phase === "loading" || car.phase === "door-closing") {
+    const notchW = Math.max(4, Math.min(carW * 0.4, 8));
+    ctx.strokeStyle = "rgba(250, 250, 250, 0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - notchW / 2, bottom - 0.5);
+    ctx.lineTo(cx + notchW / 2, bottom - 0.5);
+    ctx.stroke();
+  }
 }
 
 // Layout + style constants for the speech bubbles. Tuned for a tight,
