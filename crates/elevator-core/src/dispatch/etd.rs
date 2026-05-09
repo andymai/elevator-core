@@ -225,11 +225,11 @@ impl DispatchStrategy for EtdDispatch {
             self.compute_cost(ctx.car, ctx.car_position(), ctx.stop_position(), ctx.world);
         if self.wait_squared_weight > 0.0 {
             let wait_sq = super::wait_ticks_squared_sum(ctx.manifest.waiting_riders_at(ctx.stop));
-            cost = crate::fp::fma(self.wait_squared_weight, -wait_sq, cost).max(0.0);
+            cost = super::apply_fairness_bonus(cost, self.wait_squared_weight, wait_sq);
         }
         if self.age_linear_weight > 0.0 {
             let wait_sum = super::wait_ticks_sum(ctx.manifest.waiting_riders_at(ctx.stop));
-            cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost).max(0.0);
+            cost = super::apply_fairness_bonus(cost, self.age_linear_weight, wait_sum);
         }
         if cost.is_finite() { Some(cost) } else { None }
     }

@@ -216,6 +216,28 @@ pub(crate) fn wait_ticks_squared_sum(riders: &[RiderInfo]) -> f64 {
         .sum()
 }
 
+/// Apply a fairness bonus to a dispatch cost, clamping at zero.
+///
+/// Computes `(cost - weight * term).max(0.0)` via [`fp::fma`] for
+/// tighter rounding than the manual `cost - weight * term` form when
+/// the multiplier and product are both finite.
+///
+/// Both ETD's `age_linear` / `wait_squared` weights and RSR's
+/// `age_linear_weight` use this exact shape — a non-negative
+/// `weight` scaled against a non-negative aggregate (`wait_ticks_sum`
+/// / `wait_ticks_squared_sum`) subtracted from the running cost. The
+/// `.max(0.0)` floor is mandatory because the Hungarian assignment
+/// requires non-negative costs; without it, deeply-aged waits could
+/// underflow the cost into the negative territory, where the assigner's
+/// row-reduction step would produce a smaller-than-zero pseudo-cost
+/// and silently mis-rank.
+///
+/// [`fp::fma`]: crate::fp::fma
+#[must_use]
+pub(crate) fn apply_fairness_bonus(cost: f64, weight: f64, term: f64) -> f64 {
+    crate::fp::fma(weight, -term, cost).max(0.0)
+}
+
 /// Whether a waiting rider could actually board this car, matching the
 /// same filters the loading phase applies. Prevents `pair_is_useful`
 /// from approving a pickup whose only demand is direction-filtered or
