@@ -613,7 +613,7 @@ impl Simulation {
                 .find(|g| g.elevator_entities().contains(&id))
                 .map(ElevatorGroup::id);
             if let Some(gid) = group_id
-                && let Some(dispatcher) = self.dispatchers.get_mut(&gid)
+                && let Some(dispatcher) = self.dispatcher_set.strategies_mut().get_mut(&gid)
             {
                 dispatcher.notify_removed(id);
             }
