@@ -65,6 +65,10 @@ pub struct DispatchScratch {
     pub committed_pairs: Vec<(EntityId, EntityId)>,
     /// Idle elevator pool `(car, position)` for this group.
     pub idle_elevators: Vec<(EntityId, f64)>,
+    /// Per-car `(distance, pending_stops_index)` buffer used by the
+    /// top-K candidate-pruning pass. Cleared and refilled per row in
+    /// the matrix-fill loop; capacity carries across cars and ticks.
+    pub top_k_buf: Vec<(f64, usize)>,
 }
 
 impl DispatchScratch {
@@ -73,7 +77,8 @@ impl DispatchScratch {
     /// `cost_matrix_mx` is re-sized/re-filled lazily in
     /// `assign_with_scratch`; leaving it alone here preserves its
     /// capacity when the group's (rows, cols) match the last
-    /// dispatch pass.
+    /// dispatch pass. `top_k_buf` is cleared per-row inside the
+    /// matrix-fill loop, not here.
     pub fn clear_all(&mut self) {
         self.servicing.clear();
         self.pending_stops.clear();
@@ -273,6 +278,7 @@ pub fn assign(
 /// [`DispatchStrategy::fallback`]. Uses `scratch` so the per-tick
 /// allocations (cost matrix, pending stops, etc.) reuse capacity
 /// across invocations.
+#[allow(clippy::too_many_lines)]
 pub fn assign_with_scratch(
     strategy: &mut dyn DispatchStrategy,
     idle_cars: &[(EntityId, f64)],
@@ -329,6 +335,20 @@ pub fn assign_with_scratch(
         .as_mut()
         .unwrap_or_else(|| unreachable!("cost_matrix_mx populated by match above"));
 
+    // Top-K candidate pruning: when the strategy returns `Some(K)`,
+    // each car only scores its K nearest viable pending stops; the
+    // rest stay sentinel-cost so the Hungarian skips them. Cuts
+    // per-cell rank() calls dramatically at large m without changing
+    // the matrix shape (pathfinding's row/column reduction handles
+    // the sparse rows efficiently).
+    //
+    // Determinism: tie-break on (distance, EntityId) so the kept set
+    // is the same across runs and across snapshot round-trip.
+    let candidate_limit = strategy.candidate_limit();
+    // Take the buffer out of scratch so we can borrow `pending_stops`
+    // and the top-K buf simultaneously without aliasing the same
+    // `&mut scratch`.
+    let mut top_k_buf = std::mem::take(&mut scratch.top_k_buf);
     {
         let pending_stops = &scratch.pending_stops;
         for (i, &(car_eid, car_pos)) in idle_cars.iter().enumerate() {
@@ -376,13 +396,40 @@ pub fn assign_with_scratch(
                 "car {car_eid:?} on line not present in its group's lines list"
             );
 
-            for (j, &(stop_eid, _stop_pos)) in pending_stops.iter().enumerate() {
+            // Build (distance, pending_stops index) for every VIABLE
+            // candidate. Line- and restricted-filter happen here so
+            // the top-K cut applies to viable candidates only — a
+            // line-restricted car still sees up to K reachable stops.
+            top_k_buf.clear();
+            for (j, &(stop_eid, stop_pos)) in pending_stops.iter().enumerate() {
                 if restricted.is_some_and(|r| r.contains(&stop_eid)) {
-                    continue; // leave SENTINEL — this pair is unavailable
+                    continue;
                 }
                 if car_serves.is_some_and(|s| !s.contains(&stop_eid)) {
-                    continue; // car's line doesn't reach this stop
+                    continue;
                 }
+                let dist = (car_pos - stop_pos).abs();
+                top_k_buf.push((dist, j));
+            }
+
+            // Apply the top-K cut. Sort by (distance, stop EntityId)
+            // for determinism on equidistant ties.
+            if let Some(k) = candidate_limit
+                && top_k_buf.len() > k
+            {
+                top_k_buf.sort_by(|&(da, ja), &(db, jb)| {
+                    da.partial_cmp(&db)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| pending_stops[ja].0.cmp(&pending_stops[jb].0))
+                });
+                top_k_buf.truncate(k);
+            }
+
+            // Fill the matrix only for kept indices. Non-viable and
+            // non-top-K cells stay at the SENTINEL value the matrix
+            // was initialised with.
+            for &(_, j) in &top_k_buf {
+                let (stop_eid, _) = pending_stops[j];
                 let ctx = RankContext {
                     car: car_eid,
                     stop: stop_eid,
@@ -395,6 +442,9 @@ pub fn assign_with_scratch(
             }
         }
     }
+    // Return the buffer to scratch so its capacity carries to the next
+    // group/tick.
+    scratch.top_k_buf = top_k_buf;
     let matrix = &*matrix_ref;
     let (_, assignments) = pathfinding::kuhn_munkres::kuhn_munkres_min(matrix);
 

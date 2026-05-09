@@ -970,7 +970,45 @@ pub trait DispatchStrategy: Send + Sync {
     fn restore_config(&mut self, _serialized: &str) -> Result<(), String> {
         Ok(())
     }
+
+    /// Maximum candidate stops the assignment phase considers per car.
+    ///
+    /// `Some(K)` keeps only the K nearest viable pending stops per
+    /// idle car when filling the cost matrix; the rest are sentinel-
+    /// scored so the Hungarian skips them. `None` disables pruning
+    /// (full matrix). The default is `Some(50)` — generous enough to
+    /// preserve optimality on real-building loads (≤200 stops, ≤50
+    /// cars) while cutting per-cell `rank()` calls ~90× at extreme
+    /// scale (5000 stops × 500 cars). Researchers and tests asserting
+    /// global-optimal assignments can opt out via the strategy's
+    /// `with_candidate_limit(None)` builder.
+    ///
+    /// "Nearest" here means absolute axial distance
+    /// (`|car_pos - stop_pos|`) with `(distance, EntityId)` tie-break
+    /// for snapshot-determinism. Line-restriction and
+    /// [`Elevator::restricted_stops`](crate::components::Elevator::restricted_stops)
+    /// filtering happens *before* the top-K cut, so a car always
+    /// sees up to K *viable* candidates rather than K nominal ones
+    /// of which most are unreachable.
+    ///
+    /// Strategies that don't go through the Hungarian path
+    /// ([`scan::ScanDispatch`], [`look::LookDispatch`],
+    /// [`nearest_car::NearestCarDispatch`]) inherit the default but
+    /// it's a no-op for them — their per-car `rank` is independent
+    /// of matrix size.
+    #[must_use]
+    fn candidate_limit(&self) -> Option<usize> {
+        Some(DEFAULT_CANDIDATE_LIMIT)
+    }
 }
+
+/// Default per-car candidate limit applied by the
+/// [`DispatchStrategy::candidate_limit`] trait default.
+///
+/// Strategies that build with a custom limit override the trait method
+/// to return their stored value; opting out (`None`) disables pruning
+/// entirely.
+pub const DEFAULT_CANDIDATE_LIMIT: usize = 50;
 
 /// Pluggable strategy for repositioning idle elevators.
 ///
