@@ -484,7 +484,7 @@ pub enum HallCallMode {
     ///
     /// Riders press an up or down button in the hall; the destination
     /// is revealed only *after* boarding, via a
-    /// [`CarCall`]. Dispatch sees a direction
+    /// [`CarCall`](crate::components::CarCall). Dispatch sees a direction
     /// per call but does not know individual rider destinations until
     /// they're aboard.
     #[default]
@@ -493,7 +493,7 @@ pub enum HallCallMode {
     /// Polaris, Schindler PORT).
     ///
     /// Riders enter their destination at a hall kiosk, so each
-    /// [`HallCall`] carries a destination
+    /// [`HallCall`](crate::components::HallCall) carries a destination
     /// stop from the moment it's pressed. Required by
     /// [`DestinationDispatch`].
     Destination,
