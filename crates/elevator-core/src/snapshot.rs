@@ -215,6 +215,73 @@ type CustomStrategyFactory<'a> =
     Option<&'a dyn Fn(&str) -> Option<Box<dyn crate::dispatch::DispatchStrategy>>>;
 
 impl WorldSnapshot {
+    /// Schema version this build of `elevator-core` writes and accepts.
+    ///
+    /// Compare against [`WorldSnapshot::version`] to decide whether a
+    /// snapshot needs forward migration before [`WorldSnapshot::restore`]
+    /// will accept it.
+    pub const CURRENT_SCHEMA_VERSION: u32 = SNAPSHOT_SCHEMA_VERSION;
+
+    /// Forward-migrate a snapshot to [`CURRENT_SCHEMA_VERSION`](Self::CURRENT_SCHEMA_VERSION).
+    ///
+    /// `restore` rejects mismatched schema versions hard so silent
+    /// `#[serde(default)]` field-filling can't mask a mismatch. Callers
+    /// that want to load older snapshots route them through this method
+    /// first:
+    ///
+    /// ```no_run
+    /// # use elevator_core::snapshot::WorldSnapshot;
+    /// # fn load(snap: WorldSnapshot) -> Result<(), elevator_core::error::SimError> {
+    /// let sim = snap.migrate()?.restore(None)?;
+    /// # let _ = sim;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// Future schema bumps wire their step-up migrations into the match
+    /// arm below; each step consumes a snapshot at version `n` and
+    /// produces one at `n + 1`. The outer `while` drives the chain to
+    /// [`CURRENT_SCHEMA_VERSION`](Self::CURRENT_SCHEMA_VERSION) with
+    /// O(1) stack depth regardless of how far behind the input is.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::SnapshotVersion`](crate::error::SimError::SnapshotVersion)
+    /// for snapshots from a version this build doesn't know how to
+    /// migrate (either `version > CURRENT_SCHEMA_VERSION`, or
+    /// `version < CURRENT_SCHEMA_VERSION` with no migration path
+    /// registered).
+    pub fn migrate(self) -> Result<Self, crate::error::SimError> {
+        // Snapshots from a future build can't be down-migrated — the
+        // newer build defines what the new shape *is*.
+        if self.version > Self::CURRENT_SCHEMA_VERSION {
+            return Err(crate::error::SimError::SnapshotVersion {
+                saved: format!("schema {}", self.version),
+                current: format!("schema {}", Self::CURRENT_SCHEMA_VERSION),
+            });
+        }
+        if self.version == Self::CURRENT_SCHEMA_VERSION {
+            return Ok(self);
+        }
+        // Schema is at v1 today, so no step-up arms exist; any
+        // version below current with no migration path errors out.
+        // The intended shape once schema bumps land is an iterative
+        // step_up loop with O(1) stack depth regardless of how many
+        // schema versions an archived snapshot has to traverse:
+        //
+        //     let mut snap = self;
+        //     while snap.version < Self::CURRENT_SCHEMA_VERSION {
+        //         snap = step_up_one(snap)?;
+        //     }
+        //     Ok(snap)
+        //
+        // where `step_up_one` matches on `snap.version` and emits one
+        // arm per `n -> n + 1` upgrade.
+        Err(crate::error::SimError::SnapshotVersion {
+            saved: format!("schema {}", self.version),
+            current: format!("schema {}", Self::CURRENT_SCHEMA_VERSION),
+        })
+    }
+
     /// Restore a simulation from this snapshot.
     ///
     /// Built-in strategies (Scan, Look, `NearestCar`, ETD) are auto-restored.
