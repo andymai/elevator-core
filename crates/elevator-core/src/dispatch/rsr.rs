@@ -380,9 +380,18 @@ impl DispatchStrategy for RsrDispatch {
         // older upper-floor waiters. Mirrors ETD's `age_linear_weight`.
         if self.age_linear_weight > 0.0 {
             let wait_sum = super::wait_ticks_sum(ctx.manifest.waiting_riders_at(ctx.stop));
-            cost = crate::fp::fma(self.age_linear_weight, -wait_sum, cost);
+            cost = super::apply_fairness_bonus(cost, self.age_linear_weight, wait_sum);
         }
 
+        // Clamp the running cost to the Hungarian's non-negative floor.
+        // Two paths reach here without a guaranteed prior clamp:
+        //   1. `age_linear_weight == 0.0` skips the fairness branch
+        //      entirely, leaving the coincident-car-call subtraction
+        //      unclamped.
+        //   2. Even when fairness runs, the coincident-call subtraction
+        //      happens before it on a small-eta pairing.
+        // Either way, this trailing clamp is the only floor the
+        // assigner sees.
         let cost = cost.max(0.0);
         if cost.is_finite() { Some(cost) } else { None }
     }
