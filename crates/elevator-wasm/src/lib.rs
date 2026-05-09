@@ -595,8 +595,9 @@ impl WasmSim {
         if strategy_id(&strategy).is_none() {
             return Err(JsError::new(&format!("unknown strategy: {strategy}")));
         }
-        let inner = Simulation::restore_bytes(bytes, None)
-            .map_err(|e| JsError::new(&format!("restore: {e}")))?;
+        let inner =
+            Simulation::restore_bytes(bytes, elevator_core::snapshot::RestoreOptions::default())
+                .map_err(|e| JsError::new(&format!("restore: {e}")))?;
         let reposition_name = reposition
             .as_deref()
             .map_or("adaptive", |s| if s.is_empty() { "adaptive" } else { s })

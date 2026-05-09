@@ -67,13 +67,15 @@ The snapshot struct is `Serialize + Deserialize` -- choose any serde format (RON
 # use elevator_core::prelude::*;
 # use elevator_core::__doctest_prelude::*;
 # use elevator_core::snapshot::WorldSnapshot;
+# use elevator_core::snapshot::RestoreOptions;
 # fn main() -> Result<(), SimError> {
 let bytes = std::fs::read_to_string("save.ron").unwrap();
 let snapshot: WorldSnapshot = ron::from_str(&bytes).unwrap();
 
-// `None` means "only built-in dispatch strategies"; pass a closure to
-// resurrect custom strategies registered by name.
-let sim = snapshot.restore(None)?;
+// `RestoreOptions::default()` means "only built-in dispatch strategies";
+// use `RestoreOptions::with_factory(...)` to resurrect custom strategies
+// registered by name.
+let sim = snapshot.restore(RestoreOptions::default())?;
 # Ok(())
 # }
 ```
@@ -94,9 +96,10 @@ Built-in strategies (`Scan`, `Look`, `NearestCar`, `Etd`, `Rsr`, `Destination`) 
 # impl DispatchStrategy for HighestFirstDispatch {
 #   fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> { Some(0.0) }
 # }
+# use elevator_core::snapshot::RestoreOptions;
 # fn run(snapshot: WorldSnapshot) {
-let sim = snapshot.restore(Some(&|name: &str| match name {
-    "HighestFirst" => Some(Box::new(HighestFirstDispatch)),
+let sim = snapshot.restore(RestoreOptions::with_factory(&|name: &str| match name {
+    "HighestFirst" => Some(Box::new(HighestFirstDispatch) as Box<dyn DispatchStrategy>),
     _ => None,
 }));
 # }
@@ -114,8 +117,9 @@ Extensions are serialized by their registered name. Dispatch-internal extensions
 # use elevator_core::snapshot::WorldSnapshot;
 # use serde::{Serialize, Deserialize};
 # #[derive(Clone, Serialize, Deserialize)] struct VipTag;
+# use elevator_core::snapshot::RestoreOptions;
 # fn run(snapshot: WorldSnapshot) {
-let mut sim = snapshot.restore(None).unwrap();
+let mut sim = snapshot.restore(RestoreOptions::default()).unwrap();
 sim.world_mut().register_ext::<VipTag>(ExtKey::from_type_name());
 sim.load_extensions();
 # }

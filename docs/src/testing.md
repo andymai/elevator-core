@@ -98,7 +98,7 @@ fn snapshot_roundtrip_preserves_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(elevator_core::snapshot::RestoreOptions::default()).unwrap();
 
     assert_eq!(restored.current_tick(), original_tick);
     assert_eq!(restored.metrics().total_delivered(), original_delivered);

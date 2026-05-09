@@ -641,7 +641,7 @@ proptest! {
         }
 
         let snap = sim_a.snapshot();
-        let mut sim_b = snap.restore(None).expect("restore");
+        let mut sim_b = snap.restore(crate::snapshot::RestoreOptions::default()).expect("restore");
 
         for tick in 0..COMPARE_TICKS {
             sim_a.step();
