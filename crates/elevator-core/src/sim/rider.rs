@@ -319,7 +319,7 @@ impl super::Simulation {
     /// marshal a Rust closure across the language boundary.
     ///
     /// Matching is delegated to [`Event::involves`]: an event matches
-    /// when any [`EntityId`](crate::entity::EntityId) field on the
+    /// when any [`EntityId`] field on the
     /// payload equals `entity`. Multi-entity events (e.g.
     /// [`RiderBoarded`](Event::RiderBoarded), which references both
     /// rider and elevator) match when *either* role does, so a query

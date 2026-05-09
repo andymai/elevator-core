@@ -624,7 +624,7 @@ fn drain_events_for_entity_partitions_with_drain_events() {
             "leftover event after drain_events_for_entity still references rider: {e:?}"
         );
     }
-    // Sanity: the union covers the events the rider participated in.
+    // Sanity: the rider-drain contains at least the spawn event.
     assert!(
         rider
             .iter()
