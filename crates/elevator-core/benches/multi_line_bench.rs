@@ -239,6 +239,18 @@ fn bench_multi_group_step(c: &mut Criterion) {
 // B) Cross-group routing: spawn_rider auto-detection overhead
 // ---------------------------------------------------------------------------
 
+/// 1000-spawn cross-group routing bench. Note that `1_groups` is
+/// expected to be *slower* than `5_groups` despite having fewer
+/// groups to walk in `auto_detect_group`: with fixed 1000 riders and
+/// `total_stops` driven by `(num_groups, stops_per_line, shared_stops)`,
+/// 1-group has 10 total stops vs 5-groups' 38. Per-(stop, direction)
+/// hall-call density is therefore ~4× higher in the 1-group case,
+/// and `HallCall::pending_riders` is a `Vec<EntityId>` whose
+/// `contains()` dedup-guard scales O(n²) when many riders aggregate
+/// onto a few calls (see `sim::calls::ensure_hall_call`). The 5/10/20
+/// rows monotonically grow as expected — the 1-row out-of-trend datum
+/// is hall-call density, not a routing fast path the multi-group
+/// path skips.
 fn bench_cross_group_routing(c: &mut Criterion) {
     let mut group = c.benchmark_group("cross_group_routing");
     group.sample_size(10);
