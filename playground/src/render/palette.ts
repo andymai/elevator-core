@@ -92,9 +92,11 @@ export const OVERFLOW_COLOR = "#8b8c92"; // --text-tertiary
 // using it for the target dot added false semantic overlap.
 export const TARGET_FILL = "rgba(250, 250, 250, 0.95)"; // --text-primary at alpha
 
-// Board/alight animation baseline. Effective duration is divided by the sim
-// speed multiplier so fast-forwarded runs don't queue stale tweens.
-export const TWEEN_BASE_MS = 260;
+// Board/alight animation baseline at 1× sim speed. Effective duration is
+// divided by the speed multiplier so fast-forwarded runs don't queue stale
+// tweens. ~700ms reads as a believable doorway-cross while staying well
+// inside the typical loading dwell (`door_open_ticks: 300` ≈ 5 s at 60 Hz).
+export const TWEEN_BASE_MS = 700;
 
 // Cars in `moving` phase leave a short fading ghost strip behind them so
 // velocity is visible at a glance without a text indicator.
