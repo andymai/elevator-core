@@ -174,8 +174,9 @@ Extension components are serialized by their registered type name into the `Worl
 # use elevator_core::snapshot::WorldSnapshot;
 # use serde::{Serialize, Deserialize};
 # #[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
+# use elevator_core::snapshot::RestoreOptions;
 # fn run(snapshot: WorldSnapshot) {
-let mut sim = snapshot.restore(None).unwrap();
+let mut sim = snapshot.restore(RestoreOptions::default()).unwrap();
 sim.world_mut().register_ext::<GuestPriority>(ExtKey::from_type_name());
 sim.load_extensions();
 # }

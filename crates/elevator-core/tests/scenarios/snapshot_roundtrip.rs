@@ -7,7 +7,7 @@ use elevator_core::dispatch::BuiltinReposition;
 use elevator_core::dispatch::reposition::{AdaptiveParking, ReturnToLobby};
 use elevator_core::ids::GroupId;
 use elevator_core::prelude::*;
-use elevator_core::snapshot::WorldSnapshot;
+use elevator_core::snapshot::{RestoreOptions, WorldSnapshot};
 use elevator_core::traffic_detector::TrafficDetector;
 
 #[test]
@@ -29,7 +29,7 @@ fn snapshot_roundtrip_preserves_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(RestoreOptions::default()).unwrap();
 
     assert_eq!(restored.current_tick(), original_tick);
     assert_eq!(restored.metrics().total_delivered(), original_delivered);
@@ -73,7 +73,7 @@ fn snapshot_roundtrip_remaps_repositioning_phase() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(RestoreOptions::default()).unwrap();
 
     // The elevator must still be in Repositioning, and its target stop
     // entity must resolve to a real stop in the restored world.
@@ -113,7 +113,7 @@ fn snapshot_roundtrip_preserves_adaptive_repositioner() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(RestoreOptions::default()).unwrap();
 
     assert_eq!(
         restored.reposition_id(GroupId(0)),
@@ -151,7 +151,7 @@ fn snapshot_roundtrip_preserves_arrival_and_destination_logs() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(RestoreOptions::default()).unwrap();
 
     assert_eq!(
         restored.world().resource::<ArrivalLog>().unwrap().len(),
@@ -186,7 +186,7 @@ fn snapshot_roundtrip_preserves_traffic_detector_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(RestoreOptions::default()).unwrap();
 
     let restored_detector = restored.world().resource::<TrafficDetector>().unwrap();
     assert_eq!(

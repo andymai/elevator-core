@@ -88,7 +88,8 @@ fn round_trips_through_snapshot_bytes() {
     sim.set_rider_tag(rider, 0x1122_3344_5566_7788).unwrap();
 
     let bytes = sim.snapshot_bytes().expect("snapshot");
-    let restored = Simulation::restore_bytes(&bytes, None).expect("restore from bytes");
+    let restored = Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+        .expect("restore from bytes");
 
     assert_eq!(
         restored.rider_tag(rider).unwrap(),

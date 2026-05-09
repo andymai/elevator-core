@@ -19,7 +19,9 @@ fn snapshot_roundtrip_preserves_tick() {
     let snap = sim.snapshot();
     assert_eq!(snap.tick, 100);
 
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
     assert_eq!(restored.current_tick(), 100);
 }
 
@@ -39,7 +41,9 @@ fn snapshot_roundtrip_preserves_riders() {
     }
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Rider count should match.
     let original_count = sim.world().iter_riders().count();
@@ -53,7 +57,9 @@ fn snapshot_roundtrip_preserves_stop_lookup() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // All stop IDs should resolve.
     assert!(restored.stop_entity(StopId(0)).is_some());
@@ -73,7 +79,9 @@ fn snapshot_roundtrip_preserves_metrics() {
 
     let original_delivered = sim.metrics().total_delivered();
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     assert_eq!(restored.metrics().total_delivered(), original_delivered);
 }
@@ -109,7 +117,9 @@ fn restored_sim_can_continue_stepping() {
     }
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Should be able to keep stepping without panics.
     for _ in 0..200 {
@@ -132,7 +142,9 @@ fn snapshot_remaps_entity_ids_for_mid_route_riders() {
     }
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Riders should still have valid routes pointing to real stops.
     for (_, rider) in restored.world().iter_riders() {
@@ -174,7 +186,9 @@ fn snapshot_roundtrip_via_ron_preserves_cross_references() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&snap).unwrap();
     let deserialized: crate::snapshot::WorldSnapshot = ron::from_str(&ron_str).unwrap();
-    let mut restored = deserialized.restore(None).unwrap();
+    let mut restored = deserialized
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Should complete without panics and deliver riders.
     for _ in 0..2000 {
@@ -203,7 +217,9 @@ fn snapshot_preserves_metric_tags() {
     assert!(original_spawned > 0);
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let restored_spawned = restored
         .metrics_for_tag("zone:lobby")
@@ -230,7 +246,9 @@ fn snapshot_preserves_extension_components() {
     );
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Register the extension type on the restored world, then load.
     restored
@@ -267,7 +285,9 @@ fn load_extensions_with_convenience() {
     );
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let unregistered = restored.load_extensions_with(|world| {
         world.register_ext::<VipTag>(ExtKey::from_type_name());
@@ -307,7 +327,9 @@ fn load_extensions_reports_unregistered_types() {
     );
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     // Load without registering VipTag — should report it as unregistered.
     let unregistered = restored.load_extensions();
@@ -326,7 +348,9 @@ fn snapshot_bytes_roundtrip() {
 
     let bytes = sim.snapshot_bytes().unwrap();
     assert!(!bytes.is_empty());
-    let restored = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap();
+    let restored =
+        crate::sim::Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+            .unwrap();
     assert_eq!(restored.current_tick(), sim.current_tick());
     assert_eq!(
         restored.metrics().total_delivered(),
@@ -341,7 +365,9 @@ fn snapshot_bytes_rejects_wrong_magic() {
     let mut bytes = sim.snapshot_bytes().unwrap();
     // The magic is serialized first — flip a byte inside the first 8.
     bytes[0] ^= 0xFF;
-    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    let err =
+        crate::sim::Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+            .unwrap_err();
     assert!(
         matches!(err, crate::error::SimError::SnapshotFormat(_)),
         "expected SnapshotFormat, got {err:?}",
@@ -368,7 +394,9 @@ fn snapshot_bytes_rejects_wrong_version() {
     };
     let bytes = postcard::to_allocvec(&fake).unwrap();
 
-    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    let err =
+        crate::sim::Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+            .unwrap_err();
     match err {
         crate::error::SimError::SnapshotVersion { saved, current } => {
             assert_eq!(saved, "0.0.0-definitely-not-real");
@@ -387,7 +415,9 @@ fn snapshot_bytes_rejects_trailing_bytes() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let mut bytes = sim.snapshot_bytes().unwrap();
     bytes.extend_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
-    let err = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap_err();
+    let err =
+        crate::sim::Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+            .unwrap_err();
     match err {
         crate::error::SimError::SnapshotFormat(msg) => {
             assert!(
@@ -401,7 +431,11 @@ fn snapshot_bytes_rejects_trailing_bytes() {
 
 #[test]
 fn snapshot_bytes_rejects_garbage() {
-    let err = crate::sim::Simulation::restore_bytes(&[1, 2, 3, 4], None).unwrap_err();
+    let err = crate::sim::Simulation::restore_bytes(
+        &[1, 2, 3, 4],
+        crate::snapshot::RestoreOptions::default(),
+    )
+    .unwrap_err();
     assert!(matches!(err, crate::error::SimError::SnapshotFormat(_)));
 }
 
@@ -430,7 +464,9 @@ fn snapshot_bytes_midrun_determinism() {
         via_snapshot.step();
     }
     let bytes = via_snapshot.snapshot_bytes().unwrap();
-    let mut via_snapshot = crate::sim::Simulation::restore_bytes(&bytes, None).unwrap();
+    let mut via_snapshot =
+        crate::sim::Simulation::restore_bytes(&bytes, crate::snapshot::RestoreOptions::default())
+            .unwrap();
 
     for _ in 0..250 {
         fresh.step();
@@ -461,7 +497,9 @@ fn snapshot_preserves_hall_calls_and_pinning() {
     sim.pin_assignment(car, stop, CallDirection::Up).unwrap();
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let restored_stop = restored.stop_entity(StopId(1)).unwrap();
     let call = restored
@@ -492,7 +530,9 @@ fn snapshot_preserves_car_calls() {
     assert_eq!(sim.car_calls(car).len(), 1);
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let restored_car = ElevatorId::from(restored.world().elevator_ids()[0]);
     let calls = restored.car_calls(restored_car);
@@ -511,7 +551,9 @@ fn snapshot_preserves_group_hall_mode_and_ack_latency() {
     sim.groups_mut()[0].set_ack_latency_ticks(12);
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     assert_eq!(
         restored.groups()[0].hall_call_mode(),
@@ -544,7 +586,9 @@ fn snapshot_preserves_hall_call_ack_state_under_latency() {
         .press_tick;
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).unwrap();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
 
     let restored_stop = restored.stop_entity(StopId(1)).unwrap();
     let call = restored
@@ -571,7 +615,7 @@ fn restore_rejects_mismatched_schema_version() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let mut snap = sim.snapshot();
     snap.version = u32::MAX;
-    let result = snap.restore(None);
+    let result = snap.restore(crate::snapshot::RestoreOptions::default());
     assert!(
         matches!(result, Err(SimError::SnapshotVersion { .. })),
         "mismatched schema version must be rejected, got {result:?}"
@@ -589,7 +633,7 @@ fn restore_rejects_legacy_zero_version() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
     let mut snap = sim.snapshot();
     snap.version = 0;
-    let result = snap.restore(None);
+    let result = snap.restore(crate::snapshot::RestoreOptions::default());
     assert!(matches!(result, Err(SimError::SnapshotVersion { .. })));
 }
 
@@ -606,7 +650,9 @@ fn snapshot_roundtrip_emits_no_dangling_warnings() {
     sim.drain_events();
 
     let snap = sim.snapshot();
-    let mut restored = snap.restore(None).unwrap();
+    let mut restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
     let events = restored.drain_events();
     let dangling = events
         .iter()
@@ -710,7 +756,9 @@ fn etd_tuned_weights_survive_snapshot_round_trip() {
     }
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).expect("restore");
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .expect("restore");
 
     let dispatcher = restored
         .dispatchers()
@@ -750,7 +798,9 @@ fn rsr_tuned_weights_survive_snapshot_round_trip() {
     }
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).expect("restore");
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .expect("restore");
     let dispatcher = restored.dispatchers().values().next().unwrap();
     let serialized = dispatcher.snapshot_config().unwrap();
     let parsed: RsrDispatch = ron::from_str(&serialized).expect("round-trip parse");
@@ -812,7 +862,9 @@ fn destination_tuned_config_survives_snapshot_round_trip() {
     }
 
     let snap = sim.snapshot();
-    let restored = snap.restore(None).expect("restore");
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .expect("restore");
     let dispatcher = restored.dispatchers().values().next().unwrap();
     let serialized = dispatcher.snapshot_config().unwrap();
     // DestinationDispatch's config fields are `pub(crate)`, so
@@ -927,8 +979,11 @@ fn snapshot_bytes_roundtrip_is_byte_stable() {
     let sim = diverse_phase_sim();
     let bytes_before = sim.snapshot_bytes().expect("initial snapshot_bytes");
 
-    let restored =
-        crate::sim::Simulation::restore_bytes(&bytes_before, None).expect("restore_bytes");
+    let restored = crate::sim::Simulation::restore_bytes(
+        &bytes_before,
+        crate::snapshot::RestoreOptions::default(),
+    )
+    .expect("restore_bytes");
     let bytes_after = restored
         .snapshot_bytes()
         .expect("post-restore snapshot_bytes");
@@ -1008,8 +1063,11 @@ fn snapshot_bytes_with_reposition_cooldowns_roundtrip_is_stable() {
     sim.world_mut().insert_resource(cooldowns);
 
     let bytes_before = sim.snapshot_bytes().expect("initial snapshot_bytes");
-    let restored =
-        crate::sim::Simulation::restore_bytes(&bytes_before, None).expect("restore_bytes");
+    let restored = crate::sim::Simulation::restore_bytes(
+        &bytes_before,
+        crate::snapshot::RestoreOptions::default(),
+    )
+    .expect("restore_bytes");
     let bytes_after = restored
         .snapshot_bytes()
         .expect("post-restore snapshot_bytes");
