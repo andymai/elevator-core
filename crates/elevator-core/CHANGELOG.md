@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.1.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.0.0...elevator-core-v20.1.0) (2026-05-09)
+
+
+### Features
+
+* **world:** add iter_hall_calls_with_id for shape parity ([#788](https://github.com/andymai/elevator-core/issues/788)) ([dab2aea](https://github.com/andymai/elevator-core/commit/dab2aea4b5f2d5afc0eaf0087fcfbfdb4703f69b))
+
 ## [20.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.4.0...elevator-core-v20.0.0) (2026-05-09)
 
 
