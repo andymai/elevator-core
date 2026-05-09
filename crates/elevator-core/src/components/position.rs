@@ -7,12 +7,13 @@ use std::fmt;
 ///
 /// # Display
 ///
-/// Formats as a compact distance string:
+/// Formats as a bare numeric value to two decimals; hosts suffix
+/// their own unit label (the engine doesn't pin a distance unit).
 ///
 /// ```
 /// # use elevator_core::components::Position;
 /// let pos = Position::from(4.5);
-/// assert_eq!(format!("{pos}"), "4.50m");
+/// assert_eq!(format!("{pos}"), "4.50");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Position {
@@ -39,7 +40,7 @@ impl Position {
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}m", self.value)
+        write!(f, "{:.2}", self.value)
     }
 }
 
@@ -57,14 +58,15 @@ impl From<f64> for Position {
 ///
 /// # Display
 ///
-/// Formats as a compact speed string:
+/// Formats as a bare numeric value to two decimals; hosts suffix
+/// their own unit label (the engine doesn't pin a distance unit).
 ///
 /// ```
 /// # use elevator_core::components::Velocity;
 /// let vel = Velocity::from(1.2);
-/// assert_eq!(format!("{vel}"), "1.20m/s");
+/// assert_eq!(format!("{vel}"), "1.20");
 /// let stopped = Velocity::from(0.0);
-/// assert_eq!(format!("{stopped}"), "0.00m/s");
+/// assert_eq!(format!("{stopped}"), "0.00");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Velocity {
@@ -91,7 +93,7 @@ impl Velocity {
 
 impl fmt::Display for Velocity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}m/s", self.value)
+        write!(f, "{:.2}", self.value)
     }
 }
 

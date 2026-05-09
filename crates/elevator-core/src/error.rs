@@ -333,7 +333,10 @@ pub struct RejectionContext {
 }
 
 impl fmt::Display for RejectionContext {
-    /// Compact summary for game feedback.
+    /// Compact summary for game feedback. The numeric values share the
+    /// same unit as [`Weight`](crate::components::Weight) — bare
+    /// numbers, no hardcoded suffix; hosts suffix their own unit label
+    /// downstream.
     ///
     /// ```
     /// # use elevator_core::error::RejectionContext;
@@ -343,20 +346,20 @@ impl fmt::Display for RejectionContext {
     ///     current_load: OrderedFloat(750.0),
     ///     capacity: OrderedFloat(800.0),
     /// };
-    /// assert_eq!(format!("{ctx}"), "over capacity by 30.0kg (750.0/800.0 + 80.0)");
+    /// assert_eq!(format!("{ctx}"), "over capacity by 30.0 (750.0/800.0 + 80.0)");
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let excess = (*self.current_load + *self.attempted_weight) - *self.capacity;
         if excess > 0.0 {
             write!(
                 f,
-                "over capacity by {excess:.1}kg ({:.1}/{:.1} + {:.1})",
+                "over capacity by {excess:.1} ({:.1}/{:.1} + {:.1})",
                 *self.current_load, *self.capacity, *self.attempted_weight,
             )
         } else {
             write!(
                 f,
-                "load {:.1}kg/{:.1}kg + {:.1}kg",
+                "load {:.1}/{:.1} + {:.1}",
                 *self.current_load, *self.capacity, *self.attempted_weight,
             )
         }
