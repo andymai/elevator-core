@@ -4,7 +4,9 @@
 //! monolithic `sim.rs` for readability. See the parent module for the
 //! overarching essential-API summary.
 
-use crate::components::{CallDirection, Rider, RiderPhase, Route, Weight};
+use crate::components::{
+    AccessControl, CallDirection, Patience, Preferences, Rider, RiderPhase, Route, Weight,
+};
 use crate::dispatch::{ElevatorGroup, HallCallMode};
 use crate::entity::{EntityId, RiderId};
 use crate::error::SimError;
@@ -405,5 +407,173 @@ impl super::Simulation {
             _ => None,
         };
         self.ensure_hall_call(stop, direction, Some(rider), dest);
+    }
+}
+
+/// Fluent builder for spawning riders with optional configuration.
+///
+/// Created via [`super::Simulation::build_rider`].
+///
+/// ```
+/// use elevator_core::prelude::*;
+///
+/// let mut sim = SimulationBuilder::demo().build().unwrap();
+/// let rider = sim.build_rider(StopId(0), StopId(1))
+///     .unwrap()
+///     .weight(80.0)
+///     .spawn()
+///     .unwrap();
+/// ```
+pub struct RiderBuilder<'a> {
+    /// Mutable reference to the simulation (consumed on spawn).
+    pub(super) sim: &'a mut super::Simulation,
+    /// Origin stop entity.
+    pub(super) origin: EntityId,
+    /// Destination stop entity.
+    pub(super) destination: EntityId,
+    /// Rider weight (default: 75.0).
+    pub(super) weight: Weight,
+    /// Explicit dispatch group (skips auto-detection).
+    pub(super) group: Option<GroupId>,
+    /// Explicit multi-leg route.
+    pub(super) route: Option<Route>,
+    /// Maximum wait ticks before abandoning.
+    pub(super) patience: Option<u64>,
+    /// Boarding preferences.
+    pub(super) preferences: Option<Preferences>,
+    /// Per-rider access control.
+    pub(super) access_control: Option<AccessControl>,
+}
+
+impl RiderBuilder<'_> {
+    /// Set the rider's weight (default: 75.0).
+    #[must_use]
+    pub fn weight(mut self, weight: impl Into<Weight>) -> Self {
+        self.weight = weight.into();
+        self
+    }
+
+    /// Set the dispatch group explicitly, skipping auto-detection.
+    #[must_use]
+    pub const fn group(mut self, group: GroupId) -> Self {
+        self.group = Some(group);
+        self
+    }
+
+    /// Provide an explicit multi-leg route.
+    #[must_use]
+    pub fn route(mut self, route: Route) -> Self {
+        self.route = Some(route);
+        self
+    }
+
+    /// Set maximum wait ticks before the rider abandons.
+    #[must_use]
+    pub const fn patience(mut self, max_wait_ticks: u64) -> Self {
+        self.patience = Some(max_wait_ticks);
+        self
+    }
+
+    /// Set boarding preferences.
+    #[must_use]
+    pub const fn preferences(mut self, prefs: Preferences) -> Self {
+        self.preferences = Some(prefs);
+        self
+    }
+
+    /// Set per-rider access control (allowed stops).
+    #[must_use]
+    pub fn access_control(mut self, ac: AccessControl) -> Self {
+        self.access_control = Some(ac);
+        self
+    }
+
+    /// Spawn the rider with the configured options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimError::NoRoute`] if no group serves both stops (when auto-detecting).
+    /// Returns [`SimError::AmbiguousRoute`] if multiple groups serve both stops (when auto-detecting).
+    /// Returns [`SimError::GroupNotFound`] if an explicit group does not exist.
+    /// Returns [`SimError::RouteOriginMismatch`] if an explicit route's first leg
+    /// does not start at `origin`.
+    pub fn spawn(self) -> Result<RiderId, SimError> {
+        let route = if let Some(route) = self.route {
+            // Validate route origin matches the spawn origin.
+            if let Some(leg) = route.current()
+                && leg.from != self.origin
+            {
+                return Err(SimError::RouteOriginMismatch {
+                    expected_origin: self.origin,
+                    route_origin: leg.from,
+                });
+            }
+            route
+        } else {
+            // No explicit route: must build one from origin → destination.
+            // Same origin/destination produces a Route::direct that no hall
+            // call can summon a car for — rider deadlocks Waiting (#273).
+            // The route-supplied path above is exempt from this check: a
+            // caller that constructs their own Route presumably also drives
+            // the corresponding hall-call / dispatch path, so the
+            // same-stop case there is their responsibility, not ours.
+            if self.origin == self.destination {
+                return Err(SimError::InvalidConfig {
+                    field: "destination",
+                    reason: "origin and destination must differ; same-stop \
+                             spawns deadlock with no hall call to summon a car"
+                        .into(),
+                });
+            }
+            if let Some(group) = self.group {
+                if !self.sim.groups.iter().any(|g| g.id() == group) {
+                    return Err(SimError::GroupNotFound(group));
+                }
+                Route::direct(self.origin, self.destination, group)
+            } else {
+                // Auto-detect the single-group case first; on `NoRoute` or
+                // `AmbiguousRoute`, fall back to the multi-leg topology
+                // search so zoned buildings and specialty-overlap floors
+                // work through the plain `spawn_rider` API without callers
+                // having to thread a group pick through transfer points.
+                match self.sim.auto_detect_group(self.origin, self.destination) {
+                    Ok(group) => Route::direct(self.origin, self.destination, group),
+                    Err(
+                        original @ (SimError::NoRoute { .. } | SimError::AmbiguousRoute { .. }),
+                    ) => match self.sim.shortest_route(self.origin, self.destination) {
+                        Some(route) => route,
+                        // Preserve the original diagnostic context (which
+                        // groups serve origin / destination) so callers
+                        // still see the misconfiguration, not just a
+                        // bare "no route" from the fallback.
+                        None => return Err(original),
+                    },
+                    Err(other) => return Err(other),
+                }
+            }
+        };
+
+        let eid = self
+            .sim
+            .spawn_rider_inner(self.origin, self.destination, self.weight, route);
+
+        // Apply optional components.
+        if let Some(max_wait) = self.patience {
+            self.sim.world.set_patience(
+                eid,
+                Patience {
+                    max_wait_ticks: max_wait,
+                    waited_ticks: 0,
+                },
+            );
+        }
+        if let Some(prefs) = self.preferences {
+            self.sim.world.set_preferences(eid, prefs);
+        }
+        if let Some(ac) = self.access_control {
+            self.sim.world.set_access_control(eid, ac);
+        }
+
+        Ok(RiderId::wrap_unchecked(eid))
     }
 }
