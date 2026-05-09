@@ -1,5 +1,6 @@
 ---
 source: crates/elevator-tui/tests/render_snapshot.rs
+assertion_line: 94
 expression: frame
 ---
  elevator-tui · tick 60 · ▶ 1.00× · index · drilldown                                               
@@ -8,8 +9,8 @@ expression: frame
 │  Ground      ╭┤ drill-down · EntityId(4v1) · Esc to close ├───────────────────────╮              │
 │              │phase     MovingToStop(EntityId(2v1))                               │              │
 │              │door      Closed                                                    │              │
-│              │load      75.00kg / 800.00kg                                        │──────────────╯
-│              │speed     max 2.00m/s / accel 1.50m/s² / decel 2.00m/s²             │──────────────╮
+│              │load      75.00 / 800.00                                            │──────────────╯
+│              │speed     max 2.00 / accel 1.50 / decel 2.00                        │──────────────╮
 │              │position  0.34                                                      │              │
 │              │                                                                    │              │
 │              │queue (1 stops)                                                     │              │

@@ -53,13 +53,25 @@ macro_rules! impl_unit_from_f64 {
 
 /// Weight / mass (always non-negative).
 ///
-/// Used for rider weight, elevator load, and weight capacity.
+/// Used for rider weight, elevator load, and weight capacity. The
+/// crate is unit-agnostic — "kg" is a convention but the engine
+/// supports any consistent unit (the space-elevator config uses
+/// tonnes). `Display` formats the bare numeric value to two decimals
+/// so hosts can suffix their own unit label.
+///
+/// # Arithmetic
+///
+/// `Add` / `AddAssign` sum normally. `Sub` / `SubAssign` **saturate
+/// at zero** — `Weight(50.0) - Weight(80.0) == Weight(0.0)` rather
+/// than panicking or returning a negative value, since the type
+/// constructor rejects negatives. Same saturating contract applies
+/// to [`Speed`] and [`Accel`].
 ///
 /// ```
 /// # use elevator_core::components::Weight;
 /// let w = Weight::from(75.0);
 /// assert_eq!(w.value(), 75.0);
-/// assert_eq!(format!("{w}"), "75.00kg");
+/// assert_eq!(format!("{w}"), "75.00");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -104,7 +116,7 @@ impl Weight {
 
 impl fmt::Display for Weight {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}kg", self.value)
+        write!(f, "{:.2}", self.value)
     }
 }
 
@@ -142,10 +154,20 @@ impl std::ops::SubAssign for Weight {
 
 /// Maximum travel speed (always non-negative, distance units per second).
 ///
+/// Distance unit follows whatever the host chose for `Position` —
+/// the engine never converts. `Display` formats the bare numeric
+/// value to two decimals; hosts suffix their own unit label.
+///
+/// # Arithmetic
+///
+/// Same saturating contract as [`Weight`]: `Sub` / `SubAssign`
+/// clamp underflow to zero rather than producing a negative value
+/// the constructor would reject.
+///
 /// ```
 /// # use elevator_core::components::Speed;
 /// let s = Speed::from(2.0);
-/// assert_eq!(format!("{s}"), "2.00m/s");
+/// assert_eq!(format!("{s}"), "2.00");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -186,18 +208,53 @@ impl Speed {
 
 impl fmt::Display for Speed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}m/s", self.value)
+        write!(f, "{:.2}", self.value)
     }
 }
 
 impl_unit_from_f64!(Speed);
 
+impl std::ops::Add for Speed {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            value: self.value + rhs.value,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Speed {
+    fn add_assign(&mut self, rhs: Self) {
+        self.value += rhs.value;
+    }
+}
+
+impl std::ops::Sub for Speed {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            value: (self.value - rhs.value).max(0.0),
+        }
+    }
+}
+
+impl std::ops::SubAssign for Speed {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.value = (self.value - rhs.value).max(0.0);
+    }
+}
+
 /// Acceleration / deceleration rate (always non-negative, distance units per second²).
+///
+/// Same unit-agnostic convention as [`Speed`] — `Display` is the bare
+/// numeric value to two decimals; hosts label the unit downstream.
+/// `Sub` / `SubAssign` saturate at zero, matching the [`Weight`]
+/// and [`Speed`] arithmetic contract.
 ///
 /// ```
 /// # use elevator_core::components::Accel;
 /// let a = Accel::from(1.5);
-/// assert_eq!(format!("{a}"), "1.50m/s²");
+/// assert_eq!(format!("{a}"), "1.50");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -238,8 +295,38 @@ impl Accel {
 
 impl fmt::Display for Accel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}m/s²", self.value)
+        write!(f, "{:.2}", self.value)
     }
 }
 
 impl_unit_from_f64!(Accel);
+
+impl std::ops::Add for Accel {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            value: self.value + rhs.value,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Accel {
+    fn add_assign(&mut self, rhs: Self) {
+        self.value += rhs.value;
+    }
+}
+
+impl std::ops::Sub for Accel {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            value: (self.value - rhs.value).max(0.0),
+        }
+    }
+}
+
+impl std::ops::SubAssign for Accel {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.value = (self.value - rhs.value).max(0.0);
+    }
+}
