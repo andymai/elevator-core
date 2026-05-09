@@ -59,6 +59,14 @@ macro_rules! impl_unit_from_f64 {
 /// tonnes). `Display` formats the bare numeric value to two decimals
 /// so hosts can suffix their own unit label.
 ///
+/// # Arithmetic
+///
+/// `Add` / `AddAssign` sum normally. `Sub` / `SubAssign` **saturate
+/// at zero** — `Weight(50.0) - Weight(80.0) == Weight(0.0)` rather
+/// than panicking or returning a negative value, since the type
+/// constructor rejects negatives. Same saturating contract applies
+/// to [`Speed`] and [`Accel`].
+///
 /// ```
 /// # use elevator_core::components::Weight;
 /// let w = Weight::from(75.0);
@@ -150,6 +158,12 @@ impl std::ops::SubAssign for Weight {
 /// the engine never converts. `Display` formats the bare numeric
 /// value to two decimals; hosts suffix their own unit label.
 ///
+/// # Arithmetic
+///
+/// Same saturating contract as [`Weight`]: `Sub` / `SubAssign`
+/// clamp underflow to zero rather than producing a negative value
+/// the constructor would reject.
+///
 /// ```
 /// # use elevator_core::components::Speed;
 /// let s = Speed::from(2.0);
@@ -234,6 +248,8 @@ impl std::ops::SubAssign for Speed {
 ///
 /// Same unit-agnostic convention as [`Speed`] — `Display` is the bare
 /// numeric value to two decimals; hosts label the unit downstream.
+/// `Sub` / `SubAssign` saturate at zero, matching the [`Weight`]
+/// and [`Speed`] arithmetic contract.
 ///
 /// ```
 /// # use elevator_core::components::Accel;
