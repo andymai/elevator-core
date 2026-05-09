@@ -1038,3 +1038,32 @@ fn snapshot_ron_roundtrip_is_byte_stable() {
         "WorldSnapshot RON: serialize -> deserialize -> serialize must be byte-stable"
     );
 }
+
+#[test]
+fn migrate_passes_through_current_version_snapshot() {
+    let sim = diverse_phase_sim();
+    let snap = sim.snapshot();
+    let original_version = snap.version;
+    let migrated = snap.migrate().expect("current-version snapshot migrates");
+    assert_eq!(migrated.version, original_version);
+    assert_eq!(
+        migrated.version,
+        crate::snapshot::WorldSnapshot::CURRENT_SCHEMA_VERSION,
+    );
+}
+
+#[test]
+fn migrate_rejects_unknown_version() {
+    let sim = diverse_phase_sim();
+    let mut snap = sim.snapshot();
+    // Pretend the snapshot came from a future build by jumping past
+    // CURRENT_SCHEMA_VERSION; no migration arm matches, so migrate
+    // returns SnapshotVersion. Same path covers a version below the
+    // current with no upgrade registered.
+    snap.version = crate::snapshot::WorldSnapshot::CURRENT_SCHEMA_VERSION + 7;
+    let err = snap.migrate().expect_err("unknown version must error");
+    assert!(matches!(
+        err,
+        crate::error::SimError::SnapshotVersion { .. }
+    ));
+}
