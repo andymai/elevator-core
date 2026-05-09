@@ -19,6 +19,22 @@ use crate::query::storage::AnyExtMap;
 ///
 /// Constructed via [`ExtKey::new`] with an explicit name, or
 /// [`ExtKey::from_type_name`] which uses `std::any::type_name::<T>()`.
+///
+/// # Snapshot stability
+///
+/// The `name` is the wire-format key for snapshot extension storage.
+/// **Prefer [`ExtKey::new`] with an explicit string for any production
+/// or persisted scenario** — `std::any::type_name::<T>()` is documented
+/// as not guaranteed stable across compilations and can drift in
+/// practice (renamed crates, generic monomorphization choices, future
+/// compiler releases). A snapshot saved on one build profile and
+/// restored on another whose `type_name<T>()` differs will silently
+/// drop the extension data.
+///
+/// `assert_ext_name_unique` (called by `register_ext` and
+/// `insert_ext`) panics on in-process collisions, so in-memory drift
+/// is loud; the silent failure mode is purely a snapshot-restore-on-a
+/// different-build issue.
 #[derive(Debug)]
 pub struct ExtKey<T> {
     /// Human-readable storage name, used for serialization roundtrips.
@@ -45,6 +61,11 @@ impl<T> ExtKey<T> {
     }
 
     /// Create a key using `std::any::type_name::<T>()` as the storage name.
+    ///
+    /// Convenient for prototyping and tests, but the resulting `name`
+    /// is **not snapshot-stable across builds** — see the type-level
+    /// "Snapshot stability" note. Production code that persists
+    /// snapshots should use [`ExtKey::new`] with an explicit name.
     #[must_use]
     pub fn from_type_name() -> Self {
         Self {
