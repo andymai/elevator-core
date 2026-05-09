@@ -864,6 +864,149 @@ impl Event {
             Self::ResidentsAtRemovedStop { .. } => EventKind::ResidentsAtRemovedStop,
         }
     }
+
+    /// Whether this event references the given entity in any of its
+    /// payload fields.
+    ///
+    /// Used by
+    /// [`Simulation::drain_events_for_entity`](crate::sim::Simulation::drain_events_for_entity)
+    /// to provide a closure-free filter that crosses the FFI / wasm /
+    /// gdext boundary. Returns `true` when `id` matches any [`EntityId`]
+    /// field on the variant — for example,
+    /// [`Event::RiderBoarded`] references both `rider` and `elevator`,
+    /// so a query for the elevator and a query for the rider both match
+    /// the same event.
+    ///
+    /// Variants whose only entity-shaped reference is a [`GroupId`]
+    /// (e.g. [`Event::RepositionStrategyNotRestored`]) never match —
+    /// [`GroupId`] is a separate identifier space from [`EntityId`].
+    ///
+    /// ```
+    /// # use elevator_core::events::Event;
+    /// # use elevator_core::entity::EntityId;
+    /// let car = EntityId::default();
+    /// let evt = Event::DoorOpened { elevator: car, tick: 0 };
+    /// assert!(evt.involves(car));
+    /// ```
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    pub fn involves(&self, id: EntityId) -> bool {
+        match self {
+            Self::ElevatorDeparted {
+                elevator,
+                from_stop,
+                ..
+            } => *elevator == id || *from_stop == id,
+            Self::ElevatorArrived {
+                elevator, at_stop, ..
+            } => *elevator == id || *at_stop == id,
+            Self::DoorOpened { elevator, .. } | Self::DoorClosed { elevator, .. } => {
+                *elevator == id
+            }
+            Self::PassingFloor { elevator, stop, .. } => *elevator == id || *stop == id,
+            Self::MovementAborted {
+                elevator,
+                brake_target,
+                ..
+            } => *elevator == id || *brake_target == id,
+            Self::RiderSpawned {
+                rider,
+                origin,
+                destination,
+                ..
+            } => *rider == id || *origin == id || *destination == id,
+            Self::RiderBoarded {
+                rider, elevator, ..
+            } => *rider == id || *elevator == id,
+            Self::RiderExited {
+                rider,
+                elevator,
+                stop,
+                ..
+            } => *rider == id || *elevator == id || *stop == id,
+            Self::RiderRejected {
+                rider, elevator, ..
+            } => *rider == id || *elevator == id,
+            Self::RiderAbandoned { rider, stop, .. } => *rider == id || *stop == id,
+            Self::RiderEjected {
+                rider,
+                elevator,
+                stop,
+                ..
+            } => *rider == id || *elevator == id || *stop == id,
+            Self::ElevatorAssigned { elevator, stop, .. } => *elevator == id || *stop == id,
+            Self::StopAdded { stop, line, .. } => *stop == id || *line == id,
+            Self::ElevatorAdded { elevator, line, .. } => *elevator == id || *line == id,
+            Self::EntityDisabled { entity, .. } | Self::EntityEnabled { entity, .. } => {
+                *entity == id
+            }
+            Self::RouteInvalidated {
+                rider,
+                affected_stop,
+                ..
+            } => *rider == id || *affected_stop == id,
+            Self::RiderRerouted {
+                rider,
+                new_destination,
+                ..
+            } => *rider == id || *new_destination == id,
+            Self::RiderSettled { rider, stop, .. } => *rider == id || *stop == id,
+            Self::RiderDespawned { rider, .. } => *rider == id,
+            Self::LineAdded { line, .. } | Self::LineRemoved { line, .. } => *line == id,
+            Self::LineReassigned { line, .. } => *line == id,
+            Self::ElevatorReassigned {
+                elevator,
+                old_line,
+                new_line,
+                ..
+            } => *elevator == id || *old_line == id || *new_line == id,
+            Self::ElevatorRepositioning {
+                elevator, to_stop, ..
+            } => *elevator == id || *to_stop == id,
+            Self::ElevatorRepositioned {
+                elevator, at_stop, ..
+            } => *elevator == id || *at_stop == id,
+            Self::ElevatorRecalled {
+                elevator, to_stop, ..
+            } => *elevator == id || *to_stop == id,
+            Self::ServiceModeChanged { elevator, .. } => *elevator == id,
+            #[cfg(feature = "energy")]
+            Self::EnergyConsumed { elevator, .. } => *elevator == id,
+            Self::CapacityChanged { elevator, .. } => *elevator == id,
+            Self::ElevatorIdle {
+                elevator, at_stop, ..
+            } => *elevator == id || at_stop.is_some_and(|s| s == id),
+            Self::DirectionIndicatorChanged { elevator, .. } => *elevator == id,
+            Self::ElevatorRemoved { elevator, line, .. } => *elevator == id || *line == id,
+            Self::DestinationQueued { elevator, stop, .. } => *elevator == id || *stop == id,
+            Self::StopRemoved { stop, .. } => *stop == id,
+            Self::DoorCommandQueued { elevator, .. }
+            | Self::DoorCommandApplied { elevator, .. } => *elevator == id,
+            Self::ElevatorUpgraded { elevator, .. } => *elevator == id,
+            Self::ManualVelocityCommanded { elevator, .. } => *elevator == id,
+            Self::HallButtonPressed { stop, .. } | Self::HallCallAcknowledged { stop, .. } => {
+                *stop == id
+            }
+            Self::HallCallCleared { stop, car, .. } => *stop == id || *car == id,
+            Self::CarButtonPressed {
+                car, floor, rider, ..
+            } => *car == id || *floor == id || rider.is_some_and(|r| r == id),
+            Self::RiderSkipped {
+                rider,
+                elevator,
+                at_stop,
+                ..
+            } => *rider == id || *elevator == id || *at_stop == id,
+            Self::SnapshotDanglingReference { stale_id, .. } => *stale_id == id,
+            // GroupId-only payloads have no EntityId to match on.
+            Self::RepositionStrategyNotRestored { .. } | Self::DispatchConfigNotRestored { .. } => {
+                false
+            }
+            Self::ResidentsAtRemovedStop {
+                stop, residents, ..
+            } => *stop == id || residents.contains(&id),
+        }
+    }
 }
 
 /// Identifies which elevator parameter was changed in an
