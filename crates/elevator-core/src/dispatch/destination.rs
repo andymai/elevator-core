@@ -354,6 +354,14 @@ impl DestinationDispatch {
         // (car, candidate-rider) pair each DCS tick, and at the scale of a
         // busy commercial group the Vec clone was the dominant allocation
         // in `pre_dispatch`.
+        //
+        // Invariant: the destination queue must be immutable for the
+        // duration of one DCS pass. `pre_dispatch` calls `rebuild_car_queue`
+        // before any `compute_cost` runs, then leaves the queue alone
+        // until the next pass. Concurrent mutation here would race with
+        // these probes; if you ever need to write to the queue from
+        // inside a `compute_cost` call site, snapshot the relevant
+        // entries into a `SmallVec` at the top of `pre_dispatch` instead.
         let queue_contains = |s: EntityId| {
             world
                 .destination_queue(eid)
