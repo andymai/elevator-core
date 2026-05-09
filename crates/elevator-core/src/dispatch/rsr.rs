@@ -116,6 +116,19 @@ pub struct RsrDispatch {
     /// additively with the other penalty-stack terms.
     #[serde(default)]
     pub age_linear_weight: f64,
+    /// Maximum candidate stops to consider per car when filling the
+    /// assignment cost matrix. Defaults to `Some(50)`; see
+    /// [`DispatchStrategy::candidate_limit`] for the rationale.
+    #[serde(default = "default_candidate_limit")]
+    pub candidate_limit: Option<usize>,
+}
+
+/// Serde default for [`RsrDispatch::candidate_limit`] when restoring
+/// from a pre-pruning snapshot. Matches
+/// [`super::DEFAULT_CANDIDATE_LIMIT`].
+#[allow(clippy::unnecessary_wraps)] // serde default needs Option<usize>, not usize
+const fn default_candidate_limit() -> Option<usize> {
+    Some(super::DEFAULT_CANDIDATE_LIMIT)
 }
 
 impl RsrDispatch {
@@ -142,6 +155,7 @@ impl RsrDispatch {
             load_penalty_coeff: 0.0,
             peak_direction_multiplier: 1.0,
             age_linear_weight: 0.0,
+            candidate_limit: Some(super::DEFAULT_CANDIDATE_LIMIT),
         }
     }
 
@@ -187,6 +201,7 @@ impl RsrDispatch {
             // car off fresh demand faster than it can cycle. 0.002
             // is the tighter balance.
             age_linear_weight: 0.002,
+            candidate_limit: Some(super::DEFAULT_CANDIDATE_LIMIT),
         }
     }
 
@@ -281,6 +296,15 @@ impl RsrDispatch {
             "peak_direction_multiplier must be finite and ≥ 1.0, got {factor}"
         );
         self.peak_direction_multiplier = factor;
+        self
+    }
+
+    /// Set the per-car candidate limit for the assignment cost matrix.
+    /// `None` disables pruning entirely; defaults to `Some(50)`. See
+    /// [`DispatchStrategy::candidate_limit`] for the rationale.
+    #[must_use]
+    pub const fn with_candidate_limit(mut self, limit: Option<usize>) -> Self {
+        self.candidate_limit = limit;
         self
     }
 }
@@ -398,6 +422,10 @@ impl DispatchStrategy for RsrDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Rsr)
+    }
+
+    fn candidate_limit(&self) -> Option<usize> {
+        self.candidate_limit
     }
 
     fn snapshot_config(&self) -> Option<String> {
