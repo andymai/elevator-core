@@ -234,6 +234,10 @@ impl super::Simulation {
             self.world.set_hall_call(call);
             fresh_press = true;
         } else if let Some(existing) = self.world.hall_call_mut(stop, direction) {
+            // Dedup guard: a rider's auto-press at spawn plus a
+            // game-driven `press_hall_button` can target the same
+            // call. Without `contains`, both presses would push the
+            // rider into `pending_riders` twice and double-count.
             if let Some(rid) = rider
                 && !existing.pending_riders.contains(&rid)
             {
