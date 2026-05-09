@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
+            window.path_to_searchindex_js = "searchindex-b2eed9d1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -421,7 +421,8 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 
     // When restoring, the factory maps names back to strategy instances.
     // `restore_config` replays `urgency_boost` onto the new instance.
-    let sim = snapshot.restore(Some(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
+    use elevator_core::snapshot::RestoreOptions;
+    let sim = snapshot.restore(RestoreOptions::with_factory(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
         match name {
             PRIORITY_NAME =&gt; Some(Box::new(PriorityDispatch::default())),
             // Return `None` for unknown names -- the restore records a

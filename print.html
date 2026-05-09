@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
+            window.path_to_searchindex_js = "searchindex-b2eed9d1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -2611,7 +2611,8 @@ fn run(snapshot: WorldSnapshot) -&gt; Result&lt;(), SimError&gt; {
 
     // When restoring, the factory maps names back to strategy instances.
     // `restore_config` replays `urgency_boost` onto the new instance.
-    let sim = snapshot.restore(Some(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
+    use elevator_core::snapshot::RestoreOptions;
+    let sim = snapshot.restore(RestoreOptions::with_factory(&amp;|name: &amp;str| -&gt; Option&lt;Box&lt;dyn DispatchStrategy&gt;&gt; {
         match name {
             PRIORITY_NAME =&gt; Some(Box::new(PriorityDispatch::default())),
             // Return `None` for unknown names -- the restore records a
@@ -2827,8 +2828,9 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
+</span><span class="boring">use elevator_core::snapshot::RestoreOptions;
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
-</span>let mut sim = snapshot.restore(None).unwrap();
+</span>let mut sim = snapshot.restore(RestoreOptions::default()).unwrap();
 sim.world_mut().register_ext::&lt;GuestPriority&gt;(ExtKey::from_type_name());
 sim.load_extensions();
 <span class="boring">}
@@ -3490,13 +3492,15 @@ std::fs::write("save.ron", bytes).unwrap();
 <pre class="playground"><code class="language-rust no_run"><span class="boring">use elevator_core::prelude::*;
 </span><span class="boring">use elevator_core::__doctest_prelude::*;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
+</span><span class="boring">use elevator_core::snapshot::RestoreOptions;
 </span><span class="boring">fn main() -&gt; Result&lt;(), SimError&gt; {
 </span>let bytes = std::fs::read_to_string("save.ron").unwrap();
 let snapshot: WorldSnapshot = ron::from_str(&amp;bytes).unwrap();
 
-// `None` means "only built-in dispatch strategies"; pass a closure to
-// resurrect custom strategies registered by name.
-let sim = snapshot.restore(None)?;
+// `RestoreOptions::default()` means "only built-in dispatch strategies";
+// use `RestoreOptions::with_factory(...)` to resurrect custom strategies
+// registered by name.
+let sim = snapshot.restore(RestoreOptions::default())?;
 <span class="boring">Ok(())
 </span><span class="boring">}</span></code></pre>
 <h3 id="entity-id-remapping"><a class="header" href="#entity-id-remapping">Entity ID remapping</a></h3>
@@ -3512,9 +3516,10 @@ let sim = snapshot.restore(None)?;
 </span><span class="boring">impl DispatchStrategy for HighestFirstDispatch {
 </span><span class="boring">  fn rank(&amp;self, _ctx: &amp;RankContext&lt;'_&gt;) -&gt; Option&lt;f64&gt; { Some(0.0) }
 </span><span class="boring">}
+</span><span class="boring">use elevator_core::snapshot::RestoreOptions;
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
-</span>let sim = snapshot.restore(Some(&amp;|name: &amp;str| match name {
-    "HighestFirst" =&gt; Some(Box::new(HighestFirstDispatch)),
+</span>let sim = snapshot.restore(RestoreOptions::with_factory(&amp;|name: &amp;str| match name {
+    "HighestFirst" =&gt; Some(Box::new(HighestFirstDispatch) as Box&lt;dyn DispatchStrategy&gt;),
     _ =&gt; None,
 }));
 <span class="boring">}
@@ -3529,8 +3534,9 @@ let sim = snapshot.restore(None)?;
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct VipTag;
+</span><span class="boring">use elevator_core::snapshot::RestoreOptions;
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
-</span>let mut sim = snapshot.restore(None).unwrap();
+</span>let mut sim = snapshot.restore(RestoreOptions::default()).unwrap();
 sim.world_mut().register_ext::&lt;VipTag&gt;(ExtKey::from_type_name());
 sim.load_extensions();
 <span class="boring">}
@@ -3906,7 +3912,7 @@ fn snapshot_roundtrip_preserves_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&amp;snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&amp;ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(elevator_core::snapshot::RestoreOptions::default()).unwrap();
 
     assert_eq!(restored.current_tick(), original_tick);
     assert_eq!(restored.metrics().total_delivered(), original_delivered);

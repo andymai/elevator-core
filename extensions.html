@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
+            window.path_to_searchindex_js = "searchindex-b2eed9d1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -337,8 +337,9 @@ if let Some(value) = sim.world_mut().resource_mut::&lt;u32&gt;() {
 </span><span class="boring">use elevator_core::snapshot::WorldSnapshot;
 </span><span class="boring">use serde::{Serialize, Deserialize};
 </span><span class="boring">#[derive(Clone, Serialize, Deserialize)] struct GuestPriority { priority_class: u8, suite_floor: u32 }
+</span><span class="boring">use elevator_core::snapshot::RestoreOptions;
 </span><span class="boring">fn run(snapshot: WorldSnapshot) {
-</span>let mut sim = snapshot.restore(None).unwrap();
+</span>let mut sim = snapshot.restore(RestoreOptions::default()).unwrap();
 sim.world_mut().register_ext::&lt;GuestPriority&gt;(ExtKey::from_type_name());
 sim.load_extensions();
 <span class="boring">}

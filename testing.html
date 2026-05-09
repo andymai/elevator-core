@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d7fc1b1e.js";
+            window.path_to_searchindex_js = "searchindex-b2eed9d1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-74aa4021.js"></script>
@@ -275,7 +275,7 @@ fn snapshot_roundtrip_preserves_state() {
     let snap = sim.snapshot();
     let ron_str = ron::to_string(&amp;snap).unwrap();
     let snap2: WorldSnapshot = ron::from_str(&amp;ron_str).unwrap();
-    let restored = snap2.restore(None).unwrap();
+    let restored = snap2.restore(elevator_core::snapshot::RestoreOptions::default()).unwrap();
 
     assert_eq!(restored.current_tick(), original_tick);
     assert_eq!(restored.metrics().total_delivered(), original_delivered);
