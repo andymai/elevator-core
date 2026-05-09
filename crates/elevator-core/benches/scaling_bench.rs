@@ -93,6 +93,40 @@ fn bench_realistic(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 // B) Extreme scale: 500 elevators / 5000 stops / 50k riders
 // ---------------------------------------------------------------------------
+//
+// Per-tick cost at this scale runs ~1000× the `scaling_realistic`
+// case (50e / 200s / 2000r) — much steeper than the input-size ratio
+// of 250× (10× elevators × 25× stops). Three nested scaling factors
+// dominate, ordered by likely contribution:
+//
+//   1. **Hungarian assignment** in `dispatch::assign_with_scratch`.
+//      With 500 idle cars × ~4500 pending stops (50000 riders spread
+//      across 5000 stops leave nearly every stop with demand), the
+//      cost matrix is 500×4500. `kuhn_munkres_min` pads to square and
+//      runs O(max(rows, cols)^3) = O(4500^3) ≈ 9 × 10^10 ops. The
+//      pathfinding crate's implementation is sparse-aware and
+//      collapses sentinel-cost rows quickly, but this remains the
+//      single largest term.
+//
+//   2. **`rank()` calls per matrix cell**: 500 × 4500 ≈ 2.25M cells,
+//      and `Scan::rank` does a distance + direction-check per call
+//      (~100ns). ~225ms per tick on its own.
+//
+//   3. **`pending_stops_minus_covered`**: 5000 stops × `is_covered`'s
+//      O(servicing + riders_at_stop) per stop. With ~500 servicing
+//      entries and ~10 riders per stop, ~25M ops per tick.
+//
+// 100ms+ floor from build_manifest cloning HallCalls × pending_riders
+// rounds out the budget.
+//
+// The scaling curve is fundamentally O(n × m) for matrix fill plus
+// O(m^3) for the Hungarian, where n = idle cars and m = pending
+// stops. The audit's "super-linear" observation is the m^3 term
+// surfacing once m crosses ~thousands. Bringing m down — through
+// finer group partitioning so each group's Hungarian sees a smaller
+// candidate set — is the main lever; replacing the assignment
+// algorithm has been ruled out (LAPJV is 10× slower at this matrix
+// shape per `project_lapjv_ruled_out` memory).
 
 fn bench_extreme(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaling_extreme");
