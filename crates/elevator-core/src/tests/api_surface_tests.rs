@@ -579,6 +579,99 @@ fn drain_events_where_with_no_match_returns_empty_and_retains_all() {
     );
 }
 
+// ── drain_events_for_entity ───────────────────────────────────────────────────
+
+#[test]
+fn drain_events_for_entity_returns_only_matching_events() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    for _ in 0..5 {
+        sim.step();
+    }
+
+    let rider_events = sim.drain_events_for_entity(rider_id.entity());
+    assert!(
+        !rider_events.is_empty(),
+        "rider must accumulate at least one event over 5 ticks"
+    );
+    for e in &rider_events {
+        assert!(
+            e.involves(rider_id.entity()),
+            "drain_events_for_entity returned an event that doesn't reference the queried id: {e:?}"
+        );
+    }
+}
+
+#[test]
+fn drain_events_for_entity_partitions_with_drain_events() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    for _ in 0..5 {
+        sim.step();
+    }
+
+    let rider = sim.drain_events_for_entity(rider_id.entity());
+    let remaining = sim.drain_events();
+
+    // Filtered partition is disjoint: nothing in remaining references the rider.
+    for e in &remaining {
+        assert!(
+            !e.involves(rider_id.entity()),
+            "leftover event after drain_events_for_entity still references rider: {e:?}"
+        );
+    }
+    // Sanity: the rider-drain contains at least the spawn event.
+    assert!(
+        rider
+            .iter()
+            .any(|e| matches!(e, Event::RiderSpawned { .. }))
+    );
+}
+
+#[test]
+fn drain_events_for_entity_matches_multi_role_events() {
+    // A RiderBoarded event references both rider and elevator. A query
+    // for either entity must return the same event.
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let rider_id = sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    let elevator_id = sim.groups()[0].elevator_entities()[0];
+
+    // Run until the rider has boarded — produces a RiderBoarded event.
+    for _ in 0..300 {
+        sim.step();
+        if matches!(
+            sim.world().rider(rider_id.entity()).unwrap().phase,
+            RiderPhase::Riding(_)
+        ) {
+            break;
+        }
+    }
+
+    // Drain everything to a buffer, then check the boarded event involves both.
+    let all = sim.drain_events();
+    let boarded: Vec<_> = all
+        .iter()
+        .filter(|e| matches!(e, Event::RiderBoarded { .. }))
+        .collect();
+    assert!(!boarded.is_empty(), "rider must have boarded");
+    for e in boarded {
+        assert!(
+            e.involves(rider_id.entity()),
+            "boarded event must involve rider"
+        );
+        assert!(
+            e.involves(elevator_id),
+            "boarded event must involve elevator"
+        );
+    }
+}
+
 // ── riders_on ─────────────────────────────────────────────────────────────────
 
 #[test]
