@@ -42,10 +42,17 @@ impl DispatcherSet {
     ///
     /// Callers that already produced the two maps in lockstep — snapshot
     /// restore and the legacy builder ctor — hand them in directly.
-    pub const fn from_parts(
+    /// Asserts in debug builds that the two halves agree on key set so a
+    /// future caller bypassing the encapsulation can't silently smuggle
+    /// in mismatched maps.
+    pub fn from_parts(
         strategies: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
         ids: BTreeMap<GroupId, BuiltinStrategy>,
     ) -> Self {
+        debug_assert!(
+            strategies.keys().eq(ids.keys()),
+            "DispatcherSet::from_parts: strategies and ids must have identical key sets"
+        );
         Self { strategies, ids }
     }
 
@@ -96,6 +103,12 @@ pub struct RepositionerSet {
     ids: BTreeMap<GroupId, BuiltinReposition>,
 }
 
+impl Default for RepositionerSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RepositionerSet {
     /// An empty set with no groups registered.
     pub const fn new() -> Self {
@@ -106,10 +119,17 @@ impl RepositionerSet {
     }
 
     /// Construct from pre-built map halves.
-    pub const fn from_parts(
+    ///
+    /// Asserts in debug builds that the two halves agree on key set,
+    /// matching [`DispatcherSet::from_parts`].
+    pub fn from_parts(
         strategies: BTreeMap<GroupId, Box<dyn RepositionStrategy>>,
         ids: BTreeMap<GroupId, BuiltinReposition>,
     ) -> Self {
+        debug_assert!(
+            strategies.keys().eq(ids.keys()),
+            "RepositionerSet::from_parts: strategies and ids must have identical key sets"
+        );
         Self { strategies, ids }
     }
 

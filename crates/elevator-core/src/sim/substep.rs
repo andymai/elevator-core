@@ -17,11 +17,10 @@ impl super::Simulation {
 
     /// Get the dispatch strategies map (for advanced sub-stepping).
     ///
-    /// Returns the strategy half of the encapsulated
-    /// [`DispatcherSet`](super::DispatcherSet) — the snapshot identity
-    /// half is only readable through
-    /// [`strategy_id`](Self::strategy_id) so callers can't accidentally
-    /// drift the two halves out of sync via this accessor.
+    /// Returns the strategy half of the internally-encapsulated
+    /// dispatcher set — the snapshot identity half is only readable
+    /// through [`strategy_id`](Self::strategy_id) so callers can't
+    /// accidentally drift the two halves out of sync via this accessor.
     #[must_use]
     pub fn dispatchers(&self) -> &BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
         self.dispatcher_set.strategies()
@@ -29,10 +28,10 @@ impl super::Simulation {
 
     /// Get the dispatch strategies map mutably (for advanced sub-stepping).
     ///
-    /// Direct insertion via this map bypasses the
-    /// [`DispatcherSet`](super::DispatcherSet) atomicity, leaving the
-    /// snapshot identity stale. Prefer [`set_dispatch`](Self::set_dispatch)
-    /// for swaps; reach for this only when a system needs to mutate an
+    /// Direct insertion via this map bypasses the internally-enforced
+    /// strategy/identity atomicity, leaving the snapshot identity
+    /// stale. Prefer [`set_dispatch`](Self::set_dispatch) for swaps;
+    /// reach for this only when a system needs to mutate an
     /// already-installed trait object in place (e.g. `restore_config`).
     pub fn dispatchers_mut(&mut self) -> &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
         self.dispatcher_set.strategies_mut()
