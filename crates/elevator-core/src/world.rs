@@ -667,6 +667,20 @@ impl World {
         self.hall_calls.values().flat_map(StopCalls::iter)
     }
 
+    /// Iterate every active hall call paired with the stop entity it
+    /// originated at.
+    ///
+    /// Shape-parity companion to [`iter_riders`](Self::iter_riders) /
+    /// [`iter_stops`](Self::iter_stops) / [`iter_lines`](Self::iter_lines)
+    /// for callers that prefer a `(EntityId, &T)` cursor instead of
+    /// reading [`HallCall::stop`] off the value. The stop returned here
+    /// is always equal to `call.stop` for the yielded `&HallCall`.
+    pub fn iter_hall_calls_with_id(&self) -> impl Iterator<Item = (EntityId, &HallCall)> {
+        self.hall_calls
+            .iter()
+            .flat_map(|(stop, calls)| calls.iter().map(move |c| (stop, c)))
+    }
+
     /// Mutable iteration over every active hall call (crate-internal).
     pub(crate) fn iter_hall_calls_mut(&mut self) -> impl Iterator<Item = &mut HallCall> {
         self.hall_calls.values_mut().flat_map(StopCalls::iter_mut)
@@ -708,6 +722,14 @@ impl World {
     // ── Typed query helpers ──────────────────────────────────────────
 
     /// Iterate all elevator entities (have `Elevator` + `Position`).
+    ///
+    /// Yields `(EntityId, &Position, &Elevator)` rather than the
+    /// `(EntityId, &T)` shape of [`iter_riders`](Self::iter_riders) /
+    /// [`iter_stops`](Self::iter_stops) / [`iter_hall_calls_with_id`](Self::iter_hall_calls_with_id)
+    /// because every dispatch / movement / reposition hot path that
+    /// touches an elevator also touches its position, and bundling
+    /// avoids the second `SoA` lookup per car per tick. Callers that
+    /// only need IDs use [`iter_elevator_ids`](Self::iter_elevator_ids).
     pub fn iter_elevators(&self) -> impl Iterator<Item = (EntityId, &Position, &Elevator)> {
         self.elevators
             .iter()
