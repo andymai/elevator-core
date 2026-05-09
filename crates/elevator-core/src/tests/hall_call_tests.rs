@@ -1057,3 +1057,31 @@ fn abandonment_scrubs_hall_call_pending_riders() {
         );
     }
 }
+
+#[test]
+fn iter_hall_calls_with_id_yields_stop_keyed_pairs() {
+    let mut sim = Simulation::new(&default_config(), scan()).unwrap();
+    sim.spawn_rider(StopId(0), StopId(2), 70.0).unwrap();
+    sim.spawn_rider(StopId(2), StopId(0), 80.0).unwrap();
+
+    // No-step: hall calls are registered at spawn time.
+    let pairs: Vec<(EntityId, &crate::components::HallCall)> =
+        sim.world().iter_hall_calls_with_id().collect();
+    assert!(
+        !pairs.is_empty(),
+        "two riders spawned with hall buttons should produce at least one pending call"
+    );
+    for (stop_id, call) in &pairs {
+        assert_eq!(
+            *stop_id, call.stop,
+            "iter_hall_calls_with_id must yield (call.stop, &call) — the SecondaryMap key is the call's stop"
+        );
+    }
+    // The unkeyed iterator must visit the same set of calls.
+    let unkeyed_count = sim.world().iter_hall_calls().count();
+    assert_eq!(
+        pairs.len(),
+        unkeyed_count,
+        "iter_hall_calls_with_id and iter_hall_calls must agree on count"
+    );
+}
