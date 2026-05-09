@@ -412,12 +412,23 @@ pub fn assign_with_scratch(
                 top_k_buf.push((dist, j));
             }
 
-            // Apply the top-K cut. Sort by (distance, stop EntityId)
-            // for determinism on equidistant ties.
+            // Apply the top-K cut. `select_nth_unstable_by` partitions
+            // in O(m) so the K smallest entries land in [..k]; the
+            // matrix-fill loop below indexes by `j` and ignores the
+            // within-set order, so a full O(m log m) sort would burn
+            // cycles right where pruning is meant to save them. The
+            // comparator is total (distance + EntityId tie-break with
+            // no equal pairs across distinct stops), so the kept set
+            // is deterministic across runs and snapshot round-trip.
             if let Some(k) = candidate_limit
                 && top_k_buf.len() > k
             {
-                top_k_buf.sort_by(|&(da, ja), &(db, jb)| {
+                debug_assert!(
+                    k > 0,
+                    "candidate_limit Some(0) silently sentinels every cell — \
+                     use None to disable pruning instead"
+                );
+                top_k_buf.select_nth_unstable_by(k - 1, |&(da, ja), &(db, jb)| {
                     da.partial_cmp(&db)
                         .unwrap_or(std::cmp::Ordering::Equal)
                         .then_with(|| pending_stops[ja].0.cmp(&pending_stops[jb].0))
