@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arcPoint, easeOutNorm, hexWithAlpha, shade, withAlpha } from "../render/color-utils";
+import { easeOutNorm, hexWithAlpha, shade, withAlpha } from "../render/color-utils";
 
 describe("shade", () => {
   it("positive amount lightens a color", () => {
@@ -80,36 +80,6 @@ describe("withAlpha", () => {
     // 3-char shorthand doesn't match the /^#[0-9a-f]{6}$/i guard;
     // hexWithAlpha also can't parse it, so the value is returned as-is.
     expect(withAlpha("#f00", 0.5)).toBe("#f00");
-  });
-});
-
-describe("arcPoint", () => {
-  it("at t=0 returns the start point", () => {
-    const [x, y] = arcPoint(10, 20, 100, 80, 0);
-    expect(x).toBeCloseTo(10, 5);
-    expect(y).toBeCloseTo(20, 5);
-  });
-
-  it("at t=1 returns the end point", () => {
-    const [x, y] = arcPoint(10, 20, 100, 80, 1);
-    expect(x).toBeCloseTo(100, 5);
-    expect(y).toBeCloseTo(80, 5);
-  });
-
-  it("at t=0.5 returns a point off the straight midpoint (has perpendicular arc)", () => {
-    // Straight midpoint of (0,0)→(100,0) is (50,0).
-    // The perpendicular offset on a horizontal segment is vertical,
-    // so the arc midpoint should have y != 0.
-    const [x, y] = arcPoint(0, 0, 100, 0, 0.5);
-    expect(x).toBeCloseTo(50, 0);
-    expect(y).not.toBeCloseTo(0, 1);
-  });
-
-  it("start === end still returns a valid point (zero-length segment guard)", () => {
-    const [x, y] = arcPoint(50, 50, 50, 50, 0.5);
-    // Should not throw or return NaN
-    expect(Number.isFinite(x)).toBe(true);
-    expect(Number.isFinite(y)).toBe(true);
   });
 });
 

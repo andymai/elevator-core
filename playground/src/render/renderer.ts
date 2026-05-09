@@ -20,7 +20,15 @@ import {
 } from "./frame-buffers";
 import type { Scale } from "./layout";
 import { findNearestStop, scaleFor } from "./layout";
-import { type CarState, type StopState, type Tween, drawTweens } from "./tweens";
+import {
+  type CarState,
+  type StopState,
+  type Tween,
+  drawTweens,
+  emitAbandonWalks,
+  emitAlightWalks,
+  emitBoardWalks,
+} from "./tweens";
 import {
   CAR_DOT_COLOR,
   DOWN_COLOR,
@@ -525,7 +533,7 @@ export class CanvasRenderer {
     this.#firstDrawAt = state.firstDrawAt;
   }
 
-  // ── Flying-dot animations ─────────────────────────────────────────
+  // ── Rider walk animations ─────────────────────────────────────────
 
   #computeTweens(
     snap: Snapshot,
@@ -538,39 +546,37 @@ export class CanvasRenderer {
     const now = performance.now();
     const scale = Math.max(1, speedMultiplier);
     const duration = TWEEN_BASE_MS / scale;
-    const stagger = 30 / scale;
+    const stagger = 80 / scale;
+    const halfPairW = Math.max(1.5, Math.min(2.5, s.figureStride * 0.45));
 
     const boardsAtStop = this.#boardsAtStop;
     boardsAtStop.clear();
     for (const car of snap.cars) {
       const prev = this.#carStates.get(car.id);
-      const riders = car.riders;
       const cx = carX.get(car.id);
-
       const nearest = findNearestStop(snap.stops, car.y);
       const loadStop =
         car.phase === "loading" && nearest !== undefined && nearest.dist < 0.5
           ? nearest.stop
           : undefined;
 
+      const useUp = loadStop !== undefined && loadStop.waiting_up >= loadStop.waiting_down;
+      const dirOffset = useUp ? 0 : 10_000;
+
       if (prev && cx !== undefined && loadStop !== undefined) {
-        const delta = riders - prev.riders;
+        const delta = car.riders - prev.riders;
         if (delta > 0) {
           boardsAtStop.set(loadStop.entity_id, (boardsAtStop.get(loadStop.entity_id) ?? 0) + delta);
         }
         if (delta !== 0) {
           const stopY = toScreenY(loadStop.y);
-          const cabinCenterY = toScreenY(car.y) - s.carH / 2;
+          const carWHere = this.#carWPerCar.get(car.id) ?? s.carW;
+          const enablePairs = carWHere >= s.figureStride * 3;
           const count = Math.min(Math.abs(delta), 6);
           if (delta > 0) {
-            const useUp = loadStop.waiting_up >= loadStop.waiting_down;
             const qr = carQueueRegion.get(car.id);
-            let originX = cx - 20;
-            if (qr !== undefined) {
-              const qs: number = qr.start;
-              const qe: number = qr.end;
-              originX = (qs + qe) / 2;
-            }
+            // qr.end - 2 matches the gutter row's leading-figure anchor.
+            const originX = qr !== undefined ? qr.end - 2 : cx - 20;
             const color = useUp ? UP_COLOR : DOWN_COLOR;
             // Clear just this car's line entry; other lines at the same
             // stop (e.g. a VIP still en route for an exec-only rider)
@@ -580,31 +586,39 @@ export class CanvasRenderer {
               byLine.delete(car.line);
               if (byLine.size === 0) this.#stopAssignments.delete(loadStop.entity_id);
             }
-            for (let k = 0; k < count; k++) {
-              this.#tweens.push({
-                kind: "board",
-                bornAt: now + k * stagger,
-                duration,
-                startX: originX,
-                startY: stopY,
-                endX: cx,
-                endY: cabinCenterY,
-                color,
-              });
-            }
+            emitBoardWalks(this.#tweens, {
+              count,
+              enablePairs,
+              halfPairW,
+              now,
+              stagger,
+              duration,
+              originX,
+              endX: cx,
+              floorY: stopY,
+              color,
+              stopId: loadStop.entity_id,
+              dirOffset,
+            });
           } else {
-            for (let k = 0; k < count; k++) {
-              this.#tweens.push({
-                kind: "alight",
-                bornAt: now + k * stagger,
-                duration,
-                startX: cx,
-                startY: cabinCenterY,
-                endX: cx + 18,
-                endY: cabinCenterY + 10,
-                color: CAR_DOT_COLOR,
-              });
-            }
+            const carColor = this.#riderColorPerCar.get(car.id) ?? CAR_DOT_COLOR;
+            // Exit right since boards enter from the left gutter.
+            const exitEndX = cx + carWHere / 2 + 14;
+            const variants = prev.roster.slice(Math.max(0, prev.roster.length - count));
+            emitAlightWalks(this.#tweens, {
+              count,
+              enablePairs,
+              halfPairW,
+              now,
+              stagger,
+              duration,
+              startX: cx,
+              endX: exitEndX,
+              floorY: stopY,
+              color: carColor,
+              variants,
+              carId: car.id,
+            });
           }
         }
       }
@@ -614,46 +628,36 @@ export class CanvasRenderer {
       if (!prev) {
         // First frame for this car — seed the roster from the car's own id.
         roster = [];
-        for (let i = 0; i < riders; i++) {
+        for (let i = 0; i < car.riders; i++) {
           roster.push(pickRiderVariant(car.id, i));
         }
       } else {
-        const delta = riders - prev.riders;
-        // When delta is zero we can keep the previous roster reference
-        // — the trailing length-correction loops are no-ops in steady
-        // state, and overwriting `#carStates` with the same array below
-        // is harmless.
+        const delta = car.riders - prev.riders;
         if (delta === 0) {
           roster = prev.roster;
         } else {
           roster = prev.roster.slice();
           if (delta > 0 && loadStop !== undefined) {
-            // Riders boarded from this stop. Replicate the gutter's variant
-            // picks so the silhouettes visually match who was waiting.
-            const isUp = loadStop.waiting_up >= loadStop.waiting_down;
-            const dirOffset = isUp ? 0 : 10_000;
-            // The gutter's nearest-shaft figures are at low slot indices —
-            // those are the ones who board first.
+            // Match the gutter's variant picks so boarding silhouettes
+            // visually correspond to who was waiting.
             for (let k = 0; k < delta; k++) {
               roster.push(pickRiderVariant(loadStop.entity_id, k + dirOffset));
             }
           } else if (delta > 0) {
-            // Riders appeared but no load stop (e.g., first snapshot or
-            // teleport). Fall back to car-id hashing.
             for (let k = 0; k < delta; k++) {
               roster.push(pickRiderVariant(car.id, roster.length + k));
             }
           } else {
-            // Riders alighted — remove from end (LIFO).
+            // LIFO: alighters are popped from the end.
             roster.splice(roster.length + delta, -delta);
           }
         }
       }
       // Correct any length drift from accumulated rounding.
-      while (roster.length > riders) roster.pop();
-      while (roster.length < riders) roster.push(pickRiderVariant(car.id, roster.length));
+      while (roster.length > car.riders) roster.pop();
+      while (roster.length < car.riders) roster.push(pickRiderVariant(car.id, roster.length));
 
-      this.#carStates.set(car.id, { riders, roster });
+      this.#carStates.set(car.id, { riders: car.riders, roster });
     }
 
     for (const stop of snap.stops) {
@@ -664,29 +668,23 @@ export class CanvasRenderer {
         const boards = boardsAtStop.get(stop.entity_id) ?? 0;
         const abandons = Math.max(0, dropped - boards);
         if (abandons > 0) {
-          const stopY = toScreenY(stop.y);
-          const startX = s.padX + s.labelW + 20;
-          const count = Math.min(abandons, 4);
-          for (let k = 0; k < count; k++) {
-            this.#tweens.push({
-              kind: "abandon",
-              bornAt: now + k * stagger,
-              duration: duration * 1.5,
-              startX,
-              startY: stopY,
-              endX: startX - 26,
-              endY: stopY - 6,
-              color: OVERFLOW_COLOR,
-            });
-          }
+          emitAbandonWalks(this.#tweens, {
+            count: Math.min(abandons, 4),
+            now,
+            stagger,
+            duration: duration * 2.2,
+            startX: s.padX + s.labelW + 20,
+            endX: s.padX + s.labelW - 16,
+            floorY: toScreenY(stop.y),
+            color: OVERFLOW_COLOR,
+            stopId: stop.entity_id,
+          });
         }
       }
       this.#stopStates.set(stop.entity_id, { waiting });
     }
 
-    // Reap completed tweens via in-place compaction. The previous
-    // `splice(i, 1)` per expired tween was O(n) per removal — this is
-    // O(n) total for the pass and writes survivors forward in place.
+    // Reap completed tweens via in-place compaction.
     {
       let writeIdx = 0;
       for (let i = 0; i < this.#tweens.length; i++) {
@@ -699,9 +697,6 @@ export class CanvasRenderer {
       this.#tweens.length = writeIdx;
     }
 
-    // Drop state for cars no longer in the snapshot. Reuse the
-    // `#carById` map populated at the top of `draw()` so we don't have
-    // to allocate a fresh `Set` of live ids per frame.
     if (this.#carStates.size > snap.cars.length) {
       for (const id of this.#carStates.keys()) {
         if (!this.#carById.has(id)) this.#carStates.delete(id);
