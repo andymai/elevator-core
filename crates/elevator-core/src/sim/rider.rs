@@ -310,6 +310,39 @@ impl super::Simulation {
         self.drain_events_where(|e| kinds.contains(&e.kind()))
     }
 
+    /// Drain events that reference `entity` in any of their fields.
+    ///
+    /// Closure-free counterpart to
+    /// [`drain_events_where`](Self::drain_events_where) for the common
+    /// "give me everything that happened to this rider / car / stop"
+    /// query — usable from FFI / wasm / gdext call sites that can't
+    /// marshal a Rust closure across the language boundary.
+    ///
+    /// Matching is delegated to [`Event::involves`]: an event matches
+    /// when any [`EntityId`](crate::entity::EntityId) field on the
+    /// payload equals `entity`. Multi-entity events (e.g.
+    /// [`RiderBoarded`](Event::RiderBoarded), which references both
+    /// rider and elevator) match when *either* role does, so a query
+    /// for a car returns the same event as a separate query for the
+    /// rider.
+    ///
+    /// Events that don't reference `entity` remain in the buffer and
+    /// will be returned by future `drain_events*` calls.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    /// sim.step();
+    ///
+    /// let rider_events = sim.drain_events_for_entity(rider.entity());
+    /// assert!(rider_events.iter().all(|e| e.involves(rider.entity())));
+    /// ```
+    pub fn drain_events_for_entity(&mut self, entity: crate::entity::EntityId) -> Vec<Event> {
+        self.drain_events_where(|e| e.involves(entity))
+    }
+
     // ── Rider tag (opaque consumer-attached id) ──────────────────────
 
     /// Read the opaque tag attached to a rider.
