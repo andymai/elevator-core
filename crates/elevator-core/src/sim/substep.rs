@@ -16,14 +16,26 @@ impl super::Simulation {
     // ── Sub-stepping ────────────────────────────────────────────────
 
     /// Get the dispatch strategies map (for advanced sub-stepping).
+    ///
+    /// Returns the strategy half of the encapsulated
+    /// [`DispatcherSet`](super::DispatcherSet) — the snapshot identity
+    /// half is only readable through
+    /// [`strategy_id`](Self::strategy_id) so callers can't accidentally
+    /// drift the two halves out of sync via this accessor.
     #[must_use]
     pub fn dispatchers(&self) -> &BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
-        &self.dispatchers
+        self.dispatcher_set.strategies()
     }
 
     /// Get the dispatch strategies map mutably (for advanced sub-stepping).
+    ///
+    /// Direct insertion via this map bypasses the
+    /// [`DispatcherSet`](super::DispatcherSet) atomicity, leaving the
+    /// snapshot identity stale. Prefer [`set_dispatch`](Self::set_dispatch)
+    /// for swaps; reach for this only when a system needs to mutate an
+    /// already-installed trait object in place (e.g. `restore_config`).
     pub fn dispatchers_mut(&mut self) -> &mut BTreeMap<GroupId, Box<dyn DispatchStrategy>> {
-        &mut self.dispatchers
+        self.dispatcher_set.strategies_mut()
     }
 
     /// Get a mutable reference to the event bus.
@@ -102,7 +114,7 @@ impl super::Simulation {
             &mut self.events,
             &ctx,
             &self.groups,
-            &mut self.dispatchers,
+            self.dispatcher_set.strategies_mut(),
             &self.rider_index,
             &mut self.dispatch_scratch,
         );
@@ -220,10 +232,10 @@ impl super::Simulation {
     pub fn run_reposition(&mut self) {
         self.sync_world_tick();
         self.hooks.run_before(Phase::Reposition, &mut self.world);
-        if !self.repositioners.is_empty() {
+        if !self.repositioner_set.is_empty() {
             // Only run per-group hooks for groups that have a repositioner.
             for group in &self.groups {
-                if self.repositioners.contains_key(&group.id()) {
+                if self.repositioner_set.contains_key(group.id()) {
                     self.hooks
                         .run_before_group(Phase::Reposition, group.id(), &mut self.world);
                 }
@@ -234,11 +246,11 @@ impl super::Simulation {
                 &mut self.events,
                 &ctx,
                 &self.groups,
-                &mut self.repositioners,
+                self.repositioner_set.strategies_mut(),
                 &mut self.reposition_buf,
             );
             for group in &self.groups {
-                if self.repositioners.contains_key(&group.id()) {
+                if self.repositioner_set.contains_key(group.id()) {
                     self.hooks
                         .run_after_group(Phase::Reposition, group.id(), &mut self.world);
                 }

@@ -304,10 +304,8 @@ impl Simulation {
             dt,
             groups,
             stop_lookup,
-            dispatchers,
-            strategy_ids,
-            repositioners,
-            reposition_ids,
+            dispatcher_set: super::DispatcherSet::from_parts(dispatchers, strategy_ids),
+            repositioner_set: super::RepositionerSet::from_parts(repositioners, reposition_ids),
             metrics: Metrics::new(),
             time: TimeAdapter::new(config.simulation.ticks_per_second),
             hooks,
@@ -697,10 +695,8 @@ impl Simulation {
             dt,
             groups,
             stop_lookup,
-            dispatchers,
-            strategy_ids,
-            repositioners: BTreeMap::new(),
-            reposition_ids: BTreeMap::new(),
+            dispatcher_set: super::DispatcherSet::from_parts(dispatchers, strategy_ids),
+            repositioner_set: super::RepositionerSet::new(),
             metrics,
             time: TimeAdapter::new(ticks_per_second),
             hooks: PhaseHooks::default(),
@@ -1028,8 +1024,7 @@ impl Simulation {
         {
             g.set_hall_call_mode(mode);
         }
-        self.dispatchers.insert(group, strategy);
-        self.strategy_ids.insert(group, resolved_id);
+        self.dispatcher_set.insert(group, strategy, resolved_id);
     }
 
     // ── Reposition management ─────────────────────────────────────────
@@ -1070,8 +1065,7 @@ impl Simulation {
     ) {
         let resolved_id = strategy.builtin_id().unwrap_or(id);
         let needed_window = strategy.min_arrival_log_window();
-        self.repositioners.insert(group, strategy);
-        self.reposition_ids.insert(group, resolved_id);
+        self.repositioner_set.insert(group, strategy, resolved_id);
         // Widen the arrival-log retention if the freshly installed
         // strategy queries a window the pruner would otherwise truncate
         // under it. Without this, `PredictiveParking::with_window_ticks`
@@ -1098,14 +1092,13 @@ impl Simulation {
     /// explicitly to shrink retention after removing a wide-window
     /// strategy.
     pub fn remove_reposition(&mut self, group: GroupId) {
-        self.repositioners.remove(&group);
-        self.reposition_ids.remove(&group);
+        self.repositioner_set.remove(group);
     }
 
     /// Get the reposition strategy identifier for a group.
     #[must_use]
     pub fn reposition_id(&self, group: GroupId) -> Option<&BuiltinReposition> {
-        self.reposition_ids.get(&group)
+        self.repositioner_set.id_for(group)
     }
 
     // ── Hooks ────────────────────────────────────────────────────────

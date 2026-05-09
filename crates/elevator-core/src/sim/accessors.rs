@@ -179,7 +179,7 @@ impl super::Simulation {
     /// Get the strategy identifier for a group.
     #[must_use]
     pub fn strategy_id(&self, group: GroupId) -> Option<&crate::dispatch::BuiltinStrategy> {
-        self.strategy_ids.get(&group)
+        self.dispatcher_set.id_for(group)
     }
 
     /// Iterate over the stop ID → entity ID mapping.
