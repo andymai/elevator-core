@@ -1,5 +1,21 @@
 # Changelog
 
+## [20.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.4.0...elevator-core-v20.0.0) (2026-05-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **components:** drop hardcoded unit suffixes; add Speed/Accel arith ([#784](https://github.com/andymai/elevator-core/issues/784))
+
+### Features
+
+* **events:** add drain_events_for_entity and Event::involves ([#779](https://github.com/andymai/elevator-core/issues/779)) ([9161207](https://github.com/andymai/elevator-core/commit/916120750ad16d59db40ef8e36317391d064935f))
+
+
+### Code Refactoring
+
+* **components:** drop hardcoded unit suffixes; add Speed/Accel arith ([#784](https://github.com/andymai/elevator-core/issues/784)) ([df5fb75](https://github.com/andymai/elevator-core/commit/df5fb75c694bdbfb0466c0988bc2c6bb76fe93ef))
+
 ## [19.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.3.0...elevator-core-v19.4.0) (2026-05-09)
 
 
