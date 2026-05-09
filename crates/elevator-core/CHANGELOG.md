@@ -1,5 +1,12 @@
 # Changelog
 
+## [19.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.2.0...elevator-core-v19.3.0) (2026-05-09)
+
+
+### Features
+
+* **events:** add EventKind projection and drain_events_by_kind ([#772](https://github.com/andymai/elevator-core/issues/772)) ([248823d](https://github.com/andymai/elevator-core/commit/248823d9c9fd9a1927bb957f8228889ed844816c))
+
 ## [19.2.0](https://github.com/andymai/elevator-core/compare/elevator-core-v19.1.0...elevator-core-v19.2.0) (2026-05-08)
 
 
