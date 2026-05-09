@@ -58,38 +58,6 @@ export function withAlpha(hex: string, alpha: number): string {
   return hexWithAlpha(hex, alpha);
 }
 
-/**
- * Compute a curved-arc position along a tween at progress `t` (0..1).
- * The control point is offset perpendicular to the (start->end) segment so
- * dots arc above or below the straight path -- "above" for left-to-right
- * motion, which reads as a small airlock lift.
- */
-export function arcPoint(
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-  t: number,
-): [number, number] {
-  const mx = (startX + endX) / 2;
-  const my = (startY + endY) / 2;
-  const dx = endX - startX;
-  const dy = endY - startY;
-  const len = Math.max(Math.hypot(dx, dy), 1);
-  // Perpendicular offset (-dy, dx) normalized, scaled by a fraction of length.
-  const perpX = -dy / len;
-  const perpY = dx / len;
-  const arc = Math.min(len * 0.25, 22);
-  const cx = mx + perpX * arc;
-  const cy = my + perpY * arc;
-  // Quadratic bezier at `t`.
-  const u = 1 - t;
-  return [
-    u * u * startX + 2 * u * t * cx + t * t * endX,
-    u * u * startY + 2 * u * t * cy + t * t * endY,
-  ];
-}
-
 /** Cubic-bezier(0.2, 0.6, 0.2, 1) evaluated at x -> y, good-enough via Newton. */
 export function easeOutNorm(tx: number): number {
   // Approximation: two-iteration Newton solver on the x curve, then evaluate y.
