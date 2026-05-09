@@ -114,7 +114,9 @@ fn bench_realistic(c: &mut Criterion) {
 //
 //   3. **`pending_stops_minus_covered`**: 5000 stops × `is_covered`'s
 //      O(servicing + riders_at_stop) per stop. With ~500 servicing
-//      entries and ~10 riders per stop, ~25M ops per tick.
+//      entries (one per servicing car, group-wide) and ~10 riders
+//      per stop, ~2.5M ops per tick — small relative to (1) and (2)
+//      but still a non-trivial constant.
 //
 // 100ms+ floor from build_manifest cloning HallCalls × pending_riders
 // rounds out the budget.
