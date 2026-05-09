@@ -1,5 +1,30 @@
 //! ECS-style query builder for iterating entities by component composition.
 //!
+//! # Audience
+//!
+//! This module is the **extension-author surface**: the generic
+//! builder for iterating over arbitrary component combinations,
+//! including [`Ext<T>`](crate::query::Ext) game-defined components.
+//! Use it when:
+//!
+//! - You're filtering on a combination of components
+//!   ([`With`](crate::query::With) / [`Without`](crate::query::Without)
+//!   / multiple `&T` slots) — e.g. "all riders with a `VipTag`
+//!   extension and a position".
+//! - You're operating on game-defined [`Ext<T>`](crate::query::Ext)
+//!   components that don't have hand-written iterators on
+//!   [`World`](crate::world::World).
+//!
+//! Core's per-tick hot paths intentionally use the typed
+//! [`World::iter_riders`](crate::world::World::iter_riders),
+//! [`World::iter_elevators`](crate::world::World::iter_elevators),
+//! [`World::iter_stops`](crate::world::World::iter_stops), etc. —
+//! direct accessors over the `SoA` storage that skip the generic
+//! dispatch layer. The builder is for the cases those don't cover.
+//! `query_bench` shows the builder is fast (linear in entity count
+//! with a small constant), but for known component types the typed
+//! accessor is still preferred.
+//!
 //! # Examples
 //!
 //! ```
