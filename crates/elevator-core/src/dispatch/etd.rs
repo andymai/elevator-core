@@ -48,6 +48,14 @@ pub struct EtdDispatch {
     /// Composes additively with `wait_squared_weight`: users wanting
     /// the full CGC shape can set both (`k·Σw + λ·Σw²`).
     pub age_linear_weight: f64,
+    /// Maximum candidate stops to consider per car when filling the
+    /// assignment cost matrix. `Some(K)` keeps only the K nearest
+    /// viable pending stops (by absolute axial distance, line +
+    /// restricted-stop filter applied first); `None` disables
+    /// pruning. Defaults to `Some(50)` — see
+    /// [`DispatchStrategy::candidate_limit`] for the rationale.
+    #[serde(default = "default_candidate_limit")]
+    pub candidate_limit: Option<usize>,
     /// Positions of every demanded stop in the group, cached by
     /// [`DispatchStrategy::pre_dispatch`] so `rank` avoids rebuilding the
     /// list for every `(car, stop)` pair. Per-pass scratch — excluded
@@ -55,6 +63,14 @@ pub struct EtdDispatch {
     /// `pre_dispatch` rebuilds it on every pass.
     #[serde(skip)]
     pending_positions: SmallVec<[f64; 16]>,
+}
+
+/// Serde default for [`EtdDispatch::candidate_limit`] when restoring
+/// from a pre-pruning snapshot. Matches
+/// [`super::DEFAULT_CANDIDATE_LIMIT`].
+#[allow(clippy::unnecessary_wraps)] // serde default needs Option<usize>, not usize
+const fn default_candidate_limit() -> Option<usize> {
+    Some(super::DEFAULT_CANDIDATE_LIMIT)
 }
 
 impl EtdDispatch {
@@ -83,6 +99,7 @@ impl EtdDispatch {
             door_weight: 0.5,
             wait_squared_weight: 0.0,
             age_linear_weight: 0.0,
+            candidate_limit: default_candidate_limit(),
             pending_positions: SmallVec::new(),
         }
     }
@@ -115,6 +132,7 @@ impl EtdDispatch {
             door_weight: 0.5,
             wait_squared_weight: 0.0,
             age_linear_weight: 0.005,
+            candidate_limit: default_candidate_limit(),
             pending_positions: SmallVec::new(),
         }
     }
@@ -128,6 +146,7 @@ impl EtdDispatch {
             door_weight: 0.5,
             wait_squared_weight: 0.0,
             age_linear_weight: 0.0,
+            candidate_limit: default_candidate_limit(),
             pending_positions: SmallVec::new(),
         }
     }
@@ -141,6 +160,7 @@ impl EtdDispatch {
             door_weight,
             wait_squared_weight: 0.0,
             age_linear_weight: 0.0,
+            candidate_limit: default_candidate_limit(),
             pending_positions: SmallVec::new(),
         }
     }
@@ -178,6 +198,18 @@ impl EtdDispatch {
             "age_linear_weight must be finite and non-negative, got {weight}"
         );
         self.age_linear_weight = weight;
+        self
+    }
+
+    /// Set the per-car candidate limit for the assignment cost matrix.
+    ///
+    /// `Some(K)` keeps only the K nearest viable stops per car;
+    /// `None` disables pruning entirely (full matrix). Defaults to
+    /// `Some(50)` — see [`DispatchStrategy::candidate_limit`] for
+    /// the rationale and the determinism contract.
+    #[must_use]
+    pub const fn with_candidate_limit(mut self, limit: Option<usize>) -> Self {
+        self.candidate_limit = limit;
         self
     }
 }
@@ -236,6 +268,10 @@ impl DispatchStrategy for EtdDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Etd)
+    }
+
+    fn candidate_limit(&self) -> Option<usize> {
+        self.candidate_limit
     }
 
     fn snapshot_config(&self) -> Option<String> {

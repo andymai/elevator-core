@@ -72,6 +72,19 @@ pub struct DestinationDispatch {
     /// commitment). `None` ⇒ immediate sticky (the default), matching
     /// fixed-on-press DCS behavior.
     commitment_window_ticks: Option<u64>,
+    /// Maximum candidate stops to consider per car when filling the
+    /// assignment cost matrix. Defaults to `Some(50)`; see
+    /// [`DispatchStrategy::candidate_limit`] for the rationale.
+    #[serde(default = "default_candidate_limit")]
+    candidate_limit: Option<usize>,
+}
+
+/// Serde default for [`DestinationDispatch::candidate_limit`] when
+/// restoring from a pre-pruning snapshot. Matches
+/// [`super::DEFAULT_CANDIDATE_LIMIT`].
+#[allow(clippy::unnecessary_wraps)] // serde default needs Option<usize>, not usize
+const fn default_candidate_limit() -> Option<usize> {
+    Some(super::DEFAULT_CANDIDATE_LIMIT)
 }
 
 impl DestinationDispatch {
@@ -82,6 +95,7 @@ impl DestinationDispatch {
         Self {
             stop_penalty: None,
             commitment_window_ticks: None,
+            candidate_limit: Some(super::DEFAULT_CANDIDATE_LIMIT),
         }
     }
 
@@ -100,6 +114,15 @@ impl DestinationDispatch {
     #[must_use]
     pub const fn with_commitment_window_ticks(mut self, window: u64) -> Self {
         self.commitment_window_ticks = Some(window);
+        self
+    }
+
+    /// Set the per-car candidate limit for the assignment cost matrix.
+    /// `None` disables pruning entirely; defaults to `Some(50)`. See
+    /// [`DispatchStrategy::candidate_limit`] for the rationale.
+    #[must_use]
+    pub const fn with_candidate_limit(mut self, limit: Option<usize>) -> Self {
+        self.candidate_limit = limit;
         self
     }
 }
@@ -281,6 +304,10 @@ impl DispatchStrategy for DestinationDispatch {
 
     fn builtin_id(&self) -> Option<super::BuiltinStrategy> {
         Some(super::BuiltinStrategy::Destination)
+    }
+
+    fn candidate_limit(&self) -> Option<usize> {
+        self.candidate_limit
     }
 
     fn snapshot_config(&self) -> Option<String> {
