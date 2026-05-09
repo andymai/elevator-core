@@ -122,7 +122,7 @@ export function drawCar(
   // loading-related phases, suggesting an open door without painting
   // sliding panels. Drawn last so it sits on top of the dark border.
   if (car.phase === "door-opening" || car.phase === "loading" || car.phase === "door-closing") {
-    const notchW = Math.max(4, Math.min(carW * 0.4, 8));
+    const notchW = Math.max(carW * 0.2, Math.min(carW * 0.4, 8));
     ctx.strokeStyle = "rgba(250, 250, 250, 0.85)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();

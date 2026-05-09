@@ -46,13 +46,13 @@ export function drawTweens(
     const eased = easeOutNorm(tx);
     const x = t.startX + (t.endX - t.startX) * eased;
     const bob = Math.sin(eased * Math.PI * BOB_CYCLES * 2) * BOB_AMPLITUDE;
-    const floorY = t.floorY + bob;
+    const drawY = t.floorY + bob;
     const alpha = alphaFor(t.kind, tx, eased);
     if (alpha <= 0) continue;
-    ctx.save();
+    const prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = alpha;
-    drawRider(ctx, x, floorY, s.figureHeadR, t.color, t.variant);
-    ctx.restore();
+    drawRider(ctx, x, drawY, s.figureHeadR, t.color, t.variant);
+    ctx.globalAlpha = prevAlpha;
   }
 }
 
