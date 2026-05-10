@@ -377,22 +377,6 @@ export interface LineView {
 }
 
 /**
- * Per-line rendering snapshot. Renderers branch on `orientation` to
- * lay out vertical shafts vs horizontal pedways and read `name` for
- * lane / shaft header copy.
- */
-export interface LineDto {
-    id: number;
-    name: string;
-    orientation: "vertical" | "horizontal" | "angled";
-    /**
-     * Angle in degrees from horizontal, set only when
-     * `orientation == \"angled\"`.
-     */
-    angle_deg: number | undefined;
-}
-
-/**
  * Per-stop rendering snapshot.
  */
 export interface StopDto {
@@ -630,10 +614,6 @@ export interface Snapshot {
      * Configured stops.
      */
     stops: StopDto[];
-    /**
-     * Configured lines.
-     */
-    lines: LineDto[];
 }
 
 /**
