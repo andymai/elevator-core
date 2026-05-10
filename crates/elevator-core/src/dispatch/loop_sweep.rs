@@ -1,13 +1,13 @@
 //! `LoopSweep` — call-driven dispatch for [`LineKind::Loop`] groups.
 //!
 //! On a one-way closed loop, "dispatch" reduces to a label: the
-//! [`systems::dispatch`](crate::systems::dispatch) phase already
-//! kickstarts an `Idle` Loop car onto its forward-next stop and excludes
-//! Loop cars from the Hungarian idle pool, and the door FSM hands the
-//! car straight from `DoorClosing` back to `MovingToStop(next)` without
-//! ever passing through `Stopped`. The loading phase boards every
-//! eligible rider regardless of the linear up/down lamps, so a Loop car
-//! serves every waiter at every served stop on every lap.
+//! `systems::dispatch` phase already kickstarts an `Idle` Loop car onto
+//! its forward-next stop and excludes Loop cars from the Hungarian idle
+//! pool, and the door FSM hands the car straight from `DoorClosing`
+//! back to `MovingToStop(next)` without ever passing through
+//! `Stopped`. The loading phase boards every eligible rider regardless
+//! of the linear up/down lamps, so a Loop car serves every waiter at
+//! every served stop on every lap.
 //!
 //! That continuous-patrol behaviour is the LoopSweep contract from
 //! `docs/plans/loop-lines-v1.md`. This struct exists so that:
