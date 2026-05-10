@@ -32,6 +32,49 @@ jobs:
           app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
           private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
 
+      # Pin published packages whose only changes since the last
+      # release tag are non-shipping (tests, benches, CHANGELOG, the
+      # version line in Cargo.toml). Without this, a single test
+      # addition to `crates/<x>/src/tests/` cuts a fresh crate
+      # version even though no consumer-facing code changed — which
+      # is how `elevator-core 20.3.0` got published from a playground
+      # PR that only added an `Orientation::Horizontal` parse test
+      # (yanked; #797 / #800 in the commit log).
+      #
+      # Mechanism: rewrite `release-please-config.json` in place to
+      # set `release-as: <current-version>` for any package with no
+      # shipping diff. release-please treats that as "release the
+      # already-released version", which is a no-op — no PR, no tag,
+      # no publish.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pin no-op packages
+        run: |
+          config=$(cat release-please-config.json)
+          for pkg_path in $(jq -r '.packages | keys[]' release-please-config.json); do
+            pkg=$(basename "$pkg_path")
+            version=$(jq -r --arg key "$pkg_path" '.[$key]' .release-please-manifest.json)
+            tag="${pkg}-v${version}"
+            if ! git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "tag $tag missing — leaving $pkg unpinned"
+              continue
+            fi
+            shipping=$(git diff --name-only "$tag"..HEAD -- "$pkg_path/" \
+              | grep -Ev "^$pkg_path/(src/tests/|tests/|benches/|CHANGELOG\.md\$|Cargo\.toml\$)" \
+              | wc -l)
+            if [ "$shipping" -eq 0 ]; then
+              echo "no shipping changes in $pkg since $tag → pinning release-as=$version"
+              config=$(echo "$config" | jq --arg key "$pkg_path" --arg ver "$version" \
+                '.packages[$key]["release-as"] = $ver')
+            else
+              echo "$shipping shipping change(s) in $pkg since $tag"
+            fi
+          done
+          echo "$config" > release-please-config.json
+
       - uses: googleapis/release-please-action@v4.4.0
         id: release
         with:
