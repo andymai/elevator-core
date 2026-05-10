@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.4.0...elevator-core-v20.5.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** cyclic movement + headway clamp for loop lines ([#806](https://github.com/andymai/elevator-core/issues/806)) ([ff8b80c](https://github.com/andymai/elevator-core/commit/ff8b80c98d600d05d80d48d616b0a5a6ff09d560))
+
 ## [20.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.3.1...elevator-core-v20.4.0) (2026-05-10)
 
 
