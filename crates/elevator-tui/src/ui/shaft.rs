@@ -318,9 +318,9 @@ fn render_distance_mode<'a>(
 ///       ↑                                              c1
 /// ```
 ///
-/// The top row is the line label + waiting-counts header (one
-/// `name(n)` per stop with non-zero waiters). The middle row is the
-/// track itself: stops sit at `position / circumference` of the
+/// The top row is the line label + a summary showing circumference
+/// and stop count (`name · C=<c> · <n> stop(s)`). The middle row is
+/// the track itself: stops sit at `position / circumference` of the
 /// available width; the `┃` glyphs at the ends mark the seam (loop
 /// wrap). The bottom row is the car overlay: each car maps its
 /// continuous cyclic position to the same x-axis and draws a single
@@ -386,7 +386,9 @@ fn render_loop_strips<'a>(ctx: &RenderCtx<'a>, width: u16) -> Vec<Line<'a>> {
 /// seam cell with their own label and the wrap visual is implied by
 /// the adjacent end of the strip. Stops at coincident positions
 /// would overwrite each other; construction validation rejects that
-/// case, so it's defensible to take the first-wins behaviour here.
+/// case, so this loop is defensibly last-wins (the final entry in
+/// `served` to land on the cell keeps it; deterministic given
+/// `served`'s sort order).
 fn loop_track_row<'a>(
     served: &'a [EntityId],
     circumference: f64,
