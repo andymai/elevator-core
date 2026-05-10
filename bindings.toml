@@ -1022,6 +1022,36 @@ gdext = "todo:future-binding"
 bevy = "todo:plugin-layer"
 
 [[methods]]
+name = "is_loop"
+category = "introspection"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
+name = "loop_circumference"
+category = "introspection"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
+name = "loop_next_stop"
+category = "introspection"
+wasm = "todo:future-binding"
+ffi  = "todo:future-binding"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "todo:future-binding"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
 name = "velocity"
 category = "introspection"
 wasm = "velocity"

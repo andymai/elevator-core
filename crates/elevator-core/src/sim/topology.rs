@@ -855,6 +855,69 @@ impl Simulation {
             .map_or_else(Vec::new, |li| li.serves().to_vec())
     }
 
+    /// Whether the given line has [`LineKind::Loop`] topology.
+    ///
+    /// Returns `false` for `Linear` lines, lines that don't exist, and
+    /// any future topology that isn't a closed loop. Hosts that wire
+    /// loop-aware rendering or dispatch should branch on this.
+    #[must_use]
+    pub fn is_loop(&self, line: EntityId) -> bool {
+        self.world
+            .line(line)
+            .is_some_and(crate::components::Line::is_loop)
+    }
+
+    /// Total path length of a [`LineKind::Loop`] line.
+    ///
+    /// Returns `None` for `Linear` lines and for missing line entities.
+    /// Hosts use this together with [`Self::is_loop`] to derive a
+    /// rendering radius (e.g. `r = C / (2π)`) for circular layouts.
+    #[must_use]
+    pub fn loop_circumference(&self, line: EntityId) -> Option<f64> {
+        self.world
+            .line(line)
+            .and_then(crate::components::Line::circumference)
+    }
+
+    /// On a [`LineKind::Loop`] line, the stop that comes immediately
+    /// *after* `position` in forward cyclic order.
+    ///
+    /// Walks the line's served stops, computes the forward cyclic
+    /// distance from `position` to each, and returns the one with the
+    /// smallest non-zero distance. A stop coincident with `position`
+    /// is treated as a "full lap ahead" — the caller already *is* at
+    /// that stop, so the next forward stop is what they want.
+    ///
+    /// Returns `None` if the line is not a Loop, the line entity is
+    /// unknown, or the line serves no stops.
+    #[must_use]
+    pub fn loop_next_stop(&self, line: EntityId, position: f64) -> Option<EntityId> {
+        let circumference = self.loop_circumference(line)?;
+        let stops = self.stops_served_by_line(line);
+        if stops.is_empty() {
+            return None;
+        }
+
+        let mut best: Option<(f64, EntityId)> = None;
+        for stop_eid in stops {
+            let Some(stop_pos) = self.world.stop_position(stop_eid) else {
+                continue;
+            };
+            let mut d =
+                crate::components::cyclic::forward_distance(position, stop_pos, circumference);
+            // Coincident → treat as a full lap ahead so we don't return
+            // the caller's current stop as "next".
+            if d <= 1e-9 {
+                d = circumference;
+            }
+            match best {
+                Some((d_best, _)) if d_best <= d => {}
+                _ => best = Some((d, stop_eid)),
+            }
+        }
+        best.map(|(_, eid)| eid)
+    }
+
     /// Find the stop at `position` that's served by `line`.
     ///
     /// Disambiguates the case where two stops on different lines share
