@@ -1496,12 +1496,12 @@ fn loop_sweep_delivers_riders_to_every_served_stop() {
 fn loop_schedule_strategy_round_trips_through_snapshot_identity() {
     use crate::dispatch::{BuiltinStrategy, DispatchStrategy, LoopScheduleDispatch};
 
-    let strategy = LoopScheduleDispatch::new(45, 360);
+    let strategy = LoopScheduleDispatch::new(45, 360, 90);
     assert_eq!(strategy.builtin_id(), Some(BuiltinStrategy::LoopSchedule));
     assert!(BuiltinStrategy::LoopSchedule.instantiate().is_some());
 
-    // Snapshot config must carry both tunables so the next sim resumes
-    // with the original schedule rather than the `default()` 30/300
+    // Snapshot config must carry all three tunables so the next sim
+    // resumes with the original schedule rather than the `default()`
     // tuning that `BuiltinStrategy::instantiate` would otherwise emit.
     let serialized = strategy.snapshot_config().expect("snapshot_config");
     let mut restored = LoopScheduleDispatch::default();
@@ -1510,6 +1510,7 @@ fn loop_schedule_strategy_round_trips_through_snapshot_identity() {
         .expect("restore_config");
     assert_eq!(restored.dwell_ticks(), 45);
     assert_eq!(restored.target_headway_ticks(), 360);
+    assert_eq!(restored.hold_cap_ticks(), 90);
 }
 
 #[cfg(feature = "loop_lines")]
@@ -1525,7 +1526,7 @@ fn loop_schedule_overrides_per_car_door_open_ticks() {
     if let Some(groups) = config.building.groups.as_mut() {
         groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSchedule;
     }
-    let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(42, 600)).unwrap();
+    let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(42, 600, 120)).unwrap();
     let car_eid = sim.world().iter_elevators().next().unwrap().0;
 
     assert_eq!(
@@ -1573,7 +1574,7 @@ fn loop_schedule_delivers_riders_around_loop() {
         // Pick a dwell that's small enough not to dominate the
         // delivery budget. Real schedules pick this from the
         // expected boarding time at each stop.
-        let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(20, 600)).unwrap();
+        let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(20, 600, 120)).unwrap();
         let line_eid = sim.world().iter_elevators().next().unwrap().2.line();
 
         let origin = sim
@@ -1636,6 +1637,316 @@ fn config_accepts_loop_schedule_strategy_on_loop_group() {
     }
     Simulation::new(&config, crate::dispatch::LoopScheduleDispatch::default())
         .expect("LoopSchedule must be accepted on a Loop group");
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_hold_recovery_extends_dwell_for_early_arrival() {
+    // Drive the hold-recovery path with a hand-built world. Two
+    // elevators on a Loop line; we record an earlier arrival at a
+    // stop, then put the second car in Loading at that stop with
+    // `CurrentTick` close to the recorded arrival (i.e. *below*
+    // target headway). The strategy must enqueue a HoldOpen on the
+    // second car whose extension matches the gap deficit.
+    use crate::arrival_log::CurrentTick;
+    use crate::components::{ElevatorPhase, Line, LineKind, Orientation, Stop};
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup, LineInfo};
+    use crate::door::DoorCommand;
+    use crate::ids::GroupId;
+    use crate::world::World;
+
+    let mut world = World::new();
+
+    // Build the Loop line.
+    let line_eid = world.spawn();
+    world.set_line(
+        line_eid,
+        Line {
+            name: "Track".into(),
+            group: GroupId(0),
+            orientation: Orientation::Vertical,
+            position: None,
+            kind: LineKind::Loop {
+                circumference: 100.0,
+                min_headway: 5.0,
+            },
+            max_cars: None,
+        },
+    );
+
+    // One served stop is enough for this test — hold-recovery keys on
+    // per-stop arrival ticks, not per-line.
+    let stop_eid = world.spawn();
+    world.set_stop(
+        stop_eid,
+        Stop {
+            name: "S0".into(),
+            position: 0.0,
+        },
+    );
+
+    // Spawn two elevators on the loop. The leader is parked off-stop
+    // and idle — pre_dispatch shouldn't touch its phase, only its
+    // dwell. The follower is parked at `stop_eid` in Loading.
+    let leader = super::dispatch_tests::spawn_elevator(&mut world, 50.0);
+    let follower = super::dispatch_tests::spawn_elevator(&mut world, 0.0);
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.line = line_eid;
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.line = line_eid;
+    }
+
+    let group = ElevatorGroup::new(
+        GroupId(0),
+        "Track".into(),
+        vec![LineInfo::new(
+            line_eid,
+            vec![leader, follower],
+            vec![stop_eid],
+        )],
+    );
+
+    // Target headway 600 ticks; the recorded prior arrival was 100
+    // ticks ago. Deficit = 500. Cap = 1000 (high enough not to bind).
+    world.insert_resource(CurrentTick(1_000));
+    let mut sched = crate::dispatch::LoopScheduleDispatch::new(20, 600, 1_000);
+
+    // Two arrivals at the same stop drive recovery: run pre_dispatch
+    // once with the leader in Loading at the stop (records its
+    // arrival tick), then move the leader away, advance the clock by
+    // 100, put the follower in Loading at the same stop, and run
+    // pre_dispatch again.
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+        car.door_command_queue.clear();
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.phase = ElevatorPhase::Idle;
+    }
+    let manifest = DispatchManifest::default();
+    sched.pre_dispatch(&group, &manifest, &mut world);
+
+    // Advance the clock 100 ticks, swap roles: leader leaves, follower
+    // arrives. The recorded gap is therefore 100, well below the 600
+    // target headway → deficit 500, capped only by hold_cap_ticks.
+    world.insert_resource(CurrentTick(1_100));
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.phase = ElevatorPhase::MovingToStop(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+        car.door_command_queue.clear();
+    }
+    sched.pre_dispatch(&group, &manifest, &mut world);
+
+    let follower_q = &world.elevator(follower).unwrap().door_command_queue;
+    let hold = follower_q
+        .iter()
+        .find_map(|c| match c {
+            DoorCommand::HoldOpen { ticks } => Some(*ticks),
+            _ => None,
+        })
+        .expect("follower must receive a HoldOpen on early arrival");
+    assert_eq!(
+        hold, 500,
+        "hold extension should equal target_headway - gap = 600 - 100 = 500",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_hold_recovery_respects_cap() {
+    // Same shape as the previous test, but with a tight `hold_cap_ticks`
+    // that bounds the extension. Deficit would be 5000 ticks; the cap
+    // is 30. The issued HoldOpen must equal the cap, never the raw
+    // deficit — otherwise a stuck leader would freeze the follower.
+    use crate::arrival_log::CurrentTick;
+    use crate::components::{ElevatorPhase, Line, LineKind, Orientation, Stop};
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup, LineInfo};
+    use crate::door::DoorCommand;
+    use crate::ids::GroupId;
+    use crate::world::World;
+
+    let mut world = World::new();
+    let line_eid = world.spawn();
+    world.set_line(
+        line_eid,
+        Line {
+            name: "Track".into(),
+            group: GroupId(0),
+            orientation: Orientation::Vertical,
+            position: None,
+            kind: LineKind::Loop {
+                circumference: 100.0,
+                min_headway: 5.0,
+            },
+            max_cars: None,
+        },
+    );
+    let stop_eid = world.spawn();
+    world.set_stop(
+        stop_eid,
+        Stop {
+            name: "S0".into(),
+            position: 0.0,
+        },
+    );
+    let leader = super::dispatch_tests::spawn_elevator(&mut world, 50.0);
+    let follower = super::dispatch_tests::spawn_elevator(&mut world, 0.0);
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.line = line_eid;
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.line = line_eid;
+    }
+    let group = ElevatorGroup::new(
+        GroupId(0),
+        "Track".into(),
+        vec![LineInfo::new(
+            line_eid,
+            vec![leader, follower],
+            vec![stop_eid],
+        )],
+    );
+
+    world.insert_resource(CurrentTick(0));
+    let mut sched = crate::dispatch::LoopScheduleDispatch::new(20, 5_000, 30);
+    let manifest = DispatchManifest::default();
+    sched.pre_dispatch(&group, &manifest, &mut world); // records leader arrival
+
+    // Follower arrives almost immediately — gap=1 tick, deficit=4999.
+    world.insert_resource(CurrentTick(1));
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.phase = ElevatorPhase::MovingToStop(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+        car.door_command_queue.clear();
+    }
+    sched.pre_dispatch(&group, &manifest, &mut world);
+
+    let hold = world
+        .elevator(follower)
+        .unwrap()
+        .door_command_queue
+        .iter()
+        .find_map(|c| match c {
+            DoorCommand::HoldOpen { ticks } => Some(*ticks),
+            _ => None,
+        })
+        .expect("follower must still receive a HoldOpen");
+    assert_eq!(
+        hold, 30,
+        "hold extension must be capped to hold_cap_ticks (30), not the raw deficit (4999)",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_skips_recovery_when_gap_meets_target() {
+    // Follower arrives *at or beyond* the target headway: no
+    // recovery, no HoldOpen. Confirms the strategy doesn't issue
+    // spurious holds when the schedule is on time.
+    use crate::arrival_log::CurrentTick;
+    use crate::components::{ElevatorPhase, Line, LineKind, Orientation, Stop};
+    use crate::dispatch::{DispatchManifest, DispatchStrategy, ElevatorGroup, LineInfo};
+    use crate::door::DoorCommand;
+    use crate::ids::GroupId;
+    use crate::world::World;
+
+    let mut world = World::new();
+    let line_eid = world.spawn();
+    world.set_line(
+        line_eid,
+        Line {
+            name: "Track".into(),
+            group: GroupId(0),
+            orientation: Orientation::Vertical,
+            position: None,
+            kind: LineKind::Loop {
+                circumference: 100.0,
+                min_headway: 5.0,
+            },
+            max_cars: None,
+        },
+    );
+    let stop_eid = world.spawn();
+    world.set_stop(
+        stop_eid,
+        Stop {
+            name: "S0".into(),
+            position: 0.0,
+        },
+    );
+    let leader = super::dispatch_tests::spawn_elevator(&mut world, 50.0);
+    let follower = super::dispatch_tests::spawn_elevator(&mut world, 0.0);
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.line = line_eid;
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.line = line_eid;
+    }
+    let group = ElevatorGroup::new(
+        GroupId(0),
+        "Track".into(),
+        vec![LineInfo::new(
+            line_eid,
+            vec![leader, follower],
+            vec![stop_eid],
+        )],
+    );
+
+    world.insert_resource(CurrentTick(0));
+    let mut sched = crate::dispatch::LoopScheduleDispatch::new(20, 100, 200);
+    let manifest = DispatchManifest::default();
+    sched.pre_dispatch(&group, &manifest, &mut world); // records leader
+
+    // Follower arrives exactly at target_headway: no recovery needed.
+    world.insert_resource(CurrentTick(100));
+    {
+        let car = world.elevator_mut(leader).unwrap();
+        car.phase = ElevatorPhase::MovingToStop(stop_eid);
+    }
+    {
+        let car = world.elevator_mut(follower).unwrap();
+        car.phase = ElevatorPhase::Loading;
+        car.target_stop = Some(stop_eid);
+        car.door_command_queue.clear();
+    }
+    sched.pre_dispatch(&group, &manifest, &mut world);
+
+    let has_hold = world
+        .elevator(follower)
+        .unwrap()
+        .door_command_queue
+        .iter()
+        .any(|c| matches!(c, DoorCommand::HoldOpen { .. }));
+    assert!(
+        !has_hold,
+        "on-time arrival (gap == target_headway) must not trigger hold-recovery",
+    );
 }
 
 #[test]
