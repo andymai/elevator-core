@@ -89,6 +89,7 @@ fn multi_group_config(
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             });
             line_id += 1;

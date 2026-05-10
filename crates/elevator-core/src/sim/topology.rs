@@ -5,7 +5,7 @@
 //! points). Split out from `sim.rs` to keep each concern readable.
 
 use crate::components::Route;
-use crate::components::{Elevator, ElevatorPhase, Line, Position, Stop, Velocity};
+use crate::components::{Elevator, ElevatorPhase, Line, LineKind, Position, Stop, Velocity};
 use crate::dispatch::{BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo};
 use crate::door::DoorState;
 use crate::entity::EntityId;
@@ -220,28 +220,20 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
-    /// Returns [`SimError::InvalidConfig`] if `min_position` / `max_position`
-    /// is non-finite or `min_position > max_position` — broken bounds
-    /// would produce NaN positions on every car added to the line.
+    /// Returns [`SimError::InvalidConfig`] for malformed bounds —
+    /// non-finite `min`/`max` or `min > max` on a `Linear` line, or
+    /// non-finite / non-positive `circumference` on a `Loop` line.
     pub fn add_line(&mut self, params: &LineParams) -> Result<EntityId, SimError> {
-        if !params.min_position.is_finite() || !params.max_position.is_finite() {
-            return Err(SimError::InvalidConfig {
-                field: "line.range",
-                reason: format!(
-                    "min/max must be finite (got min={}, max={})",
-                    params.min_position, params.max_position
-                ),
-            });
-        }
-        if params.min_position > params.max_position {
-            return Err(SimError::InvalidConfig {
-                field: "line.range",
-                reason: format!(
-                    "min ({}) must be <= max ({})",
-                    params.min_position, params.max_position
-                ),
-            });
-        }
+        // Resolve the requested kind; flat fields are the fallback only
+        // when no explicit kind was provided. Validation runs against
+        // the *resolved* kind so callers passing an explicit Loop don't
+        // get a spurious flat-field complaint.
+        let kind = params.kind.unwrap_or(LineKind::Linear {
+            min: params.min_position,
+            max: params.max_position,
+        });
+        kind.validate()
+            .map_err(|(field, reason)| SimError::InvalidConfig { field, reason })?;
 
         let group_id = params.group;
         let group = self
@@ -260,8 +252,7 @@ impl Simulation {
                 group: group_id,
                 orientation: params.orientation,
                 position: params.position,
-                min_position: params.min_position,
-                max_position: params.max_position,
+                kind,
                 max_cars: params.max_cars,
             },
         );
@@ -316,8 +307,27 @@ impl Simulation {
             .world
             .line_mut(line)
             .ok_or(SimError::LineNotFound(line))?;
-        line_ref.min_position = min;
-        line_ref.max_position = max;
+        // `set_line_range` is a Linear-only operation; loops have no
+        // endpoints to set. Reject early so callers don't silently mutate
+        // the wrong field on a Loop line.
+        match &mut line_ref.kind {
+            LineKind::Linear {
+                min: kmin,
+                max: kmax,
+            } => {
+                *kmin = min;
+                *kmax = max;
+            }
+            #[cfg(feature = "loop_lines")]
+            LineKind::Loop { .. } => {
+                return Err(SimError::InvalidConfig {
+                    field: "line.range",
+                    reason: "set_line_range is not valid on a Loop line; \
+                            change circumference via a future API instead"
+                        .to_string(),
+                });
+            }
+        }
 
         // Clamp any cars on this line whose position falls outside the new range.
         let car_ids: Vec<EntityId> = self

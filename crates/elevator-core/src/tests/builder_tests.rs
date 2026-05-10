@@ -225,6 +225,7 @@ fn from_config_honours_config_group_dispatch() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             }]),
             groups: Some(vec![GroupConfig {
@@ -313,6 +314,7 @@ fn from_config_dispatch_override_records_dispatcher_identity() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             }]),
             groups: Some(vec![GroupConfig {

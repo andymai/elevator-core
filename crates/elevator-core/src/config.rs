@@ -1,6 +1,6 @@
 //! Building and elevator configuration (RON-deserializable).
 
-use crate::components::{Accel, Orientation, SpatialPosition, Speed, Weight};
+use crate::components::{Accel, LineKind, Orientation, SpatialPosition, Speed, Weight};
 use crate::dispatch::{BuiltinReposition, BuiltinStrategy, HallCallMode};
 use crate::stop::{StopConfig, StopId};
 use serde::{Deserialize, Serialize};
@@ -321,14 +321,26 @@ pub struct LineConfig {
     #[serde(default)]
     pub position: Option<SpatialPosition>,
     /// Lowest reachable position (auto-computed from stops if `None`).
+    ///
+    /// Used only when [`Self::kind`] is `None`; otherwise the kind's own
+    /// bounds (or circumference) take precedence.
     #[serde(default)]
     pub min_position: Option<f64>,
     /// Highest reachable position (auto-computed from stops if `None`).
+    /// See [`Self::min_position`] for the kind interaction.
     #[serde(default)]
     pub max_position: Option<f64>,
     /// Max cars on this line (`None` = unlimited).
     #[serde(default)]
     pub max_cars: Option<usize>,
+    /// Topology kind. When `Some`, takes precedence over the flat
+    /// `min_position`/`max_position` fields. When `None`, falls back to
+    /// [`LineKind::Linear`] built from the flat fields (or
+    /// auto-computed from stops). RON authors can opt into a closed
+    /// loop with `kind: Some(Loop(circumference: 200.0, min_headway: 10.0))`
+    /// — but only when the `loop_lines` feature is enabled.
+    #[serde(default)]
+    pub kind: Option<LineKind>,
 }
 
 /// Configuration for an elevator dispatch group.
