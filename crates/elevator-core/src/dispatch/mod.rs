@@ -41,6 +41,9 @@ pub mod destination;
 pub mod etd;
 /// LOOK dispatch algorithm.
 pub mod look;
+/// Call-driven sweep for closed-loop topologies.
+#[cfg(feature = "loop_lines")]
+pub mod loop_sweep;
 /// Per-tick demand picture handed to dispatch strategies.
 pub mod manifest;
 /// Nearest-car dispatch algorithm.
@@ -63,6 +66,8 @@ pub(crate) use assignment::{DispatchScratch, assign_with_scratch};
 pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
 pub use look::LookDispatch;
+#[cfg(feature = "loop_lines")]
+pub use loop_sweep::LoopSweepDispatch;
 pub use manifest::{DispatchManifest, RiderInfo};
 pub use nearest_car::NearestCarDispatch;
 pub use rsr::RsrDispatch;
@@ -332,6 +337,13 @@ pub enum BuiltinStrategy {
     /// Relative System Response — additive composite of ETA, direction,
     /// car-call affinity, and load-share terms.
     Rsr,
+    /// Continuous-patrol sweep for [`LineKind::Loop`](crate::components::LineKind::Loop)
+    /// groups. Loop cars never enter the Hungarian idle pool — the
+    /// kickstart pass and door FSM handle routing — so this variant is
+    /// a typed snapshot/config label rather than a ranking implementation.
+    /// Available only when the `loop_lines` cargo feature is enabled.
+    #[cfg(feature = "loop_lines")]
+    LoopSweep,
     /// Custom strategy identified by name. The game must provide a factory.
     Custom(String),
 }
@@ -345,6 +357,8 @@ impl std::fmt::Display for BuiltinStrategy {
             Self::Etd => write!(f, "Etd"),
             Self::Destination => write!(f, "Destination"),
             Self::Rsr => write!(f, "Rsr"),
+            #[cfg(feature = "loop_lines")]
+            Self::LoopSweep => write!(f, "LoopSweep"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -375,6 +389,8 @@ impl BuiltinStrategy {
             // actual strategy, not to NearestCar-in-disguise, so use
             // `Default` here.
             Self::Rsr => Some(Box::new(rsr::RsrDispatch::default())),
+            #[cfg(feature = "loop_lines")]
+            Self::LoopSweep => Some(Box::new(loop_sweep::LoopSweepDispatch::new())),
             Self::Custom(_) => None,
         }
     }

@@ -911,11 +911,12 @@ fn loop_next_stop_returns_forward_neighbour() {
         // Collapse to one group containing only the loop line so the
         // homogeneity check passes.
         groups[0].lines = vec![1];
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSweep;
         groups.remove(1);
     }
     config.building.lines.as_mut().unwrap().truncate(1);
 
-    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let sim = Simulation::new(&config, crate::dispatch::LoopSweepDispatch::new()).unwrap();
     let loop_line = sim.lines_in_group(GroupId(0))[0];
 
     // From position 10 → next forward is StopId(1) @ 25.
@@ -971,11 +972,12 @@ fn loop_car_traverses_seam_and_arrives() {
     }
     if let Some(groups) = config.building.groups.as_mut() {
         groups[0].lines = vec![1];
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSweep;
         groups.remove(1);
     }
     config.building.lines.as_mut().unwrap().truncate(1);
 
-    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let mut sim = Simulation::new(&config, crate::dispatch::LoopSweepDispatch::new()).unwrap();
     let car_eid = sim.world().iter_elevators().next().unwrap().0;
 
     // Resolve target stop entity by config id.
@@ -1132,6 +1134,12 @@ fn config_rejects_loop_with_duplicate_position_stops() {
         });
         lines[0].serves = vec![StopId(0), StopId(1), StopId(2)];
     }
+    if let Some(groups) = config.building.groups.as_mut() {
+        // Match the construction validator's strategy guard for Loop
+        // groups so the check we're actually exercising — duplicate
+        // stop positions — runs through to its rejection.
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSweep;
+    }
     // Force StopId(1) and StopId(2) to share a position.
     config.building.stops[1].position = 5.0;
     config.building.stops[2].position = 5.0;
@@ -1187,6 +1195,7 @@ fn loop_only_config() -> SimConfig {
     }
     if let Some(groups) = config.building.groups.as_mut() {
         groups[0].lines = vec![1];
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSweep;
         groups.remove(1);
     }
     config.building.lines.as_mut().unwrap().truncate(1);
@@ -1196,8 +1205,9 @@ fn loop_only_config() -> SimConfig {
 #[cfg(feature = "loop_lines")]
 #[test]
 fn loop_car_kickstarts_from_idle_on_first_tick() {
+    use crate::dispatch::LoopSweepDispatch;
     let config = loop_only_config();
-    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let mut sim = Simulation::new(&config, LoopSweepDispatch::new()).unwrap();
     let car_eid = sim.world().iter_elevators().next().unwrap().0;
 
     // Construction places the car at Idle. Without the kickstart pass in
@@ -1226,8 +1236,9 @@ fn loop_car_kickstarts_from_idle_on_first_tick() {
 #[cfg(feature = "loop_lines")]
 #[test]
 fn loop_car_continues_patrol_after_door_close() {
+    use crate::dispatch::LoopSweepDispatch;
     let config = loop_only_config();
-    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let mut sim = Simulation::new(&config, LoopSweepDispatch::new()).unwrap();
     let car_eid = sim.world().iter_elevators().next().unwrap().0;
 
     // Run long enough for the car to arrive at the next stop, cycle
@@ -1278,13 +1289,14 @@ fn loop_car_continues_patrol_after_door_close() {
 #[cfg(feature = "loop_lines")]
 #[test]
 fn loop_boarding_ignores_linear_direction_gate() {
+    use crate::dispatch::LoopSweepDispatch;
     // A Loop car arrives at stop_50 (position 50). A rider at stop_50
     // wants to reach stop_25 (position 25 — *behind* in linear coords).
     // On a Linear line the going_down lamp would gate this rider out
     // unless both lamps are lit. On a Loop, every destination is forward
     // through the cycle — boarding must bypass the gate.
     let config = loop_only_config();
-    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let mut sim = Simulation::new(&config, LoopSweepDispatch::new()).unwrap();
     let car_eid = sim.world().iter_elevators().next().unwrap().0;
     let line_eid = sim.world().elevator(car_eid).unwrap().line();
     let stop_50 = sim
@@ -1342,6 +1354,141 @@ fn loop_boarding_ignores_linear_direction_gate() {
         "Loop car must board a rider whose destination is at a lower linear position — \
          the directional lamp gate must be bypassed on Loop lines",
     );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn config_rejects_linear_dispatch_strategy_on_loop_group() {
+    use crate::components::LineKind;
+    use crate::error::SimError;
+
+    // Loop group with the default `BuiltinStrategy::Scan` dispatch:
+    // construction must reject loud rather than silently install a
+    // strategy that would never be invoked (Loop cars are excluded
+    // from the Hungarian idle pool by `systems::dispatch::run`).
+    let mut config = two_group_config();
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+    }
+    if let Some(groups) = config.building.groups.as_mut() {
+        // Default from `two_group_config` is `BuiltinStrategy::Scan`;
+        // assert that explicitly so the test fails with a clear
+        // message if the helper's default changes.
+        assert_eq!(
+            groups[0].dispatch,
+            crate::dispatch::BuiltinStrategy::Scan,
+            "test relies on `two_group_config` defaulting to Scan",
+        );
+    }
+
+    match Simulation::new(&config, ScanDispatch::new()) {
+        Err(SimError::InvalidConfig { field, reason }) => {
+            assert_eq!(field, "building.groups.dispatch");
+            assert!(
+                reason.contains("LoopSweep"),
+                "rejection message should name LoopSweep as the supported strategy: {reason}",
+            );
+        }
+        other => panic!("expected InvalidConfig, got {other:?}"),
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_sweep_strategy_round_trips_through_snapshot_identity() {
+    use crate::dispatch::{BuiltinStrategy, DispatchStrategy, LoopSweepDispatch};
+
+    // `LoopSweepDispatch::builtin_id()` must report
+    // `BuiltinStrategy::LoopSweep` so a snapshot round-trip restores
+    // the same identity. Without this, `WorldSnapshot::restore` would
+    // fall back to recording `Scan` (per the `builtin_id` doc) and the
+    // restored sim would refuse to construct (Loop group + Scan
+    // dispatch is rejected by `validate_explicit_topology`).
+    let strategy = LoopSweepDispatch::new();
+    assert_eq!(strategy.builtin_id(), Some(BuiltinStrategy::LoopSweep));
+    assert!(BuiltinStrategy::LoopSweep.instantiate().is_some());
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_sweep_delivers_riders_to_every_served_stop() {
+    use crate::dispatch::LoopSweepDispatch;
+
+    // End-to-end check that `LoopSweep` (via the kickstart + door FSM
+    // continuation + boarding bypass wiring) delivers a rider on every
+    // possible (origin, destination) pair around the loop. With four
+    // stops at 0/25/50/75 there are 12 ordered non-trivial pairs;
+    // running each in isolation keeps the assertion local to the
+    // delivery contract rather than entangling it with multi-rider
+    // scheduling, which lands when `LoopSchedule` ships.
+    let stops_at = [0.0, 25.0, 50.0, 75.0];
+
+    for (origin_idx, &origin_pos) in stops_at.iter().enumerate() {
+        for (dest_idx, &dest_pos) in stops_at.iter().enumerate() {
+            if origin_idx == dest_idx {
+                continue;
+            }
+
+            let config = loop_only_config();
+            let mut sim = Simulation::new(&config, LoopSweepDispatch::new()).unwrap();
+            let line_eid = sim.world().iter_elevators().next().unwrap().2.line();
+
+            let origin = sim
+                .world()
+                .iter_stops()
+                .find(|(_, s)| (s.position - origin_pos).abs() < 1e-9)
+                .map(|(eid, _)| eid)
+                .unwrap();
+            let dest = sim
+                .world()
+                .iter_stops()
+                .find(|(_, s)| (s.position - dest_pos).abs() < 1e-9)
+                .map(|(eid, _)| eid)
+                .unwrap();
+
+            // Spawn a single rider at `origin` routed to `dest`.
+            // `build_rider` keeps the rider-index entry in sync; using
+            // raw `set_rider` would skip it and the loading phase
+            // wouldn't see them at the stop.
+            let rider = sim
+                .build_rider(origin, dest)
+                .unwrap()
+                .weight(70.0)
+                .route(Route {
+                    legs: vec![RouteLeg {
+                        from: origin,
+                        to: dest,
+                        via: TransportMode::Line(line_eid),
+                    }],
+                    current_leg: 0,
+                })
+                .spawn()
+                .unwrap();
+
+            // Worst case: rider one stop behind the car in the forward
+            // direction → almost a full lap to pick up + worst-case
+            // forward distance to drop off ≈ ~2 laps. With max_speed
+            // 2 + 25-unit gaps + door cycles, 8000 ticks is generous.
+            let mut delivered = false;
+            for _ in 0..8000 {
+                sim.step();
+                if matches!(
+                    sim.world().rider(rider.entity()).unwrap().phase,
+                    RiderPhase::Arrived
+                ) {
+                    delivered = true;
+                    break;
+                }
+            }
+            assert!(
+                delivered,
+                "LoopSweep failed to deliver rider {origin_pos} → {dest_pos} within budget",
+            );
+        }
+    }
 }
 
 #[test]
