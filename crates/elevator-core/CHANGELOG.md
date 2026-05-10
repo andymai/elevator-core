@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.6.0...elevator-core-v20.7.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** loop topology accessors on Simulation ([#810](https://github.com/andymai/elevator-core/issues/810)) ([6491a4e](https://github.com/andymai/elevator-core/commit/6491a4eed103bb6bbb26978dabc2a84d37553e60))
+
 ## [20.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.5.0...elevator-core-v20.6.0) (2026-05-10)
 
 
