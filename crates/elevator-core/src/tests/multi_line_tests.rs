@@ -942,6 +942,98 @@ fn loop_next_stop_returns_forward_neighbour() {
 
 #[cfg(feature = "loop_lines")]
 #[test]
+fn loop_car_traverses_seam_and_arrives() {
+    use crate::components::{ElevatorPhase, LineKind};
+
+    // 4-stop loop at positions 0/25/50/75; circumference = 100.
+    // Build a config with exactly one elevator on the loop, starting at
+    // stop @ 75. Manually set the car's phase to `MovingToStop(stop @
+    // 25)` so the only forward path crosses the seam — verifies the
+    // cyclic movement integration in `systems/movement.rs`.
+    let mut config = two_group_config();
+    {
+        let stops = &mut config.building.stops;
+        stops[0].position = 0.0;
+        stops[1].position = 25.0;
+        stops[2].position = 50.0;
+    }
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+        lines[0].serves = vec![StopId(0), StopId(1), StopId(2)];
+        // Move the elevator's starting stop to one *behind* the target
+        // in linear coords so cyclic semantics are exercised.
+        lines[0].elevators[0].starting_stop = StopId(2); // position 50
+    }
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].lines = vec![1];
+        groups.remove(1);
+    }
+    config.building.lines.as_mut().unwrap().truncate(1);
+
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+
+    // Resolve target stop entity by config id.
+    let stop_25 = sim
+        .world()
+        .iter_stops()
+        .find(|(_, s)| (s.position - 25.0).abs() < 1e-9)
+        .map(|(eid, _)| eid)
+        .unwrap();
+
+    // Push a destination so the per-tick `advance_queue` phase doesn't
+    // reset the manually-set MovingToStop back to Idle. The car still
+    // moves under the cyclic integrator because its line is a Loop.
+    sim.push_destination(ElevatorId::from(car_eid), stop_25)
+        .expect("push destination on loop car");
+
+    // Step until arrival or a generous bound. With max_speed 2 and
+    // accel/decel 1.5/2 and dt=1/60, 75 units ≈ 38 seconds = 2280
+    // ticks — pad to 5000.
+    let mut crossed_seam = false;
+    let mut prev_pos = sim.world().position(car_eid).unwrap().value;
+    let mut arrived = false;
+    for _ in 0..5000 {
+        sim.step();
+        let current_pos = sim.world().position(car_eid).unwrap().value;
+        // Seam crossing on a forward-moving Loop car: new_pos < old_pos
+        // mid-trip.
+        if current_pos < prev_pos - 1e-9 {
+            crossed_seam = true;
+        }
+        prev_pos = current_pos;
+        if matches!(
+            sim.world().elevator(car_eid).unwrap().phase,
+            ElevatorPhase::DoorOpening
+                | ElevatorPhase::Loading
+                | ElevatorPhase::DoorClosing
+                | ElevatorPhase::Stopped
+        ) {
+            arrived = true;
+            break;
+        }
+    }
+
+    assert!(
+        crossed_seam,
+        "expected the cyclic movement integrator to wrap past the seam",
+    );
+    assert!(
+        arrived,
+        "loop car never reached the target stop within the tick budget",
+    );
+    let final_pos = sim.world().position(car_eid).unwrap().value;
+    assert!(
+        (final_pos - 25.0).abs() < 1e-6,
+        "loop car arrived at {final_pos}, expected 25.0",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
 fn config_rejects_mixed_loop_and_linear_in_same_group() {
     use crate::components::LineKind;
     use crate::error::SimError;

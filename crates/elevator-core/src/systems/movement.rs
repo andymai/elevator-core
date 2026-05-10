@@ -6,6 +6,8 @@ use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
 use crate::metrics::Metrics;
 use crate::movement::tick_movement;
+#[cfg(feature = "loop_lines")]
+use crate::movement::tick_movement_cyclic;
 use crate::world::{SortedStops, World};
 
 use super::PhaseContext;
@@ -133,6 +135,53 @@ pub fn run(
             "ElevatorPhase::Repositioning and car.repositioning flag diverged at eid={eid:?}"
         );
 
+        // Loop cars use cyclic motion: position wraps modulo the line's
+        // circumference, the integrator picks the forward path to the
+        // target, and seam-crossings (old_pos > new_pos within a single
+        // tick) are emitted in two passing-floor ranges below. Linear
+        // cars take the existing trapezoidal-on-axis path.
+        #[cfg(feature = "loop_lines")]
+        let circumference = world
+            .line(
+                world
+                    .elevator(eid)
+                    .map_or_else(EntityId::default, |c| c.line),
+            )
+            .and_then(crate::components::Line::circumference);
+        // Mirrored unconditional binding so the seam-aware passing-floor
+        // logic below (which is itself unconditional, just behaviourally
+        // a no-op without a `circumference`) compiles on either feature
+        // configuration.
+        #[cfg(not(feature = "loop_lines"))]
+        let circumference: Option<f64> = None;
+
+        #[cfg(feature = "loop_lines")]
+        #[allow(
+            clippy::option_if_let_else,
+            reason = "the two arms call different functions with different arities; map_or_else closures would just duplicate the eight-argument call"
+        )]
+        let result = match circumference {
+            Some(c) => tick_movement_cyclic(
+                pos,
+                vel,
+                target_pos,
+                max_speed,
+                acceleration,
+                deceleration,
+                ctx.dt,
+                c,
+            ),
+            None => tick_movement(
+                pos,
+                vel,
+                target_pos,
+                max_speed,
+                acceleration,
+                deceleration,
+                ctx.dt,
+            ),
+        };
+        #[cfg(not(feature = "loop_lines"))]
         let result = tick_movement(
             pos,
             vel,
@@ -163,29 +212,56 @@ pub fn run(
 
         // Emit PassingFloor for any stops crossed between old and new position
         // (excluding the target stop — that gets an ElevatorArrived instead).
+        //
+        // On a Loop line a single tick can cross the seam: `old_pos > new_pos`
+        // even though we travelled forward. In that case the swept range is
+        // `[old_pos, circumference) ∪ [0, new_pos)` rather than a single
+        // `[lo, hi)` interval, so we walk the sorted-stops index in two
+        // passes. Linear and Loop-without-seam ticks fall through to the
+        // single-pass path.
         let mut passing_moves: u64 = 0;
         if !result.arrived {
-            let moving_up = new_pos > old_pos;
-            let (lo, hi) = if moving_up {
-                (old_pos, new_pos)
-            } else {
-                (new_pos, old_pos)
-            };
-            if let Some(sorted) = world.resource::<SortedStops>() {
+            let crossed_seam = circumference.is_some() && new_pos < old_pos;
+            // Loop cars always patrol forward; otherwise the existing
+            // sign-of-displacement rule still holds.
+            let moving_up = circumference.is_some() || new_pos > old_pos;
+
+            let emit_range = |lo: f64, hi: f64, world_ref: &World, events_ref: &mut EventBus| {
+                if hi <= lo + 1e-9 {
+                    return 0u64;
+                }
+                let Some(sorted) = world_ref.resource::<SortedStops>() else {
+                    return 0;
+                };
                 let start = sorted.0.partition_point(|&(p, _)| p <= lo + 1e-9);
                 let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
+                let mut count = 0;
                 for &(_, stop_eid) in &sorted.0[start..end] {
                     if stop_eid == target_stop_eid {
                         continue;
                     }
-                    events.emit(Event::PassingFloor {
+                    events_ref.emit(Event::PassingFloor {
                         elevator: eid,
                         stop: stop_eid,
                         moving_up,
                         tick: ctx.tick,
                     });
-                    passing_moves += 1;
+                    count += 1;
                 }
+                count
+            };
+
+            if crossed_seam {
+                let c = circumference.unwrap_or(0.0);
+                passing_moves += emit_range(old_pos, c, world, events);
+                passing_moves += emit_range(0.0, new_pos, world, events);
+            } else {
+                let (lo, hi) = if moving_up {
+                    (old_pos, new_pos)
+                } else {
+                    (new_pos, old_pos)
+                };
+                passing_moves += emit_range(lo, hi, world, events);
             }
         }
         if passing_moves > 0 {
