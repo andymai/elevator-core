@@ -238,8 +238,17 @@ impl Simulation {
         kind.validate()
             .map_err(|(field, reason)| SimError::InvalidConfig { field, reason })?;
 
-        // Loop-specific cross-field invariant. Mirrors the same check in
-        // `validate_explicit_topology` for runtime line additions.
+        // Loop-specific cross-field invariant — runtime mirror of the
+        // check in `validate_explicit_topology`.
+        //
+        // Asymmetric with the config-time path on `max_cars = None`:
+        // `validate_explicit_topology` falls back to `lc.elevators.len()`
+        // because the config-time line-config bundles its elevators, but
+        // a runtime-added line is always *empty* at this point — cars
+        // attach later via `add_elevator_to_line`. With no concrete car
+        // count to validate against and no upper bound on future
+        // attachments, we can't fire here. PR 3 closes the gap by
+        // running the same check at car-attach time.
         #[cfg(feature = "loop_lines")]
         if let LineKind::Loop {
             circumference,

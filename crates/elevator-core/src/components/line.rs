@@ -143,11 +143,26 @@ impl LineKind {
                 }
             }
             #[cfg(feature = "loop_lines")]
-            Self::Loop { circumference, .. } => {
+            Self::Loop {
+                circumference,
+                min_headway,
+            } => {
                 if !circumference.is_finite() || *circumference <= 0.0 {
                     return Err((
                         "line.kind",
                         format!("loop circumference must be finite and > 0 (got {circumference})"),
+                    ));
+                }
+                // Negative `min_headway` would make `headway_clamp_target`
+                // compute `safe_advance = gap - min_headway = gap + |min_headway|`,
+                // i.e. the trailer would be allowed to advance *past* the
+                // leader. Reject up front so the cross-field guard
+                // (`max_cars * min_headway <= circumference`) can't be
+                // bypassed by sign-flipping `required` to negative.
+                if !min_headway.is_finite() || *min_headway <= 0.0 {
+                    return Err((
+                        "line.kind",
+                        format!("loop min_headway must be finite and > 0 (got {min_headway})"),
                     ));
                 }
             }
@@ -518,6 +533,24 @@ mod tests {
             .validate()
             .is_ok()
         );
+    }
+
+    #[cfg(feature = "loop_lines")]
+    #[test]
+    fn validate_rejects_non_positive_min_headway() {
+        // Negative `min_headway` would let `headway_clamp_target` compute
+        // a `safe_advance` larger than the actual gap, allowing overtaking.
+        for bad in [0.0_f64, -1.0, f64::NAN] {
+            let result = LineKind::Loop {
+                circumference: 100.0,
+                min_headway: bad,
+            }
+            .validate();
+            assert!(
+                result.is_err(),
+                "min_headway={bad} should have been rejected, got {result:?}",
+            );
+        }
     }
 
     #[cfg(feature = "loop_lines")]

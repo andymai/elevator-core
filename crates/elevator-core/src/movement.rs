@@ -486,6 +486,19 @@ mod cyclic_tests {
                 velocities[me] = r.velocity;
             }
 
+            // Re-sort using post-tick positions so the invariant check sees
+            // actual cyclic-order pairs. Without this, a hypothetical bug
+            // that lets car `order[k]` overtake `order[k+1]` would flip the
+            // pair's order; `forward_distance` on the stale ordering would
+            // then return ~`C`, which is trivially `>= HEADWAY`, and the
+            // assert would silently pass even though the invariant was
+            // violated.
+            order.sort_by(|&a, &b| {
+                let da = forward_distance(positions[0], positions[a], C);
+                let db = forward_distance(positions[0], positions[b], C);
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            });
+
             // Invariant: every pair of consecutive cars in cyclic order has
             // forward gap >= HEADWAY (within a tiny tolerance for the
             // trapezoidal integrator's overshoot epsilon).
