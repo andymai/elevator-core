@@ -550,10 +550,6 @@ const spaceElevator: ScenarioMeta = {
   // per platform — exactly what you want for sparse long-haul
   // traffic.
   defaultReposition: "spread",
-  // Tether mode is too tall to tile vertically into a side-by-side
-  // compare grid — pane height ends up squashing the GEO-to-Ground
-  // axis below the threshold where the trapezoidal profile reads.
-  disableCompare: true,
   // Phase durations are tuned to the tether's natural timescale, not
   // a building's "morning rush / evening commute" model. A short hop
   // up to Karman is ~250 sim seconds round-trip, so each phase lasts
