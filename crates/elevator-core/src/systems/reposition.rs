@@ -59,6 +59,21 @@ pub fn run(
                     return None;
                 }
                 let car = world.elevator(eid)?;
+                // Loop cars are excluded from reposition entirely. A
+                // running Loop car is by construction never `Idle`
+                // (the door FSM continuation hands off straight to
+                // `MovingToStop`), but the kickstart pass and
+                // service-mode resume both produce a brief `Idle`
+                // window before the next dispatch tick can promote
+                // the car. Skipping Loop cars here keeps reposition
+                // from racing in and assigning a one-shot trip that
+                // would conflict with cyclic patrol semantics.
+                if world
+                    .line(car.line())
+                    .is_some_and(crate::components::Line::is_loop)
+                {
+                    return None;
+                }
                 if car.phase == ElevatorPhase::Idle {
                     let pos = world.position(eid)?.value;
                     Some((eid, pos))
