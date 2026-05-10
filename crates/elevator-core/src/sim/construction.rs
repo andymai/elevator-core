@@ -71,7 +71,9 @@ pub(super) const fn canonical_hall_call_mode(
         // on assignment. Classic collective control is the closest fit
         // (every car serves every waiter regardless of direction lamps).
         #[cfg(feature = "loop_lines")]
-        BuiltinStrategy::LoopSweep => Some(crate::dispatch::HallCallMode::Classic),
+        BuiltinStrategy::LoopSweep | BuiltinStrategy::LoopSchedule => {
+            Some(crate::dispatch::HallCallMode::Classic)
+        }
     }
 }
 
@@ -1125,20 +1127,24 @@ impl Simulation {
                         ),
                     });
                 }
-                // Strategy: Loop groups must use `LoopSweep` in v1. Linear
-                // strategies don't apply (Loop cars are excluded from the
-                // Hungarian idle pool by `systems::dispatch::run`), and
-                // silently swapping a misconfigured Linear strategy for
-                // `LoopSweep` would hide a bug — every other "wrong
-                // strategy" case in this file rejects loud, so do the same
-                // here. `LoopSchedule` lands in a follow-up PR and will
-                // join `LoopSweep` as an accepted variant then.
-                if any_loop && !matches!(gc.dispatch, BuiltinStrategy::LoopSweep) {
+                // Strategy: Loop groups accept `LoopSweep` or
+                // `LoopSchedule` only. Linear strategies don't apply
+                // (Loop cars are excluded from the Hungarian idle pool
+                // by `systems::dispatch::run`), and silently swapping a
+                // misconfigured Linear strategy for the Loop default
+                // would hide a bug — every other "wrong strategy" case
+                // in this file rejects loud, so do the same here.
+                if any_loop
+                    && !matches!(
+                        gc.dispatch,
+                        BuiltinStrategy::LoopSweep | BuiltinStrategy::LoopSchedule,
+                    )
+                {
                     return Err(SimError::InvalidConfig {
                         field: "building.groups.dispatch",
                         reason: format!(
                             "group {} contains Loop lines but uses {} dispatch; \
-                             only LoopSweep is supported for Loop groups in v1",
+                             only LoopSweep or LoopSchedule is supported for Loop groups",
                             gc.id, gc.dispatch,
                         ),
                     });

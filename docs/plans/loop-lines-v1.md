@@ -12,10 +12,11 @@ All work ships behind the `loop_lines` cargo feature (default off).
 | 3 | Direction Forward + strict validation | shipped (#808) |
 | 4 | Loop topology accessors on `Simulation` | shipped (#810) |
 | 5 | Cyclic motion wired into the movement systems phase | shipped (#812) |
-| 6 | Loop FSM completion: door continuation + kickstart + boarding bypass | this PR |
-| 7 | `LoopSweep` dispatch | not started |
-| 8 | `LoopSchedule` dispatch | not started |
-| 9 | Demo scenario + host wiring | not started |
+| 6 | Loop FSM completion: door continuation + kickstart + boarding bypass | shipped (#814) |
+| 7 | `LoopSweep` dispatch | shipped (#816) |
+| 8 | `LoopSchedule` fixed-dwell | this PR |
+| 9 | `LoopSchedule` hold-recovery | not started |
+| 10 | Demo scenario + host wiring | not started |
 
 ## Locked decisions
 
