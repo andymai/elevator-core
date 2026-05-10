@@ -107,10 +107,18 @@ pub struct CarView {
     pub rider_ids: Vec<u64>,
     /// Door FSM state with transition progress.
     pub door: DoorView,
-    /// Direction lamp: car will accept up-pickups.
+    /// Direction lamp: car will accept up-pickups. Always `false` on
+    /// Loop cars (the up/down axis is meaningless on a one-way cycle).
     pub going_up: bool,
-    /// Direction lamp: car will accept down-pickups.
+    /// Direction lamp: car will accept down-pickups. Always `false` on
+    /// Loop cars (see [`Self::going_up`]).
     pub going_down: bool,
+    /// Direction lamp for Loop topologies: car is patrolling forward
+    /// around its line. Always `false` on Linear cars. Renderers that
+    /// show a single direction-arrow glyph should prefer this over the
+    /// `going_up`/`going_down` pair when set; on Linear cars the
+    /// arrow is derived from the up/down pair as before.
+    pub going_forward: bool,
     /// ETA to `target` in seconds, or `None` if not currently dispatched
     /// to a known stop or the destination queue is empty.
     pub eta_seconds: Option<f64>,
@@ -198,6 +206,20 @@ pub struct LineView {
     pub name: String,
     pub min_position: f64,
     pub max_position: f64,
+    /// Topology kind. `"linear"` for open-ended shafts (the default);
+    /// `"loop"` for closed-loop people-movers, gondolas, and monorails.
+    /// Renderers branch on this to pick layout: linear shafts render as
+    /// vertical/horizontal strips; loops render as cycles, deriving the
+    /// rendering radius from `circumference`.
+    #[tsify(type = r#""linear" | "loop""#)]
+    pub kind: &'static str,
+    /// Total path length around the loop, in distance units. Always
+    /// present (`Some`) for `kind == "loop"` and absent (`None`) for
+    /// `kind == "linear"` — for backward compatibility,
+    /// `max_position - min_position` still spans the renderable range
+    /// in both cases, so consumers that don't yet branch on `kind`
+    /// keep rendering correctly.
+    pub circumference: Option<f64>,
     /// Stops served, in entity-id order.
     pub stop_ids: Vec<u64>,
     /// Cars on this line.
@@ -282,19 +304,27 @@ fn build_topology(
                     .or_default()
                     .push(entity_to_u64(line_eid));
             }
+            let circumference = line.circumference();
+            // Use the line's topology kind (`is_loop` keys off the same
+            // enum variant) rather than the circumference presence so
+            // a Loop with a zero-derived `[0, 0]` linear span (which
+            // shouldn't happen, but is defensible) still reports
+            // `"loop"`. Two-state today; widen to a real Tsify enum
+            // when a third topology variant ships.
+            let kind = if line.is_loop() { "loop" } else { "linear" };
             lines.push(LineView {
                 id: entity_to_u64(line_eid),
                 group: group_id,
                 name: line.name().to_string(),
-                // Loop lines (gated behind the `loop_lines` feature) report
-                // `[0, circumference]` here so existing playground rendering
-                // doesn't blow up; tsified `LineView` will gain a kind field
-                // when loop support reaches the host wiring PR.
+                // Loop lines report `[0, circumference]` so consumers that
+                // pre-date the `kind`/`circumference` fields keep
+                // rendering a meaningful range. Loop-aware consumers
+                // branch on `kind` and derive layout from
+                // `circumference` directly.
                 min_position: line.linear_min().unwrap_or(0.0),
-                max_position: line
-                    .linear_max()
-                    .or_else(|| line.circumference())
-                    .unwrap_or(0.0),
+                max_position: line.linear_max().or(circumference).unwrap_or(0.0),
+                kind,
+                circumference,
                 stop_ids: line_info
                     .serves()
                     .iter()
@@ -344,6 +374,7 @@ fn build_cars(sim: &Simulation) -> Vec<CarView> {
                 door,
                 going_up: car.going_up(),
                 going_down: car.going_down(),
+                going_forward: car.going_forward(),
                 eta_seconds,
             }
         })
