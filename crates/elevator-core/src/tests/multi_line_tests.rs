@@ -945,11 +945,13 @@ fn loop_next_stop_returns_forward_neighbour() {
 fn loop_car_traverses_seam_and_arrives() {
     use crate::components::{ElevatorPhase, LineKind};
 
-    // 4-stop loop at positions 0/25/50/75; circumference = 100.
+    // 3-stop loop at positions 0 / 25 / 50; circumference = 100.
     // Build a config with exactly one elevator on the loop, starting at
-    // stop @ 75. Manually set the car's phase to `MovingToStop(stop @
-    // 25)` so the only forward path crosses the seam — verifies the
-    // cyclic movement integration in `systems/movement.rs`.
+    // stop @ 50, and target stop @ 25. The forward cyclic path is
+    // 50 → 100 → 0 → 25 (75 units, crossing the seam) — verifies the
+    // cyclic movement integration in `systems/movement.rs` as well as
+    // the seam-aware PassingFloor split (the stop at position 0 must
+    // fire its event during the wrap segment).
     let mut config = two_group_config();
     {
         let stops = &mut config.building.stops;
@@ -993,7 +995,16 @@ fn loop_car_traverses_seam_and_arrives() {
     // Step until arrival or a generous bound. With max_speed 2 and
     // accel/decel 1.5/2 and dt=1/60, 75 units ≈ 38 seconds = 2280
     // ticks — pad to 5000.
+    // Resolve the stop @ 0 entity — we'll watch for its PassingFloor.
+    let stop_zero = sim
+        .world()
+        .iter_stops()
+        .find(|(_, s)| s.position.abs() < 1e-9)
+        .map(|(eid, _)| eid)
+        .unwrap();
+
     let mut crossed_seam = false;
+    let mut saw_stop_zero_pass = false;
     let mut prev_pos = sim.world().position(car_eid).unwrap().value;
     let mut arrived = false;
     for _ in 0..5000 {
@@ -1005,6 +1016,13 @@ fn loop_car_traverses_seam_and_arrives() {
             crossed_seam = true;
         }
         prev_pos = current_pos;
+        for ev in sim.drain_events() {
+            if let crate::events::Event::PassingFloor { stop, .. } = ev
+                && stop == stop_zero
+            {
+                saw_stop_zero_pass = true;
+            }
+        }
         if matches!(
             sim.world().elevator(car_eid).unwrap().phase,
             ElevatorPhase::DoorOpening
@@ -1020,6 +1038,10 @@ fn loop_car_traverses_seam_and_arrives() {
     assert!(
         crossed_seam,
         "expected the cyclic movement integrator to wrap past the seam",
+    );
+    assert!(
+        saw_stop_zero_pass,
+        "expected PassingFloor for the stop at position 0 during seam crossing",
     );
     assert!(
         arrived,
