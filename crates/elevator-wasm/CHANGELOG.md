@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.21.0...elevator-wasm-v0.22.0) (2026-05-10)
+
+
+### Features
+
+* **playground:** airport pedway scenario with horizontal-line rendering ([#797](https://github.com/andymai/elevator-core/issues/797)) ([1a8c30c](https://github.com/andymai/elevator-core/commit/1a8c30c23a0b93a32fcc8f9e77d813d4990dab0e))
+
 ## [0.21.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.20.0...elevator-wasm-v0.21.0) (2026-05-08)
 
 
