@@ -1491,6 +1491,153 @@ fn loop_sweep_delivers_riders_to_every_served_stop() {
     }
 }
 
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_strategy_round_trips_through_snapshot_identity() {
+    use crate::dispatch::{BuiltinStrategy, DispatchStrategy, LoopScheduleDispatch};
+
+    let strategy = LoopScheduleDispatch::new(45, 360);
+    assert_eq!(strategy.builtin_id(), Some(BuiltinStrategy::LoopSchedule));
+    assert!(BuiltinStrategy::LoopSchedule.instantiate().is_some());
+
+    // Snapshot config must carry both tunables so the next sim resumes
+    // with the original schedule rather than the `default()` 30/300
+    // tuning that `BuiltinStrategy::instantiate` would otherwise emit.
+    let serialized = strategy.snapshot_config().expect("snapshot_config");
+    let mut restored = LoopScheduleDispatch::default();
+    restored
+        .restore_config(&serialized)
+        .expect("restore_config");
+    assert_eq!(restored.dwell_ticks(), 45);
+    assert_eq!(restored.target_headway_ticks(), 360);
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_overrides_per_car_door_open_ticks() {
+    use crate::dispatch::LoopScheduleDispatch;
+
+    // `loop_only_config` ships `door_open_ticks: 10`. After the first
+    // dispatch tick under LoopSchedule(dwell=42, headway=600), every
+    // Loop car's `door_open_ticks` should be rewritten to 42 — and
+    // stay there on subsequent ticks (idempotent rewrite).
+    let mut config = loop_only_config();
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSchedule;
+    }
+    let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(42, 600)).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+
+    assert_eq!(
+        sim.world().elevator(car_eid).unwrap().door_open_ticks(),
+        10,
+        "test relies on `loop_only_config` defaulting to door_open_ticks=10",
+    );
+
+    sim.step();
+
+    assert_eq!(
+        sim.world().elevator(car_eid).unwrap().door_open_ticks(),
+        42,
+        "LoopSchedule must rewrite per-car door_open_ticks to its dwell_ticks",
+    );
+
+    for _ in 0..5 {
+        sim.step();
+        assert_eq!(
+            sim.world().elevator(car_eid).unwrap().door_open_ticks(),
+            42,
+            "subsequent ticks must leave the rewritten dwell intact",
+        );
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_schedule_delivers_riders_around_loop() {
+    use crate::dispatch::LoopScheduleDispatch;
+
+    // Smoke-test that LoopSchedule preserves the end-to-end delivery
+    // contract: with a non-trivial dwell override applied every tick,
+    // the kickstart + door FSM + boarding bypass machinery still
+    // drives a rider from any stop to any other on the loop. Three
+    // sampled pairs is enough; the LoopSweep test covers the full
+    // 12-pair matrix.
+    let cases = [(0.0_f64, 50.0_f64), (75.0, 25.0), (25.0, 0.0)];
+
+    for (origin_pos, dest_pos) in cases {
+        let mut config = loop_only_config();
+        if let Some(groups) = config.building.groups.as_mut() {
+            groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSchedule;
+        }
+        // Pick a dwell that's small enough not to dominate the
+        // delivery budget. Real schedules pick this from the
+        // expected boarding time at each stop.
+        let mut sim = Simulation::new(&config, LoopScheduleDispatch::new(20, 600)).unwrap();
+        let line_eid = sim.world().iter_elevators().next().unwrap().2.line();
+
+        let origin = sim
+            .world()
+            .iter_stops()
+            .find(|(_, s)| (s.position - origin_pos).abs() < 1e-9)
+            .map(|(eid, _)| eid)
+            .unwrap();
+        let dest = sim
+            .world()
+            .iter_stops()
+            .find(|(_, s)| (s.position - dest_pos).abs() < 1e-9)
+            .map(|(eid, _)| eid)
+            .unwrap();
+
+        let rider = sim
+            .build_rider(origin, dest)
+            .unwrap()
+            .weight(70.0)
+            .route(Route {
+                legs: vec![RouteLeg {
+                    from: origin,
+                    to: dest,
+                    via: TransportMode::Line(line_eid),
+                }],
+                current_leg: 0,
+            })
+            .spawn()
+            .unwrap();
+
+        let mut delivered = false;
+        for _ in 0..8000 {
+            sim.step();
+            if matches!(
+                sim.world().rider(rider.entity()).unwrap().phase,
+                RiderPhase::Arrived
+            ) {
+                delivered = true;
+                break;
+            }
+        }
+        assert!(
+            delivered,
+            "LoopSchedule failed to deliver rider {origin_pos} → {dest_pos} within budget",
+        );
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn config_accepts_loop_schedule_strategy_on_loop_group() {
+    // `loop_only_config` defaults to LoopSweep; flipping the dispatch
+    // field to LoopSchedule must construct cleanly. Together with the
+    // existing `config_rejects_linear_dispatch_strategy_on_loop_group`
+    // (from PR #816), this covers the relaxed validator: Loop groups
+    // accept LoopSweep *or* LoopSchedule, nothing else.
+    let mut config = loop_only_config();
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].dispatch = crate::dispatch::BuiltinStrategy::LoopSchedule;
+    }
+    Simulation::new(&config, crate::dispatch::LoopScheduleDispatch::default())
+        .expect("LoopSchedule must be accepted on a Loop group");
+}
+
 #[test]
 fn direction_forward_takes_precedence_over_up_down() {
     use crate::components::Direction;

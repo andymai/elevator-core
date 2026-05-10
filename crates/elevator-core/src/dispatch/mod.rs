@@ -41,6 +41,9 @@ pub mod destination;
 pub mod etd;
 /// LOOK dispatch algorithm.
 pub mod look;
+/// Fixed-dwell timetable for closed-loop topologies.
+#[cfg(feature = "loop_lines")]
+pub mod loop_schedule;
 /// Call-driven sweep for closed-loop topologies.
 #[cfg(feature = "loop_lines")]
 pub mod loop_sweep;
@@ -66,6 +69,8 @@ pub(crate) use assignment::{DispatchScratch, assign_with_scratch};
 pub use destination::{AssignedCar, DestinationDispatch};
 pub use etd::EtdDispatch;
 pub use look::LookDispatch;
+#[cfg(feature = "loop_lines")]
+pub use loop_schedule::LoopScheduleDispatch;
 #[cfg(feature = "loop_lines")]
 pub use loop_sweep::LoopSweepDispatch;
 pub use manifest::{DispatchManifest, RiderInfo};
@@ -344,6 +349,17 @@ pub enum BuiltinStrategy {
     /// Available only when the `loop_lines` cargo feature is enabled.
     #[cfg(feature = "loop_lines")]
     LoopSweep,
+    /// Fixed-dwell timetable for [`LineKind::Loop`](crate::components::LineKind::Loop)
+    /// groups. Overrides every Loop car in the group to a uniform
+    /// per-stop dwell, producing a predictable schedule rather than
+    /// rider-load-shaped variable dwell. Hold-recovery (extending
+    /// dwell for cars arriving early relative to the preceding car
+    /// in patrol order) is wired in a follow-up PR; the
+    /// `target_headway_ticks` field is round-trip-stable in the
+    /// meantime. Available only when the `loop_lines` cargo feature
+    /// is enabled.
+    #[cfg(feature = "loop_lines")]
+    LoopSchedule,
     /// Custom strategy identified by name. The game must provide a factory.
     Custom(String),
 }
@@ -359,6 +375,8 @@ impl std::fmt::Display for BuiltinStrategy {
             Self::Rsr => write!(f, "Rsr"),
             #[cfg(feature = "loop_lines")]
             Self::LoopSweep => write!(f, "LoopSweep"),
+            #[cfg(feature = "loop_lines")]
+            Self::LoopSchedule => write!(f, "LoopSchedule"),
             Self::Custom(name) => write!(f, "Custom({name})"),
         }
     }
@@ -391,6 +409,13 @@ impl BuiltinStrategy {
             Self::Rsr => Some(Box::new(rsr::RsrDispatch::default())),
             #[cfg(feature = "loop_lines")]
             Self::LoopSweep => Some(Box::new(loop_sweep::LoopSweepDispatch::new())),
+            // `Default` ships the well-typed schedule defaults; the
+            // construction-time validator separately rejects pathological
+            // tunings (zero dwell, dwell > headway) so what the runtime
+            // sees is always meaningful. `restore_config` overwrites
+            // these defaults on snapshot restore.
+            #[cfg(feature = "loop_lines")]
+            Self::LoopSchedule => Some(Box::new(loop_schedule::LoopScheduleDispatch::default())),
             Self::Custom(_) => None,
         }
     }
