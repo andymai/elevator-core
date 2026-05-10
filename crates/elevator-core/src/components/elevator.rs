@@ -16,10 +16,17 @@ pub const DOOR_COMMAND_QUEUE_CAP: usize = 16;
 
 /// Direction an elevator's indicator lamps are signalling.
 ///
-/// Derived from the pair of `going_up` / `going_down` flags on [`Elevator`].
-/// `Either` corresponds to both lamps lit — the car is idle and will accept
-/// riders heading either way. `Up` / `Down` correspond to an actively
-/// committed direction.
+/// On a [`LineKind::Linear`](crate::components::LineKind::Linear) shaft this
+/// is derived from the pair of `going_up` / `going_down` flags on
+/// [`Elevator`]. `Either` corresponds to both lamps lit — the car is idle
+/// and will accept riders heading either way; `Up` / `Down` correspond to
+/// an actively committed direction.
+///
+/// On a [`LineKind::Loop`](crate::components::LineKind::Loop) the
+/// `Up`/`Down`/`Either` distinction is meaningless (every car serves every
+/// stop forward through the loop), so Loop cars report
+/// [`Direction::Forward`] instead. HUD/metrics consumers should
+/// pattern-match exhaustively on the enum (it is `#[non_exhaustive]`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Direction {
@@ -29,6 +36,11 @@ pub enum Direction {
     Down,
     /// Car will serve either direction (idle).
     Either,
+    /// Car is travelling forward around a one-way loop. Loop topologies
+    /// have no "up"/"down" axis, so neither lamp is meaningful — this
+    /// variant is the honest replacement for `Either` on Loop cars.
+    /// Linear cars never report this variant.
+    Forward,
 }
 
 impl std::fmt::Display for Direction {
@@ -37,6 +49,7 @@ impl std::fmt::Display for Direction {
             Self::Up => write!(f, "Up"),
             Self::Down => write!(f, "Down"),
             Self::Either => write!(f, "Either"),
+            Self::Forward => write!(f, "Forward"),
         }
     }
 }
@@ -109,6 +122,10 @@ impl std::fmt::Display for ElevatorPhase {
 
 /// Component for an elevator entity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the indicator-lamp triple (going_up, going_down, going_forward) plus repositioning are independently observable signals; collapsing them into an enum would lose the ability to express idle (both up and down lamps lit) and forces hosts that read individual lamps to round-trip through enum match arms"
+)]
 pub struct Elevator {
     /// Current operational phase.
     pub(crate) phase: ElevatorPhase,
@@ -149,6 +166,9 @@ pub struct Elevator {
     /// Auto-managed by the dispatch phase: set true when heading up (or idle),
     /// false while actively committed to a downward trip. Affects boarding:
     /// a rider whose next leg goes up will not board a car with `going_up=false`.
+    ///
+    /// On a [`LineKind::Loop`](crate::components::LineKind::Loop) this lamp
+    /// has no meaning — `going_forward` is consulted instead.
     #[serde(default = "default_true")]
     pub(crate) going_up: bool,
     /// Down-direction indicator lamp: whether this car will serve downward trips.
@@ -156,8 +176,21 @@ pub struct Elevator {
     /// Auto-managed by the dispatch phase: set true when heading down (or idle),
     /// false while actively committed to an upward trip. Affects boarding:
     /// a rider whose next leg goes down will not board a car with `going_down=false`.
+    ///
+    /// On a [`LineKind::Loop`](crate::components::LineKind::Loop) this lamp
+    /// has no meaning — `going_forward` is consulted instead.
     #[serde(default = "default_true")]
     pub(crate) going_down: bool,
+    /// Forward-direction indicator lamp for closed-loop topologies.
+    ///
+    /// On a [`LineKind::Loop`](crate::components::LineKind::Loop) line, the
+    /// `Up`/`Down` lamp pair is meaningless; this lamp signals "actively
+    /// patrolling forward around the loop". Linear cars always have
+    /// `going_forward = false`. Loop cars set it true while moving and
+    /// false only when out of service or pulled from the loop. Defaults
+    /// to `false` so existing snapshots and Linear cars are unaffected.
+    #[serde(default)]
+    pub(crate) going_forward: bool,
     /// Count of rounded-floor transitions (passing-floors + arrivals).
     /// Useful as a scoring axis for efficiency — fewer moves per delivery
     /// means less wasted travel.
@@ -355,16 +388,35 @@ impl Elevator {
         self.going_down
     }
 
-    /// Direction this car is currently committed to, derived from the pair
-    /// of indicator-lamp flags.
+    /// Whether this car's forward-direction indicator lamp is lit.
     ///
-    /// - `Direction::Up` — only `going_up` is set
-    /// - `Direction::Down` — only `going_down` is set
-    /// - `Direction::Either` — both lamps lit (car is idle / accepting
-    ///   either direction), or neither is set (treated as `Either` too,
-    ///   though the dispatch phase normally keeps at least one lit)
+    /// Only meaningful on [`LineKind::Loop`](crate::components::LineKind::Loop)
+    /// lines. Set true while a Loop car is patrolling forward, false when
+    /// pulled out of service. Always false for Linear cars.
+    #[must_use]
+    pub const fn going_forward(&self) -> bool {
+        self.going_forward
+    }
+
+    /// Direction this car is currently committed to, derived from the
+    /// indicator-lamp triple.
+    ///
+    /// - [`Direction::Forward`] — `going_forward` is set (Loop cars only)
+    /// - [`Direction::Up`] — only `going_up` is set
+    /// - [`Direction::Down`] — only `going_down` is set
+    /// - [`Direction::Either`] — both up/down lamps lit (car is idle /
+    ///   accepting either direction), or neither is set (treated as
+    ///   `Either` too, though the dispatch phase normally keeps at least
+    ///   one lit)
+    ///
+    /// Forward dominates the up/down pair so a Loop car never reports a
+    /// stale `Up`/`Down`/`Either` value left over from earlier Linear
+    /// behaviour.
     #[must_use]
     pub const fn direction(&self) -> Direction {
+        if self.going_forward {
+            return Direction::Forward;
+        }
         match (self.going_up, self.going_down) {
             (true, false) => Direction::Up,
             (false, true) => Direction::Down,

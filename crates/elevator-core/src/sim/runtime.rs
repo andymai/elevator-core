@@ -303,6 +303,22 @@ impl super::Simulation {
         let home_stop_eid = self.resolve_stop(home_stop.into())?;
         // Reject pinning to a stop the elevator's line can't serve.
         let line = self.require_elevator(elevator)?.line;
+        // `home_stop` is a parking-style override; it has no meaning on a
+        // [`LineKind::Loop`](crate::components::LineKind::Loop) where
+        // cars are expected to patrol forever and never park. Reject up
+        // front so a misconfigured Loop scenario fails loudly instead of
+        // silently ignoring the pin (which would surprise authors).
+        #[cfg(feature = "loop_lines")]
+        if self
+            .world
+            .line(line)
+            .is_some_and(crate::components::Line::is_loop)
+        {
+            return Err(SimError::InvalidConfig {
+                field: "home_stop",
+                reason: "home stop cannot be set on a car attached to a Loop line".into(),
+            });
+        }
         let line_serves = self
             .groups
             .iter()

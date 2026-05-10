@@ -856,6 +856,125 @@ fn add_line_accepts_loop_with_satisfiable_headway() {
     sim.add_line(&params).expect("loop line should be accepted");
 }
 
+#[cfg(feature = "loop_lines")]
+#[test]
+fn config_rejects_mixed_loop_and_linear_in_same_group() {
+    use crate::components::LineKind;
+    use crate::error::SimError;
+
+    let mut config = two_group_config();
+    // Force group 0 to contain both lines (one Linear, one Loop) by
+    // putting line 2 into the same group and giving it a Loop kind.
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].lines = vec![1, 2];
+        groups.remove(1); // collapse to a single group containing both lines
+    }
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[1].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+        lines[1].serves = vec![StopId(1), StopId(2)];
+    }
+
+    match Simulation::new(&config, ScanDispatch::new()) {
+        Err(SimError::InvalidConfig { field, reason }) => {
+            assert_eq!(field, "building.groups");
+            assert!(
+                reason.contains("homogeneous"),
+                "unexpected reason: {reason}",
+            );
+        }
+        other => panic!("expected InvalidConfig, got {other:?}"),
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn config_rejects_reposition_strategy_on_loop_group() {
+    use crate::components::LineKind;
+    use crate::dispatch::BuiltinReposition;
+    use crate::error::SimError;
+
+    let mut config = two_group_config();
+    // Convert group 0 / line 1 into a Loop, and attach a parking-style
+    // reposition strategy that doesn't compose with continuous-patrol
+    // semantics.
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+    }
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].reposition = Some(BuiltinReposition::ReturnToLobby);
+    }
+
+    match Simulation::new(&config, ScanDispatch::new()) {
+        Err(SimError::InvalidConfig { field, reason }) => {
+            assert_eq!(field, "building.groups.reposition");
+            assert!(reason.contains("Loop"), "unexpected reason: {reason}",);
+        }
+        other => panic!("expected InvalidConfig, got {other:?}"),
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn config_rejects_loop_with_duplicate_position_stops() {
+    use crate::components::LineKind;
+    use crate::error::SimError;
+
+    let mut config = two_group_config();
+    // Two stops at the same position on a single loop line.
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+        lines[0].serves = vec![StopId(0), StopId(1), StopId(2)];
+    }
+    // Force StopId(1) and StopId(2) to share a position.
+    config.building.stops[1].position = 5.0;
+    config.building.stops[2].position = 5.0;
+
+    match Simulation::new(&config, ScanDispatch::new()) {
+        Err(SimError::InvalidConfig { field, reason }) => {
+            assert_eq!(field, "building.lines.serves");
+            assert!(
+                reason.contains("duplicate stop position"),
+                "unexpected reason: {reason}",
+            );
+        }
+        other => panic!("expected InvalidConfig, got {other:?}"),
+    }
+}
+
+#[test]
+fn direction_forward_takes_precedence_over_up_down() {
+    use crate::components::Direction;
+
+    // Construct an Elevator literal with going_forward = true and the
+    // up/down lamps in arbitrary states; `direction()` must report
+    // Forward regardless.
+    let mut config = two_group_config();
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].serves = vec![StopId(0), StopId(1)];
+    }
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+    let car = sim.world_mut().elevator_mut(car_eid).unwrap();
+    car.going_up = true;
+    car.going_down = true;
+    car.going_forward = true;
+    assert_eq!(car.direction(), Direction::Forward);
+
+    car.going_forward = false;
+    car.going_up = true;
+    car.going_down = false;
+    assert_eq!(car.direction(), Direction::Up);
+}
+
 #[test]
 fn add_group_returns_monotonically_increasing_id() {
     use super::helpers::{default_config, scan};

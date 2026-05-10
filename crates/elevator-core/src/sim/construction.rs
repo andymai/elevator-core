@@ -392,6 +392,7 @@ impl Simulation {
                 inspection_speed_factor: ec.inspection_speed_factor,
                 going_up: true,
                 going_down: true,
+                going_forward: false,
                 move_count: 0,
                 door_command_queue: Vec::new(),
                 manual_target_velocity: None,
@@ -1063,6 +1064,127 @@ impl Simulation {
                         field: "building.lines",
                         reason: format!("line {} is not assigned to any group", lc.id),
                     });
+                }
+            }
+
+            // Loop-specific group-level invariants. Run inside the
+            // group-validation block so we can iterate `group_configs`
+            // without recomputing the lookup. Skipped (compiles to a
+            // no-op block) when `loop_lines` is off because no Loop
+            // variant could possibly have been constructed.
+            #[cfg(feature = "loop_lines")]
+            for gc in group_configs {
+                let lines: Vec<&crate::config::LineConfig> = gc
+                    .lines
+                    .iter()
+                    .filter_map(|lid| line_configs.iter().find(|lc| lc.id == *lid))
+                    .collect();
+                let any_loop = lines
+                    .iter()
+                    .any(|lc| matches!(lc.kind, Some(crate::components::LineKind::Loop { .. })));
+                let any_linear = lines
+                    .iter()
+                    .any(|lc| !matches!(lc.kind, Some(crate::components::LineKind::Loop { .. })));
+                // Homogeneity: a group is either all-Linear or all-Loop.
+                // Mixing means dispatch and reposition strategies would have
+                // to handle both topologies in the same group, which the
+                // strategy authors explicitly opted out of supporting.
+                if any_loop && any_linear {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.groups",
+                        reason: format!(
+                            "group {} mixes Loop and Linear lines; groups must be homogeneous",
+                            gc.id,
+                        ),
+                    });
+                }
+                // Parking-style reposition strategies don't compose with
+                // continuous-patrol Loop semantics: PR 4 will make the
+                // reposition phase a no-op on Loop, but configuring one
+                // is almost always a misunderstanding so we reject it
+                // up front.
+                if any_loop && gc.reposition.is_some() {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.groups.reposition",
+                        reason: format!(
+                            "group {} contains Loop lines; reposition strategies are unsupported on Loop",
+                            gc.id,
+                        ),
+                    });
+                }
+            }
+        }
+
+        // Per-line Loop invariants that don't depend on group context:
+        // duplicate-position stops and initial car spacing.
+        #[cfg(feature = "loop_lines")]
+        for lc in line_configs {
+            let Some(crate::components::LineKind::Loop {
+                circumference,
+                min_headway,
+            }) = lc.kind
+            else {
+                continue;
+            };
+
+            // Duplicate-position stops on a Loop are ambiguous in cyclic
+            // order — `position_a == position_b` mod C means the dispatch
+            // strategy can't decide which comes "first" deterministically.
+            // Reject so authors notice the conflict explicitly.
+            let stop_positions: Vec<f64> = lc
+                .serves
+                .iter()
+                .filter_map(|sid| {
+                    building
+                        .stops
+                        .iter()
+                        .find(|s| s.id == *sid)
+                        .map(|s| s.position)
+                })
+                .collect();
+            for (i, &pi) in stop_positions.iter().enumerate() {
+                for (j, &pj) in stop_positions.iter().enumerate().skip(i + 1) {
+                    if (pi - pj).abs() < 1e-9 {
+                        return Err(SimError::InvalidConfig {
+                            field: "building.lines.serves",
+                            reason: format!(
+                                "loop line {} has duplicate stop positions at indices {i} and {j} (both at {pi})",
+                                lc.id,
+                            ),
+                        });
+                    }
+                }
+            }
+
+            // Initial car spacing: cars whose `starting_stop` positions
+            // are closer than `min_headway` would violate the no-overtake
+            // invariant on tick 0. Compare every pair in cyclic distance
+            // (the shortest unsigned arc, since we don't know the cyclic
+            // order from starting positions alone).
+            let car_starts: Vec<f64> = lc
+                .elevators
+                .iter()
+                .filter_map(|ec| {
+                    building
+                        .stops
+                        .iter()
+                        .find(|s| s.id == ec.starting_stop)
+                        .map(|s| s.position)
+                })
+                .collect();
+            for (i, &a) in car_starts.iter().enumerate() {
+                for (j, &b) in car_starts.iter().enumerate().skip(i + 1) {
+                    let d = crate::components::cyclic::cyclic_distance(a, b, circumference);
+                    if d < min_headway - 1e-9 {
+                        return Err(SimError::InvalidConfig {
+                            field: "building.lines.elevators.starting_stop",
+                            reason: format!(
+                                "loop line {}: cars at indices {i} ({a}) and {j} ({b}) are {d} apart \
+                                 — below min_headway {min_headway}",
+                                lc.id,
+                            ),
+                        });
+                    }
                 }
             }
         }
