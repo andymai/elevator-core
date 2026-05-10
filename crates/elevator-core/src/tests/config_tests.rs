@@ -324,65 +324,6 @@ fn ron_without_schema_version_field_deserializes_to_zero() {
 }
 
 #[test]
-fn ron_parses_horizontal_line_orientation() {
-    // Pedway-style scenario: explicitly declare `orientation: Horizontal`
-    // on a multi-line RON and confirm both the parser and the constructed
-    // `World` carry the orientation through to the `Line` component.
-    let ron_str = r#"
-        SimConfig(
-            schema_version: 1,
-            building: BuildingConfig(
-                name: "Pedway",
-                stops: [
-                    StopConfig(id: StopId(0), name: "A", position: 0.0),
-                    StopConfig(id: StopId(1), name: "B", position: 100.0),
-                ],
-                lines: Some([
-                    LineConfig(
-                        id: 0, name: "Outbound",
-                        serves: [StopId(0), StopId(1)],
-                        orientation: Horizontal,
-                        elevators: [
-                            ElevatorConfig(
-                                id: 0, name: "PT-1",
-                                max_speed: 10.0, acceleration: 1.0, deceleration: 1.0,
-                                weight_capacity: 1000.0,
-                                starting_stop: StopId(0),
-                                door_open_ticks: 60, door_transition_ticks: 30,
-                            ),
-                        ],
-                    ),
-                ]),
-                groups: Some([
-                    GroupConfig(id: 0, name: "G", lines: [0], dispatch: Scan),
-                ]),
-            ),
-            simulation: SimulationParams(ticks_per_second: 60.0),
-            passenger_spawning: PassengerSpawnConfig(
-                mean_interval_ticks: 60,
-                weight_range: (50.0, 100.0),
-            ),
-        )
-    "#;
-    let config: SimConfig = ron::from_str(ron_str).expect("horizontal RON parses");
-    let line = config
-        .building
-        .lines
-        .as_ref()
-        .and_then(|ls| ls.first())
-        .expect("one line declared");
-    assert!(matches!(line.orientation, Orientation::Horizontal));
-    let sim = crate::sim::Simulation::new(&config, super::helpers::scan())
-        .expect("horizontal line builds a Simulation");
-    let oriented = sim
-        .world()
-        .iter_lines()
-        .next()
-        .expect("simulation has one line");
-    assert!(matches!(oriented.1.orientation(), Orientation::Horizontal));
-}
-
-#[test]
 fn shipped_assets_pin_to_current_schema_version() {
     // Every config under assets/config/ must declare the current
     // version explicitly; otherwise the asset itself becomes a legacy

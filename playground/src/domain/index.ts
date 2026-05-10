@@ -19,7 +19,7 @@ export {
   type Overrides,
   type ParamKey,
 } from "./params";
-export { SCENARIOS, effectiveCompare, scenarioById } from "./scenarios";
+export { SCENARIOS, scenarioById } from "./scenarios";
 export {
   UI_STRATEGIES,
   STRATEGY_LABELS,
