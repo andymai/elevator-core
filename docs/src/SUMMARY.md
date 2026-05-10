@@ -35,6 +35,7 @@
 # Advanced Topics
 
 - [Writing a Custom Dispatch](custom-dispatch.md)
+- [Loop Lines](loop-lines.md)
 - [Extensions](extensions.md)
 - [Lifecycle Hooks](lifecycle-hooks.md)
 - [Manual and Inspection Modes](manual-inspection-modes.md)

@@ -1,0 +1,111 @@
+// Loop-line demo scenario.
+//
+// Closed-loop transit topology: a 100-unit one-way loop with four
+// stops spaced 25 units apart and two cars that patrol forward
+// indefinitely. Exercises every piece of the loop_lines feature:
+//
+//   - LineKind::Loop topology + cyclic position math
+//   - Kickstart pass turning Idle Loop cars into MovingToStop on tick 1
+//   - Door FSM continuation (DoorClosing → MovingToStop(next_stop)
+//     without ever passing through Stopped/Idle)
+//   - LoopSweep dispatch (call-driven; each car boards every waiter at
+//     every stop on every lap)
+//   - Boarding bypass on Loop (the linear up/down direction gate is
+//     meaningless on a one-way cycle)
+//
+// Requires the `loop_lines` cargo feature. The default Bevy host opts
+// in via its Cargo.toml; running this config without the feature
+// returns SimError::InvalidConfig with a clear reason.
+SimConfig(
+    schema_version: 1,
+    building: BuildingConfig(
+        name: "Loop Demo",
+        // Four stops evenly spaced around the loop. Cyclic order
+        // follows position mod 100: 0 → 25 → 50 → 75 → wrap to 0.
+        // Stop names mirror gondola/monorail-station naming, not
+        // building floors, so consumers don't accidentally read a
+        // peak-traffic axis into the topology.
+        stops: [
+            StopConfig(id: StopId(0), name: "North",  position: 0.0),
+            StopConfig(id: StopId(1), name: "East",   position: 25.0),
+            StopConfig(id: StopId(2), name: "South",  position: 50.0),
+            StopConfig(id: StopId(3), name: "West",   position: 75.0),
+        ],
+        // Explicit topology: one Loop line, one group, two cars on
+        // the line. The `min_headway: 8.0` reserves enough cyclic
+        // arc for the two cars never to overtake — construction
+        // validates max_cars × min_headway ≤ circumference up front.
+        lines: Some([
+            LineConfig(
+                id: 1,
+                name: "Loop",
+                kind: Some(Loop(
+                    circumference: 100.0,
+                    min_headway: 8.0,
+                )),
+                serves: [StopId(0), StopId(1), StopId(2), StopId(3)],
+                // `position: None` defers to the layout — hosts that
+                // render the loop derive a center anchor and radius
+                // (= circumference / 2π) from the line itself.
+                position: None,
+                orientation: Horizontal,
+                elevators: [
+                    ElevatorConfig(
+                        id: 1,
+                        name: "Car 1",
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        // Cars start at diametrically-opposite stops
+                        // so the initial spacing already meets the
+                        // headway constraint and the LoopSweep + door
+                        // FSM continuation maintains it from tick 1.
+                        starting_stop: StopId(0),
+                        door_open_ticks: 60,
+                        door_transition_ticks: 15,
+                    ),
+                    ElevatorConfig(
+                        id: 2,
+                        name: "Car 2",
+                        max_speed: 2.0,
+                        acceleration: 1.5,
+                        deceleration: 2.0,
+                        weight_capacity: 800.0,
+                        starting_stop: StopId(2),
+                        door_open_ticks: 60,
+                        door_transition_ticks: 15,
+                    ),
+                ],
+            ),
+        ]),
+        groups: Some([
+            GroupConfig(
+                id: 0,
+                name: "Loop Service",
+                lines: [1],
+                // `LoopSweep` is the only-or-`LoopSchedule` choice for
+                // Loop groups. Picked here because the demo emphasises
+                // call-driven patrol over fixed-headway timetabling;
+                // swap to `LoopSchedule` for a predictable-cadence
+                // people-mover feel (PRs #818 + #820).
+                dispatch: LoopSweep,
+            ),
+        ]),
+    ),
+    // No legacy flat elevator list — explicit topology declares cars
+    // inside their lines. An empty list keeps the legacy field present
+    // for the schema version's deserializer.
+    elevators: [],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    passenger_spawning: PassengerSpawnConfig(
+        // Faster spawn cadence than the default so the demo always
+        // shows the boarding-and-routing path under exercise; cars
+        // would otherwise patrol an empty line and the visible
+        // behaviour would degrade to "two dots circling."
+        mean_interval_ticks: 60,
+        weight_range: (50.0, 100.0),
+    ),
+)
