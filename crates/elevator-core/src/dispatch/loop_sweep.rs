@@ -30,8 +30,6 @@
 //!
 //! [`LineKind::Loop`]: crate::components::LineKind::Loop
 
-#![cfg(feature = "loop_lines")]
-
 use super::{BuiltinStrategy, DispatchStrategy, RankContext};
 
 /// Dispatch strategy for [`LineKind::Loop`] groups.
