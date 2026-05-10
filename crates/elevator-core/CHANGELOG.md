@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.12.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.11.0...elevator-core-v20.12.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** hold-recovery for loop schedule dispatch ([#820](https://github.com/andymai/elevator-core/issues/820)) ([f9a738e](https://github.com/andymai/elevator-core/commit/f9a738e28de5b07989f9e4d1100f26659f0f62d9))
+
 ## [20.11.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.10.0...elevator-core-v20.11.0) (2026-05-10)
 
 
