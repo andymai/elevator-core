@@ -9,7 +9,13 @@ publish = false
 workspace = true
 
 [dependencies]
-elevator-core = { path = "../elevator-core" }
+# `loop_lines` is enabled here so the bevy binary can load
+# `assets/config/loop_demo.ron` (and any other host-side Loop config
+# the user points it at) out of the box without a separate feature
+# opt-in. The runtime cost of the feature for Linear-only scenarios
+# is a conditional cyclic-motion branch in `systems/movement.rs` —
+# a single predicate per car per tick.
+elevator-core = { path = "../elevator-core", features = ["loop_lines"] }
 bevy = { version = "0.18", default-features = false, features = ["2d"] }
 ron.workspace = true
 rand.workspace = true
