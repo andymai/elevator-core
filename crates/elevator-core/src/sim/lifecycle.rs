@@ -1183,7 +1183,15 @@ impl Simulation {
     ///
     /// # Errors
     ///
-    /// Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    /// - Returns [`SimError::EntityNotFound`] if the elevator does not exist.
+    /// - Returns [`SimError::InvalidConfig`] when transitioning a car
+    ///   on a [`LineKind::Loop`](crate::components::LineKind::Loop) into
+    ///   [`ServiceMode::OutOfService`](crate::components::ServiceMode::OutOfService)
+    ///   if the line has any other car. A stopped car blocks every
+    ///   follower around the loop indefinitely; v1 ships without the
+    ///   pull-out-of-loop op that would handle this gracefully, so we
+    ///   reject loudly. Single-car loops, or removing the only remaining
+    ///   car, are still allowed.
     pub fn set_service_mode(
         &mut self,
         elevator: EntityId,
@@ -1199,6 +1207,37 @@ impl Simulation {
             .unwrap_or_default();
         if old == mode {
             return Ok(());
+        }
+
+        // Loop guard: OutOfService on a Loop car with followers blocks
+        // the loop. See the doc-comment above for the v1 limitation.
+        #[cfg(feature = "loop_lines")]
+        if mode == crate::components::ServiceMode::OutOfService {
+            let line = self
+                .world
+                .elevator(elevator)
+                .map(|car| car.line)
+                .unwrap_or_default();
+            if self
+                .world
+                .line(line)
+                .is_some_and(crate::components::Line::is_loop)
+            {
+                let other_count = self
+                    .world
+                    .iter_elevators()
+                    .filter(|(eid, _, car)| car.line == line && *eid != elevator)
+                    .count();
+                if other_count > 0 {
+                    return Err(SimError::InvalidConfig {
+                        field: "service_mode",
+                        reason: format!(
+                            "cannot set OutOfService on a Loop car with {other_count} \
+                             follower(s); pull-out-of-loop is not supported in v1",
+                        ),
+                    });
+                }
+            }
         }
         // Leaving Manual: clear the pending velocity command and zero
         // the velocity component. Otherwise a car moving at transition

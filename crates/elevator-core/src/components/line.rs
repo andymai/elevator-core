@@ -114,6 +114,20 @@ impl LineKind {
         }
     }
 
+    /// Whether this line is a (linear) open-ended axis.
+    ///
+    /// Paired with [`Self::is_loop`] so consumers can dispatch positively
+    /// on the expected variant rather than negatively on "not Loop", which
+    /// would silently absorb any future topology added to the enum.
+    #[must_use]
+    pub const fn is_linear(&self) -> bool {
+        match self {
+            Self::Linear { .. } => true,
+            #[cfg(feature = "loop_lines")]
+            Self::Loop { .. } => false,
+        }
+    }
+
     /// Validate that this kind's intrinsic bounds are well-formed.
     ///
     /// Returns `Err((field, reason))` on a violation; both construction
