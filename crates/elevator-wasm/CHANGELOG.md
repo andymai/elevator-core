@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.22.0...elevator-wasm-v0.22.1) (2026-05-10)
+
+
+### Reverts
+
+* **playground:** airport pedway scenario ([#797](https://github.com/andymai/elevator-core/issues/797) and dependent [#799](https://github.com/andymai/elevator-core/issues/799)) ([#800](https://github.com/andymai/elevator-core/issues/800)) ([edd81af](https://github.com/andymai/elevator-core/commit/edd81af8bcd11fdc6db8974346a1aba47c6934ed))
+
 ## [0.22.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.21.0...elevator-wasm-v0.22.0) (2026-05-10)
 
 
