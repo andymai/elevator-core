@@ -898,33 +898,9 @@ impl Simulation {
     /// `EntityId` despite the input being meaningless.
     #[must_use]
     pub fn loop_next_stop(&self, line: EntityId, position: f64) -> Option<EntityId> {
-        if !position.is_finite() {
-            return None;
-        }
         let circumference = self.loop_circumference(line)?;
         let stops = self.stops_served_by_line(line);
-        if stops.is_empty() {
-            return None;
-        }
-
-        let mut best: Option<(f64, EntityId)> = None;
-        for stop_eid in stops {
-            let Some(stop_pos) = self.world.stop_position(stop_eid) else {
-                continue;
-            };
-            let mut d =
-                crate::components::cyclic::forward_distance(position, stop_pos, circumference);
-            // Coincident → treat as a full lap ahead so we don't return
-            // the caller's current stop as "next".
-            if d <= 1e-9 {
-                d = circumference;
-            }
-            match best {
-                Some((d_best, _)) if d_best <= d => {}
-                _ => best = Some((d, stop_eid)),
-            }
-        }
-        best.map(|(_, eid)| eid)
+        crate::dispatch::loop_next_stop_forward(&self.world, circumference, &stops, position)
     }
 
     /// Find the stop at `position` that's served by `line`.

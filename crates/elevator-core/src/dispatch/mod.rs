@@ -769,6 +769,80 @@ pub fn elevator_line_serves_indexed<'a>(
     index.get(&line_eid).copied()
 }
 
+/// On a loop, the served stop that comes immediately *after* `position`
+/// in forward cyclic order.
+///
+/// Walks `served_stops`, computes the forward cyclic distance from
+/// `position` to each, and returns the entity with the smallest non-zero
+/// distance. A stop coincident with `position` is treated as a "full lap
+/// ahead" (returns `circumference` for that stop) so callers already at
+/// a stop never get the same stop back as "next" — they get the *next*
+/// distinct stop forward.
+///
+/// Returns `None` if `served_stops` is empty, every stop is missing a
+/// position component, or `position` / `circumference` is non-finite or
+/// non-positive. This is a building block shared by
+/// [`Simulation::loop_next_stop`](crate::sim::Simulation::loop_next_stop)
+/// and the door FSM's loop-continuation path so both pick the same stop
+/// when given the same inputs. Always available regardless of the
+/// `loop_lines` feature flag — `LineKind::Loop` deserialization rejects
+/// when the feature is off, so a Linear-only sim simply never reaches a
+/// caller with a positive `circumference`.
+#[must_use]
+pub(crate) fn loop_next_stop_forward(
+    world: &World,
+    circumference: f64,
+    served_stops: &[EntityId],
+    position: f64,
+) -> Option<EntityId> {
+    if !position.is_finite() || !circumference.is_finite() || circumference <= 0.0 {
+        return None;
+    }
+    if served_stops.is_empty() {
+        return None;
+    }
+
+    let mut best: Option<(f64, EntityId)> = None;
+    for &stop_eid in served_stops {
+        let Some(stop_pos) = world.stop_position(stop_eid) else {
+            continue;
+        };
+        let mut d = crate::components::cyclic::forward_distance(position, stop_pos, circumference);
+        if d <= 1e-9 {
+            d = circumference;
+        }
+        match best {
+            Some((d_best, _)) if d_best <= d => {}
+            _ => best = Some((d, stop_eid)),
+        }
+    }
+    best.map(|(_, eid)| eid)
+}
+
+/// Resolve the forward-next stop for a Loop car.
+///
+/// Returns `None` for Linear cars, missing line components, missing
+/// position components, and any `LineKind::Loop` whose served-stop list
+/// is empty (which construction validation rejects, so this is purely
+/// defensive). Shared between the dispatch kickstart and the door-FSM
+/// continuation path so both pick the same stop given identical world
+/// state.
+#[must_use]
+pub(crate) fn loop_next_stop_for_car(
+    world: &World,
+    groups: &[ElevatorGroup],
+    elevator: EntityId,
+) -> Option<EntityId> {
+    let car = world.elevator(elevator)?;
+    let line_eid = car.line();
+    let circumference = world
+        .line(line_eid)
+        .and_then(crate::components::Line::circumference)?;
+    let serves = elevator_line_serves(world, groups, elevator)?;
+    let position = world.position(elevator)?.value;
+    loop_next_stop_forward(world, circumference, serves, position)
+}
+
 /// Context passed to [`DispatchStrategy::rank`].
 ///
 /// Bundles the per-call arguments into a single struct so future context

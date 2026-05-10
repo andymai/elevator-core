@@ -7,12 +7,15 @@ All work ships behind the `loop_lines` cargo feature (default off).
 
 | PR | Title | Status |
 |----|-------|--------|
-| 1 | `LineKind` foundation + cyclic distance | in progress |
-| 2 | Movement seam-split + headway clamp | not started |
-| 3 | Phase adaptations + strict validation | not started |
-| 4 | `LoopSweep` dispatch | not started |
-| 5 | `LoopSchedule` dispatch | not started |
-| 6 | Demo scenario + host wiring | not started |
+| 1 | `LineKind` foundation + cyclic distance | shipped (#804) |
+| 2 | Movement seam-split + headway clamp | shipped (#806) |
+| 3 | Direction Forward + strict validation | shipped (#808) |
+| 4 | Loop topology accessors on `Simulation` | shipped (#810) |
+| 5 | Cyclic motion wired into the movement systems phase | shipped (#812) |
+| 6 | Loop FSM completion: door continuation + kickstart + boarding bypass | this PR |
+| 7 | `LoopSweep` dispatch | not started |
+| 8 | `LoopSchedule` dispatch | not started |
+| 9 | Demo scenario + host wiring | not started |
 
 ## Locked decisions
 

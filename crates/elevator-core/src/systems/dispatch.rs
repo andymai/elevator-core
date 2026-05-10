@@ -26,6 +26,15 @@ pub fn run(
     rider_index: &RiderIndex,
     scratch: &mut DispatchScratch,
 ) {
+    // Loop cars never enter the Idle/Stopped pool — they patrol forward
+    // continuously. Kickstart any Loop car that is currently Idle by
+    // pinning it to its forward-next stop *before* the per-group idle
+    // pool is built. Covers two cases: (1) freshly-constructed cars
+    // (spawn places everything in `Idle`), and (2) a single-car Loop
+    // returning from `OutOfService` (the OOS guard still allows OOS on
+    // a loop with zero followers).
+    kickstart_loop_cars(world, events, ctx, groups);
+
     for group in groups {
         // Fresh scratch for this group's dispatch pass. Buffers from
         // the previous group (or previous tick) retain their capacity
@@ -132,6 +141,20 @@ pub fn run(
                     && car.riders.is_empty()
                     && !car.repositioning);
             if !eligible {
+                continue;
+            }
+            // Loop cars are kickstarted upstream and patrol forward
+            // continuously. They must never enter the Hungarian idle
+            // pool: a `DispatchDecision::Idle` from the strategy would
+            // clobber `going_forward = true` and demote the car to
+            // `Idle`, breaking the patrol invariant. PRs 7+ introduce
+            // Loop-aware dispatch strategies; until then Loop cars
+            // simply commit to the next forward stop and the loading
+            // phase boards every eligible rider on the way.
+            if world
+                .line(car.line())
+                .is_some_and(crate::components::Line::is_loop)
+            {
                 continue;
             }
             let Some(pos) = world.position(*eid) else {
@@ -567,4 +590,95 @@ pub fn build_manifest(
     }
 
     manifest
+}
+
+/// Promote any `Idle` car on a `LineKind::Loop` line to `MovingToStop`
+/// pointed at its forward-next stop, set `going_forward = true`, clear
+/// the `going_up` / `going_down` lamps (their semantics don't apply on a
+/// Loop), and emit `ElevatorDeparted` from the current stop if the car
+/// is parked at one.
+///
+/// This is the kickstart that begins continuous patrol. Without it, a
+/// freshly-constructed Loop car (spawn defaults `phase = Idle`) would
+/// sit forever — Loop strategies don't write `target_stop` the way the
+/// Linear Hungarian path does, and Loop cars bypass the destination
+/// queue. Cars in any other phase, on Linear lines, in a dispatch-
+/// excluded service mode, or whose loop topology is malformed (no
+/// served stops) are left untouched.
+fn kickstart_loop_cars(
+    world: &mut World,
+    events: &mut EventBus,
+    ctx: &PhaseContext,
+    groups: &[ElevatorGroup],
+) {
+    let mut transitions: Vec<(EntityId, EntityId, Option<EntityId>)> = Vec::new();
+
+    for group in groups {
+        for &eid in group.elevator_entities() {
+            if world.is_disabled(eid) {
+                continue;
+            }
+            if world
+                .service_mode(eid)
+                .is_some_and(|m| m.is_dispatch_excluded())
+            {
+                continue;
+            }
+            let Some(car) = world.elevator(eid) else {
+                continue;
+            };
+            if car.phase != ElevatorPhase::Idle {
+                continue;
+            }
+            let line_eid = car.line();
+            if !world
+                .line(line_eid)
+                .is_some_and(crate::components::Line::is_loop)
+            {
+                continue;
+            }
+            let Some(next_stop) = crate::dispatch::loop_next_stop_for_car(world, groups, eid)
+            else {
+                continue;
+            };
+            // Capture the stop we're departing from so the emitted
+            // `ElevatorDeparted` event matches the existing Linear shape.
+            // A car that started off a stop boundary won't have one and
+            // the event is simply skipped. Position is guaranteed to be
+            // present here: `loop_next_stop_for_car` already returned
+            // None — and the `let Some(next_stop) = …` arm above would
+            // have continued — if it were absent, so an explicit guard
+            // signals intent more clearly than a `0.0` fallback.
+            let Some(pos_component) = world.position(eid) else {
+                continue;
+            };
+            let pos = pos_component.value;
+            let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
+            let from_stop = serves.and_then(|s| world.find_stop_at_position_in(pos, s));
+            transitions.push((eid, next_stop, from_stop));
+        }
+    }
+
+    for (eid, next_stop, from_stop) in transitions {
+        if let Some(car) = world.elevator_mut(eid) {
+            car.phase = ElevatorPhase::MovingToStop(next_stop);
+            car.target_stop = Some(next_stop);
+            car.going_forward = true;
+            car.going_up = false;
+            car.going_down = false;
+        }
+        events.emit(Event::DirectionIndicatorChanged {
+            elevator: eid,
+            going_up: false,
+            going_down: false,
+            tick: ctx.tick,
+        });
+        if let Some(stop) = from_stop {
+            events.emit(Event::ElevatorDeparted {
+                elevator: eid,
+                from_stop: stop,
+                tick: ctx.tick,
+            });
+        }
+    }
 }
