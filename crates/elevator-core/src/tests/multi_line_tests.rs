@@ -804,6 +804,58 @@ fn add_group_and_add_line_reflect_in_query_apis() {
     assert!(elevators.is_empty());
 }
 
+#[cfg(feature = "loop_lines")]
+#[test]
+fn add_line_rejects_loop_with_unsatisfiable_headway() {
+    use super::helpers::{default_config, scan};
+    use crate::components::LineKind;
+    use crate::error::SimError;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let group_id = sim.add_group("Loop", ScanDispatch::new());
+
+    // 4 cars × 30 m headway = 120 m required, but circumference is only 100.
+    let mut params = crate::sim::LineParams::new("Tight Loop", group_id);
+    params.kind = Some(LineKind::Loop {
+        circumference: 100.0,
+        min_headway: 30.0,
+    });
+    params.max_cars = Some(4);
+
+    match sim.add_line(&params) {
+        Err(SimError::InvalidConfig { field, reason }) => {
+            assert_eq!(field, "line.kind");
+            assert!(
+                reason.contains("exceeds circumference"),
+                "unexpected reason: {reason}",
+            );
+        }
+        other => panic!("expected InvalidConfig, got {other:?}"),
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn add_line_accepts_loop_with_satisfiable_headway() {
+    use super::helpers::{default_config, scan};
+    use crate::components::LineKind;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let group_id = sim.add_group("Loop", ScanDispatch::new());
+
+    // 3 cars × 20 m = 60 m, well under 100 m circumference.
+    let mut params = crate::sim::LineParams::new("OK Loop", group_id);
+    params.kind = Some(LineKind::Loop {
+        circumference: 100.0,
+        min_headway: 20.0,
+    });
+    params.max_cars = Some(3);
+
+    sim.add_line(&params).expect("loop line should be accepted");
+}
+
 #[test]
 fn add_group_returns_monotonically_increasing_id() {
     use super::helpers::{default_config, scan};

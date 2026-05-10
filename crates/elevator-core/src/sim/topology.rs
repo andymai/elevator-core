@@ -222,7 +222,10 @@ impl Simulation {
     /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
     /// Returns [`SimError::InvalidConfig`] for malformed bounds —
     /// non-finite `min`/`max` or `min > max` on a `Linear` line, or
-    /// non-finite / non-positive `circumference` on a `Loop` line.
+    /// non-finite / non-positive `circumference` on a `Loop` line. For
+    /// `Loop` lines, also rejects `max_cars * min_headway > circumference`
+    /// — without enough room around the loop for every car at full
+    /// headway, the no-overtake invariant is unsatisfiable.
     pub fn add_line(&mut self, params: &LineParams) -> Result<EntityId, SimError> {
         // Resolve the requested kind; flat fields are the fallback only
         // when no explicit kind was provided. Validation runs against
@@ -234,6 +237,41 @@ impl Simulation {
         });
         kind.validate()
             .map_err(|(field, reason)| SimError::InvalidConfig { field, reason })?;
+
+        // Loop-specific cross-field invariant — runtime mirror of the
+        // check in `validate_explicit_topology`.
+        //
+        // Asymmetric with the config-time path on `max_cars = None`:
+        // `validate_explicit_topology` falls back to `lc.elevators.len()`
+        // because the config-time line-config bundles its elevators, but
+        // a runtime-added line is always *empty* at this point — cars
+        // attach later via `add_elevator_to_line`. With no concrete car
+        // count to validate against and no upper bound on future
+        // attachments, we can't fire here. PR 3 closes the gap by
+        // running the same check at car-attach time.
+        #[cfg(feature = "loop_lines")]
+        if let LineKind::Loop {
+            circumference,
+            min_headway,
+        } = kind
+            && let Some(max_cars) = params.max_cars
+            && max_cars > 0
+        {
+            #[allow(
+                clippy::cast_precision_loss,
+                reason = "max_cars is bounded by usize; the comparison is against a finite f64"
+            )]
+            let required = (max_cars as f64) * min_headway;
+            if required > circumference {
+                return Err(SimError::InvalidConfig {
+                    field: "line.kind",
+                    reason: format!(
+                        "loop line: {max_cars} cars × min_headway {min_headway} = {required} \
+                         exceeds circumference {circumference}",
+                    ),
+                });
+            }
+        }
 
         let group_id = params.group;
         let group = self
