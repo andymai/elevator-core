@@ -45,7 +45,7 @@
 //! [`DoorCommand::HoldOpen`]: crate::door::DoorCommand::HoldOpen
 //! [`LineKind::Loop`]: crate::components::LineKind::Loop
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::components::ElevatorPhase;
 use crate::door::DoorCommand;
@@ -93,14 +93,27 @@ pub struct LoopScheduleDispatch {
     /// restored sims rebuild the map on the first arrival at each stop
     /// after restore. The first-arrival miss is a one-time cost
     /// equivalent to one un-held tick per stop after restore.
+    ///
+    /// Keyed on the served stop's [`EntityId`]. Entries for stops
+    /// removed via [`Simulation::remove_stop`](crate::sim::Simulation::remove_stop)
+    /// remain in the map; this is safe because the entity allocator
+    /// uses generation counters under `slotmap`, so a removed
+    /// [`EntityId`] never re-points at a newly-spawned stop.
+    /// Long-running sims that churn stops will leak a few bytes per
+    /// retired stop — bounded and acceptable for v1.
     #[serde(skip)]
     last_arrival_tick: HashMap<EntityId, u64>,
-    /// Cars currently in Loading whose arrival we've already
-    /// accounted for. Tracks which cars to *skip* on a given tick —
-    /// without it, we'd re-issue `HoldOpen` on every tick the car is
-    /// in Loading rather than just the entry tick.
+    /// Per-car `(last loading-pre-dispatch tick, last seen stop)`.
+    /// The fresh-arrival predicate fires whenever the recorded tick
+    /// is not the immediately preceding `pre_dispatch` tick *or* the
+    /// recorded stop changed. The tick-anchored half catches
+    /// same-stop re-arrivals on a tiny loop (car leaves S, runs once
+    /// around, returns to S); the stop-anchored half catches normal
+    /// arrival-at-the-next-stop transitions while the car was still
+    /// in Loading state on the previous pass (rare but legal under
+    /// long dwells).
     #[serde(skip)]
-    seen_loading: HashSet<EntityId>,
+    seen: HashMap<EntityId, (u64, EntityId)>,
 }
 
 impl LoopScheduleDispatch {
@@ -118,7 +131,7 @@ impl LoopScheduleDispatch {
             target_headway_ticks: target_headway_ticks.max(1),
             hold_cap_ticks: hold_cap_ticks.max(1),
             last_arrival_tick: HashMap::new(),
-            seen_loading: HashSet::new(),
+            seen: HashMap::new(),
         }
     }
 
@@ -164,16 +177,12 @@ impl DispatchStrategy for LoopScheduleDispatch {
         // tick parameter (the trait predates loop-aware strategies),
         // so we read the `CurrentTick` resource the runtime keeps in
         // sync. Missing the resource means we're being driven by tests
-        // that didn't seed it; fall back to `0` and skip the recovery
-        // path (no fake "5 ticks ago" gaps).
+        // that didn't seed it; hold `None` and skip the recovery path
+        // entirely. A `0` fallback would fabricate gaps against any
+        // prior arrival recorded at a non-zero tick.
         let now = world
             .resource::<crate::arrival_log::CurrentTick>()
             .map(|ct| ct.0);
-
-        // Build a fresh "in loading this tick" set. Cars that left the
-        // set since the last tick are off the stop; cars that entered
-        // it are *fresh arrivals* whose dwell we may need to extend.
-        let mut still_loading: HashSet<EntityId> = HashSet::new();
 
         for line in group.lines() {
             let line_eid = line.entity();
@@ -211,19 +220,27 @@ impl DispatchStrategy for LoopScheduleDispatch {
                 if !matches!(phase, ElevatorPhase::Loading) {
                     continue;
                 }
-                still_loading.insert(eid);
+                let Some(now) = now else { continue };
+                let Some(stop) = at_stop else { continue };
 
-                // Only act on the *fresh arrival* tick — the tick where
-                // the car first appears in Loading after a movement
-                // leg. Subsequent ticks the car is still in Loading
-                // shouldn't keep re-extending its dwell, or it'd never
-                // depart.
-                if self.seen_loading.contains(&eid) {
+                // Fresh-arrival predicate: the car was either not
+                // observed in Loading on the immediately preceding
+                // pre_dispatch tick, OR it's now at a different stop
+                // than it was on the previous Loading observation. The
+                // tick-anchored half catches same-stop re-arrivals
+                // (car runs a full lap on a tiny loop and returns to
+                // the same stop), the stop-anchored half catches the
+                // normal arrival-at-next-stop transition. Subsequent
+                // ticks where the car remains in Loading at the same
+                // stop update `seen` but don't re-issue HoldOpen.
+                let prev_seen = self.seen.insert(eid, (now, stop));
+                let is_fresh_arrival = match prev_seen {
+                    None => true,
+                    Some((prev_tick, prev_stop)) => prev_tick + 1 != now || prev_stop != stop,
+                };
+                if !is_fresh_arrival {
                     continue;
                 }
-
-                let Some(stop) = at_stop else { continue };
-                let Some(now) = now else { continue };
 
                 // Gap = how long since the previous arrival at this
                 // stop. The first arrival at a stop has no previous;
@@ -268,8 +285,6 @@ impl DispatchStrategy for LoopScheduleDispatch {
                 }
             }
         }
-
-        self.seen_loading = still_loading;
     }
 
     fn rank(&self, _ctx: &RankContext<'_>) -> Option<f64> {
@@ -306,9 +321,9 @@ impl DispatchStrategy for LoopScheduleDispatch {
     }
 
     fn notify_removed(&mut self, elevator: EntityId) {
-        // Drop bookkeeping for removed elevators so the set doesn't
+        // Drop bookkeeping for removed elevators so the map doesn't
         // grow without bound across long-running sims that swap cars
         // in and out (e.g. test harnesses).
-        self.seen_loading.remove(&elevator);
+        self.seen.remove(&elevator);
     }
 }
