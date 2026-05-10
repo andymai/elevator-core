@@ -1,13 +1,15 @@
 //! Trapezoidal velocity-profile movement physics.
 //!
-//! [`tick_movement`] is the linear integrator used for shafts, tethers,
-//! and any [`LineKind::Linear`](crate::components::LineKind::Linear)
-//! topology. [`tick_movement_cyclic`] (gated by the `loop_lines`
-//! feature) wraps the same physics in cyclic-position semantics for
-//! [`LineKind::Loop`](crate::components::LineKind::Loop): position is
-//! always normalised into `[0, circumference)`, ticks that would jump
-//! past the seam wrap correctly, and [`headway_clamp_target`] enforces
-//! the no-overtake invariant when multiple cars share a loop.
+//! [`tick_movement`](crate::movement::tick_movement) is the linear
+//! integrator used for shafts, tethers, and any
+//! [`LineKind::Linear`](crate::components::LineKind::Linear) topology.
+//! [`tick_movement_cyclic`](crate::movement::tick_movement_cyclic) (gated
+//! by the `loop_lines` feature) wraps the same physics in cyclic-position
+//! semantics for [`LineKind::Loop`](crate::components::LineKind::Loop):
+//! position is always normalised into `[0, circumference)`, ticks that
+//! would jump past the seam wrap correctly, and
+//! [`headway_clamp_target`](crate::movement::headway_clamp_target)
+//! enforces the no-overtake invariant when multiple cars share a loop.
 
 /// Distance required to brake to a stop from a given velocity at a fixed
 /// deceleration rate.
