@@ -913,7 +913,7 @@ fn config_rejects_reposition_strategy_on_loop_group() {
     match Simulation::new(&config, ScanDispatch::new()) {
         Err(SimError::InvalidConfig { field, reason }) => {
             assert_eq!(field, "building.groups.reposition");
-            assert!(reason.contains("Loop"), "unexpected reason: {reason}",);
+            assert!(reason.contains("Loop"), "unexpected reason: {reason}");
         }
         other => panic!("expected InvalidConfig, got {other:?}"),
     }
