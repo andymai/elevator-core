@@ -98,7 +98,7 @@ function computeLanes(
       cy: (top + bottom) / 2,
       top,
       bottom,
-      dir: i === 0 ? 1 : -1,
+      dir: i % 2 === 0 ? 1 : -1,
     });
   }
   return lanes;
