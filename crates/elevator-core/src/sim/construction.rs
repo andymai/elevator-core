@@ -66,6 +66,12 @@ pub(super) const fn canonical_hall_call_mode(
         | BuiltinStrategy::NearestCar
         | BuiltinStrategy::Etd
         | BuiltinStrategy::Rsr => Some(crate::dispatch::HallCallMode::Classic),
+        // Loop groups use a one-way patrol model — no concept of an
+        // "Up" vs "Down" hall call, and the boarding phase doesn't gate
+        // on assignment. Classic collective control is the closest fit
+        // (every car serves every waiter regardless of direction lamps).
+        #[cfg(feature = "loop_lines")]
+        BuiltinStrategy::LoopSweep => Some(crate::dispatch::HallCallMode::Classic),
     }
 }
 
@@ -1116,6 +1122,24 @@ impl Simulation {
                         reason: format!(
                             "group {} contains Loop lines; reposition strategies are unsupported on Loop",
                             gc.id,
+                        ),
+                    });
+                }
+                // Strategy: Loop groups must use `LoopSweep` in v1. Linear
+                // strategies don't apply (Loop cars are excluded from the
+                // Hungarian idle pool by `systems::dispatch::run`), and
+                // silently swapping a misconfigured Linear strategy for
+                // `LoopSweep` would hide a bug — every other "wrong
+                // strategy" case in this file rejects loud, so do the same
+                // here. `LoopSchedule` lands in a follow-up PR and will
+                // join `LoopSweep` as an accepted variant then.
+                if any_loop && !matches!(gc.dispatch, BuiltinStrategy::LoopSweep) {
+                    return Err(SimError::InvalidConfig {
+                        field: "building.groups.dispatch",
+                        reason: format!(
+                            "group {} contains Loop lines but uses {} dispatch; \
+                             only LoopSweep is supported for Loop groups in v1",
+                            gc.id, gc.dispatch,
                         ),
                     });
                 }
