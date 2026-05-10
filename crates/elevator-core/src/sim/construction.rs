@@ -905,6 +905,10 @@ impl Simulation {
     }
 
     /// Validate explicit line/group topology.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "validation reads top-to-bottom; extracting helpers would scatter related rejections across files"
+    )]
     fn validate_explicit_topology(
         line_configs: &[crate::config::LineConfig],
         stop_ids: &HashSet<StopId>,
@@ -963,6 +967,40 @@ impl Simulation {
                 && let Err((field, reason)) = kind.validate()
             {
                 return Err(SimError::InvalidConfig { field, reason });
+            }
+
+            // Loop-specific cross-field invariant: every car must fit
+            // around the loop with at least `min_headway` between
+            // successive cars. Without this guard, the second car
+            // configured on a too-short loop would instantly violate
+            // the no-overtake invariant the headway clamp is designed
+            // to preserve.
+            #[cfg(feature = "loop_lines")]
+            if let Some(crate::components::LineKind::Loop {
+                circumference,
+                min_headway,
+            }) = lc.kind
+            {
+                let car_count = lc
+                    .max_cars
+                    .map_or_else(|| lc.elevators.len(), |max| max.max(lc.elevators.len()));
+                if car_count > 0 {
+                    #[allow(
+                        clippy::cast_precision_loss,
+                        reason = "car_count is bounded by usize and the comparison is against a finite f64"
+                    )]
+                    let required = (car_count as f64) * min_headway;
+                    if required > circumference {
+                        return Err(SimError::InvalidConfig {
+                            field: "building.lines.kind",
+                            reason: format!(
+                                "loop line {}: {car_count} cars × min_headway {min_headway} = {required} \
+                                 exceeds circumference {circumference}",
+                                lc.id,
+                            ),
+                        });
+                    }
+                }
             }
         }
 
