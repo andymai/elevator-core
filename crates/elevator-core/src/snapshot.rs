@@ -9,8 +9,8 @@
 //! to register types and materialize the data.
 
 use crate::components::{
-    AccessControl, CarCall, DestinationQueue, Elevator, HallCall, Line, Patience, Position,
-    Preferences, Rider, Route, Stop, Velocity,
+    AccessControl, CarCall, DestinationQueue, Elevator, HallCall, Line, LineKind, Patience,
+    Position, Preferences, Rider, Route, Stop, Velocity,
 };
 use crate::entity::EntityId;
 use crate::ids::GroupId;
@@ -471,8 +471,10 @@ impl WorldSnapshot {
                         group: group_id,
                         orientation: crate::components::Orientation::Vertical,
                         position: None,
-                        min_position: if min_pos.is_finite() { min_pos } else { 0.0 },
-                        max_position: if max_pos.is_finite() { max_pos } else { 0.0 },
+                        kind: LineKind::Linear {
+                            min: if min_pos.is_finite() { min_pos } else { 0.0 },
+                            max: if max_pos.is_finite() { max_pos } else { 0.0 },
+                        },
                         max_cars: None,
                     },
                 );

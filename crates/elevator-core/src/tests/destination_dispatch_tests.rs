@@ -147,6 +147,7 @@ fn two_cars_same_group_config() -> SimConfig {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             }]),
             groups: Some(vec![GroupConfig {

@@ -14,7 +14,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 
-use crate::components::{Elevator, ElevatorPhase, Line, Orientation, Position, Stop, Velocity};
+use crate::components::{
+    Elevator, ElevatorPhase, Line, LineKind, Orientation, Position, Stop, Velocity,
+};
 use crate::config::SimConfig;
 use crate::dispatch::{
     BuiltinReposition, BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo,
@@ -443,8 +445,10 @@ impl Simulation {
                 group: GroupId(0),
                 orientation: Orientation::Vertical,
                 position: None,
-                min_position: min_pos,
-                max_position: max_pos,
+                kind: LineKind::Linear {
+                    min: min_pos,
+                    max: max_pos,
+                },
                 max_cars: None,
             },
         );
@@ -551,8 +555,10 @@ impl Simulation {
                     group: GroupId(0),
                     orientation: lc.orientation,
                     position: lc.position,
-                    min_position: min_pos,
-                    max_position: max_pos,
+                    kind: lc.kind.unwrap_or(LineKind::Linear {
+                        min: min_pos,
+                        max: max_pos,
+                    }),
                     max_cars: lc.max_cars,
                 },
             );

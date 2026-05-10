@@ -227,6 +227,7 @@ fn rejects_empty_line_serves() {
         position: None,
         min_position: None,
         max_position: None,
+        kind: None,
         max_cars: None,
     }]);
     let result = crate::sim::Simulation::new(&config, helpers::scan());
