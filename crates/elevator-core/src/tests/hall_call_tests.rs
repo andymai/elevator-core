@@ -458,6 +458,7 @@ fn pin_across_lines_is_rejected() {
             position: None,
             min_position: None,
             max_position: None,
+            kind: None,
             max_cars: None,
         },
         LineConfig {
@@ -469,6 +470,7 @@ fn pin_across_lines_is_rejected() {
             position: None,
             min_position: None,
             max_position: None,
+            kind: None,
             max_cars: None,
         },
     ]);
@@ -674,6 +676,7 @@ fn group_config_wires_hall_call_mode_and_ack_latency() {
         position: None,
         min_position: None,
         max_position: None,
+        kind: None,
         max_cars: None,
     }]);
     config.building.groups = Some(vec![GroupConfig {

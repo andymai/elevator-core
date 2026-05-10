@@ -209,6 +209,7 @@ fn twin_shaft_sim() -> Simulation {
         position: None,
         min_position: None,
         max_position: None,
+        kind: None,
         max_cars: None,
     };
     let config = SimConfig {

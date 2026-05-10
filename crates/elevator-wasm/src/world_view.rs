@@ -286,8 +286,15 @@ fn build_topology(
                 id: entity_to_u64(line_eid),
                 group: group_id,
                 name: line.name().to_string(),
-                min_position: line.min_position(),
-                max_position: line.max_position(),
+                // Loop lines (gated behind the `loop_lines` feature) report
+                // `[0, circumference]` here so existing playground rendering
+                // doesn't blow up; tsified `LineView` will gain a kind field
+                // when loop support reaches the host wiring PR.
+                min_position: line.linear_min().unwrap_or(0.0),
+                max_position: line
+                    .linear_max()
+                    .or_else(|| line.circumference())
+                    .unwrap_or(0.0),
                 stop_ids: line_info
                     .serves()
                     .iter()

@@ -109,6 +109,7 @@ pub fn twin_shaft_building() -> SimConfig {
         position: None,
         min_position: None,
         max_position: None,
+        kind: None,
         max_cars: None,
     };
 

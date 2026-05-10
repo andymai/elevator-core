@@ -155,13 +155,25 @@ pub struct LineParams {
     /// Physical orientation.
     pub orientation: Orientation,
     /// Lowest reachable position on the line axis.
+    ///
+    /// Used only when [`Self::kind`] is `None`; otherwise the kind's
+    /// own bounds win. Kept for backward-compat with callers that
+    /// haven't migrated to constructing
+    /// [`LineKind`](crate::components::LineKind) directly.
     pub min_position: f64,
-    /// Highest reachable position on the line axis.
+    /// Highest reachable position on the line axis. See
+    /// [`Self::min_position`] for the kind interaction.
     pub max_position: f64,
-    /// Optional floor-plan position.
+    /// Optional floor-plan position. On a Loop line this is the
+    /// loop center.
     pub position: Option<SpatialPosition>,
     /// Maximum cars on this line (None = unlimited).
     pub max_cars: Option<usize>,
+    /// Topology kind. When `Some`, takes precedence over the flat
+    /// `min_position`/`max_position` fields. When `None`, falls back
+    /// to [`LineKind::Linear`](crate::components::LineKind::Linear)
+    /// built from the flat fields — matches the pre-`LineKind` behavior.
+    pub kind: Option<crate::components::LineKind>,
 }
 
 impl LineParams {
@@ -176,6 +188,7 @@ impl LineParams {
             max_position: 0.0,
             position: None,
             max_cars: None,
+            kind: None,
         }
     }
 }

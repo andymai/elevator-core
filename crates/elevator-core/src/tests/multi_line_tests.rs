@@ -75,6 +75,7 @@ fn two_group_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -105,6 +106,7 @@ fn two_group_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -187,6 +189,7 @@ fn overlapping_groups_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -217,6 +220,7 @@ fn overlapping_groups_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -326,8 +330,8 @@ fn line_component_orientation_and_bounds_set_from_config() {
 
     assert_eq!(line_comp.orientation(), Orientation::Vertical);
     // Auto-computed from serves: Ground=0.0, Transfer=10.0
-    assert!((line_comp.min_position() - 0.0).abs() < 1e-9);
-    assert!((line_comp.max_position() - 10.0).abs() < 1e-9);
+    assert!((line_comp.linear_min().unwrap() - 0.0).abs() < 1e-9);
+    assert!((line_comp.linear_max().unwrap() - 10.0).abs() < 1e-9);
 }
 
 // ── 2. Auto-infer backwards compat ───────────────────────────────────────────
@@ -645,6 +649,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -675,6 +680,7 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -968,6 +974,7 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             }]),
             groups: Some(vec![GroupConfig {
@@ -1121,6 +1128,7 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -1151,6 +1159,7 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -1311,6 +1320,7 @@ fn no_elevators_in_any_line_fails_validation() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: None,
             }]),
             groups: None,
@@ -1877,6 +1887,7 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -1907,6 +1918,7 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: Some(1), // already full
                 },
             ]),
@@ -2063,6 +2075,7 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: Some(2),
             }]),
             groups: None,
@@ -2153,6 +2166,7 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: Some(1),
             }]),
             groups: None,
@@ -2227,6 +2241,7 @@ fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
                 position: None,
                 min_position: None,
                 max_position: None,
+                kind: None,
                 max_cars: Some(1),
             }]),
             groups: None,
@@ -2324,6 +2339,7 @@ fn three_group_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -2354,6 +2370,7 @@ fn three_group_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -2384,6 +2401,7 @@ fn three_group_config() -> SimConfig {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -2916,6 +2934,7 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -2946,6 +2965,7 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -3436,6 +3456,7 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -3464,6 +3485,7 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),
@@ -3598,6 +3620,7 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
                 LineConfig {
@@ -3626,6 +3649,7 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
                     position: None,
                     min_position: None,
                     max_position: None,
+                    kind: None,
                     max_cars: None,
                 },
             ]),

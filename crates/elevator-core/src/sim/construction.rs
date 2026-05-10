@@ -14,7 +14,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 
-use crate::components::{Elevator, ElevatorPhase, Line, Orientation, Position, Stop, Velocity};
+use crate::components::{
+    Elevator, ElevatorPhase, Line, LineKind, Orientation, Position, Stop, Velocity,
+};
 use crate::config::SimConfig;
 use crate::dispatch::{
     BuiltinReposition, BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo,
@@ -443,8 +445,10 @@ impl Simulation {
                 group: GroupId(0),
                 orientation: Orientation::Vertical,
                 position: None,
-                min_position: min_pos,
-                max_position: max_pos,
+                kind: LineKind::Linear {
+                    min: min_pos,
+                    max: max_pos,
+                },
                 max_cars: None,
             },
         );
@@ -543,7 +547,8 @@ impl Simulation {
 
             let line_eid = world.spawn();
             // The group assignment will be set when we process GroupConfigs.
-            // Default to GroupId(0) initially.
+            // Default to GroupId(0) initially. `kind` was validated in
+            // `validate_explicit_topology` before this builder ran.
             world.set_line(
                 line_eid,
                 Line {
@@ -551,8 +556,10 @@ impl Simulation {
                     group: GroupId(0),
                     orientation: lc.orientation,
                     position: lc.position,
-                    min_position: min_pos,
-                    max_position: max_pos,
+                    kind: lc.kind.unwrap_or(LineKind::Linear {
+                        min: min_pos,
+                        max: max_pos,
+                    }),
                     max_cars: lc.max_cars,
                 },
             );
@@ -947,6 +954,15 @@ impl Simulation {
                         lc.elevators.len()
                     ),
                 });
+            }
+
+            // Validate the explicit topology kind, if any. Linear-only
+            // configs (kind = None) are validated by the auto-derived
+            // bounds check inside `build_explicit_topology` instead.
+            if let Some(kind) = lc.kind
+                && let Err((field, reason)) = kind.validate()
+            {
+                return Err(SimError::InvalidConfig { field, reason });
             }
         }
 

@@ -4,6 +4,8 @@
 pub mod access;
 /// Floor buttons pressed from inside a cab.
 pub mod car_call;
+/// Cyclic-distance helpers for closed-loop line topologies.
+pub mod cyclic;
 /// Per-elevator ordered destination queue.
 pub mod destination_queue;
 /// Elevator state and properties.
@@ -34,7 +36,7 @@ pub use car_call::CarCall;
 pub use destination_queue::DestinationQueue;
 pub use elevator::{DOOR_COMMAND_QUEUE_CAP, Direction, Elevator, ElevatorPhase};
 pub use hall_call::{CallDirection, HallCall};
-pub use line::{Line, Orientation, SpatialPosition};
+pub use line::{Line, LineKind, Orientation, SpatialPosition};
 pub use patience::{Patience, Preferences};
 pub use position::{Position, Velocity};
 pub use rider::{Rider, RiderPhase, RiderPhaseKind};

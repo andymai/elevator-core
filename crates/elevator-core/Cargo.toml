@@ -27,6 +27,12 @@ energy = []
 # below the threshold any consumer cares about, while the
 # host-independence guarantee tightens.
 deterministic-fp = []
+# Closed-loop transit topologies (trains, monorails, gondolas,
+# people-movers). Adds the `LineKind::Loop` variant and unlocks
+# the cyclic-position movement integrator, headway-clamped
+# multi-car ordering, and `LoopSweep` / `LoopSchedule` dispatch
+# strategies. Default off until the API stabilises across hosts.
+loop_lines = []
 
 [lints]
 workspace = true
