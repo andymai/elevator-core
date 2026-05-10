@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.9.0...elevator-core-v20.10.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** loop sweep dispatch strategy for loop groups ([#816](https://github.com/andymai/elevator-core/issues/816)) ([d89c6c9](https://github.com/andymai/elevator-core/commit/d89c6c9c79469c0a4b3d815758c2ab40e1af4ed6))
+
 ## [20.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.8.0...elevator-core-v20.9.0) (2026-05-10)
 
 
