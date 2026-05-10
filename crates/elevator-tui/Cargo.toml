@@ -16,7 +16,7 @@ name = "elevator-tui"
 path = "src/main.rs"
 
 [dependencies]
-elevator-core = { path = "../elevator-core", features = ["traffic"] }
+elevator-core = { path = "../elevator-core", features = ["loop_lines", "traffic"] }
 ratatui = { version = "0.30", default-features = false, features = ["crossterm_0_29"] }
 tui-big-text = "0.8"
 crossterm = "0.29"

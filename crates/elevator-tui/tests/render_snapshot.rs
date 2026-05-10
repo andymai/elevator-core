@@ -106,6 +106,44 @@ fn frame_with_events_pane_focused() {
 }
 
 #[test]
+fn frame_renders_loop_topology_as_horizontal_strip() {
+    // The shipped loop demo exercises the LoopSweep + cyclic motion +
+    // door FSM continuation path end-to-end. Render after a few
+    // hundred ticks — long enough for both cars to be patrolling,
+    // doors cycling, and waiters accumulating. The buffer must
+    // contain the seam markers (`┃`) at each strip end and a car
+    // glyph (`▼`) somewhere on the cars-overlay row. Existence of
+    // those glyphs is what differentiates the loop strip from the
+    // vertical shaft view, so this is the load-bearing assertion.
+    use elevator_core::config::SimConfig;
+    use elevator_core::dispatch::LoopSweepDispatch;
+
+    let ron_str = include_str!("../../../assets/config/loop_demo.ron");
+    let config: SimConfig = ron::from_str(ron_str).expect("loop_demo deserializes");
+    let mut sim = Simulation::new(&config, LoopSweepDispatch::new()).expect("loop_demo constructs");
+    for _ in 0..600 {
+        sim.step();
+    }
+
+    let state = AppState::new(1.0).without_welcome();
+    let frame = render(&sim, &state, 100, 30);
+
+    assert!(
+        frame.contains('┃'),
+        "loop topology must render seam markers in the strip; got:\n{frame}"
+    );
+    assert!(
+        frame.contains('▼') || frame.contains('★'),
+        "loop topology must render at least one car glyph on the overlay row; got:\n{frame}"
+    );
+    // Don't snapshot this one — the precise glyph layout depends on
+    // the RNG seed for rider spawning and the exact tick at which
+    // each car arrives. Behavioural-glyph assertions stay stable
+    // across RON-schema drift; the existing snapshot tests cover
+    // the Linear path's full-pixel buffer.
+}
+
+#[test]
 fn frame_with_help_overlay() {
     // The help modal grew with the events-pane scroll/filter section
     // landing in PR2. Render at a taller viewport so every binding is
