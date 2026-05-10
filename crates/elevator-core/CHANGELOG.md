@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.3.1](https://github.com/andymai/elevator-core/compare/elevator-core-v20.3.0...elevator-core-v20.3.1) (2026-05-10)
+
+
+### Reverts
+
+* **playground:** airport pedway scenario ([#797](https://github.com/andymai/elevator-core/issues/797) and dependent [#799](https://github.com/andymai/elevator-core/issues/799)) ([#800](https://github.com/andymai/elevator-core/issues/800)) ([edd81af](https://github.com/andymai/elevator-core/commit/edd81af8bcd11fdc6db8974346a1aba47c6934ed))
+
 ## [20.3.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.2.0...elevator-core-v20.3.0) (2026-05-10)
 
 
