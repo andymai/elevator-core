@@ -2672,7 +2672,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-core"
-version = "20.3.1"
+version = "20.4.0"
 dependencies = [
  "criterion",
  "ordered-float",
@@ -2755,7 +2755,7 @@ dependencies = [
 
 [[package]]
 name = "elevator-wasm"
-version = "0.22.1"
+version = "0.23.0"
 dependencies = [
  "elevator-core",
  "getrandom 0.4.2",

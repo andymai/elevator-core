@@ -50,6 +50,7 @@ fn test_world() -> (World, EntityId, EntityId, EntityId) {
             inspection_speed_factor: 0.25,
             going_up: true,
             going_down: true,
+            going_forward: false,
             move_count: 0,
             door_command_queue: Vec::new(),
             manual_target_velocity: None,

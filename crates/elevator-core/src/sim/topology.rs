@@ -180,6 +180,7 @@ impl Simulation {
                 inspection_speed_factor: params.inspection_speed_factor,
                 going_up: true,
                 going_down: true,
+                going_forward: false,
                 move_count: 0,
                 door_command_queue: Vec::new(),
                 manual_target_velocity: None,
