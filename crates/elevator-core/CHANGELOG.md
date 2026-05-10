@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.9.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.8.0...elevator-core-v20.9.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** loop FSM completion — door continuation, kickstart, boarding bypass ([#814](https://github.com/andymai/elevator-core/issues/814)) ([db8d0c1](https://github.com/andymai/elevator-core/commit/db8d0c1d64c528bd567eb3a8b164db48b64a533c))
+
 ## [20.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.7.0...elevator-core-v20.8.0) (2026-05-10)
 
 
