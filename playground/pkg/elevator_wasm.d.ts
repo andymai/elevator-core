@@ -331,13 +331,23 @@ export interface CarView {
      */
     door: DoorView;
     /**
-     * Direction lamp: car will accept up-pickups.
+     * Direction lamp: car will accept up-pickups. Always `false` on
+     * Loop cars (the up/down axis is meaningless on a one-way cycle).
      */
     going_up: boolean;
     /**
-     * Direction lamp: car will accept down-pickups.
+     * Direction lamp: car will accept down-pickups. Always `false` on
+     * Loop cars (see [`Self::going_up`]).
      */
     going_down: boolean;
+    /**
+     * Direction lamp for Loop topologies: car is patrolling forward
+     * around its line. Always `false` on Linear cars. Renderers that
+     * show a single direction-arrow glyph should prefer this over the
+     * `going_up`/`going_down` pair when set; on Linear cars the
+     * arrow is derived from the up/down pair as before.
+     */
+    going_forward: boolean;
     /**
      * ETA to `target` in seconds, or `None` if not currently dispatched
      * to a known stop or the destination queue is empty.
@@ -366,6 +376,23 @@ export interface LineView {
     name: string;
     min_position: number;
     max_position: number;
+    /**
+     * Topology kind. `\"linear\"` for open-ended shafts (the default);
+     * `\"loop\"` for closed-loop people-movers, gondolas, and monorails.
+     * Renderers branch on this to pick layout: linear shafts render as
+     * vertical/horizontal strips; loops render as cycles, deriving the
+     * rendering radius from `circumference`.
+     */
+    kind: "linear" | "loop";
+    /**
+     * Total path length around the loop, in distance units. Always
+     * present (`Some`) for `kind == \"loop\"` and absent (`None`) for
+     * `kind == \"linear\"` — for backward compatibility,
+     * `max_position - min_position` still spans the renderable range
+     * in both cases, so consumers that don\'t yet branch on `kind`
+     * keep rendering correctly.
+     */
+    circumference: number | undefined;
     /**
      * Stops served, in entity-id order.
      */
