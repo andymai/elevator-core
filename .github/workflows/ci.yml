@@ -247,6 +247,14 @@ jobs:
       - name: Check core (energy feature, wasm32)
         run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features --features energy
 
+      - name: Check core (loop_lines feature, wasm32)
+        # Mirror of the `energy` isolation check above. `elevator-wasm`
+        # enables `loop_lines` alongside `traffic` (the full-stack line
+        # below exercises that combo), so without this isolated step a
+        # `loop_lines`-only regression on wasm32 would only surface in
+        # a host opting into a narrower feature surface.
+        run: cargo check -p elevator-core --target wasm32-unknown-unknown --no-default-features --features loop_lines
+
       - name: Check elevator-wasm bindgen crate (full stack)
         # Exercises elevator-core with default features (incl. `traffic`)
         # alongside the `wasm_js` getrandom shim — the only target+feature
