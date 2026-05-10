@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.6.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.5.0...elevator-core-v20.6.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** direction forward variant + strict loop validation ([#808](https://github.com/andymai/elevator-core/issues/808)) ([358ef88](https://github.com/andymai/elevator-core/commit/358ef8873f26f508ae6c98474314abaa39885a3b))
+
 ## [20.5.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.4.0...elevator-core-v20.5.0) (2026-05-10)
 
 
