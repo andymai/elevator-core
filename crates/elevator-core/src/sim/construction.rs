@@ -547,7 +547,8 @@ impl Simulation {
 
             let line_eid = world.spawn();
             // The group assignment will be set when we process GroupConfigs.
-            // Default to GroupId(0) initially.
+            // Default to GroupId(0) initially. `kind` was validated in
+            // `validate_explicit_topology` before this builder ran.
             world.set_line(
                 line_eid,
                 Line {
@@ -953,6 +954,15 @@ impl Simulation {
                         lc.elevators.len()
                     ),
                 });
+            }
+
+            // Validate the explicit topology kind, if any. Linear-only
+            // configs (kind = None) are validated by the auto-derived
+            // bounds check inside `build_explicit_topology` instead.
+            if let Some(kind) = lc.kind
+                && let Err((field, reason)) = kind.validate()
+            {
+                return Err(SimError::InvalidConfig { field, reason });
             }
         }
 

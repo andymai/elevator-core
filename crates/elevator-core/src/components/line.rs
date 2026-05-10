@@ -89,10 +89,16 @@ pub enum LineKind {
     /// `min_headway` between successive cars.
     #[cfg(feature = "loop_lines")]
     Loop {
-        /// Total path length around the loop. Must be `> 0`.
+        /// Total path length around the loop. Must be `> 0` —
+        /// construction (`Simulation::add_line` and the explicit-topology
+        /// builder) rejects non-positive or non-finite values.
         circumference: f64,
         /// Minimum permitted forward distance between successive cars.
-        /// Construction validates `max_cars * min_headway <= circumference`.
+        /// PR 3 will add construction-time validation
+        /// (`max_cars * min_headway <= circumference`); until then, the
+        /// dispatch and movement code added in subsequent PRs is
+        /// responsible for behaving sanely on degenerate values.
+        /// Callers should set this strictly positive.
         min_headway: f64,
     },
 }
@@ -106,6 +112,47 @@ impl LineKind {
             #[cfg(feature = "loop_lines")]
             Self::Loop { .. } => true,
         }
+    }
+
+    /// Validate that this kind's intrinsic bounds are well-formed.
+    ///
+    /// Returns `Err((field, reason))` on a violation; both construction
+    /// entry points ([`Simulation::add_line`](crate::sim::Simulation::add_line)
+    /// and the explicit-topology builder) call this and lift the error
+    /// into [`SimError::InvalidConfig`](crate::error::SimError::InvalidConfig).
+    ///
+    /// The intent is the *trivial* per-kind sanity checks — bounds finite
+    /// and ordered, circumference positive. Cross-line invariants
+    /// (`max_cars` × headway, group homogeneity, initial spacing) are PR 3.
+    ///
+    /// # Errors
+    ///
+    /// `Linear` rejects non-finite or `min > max` bounds. `Loop` rejects
+    /// non-finite or non-positive `circumference`.
+    pub fn validate(&self) -> Result<(), (&'static str, String)> {
+        match self {
+            Self::Linear { min, max } => {
+                if !min.is_finite() || !max.is_finite() {
+                    return Err((
+                        "line.range",
+                        format!("min/max must be finite (got min={min}, max={max})"),
+                    ));
+                }
+                if min > max {
+                    return Err(("line.range", format!("min ({min}) must be <= max ({max})")));
+                }
+            }
+            #[cfg(feature = "loop_lines")]
+            Self::Loop { circumference, .. } => {
+                if !circumference.is_finite() || *circumference <= 0.0 {
+                    return Err((
+                        "line.kind",
+                        format!("loop circumference must be finite and > 0 (got {circumference})"),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -385,6 +432,92 @@ mod tests {
 
         let deserialized: Line = serde_json::from_value(serialized).unwrap();
         assert_eq!(deserialized.kind(), line.kind());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_linear() {
+        assert!(
+            LineKind::Linear {
+                min: f64::NAN,
+                max: 10.0
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            LineKind::Linear {
+                min: 5.0,
+                max: f64::INFINITY
+            }
+            .validate()
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_rejects_inverted_linear_bounds() {
+        assert!(
+            LineKind::Linear {
+                min: 10.0,
+                max: 5.0
+            }
+            .validate()
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_accepts_well_formed_linear() {
+        assert!(
+            LineKind::Linear {
+                min: 0.0,
+                max: 100.0
+            }
+            .validate()
+            .is_ok()
+        );
+    }
+
+    #[cfg(feature = "loop_lines")]
+    #[test]
+    fn validate_rejects_non_positive_circumference() {
+        assert!(
+            LineKind::Loop {
+                circumference: 0.0,
+                min_headway: 5.0
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            LineKind::Loop {
+                circumference: -1.0,
+                min_headway: 5.0
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            LineKind::Loop {
+                circumference: f64::NAN,
+                min_headway: 5.0
+            }
+            .validate()
+            .is_err()
+        );
+    }
+
+    #[cfg(feature = "loop_lines")]
+    #[test]
+    fn validate_accepts_positive_circumference() {
+        assert!(
+            LineKind::Loop {
+                circumference: 100.0,
+                min_headway: 5.0
+            }
+            .validate()
+            .is_ok()
+        );
     }
 
     #[cfg(feature = "loop_lines")]

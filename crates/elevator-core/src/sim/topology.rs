@@ -220,28 +220,20 @@ impl Simulation {
     /// # Errors
     ///
     /// Returns [`SimError::GroupNotFound`] if the specified group does not exist.
-    /// Returns [`SimError::InvalidConfig`] if `min_position` / `max_position`
-    /// is non-finite or `min_position > max_position` — broken bounds
-    /// would produce NaN positions on every car added to the line.
+    /// Returns [`SimError::InvalidConfig`] for malformed bounds —
+    /// non-finite `min`/`max` or `min > max` on a `Linear` line, or
+    /// non-finite / non-positive `circumference` on a `Loop` line.
     pub fn add_line(&mut self, params: &LineParams) -> Result<EntityId, SimError> {
-        if !params.min_position.is_finite() || !params.max_position.is_finite() {
-            return Err(SimError::InvalidConfig {
-                field: "line.range",
-                reason: format!(
-                    "min/max must be finite (got min={}, max={})",
-                    params.min_position, params.max_position
-                ),
-            });
-        }
-        if params.min_position > params.max_position {
-            return Err(SimError::InvalidConfig {
-                field: "line.range",
-                reason: format!(
-                    "min ({}) must be <= max ({})",
-                    params.min_position, params.max_position
-                ),
-            });
-        }
+        // Resolve the requested kind; flat fields are the fallback only
+        // when no explicit kind was provided. Validation runs against
+        // the *resolved* kind so callers passing an explicit Loop don't
+        // get a spurious flat-field complaint.
+        let kind = params.kind.unwrap_or(LineKind::Linear {
+            min: params.min_position,
+            max: params.max_position,
+        });
+        kind.validate()
+            .map_err(|(field, reason)| SimError::InvalidConfig { field, reason })?;
 
         let group_id = params.group;
         let group = self
@@ -260,10 +252,7 @@ impl Simulation {
                 group: group_id,
                 orientation: params.orientation,
                 position: params.position,
-                kind: params.kind.unwrap_or(LineKind::Linear {
-                    min: params.min_position,
-                    max: params.max_position,
-                }),
+                kind,
                 max_cars: params.max_cars,
             },
         );

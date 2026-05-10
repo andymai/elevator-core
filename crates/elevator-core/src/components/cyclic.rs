@@ -64,7 +64,11 @@ pub fn wrap_position(p: f64, circumference: f64) -> f64 {
 /// ```
 #[must_use]
 pub fn forward_distance(from: f64, to: f64, circumference: f64) -> f64 {
-    if circumference <= 0.0 {
+    // Guard non-finite inputs: `wrap_position` is documented to return
+    // them unchanged, and the subtraction below would then propagate
+    // `±∞` / `NaN` into ETA / dispatch math. Returning `0.0` matches
+    // the module-level "safe degenerate value" contract.
+    if circumference <= 0.0 || !from.is_finite() || !to.is_finite() {
         return 0.0;
     }
     let from = wrap_position(from, circumference);
@@ -130,6 +134,15 @@ mod tests {
     fn forward_distance_is_directional() {
         approx(forward_distance(10.0, 30.0, 100.0), 20.0);
         approx(forward_distance(30.0, 10.0, 100.0), 80.0);
+    }
+
+    #[test]
+    fn forward_distance_returns_zero_on_non_finite() {
+        approx(forward_distance(f64::INFINITY, 30.0, 100.0), 0.0);
+        approx(forward_distance(30.0, f64::INFINITY, 100.0), 0.0);
+        approx(forward_distance(f64::NAN, 30.0, 100.0), 0.0);
+        approx(forward_distance(30.0, f64::NAN, 100.0), 0.0);
+        approx(forward_distance(f64::NEG_INFINITY, 30.0, 100.0), 0.0);
     }
 
     #[test]
