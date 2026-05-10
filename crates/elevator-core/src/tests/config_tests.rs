@@ -329,16 +329,53 @@ fn shipped_assets_pin_to_current_schema_version() {
     // Every config under assets/config/ must declare the current
     // version explicitly; otherwise the asset itself becomes a legacy
     // file the next time someone bumps CURRENT_CONFIG_SCHEMA_VERSION.
-    for asset in [
+    let mut assets = vec![
         include_str!("../../../../assets/config/default.ron"),
         include_str!("../../../../assets/config/space_elevator.ron"),
         include_str!("../../../../assets/config/annotated.ron"),
-    ] {
+    ];
+    // `loop_demo.ron` carries a Loop-kind line and can only be parsed
+    // when the feature is enabled. The deserializer rejects Loop
+    // variants outright with the feature off, so listing it
+    // unconditionally would fail the schema pin on the default
+    // feature configuration. Gating the read mirrors how the binary
+    // would handle the same config at runtime.
+    #[cfg(feature = "loop_lines")]
+    assets.push(include_str!("../../../../assets/config/loop_demo.ron"));
+
+    for asset in assets {
         let config: SimConfig = ron::from_str(asset).expect("shipped asset deserializes");
         assert_eq!(
             config.schema_version,
             crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
             "shipped asset must pin to CURRENT_CONFIG_SCHEMA_VERSION"
         );
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_demo_config_loads_and_runs() {
+    // End-to-end smoke check: the shipped loop demo deserializes,
+    // constructs through `Simulation::new`, and survives a handful of
+    // ticks without panicking. Catches RON-schema drift (field names,
+    // variant shape) and runtime-invariant regressions that
+    // construction validation would surface.
+    use crate::dispatch::LoopSweepDispatch;
+    use crate::sim::Simulation;
+
+    let ron_str = include_str!("../../../../assets/config/loop_demo.ron");
+    let config: SimConfig = ron::from_str(ron_str).expect("loop_demo.ron must deserialize cleanly");
+
+    let mut sim = Simulation::new(&config, LoopSweepDispatch::new())
+        .expect("loop_demo.ron must construct a valid Simulation");
+
+    // Run a few hundred ticks — enough for the kickstart pass, the
+    // first door cycle on each car, and the door FSM continuation
+    // handing off to the next forward stop. Smoke test, not a
+    // behavioural assertion, so a successful run = no panics + no
+    // out-of-bounds entity references in the pipeline.
+    for _ in 0..600 {
+        sim.step();
     }
 }

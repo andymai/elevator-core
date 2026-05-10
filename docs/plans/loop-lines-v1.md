@@ -15,8 +15,9 @@ All work ships behind the `loop_lines` cargo feature (default off).
 | 6 | Loop FSM completion: door continuation + kickstart + boarding bypass | shipped (#814) |
 | 7 | `LoopSweep` dispatch | shipped (#816) |
 | 8 | `LoopSchedule` fixed-dwell | shipped (#818) |
-| 9 | `LoopSchedule` hold-recovery | this PR |
-| 10 | Demo scenario + host wiring | not started |
+| 9 | `LoopSchedule` hold-recovery | shipped (#820) |
+| 10 | Demo scenario + Bevy opt-in + mdBook chapter | this PR |
+| 11 | TUI / WASM host wiring (deferred) | not started |
 
 ## Locked decisions
 
