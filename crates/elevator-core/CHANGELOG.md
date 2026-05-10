@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.4.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.3.1...elevator-core-v20.4.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** add LineKind enum and cyclic distance helpers ([#804](https://github.com/andymai/elevator-core/issues/804)) ([855b8bd](https://github.com/andymai/elevator-core/commit/855b8bd67e406f41c7187438fdc27ba7441b61d6))
+
 ## [20.3.1](https://github.com/andymai/elevator-core/compare/elevator-core-v20.3.0...elevator-core-v20.3.1) (2026-05-10)
 
 
