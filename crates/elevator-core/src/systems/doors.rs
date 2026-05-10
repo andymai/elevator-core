@@ -82,6 +82,7 @@ pub fn run(
                     // clear them so `Elevator::direction()` reports a
                     // clean `Forward` and hosts that read the lamps
                     // directly aren't shown stale Linear state.
+                    let lamps_dirty = car.going_up || car.going_down;
                     car.phase = ElevatorPhase::MovingToStop(next_stop);
                     car.target_stop = Some(next_stop);
                     car.going_forward = true;
@@ -91,12 +92,19 @@ pub fn run(
                         elevator: eid,
                         tick: ctx.tick,
                     });
-                    events.emit(Event::DirectionIndicatorChanged {
-                        elevator: eid,
-                        going_up: false,
-                        going_down: false,
-                        tick: ctx.tick,
-                    });
+                    // Mirror the Linear branch's `indicators_dirty` guard:
+                    // skip the event during steady-state patrol where the
+                    // lamps were already cleared on a prior cycle, so
+                    // hosts subscribed to `DirectionIndicatorChanged`
+                    // don't receive a redundant emission per door close.
+                    if lamps_dirty {
+                        events.emit(Event::DirectionIndicatorChanged {
+                            elevator: eid,
+                            going_up: false,
+                            going_down: false,
+                            tick: ctx.tick,
+                        });
+                    }
                     if let Some(stop) = from_stop {
                         events.emit(Event::ElevatorDeparted {
                             elevator: eid,

@@ -644,8 +644,15 @@ fn kickstart_loop_cars(
             // Capture the stop we're departing from so the emitted
             // `ElevatorDeparted` event matches the existing Linear shape.
             // A car that started off a stop boundary won't have one and
-            // the event is simply skipped.
-            let pos = world.position(eid).map_or(0.0, |p| p.value);
+            // the event is simply skipped. Position is guaranteed to be
+            // present here: `loop_next_stop_for_car` already returned
+            // None — and the `let Some(next_stop) = …` arm above would
+            // have continued — if it were absent, so an explicit guard
+            // signals intent more clearly than a `0.0` fallback.
+            let Some(pos_component) = world.position(eid) else {
+                continue;
+            };
+            let pos = pos_component.value;
             let serves = crate::dispatch::elevator_line_serves(world, groups, eid);
             let from_stop = serves.and_then(|s| world.find_stop_at_position_in(pos, s));
             transitions.push((eid, next_stop, from_stop));

@@ -789,7 +789,7 @@ pub fn elevator_line_serves_indexed<'a>(
 /// when the feature is off, so a Linear-only sim simply never reaches a
 /// caller with a positive `circumference`.
 #[must_use]
-pub fn loop_next_stop_forward(
+pub(crate) fn loop_next_stop_forward(
     world: &World,
     circumference: f64,
     served_stops: &[EntityId],
@@ -828,7 +828,7 @@ pub fn loop_next_stop_forward(
 /// continuation path so both pick the same stop given identical world
 /// state.
 #[must_use]
-pub fn loop_next_stop_for_car(
+pub(crate) fn loop_next_stop_for_car(
     world: &World,
     groups: &[ElevatorGroup],
     elevator: EntityId,
