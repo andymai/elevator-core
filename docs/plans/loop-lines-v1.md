@@ -16,8 +16,9 @@ All work ships behind the `loop_lines` cargo feature (default off).
 | 7 | `LoopSweep` dispatch | shipped (#816) |
 | 8 | `LoopSchedule` fixed-dwell | shipped (#818) |
 | 9 | `LoopSchedule` hold-recovery | shipped (#820) |
-| 10 | Demo scenario + Bevy opt-in + mdBook chapter | this PR |
-| 11 | TUI / WASM host wiring (deferred) | not started |
+| 10 | Demo scenario + Bevy opt-in + mdBook chapter | shipped (#822) |
+| 11 | WASM host opt-in + `LineView.kind` exposure | this PR |
+| 12 | TUI loop-strip rendering | not started |
 
 ## Locked decisions
 
