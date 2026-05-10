@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.11.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.10.0...elevator-core-v20.11.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** loop schedule dispatch with fixed dwell ([#818](https://github.com/andymai/elevator-core/issues/818)) ([bfb0f8a](https://github.com/andymai/elevator-core/commit/bfb0f8a0e19917aa29584ffc6c5d417325fc0c7c))
+
 ## [20.10.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.9.0...elevator-core-v20.10.0) (2026-05-10)
 
 
