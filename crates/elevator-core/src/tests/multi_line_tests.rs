@@ -858,6 +858,90 @@ fn add_line_accepts_loop_with_satisfiable_headway() {
 
 #[cfg(feature = "loop_lines")]
 #[test]
+fn loop_accessors_report_topology() {
+    use super::helpers::{default_config, scan};
+    use crate::components::LineKind;
+
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    // The default config produces a Linear line at GroupId(0).
+    let linear_line = sim.lines_in_group(GroupId(0))[0];
+    assert!(!sim.is_loop(linear_line));
+    assert_eq!(sim.loop_circumference(linear_line), None);
+    assert_eq!(sim.loop_next_stop(linear_line, 0.0), None);
+
+    // Add a Loop in a separate group.
+    let group = sim.add_group("LoopGroup", ScanDispatch::new());
+    let mut params = crate::sim::LineParams::new("Track", group);
+    params.kind = Some(LineKind::Loop {
+        circumference: 100.0,
+        min_headway: 5.0,
+    });
+    let loop_line = sim.add_line(&params).unwrap();
+
+    assert!(sim.is_loop(loop_line));
+    assert_eq!(sim.loop_circumference(loop_line), Some(100.0));
+    // Loop has no served stops yet → loop_next_stop returns None.
+    assert_eq!(sim.loop_next_stop(loop_line, 0.0), None);
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_next_stop_returns_forward_neighbour() {
+    use crate::components::LineKind;
+
+    // Build a config with a Loop line that serves StopId(0..3) at
+    // positions 0/25/50/75 around a 100m loop.
+    let mut config = two_group_config();
+    {
+        let stops = &mut config.building.stops;
+        stops[0].position = 0.0;
+        stops[1].position = 25.0;
+        stops[2].position = 50.0;
+    }
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+        lines[0].serves = vec![StopId(0), StopId(1), StopId(2)];
+    }
+    if let Some(groups) = config.building.groups.as_mut() {
+        // Collapse to one group containing only the loop line so the
+        // homogeneity check passes.
+        groups[0].lines = vec![1];
+        groups.remove(1);
+    }
+    config.building.lines.as_mut().unwrap().truncate(1);
+
+    let sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let loop_line = sim.lines_in_group(GroupId(0))[0];
+
+    // From position 10 → next forward is StopId(1) @ 25.
+    let next = sim.loop_next_stop(loop_line, 10.0).unwrap();
+    let next_pos = sim.world().stop_position(next).unwrap();
+    assert!((next_pos - 25.0).abs() < 1e-9);
+
+    // From position 60 → next forward is StopId(0) @ 0 (through the seam).
+    let next = sim.loop_next_stop(loop_line, 60.0).unwrap();
+    let next_pos = sim.world().stop_position(next).unwrap();
+    assert!(next_pos.abs() < 1e-9);
+
+    // Coincident with stop at 25 → returns the *next* one (50), not 25.
+    let next = sim.loop_next_stop(loop_line, 25.0).unwrap();
+    let next_pos = sim.world().stop_position(next).unwrap();
+    assert!((next_pos - 50.0).abs() < 1e-9);
+
+    // Non-finite positions reject up front so callers can't silently
+    // get back the first served stop as a "valid" answer.
+    assert_eq!(sim.loop_next_stop(loop_line, f64::NAN), None);
+    assert_eq!(sim.loop_next_stop(loop_line, f64::INFINITY), None);
+    assert_eq!(sim.loop_next_stop(loop_line, f64::NEG_INFINITY), None);
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
 fn config_rejects_mixed_loop_and_linear_in_same_group() {
     use crate::components::LineKind;
     use crate::error::SimError;
