@@ -32,51 +32,58 @@ jobs:
           app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
           private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
 
-      # Pin published packages whose only changes since the last
-      # release tag are non-shipping (tests, benches, CHANGELOG, the
-      # version line in Cargo.toml). Without this, a single test
-      # addition to `crates/<x>/src/tests/` cuts a fresh crate
-      # version even though no consumer-facing code changed — which
-      # is how `elevator-core 20.3.0` got published from a playground
-      # PR that only added an `Orientation::Horizontal` parse test
-      # (yanked; #797 / #800 in the commit log).
+      # Skip release-please when no package has shipping changes
+      # since its last release tag. "Shipping" excludes tests under
+      # src/tests/ or tests/, benches/, CHANGELOG.md, and the version
+      # line in Cargo.toml — all of which release-please-action
+      # otherwise treats as release-worthy when paired with a `feat:`
+      # or `fix:` squash subject.
       #
-      # Mechanism: rewrite `release-please-config.json` in place to
-      # set `release-as: <current-version>` for any package with no
-      # shipping diff. release-please treats that as "release the
-      # already-released version", which is a no-op — no PR, no tag,
-      # no publish.
+      # Bounded scope: this guard only catches the case where EVERY
+      # package's diff is non-shipping. Mixed PRs (real source
+      # changes in package B + test-only changes in package A) still
+      # bump A as collateral, because release-please-action v4 reads
+      # its config from the GitHub API and there's no per-package
+      # opt-out at config-file edit time. That case is handled by
+      # commit-scope discipline; see CLAUDE.md.
+      #
+      # Background: `elevator-core 20.3.0` was published from PR #797
+      # — a playground PR that incidentally added a one-line test in
+      # `crates/elevator-core/src/tests/`. The release was yanked
+      # (#800 reverted). This guard prevents the fully-no-op variant
+      # of that scenario.
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Pin no-op packages
+      - name: Detect shipping changes
+        id: ship-check
         run: |
-          config=$(cat release-please-config.json)
+          any_shipping=false
           for pkg_path in $(jq -r '.packages | keys[]' release-please-config.json); do
             pkg=$(basename "$pkg_path")
             version=$(jq -r --arg key "$pkg_path" '.[$key]' .release-please-manifest.json)
             tag="${pkg}-v${version}"
             if ! git rev-parse "$tag" >/dev/null 2>&1; then
-              echo "tag $tag missing — leaving $pkg unpinned"
+              echo "tag $tag missing — assuming $pkg has shipping changes"
+              any_shipping=true
               continue
             fi
             shipping=$(git diff --name-only "$tag"..HEAD -- "$pkg_path/" \
               | grep -Ev "^$pkg_path/(src/tests/|tests/|benches/|CHANGELOG\.md\$|Cargo\.toml\$)" \
               | wc -l)
-            if [ "$shipping" -eq 0 ]; then
-              echo "no shipping changes in $pkg since $tag → pinning release-as=$version"
-              config=$(echo "$config" | jq --arg key "$pkg_path" --arg ver "$version" \
-                '.packages[$key]["release-as"] = $ver')
-            else
-              echo "$shipping shipping change(s) in $pkg since $tag"
-            fi
+            echo "$pkg: $shipping shipping file(s) since $tag"
+            [ "$shipping" -gt 0 ] && any_shipping=true
           done
-          echo "$config" > release-please-config.json
+          echo "any_shipping=$any_shipping" >> "$GITHUB_OUTPUT"
+          if [ "$any_shipping" = "false" ]; then
+            echo "::notice::Skipping release-please: no shipping changes since last release across any tracked package."
+          fi
 
       - uses: googleapis/release-please-action@v4.4.0
         id: release
+        if: steps.ship-check.outputs.any_shipping == 'true'
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

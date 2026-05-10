@@ -98,6 +98,25 @@ ID types: `ElevatorId`, `RiderId`, `StopId` are phantom-typed newtypes over `Ent
 
 mdBook guide in `docs/` — deployed to GitHub Pages. Lint with `scripts/lint-docs.sh`.
 
+## Release-please commit discipline
+
+`release-please-action` v4 attributes commits to packages by which paths the commit touched, ignoring the conventional-commit scope. Combined with the `feat:` / `fix:` squash type, this means a PR that primarily changes one tracked package but incidentally touches another (e.g. adds a one-line test in `crates/elevator-core/src/tests/` from a `feat(playground):` PR) will bump *both* packages and publish to crates.io.
+
+The release-please workflow has a guard that skips the entire release-please run when no tracked package has shipping changes since its last tag, but it can NOT prevent the mixed case (some packages have real source changes, others only have test-only changes).
+
+When a PR will squash-merge as `feat:` / `fix:` and you also need to touch another tracked package's source tree (even just tests), split it:
+- Either land the test-only change in a separate `test(elevator-core): ...` PR (release-please ignores `test:` commits), or
+- Use a non-bumping squash type (`refactor:`, `chore:`, `test:`) when the dominant change isn't user-facing.
+
+Files that the workflow guard treats as **non-shipping** for any package `crates/<x>/`:
+- `crates/<x>/src/tests/...`
+- `crates/<x>/tests/...`
+- `crates/<x>/benches/...`
+- `crates/<x>/CHANGELOG.md`
+- `crates/<x>/Cargo.toml` (release-please bumps the version line here)
+
+Anything else under `crates/<x>/` (the rest of `src/`, `build.rs`, asset configs, etc.) counts as shipping.
+
 ## Binding coverage
 
 `bindings.toml` at the workspace root enumerates every `pub fn` on `impl Simulation` and its binding status (`<exported>`, `skip:<reason>`, or `todo:<phase>`) for each consumer crate. CI runs `scripts/check-bindings.sh`; missing or stale entries fail the build. Add or update an entry in the same PR that adds, renames, or removes a public Simulation method.
