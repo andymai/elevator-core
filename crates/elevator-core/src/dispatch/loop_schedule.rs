@@ -1,7 +1,7 @@
 //! `LoopSchedule` — fixed-dwell timetable for [`LineKind::Loop`] groups.
 //!
-//! Where [`LoopSweepDispatch`](super::LoopSweepDispatch) lets each Loop
-//! car carry whatever per-car `door_open_ticks` the config specified
+//! Where [`crate::dispatch::LoopSweepDispatch`] lets each Loop car
+//! carry whatever per-car `door_open_ticks` the config specified
 //! (so dwell tracks the rider load at each stop), `LoopSchedule`
 //! overrides every Loop car in the group to a single
 //! `dwell_ticks` value. The resulting timetable is predictable —
@@ -13,8 +13,9 @@
 //!
 //! - Fixed-dwell override applied via `pre_dispatch`: every Loop car
 //!   in the group has its `door_open_ticks` rewritten to the schedule's
-//!   `dwell_ticks` once per pass. Idempotent — the first tick writes,
-//!   subsequent ticks compare and no-op.
+//!   `dwell_ticks` once per pass. Idempotent — the same value is
+//!   written unconditionally each tick, so re-applying the strategy
+//!   leaves car state unchanged.
 //! - Round-trips through snapshots and config: `builtin_id` returns
 //!   [`BuiltinStrategy::LoopSchedule`] and `snapshot_config` /
 //!   `restore_config` carry the two tunable fields.
@@ -47,10 +48,13 @@ use super::{BuiltinStrategy, DispatchManifest, DispatchStrategy, ElevatorGroup, 
 /// stop.
 ///
 /// See the module-level documentation for the full contract. The two
-/// tunable fields are public via accessors so hosts can inspect the
-/// schedule in-flight (HUDs, debuggers); mutation goes through
-/// [`with_target_headway_ticks`](Self::with_target_headway_ticks) and
-/// friends so invariants stay validated at the constructor.
+/// tunable fields are exposed through accessors so hosts can inspect
+/// the schedule in-flight (HUDs, debuggers). The struct itself is
+/// immutable after construction — replace the active strategy via
+/// [`Simulation::set_dispatch`](crate::sim::Simulation::set_dispatch)
+/// with a freshly-built instance to retune live, or rely on
+/// [`restore_config`](DispatchStrategy::restore_config) on the snapshot
+/// path.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct LoopScheduleDispatch {
     /// Target dwell at each stop, in ticks. Overrides every Loop car's
