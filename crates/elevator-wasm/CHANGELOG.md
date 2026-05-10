@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.23.0...elevator-wasm-v0.24.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-wasm:** loop lines feature opt-in and LineView kind exposure ([#823](https://github.com/andymai/elevator-core/issues/823)) ([4b1bb9b](https://github.com/andymai/elevator-core/commit/4b1bb9bfb4d3e3d3d3ebb0f5deb2e4ab66df6466))
+
 ## [0.23.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.22.1...elevator-wasm-v0.23.0) (2026-05-10)
 
 
