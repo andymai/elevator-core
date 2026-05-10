@@ -894,7 +894,8 @@ fn loop_next_stop_returns_forward_neighbour() {
     // Build a config with a Loop line that serves StopId(0..3) at
     // positions 0/25/50/75 around a 100m loop.
     let mut config = two_group_config();
-    if let Some(stops) = Some(&mut config.building.stops) {
+    {
+        let stops = &mut config.building.stops;
         stops[0].position = 0.0;
         stops[1].position = 25.0;
         stops[2].position = 50.0;
@@ -931,6 +932,12 @@ fn loop_next_stop_returns_forward_neighbour() {
     let next = sim.loop_next_stop(loop_line, 25.0).unwrap();
     let next_pos = sim.world().stop_position(next).unwrap();
     assert!((next_pos - 50.0).abs() < 1e-9);
+
+    // Non-finite positions reject up front so callers can't silently
+    // get back the first served stop as a "valid" answer.
+    assert_eq!(sim.loop_next_stop(loop_line, f64::NAN), None);
+    assert_eq!(sim.loop_next_stop(loop_line, f64::INFINITY), None);
+    assert_eq!(sim.loop_next_stop(loop_line, f64::NEG_INFINITY), None);
 }
 
 #[cfg(feature = "loop_lines")]

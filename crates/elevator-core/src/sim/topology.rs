@@ -889,9 +889,18 @@ impl Simulation {
     /// that stop, so the next forward stop is what they want.
     ///
     /// Returns `None` if the line is not a Loop, the line entity is
-    /// unknown, or the line serves no stops.
+    /// unknown, the line serves no stops, or `position` is non-finite.
+    /// Non-finite `position` is rejected up front because
+    /// [`forward_distance`](crate::components::cyclic::forward_distance)
+    /// is documented to return `0.0` on non-finite inputs — without the
+    /// guard, every served stop would tie at `d = circumference` and
+    /// the first one in the list would be returned as a valid-looking
+    /// `EntityId` despite the input being meaningless.
     #[must_use]
     pub fn loop_next_stop(&self, line: EntityId, position: f64) -> Option<EntityId> {
+        if !position.is_finite() {
+            return None;
+        }
         let circumference = self.loop_circumference(line)?;
         let stops = self.stops_served_by_line(line);
         if stops.is_empty() {
