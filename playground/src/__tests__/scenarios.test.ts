@@ -88,4 +88,15 @@ describe("scenarios metadata", () => {
     const elevatorCount = (airport.ron.match(/ElevatorConfig\s*\(/g) ?? []).length;
     expect(elevatorCount).toBe(6);
   });
+
+  it("tether-mode scenarios opt out of compare mode", () => {
+    // Tether visualization is too tall to tile vertically into the
+    // compare grid; any scenario opting into the tether renderer
+    // must also disable compare.
+    for (const s of SCENARIOS) {
+      if (s.tether !== undefined) {
+        expect(s.disableCompare, s.id).toBe(true);
+      }
+    }
+  });
 });
