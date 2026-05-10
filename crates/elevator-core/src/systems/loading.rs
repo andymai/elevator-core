@@ -131,6 +131,14 @@ fn collect_actions(
         // Derive this elevator's group from its line component.
         let elev_line = car.line();
         let elev_group: Option<GroupId> = world.line(elev_line).map(Line::group);
+        // Direction-lamp gating below filters riders by the linear
+        // up/down comparison of `(rider_dest_pos vs current_stop_pos)`.
+        // On a `LineKind::Loop` line the comparison is meaningless —
+        // every served destination is reachable forward through the
+        // loop, and a destination at a *lower* position is just farther
+        // around the cycle, not a "wrong direction" trip. Bypass the
+        // gate entirely so Loop cars board every eligible rider.
+        let line_is_loop = world.line(elev_line).is_some_and(Line::is_loop);
 
         // Single pass: find a boardable rider (fits by weight) or a rejectable one (doesn't fit).
         let remaining_capacity = car.weight_capacity.value() - car.current_load.value();
@@ -217,21 +225,23 @@ fn collect_actions(
                     // Direction indicator filter: rider must be going in a direction
                     // this car will serve. A filtered rider silently stays waiting —
                     // no rejection event — so a later car in the right direction can
-                    // pick them up.
-                    let cur_pos = world.position(current_stop).map(|p| p.value);
-                    let dest_pos = world.position(dest).map(|p| p.value);
-                    if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
-                        if dp > cp && !car.going_up {
-                            if direction_filtered.is_none() {
-                                direction_filtered = Some(rid);
+                    // pick them up. Loop cars skip this gate (see `line_is_loop`).
+                    if !line_is_loop {
+                        let cur_pos = world.position(current_stop).map(|p| p.value);
+                        let dest_pos = world.position(dest).map(|p| p.value);
+                        if let (Some(cp), Some(dp)) = (cur_pos, dest_pos) {
+                            if dp > cp && !car.going_up {
+                                if direction_filtered.is_none() {
+                                    direction_filtered = Some(rid);
+                                }
+                                return None;
                             }
-                            return None;
-                        }
-                        if dp < cp && !car.going_down {
-                            if direction_filtered.is_none() {
-                                direction_filtered = Some(rid);
+                            if dp < cp && !car.going_down {
+                                if direction_filtered.is_none() {
+                                    direction_filtered = Some(rid);
+                                }
+                                return None;
                             }
-                            return None;
                         }
                     }
                 }

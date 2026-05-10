@@ -1148,6 +1148,202 @@ fn config_rejects_loop_with_duplicate_position_stops() {
     }
 }
 
+/// Construct a single-line, single-group Loop config from `two_group_config`.
+/// The base helper ships a Linear two-group setup; this collapses to one
+/// group with a 100-unit loop serving 4 stops at 0 / 25 / 50 / 75.
+#[cfg(feature = "loop_lines")]
+fn loop_only_config() -> SimConfig {
+    use crate::components::LineKind;
+    let mut config = two_group_config();
+    config.building.stops = vec![
+        StopConfig {
+            id: StopId(0),
+            name: "S0".into(),
+            position: 0.0,
+        },
+        StopConfig {
+            id: StopId(1),
+            name: "S1".into(),
+            position: 25.0,
+        },
+        StopConfig {
+            id: StopId(2),
+            name: "S2".into(),
+            position: 50.0,
+        },
+        StopConfig {
+            id: StopId(3),
+            name: "S3".into(),
+            position: 75.0,
+        },
+    ];
+    if let Some(lines) = config.building.lines.as_mut() {
+        lines[0].kind = Some(LineKind::Loop {
+            circumference: 100.0,
+            min_headway: 5.0,
+        });
+        lines[0].serves = vec![StopId(0), StopId(1), StopId(2), StopId(3)];
+        lines[0].elevators[0].starting_stop = StopId(0);
+    }
+    if let Some(groups) = config.building.groups.as_mut() {
+        groups[0].lines = vec![1];
+        groups.remove(1);
+    }
+    config.building.lines.as_mut().unwrap().truncate(1);
+    config
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_car_kickstarts_from_idle_on_first_tick() {
+    let config = loop_only_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+
+    // Construction places the car at Idle. Without the kickstart pass in
+    // dispatch.run, a Loop car would sit forever — Loop strategies don't
+    // commit destinations through the dispatch matching.
+    assert_eq!(
+        sim.world().elevator(car_eid).unwrap().phase,
+        ElevatorPhase::Idle,
+    );
+    assert!(!sim.world().elevator(car_eid).unwrap().going_forward());
+
+    sim.step();
+
+    let car = sim.world().elevator(car_eid).unwrap();
+    assert!(
+        matches!(car.phase, ElevatorPhase::MovingToStop(_)),
+        "expected kickstart to promote Idle Loop car to MovingToStop, got {:?}",
+        car.phase,
+    );
+    assert!(
+        car.going_forward(),
+        "kickstart must set going_forward = true so direction() reports Forward",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_car_continues_patrol_after_door_close() {
+    let config = loop_only_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+
+    // Run long enough for the car to arrive at the next stop, cycle
+    // doors, and depart for the *following* stop. With a 100-unit loop
+    // and 4 evenly-spaced stops, the car traverses 25 units between
+    // stops — at max_speed 2 + accel/decel 1.5/2 + dt=1/60 that's
+    // roughly 13 seconds = 800 ticks per leg, so 4000 ticks covers
+    // arrive + door cycle + depart for the next stop with margin.
+    let mut visited: std::collections::HashSet<crate::entity::EntityId> =
+        std::collections::HashSet::new();
+    let mut saw_post_close_moving = false;
+    for _ in 0..4000 {
+        sim.step();
+        let car = sim.world().elevator(car_eid).unwrap();
+        // Post-FinishedClosing: the FSM should have handed straight to
+        // MovingToStop, not Stopped/Idle. We watch every tick where the
+        // car is moving and was *not* moving on the previous loading-cycle —
+        // any sighting of a fresh MovingToStop after door cycle confirms
+        // the loop continuation.
+        if let ElevatorPhase::MovingToStop(target) = car.phase {
+            visited.insert(target);
+        }
+        // The bug we're guarding against: car phase ever becoming
+        // Stopped on a Loop line. (Idle is allowed for the very first
+        // tick before kickstart fires.)
+        assert_ne!(
+            car.phase,
+            ElevatorPhase::Stopped,
+            "Loop car must never transition to Stopped — door FSM should hand off to MovingToStop",
+        );
+        if visited.len() >= 2 {
+            saw_post_close_moving = true;
+            break;
+        }
+    }
+    assert!(
+        saw_post_close_moving,
+        "expected the Loop car to commit to a second forward target after the first door close — \
+         visited {} distinct targets",
+        visited.len(),
+    );
+    assert!(
+        sim.world().elevator(car_eid).unwrap().going_forward(),
+        "going_forward must remain true throughout patrol",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_boarding_ignores_linear_direction_gate() {
+    // A Loop car arrives at stop_50 (position 50). A rider at stop_50
+    // wants to reach stop_25 (position 25 — *behind* in linear coords).
+    // On a Linear line the going_down lamp would gate this rider out
+    // unless both lamps are lit. On a Loop, every destination is forward
+    // through the cycle — boarding must bypass the gate.
+    let config = loop_only_config();
+    let mut sim = Simulation::new(&config, ScanDispatch::new()).unwrap();
+    let car_eid = sim.world().iter_elevators().next().unwrap().0;
+    let line_eid = sim.world().elevator(car_eid).unwrap().line();
+    let stop_50 = sim
+        .world()
+        .iter_stops()
+        .find(|(_, s)| (s.position - 50.0).abs() < 1e-9)
+        .map(|(eid, _)| eid)
+        .unwrap();
+    let stop_25 = sim
+        .world()
+        .iter_stops()
+        .find(|(_, s)| (s.position - 25.0).abs() < 1e-9)
+        .map(|(eid, _)| eid)
+        .unwrap();
+
+    // Spawn a rider at stop_50 routed to stop_25 (the lower-positioned
+    // stop). On a Linear line, this leg's `from > to` would set the
+    // `dp < cp && !going_down` branch and silently filter the rider.
+    let route = Route {
+        legs: vec![RouteLeg {
+            from: stop_50,
+            to: stop_25,
+            via: TransportMode::Line(line_eid),
+        }],
+        current_leg: 0,
+    };
+    let rider = sim
+        .build_rider(stop_50, stop_25)
+        .unwrap()
+        .weight(70.0)
+        .route(route)
+        .spawn()
+        .unwrap();
+
+    // Step until the rider reaches Boarding/Riding/Exiting/Arrived.
+    // 4000 ticks ≈ 66 seconds — enough for the car to traverse half a
+    // loop plus door cycles.
+    let mut boarded = false;
+    for _ in 0..4000 {
+        sim.step();
+        let phase = sim.world().rider(rider.entity()).unwrap().phase;
+        if matches!(
+            phase,
+            RiderPhase::Boarding(_)
+                | RiderPhase::Riding(_)
+                | RiderPhase::Exiting(_)
+                | RiderPhase::Arrived
+        ) {
+            boarded = true;
+            break;
+        }
+    }
+    assert!(
+        boarded,
+        "Loop car must board a rider whose destination is at a lower linear position — \
+         the directional lamp gate must be bypassed on Loop lines",
+    );
+}
+
 #[test]
 fn direction_forward_takes_precedence_over_up_down() {
     use crate::components::Direction;

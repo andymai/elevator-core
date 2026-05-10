@@ -31,6 +31,15 @@ pub fn run(
 
         process_door_commands(world, events, ctx, groups, eid);
 
+        // Pre-compute the loop-continuation target before acquiring the
+        // exclusive `&mut Elevator` borrow below. Linear cars and
+        // misconfigured lines yield `None` and fall through to the
+        // existing Stopped-on-FinishedClosing path; Loop cars get the
+        // forward-next stop so the FSM can hand off to `MovingToStop`
+        // without ever passing through `Stopped`/`Idle`.
+        let loop_next: Option<EntityId> =
+            crate::dispatch::loop_next_stop_for_car(world, groups, eid);
+
         let Some(car) = world.elevator_mut(eid) else {
             continue;
         };
@@ -63,31 +72,74 @@ pub fn run(
                 car.phase = ElevatorPhase::DoorClosing;
             }
             DoorTransition::FinishedClosing => {
-                // Transition to Stopped with no committed target — the
-                // car is at a stop and free for reassignment. Also
-                // reset direction lamps so any stale state from the
-                // just-finished leg (e.g., `going_up=false` after a
-                // down-trip) doesn't make `pair_is_useful` reject
-                // opposite-direction pickup in the next dispatch tick.
-                // Without this, a car that dropped a down-bound rider
-                // at the lobby sits idle while an up-bound rider
-                // waits there — another car gets sent to serve them.
-                let indicators_dirty = !(car.going_up && car.going_down);
-                car.phase = ElevatorPhase::Stopped;
-                car.target_stop = None;
-                car.going_up = true;
-                car.going_down = true;
-                events.emit(Event::DoorClosed {
-                    elevator: eid,
-                    tick: ctx.tick,
-                });
-                if indicators_dirty {
-                    events.emit(Event::DirectionIndicatorChanged {
+                let from_stop = car.target_stop;
+
+                if let Some(next_stop) = loop_next {
+                    // Loop continuation: hand straight off to MovingToStop
+                    // without ever passing through Stopped/Idle. The
+                    // up/down indicator lamps are meaningless on a Loop
+                    // (`going_forward` carries the signal); explicitly
+                    // clear them so `Elevator::direction()` reports a
+                    // clean `Forward` and hosts that read the lamps
+                    // directly aren't shown stale Linear state.
+                    let lamps_dirty = car.going_up || car.going_down;
+                    car.phase = ElevatorPhase::MovingToStop(next_stop);
+                    car.target_stop = Some(next_stop);
+                    car.going_forward = true;
+                    car.going_up = false;
+                    car.going_down = false;
+                    events.emit(Event::DoorClosed {
                         elevator: eid,
-                        going_up: true,
-                        going_down: true,
                         tick: ctx.tick,
                     });
+                    // Mirror the Linear branch's `indicators_dirty` guard:
+                    // skip the event during steady-state patrol where the
+                    // lamps were already cleared on a prior cycle, so
+                    // hosts subscribed to `DirectionIndicatorChanged`
+                    // don't receive a redundant emission per door close.
+                    if lamps_dirty {
+                        events.emit(Event::DirectionIndicatorChanged {
+                            elevator: eid,
+                            going_up: false,
+                            going_down: false,
+                            tick: ctx.tick,
+                        });
+                    }
+                    if let Some(stop) = from_stop {
+                        events.emit(Event::ElevatorDeparted {
+                            elevator: eid,
+                            from_stop: stop,
+                            tick: ctx.tick,
+                        });
+                    }
+                } else {
+                    // Linear: transition to Stopped with no committed
+                    // target — the car is at a stop and free for
+                    // reassignment. Also reset direction lamps so any
+                    // stale state from the just-finished leg (e.g.,
+                    // `going_up=false` after a down-trip) doesn't make
+                    // `pair_is_useful` reject opposite-direction pickup
+                    // in the next dispatch tick. Without this, a car
+                    // that dropped a down-bound rider at the lobby
+                    // sits idle while an up-bound rider waits there —
+                    // another car gets sent to serve them.
+                    let indicators_dirty = !(car.going_up && car.going_down);
+                    car.phase = ElevatorPhase::Stopped;
+                    car.target_stop = None;
+                    car.going_up = true;
+                    car.going_down = true;
+                    events.emit(Event::DoorClosed {
+                        elevator: eid,
+                        tick: ctx.tick,
+                    });
+                    if indicators_dirty {
+                        events.emit(Event::DirectionIndicatorChanged {
+                            elevator: eid,
+                            going_up: true,
+                            going_down: true,
+                            tick: ctx.tick,
+                        });
+                    }
                 }
             }
             DoorTransition::None => {}
