@@ -32,8 +32,62 @@ jobs:
           app-id: ${{ secrets.RELEASE_KUN_APP_ID }}
           private-key: ${{ secrets.RELEASE_KUN_APP_PRIVATE_KEY }}
 
+      # Skip release-please when no package has shipping changes
+      # since its last release tag. "Shipping" excludes tests under
+      # src/tests/ or tests/, benches/, CHANGELOG.md, and the version
+      # line in Cargo.toml — all of which release-please-action
+      # otherwise treats as release-worthy when paired with a `feat:`
+      # or `fix:` squash subject.
+      #
+      # Bounded scope: this guard only catches the case where EVERY
+      # package's diff is non-shipping. Mixed PRs (real source
+      # changes in package B + test-only changes in package A) still
+      # bump A as collateral, because release-please-action v4 reads
+      # its config from the GitHub API and there's no per-package
+      # opt-out at config-file edit time. That case is handled by
+      # commit-scope discipline; see CLAUDE.md.
+      #
+      # Background: `elevator-core 20.3.0` was published from PR #797
+      # — a playground PR that incidentally added a one-line test in
+      # `crates/elevator-core/src/tests/`. The release was yanked
+      # (#800 reverted). This guard prevents the fully-no-op variant
+      # of that scenario.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect shipping changes
+        id: ship-check
+        run: |
+          any_shipping=false
+          for pkg_path in $(jq -r '.packages | keys[]' release-please-config.json); do
+            pkg=$(basename "$pkg_path")
+            version=$(jq -r --arg key "$pkg_path" '.[$key]' .release-please-manifest.json)
+            tag="${pkg}-v${version}"
+            if ! git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "tag $tag missing — assuming $pkg has shipping changes"
+              any_shipping=true
+              continue
+            fi
+            # `|| true` neutralises grep's exit-1-on-no-match — without
+            # it, a fully-non-shipping diff (the case the guard exists
+            # to catch) crashes under bash's `-eo pipefail` before
+            # `any_shipping` gets written to $GITHUB_OUTPUT.
+            shipping=$(git diff --name-only "$tag"..HEAD -- "$pkg_path/" \
+              | { grep -Ev "^$pkg_path/(src/tests/|tests/|benches/|CHANGELOG\.md\$|Cargo\.toml\$)" || true; } \
+              | wc -l)
+            echo "$pkg: $shipping shipping file(s) since $tag"
+            [ "$shipping" -gt 0 ] && any_shipping=true
+          done
+          echo "any_shipping=$any_shipping" >> "$GITHUB_OUTPUT"
+          if [ "$any_shipping" = "false" ]; then
+            echo "::notice::Skipping release-please: no shipping changes since last release across any tracked package."
+          fi
+
       - uses: googleapis/release-please-action@v4.4.0
         id: release
+        if: steps.ship-check.outputs.any_shipping == 'true'
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
