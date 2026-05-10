@@ -50,21 +50,6 @@ pub struct CarDto {
     pub max_served_y: f64,
 }
 
-/// Per-line rendering snapshot. Renderers branch on `orientation` to
-/// lay out vertical shafts vs horizontal pedways and read `name` for
-/// lane / shaft header copy.
-#[derive(Serialize, Tsify)]
-#[tsify(into_wasm_abi)]
-pub struct LineDto {
-    pub id: u32,
-    pub name: String,
-    #[tsify(type = r#""vertical" | "horizontal" | "angled""#)]
-    pub orientation: &'static str,
-    /// Angle in degrees from horizontal, set only when
-    /// `orientation == "angled"`.
-    pub angle_deg: Option<f64>,
-}
-
 /// One line's share of a stop's waiting queue.
 #[derive(Serialize, Tsify)]
 #[tsify(into_wasm_abi)]
@@ -136,8 +121,6 @@ pub struct Snapshot {
     pub cars: Vec<CarDto>,
     /// Configured stops.
     pub stops: Vec<StopDto>,
-    /// Configured lines.
-    pub lines: Vec<LineDto>,
 }
 
 impl Snapshot {
@@ -232,26 +215,11 @@ impl Snapshot {
             })
             .collect();
 
-        let lines = sim
-            .world()
-            .iter_lines()
-            .map(|(id, line)| {
-                let (orientation, angle_deg) = orientation_label(line.orientation());
-                LineDto {
-                    id: entity_to_u32(id),
-                    name: line.name().to_string(),
-                    orientation,
-                    angle_deg,
-                }
-            })
-            .collect();
-
         Self {
             tick: sim.current_tick(),
             dt: sim.dt(),
             cars,
             stops,
-            lines,
         }
     }
 }
@@ -1524,19 +1492,6 @@ impl From<Event> for EventDto {
                     .to_string(),
             },
         }
-    }
-}
-
-/// Map [`Orientation`] to its wire label and optional angle. The
-/// `#[non_exhaustive]` enum forces a fallback arm; future variants
-/// surface as `"vertical"` so the renderer falls back to its default
-/// layout instead of crashing.
-fn orientation_label(o: elevator_core::components::Orientation) -> (&'static str, Option<f64>) {
-    use elevator_core::components::Orientation;
-    match o {
-        Orientation::Horizontal => ("horizontal", None),
-        Orientation::Angled { degrees } => ("angled", Some(degrees)),
-        Orientation::Vertical | _ => ("vertical", None),
     }
 }
 
