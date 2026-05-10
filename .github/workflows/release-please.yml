@@ -70,8 +70,12 @@ jobs:
               any_shipping=true
               continue
             fi
+            # `|| true` neutralises grep's exit-1-on-no-match — without
+            # it, a fully-non-shipping diff (the case the guard exists
+            # to catch) crashes under bash's `-eo pipefail` before
+            # `any_shipping` gets written to $GITHUB_OUTPUT.
             shipping=$(git diff --name-only "$tag"..HEAD -- "$pkg_path/" \
-              | grep -Ev "^$pkg_path/(src/tests/|tests/|benches/|CHANGELOG\.md\$|Cargo\.toml\$)" \
+              | { grep -Ev "^$pkg_path/(src/tests/|tests/|benches/|CHANGELOG\.md\$|Cargo\.toml\$)" || true; } \
               | wc -l)
             echo "$pkg: $shipping shipping file(s) since $tag"
             [ "$shipping" -gt 0 ] && any_shipping=true
