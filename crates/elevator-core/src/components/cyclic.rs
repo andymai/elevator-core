@@ -5,12 +5,18 @@
 //! [`LineKind::Loop`](crate::components::LineKind) consumers — movement
 //! physics, ETA math, headway clamping — build on.
 //!
-//! All helpers treat `circumference <= 0.0` and non-finite inputs as
-//! degenerate and return safe values (typically `0.0` or the input
-//! unchanged) rather than panicking. Construction-time validation is
-//! responsible for rejecting such configurations before they reach
-//! these helpers; the defensive returns exist so a misconfigured run
-//! degrades gracefully rather than producing NaN cascades.
+//! All helpers treat any of the following as degenerate and return safe
+//! values (typically `0.0` or the input unchanged) rather than panicking
+//! or propagating `NaN`:
+//!
+//! - `circumference <= 0.0`
+//! - non-finite `circumference` (including `NaN` and `±∞`)
+//! - non-finite position arguments
+//!
+//! Construction-time validation is responsible for rejecting such
+//! configurations before they reach these helpers; the defensive returns
+//! exist so a misconfigured run degrades gracefully rather than producing
+//! `NaN` cascades through ETA / dispatch math.
 
 /// Normalize a position into `[0, circumference)`.
 ///
@@ -34,7 +40,12 @@
 /// ```
 #[must_use]
 pub fn wrap_position(p: f64, circumference: f64) -> f64 {
-    if circumference <= 0.0 || !p.is_finite() {
+    // Guard explicitly against non-finite *and* non-positive circumference.
+    // Splitting the check (rather than `c <= 0.0`) is necessary because
+    // `NaN <= 0.0` is `false` in IEEE 754 — without the finiteness
+    // gate a NaN circumference would slip past and `rem_euclid` would
+    // propagate it into the result.
+    if !circumference.is_finite() || circumference <= 0.0 || !p.is_finite() {
         return p;
     }
     let r = p.rem_euclid(circumference);
@@ -64,11 +75,11 @@ pub fn wrap_position(p: f64, circumference: f64) -> f64 {
 /// ```
 #[must_use]
 pub fn forward_distance(from: f64, to: f64, circumference: f64) -> f64 {
-    // Guard non-finite inputs: `wrap_position` is documented to return
-    // them unchanged, and the subtraction below would then propagate
-    // `±∞` / `NaN` into ETA / dispatch math. Returning `0.0` matches
-    // the module-level "safe degenerate value" contract.
-    if circumference <= 0.0 || !from.is_finite() || !to.is_finite() {
+    // Reject every degenerate input shape upfront so the subtraction
+    // below cannot produce `±∞` / `NaN`. The split finiteness guard on
+    // `circumference` is required because `NaN <= 0.0` is `false` —
+    // see the matching note in `wrap_position`.
+    if !circumference.is_finite() || circumference <= 0.0 || !from.is_finite() || !to.is_finite() {
         return 0.0;
     }
     let from = wrap_position(from, circumference);
@@ -96,7 +107,11 @@ pub fn forward_distance(from: f64, to: f64, circumference: f64) -> f64 {
 /// ```
 #[must_use]
 pub fn cyclic_distance(a: f64, b: f64, circumference: f64) -> f64 {
-    if circumference <= 0.0 {
+    // `forward_distance` short-circuits on NaN inputs, but mirroring the
+    // guard here keeps the `[0, C/2]` invariant explicit at the entry
+    // point — and the `circumference - fwd` step below would otherwise
+    // fail the same way for non-finite circumference.
+    if !circumference.is_finite() || circumference <= 0.0 {
         return 0.0;
     }
     let fwd = forward_distance(a, b, circumference);
@@ -143,6 +158,16 @@ mod tests {
         approx(forward_distance(f64::NAN, 30.0, 100.0), 0.0);
         approx(forward_distance(30.0, f64::NAN, 100.0), 0.0);
         approx(forward_distance(f64::NEG_INFINITY, 30.0, 100.0), 0.0);
+    }
+
+    #[test]
+    fn helpers_handle_nan_circumference() {
+        // NaN <= 0.0 is false in IEEE 754; `!(c > 0.0)` is the only guard
+        // that covers both NaN and non-positive uniformly. Without that
+        // form, NaN would bypass the guard and propagate through arithmetic.
+        approx(wrap_position(5.0, f64::NAN), 5.0);
+        approx(forward_distance(5.0, 10.0, f64::NAN), 0.0);
+        approx(cyclic_distance(5.0, 10.0, f64::NAN), 0.0);
     }
 
     #[test]
