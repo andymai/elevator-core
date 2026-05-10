@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.8.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.7.0...elevator-core-v20.8.0) (2026-05-10)
+
+
+### Features
+
+* **elevator-core:** wire cyclic motion into the movement systems phase ([#812](https://github.com/andymai/elevator-core/issues/812)) ([8bb9a09](https://github.com/andymai/elevator-core/commit/8bb9a09f453d593b1e5e3b4a2da772fa9f69ba88))
+
 ## [20.7.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.6.0...elevator-core-v20.7.0) (2026-05-10)
 
 
