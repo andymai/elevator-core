@@ -14,8 +14,8 @@ All work ships behind the `loop_lines` cargo feature (default off).
 | 5 | Cyclic motion wired into the movement systems phase | shipped (#812) |
 | 6 | Loop FSM completion: door continuation + kickstart + boarding bypass | shipped (#814) |
 | 7 | `LoopSweep` dispatch | shipped (#816) |
-| 8 | `LoopSchedule` fixed-dwell | this PR |
-| 9 | `LoopSchedule` hold-recovery | not started |
+| 8 | `LoopSchedule` fixed-dwell | shipped (#818) |
+| 9 | `LoopSchedule` hold-recovery | this PR |
 | 10 | Demo scenario + host wiring | not started |
 
 ## Locked decisions
