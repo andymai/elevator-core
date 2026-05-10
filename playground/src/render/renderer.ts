@@ -6,7 +6,6 @@ import {
   drawWaitingFigures,
 } from "./draw-building";
 import { drawBubbles, drawCar, drawCarTrail, drawTargetMarkers } from "./draw-cars";
-import { drawPedwayScene } from "./draw-pedway";
 import { drawTetherScene, type TetherRenderState } from "./draw-tether";
 import type { ClimberHud } from "./draw-tether-hud";
 import type { RiderVariant } from "./figures/rider";
@@ -215,10 +214,6 @@ export class CanvasRenderer {
 
     if (this.#tether !== null) {
       this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);
-      return;
-    }
-    if (snap.lines.some((ln) => ln.orientation === "horizontal")) {
-      drawPedwayScene(ctx, snap, w, h, s);
       return;
     }
 

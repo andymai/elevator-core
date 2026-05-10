@@ -256,11 +256,7 @@ function attachKeyboardShortcuts(
       case "c":
       case "C": {
         ev.preventDefault();
-        if (ui.compareToggle.disabled) {
-          toast(ui.toast, "Compare is unavailable for this scenario");
-        } else {
-          ui.compareToggle.click();
-        }
+        ui.compareToggle.click();
         return;
       }
       case "s":

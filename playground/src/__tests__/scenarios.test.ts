@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
-  it("ships exactly 4 scenarios", () => {
-    expect(SCENARIOS).toHaveLength(4);
+  it("ships exactly 3 scenarios", () => {
+    expect(SCENARIOS).toHaveLength(3);
   });
 
   it("every id is unique", () => {
@@ -71,32 +71,6 @@ describe("scenarios metadata", () => {
     for (const s of SCENARIOS) {
       expect(s.label.length, s.id).toBeGreaterThan(0);
       expect(s.description.length, s.id).toBeGreaterThan(0);
-    }
-  });
-
-  it("airport-pedway declares two horizontal lines and six trains", () => {
-    const airport = SCENARIOS.find((s) => s.id === "airport-pedway");
-    expect(airport).toBeDefined();
-    if (airport === undefined) return;
-    expect(airport.disableCompare).toBe(true);
-    expect(airport.defaultCars).toBe(6);
-    // RON sanity: both LineConfig blocks must opt into Horizontal so
-    // the renderer's pedway path actually fires.
-    const horizontalCount = (airport.ron.match(/orientation:\s*Horizontal/g) ?? []).length;
-    expect(horizontalCount).toBe(2);
-    // Six elevator entries, three per line.
-    const elevatorCount = (airport.ron.match(/ElevatorConfig\s*\(/g) ?? []).length;
-    expect(elevatorCount).toBe(6);
-  });
-
-  it("tether-mode scenarios opt out of compare mode", () => {
-    // Tether visualization is too tall to tile vertically into the
-    // compare grid; any scenario opting into the tether renderer
-    // must also disable compare.
-    for (const s of SCENARIOS) {
-      if (s.tether !== undefined) {
-        expect(s.disableCompare, s.id).toBe(true);
-      }
     }
   });
 });

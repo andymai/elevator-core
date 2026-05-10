@@ -166,11 +166,4 @@ export interface ScenarioMeta {
    * to keep idle climbers distributed across the platforms.
    */
   defaultReposition?: RepositionStrategyName;
-  /**
-   * Hide this scenario from compare mode. Some scenarios use a render
-   * layout (e.g. horizontal pedway) that doesn't tile vertically into
-   * the side-by-side compare grid; opting out keeps the compare view
-   * coherent without forcing every renderer mode to support it.
-   */
-  disableCompare?: boolean;
 }
