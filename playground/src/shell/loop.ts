@@ -2,6 +2,7 @@ import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-str
 import { diffMetrics, renderMetricRows } from "../features/scoreboard";
 import type { Pane } from "../features/compare-pane";
 import { forEachPane, renderPane, updateBubbles, updateModeBadge } from "../features/compare-pane";
+import { effectiveCompare } from "../domain";
 import type { Snapshot } from "../types";
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
@@ -77,7 +78,12 @@ export function loop(state: State, ui: UiHandles): void {
     // awaited pane-B construction) would let pane A race ahead.
     const paneA = state.paneA;
     const paneB = state.paneB;
-    const panesReady = paneA !== null && (!state.permalink.compare || paneB !== null);
+    // Reading `permalink.compare` alone would freeze the loop on a
+    // `disableCompare` scenario where the user's preference is still
+    // `compare=true` — paneB never gets built, so panesReady would be
+    // permanently false.
+    const compareActive = effectiveCompare(state.permalink);
+    const panesReady = paneA !== null && (!compareActive || paneB !== null);
     if (state.running && state.ready && panesReady) {
       const ticks = state.permalink.speed;
       // Step both panes; capture paneA's post-step snapshot when its
