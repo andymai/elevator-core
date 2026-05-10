@@ -3,7 +3,7 @@ import { updatePhaseIndicator, updatePhaseProgress } from "../features/phase-str
 import { initMetricRows } from "../features/scoreboard";
 import { renderPaneStrategyInfo, renderPaneRepositionInfo } from "../features/strategy-picker";
 import { renderTweakPanel } from "../features/tweak-drawer";
-import { hashSeedWord, scenarioById } from "../domain";
+import { effectiveCompare, hashSeedWord, scenarioById } from "../domain";
 import { toast } from "../platform";
 import { TrafficDriver } from "../sim";
 import type { ScenarioMeta } from "../types";
@@ -74,7 +74,7 @@ export async function resetAll(state: State, ui: UiHandles): Promise<void> {
     renderPaneRepositionInfo(ui.paneA, state.permalink.repositionA);
     initMetricRows(ui.paneA.metrics);
     let paneB: Pane | null = null;
-    if (state.permalink.compare) {
+    if (effectiveCompare(state.permalink)) {
       try {
         paneB = await makePane(
           ui.paneB,

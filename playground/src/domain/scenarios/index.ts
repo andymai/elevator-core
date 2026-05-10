@@ -1,1 +1,1 @@
-export { SCENARIOS, scenarioById } from "./scenarios";
+export { SCENARIOS, effectiveCompare, scenarioById } from "./scenarios";

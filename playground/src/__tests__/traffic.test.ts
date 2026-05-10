@@ -21,6 +21,7 @@ function snapshotWithStops(n: number): Snapshot {
       waiting_by_line: [],
       residents: 0,
     })),
+    lines: [],
   };
 }
 
