@@ -1082,9 +1082,16 @@ impl Simulation {
                 let any_loop = lines
                     .iter()
                     .any(|lc| matches!(lc.kind, Some(crate::components::LineKind::Loop { .. })));
+                // Positive match against the expected linear variant —
+                // including the implicit-Linear case where `kind = None`.
+                // Using a negative match against `Loop` would silently
+                // absorb any future non-Loop variant (e.g. a hypothetical
+                // `LineKind::Shuttle`) into the "linear" bucket and reject
+                // intentional Loop+Shuttle mixes as "Linear+Loop", which
+                // we wouldn't want.
                 let any_linear = lines
                     .iter()
-                    .any(|lc| !matches!(lc.kind, Some(crate::components::LineKind::Loop { .. })));
+                    .any(|lc| lc.kind.as_ref().is_none_or(LineKind::is_linear));
                 // Homogeneity: a group is either all-Linear or all-Loop.
                 // Mixing means dispatch and reposition strategies would have
                 // to handle both topologies in the same group, which the

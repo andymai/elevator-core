@@ -186,9 +186,18 @@ pub struct Elevator {
     /// On a [`LineKind::Loop`](crate::components::LineKind::Loop) line, the
     /// `Up`/`Down` lamp pair is meaningless; this lamp signals "actively
     /// patrolling forward around the loop". Linear cars always have
-    /// `going_forward = false`. Loop cars set it true while moving and
-    /// false only when out of service or pulled from the loop. Defaults
-    /// to `false` so existing snapshots and Linear cars are unaffected.
+    /// `going_forward = false`. Loop cars *will* have it set to `true`
+    /// while moving and `false` only when out of service or pulled from
+    /// the loop. Defaults to `false` so existing snapshots and Linear
+    /// cars are unaffected.
+    ///
+    /// **PR 3 status:** the field, the [`Direction::Forward`] variant, and
+    /// the precedence in [`Elevator::direction`] are all in place, but
+    /// no code path writes `going_forward = true` yet. The wiring lives
+    /// in PR 4 alongside `tick_movement_cyclic` integration in
+    /// `systems/movement.rs`. Until that lands, a Loop car constructed
+    /// via [`Simulation::new`](crate::sim::Simulation::new) will report
+    /// [`Direction::Either`] from `direction()`.
     #[serde(default)]
     pub(crate) going_forward: bool,
     /// Count of rounded-floor transitions (passing-floors + arrivals).
