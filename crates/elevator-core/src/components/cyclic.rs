@@ -2,8 +2,8 @@
 //!
 //! These helpers operate on positions along a one-dimensional axis that
 //! wraps modulo `circumference`. They are the foundation that
-//! [`LineKind::Loop`](super::line::LineKind) consumers — movement physics,
-//! ETA math, headway clamping — build on.
+//! [`LineKind::Loop`](crate::components::LineKind) consumers — movement
+//! physics, ETA math, headway clamping — build on.
 //!
 //! All helpers treat `circumference <= 0.0` and non-finite inputs as
 //! degenerate and return safe values (typically `0.0` or the input

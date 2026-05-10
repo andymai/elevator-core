@@ -158,7 +158,8 @@ pub struct LineParams {
     ///
     /// Used only when [`Self::kind`] is `None`; otherwise the kind's
     /// own bounds win. Kept for backward-compat with callers that
-    /// haven't migrated to constructing [`LineKind`] directly.
+    /// haven't migrated to constructing
+    /// [`LineKind`](crate::components::LineKind) directly.
     pub min_position: f64,
     /// Highest reachable position on the line axis. See
     /// [`Self::min_position`] for the kind interaction.
@@ -170,8 +171,8 @@ pub struct LineParams {
     pub max_cars: Option<usize>,
     /// Topology kind. When `Some`, takes precedence over the flat
     /// `min_position`/`max_position` fields. When `None`, falls back
-    /// to [`LineKind::Linear`] built from the flat fields — matches
-    /// the pre-`LineKind` behavior.
+    /// to [`LineKind::Linear`](crate::components::LineKind::Linear)
+    /// built from the flat fields — matches the pre-`LineKind` behavior.
     pub kind: Option<crate::components::LineKind>,
 }
 
