@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.13.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.12.0...elevator-core-v20.13.0) (2026-05-10)
+
+
+### Features
+
+* loop lines demo scenario and bevy host opt-in ([#822](https://github.com/andymai/elevator-core/issues/822)) ([855f99f](https://github.com/andymai/elevator-core/commit/855f99f78cbf1ef65f5159c0c7715a18f578ffb3))
+
 ## [20.12.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.11.0...elevator-core-v20.12.0) (2026-05-10)
 
 
