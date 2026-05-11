@@ -1,6 +1,6 @@
 [package]
 name = "elevator-core"
-version = "20.13.0" # managed by release-please
+version = "20.14.0" # managed by release-please
 edition.workspace = true
 description = "Engine-agnostic elevator simulation library with pluggable dispatch strategies"
 license.workspace = true
