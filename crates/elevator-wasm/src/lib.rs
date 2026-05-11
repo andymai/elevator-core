@@ -678,6 +678,67 @@ impl WasmSim {
         })
     }
 
+    // ── Loop topology queries ────────────────────────────────────────
+    //
+    // Read-only accessors for `LineKind::Loop` lines. Hosts mixing
+    // Loop and Linear lines (or wiring loop-aware UI overlays) branch
+    // on `isLoop(lineRef)` and then read circumference / next-stop /
+    // leader from these methods. All entity refs are slotmap-encoded
+    // `u64`s; missing or wrong-kind entities return `undefined`.
+
+    /// Whether the line is a closed-loop topology.
+    #[wasm_bindgen(js_name = isLoop)]
+    #[must_use]
+    pub fn is_loop(&self, line_ref: u64) -> bool {
+        self.inner.is_loop(u64_to_entity(line_ref))
+    }
+
+    /// Total path length of a Loop line, or `undefined` for Linear / missing.
+    /// Hosts derive rendering geometry (`r = C / (2π)` for a circular
+    /// layout) from this value.
+    #[wasm_bindgen(js_name = loopCircumference)]
+    #[must_use]
+    pub fn loop_circumference(&self, line_ref: u64) -> Option<f64> {
+        self.inner.loop_circumference(u64_to_entity(line_ref))
+    }
+
+    /// The stop immediately after `position` in forward cyclic order on
+    /// a Loop line. Returns `undefined` for Linear lines, missing
+    /// entities, empty `serves` lists, or non-finite `position`.
+    #[wasm_bindgen(js_name = loopNextStop)]
+    #[must_use]
+    pub fn loop_next_stop(&self, line_ref: u64, position: f64) -> Option<u64> {
+        self.inner
+            .loop_next_stop(u64_to_entity(line_ref), position)
+            .map(entity_to_u64)
+    }
+
+    /// The elevator immediately ahead of `elevator_ref` in forward
+    /// cyclic order on the same Loop line. `undefined` for Linear lines
+    /// and solo cars. Useful for "car ahead" HUDs and coupled-car
+    /// rendering.
+    #[wasm_bindgen(js_name = loopLeader)]
+    #[must_use]
+    pub fn loop_leader(&self, elevator_ref: u64) -> Option<u64> {
+        self.inner
+            .loop_leader(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+            .map(|id| entity_to_u64(id.entity()))
+    }
+
+    /// Forward cyclic gap from `elevator_ref` to its leader, in `[0, C)`.
+    /// Compare against the line's `min_headway` to detect a car pressed
+    /// against the headway clamp ("can't advance — gap ≈ `min_headway`").
+    #[wasm_bindgen(js_name = loopForwardGap)]
+    #[must_use]
+    pub fn loop_forward_gap(&self, elevator_ref: u64) -> Option<f64> {
+        self.inner
+            .loop_forward_gap(elevator_core::entity::ElevatorId::from(u64_to_entity(
+                elevator_ref,
+            )))
+    }
+
     // ── Topology mutation API ────────────────────────────────────────
     //
     // Granular live mutations for consumers where the building is

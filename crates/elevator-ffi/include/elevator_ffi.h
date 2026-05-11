@@ -1396,6 +1396,78 @@ enum EvStatus ev_sim_eta_for_call(struct EvSim *handle,
                                   uint64_t *out_ticks);
 
 /**
+ * Whether `line_entity_id` has [`LineKind::Loop`] topology. Returns
+ * `0` for Linear lines, missing entities, and a null `handle`.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint8_t ev_sim_is_loop(struct EvSim *handle, uint64_t line_entity_id);
+
+/**
+ * Total path length of a Loop line.
+ *
+ * Writes the circumference to `out_circumference` and returns `Ok`
+ * on success; returns `NotFound` for Linear lines and missing
+ * entities.
+ *
+ * # Safety
+ *
+ * `handle` and `out_circumference` must be valid pointers.
+ */
+enum EvStatus ev_sim_loop_circumference(struct EvSim *handle,
+                                        uint64_t line_entity_id,
+                                        double *out_circumference);
+
+/**
+ * Forward-next stop on a Loop line after `position`.
+ *
+ * Writes the stop's entity id to `out_stop` and returns `Ok` on
+ * success; returns `NotFound` for Linear lines, missing entities,
+ * empty `serves` lists, and non-finite `position`.
+ *
+ * # Safety
+ *
+ * `handle` and `out_stop` must be valid pointers.
+ */
+enum EvStatus ev_sim_loop_next_stop(struct EvSim *handle,
+                                    uint64_t line_entity_id,
+                                    double position,
+                                    uint64_t *out_stop);
+
+/**
+ * Leader of `elevator_entity_id` in forward cyclic order on its Loop.
+ *
+ * Writes the leader's entity id to `out_leader` and returns `Ok` on
+ * success; returns `NotFound` for Linear lines, solo cars on a Loop,
+ * and missing entities.
+ *
+ * # Safety
+ *
+ * `handle` and `out_leader` must be valid pointers.
+ */
+enum EvStatus ev_sim_loop_leader(struct EvSim *handle,
+                                 uint64_t elevator_entity_id,
+                                 uint64_t *out_leader);
+
+/**
+ * Forward cyclic gap from `elevator_entity_id` to its leader.
+ *
+ * Always in `[0, circumference)`. Writes the gap to `out_gap` and
+ * returns `Ok` on success; returns `NotFound` for Linear lines, solo
+ * cars on a Loop, and missing entities. Compare against the line's
+ * `min_headway` to detect a car pressed against the headway clamp.
+ *
+ * # Safety
+ *
+ * `handle` and `out_gap` must be valid pointers.
+ */
+enum EvStatus ev_sim_loop_forward_gap(struct EvSim *handle,
+                                      uint64_t elevator_entity_id,
+                                      double *out_gap);
+
+/**
  * Number of active hall calls across the whole simulation. Use as a
  * pre-check before allocating a buffer for
  * [`ev_sim_hall_calls_snapshot`].
