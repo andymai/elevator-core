@@ -1490,8 +1490,11 @@ pub unsafe extern "C" fn ev_sim_eta_for_call(
 // Entity refs cross the boundary as `u64` (slotmap-encoded) — the
 // same encoding every other `ev_sim_*` function uses.
 
-/// Whether `line_entity_id` has `LineKind::Loop` topology. Returns
-/// `0` for Linear lines, missing entities, and a null `handle`.
+/// Whether `line_entity_id` has `LineKind::Loop` topology.
+///
+/// Returns `0` for Linear lines, missing entities, a null `handle`,
+/// and on a panic caught at the FFI boundary (`guard` records the
+/// panic via [`ev_last_error`]).
 ///
 /// # Safety
 ///
@@ -1499,15 +1502,17 @@ pub unsafe extern "C" fn ev_sim_eta_for_call(
 #[cfg(feature = "loop_lines")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ev_sim_is_loop(handle: *mut EvSim, line_entity_id: u64) -> u8 {
-    if handle.is_null() {
-        return 0;
-    }
-    // Safety: validity guaranteed by caller.
-    let ev = unsafe { &*handle };
-    let Some(line) = entity_from_u64(line_entity_id) else {
-        return 0;
-    };
-    u8::from(ev.sim.is_loop(line))
+    guard(0u8, || {
+        if handle.is_null() {
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            return 0;
+        };
+        u8::from(ev.sim.is_loop(line))
+    })
 }
 
 /// Total path length of a Loop line.

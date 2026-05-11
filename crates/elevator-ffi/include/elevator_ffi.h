@@ -1396,8 +1396,11 @@ enum EvStatus ev_sim_eta_for_call(struct EvSim *handle,
                                   uint64_t *out_ticks);
 
 /**
- * Whether `line_entity_id` has [`LineKind::Loop`] topology. Returns
- * `0` for Linear lines, missing entities, and a null `handle`.
+ * Whether `line_entity_id` has `LineKind::Loop` topology.
+ *
+ * Returns `0` for Linear lines, missing entities, a null `handle`,
+ * and on a panic caught at the FFI boundary (`guard` records the
+ * panic via [`ev_last_error`]).
  *
  * # Safety
  *

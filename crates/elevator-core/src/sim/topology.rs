@@ -982,24 +982,7 @@ impl Simulation {
     #[cfg(feature = "loop_lines")]
     #[must_use]
     pub fn loop_leader(&self, elevator: ElevatorId) -> Option<ElevatorId> {
-        let eid = elevator.entity();
-        let car = self.world.elevator(eid)?;
-        let line = car.line;
-        let circumference = self.loop_circumference(line)?;
-        let pos = self.world.position(eid)?.value;
-        let leader_eid = self
-            .world
-            .iter_elevators()
-            .filter(|&(other, _, other_car)| other != eid && other_car.line == line)
-            .map(|(other, p, _)| {
-                (
-                    crate::components::cyclic::forward_distance(pos, p.value, circumference),
-                    other,
-                )
-            })
-            .min_by(|a, b| a.0.total_cmp(&b.0))
-            .map(|(_, e)| e)?;
-        Some(ElevatorId::from(leader_eid))
+        self.loop_leader_and_gap(elevator).map(|(id, _)| id)
     }
 
     /// On a [`LineKind::Loop`] line, the forward cyclic gap from
@@ -1013,18 +996,33 @@ impl Simulation {
     #[cfg(feature = "loop_lines")]
     #[must_use]
     pub fn loop_forward_gap(&self, elevator: ElevatorId) -> Option<f64> {
+        self.loop_leader_and_gap(elevator).map(|(_, gap)| gap)
+    }
+
+    /// Joint helper for `loop_leader` and `loop_forward_gap`: a single
+    /// `iter_elevators` walk yields both the leader's identity and the
+    /// forward-cyclic distance to it. Callers that need only one of the
+    /// two should still go through the public accessors — this keeps
+    /// the duplicate cost of "ask for both separately" at one extra
+    /// tuple-pair rather than two full iterations.
+    #[cfg(feature = "loop_lines")]
+    fn loop_leader_and_gap(&self, elevator: ElevatorId) -> Option<(ElevatorId, f64)> {
         let eid = elevator.entity();
         let car = self.world.elevator(eid)?;
         let line = car.line;
         let circumference = self.loop_circumference(line)?;
         let pos = self.world.position(eid)?.value;
-        let leader_eid = self.loop_leader(elevator)?.entity();
-        let leader_pos = self.world.position(leader_eid)?.value;
-        Some(crate::components::cyclic::forward_distance(
-            pos,
-            leader_pos,
-            circumference,
-        ))
+        self.world
+            .iter_elevators()
+            .filter(|&(other, _, other_car)| other != eid && other_car.line == line)
+            .map(|(other, p, _)| {
+                (
+                    crate::components::cyclic::forward_distance(pos, p.value, circumference),
+                    other,
+                )
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(gap, e)| (ElevatorId::from(e), gap))
     }
 
     /// On a [`LineKind::Loop`] line, the stop that comes immediately
