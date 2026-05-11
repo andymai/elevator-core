@@ -63,18 +63,25 @@ jobs:
             criterion-baseline-${{ github.ref_name }}-
 
       # Restore the previous nightly's regression-name list so the detect
-      # step can gate issue-open on two-day persistence. Same
-      # `${branch}-${sha}` cache shape as the criterion baseline above so
-      # prefix-fallback restore picks up the most recent prior SHA's list.
-      # On the very first run after this step is added there's no cache
-      # hit and the filter falls back to single-run behaviour for that one
-      # day; from the second run onwards the two-day gate is active.
+      # step can gate issue-open on two-day persistence. Key is suffixed
+      # with `github.run_id` (unique per workflow run) rather than the
+      # SHA, because for THIS cache we want rolling-daily semantics, not
+      # the per-SHA freeze the criterion-baseline cache uses: when no new
+      # commit lands for several nights (weekends, quiet windows), we
+      # still want today to compare against *yesterday's* list, not
+      # against day-1's locked snapshot.
+      #
+      # Exact-key restore therefore always misses (this run's run_id is
+      # unique); the prefix-fallback restore-keys pull the most recent
+      # prior run's list. On the very first run after this step ships,
+      # even the prefix fallback misses and the filter falls back to
+      # single-run behaviour for that one day.
       - name: Restore previous regression list
         id: restore-regressions
         uses: actions/cache/restore@v4
         with:
           path: regressions-current.txt
-          key: criterion-regressions-${{ github.ref_name }}-${{ github.sha }}
+          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
           restore-keys: |
             criterion-regressions-${{ github.ref_name }}-
 
@@ -132,15 +139,17 @@ jobs:
           path: target/criterion
           key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
 
-      # Save today's regression-name list under the per-SHA key for
-      # tomorrow's two-day gate. Same lock-on-first-write semantics as
-      # the baseline save above.
+      # Save today's regression-name list under the per-run-id key so
+      # tomorrow's prefix-fallback restore picks it up. The save runs
+      # unconditionally (no `cache-hit` gate) because run_id is unique
+      # per workflow run, so there is never a same-key conflict, and
+      # we want each nightly to overwrite the rolling reference rather
+      # than locking it at the SHA's first measurement.
       - name: Save current regression list
-        if: steps.restore-regressions.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: regressions-current.txt
-          key: criterion-regressions-${{ github.ref_name }}-${{ github.sha }}
+          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
 
       # Open the regression issue *before* publishing to gh-pages so a
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
@@ -148,12 +157,19 @@ jobs:
       # `success()` gate on the issue step's `if:` condition.
       - name: Open issue on regression
         if: steps.detect.outputs.regressed == 'true'
+        env:
+          GATE: ${{ steps.detect.outputs.gate }}
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const gate = process.env.GATE || 'unknown';
+            const header = gate === 'two-day'
+              ? 'Nightly benchmark run flagged a Criterion regression (confirmed on two consecutive nightlies).'
+              : 'Nightly benchmark run flagged a Criterion regression. ' +
+                'Single-run gate (no previous-nightly list cached yet — first run after the persistence gate was deployed).';
             const body = [
-              'Nightly benchmark run flagged a Criterion regression (confirmed on two consecutive nightlies).',
+              header,
               '',
               '```',
               fs.readFileSync('regressions.txt', 'utf8').slice(0, 4000),

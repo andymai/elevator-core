@@ -13,12 +13,17 @@ appear on two consecutive runs are treated as confirmed and surface in the
 issue-open output.
 
 Args:
-    sys.argv[1]: path to append `regressed=true|false` to ($GITHUB_OUTPUT).
+    sys.argv[1]: path to append `regressed=true|false` and `gate=two-day|
+        single-run` outputs to ($GITHUB_OUTPUT). Callers can use the `gate`
+        value to vary issue-body wording when the persistence gate falls
+        back to single-run (first deploy day).
     sys.argv[2]: minimum |median change %| to alert on (e.g. "5.0").
     sys.argv[3]: path to the Criterion bench output log to filter.
     sys.argv[4] (optional): path to the previous nightly's regression-name
-        list. If absent or empty, no confirmation gate is applied and the
-        script falls back to single-run behaviour (the original semantics).
+        list. If the file is absent, no confirmation gate is applied and
+        the script falls back to single-run behaviour. If the file is
+        present but empty (yesterday had no regressions), the two-day gate
+        still applies and the intersection is empty.
 """
 
 from __future__ import annotations
@@ -70,25 +75,24 @@ def main() -> int:
         gate = "two-day"
     else:
         confirmed = dict(todays)
-        gate = "single-run (no previous list — first run after deploy)"
+        gate = "single-run"
+
+    with github_output.open("a") as g:
+        g.write(f"gate={gate}\n")
+        g.write(f"regressed={'true' if confirmed else 'false'}\n")
 
     if confirmed:
         ISSUE_BODY.write_text("\n".join(confirmed[n] for n in sorted(confirmed)))
         print(f"== Regressions above {threshold}% [{gate} gate] ==")
         sys.stdout.write(ISSUE_BODY.read_text())
-        with github_output.open("a") as g:
-            g.write("regressed=true\n")
+    elif todays:
+        print(
+            f"{len(todays)} regression(s) above {threshold}% today, "
+            f"none also flagged on the previous nightly [{gate} gate]. "
+            "Treating as runner variance."
+        )
     else:
-        if todays:
-            print(
-                f"{len(todays)} regression(s) above {threshold}% today, "
-                f"none also flagged on the previous nightly [{gate} gate]. "
-                "Treating as runner variance."
-            )
-        else:
-            print(f"No regressions above {threshold}% threshold.")
-        with github_output.open("a") as g:
-            g.write("regressed=false\n")
+        print(f"No regressions above {threshold}% threshold.")
     return 0
 
 
