@@ -142,13 +142,15 @@ impl LoopScheduleDispatch {
         self.dwell_ticks
     }
 
-    /// Desired tick gap between consecutive arrivals at the same stop.
+    /// Inspect the configured target headway. See the field doc on the
+    /// struct for the role this plays in recovery.
     #[must_use]
     pub const fn target_headway_ticks(&self) -> u32 {
         self.target_headway_ticks
     }
 
-    /// Maximum extra dwell hold-recovery will apply per stop.
+    /// Inspect the configured hold cap. See the field doc on the struct
+    /// for why the cap matters.
     #[must_use]
     pub const fn hold_cap_ticks(&self) -> u32 {
         self.hold_cap_ticks
@@ -199,6 +201,15 @@ impl DispatchStrategy for LoopScheduleDispatch {
             let elevators: Vec<EntityId> = line.elevators().to_vec();
 
             for eid in elevators {
+                // Dispatch-excluded cars (Manual / Inspection / OutOfService)
+                // are driven by the operator, not the schedule; the user's
+                // dwell setting must win over the strategy's override.
+                if world
+                    .service_mode(eid)
+                    .is_some_and(|m| m.is_dispatch_excluded())
+                {
+                    continue;
+                }
                 let Some(car) = world.elevator(eid) else {
                     continue;
                 };

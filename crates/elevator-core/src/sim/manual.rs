@@ -140,11 +140,20 @@ impl super::Simulation {
     /// `deceleration` (slowing down, or reversing direction). Positive
     /// values command upward travel, negative values command downward travel.
     ///
+    /// On a [`LineKind::Loop`](crate::components::LineKind::Loop) car
+    /// negative targets are rejected: closed loops are one-way by
+    /// construction, and accepting a reverse command would either
+    /// silently drive backward through the seam (breaking the no-overtake
+    /// invariant) or be silently clamped to zero (a foot-gun for game
+    /// authors). Errors loudly so the host can surface "reverse on a
+    /// loop" as a UX warning instead.
+    ///
     /// # Errors
     /// - [`SimError::NotAnElevator`] if the entity is not an elevator.
     /// - [`SimError::ElevatorDisabled`] if the elevator is disabled.
     /// - [`SimError::WrongServiceMode`] if the elevator is not in [`ServiceMode::Manual`].
-    /// - [`SimError::InvalidConfig`] if `velocity` is not finite (NaN or infinite).
+    /// - [`SimError::InvalidConfig`] if `velocity` is not finite (NaN or
+    ///   infinite), or if `velocity < 0.0` on a `Loop` line.
     ///
     /// [`ServiceMode::Manual`]: crate::components::ServiceMode::Manual
     pub fn set_target_velocity(
@@ -160,6 +169,27 @@ impl super::Simulation {
                 field: "target_velocity",
                 reason: format!("must be finite, got {velocity}"),
             });
+        }
+        #[cfg(feature = "loop_lines")]
+        if velocity < 0.0 {
+            let line = self
+                .world
+                .elevator(elevator)
+                .map(|c| c.line)
+                .unwrap_or_default();
+            if self
+                .world
+                .line(line)
+                .is_some_and(crate::components::Line::is_loop)
+            {
+                return Err(SimError::InvalidConfig {
+                    field: "target_velocity",
+                    reason: format!(
+                        "cannot command negative velocity on a Loop line \
+                         (one-way topology); got {velocity}",
+                    ),
+                });
+            }
         }
         let max = self
             .world

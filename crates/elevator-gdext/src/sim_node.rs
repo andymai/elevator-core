@@ -607,6 +607,317 @@ impl ElevatorSim {
         }
         arr
     }
+
+    // ── Manual mode (player-driven cars) ─────────────────────────────
+    //
+    // Game devs building train-operator / gondola-driver experiences put
+    // a car into `Manual` mode and feed it a target velocity. The
+    // simulation handles ramp-up via the car's `acceleration` and
+    // ramp-down via `deceleration`. Manual cars also bypass dispatch,
+    // so the player has full control of when the car moves.
+
+    /// Put an elevator into a specific service mode.
+    ///
+    /// Modes match the FFI `EvServiceMode` numbering for cross-host
+    /// parity: `0` = Normal, `1` = Independent, `2` = Inspection,
+    /// `3` = Manual, `4` = `OutOfService`.
+    ///
+    /// Returns `true` on success, `false` on invalid index/mode or on a
+    /// Loop-specific rejection (e.g. `OutOfService` on a Loop car with
+    /// followers).
+    #[func]
+    fn set_service_mode(&mut self, elevator_index: i32, mode: i32) -> bool {
+        let Some(sim) = self.sim.as_mut() else {
+            return false;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return false;
+        };
+        let mode = match mode {
+            0 => elevator_core::components::ServiceMode::Normal,
+            1 => elevator_core::components::ServiceMode::Independent,
+            2 => elevator_core::components::ServiceMode::Inspection,
+            3 => elevator_core::components::ServiceMode::Manual,
+            4 => elevator_core::components::ServiceMode::OutOfService,
+            _ => return false,
+        };
+        sim.set_service_mode(eid, mode).is_ok()
+    }
+
+    /// Read the current service mode of an elevator.
+    ///
+    /// Returns the same integer mapping as `set_service_mode`, or `-1`
+    /// for an out-of-range index. Useful for HUDs and conditional
+    /// dispatch decisions on the GDScript side.
+    #[func]
+    fn get_service_mode(&self, elevator_index: i32) -> i32 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return -1;
+        };
+        match sim.world().service_mode(eid).copied().unwrap_or_default() {
+            elevator_core::components::ServiceMode::Normal => 0,
+            elevator_core::components::ServiceMode::Independent => 1,
+            elevator_core::components::ServiceMode::Inspection => 2,
+            elevator_core::components::ServiceMode::Manual => 3,
+            elevator_core::components::ServiceMode::OutOfService => 4,
+            // Defensive — `ServiceMode` is `#[non_exhaustive]`; a future
+            // variant would surface as `-1` rather than silently mapping
+            // to an existing slot.
+            _ => -1,
+        }
+    }
+
+    /// Command a target velocity on a Manual-mode elevator.
+    ///
+    /// Returns `true` on success, `false` if the elevator is not in
+    /// Manual mode, the index is out of range, the velocity is
+    /// non-finite, or the velocity is negative on a Loop line (one-way
+    /// topology — surface the rejection as a "reverse on a loop"
+    /// warning in your game UI).
+    #[func]
+    fn set_target_velocity(&mut self, elevator_index: i32, velocity: f64) -> bool {
+        let Some(sim) = self.sim.as_mut() else {
+            return false;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return false;
+        };
+        let typed = elevator_core::entity::ElevatorId::from(eid);
+        sim.set_target_velocity(typed, velocity).is_ok()
+    }
+
+    /// Read the currently commanded target velocity on a Manual-mode
+    /// elevator. Returns the velocity, or `0.0` for an out-of-range
+    /// index or a car with no command pending. The same value can be
+    /// read for non-Manual cars (where it has no effect on motion) so
+    /// the HUD doesn't have to special-case mode transitions.
+    #[func]
+    fn get_target_velocity(&self, elevator_index: i32) -> f64 {
+        let Some(sim) = self.sim.as_ref() else {
+            return 0.0;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return 0.0;
+        };
+        sim.world()
+            .elevator(eid)
+            .and_then(elevator_core::components::Elevator::manual_target_velocity)
+            .unwrap_or(0.0)
+    }
+
+    /// Command an immediate stop on a Manual-mode elevator. Equivalent
+    /// to `set_target_velocity(idx, 0)` but emits a distinct
+    /// `ManualVelocityCommanded(None)` event so games can distinguish
+    /// "emergency stop" from "deliberate hold".
+    #[func]
+    fn emergency_stop(&mut self, elevator_index: i32) -> bool {
+        let Some(sim) = self.sim.as_mut() else {
+            return false;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return false;
+        };
+        let typed = elevator_core::entity::ElevatorId::from(eid);
+        sim.emergency_stop(typed).is_ok()
+    }
+
+    // ── Line introspection ───────────────────────────────────────────
+
+    /// Number of lines in the simulation. Pair with [`Self::get_line`]
+    /// to iterate.
+    #[func]
+    fn line_count(&self) -> i32 {
+        self.sim.as_ref().map_or(0, |s| s.line_count() as i32)
+    }
+
+    /// Get line metadata as a Dictionary.
+    ///
+    /// Keys: `entity_id`, `name`, `kind` (`"linear"` or `"loop"`),
+    /// `orientation` (`"vertical"`, `"horizontal"`, or `"angled:<deg>"`),
+    /// `min_position`, `max_position`, `circumference`, `min_headway`.
+    /// For Linear lines `circumference` / `min_headway` are `null`; for
+    /// Loop lines `min_position` / `max_position` are `null`. An empty
+    /// Dictionary signals "no such line" — distinguish from a missing
+    /// line by checking `dict.has("kind")`.
+    #[func]
+    fn get_line(&self, index: i32) -> Dictionary<Variant, Variant> {
+        let Some(sim) = self.sim.as_ref() else {
+            return Dictionary::new();
+        };
+        let lines = sim.all_lines();
+        let Some(&line_eid) = lines.get(index as usize) else {
+            return Dictionary::new();
+        };
+        let Some(line) = sim.world().line(line_eid) else {
+            return Dictionary::new();
+        };
+        let kind = if line.is_loop() { "loop" } else { "linear" };
+        let orientation = match line.orientation() {
+            elevator_core::components::Orientation::Vertical => "vertical".to_string(),
+            elevator_core::components::Orientation::Horizontal => "horizontal".to_string(),
+            elevator_core::components::Orientation::Angled { degrees } => {
+                format!("angled:{degrees}")
+            }
+            _ => "unknown".to_string(),
+        };
+        // Build with nil placeholders, then overwrite the four optional
+        // fields based on line kind. Linear lines have `(min_position,
+        // max_position)`; Loop lines have `(circumference, min_headway)`.
+        // Cross-kind fields stay nil so GDScript can check via `if
+        // dict.circumference == null:` rather than re-reading `kind`.
+        let nil = Variant::nil();
+        let mut d = dict! {
+            "entity_id" => line_eid.data().as_ffi() as i64,
+            "name" => line.name(),
+            "kind" => kind,
+            "orientation" => orientation,
+            "min_position" => &nil,
+            "max_position" => &nil,
+            "circumference" => &nil,
+            "min_headway" => &nil,
+        };
+        if let Some(v) = line.linear_min() {
+            d.set("min_position", v);
+        }
+        if let Some(v) = line.linear_max() {
+            d.set("max_position", v);
+        }
+        if let Some(v) = line.circumference() {
+            d.set("circumference", v);
+        }
+        if let Some(v) = line.min_headway() {
+            d.set("min_headway", v);
+        }
+        d
+    }
+
+    // ── Loop topology queries ────────────────────────────────────────
+    //
+    // Gated by the `loop_lines` cargo feature. With it off, these
+    // methods return the "not a Loop" sentinel (`false` / `-1.0` / `-1`).
+
+    /// Whether the line at `line_index` is a closed-loop topology.
+    /// Always `false` when the `loop_lines` feature is off.
+    #[func]
+    fn is_loop(&self, line_index: i32) -> bool {
+        let Some(sim) = self.sim.as_ref() else {
+            return false;
+        };
+        let lines = sim.all_lines();
+        let Some(&line_eid) = lines.get(line_index as usize) else {
+            return false;
+        };
+        sim.is_loop(line_eid)
+    }
+
+    /// Total path length of a Loop line at `line_index`, or `-1.0` for
+    /// Linear / missing / feature-off.
+    #[func]
+    fn loop_circumference(&self, line_index: i32) -> f64 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1.0;
+        };
+        let lines = sim.all_lines();
+        let Some(&line_eid) = lines.get(line_index as usize) else {
+            return -1.0;
+        };
+        sim.loop_circumference(line_eid).unwrap_or(-1.0)
+    }
+
+    /// Stop index of the forward-next stop on a Loop line after
+    /// `position`, or `-1` if the line is not a Loop / has no stops /
+    /// the feature is off.
+    #[func]
+    fn loop_next_stop(&self, line_index: i32, position: f64) -> i32 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1;
+        };
+        let lines = sim.all_lines();
+        let Some(&line_eid) = lines.get(line_index as usize) else {
+            return -1;
+        };
+        let Some(stop_eid) = sim.loop_next_stop(line_eid, position) else {
+            return -1;
+        };
+        sim.world()
+            .stop_ids()
+            .iter()
+            .position(|&e| e == stop_eid)
+            .map_or(-1, |i| i as i32)
+    }
+
+    /// Elevator index of the leader for the car at `elevator_index` on
+    /// a Loop line, or `-1` for Linear lines, solo cars, missing, or
+    /// feature-off.
+    #[func]
+    #[cfg(feature = "loop_lines")]
+    fn loop_leader(&self, elevator_index: i32) -> i32 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return -1;
+        };
+        let typed = elevator_core::entity::ElevatorId::from(eid);
+        let Some(leader) = sim.loop_leader(typed) else {
+            return -1;
+        };
+        elev_ids
+            .iter()
+            .position(|&e| e == leader.entity())
+            .map_or(-1, |i| i as i32)
+    }
+
+    /// Feature-off stub: always returns `-1`. Game devs targeting
+    /// either build flavour can call this unconditionally.
+    #[func]
+    #[cfg(not(feature = "loop_lines"))]
+    #[allow(
+        clippy::unused_self,
+        clippy::missing_const_for_fn,
+        reason = "godot #[func] requires &self; stub mirrors the feature-on signature"
+    )]
+    fn loop_leader(&self, _elevator_index: i32) -> i32 {
+        -1
+    }
+
+    /// Forward cyclic gap from `elevator_index` to its leader, in
+    /// `[0, circumference)`. Returns `-1.0` for Linear lines, solo
+    /// cars, missing, or feature-off.
+    #[func]
+    #[cfg(feature = "loop_lines")]
+    fn loop_forward_gap(&self, elevator_index: i32) -> f64 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1.0;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return -1.0;
+        };
+        let typed = elevator_core::entity::ElevatorId::from(eid);
+        sim.loop_forward_gap(typed).unwrap_or(-1.0)
+    }
+
+    /// Feature-off stub: always returns `-1.0`.
+    #[func]
+    #[cfg(not(feature = "loop_lines"))]
+    #[allow(
+        clippy::unused_self,
+        clippy::missing_const_for_fn,
+        reason = "godot #[func] requires &self; stub mirrors the feature-on signature"
+    )]
+    fn loop_forward_gap(&self, _elevator_index: i32) -> f64 {
+        -1.0
+    }
 }
 
 impl ElevatorSim {

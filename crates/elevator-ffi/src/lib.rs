@@ -1479,6 +1479,210 @@ pub unsafe extern "C" fn ev_sim_eta_for_call(
     })
 }
 
+// ── Loop topology queries ─────────────────────────────────────────────
+//
+// Read-only accessors for `LineKind::Loop` lines. Gated behind the
+// `loop_lines` cargo feature: when off, the symbols simply aren't
+// present in the shared library. Consumers that target multiple
+// build flavours (with and without `loop_lines`) should resolve
+// these via dlsym and fall back to "always linear" if missing.
+//
+// Entity refs cross the boundary as `u64` (slotmap-encoded) — the
+// same encoding every other `ev_sim_*` function uses.
+
+/// Whether `line_entity_id` has `LineKind::Loop` topology.
+///
+/// Returns `0` for Linear lines, missing entities, a null `handle`,
+/// and on a panic caught at the FFI boundary (`guard` records the
+/// panic via [`ev_last_error`]).
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[cfg(feature = "loop_lines")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_is_loop(handle: *mut EvSim, line_entity_id: u64) -> u8 {
+    guard(0u8, || {
+        if handle.is_null() {
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            return 0;
+        };
+        u8::from(ev.sim.is_loop(line))
+    })
+}
+
+/// Total path length of a Loop line.
+///
+/// Writes the circumference to `out_circumference` and returns `Ok`
+/// on success; returns `NotFound` for Linear lines and missing
+/// entities.
+///
+/// # Safety
+///
+/// `handle` and `out_circumference` must be valid pointers.
+#[cfg(feature = "loop_lines")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_loop_circumference(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    out_circumference: *mut f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_circumference.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("invalid line_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        ev.sim.loop_circumference(line).map_or_else(
+            || {
+                set_last_error("line is not a Loop or does not exist");
+                EvStatus::NotFound
+            },
+            |c| {
+                // Safety: validated non-null above.
+                unsafe { std::ptr::write(out_circumference, c) };
+                EvStatus::Ok
+            },
+        )
+    })
+}
+
+/// Forward-next stop on a Loop line after `position`.
+///
+/// Writes the stop's entity id to `out_stop` and returns `Ok` on
+/// success; returns `NotFound` for Linear lines, missing entities,
+/// empty `serves` lists, and non-finite `position`.
+///
+/// # Safety
+///
+/// `handle` and `out_stop` must be valid pointers.
+#[cfg(feature = "loop_lines")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_loop_next_stop(
+    handle: *mut EvSim,
+    line_entity_id: u64,
+    position: f64,
+    out_stop: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_stop.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(line) = entity_from_u64(line_entity_id) else {
+            set_last_error("invalid line_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        ev.sim.loop_next_stop(line, position).map_or_else(
+            || {
+                set_last_error("no forward stop on this Loop (or line not a Loop)");
+                EvStatus::NotFound
+            },
+            |stop| {
+                // Safety: validated non-null above.
+                unsafe { std::ptr::write(out_stop, entity_to_u64(stop)) };
+                EvStatus::Ok
+            },
+        )
+    })
+}
+
+/// Leader of `elevator_entity_id` in forward cyclic order on its Loop.
+///
+/// Writes the leader's entity id to `out_leader` and returns `Ok` on
+/// success; returns `NotFound` for Linear lines, solo cars on a Loop,
+/// and missing entities.
+///
+/// # Safety
+///
+/// `handle` and `out_leader` must be valid pointers.
+#[cfg(feature = "loop_lines")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_loop_leader(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out_leader: *mut u64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_leader.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(elev_eid) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("invalid elevator_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        ev.sim.loop_leader(ElevatorId::from(elev_eid)).map_or_else(
+            || {
+                set_last_error("no leader (solo car, Linear line, or missing entity)");
+                EvStatus::NotFound
+            },
+            |leader| {
+                // Safety: validated non-null above.
+                unsafe { std::ptr::write(out_leader, entity_to_u64(leader.entity())) };
+                EvStatus::Ok
+            },
+        )
+    })
+}
+
+/// Forward cyclic gap from `elevator_entity_id` to its leader.
+///
+/// Always in `[0, circumference)`. Writes the gap to `out_gap` and
+/// returns `Ok` on success; returns `NotFound` for Linear lines, solo
+/// cars on a Loop, and missing entities. Compare against the line's
+/// `min_headway` to detect a car pressed against the headway clamp.
+///
+/// # Safety
+///
+/// `handle` and `out_gap` must be valid pointers.
+#[cfg(feature = "loop_lines")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_loop_forward_gap(
+    handle: *mut EvSim,
+    elevator_entity_id: u64,
+    out_gap: *mut f64,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_gap.is_null() {
+            set_last_error("null argument");
+            return EvStatus::NullArg;
+        }
+        let Some(elev_eid) = entity_from_u64(elevator_entity_id) else {
+            set_last_error("invalid elevator_entity_id");
+            return EvStatus::InvalidArg;
+        };
+        let ev = unsafe { &*handle };
+        ev.sim
+            .loop_forward_gap(ElevatorId::from(elev_eid))
+            .map_or_else(
+                || {
+                    set_last_error("no leader (solo car, Linear line, or missing entity)");
+                    EvStatus::NotFound
+                },
+                |gap| {
+                    // Safety: validated non-null above.
+                    unsafe { std::ptr::write(out_gap, gap) };
+                    EvStatus::Ok
+                },
+            )
+    })
+}
+
 /// Number of active hall calls across the whole simulation. Use as a
 /// pre-check before allocating a buffer for
 /// [`ev_sim_hall_calls_snapshot`].

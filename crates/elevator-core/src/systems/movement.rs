@@ -1,6 +1,6 @@
 //! Phase 3: update position/velocity for moving elevators.
 
-use crate::components::{ElevatorPhase, Route};
+use crate::components::{ElevatorPhase, Line, Route};
 use crate::door::DoorState;
 use crate::entity::EntityId;
 use crate::events::{Event, EventBus};
@@ -12,6 +12,34 @@ use crate::world::{SortedStops, World};
 
 use super::PhaseContext;
 use super::dispatch::update_indicators;
+
+/// Wrapped position of the nearest car forward of `pos` on the same
+/// Loop line. Returns `None` for a solo car on the line.
+///
+/// Coincident cars (`forward_distance == 0`) are included as valid
+/// leaders so the caller's headway clamp collapses to "stay put"
+/// rather than silently treating a same-position sibling as a full lap
+/// ahead.
+#[cfg(feature = "loop_lines")]
+fn loop_leader_pos(
+    world: &World,
+    eid: EntityId,
+    car_line: EntityId,
+    pos: f64,
+    circumference: f64,
+) -> Option<f64> {
+    world
+        .iter_elevators()
+        .filter(|&(other, _, other_car)| other != eid && other_car.line == car_line)
+        .map(|(_, p, _)| {
+            (
+                crate::components::cyclic::forward_distance(pos, p.value, circumference),
+                p.value,
+            )
+        })
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, p)| p)
+}
 
 /// Compute direction lamps for a just-arrived car from aboard-rider
 /// destinations and the remaining destination queue. The travel-leg
@@ -111,7 +139,6 @@ pub fn run(
             .service_mode(eid)
             .is_some_and(|m| *m == crate::components::ServiceMode::Inspection);
 
-        // Extract elevator params upfront — we already confirmed elevator(eid) is Some above.
         let Some(car) = world.elevator(eid) else {
             continue;
         };
@@ -124,6 +151,7 @@ pub fn run(
         let deceleration = car.deceleration.value();
         let door_transition_ticks = car.door_transition_ticks;
         let door_open_ticks = car.door_open_ticks;
+        let car_line = car.line;
         // Authoritative source for "is this a reposition trip?" is the
         // phase variant. The `repositioning` bool is a legacy mirror kept
         // around for downstream predicates (e.g. `Elevator::repositioning`)
@@ -141,13 +169,7 @@ pub fn run(
         // tick) are emitted in two passing-floor ranges below. Linear
         // cars take the existing trapezoidal-on-axis path.
         #[cfg(feature = "loop_lines")]
-        let circumference = world
-            .line(
-                world
-                    .elevator(eid)
-                    .map_or_else(EntityId::default, |c| c.line),
-            )
-            .and_then(crate::components::Line::circumference);
+        let circumference = world.line(car_line).and_then(Line::circumference);
         // Mirrored unconditional binding so the seam-aware passing-floor
         // logic below (which is itself unconditional, just behaviourally
         // a no-op without a `circumference`) compiles on either feature
@@ -158,19 +180,36 @@ pub fn run(
         #[cfg(feature = "loop_lines")]
         #[allow(
             clippy::option_if_let_else,
-            reason = "the two arms call different functions with different arities; map_or_else closures would just duplicate the eight-argument call"
+            reason = "the Loop arm runs a multi-step leader-find + clamp before integrating; collapsing into a closure would duplicate every argument"
         )]
         let result = match circumference {
-            Some(c) => tick_movement_cyclic(
-                pos,
-                vel,
-                target_pos,
-                max_speed,
-                acceleration,
-                deceleration,
-                ctx.dt,
-                c,
-            ),
+            Some(c) => {
+                // No-overtake clamp: pull the intended target back to the
+                // leader's position minus `min_headway` along the forward
+                // direction. The integrator and dispatcher together can't
+                // guarantee this — dispatch assigns stops without seeing
+                // sibling cars, and the integrator only sees its own
+                // target — so the clamp is the only line of defense
+                // against a faster trailer riding into a slower leader.
+                let min_headway = world
+                    .line(car_line)
+                    .and_then(Line::min_headway)
+                    .unwrap_or(0.0);
+                let effective_target = loop_leader_pos(world, eid, car_line, pos, c)
+                    .map_or(target_pos, |lp| {
+                        crate::movement::headway_clamp_target(pos, lp, target_pos, min_headway, c)
+                    });
+                tick_movement_cyclic(
+                    pos,
+                    vel,
+                    effective_target,
+                    max_speed,
+                    acceleration,
+                    deceleration,
+                    ctx.dt,
+                    c,
+                )
+            }
             None => tick_movement(
                 pos,
                 vel,
@@ -272,8 +311,7 @@ pub fn run(
                 count
             };
 
-            if crossed_seam {
-                let c = circumference.unwrap_or(0.0);
+            if let Some(c) = circumference.filter(|_| crossed_seam) {
                 // Pre-wrap: car was at `old_pos`, exclude it.
                 passing_moves += emit_range(old_pos, c, false, world, events);
                 // Post-wrap: car physically crossed position 0 forward,
@@ -362,13 +400,21 @@ pub fn run(
                     at_stop: target_stop_eid,
                     tick: ctx.tick,
                 });
-                // Refresh direction lamps from remaining work (aboard
-                // riders + queue) rather than the just-ended travel leg.
-                // Without this the loading-phase direction filter rejects
-                // every rider wanting to go opposite to the travel
-                // direction — the penthouse down-rider bug.
-                let (new_up, new_down) = direction_from_remaining_work(world, eid, target_pos);
-                update_indicators(world, events, eid, new_up, new_down, ctx.tick);
+                // Loop cars don't carry up/down lamps — the door FSM
+                // re-asserts `going_forward = true` when closing
+                // finishes. Computing linear up/down here from the
+                // remaining work would emit a spurious indicator change
+                // (Forward → Up/Down) for the duration of the dwell.
+                //
+                // For Linear cars: refresh the lamps from aboard riders
+                // + remaining queue rather than the just-ended travel
+                // leg. Without this the loading-phase direction filter
+                // rejects every rider wanting to go opposite to the
+                // travel direction — the penthouse down-rider bug.
+                if !world.line(car_line).is_some_and(Line::is_loop) {
+                    let (new_up, new_down) = direction_from_remaining_work(world, eid, target_pos);
+                    update_indicators(world, events, eid, new_up, new_down, ctx.tick);
+                }
             }
             if reposition_arrived
                 && let Some(cooldowns) =
@@ -398,6 +444,8 @@ fn tick_manual(
     let accel = car.acceleration.value();
     let decel = car.deceleration.value();
     let max_speed = car.max_speed.value();
+    #[cfg(feature = "loop_lines")]
+    let car_line = car.line;
     let Some(pos_comp) = world.position(eid) else {
         return;
     };
@@ -407,7 +455,14 @@ fn tick_manual(
     };
     let vel = vel_comp.value;
 
-    // Signed clamp of target to the kinematic cap.
+    #[cfg(feature = "loop_lines")]
+    let circumference = world.line(car_line).and_then(Line::circumference);
+    #[cfg(not(feature = "loop_lines"))]
+    let circumference: Option<f64> = None;
+
+    // Signed clamp of target to the kinematic cap. Loop cars are one-way
+    // at the API layer (`set_target_velocity` rejects negative targets on
+    // Loop), so the same symmetric clamp serves both topologies.
     let target = target.clamp(-max_speed, max_speed);
 
     // Pick the right rate: if we're slowing down (target is closer to 0
@@ -425,7 +480,31 @@ fn tick_manual(
         vel - dv_max
     };
 
-    let new_pos = crate::fp::fma(new_vel, ctx.dt, old_pos);
+    let raw_new_pos = crate::fp::fma(new_vel, ctx.dt, old_pos);
+
+    // Loop-aware landing: wrap into `[0, C)`, then enforce the no-overtake
+    // headway invariant by pulling the landing back to `leader - min_headway`
+    // if the integrator would otherwise push past it. The clamp produces a
+    // "soft collision" — the car physically stops behind the leader and the
+    // player can't drive further until the leader moves. Velocity is zeroed
+    // when the clamp engages so the next tick doesn't accelerate into the
+    // leader. Linear cars take the untouched raw landing.
+    #[cfg(feature = "loop_lines")]
+    let (new_pos, new_vel) = circumference.map_or((raw_new_pos, new_vel), |c| {
+        let wrapped = crate::components::cyclic::wrap_position(raw_new_pos, c);
+        let min_headway = world
+            .line(car_line)
+            .and_then(Line::min_headway)
+            .unwrap_or(0.0);
+        loop_leader_pos(world, eid, car_line, old_pos, c).map_or((wrapped, new_vel), |lp| {
+            let clamped =
+                crate::movement::headway_clamp_target(old_pos, lp, wrapped, min_headway, c);
+            let was_clamped = (clamped - wrapped).abs() > 1e-9;
+            (clamped, if was_clamped { 0.0 } else { new_vel })
+        })
+    });
+    #[cfg(not(feature = "loop_lines"))]
+    let (new_pos, new_vel) = (raw_new_pos, new_vel);
 
     if let Some(p) = world.position_mut(eid) {
         p.value = new_pos;
@@ -434,28 +513,26 @@ fn tick_manual(
         v.value = new_vel;
     }
 
-    // PassingFloor for every stop actually crossed.
+    // PassingFloor for every stop actually crossed. On a Loop with a
+    // seam-crossing tick the linear `(lo, hi)` chord would skip stops
+    // between the seam and the wrapped landing; emit two ranges in that
+    // case, mirroring the dispatch-driven movement path above.
     let mut passing_moves: u64 = 0;
-    let (lo, hi) = if new_pos >= old_pos {
-        (old_pos, new_pos)
+    let crossed_seam = circumference.is_some() && new_pos < old_pos && new_vel >= 0.0;
+    let moving_up = circumference.is_some() || new_pos > old_pos;
+    if let Some(c) = circumference.filter(|_| crossed_seam) {
+        // Forward through the seam: sweep `[old_pos, C)` then `[0, new_pos)`.
+        passing_moves +=
+            emit_passing_range(world, events, eid, old_pos, c, false, moving_up, ctx.tick);
+        passing_moves +=
+            emit_passing_range(world, events, eid, 0.0, new_pos, true, moving_up, ctx.tick);
     } else {
-        (new_pos, old_pos)
-    };
-    let moving_up = new_pos > old_pos;
-    if (hi - lo) > 1e-9
-        && let Some(sorted) = world.resource::<SortedStops>()
-    {
-        let start = sorted.0.partition_point(|&(p, _)| p <= lo + 1e-9);
-        let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
-        for &(_, stop_eid) in &sorted.0[start..end] {
-            events.emit(Event::PassingFloor {
-                elevator: eid,
-                stop: stop_eid,
-                moving_up,
-                tick: ctx.tick,
-            });
-            passing_moves += 1;
-        }
+        let (lo, hi) = if new_pos >= old_pos {
+            (old_pos, new_pos)
+        } else {
+            (new_pos, old_pos)
+        };
+        passing_moves += emit_passing_range(world, events, eid, lo, hi, false, moving_up, ctx.tick);
     }
     if passing_moves > 0
         && let Some(car) = world.elevator_mut(eid)
@@ -463,4 +540,48 @@ fn tick_manual(
         car.move_count += passing_moves;
         metrics.total_moves += passing_moves;
     }
+}
+
+/// Emit `PassingFloor` for every stop in the half-open span `[lo, hi)`
+/// (or `(lo, hi)` when `inclusive_lo == false`). Returns the number of
+/// stops crossed so the caller can update aggregate move counters.
+///
+/// `inclusive_lo` matters on the post-wrap segment of a seam-crossing
+/// tick: the car physically sweeps through position 0, so a stop sitting
+/// there must fire. For every other range `lo` is the position the car
+/// *left* this tick and would double-count if included.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "every parameter is a distinct meaningful axis (range bounds, range bias, direction, identity, tick); bundling would just add boilerplate at every call site"
+)]
+fn emit_passing_range(
+    world: &World,
+    events: &mut EventBus,
+    eid: EntityId,
+    lo: f64,
+    hi: f64,
+    inclusive_lo: bool,
+    moving_up: bool,
+    tick: u64,
+) -> u64 {
+    if hi <= lo + 1e-9 {
+        return 0;
+    }
+    let Some(sorted) = world.resource::<SortedStops>() else {
+        return 0;
+    };
+    let lo_threshold = if inclusive_lo { lo - 1e-9 } else { lo + 1e-9 };
+    let start = sorted.0.partition_point(|&(p, _)| p <= lo_threshold);
+    let end = sorted.0.partition_point(|&(p, _)| p < hi - 1e-9);
+    let mut count = 0;
+    for &(_, stop_eid) in &sorted.0[start..end] {
+        events.emit(Event::PassingFloor {
+            elevator: eid,
+            stop: stop_eid,
+            moving_up,
+            tick,
+        });
+        count += 1;
+    }
+    count
 }
