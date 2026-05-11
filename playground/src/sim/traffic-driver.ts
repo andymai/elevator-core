@@ -124,6 +124,23 @@ export class TrafficDriver {
     return this.#phases[this.currentPhaseIndex()]?.name ?? "";
   }
 
+  /**
+   * Normalized 0..1 demand intensity for the current phase, relative
+   * to the loudest phase in the schedule. Renderers can use this to
+   * tint UI elements during peaks (e.g. station chip borders brighten
+   * as the morning rush ramps up).
+   */
+  currentPhaseRatio(): number {
+    if (this.#phases.length === 0) return 0;
+    const phase = this.#phases[this.currentPhaseIndex()];
+    if (!phase) return 0;
+    let maxRate = 0;
+    for (const p of this.#phases) {
+      if (p.ridersPerMin > maxRate) maxRate = p.ridersPerMin;
+    }
+    return maxRate > 0 ? phase.ridersPerMin / maxRate : 0;
+  }
+
   /** 0..1 progress through the full day cycle. Used to render the phase strip. */
   phaseProgress(): number {
     if (this.#totalDurationSec <= 0) return 0;
