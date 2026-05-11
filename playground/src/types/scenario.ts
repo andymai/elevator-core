@@ -97,6 +97,26 @@ export interface TetherMeta {
   showDayNight: boolean;
 }
 
+/**
+ * Airport-mode rendering hints for dual counter-rotating loop scenarios
+ * (e.g. an airport people mover). When present, the renderer draws two
+ * concentric rings — outer loop on the outside, inner loop nested
+ * inside — instead of the vertical multi-shaft column layout. Each
+ * ring's stops live at distinct StopIds in the RON but share display
+ * names, so the rendering groups them by index range rather than name.
+ *
+ * Compare mode and the strategy popover are gated off when this is set:
+ * concentric rings don't survive a half-width pane (compare), and the
+ * LoopSchedule per-group dispatch in the RON would be silently
+ * overwritten if the user switched strategies via the UI.
+ */
+export interface AirportMeta {
+  /** Number of stops belonging to the outer loop, taken from the start of the stops array. The inner-loop stops follow. */
+  outerStopCount: number;
+  /** Loop circumference in meters — same value the RON gives both LineKind::Loop instances. */
+  circumferenceM: number;
+}
+
 export interface ScenarioMeta {
   id: string;
   label: string;
@@ -158,6 +178,12 @@ export interface ScenarioMeta {
    * per-line column rendering.
    */
   tether?: TetherMeta;
+  /**
+   * Airport-mode metadata. Set only by dual-counter-rotating-loop
+   * scenarios; triggers the concentric-rings renderer and gates off
+   * compare-mode + strategy switching for the duration of the scenario.
+   */
+  airport?: AirportMeta;
   /**
    * Default reposition (idle-parking) strategy applied on scenario
    * selection. Lobby is fine for skyscrapers but a tether climber

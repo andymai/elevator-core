@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
-  it("ships exactly 3 scenarios", () => {
-    expect(SCENARIOS).toHaveLength(3);
+  it("ships exactly 4 scenarios", () => {
+    expect(SCENARIOS).toHaveLength(4);
   });
 
   it("every id is unique", () => {

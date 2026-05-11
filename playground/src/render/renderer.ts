@@ -1,4 +1,5 @@
-import type { CarDto, CarBubble, Snapshot, StopDto, TetherMeta } from "../types";
+import type { AirportMeta, CarDto, CarBubble, Snapshot, StopDto, TetherMeta } from "../types";
+import { drawAirportScene } from "./draw-airport";
 import {
   drawFloors,
   drawShaftChannels,
@@ -62,6 +63,8 @@ export class CanvasRenderer {
   readonly #tweens: Tween[] = [];
   /** Set when the active scenario is a space-elevator-style tether. */
   #tether: TetherMeta | null = null;
+  /** Set when the active scenario is a dual-counter-rotating-loop airport. */
+  #airport: AirportMeta | null = null;
   /** Per-car previous-frame velocity, used to classify trapezoidal phase. */
   readonly #prevVelocity: Map<number, number> = new Map();
   // Tether-mode scratch reused across frames so the per-frame draw
@@ -148,6 +151,17 @@ export class CanvasRenderer {
   }
 
   /**
+   * Set or clear airport-mode metadata. Triggers the concentric-rings
+   * renderer instead of the building/tether paths when set.
+   */
+  setAirportConfig(airport: AirportMeta | null): void {
+    this.#airport = airport;
+    this.#prevVelocity.clear();
+    this.#firstDrawAt = 0;
+    this.#stopAssignments.clear();
+  }
+
+  /**
    * Report current physics knobs so the HUD's ETA / phase classifier
    * stay in sync with hot-swapped values from the tweak drawer.
    */
@@ -211,6 +225,11 @@ export class CanvasRenderer {
     }
     const s = this.#cachedScale;
     if (s === null) return;
+
+    if (this.#airport !== null) {
+      drawAirportScene(ctx, snap, w, h, this.#airport);
+      return;
+    }
 
     if (this.#tether !== null) {
       this.#drawTetherMode(snap, w, h, s, speedMultiplier, bubbles, this.#tether);

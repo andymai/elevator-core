@@ -22,8 +22,18 @@ export function randomSeedWord(): string {
 }
 
 export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
-  ui.compareToggle.checked = p.compare;
-  ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
+  const scenario = scenarioById(p.scenario);
+  // Airport-mode scenarios force single-pane: the concentric-rings
+  // renderer is not designed to survive a half-width compare canvas,
+  // and there's only one strategy that makes sense (LoopSchedule, set
+  // per-group in the RON), so the strategy popover is hidden too.
+  // When switching away, the toggles re-enable; the user's previous
+  // compare preference isn't restored.
+  const singlePane = scenario.airport !== undefined;
+  const effectiveCompare = singlePane ? false : p.compare;
+  ui.compareToggle.checked = effectiveCompare;
+  ui.compareToggle.disabled = singlePane;
+  ui.layout.dataset["mode"] = effectiveCompare ? "compare" : "single";
   ui.seedInput.value = p.seed;
   ui.speedInput.value = String(p.speed);
   ui.speedLabel.textContent = speedLabel(p.speed);
@@ -33,8 +43,11 @@ export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   renderPaneStrategyInfo(ui.paneB, p.strategyB);
   renderPaneRepositionInfo(ui.paneA, p.repositionA);
   renderPaneRepositionInfo(ui.paneB, p.repositionB);
+  // Hide the strategy popover trigger on airport scenarios — the RON's
+  // per-group LoopSchedule is the only dispatch that makes sense.
+  ui.paneA.trigger.disabled = singlePane;
+  ui.paneB.trigger.disabled = singlePane;
   syncScenarioCards(ui, p.scenario);
-  const scenario = scenarioById(p.scenario);
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
   // click. A clean URL leaves the drawer closed so first-time

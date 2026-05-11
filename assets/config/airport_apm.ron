@@ -1,0 +1,168 @@
+// Airport people-mover scenario.
+//
+// Two counter-rotating one-way loops connecting a terminal to six
+// concourses, modeled on a mid-size hub's automated people mover.
+// Each loop is a 1500 m closed cycle with two trains chasing each
+// other under fixed-headway dispatch (LoopSchedule), so the system
+// runs on a predictable cadence rather than per-call demand.
+//
+//   Outer loop (clockwise sweep):  T → A → B → C → D → E → F → T
+//   Inner loop (counter sweep):    T → F → E → D → C → B → A → T
+//
+// The two loops are independent — there is no transfer between them,
+// matching the reality that counter-rotating tracks don't share
+// switches. A rider chooses the loop whose station sequence is
+// shorter for their trip; in this RON that choice happens at spawn
+// time via origin/destination weights (the playground's TrafficDriver
+// owns the picker).
+//
+// Why two Lines instead of one bidirectional Line: LineKind::Loop
+// cars travel one direction only (cars sweep through positions in
+// increasing order mod circumference). To get visual counter-rotation
+// the inner loop places its stops at `circumference - outer_pos`, so
+// sweeping forward on it traverses the concourses in reverse physical
+// order. Mirrored positions are the encoding; cars on either loop
+// still travel forward in their own frame.
+//
+// Requires the `loop_lines` cargo feature (gated on for the playground's
+// wasm crate at crates/elevator-wasm/Cargo.toml).
+SimConfig(
+    schema_version: 1,
+    building: BuildingConfig(
+        name: "Airport People Mover",
+        // Fourteen stops in two paired sets. Terminal listed first so
+        // the built-in TrafficDetector keys its peak classification
+        // off the airport's main entry — same convention as the
+        // building scenarios where the Lobby is stops[0].
+        //
+        // StopIds 0–6: outer-loop platforms (Terminal, A, B, C, D, E, F).
+        // StopIds 7–13: inner-loop platforms, same names, mirrored
+        // positions so the inner sweep is counter-rotating.
+        stops: [
+            StopConfig(id: StopId(0),  name: "Terminal",     position: 0.0),
+            StopConfig(id: StopId(1),  name: "Concourse A",  position: 300.0),
+            StopConfig(id: StopId(2),  name: "Concourse B",  position: 500.0),
+            StopConfig(id: StopId(3),  name: "Concourse C",  position: 700.0),
+            StopConfig(id: StopId(4),  name: "Concourse D",  position: 900.0),
+            StopConfig(id: StopId(5),  name: "Concourse E",  position: 1100.0),
+            StopConfig(id: StopId(6),  name: "Concourse F",  position: 1300.0),
+            StopConfig(id: StopId(7),  name: "Terminal",     position: 0.0),
+            StopConfig(id: StopId(8),  name: "Concourse F",  position: 200.0),
+            StopConfig(id: StopId(9),  name: "Concourse E",  position: 400.0),
+            StopConfig(id: StopId(10), name: "Concourse D",  position: 600.0),
+            StopConfig(id: StopId(11), name: "Concourse C",  position: 800.0),
+            StopConfig(id: StopId(12), name: "Concourse B",  position: 1000.0),
+            StopConfig(id: StopId(13), name: "Concourse A",  position: 1200.0),
+        ],
+        lines: Some([
+            // Outer loop — clockwise sweep through the concourses.
+            // Two cars spaced ~half a loop apart (Terminal and
+            // Concourse D, gap = 900 m) so the min_headway constraint
+            // (200 m) is satisfied from tick 1 and stays satisfied
+            // through fixed-headway dispatch.
+            LineConfig(
+                id: 1,
+                name: "Outer Loop",
+                kind: Some(Loop(
+                    circumference: 1500.0,
+                    min_headway: 200.0,
+                )),
+                serves: [StopId(0), StopId(1), StopId(2), StopId(3), StopId(4), StopId(5), StopId(6)],
+                position: None,
+                orientation: Horizontal,
+                elevators: [
+                    ElevatorConfig(
+                        id: 1,
+                        name: "Outer Train 1",
+                        max_speed: 14.0,
+                        acceleration: 1.0,
+                        deceleration: 1.0,
+                        weight_capacity: 9000.0,
+                        starting_stop: StopId(0),
+                        door_open_ticks: 1500,
+                        door_transition_ticks: 180,
+                    ),
+                    ElevatorConfig(
+                        id: 2,
+                        name: "Outer Train 2",
+                        max_speed: 14.0,
+                        acceleration: 1.0,
+                        deceleration: 1.0,
+                        weight_capacity: 9000.0,
+                        starting_stop: StopId(4),
+                        door_open_ticks: 1500,
+                        door_transition_ticks: 180,
+                    ),
+                ],
+            ),
+            // Inner loop — counter-rotating. Stop positions are
+            // mirrored (circumference - outer_pos) so the forward
+            // sweep visits concourses in reverse physical order.
+            LineConfig(
+                id: 2,
+                name: "Inner Loop",
+                kind: Some(Loop(
+                    circumference: 1500.0,
+                    min_headway: 200.0,
+                )),
+                serves: [StopId(7), StopId(8), StopId(9), StopId(10), StopId(11), StopId(12), StopId(13)],
+                position: None,
+                orientation: Horizontal,
+                elevators: [
+                    ElevatorConfig(
+                        id: 3,
+                        name: "Inner Train 1",
+                        max_speed: 14.0,
+                        acceleration: 1.0,
+                        deceleration: 1.0,
+                        weight_capacity: 9000.0,
+                        starting_stop: StopId(7),
+                        door_open_ticks: 1500,
+                        door_transition_ticks: 180,
+                    ),
+                    ElevatorConfig(
+                        id: 4,
+                        name: "Inner Train 2",
+                        max_speed: 14.0,
+                        acceleration: 1.0,
+                        deceleration: 1.0,
+                        weight_capacity: 9000.0,
+                        starting_stop: StopId(10),
+                        door_open_ticks: 1500,
+                        door_transition_ticks: 180,
+                    ),
+                ],
+            ),
+        ]),
+        // LoopSchedule produces fixed per-stop dwell instead of the
+        // load-shaped variable dwell LoopSweep gives. APMs run on a
+        // timetable, not on demand — the predictable cadence is what
+        // a passenger relies on to plan a connection.
+        groups: Some([
+            GroupConfig(
+                id: 0,
+                name: "Outer Service",
+                lines: [1],
+                dispatch: LoopSchedule,
+            ),
+            GroupConfig(
+                id: 1,
+                name: "Inner Service",
+                lines: [2],
+                dispatch: LoopSchedule,
+            ),
+        ]),
+    ),
+    elevators: [],
+    simulation: SimulationParams(
+        ticks_per_second: 60.0,
+    ),
+    // Steady spawn rate that the playground's TrafficDriver layers
+    // daypart shaping on top of. A 60-tick interval (1 sample/sec) is
+    // a starting volume the driver can scale up at peak and down off-
+    // peak without the underlying Poisson process going degenerate.
+    passenger_spawning: PassengerSpawnConfig(
+        mean_interval_ticks: 60,
+        weight_range: (55.0, 100.0),
+    ),
+)

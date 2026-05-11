@@ -67,6 +67,11 @@ export async function makePane(
   // this hookup the renderer falls back to the standard per-line
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
+  // Airport-mode opts into the concentric-rings renderer the same
+  // way. The two flags are mutually exclusive in practice (no
+  // scenario declares both), but the renderer prioritises airport
+  // before tether in its dispatch.
+  renderer.setAirportConfig(scenario.airport ?? null);
   if (scenario.tether) {
     // Use the override-merged physics so a shared permalink with a
     // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
