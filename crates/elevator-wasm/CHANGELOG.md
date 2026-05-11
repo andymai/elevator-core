@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.24.0...elevator-wasm-v0.25.0) (2026-05-11)
+
+
+### Features
+
+* close loop-lines v1 gaps + game-dev surface + host bindings ([#828](https://github.com/andymai/elevator-core/issues/828)) ([a538a9f](https://github.com/andymai/elevator-core/commit/a538a9fa80b1d3268de8650f4aeec0f94ad05db6))
+
 ## [0.24.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.23.0...elevator-wasm-v0.24.0) (2026-05-10)
 
 
