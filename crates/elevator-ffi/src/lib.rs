@@ -1490,7 +1490,7 @@ pub unsafe extern "C" fn ev_sim_eta_for_call(
 // Entity refs cross the boundary as `u64` (slotmap-encoded) — the
 // same encoding every other `ev_sim_*` function uses.
 
-/// Whether `line_entity_id` has [`LineKind::Loop`] topology. Returns
+/// Whether `line_entity_id` has `LineKind::Loop` topology. Returns
 /// `0` for Linear lines, missing entities, and a null `handle`.
 ///
 /// # Safety
