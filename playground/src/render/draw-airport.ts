@@ -219,6 +219,10 @@ function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
   }
   p -= hInner;
   // 8. top-left arc, center (left + r, top + r). Closes back to fraction 0.
+  // Guard against r = 0 (no arc): the inner rect's corner radius can
+  // degenerate via `Math.max(0, cornerR - gap)` on narrow viewports;
+  // dividing by `arc` would produce NaN coordinates.
+  if (arc <= 0) return { x: left + r, y: top, tangent: 0 };
   const a = Math.PI + (p / arc) * (Math.PI / 2);
   return { x: left + r + Math.cos(a) * r, y: top + r + Math.sin(a) * r, tangent: a + Math.PI / 2 };
 }
