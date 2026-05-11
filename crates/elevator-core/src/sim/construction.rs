@@ -380,6 +380,12 @@ impl Simulation {
             .iter()
             .filter_map(|sid| stop_lookup.get(sid).copied())
             .collect();
+        // Loop cars patrol forward indefinitely; Linear cars carry the
+        // legacy two-bit (up/down) lamp pair. Seeding correctly here
+        // means a host inspecting the sim before the first `step()`
+        // already sees the right `Direction` reading on Loop cars
+        // (otherwise they'd report `Either` until the first kickstart).
+        let is_loop = world.line(line).is_some_and(Line::is_loop);
         world.set_elevator(
             eid,
             Elevator {
@@ -398,9 +404,9 @@ impl Simulation {
                 repositioning: false,
                 restricted_stops: restricted,
                 inspection_speed_factor: ec.inspection_speed_factor,
-                going_up: true,
-                going_down: true,
-                going_forward: false,
+                going_up: !is_loop,
+                going_down: !is_loop,
+                going_forward: is_loop,
                 move_count: 0,
                 door_command_queue: Vec::new(),
                 manual_target_velocity: None,
@@ -1114,10 +1120,9 @@ impl Simulation {
                     });
                 }
                 // Parking-style reposition strategies don't compose with
-                // continuous-patrol Loop semantics: PR 4 will make the
-                // reposition phase a no-op on Loop, but configuring one
-                // is almost always a misunderstanding so we reject it
-                // up front.
+                // continuous-patrol Loop semantics. The reposition system
+                // already skips Loop cars, but configuring a strategy is
+                // almost always a misunderstanding so we reject it up front.
                 if any_loop && gc.reposition.is_some() {
                     return Err(SimError::InvalidConfig {
                         field: "building.groups.reposition",

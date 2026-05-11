@@ -1212,12 +1212,12 @@ fn loop_car_kickstarts_from_idle_on_first_tick() {
 
     // Construction places the car at Idle. Without the kickstart pass in
     // dispatch.run, a Loop car would sit forever — Loop strategies don't
-    // commit destinations through the dispatch matching.
-    assert_eq!(
-        sim.world().elevator(car_eid).unwrap().phase,
-        ElevatorPhase::Idle,
-    );
-    assert!(!sim.world().elevator(car_eid).unwrap().going_forward());
+    // commit destinations through the dispatch matching. The lamp state is
+    // pre-seeded to Forward at spawn so hosts inspecting before the first
+    // step() already see a coherent reading.
+    let pre = sim.world().elevator(car_eid).unwrap();
+    assert_eq!(pre.phase, ElevatorPhase::Idle);
+    assert!(pre.going_forward());
 
     sim.step();
 
@@ -1229,7 +1229,7 @@ fn loop_car_kickstarts_from_idle_on_first_tick() {
     );
     assert!(
         car.going_forward(),
-        "kickstart must set going_forward = true so direction() reports Forward",
+        "kickstart must keep going_forward = true so direction() reports Forward",
     );
 }
 
@@ -4890,4 +4890,140 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
         !car_b_riders.contains(&rider.entity()),
         "rider must never have boarded line B's car"
     );
+}
+
+// ── Loop game-dev surface ─────────────────────────────────────────────
+//
+// Targeted coverage for the Loop-aware helpers and Manual-mode
+// invariants game hosts depend on: leader-query, headway-clamped manual
+// driving, one-way velocity enforcement.
+
+#[cfg(feature = "loop_lines")]
+fn two_car_loop_config() -> SimConfig {
+    let mut config = loop_only_config();
+    let line = config.building.lines.as_mut().unwrap();
+    let template = line[0].elevators[0].clone();
+    line[0].elevators.push(crate::config::ElevatorConfig {
+        id: 2,
+        name: "L2".into(),
+        starting_stop: StopId(2),
+        ..template
+    });
+    config
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_leader_finds_forward_car() {
+    use crate::dispatch::LoopSweepDispatch;
+    let sim = Simulation::new(&two_car_loop_config(), LoopSweepDispatch::new()).unwrap();
+    let cars: Vec<_> = sim.world().iter_elevators().collect();
+    let (a, _, _) = cars[0];
+    let (b, _, _) = cars[1];
+    let leader = sim.loop_leader(ElevatorId::from(a)).unwrap();
+    assert_eq!(
+        leader,
+        ElevatorId::from(b),
+        "car at position 0 should look forward to car at position 50, not back",
+    );
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_leader_none_for_solo_car() {
+    use crate::dispatch::LoopSweepDispatch;
+    let sim = Simulation::new(&loop_only_config(), LoopSweepDispatch::new()).unwrap();
+    let solo = sim.world().iter_elevators().next().unwrap().0;
+    assert!(sim.loop_leader(ElevatorId::from(solo)).is_none());
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn loop_forward_gap_reports_cyclic_distance() {
+    use crate::dispatch::LoopSweepDispatch;
+    let sim = Simulation::new(&two_car_loop_config(), LoopSweepDispatch::new()).unwrap();
+    let cars: Vec<_> = sim.world().iter_elevators().collect();
+    let (a, _, _) = cars[0];
+    // Cars start at positions 0 and 50 on a 100-unit loop. Forward gap
+    // from a to leader (= b at 50) is 50.
+    let gap = sim.loop_forward_gap(ElevatorId::from(a)).unwrap();
+    assert!((gap - 50.0).abs() < 1e-9, "expected 50, got {gap}");
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn set_target_velocity_rejects_negative_on_loop() {
+    use crate::components::ServiceMode;
+    use crate::dispatch::LoopSweepDispatch;
+    let mut sim = Simulation::new(&loop_only_config(), LoopSweepDispatch::new()).unwrap();
+    let car = sim.world().iter_elevators().next().unwrap().0;
+    sim.set_service_mode(car, ServiceMode::Manual).unwrap();
+    let err = sim
+        .set_target_velocity(ElevatorId::from(car), -1.0)
+        .expect_err("should reject reverse on a Loop");
+    assert!(
+        matches!(err, crate::error::SimError::InvalidConfig { field, .. } if field == "target_velocity"),
+        "unexpected error: {err:?}",
+    );
+    // Positive still works.
+    sim.set_target_velocity(ElevatorId::from(car), 1.0).unwrap();
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn manual_loop_wraps_position_at_seam() {
+    use crate::components::ServiceMode;
+    use crate::dispatch::LoopSweepDispatch;
+    // Single car so the headway clamp doesn't engage; the only thing we
+    // test here is that the position lands in [0, circumference) after a
+    // tick that would have linearly overshot the seam.
+    let mut sim = Simulation::new(&loop_only_config(), LoopSweepDispatch::new()).unwrap();
+    let car = sim.world().iter_elevators().next().unwrap().0;
+    sim.set_service_mode(car, ServiceMode::Manual).unwrap();
+    // Teleport to just before the seam at position 99 on a 100-unit loop.
+    // (No public mover API — use the snapshot path or drive forward enough
+    // ticks. Driving forward is simpler.)
+    sim.set_target_velocity(ElevatorId::from(car), 2.0).unwrap();
+    // Two-second max_speed at dt=1/60 needs many ticks to lap; drive
+    // enough that the car definitely crosses position 100 at some point.
+    for _ in 0..6_000 {
+        sim.step();
+        let pos = sim.world().position(car).unwrap().value();
+        assert!(
+            (0.0..100.0).contains(&pos),
+            "Manual Loop car drifted outside [0, 100): pos={pos}",
+        );
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn manual_loop_headway_clamp_prevents_overtake() {
+    use crate::components::ServiceMode;
+    use crate::dispatch::LoopSweepDispatch;
+    let mut sim = Simulation::new(&two_car_loop_config(), LoopSweepDispatch::new()).unwrap();
+    let cars: Vec<_> = sim.world().iter_elevators().map(|(e, _, _)| e).collect();
+    let trailer = cars[0];
+    let leader = cars[1];
+    // Force the leader into OutOfService so it can't move. Single-car
+    // loops are allowed but a follower behind the OOS car is not — so
+    // we use Manual instead with zero target velocity.
+    sim.set_service_mode(leader, ServiceMode::Manual).unwrap();
+    sim.set_target_velocity(ElevatorId::from(leader), 0.0)
+        .unwrap();
+    sim.set_service_mode(trailer, ServiceMode::Manual).unwrap();
+    sim.set_target_velocity(ElevatorId::from(trailer), 5.0)
+        .unwrap();
+    // Stationary leader at position 50, trailer accelerating from 0.
+    // After many ticks the trailer must NOT have crossed the leader.
+    for _ in 0..6_000 {
+        sim.step();
+        let t_pos = sim.world().position(trailer).unwrap().value();
+        let l_pos = sim.world().position(leader).unwrap().value();
+        let gap = crate::components::cyclic::forward_distance(t_pos, l_pos, 100.0);
+        assert!(
+            gap >= 5.0 - 1e-6,
+            "trailer at {t_pos} closed headway gap to {gap} (min 5); leader at {l_pos}",
+        );
+    }
 }
