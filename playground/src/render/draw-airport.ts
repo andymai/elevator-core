@@ -1,4 +1,4 @@
-import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
+import type { AirportMeta, CarBubble, CarDto, Snapshot, StopDto } from "../types";
 
 /**
  * Two concentric rounded-rectangles separated by a small gap. Stations
@@ -27,6 +27,11 @@ const CAR_LEAD_HIGHLIGHT = "#f5d99a";
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
 const QUEUE_VISIBLE_CAP = 6;
+const CHEVRONS_PER_LOOP = 12;
+const CHEVRON_SCROLL_HZ = 0.15;
+const BUBBLE_FADE_MS = 200;
+
+const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
 interface RectGeometry {
   cx: number;
@@ -56,6 +61,8 @@ export function drawAirportScene(
   h: number,
   airport: AirportMeta,
   phaseRatio: number,
+  bubbles?: Map<number, CarBubble>,
+  accent = "#ffffff",
 ): void {
   ctx.save();
   ctx.fillStyle = RING_BACKGROUND;
@@ -106,6 +113,8 @@ export function drawAirportScene(
 
   drawTrack(ctx, outer);
   drawTrack(ctx, inner);
+  drawDirectionChevrons(ctx, outer, false);
+  drawDirectionChevrons(ctx, inner, true);
 
   const outerStops = snap.stops.slice(0, airport.outerStopCount);
   const innerStops = snap.stops.slice(airport.outerStopCount);
@@ -126,6 +135,127 @@ export function drawAirportScene(
   drawTrain(ctx, outerCars, outer, airport.circumferenceM, false);
   drawTrain(ctx, innerCars, inner, airport.circumferenceM, true);
 
+  if (bubbles && bubbles.size > 0) {
+    drawTrainBubbles(ctx, outerCars, outer, airport.circumferenceM, false, bubbles, accent);
+    drawTrainBubbles(ctx, innerCars, inner, airport.circumferenceM, true, bubbles, accent);
+  }
+
+  ctx.restore();
+}
+
+function drawDirectionChevrons(
+  ctx: CanvasRenderingContext2D,
+  track: TrackGeometry,
+  reverseDirection: boolean,
+): void {
+  // Chevrons drift slowly in the direction of travel, providing an
+  // ambient direction signal even when no train is on this segment.
+  const offsetSec = (performance.now() / 1000) * CHEVRON_SCROLL_HZ;
+  const dir = reverseDirection ? -1 : 1;
+  const baseFraction = (offsetSec * dir) % 1;
+  const size = Math.max(4, track.thickness * 0.85);
+  ctx.save();
+  ctx.fillStyle = track.dimColor;
+  ctx.globalAlpha = 0.55;
+  for (let i = 0; i < CHEVRONS_PER_LOOP; i++) {
+    const f = (baseFraction + i / CHEVRONS_PER_LOOP + 1) % 1;
+    const point = perimeterPoint(track, f);
+    drawChevron(ctx, point, size, reverseDirection);
+  }
+  ctx.restore();
+}
+
+function drawChevron(
+  ctx: CanvasRenderingContext2D,
+  point: PerimeterPoint,
+  size: number,
+  reverseDirection: boolean,
+): void {
+  // A chevron is a small "V" pointing in the direction of travel.
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.rotate(point.tangent + (reverseDirection ? Math.PI : 0));
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.5, -size * 0.4);
+  ctx.lineTo(size * 0.4, 0);
+  ctx.lineTo(-size * 0.5, size * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawTrainBubbles(
+  ctx: CanvasRenderingContext2D,
+  cars: CarDto[],
+  track: TrackGeometry,
+  circumferenceM: number,
+  reverseDirection: boolean,
+  bubbles: Map<number, CarBubble>,
+  accent: string,
+): void {
+  const now = performance.now();
+  const perim = perimeterLength(track);
+  // Anchor on the lead segment of each train so the bubble follows the
+  // car nose, not somewhere in the middle of the consist.
+  const trainPx = Math.min(80, perim * 0.06);
+  const segLen = trainPx / TRAIN_CAR_COUNT;
+  for (const car of cars) {
+    const bubble = bubbles.get(car.id);
+    if (!bubble || now >= bubble.expiresAt) continue;
+    const baseFraction = car.y / circumferenceM;
+    const dir = reverseDirection ? -1 : 1;
+    const frontShift = -dir * (segLen / 2);
+    const frontFraction =
+      ((((reverseDirection ? 1 - baseFraction : baseFraction) + frontShift / perim) % 1) + 1) % 1;
+    const point = perimeterPoint(track, frontFraction);
+    drawBubbleAt(ctx, point, track, bubble, now, accent);
+  }
+}
+
+function drawBubbleAt(
+  ctx: CanvasRenderingContext2D,
+  anchor: PerimeterPoint,
+  track: TrackGeometry,
+  bubble: CarBubble,
+  now: number,
+  accent: string,
+): void {
+  // Bubble floats outward from the track (away from canvas center) so
+  // it doesn't crash into the inner ring on the inner loop.
+  const remain = bubble.expiresAt - now;
+  const fadeIn = Math.min(1, (now - bubble.bornAt) / BUBBLE_FADE_MS);
+  const fadeOut = Math.min(1, remain / BUBBLE_FADE_MS);
+  const alpha = Math.max(0, Math.min(1, Math.min(fadeIn, fadeOut)));
+  if (alpha <= 0) return;
+  const text = `${bubble.glyph} ${bubble.text}`;
+  const fontPx = 11;
+  ctx.font = `${fontPx}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
+  const padX = 6;
+  const padY = 3;
+  const textWidth = ctx.measureText(text).width;
+  const w = textWidth + padX * 2;
+  const h = fontPx + padY * 2;
+  // Push bubble outward perpendicular to the track tangent.
+  const nx = -Math.sin(anchor.tangent);
+  const ny = Math.cos(anchor.tangent);
+  const offset = track.thickness * 1.8 + h * 0.6;
+  const cx = anchor.x - nx * offset;
+  const cy = anchor.y - ny * offset;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  tracedRoundedRect(ctx, { cx, cy, w, h, r: h * 0.4 });
+  ctx.fillStyle = "#1a1714";
+  ctx.fill();
+  ctx.strokeStyle = "#2a2520";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  // Glyph painted in pane accent so the leading symbol stands out.
+  ctx.fillStyle = accent;
+  ctx.fillText(bubble.glyph, cx - textWidth / 2 + ctx.measureText(bubble.glyph).width / 2, cy);
+  ctx.fillStyle = STATION_LABEL;
+  ctx.fillText(bubble.text, cx + ctx.measureText(bubble.glyph).width / 2 + 3, cy);
   ctx.restore();
 }
 
@@ -417,13 +547,14 @@ function drawTrain(
     // Inner runs CCW: a higher RON position should appear earlier in
     // perimeter walk, not later. Negate the offset.
     const frontFraction = reverseDirection ? 1 - baseFraction : baseFraction;
+    const dwelling = DWELLING_PHASES.has(car.phase);
     for (let i = 0; i < TRAIN_CAR_COUNT; i++) {
       // Segments tail behind the front along the direction of motion.
       const dir = reverseDirection ? -1 : 1;
       const segCenterPx = -dir * (i * segLen + segLen / 2);
       const segFraction = (((frontFraction + segCenterPx / perim) % 1) + 1) % 1;
       const point = perimeterPoint(track, segFraction);
-      drawCarSegment(ctx, point, visibleSeg, segWidth, track.color, i === 0);
+      drawCarSegment(ctx, point, visibleSeg, segWidth, track.color, i === 0, dwelling && i === 0);
     }
   }
 }
@@ -435,6 +566,7 @@ function drawCarSegment(
   width: number,
   fill: string,
   isFront: boolean,
+  dwelling: boolean,
 ): void {
   ctx.save();
   ctx.translate(point.x, point.y);
@@ -442,6 +574,20 @@ function drawCarSegment(
   const halfL = length / 2;
   const halfW = width / 2;
   const r = Math.min(halfL, halfW) * 0.4;
+  if (dwelling) {
+    // Soft halo around the lead car when doors are open / boarding —
+    // mimics light spilling from open doors. Slowly pulses so the cue
+    // reads as ongoing dwell, not a one-frame flash.
+    const pulse = 0.55 + Math.sin(performance.now() / 280) * 0.15;
+    ctx.save();
+    ctx.shadowColor = CAR_LEAD_HIGHLIGHT;
+    ctx.shadowBlur = halfW * (2.6 + pulse);
+    ctx.fillStyle = CAR_LEAD_HIGHLIGHT;
+    ctx.beginPath();
+    ctx.arc(halfL - r, 0, halfW * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   tracedRoundedRect(ctx, { cx: 0, cy: 0, w: length, h: width, r });
   ctx.fillStyle = fill;
   ctx.fill();

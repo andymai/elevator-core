@@ -231,7 +231,7 @@ export class CanvasRenderer {
     if (s === null) return;
 
     if (this.#airport !== null) {
-      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio);
+      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio, bubbles, this.#accent);
       return;
     }
 
