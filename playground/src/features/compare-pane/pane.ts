@@ -18,6 +18,8 @@ export interface Pane {
   strategy: StrategyName;
   sim: Sim;
   renderer: CanvasRenderer;
+  scenario: ScenarioMeta;
+  accent: string;
   metricsEl: HTMLElement;
   modeEl: HTMLElement;
   /**
@@ -94,7 +96,7 @@ export async function makePane(
     const minShaftPx = scenario.tether
       ? 640
       : scenario.airport !== undefined
-        ? 220
+        ? Math.max(180, Math.min(380, window.innerWidth * 0.3))
         : Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
@@ -102,6 +104,8 @@ export async function makePane(
     strategy,
     sim,
     renderer,
+    scenario,
+    accent: handles.accent,
     metricsEl: handles.metrics,
     modeEl: handles.mode,
     metricHistory: {
