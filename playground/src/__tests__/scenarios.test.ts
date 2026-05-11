@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS, scenarioById } from "../domain/scenarios";
 
 describe("scenarios metadata", () => {
-  it("ships exactly 3 scenarios", () => {
-    expect(SCENARIOS).toHaveLength(3);
+  it("ships exactly 4 scenarios", () => {
+    expect(SCENARIOS).toHaveLength(4);
   });
 
   it("every id is unique", () => {
@@ -71,6 +71,21 @@ describe("scenarios metadata", () => {
     for (const s of SCENARIOS) {
       expect(s.label.length, s.id).toBeGreaterThan(0);
       expect(s.description.length, s.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("airport scenarios partition outer stops via the first LineConfig's serves[]", () => {
+    // `AirportMeta.outerStopCount` drives the renderer's stop partition.
+    // If the RON's first LineConfig grows or shrinks its serves[] without
+    // a matching outerStopCount bump, the inner ring renders the wrong
+    // stops. Cheap-check by counting `StopId(...)` entries inside the
+    // first LineConfig's `serves: [...]` block.
+    for (const s of SCENARIOS) {
+      if (s.airport === undefined) continue;
+      const firstServesMatch = s.ron.match(/serves:\s*\[([^\]]*)\]/);
+      expect(firstServesMatch, `${s.id} RON has no LineConfig serves[]`).not.toBeNull();
+      const stopIdCount = (firstServesMatch?.[1]?.match(/StopId\(/g) ?? []).length;
+      expect(stopIdCount, `${s.id} outer-loop serves[] count`).toBe(s.airport.outerStopCount);
     }
   });
 });

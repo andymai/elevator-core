@@ -15,10 +15,11 @@
 // closure exists to centralize.
 #![allow(clippy::redundant_closure_call)]
 
+use elevator_core::components::LineKind;
 use elevator_core::config::SimConfig;
 use elevator_core::dispatch::{
     BuiltinReposition, BuiltinStrategy, DestinationDispatch, EtdDispatch, HallCallMode,
-    LookDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
+    LookDispatch, LoopScheduleDispatch, NearestCarDispatch, RsrDispatch, ScanDispatch,
 };
 use elevator_core::entity::EntityId;
 use elevator_core::prelude::{Simulation, StopId};
@@ -119,6 +120,15 @@ fn make_sim(
     config: &SimConfig,
     strategy: &str,
 ) -> Option<Result<Simulation, elevator_core::error::SimError>> {
+    // None of the linear-shaft dispatchers (Scan/Look/etc.) make sense
+    // on a one-way loop, but `Simulation::new` would silently install
+    // the caller's pick at `GroupId(0)`, overriding the RON's per-group
+    // LoopSchedule/LoopSweep. When every line in the config is a Loop,
+    // bypass the user's strategy and seed with `LoopScheduleDispatch`
+    // so the override is a no-op against the RON's declaration.
+    if config_is_all_loops(config) {
+        return Some(Simulation::new(config, LoopScheduleDispatch::default()));
+    }
     Some(match strategy {
         "scan" => Simulation::new(config, ScanDispatch::new()),
         "look" => Simulation::new(config, LookDispatch::new()),
@@ -132,6 +142,16 @@ fn make_sim(
         "rsr" => Simulation::new(config, RsrDispatch::new()),
         _ => return None,
     })
+}
+
+fn config_is_all_loops(config: &SimConfig) -> bool {
+    let Some(lines) = config.building.lines.as_ref() else {
+        return false;
+    };
+    !lines.is_empty()
+        && lines
+            .iter()
+            .all(|l| matches!(l.kind, Some(LineKind::Loop { .. })))
 }
 
 /// Opaque simulation handle for JS.

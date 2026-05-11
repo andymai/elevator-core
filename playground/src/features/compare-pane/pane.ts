@@ -67,6 +67,7 @@ export async function makePane(
   // this hookup the renderer falls back to the standard per-line
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
+  renderer.setAirportConfig(scenario.airport ?? null);
   if (scenario.tether) {
     // Use the override-merged physics so a shared permalink with a
     // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
@@ -87,7 +88,14 @@ export async function makePane(
   if (wrap) {
     const stopCount = scenario.stops.length;
     const perStoryPx = 16;
-    const minShaftPx = scenario.tether ? 640 : Math.max(200, stopCount * perStoryPx);
+    // Concentric viz scales to the available square — a stop-count
+    // multiplier would reserve far more vertical space than the rings
+    // need, pushing the canvas below the fold on short viewports.
+    const minShaftPx = scenario.tether
+      ? 640
+      : scenario.airport !== undefined
+        ? 220
+        : Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
   return {

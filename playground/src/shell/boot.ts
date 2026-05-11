@@ -14,7 +14,7 @@ import { removeStaticSeoBlock } from "../platform";
 import { loadWasm, TrafficDriver } from "../sim";
 import type { State } from "./state";
 import { wireUi } from "./wire-ui";
-import { applyPermalinkToUi, randomSeedWord } from "./apply-permalink";
+import { applyPermalinkToUi, applyScenarioGating, randomSeedWord } from "./apply-permalink";
 import { attachListeners } from "./listeners";
 import { updateRuntimeMeta } from "./document-meta";
 import { resetAll } from "./reset";
@@ -108,6 +108,9 @@ export async function boot(): Promise<void> {
   // `<head>` script set html.js, so this is purely a DOM clean-up.
   removeStaticSeoBlock();
   await resetAll(state, ui);
+  // resetAll re-renders strategy/parking chips from state.permalink, so
+  // re-apply scenario gating to restore the airport label overrides.
+  applyScenarioGating(ui, scenario);
   state.ready = true;
   loop(state, ui);
   // Quest mode swaps the compare layout for the curriculum banner.

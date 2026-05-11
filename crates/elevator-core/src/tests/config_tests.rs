@@ -342,6 +342,8 @@ fn shipped_assets_pin_to_current_schema_version() {
     // would handle the same config at runtime.
     #[cfg(feature = "loop_lines")]
     assets.push(include_str!("../../../../assets/config/loop_demo.ron"));
+    #[cfg(feature = "loop_lines")]
+    assets.push(include_str!("../../../../assets/config/airport_apm.ron"));
 
     for asset in assets {
         let config: SimConfig = ron::from_str(asset).expect("shipped asset deserializes");
@@ -375,6 +377,29 @@ fn loop_demo_config_loads_and_runs() {
     // handing off to the next forward stop. Smoke test, not a
     // behavioural assertion, so a successful run = no panics + no
     // out-of-bounds entity references in the pipeline.
+    for _ in 0..600 {
+        sim.step();
+    }
+}
+
+#[cfg(feature = "loop_lines")]
+#[test]
+fn airport_apm_config_loads_and_runs() {
+    // Two independent LineKind::Loop groups with LoopSchedule dispatch
+    // on each — distinct from `loop_demo` which has a single group.
+    // `Simulation::new`'s builder dispatcher overrides GroupId(0)'s
+    // RON dispatch, so pass `LoopScheduleDispatch::default()` to keep
+    // the test exercising what the RON declares for both groups.
+    use crate::dispatch::LoopScheduleDispatch;
+    use crate::sim::Simulation;
+
+    let ron_str = include_str!("../../../../assets/config/airport_apm.ron");
+    let config: SimConfig =
+        ron::from_str(ron_str).expect("airport_apm.ron must deserialize cleanly");
+
+    let mut sim = Simulation::new(&config, LoopScheduleDispatch::default())
+        .expect("airport_apm.ron must construct a valid Simulation");
+
     for _ in 0..600 {
         sim.step();
     }
