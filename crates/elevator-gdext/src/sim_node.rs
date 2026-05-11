@@ -618,8 +618,9 @@ impl ElevatorSim {
 
     /// Put an elevator into a specific service mode.
     ///
-    /// Modes: `0` = Normal, `1` = Manual, `2` = Inspection,
-    /// `3` = Independent, `4` = `OutOfService`.
+    /// Modes match the FFI `EvServiceMode` numbering for cross-host
+    /// parity: `0` = Normal, `1` = Independent, `2` = Inspection,
+    /// `3` = Manual, `4` = `OutOfService`.
     ///
     /// Returns `true` on success, `false` on invalid index/mode or on a
     /// Loop-specific rejection (e.g. `OutOfService` on a Loop car with
@@ -635,13 +636,40 @@ impl ElevatorSim {
         };
         let mode = match mode {
             0 => elevator_core::components::ServiceMode::Normal,
-            1 => elevator_core::components::ServiceMode::Manual,
+            1 => elevator_core::components::ServiceMode::Independent,
             2 => elevator_core::components::ServiceMode::Inspection,
-            3 => elevator_core::components::ServiceMode::Independent,
+            3 => elevator_core::components::ServiceMode::Manual,
             4 => elevator_core::components::ServiceMode::OutOfService,
             _ => return false,
         };
         sim.set_service_mode(eid, mode).is_ok()
+    }
+
+    /// Read the current service mode of an elevator.
+    ///
+    /// Returns the same integer mapping as `set_service_mode`, or `-1`
+    /// for an out-of-range index. Useful for HUDs and conditional
+    /// dispatch decisions on the GDScript side.
+    #[func]
+    fn get_service_mode(&self, elevator_index: i32) -> i32 {
+        let Some(sim) = self.sim.as_ref() else {
+            return -1;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return -1;
+        };
+        match sim.world().service_mode(eid).copied().unwrap_or_default() {
+            elevator_core::components::ServiceMode::Normal => 0,
+            elevator_core::components::ServiceMode::Independent => 1,
+            elevator_core::components::ServiceMode::Inspection => 2,
+            elevator_core::components::ServiceMode::Manual => 3,
+            elevator_core::components::ServiceMode::OutOfService => 4,
+            // Defensive — `ServiceMode` is `#[non_exhaustive]`; a future
+            // variant would surface as `-1` rather than silently mapping
+            // to an existing slot.
+            _ => -1,
+        }
     }
 
     /// Command a target velocity on a Manual-mode elevator.
@@ -662,6 +690,26 @@ impl ElevatorSim {
         };
         let typed = elevator_core::entity::ElevatorId::from(eid);
         sim.set_target_velocity(typed, velocity).is_ok()
+    }
+
+    /// Read the currently commanded target velocity on a Manual-mode
+    /// elevator. Returns the velocity, or `0.0` for an out-of-range
+    /// index or a car with no command pending. The same value can be
+    /// read for non-Manual cars (where it has no effect on motion) so
+    /// the HUD doesn't have to special-case mode transitions.
+    #[func]
+    fn get_target_velocity(&self, elevator_index: i32) -> f64 {
+        let Some(sim) = self.sim.as_ref() else {
+            return 0.0;
+        };
+        let elev_ids = sim.world().elevator_ids();
+        let Some(&eid) = elev_ids.get(elevator_index as usize) else {
+            return 0.0;
+        };
+        sim.world()
+            .elevator(eid)
+            .and_then(elevator_core::components::Elevator::manual_target_velocity)
+            .unwrap_or(0.0)
     }
 
     /// Command an immediate stop on a Manual-mode elevator. Equivalent
@@ -693,9 +741,12 @@ impl ElevatorSim {
     /// Get line metadata as a Dictionary.
     ///
     /// Keys: `entity_id`, `name`, `kind` (`"linear"` or `"loop"`),
+    /// `orientation` (`"vertical"`, `"horizontal"`, or `"angled:<deg>"`),
     /// `min_position`, `max_position`, `circumference`, `min_headway`.
     /// For Linear lines `circumference` / `min_headway` are `null`; for
-    /// Loop lines `min_position` / `max_position` are `null`.
+    /// Loop lines `min_position` / `max_position` are `null`. An empty
+    /// Dictionary signals "no such line" — distinguish from a missing
+    /// line by checking `dict.has("kind")`.
     #[func]
     fn get_line(&self, index: i32) -> Dictionary<Variant, Variant> {
         let Some(sim) = self.sim.as_ref() else {
@@ -709,6 +760,14 @@ impl ElevatorSim {
             return Dictionary::new();
         };
         let kind = if line.is_loop() { "loop" } else { "linear" };
+        let orientation = match line.orientation() {
+            elevator_core::components::Orientation::Vertical => "vertical".to_string(),
+            elevator_core::components::Orientation::Horizontal => "horizontal".to_string(),
+            elevator_core::components::Orientation::Angled { degrees } => {
+                format!("angled:{degrees}")
+            }
+            _ => "unknown".to_string(),
+        };
         // Build with nil placeholders, then overwrite the four optional
         // fields based on line kind. Linear lines have `(min_position,
         // max_position)`; Loop lines have `(circumference, min_headway)`.
@@ -719,6 +778,7 @@ impl ElevatorSim {
             "entity_id" => line_eid.data().as_ffi() as i64,
             "name" => line.name(),
             "kind" => kind,
+            "orientation" => orientation,
             "min_position" => &nil,
             "max_position" => &nil,
             "circumference" => &nil,

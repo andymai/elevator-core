@@ -8,7 +8,7 @@ The feature is off by default. Hosts that want to load Loop scenarios opt in via
 elevator-core = { path = "../elevator-core", features = ["loop_lines"] }
 ```
 
-The shipped `elevator-bevy` host enables the feature out of the box; `elevator-tui`, `elevator-ffi`, and `elevator-wasm` currently don't.
+The shipped `elevator-bevy`, `elevator-tui`, and `elevator-wasm` hosts enable the feature out of the box. `elevator-ffi` and `elevator-gdext` expose `loop_lines` as an opt-in cargo feature; enable it at build time when shipping a Unity / GameMaker / .NET / Godot integration that needs the Loop topology query surface (`ev_sim_is_loop`, `ev_sim_loop_*` / `is_loop`, `loop_*`).
 
 ## When to use a loop
 

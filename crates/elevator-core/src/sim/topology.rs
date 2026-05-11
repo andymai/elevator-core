@@ -1001,10 +1001,7 @@ impl Simulation {
 
     /// Joint helper for `loop_leader` and `loop_forward_gap`: a single
     /// `iter_elevators` walk yields both the leader's identity and the
-    /// forward-cyclic distance to it. Callers that need only one of the
-    /// two should still go through the public accessors — this keeps
-    /// the duplicate cost of "ask for both separately" at one extra
-    /// tuple-pair rather than two full iterations.
+    /// forward-cyclic distance to it.
     #[cfg(feature = "loop_lines")]
     fn loop_leader_and_gap(&self, elevator: ElevatorId) -> Option<(ElevatorId, f64)> {
         let eid = elevator.entity();
