@@ -45,7 +45,12 @@ export function applyScenarioGating(ui: UiHandles, scenario: ScenarioMeta): bool
 
 export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   const scenario = scenarioById(p.scenario);
-  if (!applyScenarioGating(ui, scenario)) {
+  if (applyScenarioGating(ui, scenario)) {
+    // Single-pane scenarios bake compare=false back into the permalink
+    // state so a hand-crafted `?compare=true` URL doesn't propagate that
+    // stale flag the next time `syncPermalinkUrl` runs.
+    p.compare = false;
+  } else {
     ui.compareToggle.checked = p.compare;
     ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
   }
