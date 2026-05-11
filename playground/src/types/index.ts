@@ -17,6 +17,7 @@ export type {
   TweakRanges,
   ScenarioMeta,
   TetherMeta,
+  AirportMeta,
 } from "./scenario";
 // Re-import RepositionStrategyName via strategies module — keeps the
 // scenario meta's `defaultReposition` field type-aligned with the

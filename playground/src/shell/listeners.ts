@@ -32,7 +32,7 @@ import {
 import type { State } from "./state";
 import type { UiHandles } from "./wire-ui";
 import { resetAll } from "./reset";
-import { speedLabel, intensityLabel, randomSeedWord } from "./apply-permalink";
+import { applyScenarioGating, speedLabel, intensityLabel, randomSeedWord } from "./apply-permalink";
 
 export function attachListeners(state: State, ui: UiHandles): void {
   const doResetAll = (): Promise<void> => resetAll(state, ui);
@@ -48,6 +48,7 @@ export function attachListeners(state: State, ui: UiHandles): void {
       const scenario = scenarioById(state.permalink.scenario);
       renderTweakPanel(scenario, state.permalink.overrides, ui);
     },
+    applyGating: (scenario) => applyScenarioGating(ui, scenario),
   };
 
   ui.scenarioCards.addEventListener("click", (ev) => {

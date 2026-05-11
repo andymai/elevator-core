@@ -1,6 +1,6 @@
 import { scenarioById, STRATEGY_LABELS, syncPermalinkUrl, type PermalinkState } from "../../domain";
 import { toast } from "../../platform";
-import type { RepositionStrategyName, StrategyName } from "../../types";
+import type { RepositionStrategyName, ScenarioMeta, StrategyName } from "../../types";
 import { syncScenarioCards } from "./cards";
 
 /** Narrow pane handles for scenario switching. */
@@ -43,6 +43,11 @@ export interface ScenarioSwitchHooks {
    * `defaultReposition` snaps the chip to a new value.
    */
   renderPaneRepositionInfo: (pane: ScenarioPaneHandles, reposition: RepositionStrategyName) => void;
+  /**
+   * Apply per-scenario UI gating (compare toggle, strategy popover
+   * triggers). Returns true if the scenario forces single-pane.
+   */
+  applyGating: (scenario: ScenarioMeta) => boolean;
 }
 
 /**
@@ -63,6 +68,16 @@ export async function switchScenario(
   hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
+  // Detect single-pane BEFORE strategy resolution so an airport scenario
+  // forces compare=false instead of carrying the prior scenario's
+  // compare=true state through to a viz that can't render side-by-side.
+  // Visual gating (disabled triggers + chip-label override) is applied
+  // at the end via `hooks.applyGating` so it runs AFTER the generic
+  // `renderPaneStrategyInfo` / `renderPaneRepositionInfo` calls.
+  const singlePane = scenario.airport !== undefined;
+  if (singlePane) {
+    state.permalink = { ...state.permalink, compare: false };
+  }
   // Snap pane A (and pane B when in single-pane mode) to the
   // scenario's recommended strategy. In compare mode we leave both
   // panes alone so the user's comparison setup survives.
@@ -94,6 +109,7 @@ export async function switchScenario(
   syncScenarioCards(ui, scenario.id);
   await resetAll();
   hooks.renderTweakPanel();
+  hooks.applyGating(scenario);
   toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
 }
 
