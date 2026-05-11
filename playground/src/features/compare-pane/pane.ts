@@ -19,6 +19,7 @@ export interface Pane {
   sim: Sim;
   renderer: CanvasRenderer;
   scenario: ScenarioMeta;
+  accent: string;
   metricsEl: HTMLElement;
   modeEl: HTMLElement;
   /**
@@ -104,6 +105,7 @@ export async function makePane(
     sim,
     renderer,
     scenario,
+    accent: handles.accent,
     metricsEl: handles.metrics,
     modeEl: handles.mode,
     metricHistory: {

@@ -1,35 +1,29 @@
+import { withAlpha } from "./color-utils";
+import { CAR_DOT_COLOR, CANVAS_FONT_SANS, STOP_LABEL } from "./palette";
 import type { AirportMeta, CarBubble, CarDto, Snapshot, StopDto } from "../types";
 
 /**
  * Two concentric rounded-rectangles separated by a small gap. Stations
- * are "shared platforms" — one chip per named station pair, drawn on a
- * mid-perimeter centered between outer and inner. Outer trains sweep
- * clockwise, inner trains sweep counter-clockwise (visually opposite
- * directions on the wide top edge). Trains render as 4 short connected
- * cars rather than one long capsule.
+ * are shared platforms — one marker per named station pair drawn on a
+ * mid-perimeter rect centered between outer and inner. Outer trains
+ * sweep clockwise, inner trains sweep counter-clockwise. Trains render
+ * as 4 short connected cars rather than one long capsule.
  *
- * Engine has 14 distinct StopIds (7 outer at index 0..outerStopCount-1,
- * 7 inner with mirrored RON positions). The renderer pairs them by
- * index so paired stops land at the same perimeter fraction.
+ * Colors derive from the pane accent (`accent` arg) — the outer track
+ * uses the accent at full strength and the inner uses a muted variant.
+ * This keeps airport scenarios in the playground's accent-driven color
+ * vocabulary rather than introducing scenario-specific hues.
  */
-
-const OUTER_COLOR = "#d4a056";
-const OUTER_COLOR_DIM = "#8a6a3a";
-const INNER_COLOR = "#5a9b9c";
-const INNER_COLOR_DIM = "#3a6566";
-const STATION_FILL = "#1a1714";
-const STATION_LABEL = "#c9bda8";
-const STATION_BORDER_DIM = "#3d352a";
-const RING_BACKGROUND = "#16130f";
-const QUEUE_DOT = "#e8d8b8";
-const CAR_LEAD_HIGHLIGHT = "#f5d99a";
 
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
 const QUEUE_VISIBLE_CAP = 6;
 const CHEVRONS_PER_LOOP = 12;
 const CHEVRON_SCROLL_HZ = 0.15;
-const BUBBLE_FADE_MS = 200;
+const BUBBLE_ENTRANCE_MS = 140;
+const BUBBLE_LIFETIME_FADE_FRAC = 0.3;
+const BUBBLE_PAD_X = 6;
+const BUBBLE_PAD_Y = 3;
 
 const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
@@ -62,26 +56,27 @@ export function drawAirportScene(
   airport: AirportMeta,
   phaseRatio: number,
   bubbles?: Map<number, CarBubble>,
-  accent = "#ffffff",
+  accent = "#7dd3fc",
 ): void {
+  // No background fill — the playground's CSS gradient on `.shaft-wrap`
+  // shows through, keeping airport visually inside the same panel
+  // chrome as the other scenarios.
   ctx.save();
-  ctx.fillStyle = RING_BACKGROUND;
-  ctx.fillRect(0, 0, w, h);
 
   const cx = w / 2;
   const cy = h / 2;
   const minDim = Math.min(w, h);
   const showFullLabels = minDim >= NARROW_LABELS_PX;
-  // Elongate the rect into a wide ATL-Plane-Train-ish band. Width takes
-  // 88% of the available area; height is capped so an even-shorter rect
-  // stays readable on landscape mobile.
   const rectW = w * 0.88;
   const rectH = Math.min(h * 0.6, w * 0.42);
   const cornerR = Math.min(rectW, rectH) * 0.32;
-  // Gap between concentric rects scales with the smaller dimension but
-  // stays large enough for chip + queue stacks on each side.
   const gap = Math.max(28, minDim * 0.06);
   const ringThickness = Math.max(5, minDim * 0.012);
+
+  const outerColor = withAlpha(accent, 0.9);
+  const outerDim = withAlpha(accent, 0.35);
+  const innerColor = withAlpha(accent, 0.55);
+  const innerDim = withAlpha(accent, 0.22);
 
   const outer: TrackGeometry = {
     cx,
@@ -89,8 +84,8 @@ export function drawAirportScene(
     w: rectW,
     h: rectH,
     r: cornerR,
-    color: OUTER_COLOR,
-    dimColor: OUTER_COLOR_DIM,
+    color: outerColor,
+    dimColor: outerDim,
     thickness: ringThickness,
   };
   const inner: TrackGeometry = {
@@ -99,8 +94,8 @@ export function drawAirportScene(
     w: rectW - gap * 2,
     h: rectH - gap * 2,
     r: Math.max(0, cornerR - gap),
-    color: INNER_COLOR,
-    dimColor: INNER_COLOR_DIM,
+    color: innerColor,
+    dimColor: innerDim,
     thickness: ringThickness,
   };
   const midline: RectGeometry = {
@@ -131,7 +126,17 @@ export function drawAirportScene(
     else if (car.line === innerLine) innerCars.push(car);
   }
 
-  drawSharedStations(ctx, outerStops, innerStops, midline, airport, phaseRatio, showFullLabels);
+  drawSharedStations(
+    ctx,
+    outerStops,
+    innerStops,
+    midline,
+    outer,
+    airport,
+    phaseRatio,
+    showFullLabels,
+    accent,
+  );
   drawTrain(ctx, outerCars, outer, airport.circumferenceM, false);
   drawTrain(ctx, innerCars, inner, airport.circumferenceM, true);
 
@@ -143,122 +148,6 @@ export function drawAirportScene(
   ctx.restore();
 }
 
-function drawDirectionChevrons(
-  ctx: CanvasRenderingContext2D,
-  track: TrackGeometry,
-  reverseDirection: boolean,
-): void {
-  // Chevrons drift slowly in the direction of travel, providing an
-  // ambient direction signal even when no train is on this segment.
-  const offsetSec = (performance.now() / 1000) * CHEVRON_SCROLL_HZ;
-  const dir = reverseDirection ? -1 : 1;
-  const baseFraction = (offsetSec * dir) % 1;
-  const size = Math.max(4, track.thickness * 0.85);
-  ctx.save();
-  ctx.fillStyle = track.dimColor;
-  ctx.globalAlpha = 0.55;
-  for (let i = 0; i < CHEVRONS_PER_LOOP; i++) {
-    const f = (baseFraction + i / CHEVRONS_PER_LOOP + 1) % 1;
-    const point = perimeterPoint(track, f);
-    drawChevron(ctx, point, size, reverseDirection);
-  }
-  ctx.restore();
-}
-
-function drawChevron(
-  ctx: CanvasRenderingContext2D,
-  point: PerimeterPoint,
-  size: number,
-  reverseDirection: boolean,
-): void {
-  // A chevron is a small "V" pointing in the direction of travel.
-  ctx.save();
-  ctx.translate(point.x, point.y);
-  ctx.rotate(point.tangent + (reverseDirection ? Math.PI : 0));
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.5, -size * 0.4);
-  ctx.lineTo(size * 0.4, 0);
-  ctx.lineTo(-size * 0.5, size * 0.4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawTrainBubbles(
-  ctx: CanvasRenderingContext2D,
-  cars: CarDto[],
-  track: TrackGeometry,
-  circumferenceM: number,
-  reverseDirection: boolean,
-  bubbles: Map<number, CarBubble>,
-  accent: string,
-): void {
-  const now = performance.now();
-  const perim = perimeterLength(track);
-  // Anchor on the lead segment of each train so the bubble follows the
-  // car nose, not somewhere in the middle of the consist.
-  const trainPx = Math.min(80, perim * 0.06);
-  const segLen = trainPx / TRAIN_CAR_COUNT;
-  for (const car of cars) {
-    const bubble = bubbles.get(car.id);
-    if (!bubble || now >= bubble.expiresAt) continue;
-    const baseFraction = car.y / circumferenceM;
-    const dir = reverseDirection ? -1 : 1;
-    const frontShift = -dir * (segLen / 2);
-    const frontFraction =
-      ((((reverseDirection ? 1 - baseFraction : baseFraction) + frontShift / perim) % 1) + 1) % 1;
-    const point = perimeterPoint(track, frontFraction);
-    drawBubbleAt(ctx, point, track, bubble, now, accent);
-  }
-}
-
-function drawBubbleAt(
-  ctx: CanvasRenderingContext2D,
-  anchor: PerimeterPoint,
-  track: TrackGeometry,
-  bubble: CarBubble,
-  now: number,
-  accent: string,
-): void {
-  // Bubble floats outward from the track (away from canvas center) so
-  // it doesn't crash into the inner ring on the inner loop.
-  const remain = bubble.expiresAt - now;
-  const fadeIn = Math.min(1, (now - bubble.bornAt) / BUBBLE_FADE_MS);
-  const fadeOut = Math.min(1, remain / BUBBLE_FADE_MS);
-  const alpha = Math.max(0, Math.min(1, Math.min(fadeIn, fadeOut)));
-  if (alpha <= 0) return;
-  const text = `${bubble.glyph} ${bubble.text}`;
-  const fontPx = 11;
-  ctx.font = `${fontPx}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.textBaseline = "middle";
-  const padX = 6;
-  const padY = 3;
-  const textWidth = ctx.measureText(text).width;
-  const w = textWidth + padX * 2;
-  const h = fontPx + padY * 2;
-  // Push bubble outward perpendicular to the track tangent.
-  const nx = -Math.sin(anchor.tangent);
-  const ny = Math.cos(anchor.tangent);
-  const offset = track.thickness * 1.8 + h * 0.6;
-  const cx = anchor.x - nx * offset;
-  const cy = anchor.y - ny * offset;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  tracedRoundedRect(ctx, { cx, cy, w, h, r: h * 0.4 });
-  ctx.fillStyle = "#1a1714";
-  ctx.fill();
-  ctx.strokeStyle = "#2a2520";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.textAlign = "center";
-  // Glyph painted in pane accent so the leading symbol stands out.
-  ctx.fillStyle = accent;
-  ctx.fillText(bubble.glyph, cx - textWidth / 2 + ctx.measureText(bubble.glyph).width / 2, cy);
-  ctx.fillStyle = STATION_LABEL;
-  ctx.fillText(bubble.text, cx + ctx.measureText(bubble.glyph).width / 2 + 3, cy);
-  ctx.restore();
-}
-
 function perimeterLength(rect: RectGeometry): number {
   return (
     2 * Math.max(0, rect.w - 2 * rect.r) +
@@ -267,43 +156,23 @@ function perimeterLength(rect: RectGeometry): number {
   );
 }
 
-/**
- * Walk the perimeter clockwise from top-left corner endpoint. `f` is
- * in [0, 1); returns the (x, y) point and the tangent direction.
- *
- * Walk order:
- *   1. top edge       — left→right, tangent 0
- *   2. top-right arc  — quarter turn, tangent 0→π/2
- *   3. right edge     — top→bottom, tangent π/2
- *   4. bottom-right arc
- *   5. bottom edge    — right→left
- *   6. bottom-left arc
- *   7. left edge      — bottom→top
- *   8. top-left arc   — closes the loop
- */
 function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
   const fNorm = ((f % 1) + 1) % 1;
   const len = perimeterLength(rect);
   let p = fNorm * len;
-
   const w = rect.w;
   const h = rect.h;
   const r = rect.r;
   const wInner = Math.max(0, w - 2 * r);
   const hInner = Math.max(0, h - 2 * r);
   const arc = (Math.PI * r) / 2;
-
   const left = rect.cx - w / 2;
   const right = rect.cx + w / 2;
   const top = rect.cy - h / 2;
   const bottom = rect.cy + h / 2;
 
-  // 1. top edge
-  if (p < wInner) {
-    return { x: left + r + p, y: top, tangent: 0 };
-  }
+  if (p < wInner) return { x: left + r + p, y: top, tangent: 0 };
   p -= wInner;
-  // 2. top-right arc, center (right - r, top + r)
   if (p < arc) {
     const a = -Math.PI / 2 + (p / arc) * (Math.PI / 2);
     return {
@@ -313,12 +182,8 @@ function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
     };
   }
   p -= arc;
-  // 3. right edge
-  if (p < hInner) {
-    return { x: right, y: top + r + p, tangent: Math.PI / 2 };
-  }
+  if (p < hInner) return { x: right, y: top + r + p, tangent: Math.PI / 2 };
   p -= hInner;
-  // 4. bottom-right arc, center (right - r, bottom - r)
   if (p < arc) {
     const a = 0 + (p / arc) * (Math.PI / 2);
     return {
@@ -328,12 +193,8 @@ function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
     };
   }
   p -= arc;
-  // 5. bottom edge
-  if (p < wInner) {
-    return { x: right - r - p, y: bottom, tangent: Math.PI };
-  }
+  if (p < wInner) return { x: right - r - p, y: bottom, tangent: Math.PI };
   p -= wInner;
-  // 6. bottom-left arc, center (left + r, bottom - r)
   if (p < arc) {
     const a = Math.PI / 2 + (p / arc) * (Math.PI / 2);
     return {
@@ -343,24 +204,18 @@ function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
     };
   }
   p -= arc;
-  // 7. left edge
-  if (p < hInner) {
-    return { x: left, y: bottom - r - p, tangent: -Math.PI / 2 };
-  }
+  if (p < hInner) return { x: left, y: bottom - r - p, tangent: -Math.PI / 2 };
   p -= hInner;
-  // 8. top-left arc, center (left + r, top + r). Closes back to fraction 0.
-  // Guard against r = 0 (no arc): the inner rect's corner radius can
-  // degenerate via `Math.max(0, cornerR - gap)` on narrow viewports;
-  // dividing by `arc` would produce NaN coordinates.
+  // Guard against degenerate r=0: dividing by `arc` would NaN.
   if (arc <= 0) return { x: left + r, y: top, tangent: 0 };
   const a = Math.PI + (p / arc) * (Math.PI / 2);
-  return { x: left + r + Math.cos(a) * r, y: top + r + Math.sin(a) * r, tangent: a + Math.PI / 2 };
+  return {
+    x: left + r + Math.cos(a) * r,
+    y: top + r + Math.sin(a) * r,
+    tangent: a + Math.PI / 2,
+  };
 }
 
-/**
- * Trace a rounded-rectangle path on the canvas. Stroke is applied by
- * the caller. Uses the standard 4-arc construction.
- */
 function tracedRoundedRect(ctx: CanvasRenderingContext2D, rect: RectGeometry): void {
   const { cx, cy, w, h, r } = rect;
   const left = cx - w / 2;
@@ -394,88 +249,56 @@ function drawSharedStations(
   outerStops: StopDto[],
   innerStops: StopDto[],
   midline: RectGeometry,
+  outer: TrackGeometry,
   airport: AirportMeta,
   phaseRatio: number,
   showFullLabels: boolean,
+  accent: string,
 ): void {
-  // 1.3:1 aspect rounded-rect chip; sized to fit the inter-ring gap.
-  const chipH = Math.max(14, midline.h * 0.075);
-  const chipW = chipH * 1.3;
-  const chipR = chipH * 0.32;
-  // Phase intensity drives border brightness — chips pulse during peaks.
-  const borderColor = lerpHex(
-    STATION_BORDER_DIM,
-    OUTER_COLOR,
-    Math.max(0, Math.min(1, phaseRatio)),
-  );
+  // Plain-text station labels with a small accent-tinted platform
+  // marker on the midline — matches the visual language of the other
+  // playground scenarios (skyscraper renders stop labels as text next
+  // to the shaft, not as standalone chips).
+  const markerSize = Math.max(3, midline.h * 0.018);
+  const labelColor = STOP_LABEL;
+  const markerColor = withAlpha(accent, 0.45 + Math.max(0, Math.min(1, phaseRatio)) * 0.45);
+  const fontPx = 11;
+  ctx.font = `500 ${fontPx}px ${CANVAS_FONT_SANS}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
 
-  // Pair stops by index: outer index i pairs with inner index i. RON
-  // declares paired names (Terminal, Concourse A..F) in matching order.
   const pairCount = Math.min(outerStops.length, innerStops.length);
   for (let i = 0; i < pairCount; i++) {
     const outerStop = outerStops[i];
     const innerStop = innerStops[i];
     if (!outerStop || !innerStop) continue;
 
-    // Outer stop's RON-position fraction defines the chip's perimeter
-    // location. Inner positions are mirrored so they land at the same
-    // chip via 1 - innerStop.y / circumference (paired by design).
     const fraction = outerStop.y / airport.circumferenceM;
-    const point = perimeterPoint(midline, fraction);
+    const midPoint = perimeterPoint(midline, fraction);
+    const outerPoint = perimeterPoint(outer, fraction);
 
-    drawStationChip(ctx, point.x, point.y, chipW, chipH, chipR, borderColor, outerStop.name);
-    if (showFullLabels) {
-      drawStationFullLabel(ctx, point, midline, chipH, outerStop.name);
-    }
-    drawQueueStack(ctx, point, midline, outerStop.waiting, true);
-    drawQueueStack(ctx, point, midline, innerStop.waiting, false);
+    // Platform marker: small filled disc on the midline at the station
+    // position, brightness pulsing softly with phase intensity.
+    ctx.beginPath();
+    ctx.arc(midPoint.x, midPoint.y, markerSize, 0, Math.PI * 2);
+    ctx.fillStyle = markerColor;
+    ctx.fill();
+
+    // Label positioned outside the outer perimeter along the outward
+    // normal so it never collides with the rings or queue stacks.
+    const dx = outerPoint.x - midline.cx;
+    const dy = outerPoint.y - midline.cy;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const offset = fontPx * 1.5;
+    const lx = outerPoint.x + (dx / dist) * offset;
+    const ly = outerPoint.y + (dy / dist) * offset;
+    ctx.fillStyle = labelColor;
+    const text = showFullLabels ? outerStop.name : abbreviateStation(outerStop.name);
+    ctx.fillText(text, lx, ly);
+
+    drawQueueStack(ctx, midPoint, midline, outerStop.waiting, true, accent);
+    drawQueueStack(ctx, midPoint, midline, innerStop.waiting, false, accent);
   }
-}
-
-function drawStationChip(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  w: number,
-  h: number,
-  r: number,
-  borderColor: string,
-  name: string,
-): void {
-  tracedRoundedRect(ctx, { cx, cy, w, h, r });
-  ctx.fillStyle = STATION_FILL;
-  ctx.fill();
-  ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.fillStyle = STATION_LABEL;
-  ctx.font = `${Math.round(h * 0.7)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(abbreviateStation(name), cx, cy + 1);
-}
-
-function drawStationFullLabel(
-  ctx: CanvasRenderingContext2D,
-  point: PerimeterPoint,
-  midline: RectGeometry,
-  chipH: number,
-  name: string,
-): void {
-  // Place label on whichever side has more room: away from the canvas
-  // center along the perimeter's outward normal.
-  const dx = point.x - midline.cx;
-  const dy = point.y - midline.cy;
-  const dist = Math.max(1, Math.hypot(dx, dy));
-  const offset = chipH * 1.6;
-  const lx = point.x + (dx / dist) * offset;
-  const ly = point.y + (dy / dist) * offset;
-  ctx.font = `11px ui-sans-serif, system-ui, sans-serif`;
-  ctx.fillStyle = STATION_LABEL;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(name, lx, ly);
 }
 
 function drawQueueStack(
@@ -484,10 +307,9 @@ function drawQueueStack(
   midline: RectGeometry,
   waiting: number,
   outerSide: boolean,
+  accent: string,
 ): void {
   if (waiting <= 0) return;
-  // Outward normal at this perimeter point (toward canvas edge); inward
-  // is opposite. Outer queue grows outward; inner queue grows inward.
   const dx = point.x - midline.cx;
   const dy = point.y - midline.cy;
   const dist = Math.max(1, Math.hypot(dx, dy));
@@ -496,19 +318,18 @@ function drawQueueStack(
 
   const dotR = Math.max(2.5, midline.h * 0.012);
   const spacing = dotR * 2.4;
-  const start = midline.h * 0.07;
-
-  ctx.fillStyle = QUEUE_DOT;
+  const start = midline.h * 0.06;
+  ctx.fillStyle = withAlpha(accent, outerSide ? 0.85 : 0.6);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const visible = Math.min(waiting, QUEUE_VISIBLE_CAP);
   for (let i = 0; i < visible; i++) {
-    const isLast = i === QUEUE_VISIBLE_CAP - 1 && waiting > QUEUE_VISIBLE_CAP;
+    const isOverflow = i === QUEUE_VISIBLE_CAP - 1 && waiting > QUEUE_VISIBLE_CAP;
     const offset = start + spacing * i;
     const px = point.x + nx * offset;
     const py = point.y + ny * offset;
-    if (isLast) {
-      ctx.font = `${Math.round(dotR * 3.2)}px ui-sans-serif, system-ui, sans-serif`;
+    if (isOverflow) {
+      ctx.font = `${Math.round(dotR * 3)}px ${CANVAS_FONT_SANS}`;
       ctx.fillText(`+${waiting - QUEUE_VISIBLE_CAP + 1}`, px, py);
     } else {
       ctx.beginPath();
@@ -518,13 +339,44 @@ function drawQueueStack(
   }
 }
 
-/**
- * Render each car as 4 short, connected rectangles along the perimeter
- * — an ATL-style multi-car train rather than one long capsule. Inner
- * trains walk the perimeter in reverse so their visual motion is the
- * opposite of outer trains (paired-station alignment falls out of the
- * RON's mirrored inner positions).
- */
+function drawDirectionChevrons(
+  ctx: CanvasRenderingContext2D,
+  track: TrackGeometry,
+  reverseDirection: boolean,
+): void {
+  const offsetSec = (performance.now() / 1000) * CHEVRON_SCROLL_HZ;
+  const dir = reverseDirection ? -1 : 1;
+  const baseFraction = (offsetSec * dir) % 1;
+  const size = Math.max(4, track.thickness * 0.85);
+  ctx.save();
+  ctx.fillStyle = track.dimColor;
+  ctx.globalAlpha = 0.7;
+  for (let i = 0; i < CHEVRONS_PER_LOOP; i++) {
+    const f = (baseFraction + i / CHEVRONS_PER_LOOP + 1) % 1;
+    const point = perimeterPoint(track, f);
+    drawChevron(ctx, point, size, reverseDirection);
+  }
+  ctx.restore();
+}
+
+function drawChevron(
+  ctx: CanvasRenderingContext2D,
+  point: PerimeterPoint,
+  size: number,
+  reverseDirection: boolean,
+): void {
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.rotate(point.tangent + (reverseDirection ? Math.PI : 0));
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.5, -size * 0.4);
+  ctx.lineTo(size * 0.4, 0);
+  ctx.lineTo(-size * 0.5, size * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawTrain(
   ctx: CanvasRenderingContext2D,
   cars: CarDto[],
@@ -534,8 +386,6 @@ function drawTrain(
 ): void {
   if (cars.length === 0) return;
   const perim = perimeterLength(track);
-  // Train length: 6% of perimeter or 80px max, whichever is smaller.
-  // Each engine `Car` becomes a visible train of TRAIN_CAR_COUNT segs.
   const trainPx = Math.min(80, perim * 0.06);
   const segLen = trainPx / TRAIN_CAR_COUNT;
   const segWidth = track.thickness * 1.4;
@@ -544,12 +394,9 @@ function drawTrain(
 
   for (const car of cars) {
     const baseFraction = car.y / circumferenceM;
-    // Inner runs CCW: a higher RON position should appear earlier in
-    // perimeter walk, not later. Negate the offset.
     const frontFraction = reverseDirection ? 1 - baseFraction : baseFraction;
     const dwelling = DWELLING_PHASES.has(car.phase);
     for (let i = 0; i < TRAIN_CAR_COUNT; i++) {
-      // Segments tail behind the front along the direction of motion.
       const dir = reverseDirection ? -1 : 1;
       const segCenterPx = -dir * (i * segLen + segLen / 2);
       const segFraction = (((frontFraction + segCenterPx / perim) % 1) + 1) % 1;
@@ -575,14 +422,11 @@ function drawCarSegment(
   const halfW = width / 2;
   const r = Math.min(halfL, halfW) * 0.4;
   if (dwelling) {
-    // Soft halo around the lead car when doors are open / boarding —
-    // mimics light spilling from open doors. Slowly pulses so the cue
-    // reads as ongoing dwell, not a one-frame flash.
     const pulse = 0.55 + Math.sin(performance.now() / 280) * 0.15;
     ctx.save();
-    ctx.shadowColor = CAR_LEAD_HIGHLIGHT;
+    ctx.shadowColor = CAR_DOT_COLOR;
     ctx.shadowBlur = halfW * (2.6 + pulse);
-    ctx.fillStyle = CAR_LEAD_HIGHLIGHT;
+    ctx.fillStyle = CAR_DOT_COLOR;
     ctx.beginPath();
     ctx.arc(halfL - r, 0, halfW * 0.5, 0, Math.PI * 2);
     ctx.fill();
@@ -592,13 +436,98 @@ function drawCarSegment(
   ctx.fillStyle = fill;
   ctx.fill();
   if (isFront) {
-    // Lead-edge highlight indicates direction of travel; sits at the
-    // front of the lead car (along +x in the rotated frame).
     ctx.beginPath();
     ctx.arc(halfL - r, 0, halfW * 0.45, 0, Math.PI * 2);
-    ctx.fillStyle = CAR_LEAD_HIGHLIGHT;
+    ctx.fillStyle = CAR_DOT_COLOR;
     ctx.fill();
   }
+  ctx.restore();
+}
+
+function drawTrainBubbles(
+  ctx: CanvasRenderingContext2D,
+  cars: CarDto[],
+  track: TrackGeometry,
+  circumferenceM: number,
+  reverseDirection: boolean,
+  bubbles: Map<number, CarBubble>,
+  accent: string,
+): void {
+  const now = performance.now();
+  const perim = perimeterLength(track);
+  const trainPx = Math.min(80, perim * 0.06);
+  const segLen = trainPx / TRAIN_CAR_COUNT;
+  for (const car of cars) {
+    const bubble = bubbles.get(car.id);
+    if (!bubble) continue;
+    const ttl = Math.max(1, bubble.expiresAt - bubble.bornAt);
+    const remaining = bubble.expiresAt - now;
+    if (remaining <= 0) continue;
+    const lifetimeFade =
+      remaining > ttl * BUBBLE_LIFETIME_FADE_FRAC
+        ? 1
+        : Math.max(0, remaining / (ttl * BUBBLE_LIFETIME_FADE_FRAC));
+    const age = Math.max(0, now - bubble.bornAt);
+    const entrance = Math.min(1, age / BUBBLE_ENTRANCE_MS);
+    const alpha = lifetimeFade * entrance;
+    if (alpha <= 0) continue;
+
+    const baseFraction = car.y / circumferenceM;
+    const dir = reverseDirection ? -1 : 1;
+    const frontShift = -dir * (segLen / 2);
+    const frontFraction =
+      ((((reverseDirection ? 1 - baseFraction : baseFraction) + frontShift / perim) % 1) + 1) % 1;
+    const point = perimeterPoint(track, frontFraction);
+    drawBubbleAt(ctx, point, track, bubble, alpha, accent);
+  }
+}
+
+function drawBubbleAt(
+  ctx: CanvasRenderingContext2D,
+  anchor: PerimeterPoint,
+  track: TrackGeometry,
+  bubble: CarBubble,
+  alpha: number,
+  accent: string,
+): void {
+  // Match the playground's standard bubble visual: translucent dark
+  // fill, hairline pane-accent stroke, soft accent halo, glyph in
+  // accent + body in off-white. No tail (the airport rect doesn't
+  // have a stable "above" or "below" for every train angle).
+  const fontPx = 11;
+  ctx.font = `500 ${fontPx}px ${CANVAS_FONT_SANS}`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  const glyphW = ctx.measureText(bubble.glyph).width;
+  const textW = ctx.measureText(bubble.text).width;
+  const gap = 3;
+  const w = glyphW + gap + textW + BUBBLE_PAD_X * 2;
+  const h = fontPx + BUBBLE_PAD_Y * 2 + 2;
+  // Push the bubble outward perpendicular to the track tangent so it
+  // sits clear of the train and the inner ring.
+  const nx = -Math.sin(anchor.tangent);
+  const ny = Math.cos(anchor.tangent);
+  const offset = track.thickness * 1.6 + h * 0.55;
+  const cx = anchor.x - nx * offset;
+  const cy = anchor.y - ny * offset;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = withAlpha(accent, 0.5);
+  ctx.shadowBlur = 8;
+  tracedRoundedRect(ctx, { cx, cy, w, h, r: h * 0.4 });
+  ctx.fillStyle = "rgba(8, 10, 14, 0.85)";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = withAlpha(accent, 0.45);
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const textStartX = cx - w / 2 + BUBBLE_PAD_X;
+  ctx.fillStyle = withAlpha(accent, 0.75);
+  ctx.fillText(bubble.glyph, textStartX, cy);
+  ctx.fillStyle = CAR_DOT_COLOR;
+  ctx.fillText(bubble.text, textStartX + glyphW + gap, cy);
   ctx.restore();
 }
 
@@ -606,17 +535,4 @@ function abbreviateStation(name: string): string {
   if (name === "Terminal") return "T";
   if (name.startsWith("Concourse ")) return name.slice(10, 11).toUpperCase();
   return name.slice(0, 1).toUpperCase();
-}
-
-function lerpHex(a: string, b: string, t: number): string {
-  const ar = parseInt(a.slice(1, 3), 16);
-  const ag = parseInt(a.slice(3, 5), 16);
-  const ab = parseInt(a.slice(5, 7), 16);
-  const br = parseInt(b.slice(1, 3), 16);
-  const bg = parseInt(b.slice(3, 5), 16);
-  const bb = parseInt(b.slice(5, 7), 16);
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
-  const bl = Math.round(ab + (bb - ab) * t);
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${bl.toString(16).padStart(2, "0")}`;
 }

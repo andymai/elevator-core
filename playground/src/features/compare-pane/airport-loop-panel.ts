@@ -1,3 +1,4 @@
+import { withAlpha } from "../../render/color-utils";
 import type { CarDto, Snapshot } from "../../types";
 import type { Pane } from "./pane";
 
@@ -11,15 +12,14 @@ import type { Pane } from "./pane";
  * per-line waiting counts across all stops the loop serves.
  */
 
-const OUTER_DOT = "#d4a056";
-const INNER_DOT = "#5a9b9c";
-
 interface PanelHandles {
   root: HTMLElement;
   outerTrains: HTMLElement;
   outerWaiting: HTMLElement;
   innerTrains: HTMLElement;
   innerWaiting: HTMLElement;
+  outerDot: HTMLElement;
+  innerDot: HTMLElement;
 }
 
 const panelByMetricEl = new WeakMap<HTMLElement, PanelHandles>();
@@ -33,6 +33,11 @@ export function updateAirportLoopPanel(pane: Pane, snap: Snapshot): void {
     return;
   }
   const handles = existing ?? createPanel(pane.metricsEl);
+  // Dots track the pane accent so the panel stays inside the playground's
+  // accent-driven color vocabulary instead of carrying scenario-specific
+  // amber/teal. Outer = full accent, inner = muted variant.
+  handles.outerDot.style.backgroundColor = withAlpha(pane.accent, 0.9);
+  handles.innerDot.style.backgroundColor = withAlpha(pane.accent, 0.55);
   const { outerTrains, outerWaiting, innerTrains, innerWaiting } = countByLoop(
     snap,
     meta.outerStopCount,
@@ -86,8 +91,8 @@ function createPanel(metricsEl: HTMLElement): PanelHandles {
   const root = document.createElement("div");
   root.className =
     "airport-loop-panel flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-[11px] text-content-secondary tabular-nums border-b border-stroke-subtle";
-  const outerRow = createRow("Outer", OUTER_DOT);
-  const innerRow = createRow("Inner", INNER_DOT);
+  const outerRow = createRow("Outer");
+  const innerRow = createRow("Inner");
   root.append(outerRow.row, innerRow.row);
   metricsEl.insertAdjacentElement("afterend", root);
   const handles: PanelHandles = {
@@ -96,20 +101,23 @@ function createPanel(metricsEl: HTMLElement): PanelHandles {
     outerWaiting: outerRow.waiting,
     innerTrains: innerRow.trains,
     innerWaiting: innerRow.waiting,
+    outerDot: outerRow.dot,
+    innerDot: innerRow.dot,
   };
   panelByMetricEl.set(metricsEl, handles);
   return handles;
 }
 
-function createRow(
-  label: string,
-  dotColor: string,
-): { row: HTMLElement; trains: HTMLElement; waiting: HTMLElement } {
+function createRow(label: string): {
+  row: HTMLElement;
+  trains: HTMLElement;
+  waiting: HTMLElement;
+  dot: HTMLElement;
+} {
   const row = document.createElement("div");
   row.className = "flex items-center gap-2";
   const dot = document.createElement("span");
   dot.className = "inline-block w-2 h-2 rounded-full shrink-0";
-  dot.style.backgroundColor = dotColor;
   const labelEl = document.createElement("span");
   labelEl.className = "uppercase tracking-wider text-content-tertiary";
   labelEl.textContent = label;
@@ -129,5 +137,5 @@ function createRow(
   waitingSuffix.className = "text-content-tertiary";
   waitingSuffix.textContent = "waiting";
   row.append(dot, labelEl, trains, trainsSuffix, sep, waiting, waitingSuffix);
-  return { row, trains, waiting };
+  return { row, trains, waiting, dot };
 }
