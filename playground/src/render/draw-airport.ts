@@ -1,16 +1,11 @@
 import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
 
 /**
- * Two concentric rings — outer loop (warm amber, clockwise sweep) and
- * inner loop (cool teal, counter-clockwise sweep). Stops are partitioned
- * by index range from `AirportMeta.outerStopCount`: the first N stops
- * belong to the outer loop, the rest to the inner. Cars are assigned
- * via `line_ids` on the DTO.
- *
- * The renderer is intentionally minimal in v1: rings, station chips,
- * capsule cars with leading dots, and per-station waiting queues drawn
- * as small inset stacks. Color theming, station chip airport-gate
- * styling, per-loop metrics, and phase tinting are follow-up polish.
+ * Concentric rings: outer loop on the outside, inner loop nested inside.
+ * Stops are partitioned by index range from `AirportMeta.outerStopCount`
+ * — the first N stops belong to the outer loop, the rest to the inner.
+ * Cars are partitioned by `car.line` entity id; the lowest distinct
+ * value is the outer loop because the RON declares outer first.
  */
 
 const OUTER_COLOR = "#d4a056";
@@ -27,9 +22,17 @@ interface RingGeometry {
   cy: number;
   radius: number;
   thickness: number;
+  chipR: number;
   color: string;
   dimColor: string;
 }
+
+// Below this min-dimension (px), the full "Concourse A" label is dropped
+// in favour of the chip glyph alone. Inner labels live INSIDE the inner
+// ring; at small radii opposing labels collide across the center. Outer
+// labels at 0.43 × minDim run off the canvas edge horizontally on a
+// 360-wide portrait. Glyph-only is the readable fallback.
+const NARROW_LABELS_PX = 480;
 
 export function drawAirportScene(
   ctx: CanvasRenderingContext2D,
@@ -40,23 +43,27 @@ export function drawAirportScene(
 ): void {
   const cx = w / 2;
   const cy = h / 2;
-  // Leave 14% margin so labels at top / bottom of outer ring don't clip.
-  const maxRadius = Math.min(w, h) * 0.43;
+  const minDim = Math.min(w, h);
+  // 14% margin so labels at top / bottom of the outer ring don't clip.
+  const maxRadius = minDim * 0.43;
   const outerRadius = maxRadius;
   // Inner radius leaves a visible amber-teal gap; tuned so a 50%-larger
   // outer chip doesn't crash into an inner one.
   const innerRadius = maxRadius * 0.58;
-  const ringThickness = Math.max(6, Math.min(w, h) * 0.018);
+  const ringThickness = Math.max(6, minDim * 0.018);
+  const showFullLabels = minDim >= NARROW_LABELS_PX;
 
   ctx.save();
   ctx.fillStyle = RING_BACKGROUND;
   ctx.fillRect(0, 0, w, h);
 
+  const chipR = Math.max(8, ringThickness * 1.6);
   const outerGeom: RingGeometry = {
     cx,
     cy,
     radius: outerRadius,
     thickness: ringThickness,
+    chipR,
     color: OUTER_COLOR,
     dimColor: OUTER_COLOR_DIM,
   };
@@ -65,6 +72,7 @@ export function drawAirportScene(
     cy,
     radius: innerRadius,
     thickness: ringThickness,
+    chipR,
     color: INNER_COLOR,
     dimColor: INNER_COLOR_DIM,
   };
@@ -74,17 +82,8 @@ export function drawAirportScene(
 
   // Partition stops by outer/inner via index range; the RON declares
   // outer stops first.
-  const outerStops: StopDto[] = [];
-  const innerStops: StopDto[] = [];
-  for (let i = 0; i < snap.stops.length; i++) {
-    const stop = snap.stops[i];
-    if (stop === undefined) continue;
-    if (i < airport.outerStopCount) {
-      outerStops.push(stop);
-    } else {
-      innerStops.push(stop);
-    }
-  }
+  const outerStops = snap.stops.slice(0, airport.outerStopCount);
+  const innerStops = snap.stops.slice(airport.outerStopCount);
 
   // Partition cars by line entity id. The RON declares the outer
   // line first, so the lowest distinct `car.line` value belongs to
@@ -100,8 +99,8 @@ export function drawAirportScene(
     else if (car.line === innerLine) innerCars.push(car);
   }
 
-  drawStations(ctx, outerStops, outerGeom, airport.circumferenceM, true);
-  drawStations(ctx, innerStops, innerGeom, airport.circumferenceM, false);
+  drawStations(ctx, outerStops, outerGeom, airport.circumferenceM, true, showFullLabels);
+  drawStations(ctx, innerStops, innerGeom, airport.circumferenceM, false, showFullLabels);
   drawCars(ctx, outerCars, outerGeom, airport.circumferenceM);
   drawCars(ctx, innerCars, innerGeom, airport.circumferenceM);
 
@@ -118,10 +117,7 @@ function drawRing(ctx: CanvasRenderingContext2D, geom: RingGeometry): void {
 }
 
 function positionToAngle(positionM: number, circumferenceM: number): number {
-  // Convention: angle 0 = top of the ring (12 o'clock), positive
-  // rotation sweeps clockwise. Most ring-based wayfinding diagrams
-  // place a "main station" at the top; the airport's Terminal lives at
-  // position 0 on both loops, so this lines up.
+  // Position 0 sits at 12 o'clock; sweep clockwise.
   const fraction = ((positionM % circumferenceM) + circumferenceM) % circumferenceM;
   return -Math.PI / 2 + (fraction / circumferenceM) * Math.PI * 2;
 }
@@ -137,38 +133,35 @@ function drawStations(
   geom: RingGeometry,
   circumferenceM: number,
   outer: boolean,
+  showFullLabels: boolean,
 ): void {
-  const chipR = Math.max(8, geom.thickness * 1.6);
   for (const stop of stops) {
     const angle = positionToAngle(stop.y, circumferenceM);
     const center = polar(geom, angle, 0);
 
     ctx.beginPath();
-    ctx.arc(center.x, center.y, chipR, 0, Math.PI * 2);
+    ctx.arc(center.x, center.y, geom.chipR, 0, Math.PI * 2);
     ctx.fillStyle = STATION_FILL;
     ctx.fill();
     ctx.strokeStyle = geom.color;
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Initial letter for the station — Terminal → "T", Concourse A → "A".
-    // Keeps the chip readable at small sizes; full label sits outside.
     ctx.fillStyle = STATION_LABEL;
-    ctx.font = `${Math.round(chipR * 0.95)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `${Math.round(geom.chipR * 0.95)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const glyph = abbreviateStation(stop.name);
-    ctx.fillText(glyph, center.x, center.y + 1);
+    ctx.fillText(abbreviateStation(stop.name), center.x, center.y + 1);
 
-    // Label sits outside the ring (outer station) or inside (inner)
-    // so the two ring sets don't collide at adjacent angles.
-    const labelOffset = outer ? chipR + 14 : -(chipR + 14);
-    const labelPos = polar(geom, angle, labelOffset);
-    ctx.font = `11px ui-sans-serif, system-ui, sans-serif`;
-    ctx.fillStyle = STATION_LABEL;
-    ctx.fillText(stop.name, labelPos.x, labelPos.y);
+    if (showFullLabels) {
+      // Outer labels live outside the ring; inner labels live inside,
+      // so the two ring sets don't collide at adjacent angles.
+      const labelOffset = outer ? geom.chipR + 14 : -(geom.chipR + 14);
+      const labelPos = polar(geom, angle, labelOffset);
+      ctx.font = `11px ui-sans-serif, system-ui, sans-serif`;
+      ctx.fillText(stop.name, labelPos.x, labelPos.y);
+    }
 
-    // Queue stack: small dots radial-out (outer) or radial-in (inner).
     if (stop.waiting > 0) {
       drawQueueStack(ctx, geom, angle, stop.waiting, outer);
     }
@@ -176,8 +169,6 @@ function drawStations(
 }
 
 function abbreviateStation(name: string): string {
-  // "Terminal" -> "T", "Concourse A" -> "A". For unrecognized formats
-  // return the first letter to keep the chip non-empty.
   if (name === "Terminal") return "T";
   if (name.startsWith("Concourse ")) return name.slice(10, 11).toUpperCase();
   return name.slice(0, 1).toUpperCase();
@@ -190,15 +181,11 @@ function drawQueueStack(
   waiting: number,
   outer: boolean,
 ): void {
-  // Cap at 12 dots; further crowding visually saturates so a finer
-  // count adds no information.
+  // Cap at 12 dots; beyond that the stack saturates visually.
   const visible = Math.min(waiting, 12);
   const dotR = 2.5;
   const spacing = 6;
-  // Stack starts just outside the chip border and grows radially away
-  // from the ring (outer: outward; inner: inward).
-  const chipR = Math.max(8, geom.thickness * 1.6);
-  const startOffset = outer ? chipR + 4 : -(chipR + 4);
+  const startOffset = outer ? geom.chipR + 4 : -(geom.chipR + 4);
   const step = outer ? spacing : -spacing;
   ctx.fillStyle = QUEUE_DOT;
   for (let i = 0; i < visible; i++) {
@@ -216,14 +203,10 @@ function drawCars(
   geom: RingGeometry,
   circumferenceM: number,
 ): void {
-  // Each car is a small arc segment along the ring with a brighter
-  // leading dot indicating direction of travel.
   const arcSpanM = Math.min(120, circumferenceM * 0.08);
   const halfSpanRad = (arcSpanM / circumferenceM) * Math.PI;
   for (const car of cars) {
     const angle = positionToAngle(car.y, circumferenceM);
-    // Cars sweep in the direction of increasing position, which after
-    // the angle remap is clockwise. The leading edge is angle + half-span.
     ctx.beginPath();
     ctx.arc(geom.cx, geom.cy, geom.radius, angle - halfSpanRad, angle + halfSpanRad);
     ctx.strokeStyle = geom.color;
@@ -231,8 +214,7 @@ function drawCars(
     ctx.lineCap = "round";
     ctx.stroke();
 
-    // Leading dot — front of the car. Slightly brighter and sits at the
-    // angle+halfSpanRad position.
+    // Leading dot at angle + halfSpanRad indicates sweep direction.
     const lead = polar(geom, angle + halfSpanRad, 0);
     ctx.beginPath();
     ctx.arc(lead.x, lead.y, geom.thickness * 0.55, 0, Math.PI * 2);

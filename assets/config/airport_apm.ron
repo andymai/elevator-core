@@ -30,14 +30,9 @@ SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Airport People Mover",
-        // Fourteen stops in two paired sets. Terminal listed first so
-        // the built-in TrafficDetector keys its peak classification
-        // off the airport's main entry — same convention as the
-        // building scenarios where the Lobby is stops[0].
-        //
-        // StopIds 0–6: outer-loop platforms (Terminal, A, B, C, D, E, F).
-        // StopIds 7–13: inner-loop platforms, same names, mirrored
-        // positions so the inner sweep is counter-rotating.
+        // Terminal listed first so the built-in TrafficDetector keys
+        // peak classification off the airport's main entry (same
+        // convention as the building scenarios where Lobby is stops[0]).
         stops: [
             StopConfig(id: StopId(0),  name: "Terminal",     position: 0.0),
             StopConfig(id: StopId(1),  name: "Concourse A",  position: 300.0),
@@ -55,11 +50,8 @@ SimConfig(
             StopConfig(id: StopId(13), name: "Concourse A",  position: 1200.0),
         ],
         lines: Some([
-            // Outer loop — clockwise sweep through the concourses.
-            // Two cars spaced ~half a loop apart (Terminal and
-            // Concourse D, gap = 900 m) so the min_headway constraint
-            // (200 m) is satisfied from tick 1 and stays satisfied
-            // through fixed-headway dispatch.
+            // Outer loop. Two cars at Terminal + Concourse D give a
+            // 900 m gap from tick 1, well above the 200 m headway floor.
             LineConfig(
                 id: 1,
                 name: "Outer Loop",
@@ -95,9 +87,7 @@ SimConfig(
                     ),
                 ],
             ),
-            // Inner loop — counter-rotating. Stop positions are
-            // mirrored (circumference - outer_pos) so the forward
-            // sweep visits concourses in reverse physical order.
+            // Inner loop. See preamble for the mirrored-position encoding.
             LineConfig(
                 id: 2,
                 name: "Inner Loop",
@@ -157,10 +147,7 @@ SimConfig(
     simulation: SimulationParams(
         ticks_per_second: 60.0,
     ),
-    // Steady spawn rate that the playground's TrafficDriver layers
-    // daypart shaping on top of. A 60-tick interval (1 sample/sec) is
-    // a starting volume the driver can scale up at peak and down off-
-    // peak without the underlying Poisson process going degenerate.
+    // Base rate the playground's TrafficDriver scales by per phase.
     passenger_spawning: PassengerSpawnConfig(
         mean_interval_ticks: 60,
         weight_range: (55.0, 100.0),

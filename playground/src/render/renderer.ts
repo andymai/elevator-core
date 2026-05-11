@@ -140,22 +140,21 @@ export class CanvasRenderer {
    */
   setTetherConfig(tether: TetherMeta | null): void {
     this.#tether = tether;
-    // Reset per-car kinematic state so a fresh scenario doesn't inherit
-    // stale velocities from the previous run. Also drop the
-    // building-mode `#stopAssignments` map — the tween path that
-    // ordinarily prunes it is skipped in tether mode, so leftover
-    // entries from a prior building scenario would otherwise persist.
-    this.#prevVelocity.clear();
-    this.#firstDrawAt = 0;
-    this.#stopAssignments.clear();
+    this.#resetModeState();
   }
 
-  /**
-   * Set or clear airport-mode metadata. Triggers the concentric-rings
-   * renderer instead of the building/tether paths when set.
-   */
+  /** Set or clear airport-mode metadata. */
   setAirportConfig(airport: AirportMeta | null): void {
     this.#airport = airport;
+    this.#resetModeState();
+  }
+
+  // Clear per-car kinematic state on every scenario swap. Prevents a
+  // fresh scenario from inheriting stale velocities; also drops
+  // `#stopAssignments` whose tween-path pruning is skipped in
+  // tether/airport mode, so leftover entries from a prior building
+  // scenario don't persist.
+  #resetModeState(): void {
     this.#prevVelocity.clear();
     this.#firstDrawAt = 0;
     this.#stopAssignments.clear();

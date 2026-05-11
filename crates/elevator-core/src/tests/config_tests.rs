@@ -385,19 +385,19 @@ fn loop_demo_config_loads_and_runs() {
 #[cfg(feature = "loop_lines")]
 #[test]
 fn airport_apm_config_loads_and_runs() {
-    // Dual counter-rotating loops sharing station names but distinct
-    // StopIds. Exercises: two independent LineKind::Loop groups,
-    // LoopSchedule dispatch on both, headway constraint with two cars
-    // on each loop, and the mirrored-position encoding for the
-    // counter-rotating inner loop.
-    use crate::dispatch::LoopSweepDispatch;
+    // Two independent LineKind::Loop groups with LoopSchedule dispatch
+    // on each — distinct from `loop_demo` which has a single group.
+    // `Simulation::new`'s builder dispatcher overrides GroupId(0)'s
+    // RON dispatch, so pass `LoopScheduleDispatch::default()` to keep
+    // the test exercising what the RON declares for both groups.
+    use crate::dispatch::LoopScheduleDispatch;
     use crate::sim::Simulation;
 
     let ron_str = include_str!("../../../../assets/config/airport_apm.ron");
     let config: SimConfig =
         ron::from_str(ron_str).expect("airport_apm.ron must deserialize cleanly");
 
-    let mut sim = Simulation::new(&config, LoopSweepDispatch::new())
+    let mut sim = Simulation::new(&config, LoopScheduleDispatch::default())
         .expect("airport_apm.ron must construct a valid Simulation");
 
     for _ in 0..600 {
