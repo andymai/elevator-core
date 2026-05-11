@@ -20,7 +20,12 @@ export interface HotSwapPane {
    * scenario default.
    */
   renderer?: {
-    setPhysics(maxSpeed: number, acceleration: number, deceleration: number): void;
+    setPhysics(
+      maxSpeed: number,
+      acceleration: number,
+      deceleration: number,
+      weightCapacity: number,
+    ): void;
   };
 }
 
@@ -62,7 +67,12 @@ export function applyHotSwapAndRender(
   // do.
   if (allLive) {
     for (const pane of panes) {
-      pane.renderer?.setPhysics(physics.maxSpeed, physics.acceleration, physics.deceleration);
+      pane.renderer?.setPhysics(
+        physics.maxSpeed,
+        physics.acceleration,
+        physics.deceleration,
+        physics.weightCapacity,
+      );
     }
   }
   renderTweakPanel(scenario, state.permalink.overrides, ui);

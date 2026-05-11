@@ -22,11 +22,18 @@ interface AirportPhysics {
   maxSpeed: number;
   acceleration: number;
   deceleration: number;
+  /** Per-elevator weight capacity in kg. 0 = unknown (HUD shows "·"). */
+  weightCapacity: number;
 }
 
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
 const RIDER_DOT_COLOR = "rgba(232, 235, 240, 0.85)";
+// Approximate average rider weight used to convert per-elevator
+// `weight_capacity` (kg) into a trip capacity (people). Matches the
+// midpoint of the airport scenario's `passengerWeightRange: [55, 100]`
+// closely enough; the HUD shows a rounded headcount, not a precise one.
+const AVG_RIDER_WEIGHT_KG = 75;
 
 const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
@@ -366,7 +373,11 @@ function drawStations(
 }
 
 function stationGlyph(name: string): string {
-  if (name === "Plane Train" || name === "Terminal") return "T";
+  // Distinct mapping per known well-formed name. The previous version
+  // also mapped "Plane Train" → "T", which would collide with the
+  // current RON's "Terminal" if both ever appeared on the same canvas.
+  if (name === "Plane Train") return "P";
+  if (name === "Terminal") return "T";
   if (name.startsWith("Concourse ")) return name.slice(10, 11).toUpperCase();
   return name.slice(0, 1).toUpperCase();
 }
@@ -590,9 +601,13 @@ function drawTrainHuds(
   const cy = canvasH / 2;
 
   ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
-  // Trip capacity matches the airport RON (`weight_capacity: 9000.0`
-  // at an average rider weight of ~75 kg → ~120 passengers/train).
-  const tripCap = 120;
+  // Derive trip capacity from the live elevator weight cap so the
+  // load readout stays honest when the user tweaks `weightCapacity`.
+  // Zero (no physics reported yet) suppresses the cap entirely.
+  const tripCap =
+    physics.weightCapacity > 0
+      ? Math.max(1, Math.floor(physics.weightCapacity / AVG_RIDER_WEIGHT_KG))
+      : 0;
   const placements: HudPlacement[] = [];
 
   for (const train of trains) {
@@ -690,7 +705,9 @@ function isDwelling(car: CarDto): boolean {
 
 function buildHudLines(train: TrainPlacement, tripCap: number, physics: AirportPhysics): string[] {
   const totalRiders = train.car.riders;
-  const loadLine = `${totalRiders} / ${tripCap}`;
+  // Drop the denominator when capacity is unknown so the HUD shows
+  // "18" instead of a misleading "18 / 0".
+  const loadLine = tripCap > 0 ? `${totalRiders} / ${tripCap}` : `${totalRiders}`;
   const destName = train.nextStop?.name ?? "—";
   const arrow = isDwelling(train.car) ? "@" : "→";
   const segmentLine = `${arrow} ${destName}`;

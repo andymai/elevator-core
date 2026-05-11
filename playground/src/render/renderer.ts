@@ -78,6 +78,9 @@ export class CanvasRenderer {
   #activeMaxSpeed = 1;
   #activeAcceleration = 1;
   #activeDeceleration = 1;
+  /** Per-elevator weight capacity (kg). Used by the airport HUD to
+   *  derive trip capacity; 0 disables the readout. */
+  #activeWeightCapacity = 0;
   #firstDrawAt = 0;
   // Per-stop per-line assignment: `stopId -> (lineId -> carId)`. The
   // previous `stopId -> carId` map was last-writer-wins: any car
@@ -161,14 +164,24 @@ export class CanvasRenderer {
   }
 
   /**
-   * Report current physics knobs so HUD ETA / phase classifier readouts
-   * stay in sync with hot-swapped values from the tweak drawer. Used by
+   * Report current physics knobs so HUD ETA / capacity readouts stay
+   * in sync with hot-swapped values from the tweak drawer. Used by
    * both tether (climber HUD) and airport (per-train HUD) scenes.
+   * `weightCapacity` is the per-elevator capacity in kg — pass 0 to
+   * leave the renderer's previous value untouched.
    */
-  setPhysics(maxSpeed: number, acceleration: number, deceleration: number): void {
+  setPhysics(
+    maxSpeed: number,
+    acceleration: number,
+    deceleration: number,
+    weightCapacity: number,
+  ): void {
     if (Number.isFinite(maxSpeed) && maxSpeed > 0) this.#activeMaxSpeed = maxSpeed;
     if (Number.isFinite(acceleration) && acceleration > 0) this.#activeAcceleration = acceleration;
     if (Number.isFinite(deceleration) && deceleration > 0) this.#activeDeceleration = deceleration;
+    if (Number.isFinite(weightCapacity) && weightCapacity > 0) {
+      this.#activeWeightCapacity = weightCapacity;
+    }
   }
 
   pushAssignment(stopId: number, elevatorId: number, lineId: number): void {
@@ -236,6 +249,7 @@ export class CanvasRenderer {
         maxSpeed: this.#activeMaxSpeed,
         acceleration: this.#activeAcceleration,
         deceleration: this.#activeDeceleration,
+        weightCapacity: this.#activeWeightCapacity,
       });
       return;
     }
