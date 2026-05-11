@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.25.0...elevator-wasm-v0.26.0) (2026-05-11)
+
+
+### Features
+
+* **playground:** airport APM scenario with concentric loop rendering ([#830](https://github.com/andymai/elevator-core/issues/830)) ([a4a15bc](https://github.com/andymai/elevator-core/commit/a4a15bc47045a38d75e0c7371efc5518e1d8ed89))
+
 ## [0.25.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.24.0...elevator-wasm-v0.25.0) (2026-05-11)
 
 
