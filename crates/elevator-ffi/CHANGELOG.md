@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.21.0...elevator-ffi-v0.22.0) (2026-05-11)
+
+
+### Features
+
+* close loop-lines v1 gaps + game-dev surface + host bindings ([#828](https://github.com/andymai/elevator-core/issues/828)) ([a538a9f](https://github.com/andymai/elevator-core/commit/a538a9fa80b1d3268de8650f4aeec0f94ad05db6))
+
 ## [0.21.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.20.0...elevator-ffi-v0.21.0) (2026-05-06)
 
 
