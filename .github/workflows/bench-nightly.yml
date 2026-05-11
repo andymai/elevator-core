@@ -182,7 +182,7 @@ jobs:
               `Full artifact: criterion-output-${{ github.run_id }}`,
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             ].join('\n');
-            github.rest.issues.create({
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Bench regression on ${new Date().toISOString().slice(0,10)}`,
