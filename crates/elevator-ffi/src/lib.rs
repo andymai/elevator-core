@@ -1624,9 +1624,8 @@ pub unsafe extern "C" fn ev_sim_loop_leader(
             set_last_error("invalid elevator_entity_id");
             return EvStatus::InvalidArg;
         };
-        let elev = elevator_core::entity::ElevatorId::from(elev_eid);
         let ev = unsafe { &*handle };
-        ev.sim.loop_leader(elev).map_or_else(
+        ev.sim.loop_leader(ElevatorId::from(elev_eid)).map_or_else(
             || {
                 set_last_error("no leader (solo car, Linear line, or missing entity)");
                 EvStatus::NotFound
@@ -1667,19 +1666,20 @@ pub unsafe extern "C" fn ev_sim_loop_forward_gap(
             set_last_error("invalid elevator_entity_id");
             return EvStatus::InvalidArg;
         };
-        let elev = elevator_core::entity::ElevatorId::from(elev_eid);
         let ev = unsafe { &*handle };
-        ev.sim.loop_forward_gap(elev).map_or_else(
-            || {
-                set_last_error("no leader (solo car, Linear line, or missing entity)");
-                EvStatus::NotFound
-            },
-            |gap| {
-                // Safety: validated non-null above.
-                unsafe { std::ptr::write(out_gap, gap) };
-                EvStatus::Ok
-            },
-        )
+        ev.sim
+            .loop_forward_gap(ElevatorId::from(elev_eid))
+            .map_or_else(
+                || {
+                    set_last_error("no leader (solo car, Linear line, or missing entity)");
+                    EvStatus::NotFound
+                },
+                |gap| {
+                    // Safety: validated non-null above.
+                    unsafe { std::ptr::write(out_gap, gap) };
+                    EvStatus::Ok
+                },
+            )
     })
 }
 
