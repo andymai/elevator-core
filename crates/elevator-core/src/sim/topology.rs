@@ -8,6 +8,8 @@ use crate::components::Route;
 use crate::components::{Elevator, ElevatorPhase, Line, LineKind, Position, Stop, Velocity};
 use crate::dispatch::{BuiltinStrategy, DispatchStrategy, ElevatorGroup, LineInfo};
 use crate::door::DoorState;
+#[cfg(feature = "loop_lines")]
+use crate::entity::ElevatorId;
 use crate::entity::EntityId;
 use crate::error::SimError;
 use crate::events::Event;
@@ -15,6 +17,39 @@ use crate::ids::GroupId;
 use crate::topology::TopologyGraph;
 
 use super::{ElevatorParams, LineParams, Simulation};
+
+/// Enforce `n_cars * min_headway <= circumference` for a Loop line.
+///
+/// `n_cars_after` is the post-operation car count (i.e. existing + 1
+/// when attaching a new car). `op` names the operation in the error
+/// message — e.g. `"attaching car"` or `"reassigning"` — so callers
+/// surface the right context. No-op for Linear lines.
+#[cfg(feature = "loop_lines")]
+fn check_loop_capacity(line: &Line, n_cars_after: usize, op: &'static str) -> Result<(), SimError> {
+    let LineKind::Loop {
+        circumference,
+        min_headway,
+    } = *line.kind()
+    else {
+        return Ok(());
+    };
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "n_cars_after is bounded by usize; the comparison is against a finite f64"
+    )]
+    let required = (n_cars_after as f64) * min_headway;
+    if required > circumference {
+        return Err(SimError::InvalidConfig {
+            field: "line.kind",
+            reason: format!(
+                "loop line: {op} would require {required} units of headway \
+                 ({n_cars_after} cars × min_headway {min_headway}); \
+                 exceeds circumference {circumference}",
+            ),
+        });
+    }
+    Ok(())
+}
 
 impl Simulation {
     // ── Dynamic topology ────────────────────────────────────────────
@@ -152,6 +187,17 @@ impl Simulation {
             }
         }
 
+        // Loop capacity guard: enforce `(n + 1) * min_headway <= circumference`
+        // at car-attach time. `add_line` deliberately skips this check when
+        // `max_cars = None`; this is where the deferred enforcement actually
+        // runs, so a Loop line without a `max_cars` cap cannot silently
+        // accept enough cars to violate the no-overtake invariant.
+        #[cfg(feature = "loop_lines")]
+        if let Some(line_ref) = self.world.line(line) {
+            let n_after = self.groups[group_idx].lines()[line_idx].elevators().len() + 1;
+            check_loop_capacity(line_ref, n_after, "attaching car")?;
+        }
+
         let eid = self.world.spawn();
         self.world.set_position(
             eid,
@@ -160,6 +206,7 @@ impl Simulation {
             },
         );
         self.world.set_velocity(eid, Velocity { value: 0.0 });
+        let is_loop = self.world.line(line).is_some_and(Line::is_loop);
         self.world.set_elevator(
             eid,
             Elevator {
@@ -178,9 +225,9 @@ impl Simulation {
                 repositioning: false,
                 restricted_stops: params.restricted_stops.clone(),
                 inspection_speed_factor: params.inspection_speed_factor,
-                going_up: true,
-                going_down: true,
-                going_forward: false,
+                going_up: !is_loop,
+                going_down: !is_loop,
+                going_forward: is_loop,
                 move_count: 0,
                 door_command_queue: Vec::new(),
                 manual_target_velocity: None,
@@ -246,10 +293,10 @@ impl Simulation {
         // `validate_explicit_topology` falls back to `lc.elevators.len()`
         // because the config-time line-config bundles its elevators, but
         // a runtime-added line is always *empty* at this point — cars
-        // attach later via `add_elevator_to_line`. With no concrete car
-        // count to validate against and no upper bound on future
-        // attachments, we can't fire here. PR 3 closes the gap by
-        // running the same check at car-attach time.
+        // attach later via `add_elevator`. The gap is closed there:
+        // `add_elevator` re-evaluates `(n + 1) * min_headway <=
+        // circumference` before each attach, so a line without a
+        // `max_cars` cap still can't violate the no-overtake invariant.
         #[cfg(feature = "loop_lines")]
         if let LineKind::Loop {
             circumference,
@@ -639,6 +686,35 @@ impl Simulation {
             return Ok(old_group_id);
         }
 
+        // Enforce group homogeneity: a Loop line cannot land in a group
+        // with Linear members, and vice versa. The dispatch contract
+        // (e.g. `LoopSweep` / `LoopSchedule` strategies) assumes every
+        // line in their group is the same kind; mixing types silently
+        // breaks both ranking and the headway clamp because the group's
+        // strategy is single-typed.
+        #[cfg(feature = "loop_lines")]
+        if let Some(moved_is_loop) = self.world.line(line).map(Line::is_loop) {
+            let new_group_idx = self
+                .groups
+                .iter()
+                .position(|g| g.id() == new_group)
+                .ok_or(SimError::GroupNotFound(new_group))?;
+            let mismatch = self.groups[new_group_idx]
+                .lines()
+                .iter()
+                .filter_map(|li| self.world.line(li.entity()))
+                .any(|existing| existing.is_loop() != moved_is_loop);
+            if mismatch {
+                return Err(SimError::InvalidConfig {
+                    field: "group.kind",
+                    reason: format!(
+                        "cannot mix Linear and Loop lines in the same group \
+                         (moving line into group {new_group:?} would create a heterogeneous group)",
+                    ),
+                });
+            }
+        }
+
         // Notify the old dispatcher that these elevators are leaving — its
         // per-elevator state (e.g. ScanDispatch.direction keyed by EntityId)
         // would otherwise leak indefinitely as lines move between groups.
@@ -724,6 +800,18 @@ impl Simulation {
                     reason: format!("target line already has {current_count} cars (max {max})"),
                 });
             }
+        }
+
+        // Loop capacity guard: same `(n + 1) * min_headway <= circumference`
+        // invariant `add_elevator` enforces. Without this, a swing
+        // re-assignment can push a Loop line over its headway capacity.
+        #[cfg(feature = "loop_lines")]
+        if let Some(line_ref) = self.world.line(new_line) {
+            let n_after = self.groups[new_group_idx].lines()[new_line_idx]
+                .elevators()
+                .len()
+                + 1;
+            check_loop_capacity(line_ref, n_after, "reassigning")?;
         }
 
         let old_group_id = self.groups[old_group_idx].id();
@@ -877,6 +965,61 @@ impl Simulation {
         self.world
             .line(line)
             .and_then(crate::components::Line::circumference)
+    }
+
+    /// On a [`LineKind::Loop`] line, the elevator that is immediately
+    /// *ahead* of `elevator` in forward cyclic order — i.e. its leader.
+    ///
+    /// Returns `None` for:
+    /// - `Linear` lines and missing entities
+    /// - solo cars on a Loop (no other car to lead them)
+    ///
+    /// A sibling car at the same physical position is treated as a valid
+    /// leader at `forward_distance = 0`; consumers that want a
+    /// strictly-ahead car should filter on `loop_forward_gap > 0`.
+    /// Useful for game-side UI (e.g. rendering coupled cars, "car ahead"
+    /// indicators, or train-style platoon visualisations).
+    #[cfg(feature = "loop_lines")]
+    #[must_use]
+    pub fn loop_leader(&self, elevator: ElevatorId) -> Option<ElevatorId> {
+        self.loop_leader_and_gap(elevator).map(|(id, _)| id)
+    }
+
+    /// On a [`LineKind::Loop`] line, the forward cyclic gap from
+    /// `elevator` to its [leader](Self::loop_leader).
+    ///
+    /// Returns `None` for Linear lines, missing entities, and solo cars.
+    /// Always returns a value in `[0, circumference)` when `Some`;
+    /// callers can compare against the line's `min_headway` to detect a
+    /// car pressed up against the headway clamp (and therefore unable to
+    /// advance regardless of throttle).
+    #[cfg(feature = "loop_lines")]
+    #[must_use]
+    pub fn loop_forward_gap(&self, elevator: ElevatorId) -> Option<f64> {
+        self.loop_leader_and_gap(elevator).map(|(_, gap)| gap)
+    }
+
+    /// Joint helper for `loop_leader` and `loop_forward_gap`: a single
+    /// `iter_elevators` walk yields both the leader's identity and the
+    /// forward-cyclic distance to it.
+    #[cfg(feature = "loop_lines")]
+    fn loop_leader_and_gap(&self, elevator: ElevatorId) -> Option<(ElevatorId, f64)> {
+        let eid = elevator.entity();
+        let car = self.world.elevator(eid)?;
+        let line = car.line;
+        let circumference = self.loop_circumference(line)?;
+        let pos = self.world.position(eid)?.value;
+        self.world
+            .iter_elevators()
+            .filter(|&(other, _, other_car)| other != eid && other_car.line == line)
+            .map(|(other, p, _)| {
+                (
+                    crate::components::cyclic::forward_distance(pos, p.value, circumference),
+                    other,
+                )
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(gap, e)| (ElevatorId::from(e), gap))
     }
 
     /// On a [`LineKind::Loop`] line, the stop that comes immediately

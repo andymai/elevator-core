@@ -36,6 +36,11 @@ default = []
 # deployments running lockstep across heterogeneous architectures
 # who need byte-exact sim outputs.
 deterministic-fp = ["elevator-core/deterministic-fp"]
+# Mirror elevator-core's `loop_lines` feature so Godot consumers can
+# author closed-loop transit (gondola, monorail, train) lines. Exposes
+# `is_loop`, `loop_circumference`, `loop_next_stop`, `loop_leader`,
+# `loop_forward_gap`, and `get_line` on the `ElevatorSim` Godot class.
+loop_lines = ["elevator-core/loop_lines"]
 
 [dependencies]
 elevator-core = { path = "../elevator-core" }

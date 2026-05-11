@@ -94,17 +94,15 @@ pub enum LineKind {
         /// builder) rejects non-positive or non-finite values.
         circumference: f64,
         /// Minimum permitted forward distance between successive cars.
-        /// PR 3 will add construction-time validation
-        /// (`max_cars * min_headway <= circumference`); until then, the
-        /// dispatch and movement code added in subsequent PRs is
-        /// responsible for behaving sanely on degenerate values.
+        /// Construction enforces `n_cars * min_headway <= circumference`
+        /// at both `add_line` (via `max_cars`) and `add_elevator` (per-attach).
         /// Callers should set this strictly positive.
         min_headway: f64,
     },
 }
 
 impl LineKind {
-    /// Whether this line is a closed loop.
+    /// Returns `true` for [`LineKind::Loop`]; paired with [`Self::is_linear`].
     #[must_use]
     pub const fn is_loop(&self) -> bool {
         match self {
@@ -137,7 +135,8 @@ impl LineKind {
     ///
     /// The intent is the *trivial* per-kind sanity checks — bounds finite
     /// and ordered, circumference positive. Cross-line invariants
-    /// (`max_cars` × headway, group homogeneity, initial spacing) are PR 3.
+    /// (`max_cars` × headway, group homogeneity) are checked by the
+    /// `Simulation` construction and topology methods, not here.
     ///
     /// # Errors
     ///
@@ -320,7 +319,7 @@ impl Line {
         &self.kind
     }
 
-    /// Whether this is a closed-loop line.
+    /// Shorthand for `self.kind().is_loop()`.
     #[must_use]
     pub const fn is_loop(&self) -> bool {
         self.kind.is_loop()

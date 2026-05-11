@@ -37,6 +37,11 @@ energy = ["elevator-core/energy"]
 # across heterogeneous architectures who need byte-exact sim
 # outputs. See elevator-core's docs for the full guarantee.
 deterministic-fp = ["elevator-core/deterministic-fp"]
+# Mirror elevator-core's `loop_lines` feature. Exposes the Loop
+# topology query surface (`ev_sim_is_loop`, `ev_sim_loop_*`) to C
+# consumers (Unity, GameMaker, .NET). Additive — does not bump
+# `EV_ABI_VERSION` because no existing struct or function widens.
+loop_lines = ["elevator-core/loop_lines"]
 
 [dependencies]
 elevator-core = { path = "../elevator-core" }

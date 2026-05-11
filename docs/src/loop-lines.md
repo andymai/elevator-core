@@ -8,7 +8,7 @@ The feature is off by default. Hosts that want to load Loop scenarios opt in via
 elevator-core = { path = "../elevator-core", features = ["loop_lines"] }
 ```
 
-The shipped `elevator-bevy` host enables the feature out of the box; `elevator-tui`, `elevator-ffi`, and `elevator-wasm` currently don't.
+The shipped `elevator-bevy`, `elevator-tui`, and `elevator-wasm` hosts enable the feature out of the box. `elevator-ffi` and `elevator-gdext` expose `loop_lines` as an opt-in cargo feature; enable it at build time when shipping a Unity / GameMaker / .NET / Godot integration that needs the Loop topology query surface (`ev_sim_is_loop`, `ev_sim_loop_*` / `is_loop`, `loop_*`).
 
 ## When to use a loop
 
@@ -127,6 +127,37 @@ Both cars patrol forward indefinitely, board waiting riders at every stop, and d
 `LineKind` round-trips through snapshots. Snapshots taken with a Loop scenario can be restored into another sim with the feature enabled. A snapshot containing `LineKind::Loop` cannot be restored by a sim built without the `loop_lines` feature -- deserialization rejects the variant outright.
 
 The wire format will keep the legacy flat `min_position` / `max_position` fields alongside `kind` for one release after this feature lands, to give snapshots produced by pre-feature sims a deterministic deserialization path. Once that release cycle passes, the flat fields will be removed.
+
+## Driving a Loop car manually
+
+A host that wants to drive a Loop car directly (player-controlled gondola, AI-scripted train, etc.) puts the car in `ServiceMode::Manual` and sets its target velocity:
+
+```rust,no_run
+# use elevator_core::components::ServiceMode;
+# use elevator_core::sim::Simulation;
+# use elevator_core::entity::ElevatorId;
+# fn drive(sim: &mut Simulation, car: ElevatorId) -> Result<(), elevator_core::error::SimError> {
+sim.set_service_mode(car.entity(), ServiceMode::Manual)?;
+sim.set_target_velocity(car, 2.5)?;
+# Ok(()) }
+```
+
+Two invariants distinguish Manual on a Loop from Manual on a Linear shaft:
+
+- **One-way:** `set_target_velocity` rejects negative targets with `SimError::InvalidConfig { field: "target_velocity", .. }`. Loops are closed cycles; "reverse" has no physical meaning, and silently clamping to zero would surprise authors. Hosts should surface the error as a UX warning.
+- **Headway-clamped:** the integrator pulls each tick's landing back to `leader - min_headway` along the forward direction. A player flooring the throttle into the car ahead produces a "soft collision" — the car physically stops at the headway boundary and `velocity` is zeroed. Releasing throttle or waiting for the leader to move releases the clamp on the next tick.
+
+For loop-aware game UI, the simulation exposes:
+
+| Method | What it returns |
+|---|---|
+| `is_loop(line)` | Whether the line uses `LineKind::Loop` |
+| `loop_circumference(line)` | Total path length, or `None` for Linear |
+| `loop_next_stop(line, position)` | Forward-most stop after `position` |
+| `loop_leader(elevator)` | Forward-nearest elevator on the same Loop, or `None` for a solo car |
+| `loop_forward_gap(elevator)` | Cyclic arc from `elevator` to its leader in `[0, C)` |
+
+Hosts use `loop_forward_gap` together with the line's `min_headway` to detect a car pressed against the clamp ("can't advance — gap == min_headway"), then surface that state in HUDs or AI behaviour.
 
 ## Out of scope for v1
 
