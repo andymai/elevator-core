@@ -132,10 +132,11 @@ export function loop(state: State, ui: UiHandles): void {
       // `specs.length > 0` arm forces a fresh snapshot whenever
       // `spawnRider` actually mutated the sim.
       const speed = state.permalink.speed;
+      const phaseRatio = state.traffic.currentPhaseRatio();
       const renderSnapA = specs.length > 0 || snapA === null ? paneA.sim.snapshot() : snapA;
-      renderPane(paneA, renderSnapA, speed);
+      renderPane(paneA, renderSnapA, speed, phaseRatio);
       if (paneB) {
-        renderPane(paneB, paneB.sim.snapshot(), speed);
+        renderPane(paneB, paneB.sim.snapshot(), speed, phaseRatio);
       }
 
       updateScoreboard(state);

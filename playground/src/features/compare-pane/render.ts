@@ -1,8 +1,9 @@
 import { METRIC_KEYS, METRIC_HISTORY_LEN } from "../../types";
 import type { Snapshot } from "../../types";
+import { updateAirportLoopPanel } from "./airport-loop-panel";
 import type { Pane } from "./pane";
 
-export function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
+export function renderPane(pane: Pane, snap: Snapshot, speed: number, phaseRatio: number): void {
   const metrics = pane.sim.metrics();
   pane.latestMetrics = metrics;
   for (const key of METRIC_KEYS) {
@@ -15,5 +16,6 @@ export function renderPane(pane: Pane, snap: Snapshot, speed: number): void {
   for (const [carId, bubble] of pane.bubbles) {
     if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
   }
-  pane.renderer.draw(snap, speed, pane.bubbles);
+  pane.renderer.draw(snap, speed, pane.bubbles, phaseRatio);
+  updateAirportLoopPanel(pane, snap);
 }

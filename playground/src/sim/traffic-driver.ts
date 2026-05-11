@@ -34,6 +34,7 @@ export class TrafficDriver {
   #accumulator = 0; // fractional riders accumulated from rate * elapsed
   #phases: Phase[] = [];
   #totalDurationSec = 0;
+  #maxRidersPerMin = 0;
   #elapsedInCycleSec = 0;
   /** User-facing intensity multiplier, 0.5×–2×. Applied on top of phase rate. */
   #intensity = 1.0;
@@ -53,6 +54,11 @@ export class TrafficDriver {
   setPhases(phases: Phase[]): void {
     this.#phases = phases;
     this.#totalDurationSec = phases.reduce((acc, p) => acc + p.durationSec, 0);
+    let maxRate = 0;
+    for (const p of phases) {
+      if (p.ridersPerMin > maxRate) maxRate = p.ridersPerMin;
+    }
+    this.#maxRidersPerMin = maxRate;
     this.#elapsedInCycleSec = 0;
     this.#accumulator = 0;
   }
@@ -122,6 +128,19 @@ export class TrafficDriver {
 
   currentPhaseLabel(): string {
     return this.#phases[this.currentPhaseIndex()]?.name ?? "";
+  }
+
+  /**
+   * Normalized 0..1 demand intensity for the current phase, relative
+   * to the loudest phase in the schedule. Renderers can use this to
+   * tint UI elements during peaks (e.g. station chip borders brighten
+   * as the morning rush ramps up).
+   */
+  currentPhaseRatio(): number {
+    if (this.#phases.length === 0) return 0;
+    const phase = this.#phases[this.currentPhaseIndex()];
+    if (!phase) return 0;
+    return this.#maxRidersPerMin > 0 ? phase.ridersPerMin / this.#maxRidersPerMin : 0;
   }
 
   /** 0..1 progress through the full day cycle. Used to render the phase strip. */

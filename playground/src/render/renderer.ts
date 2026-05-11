@@ -211,7 +211,12 @@ export class CanvasRenderer {
     this.#carQueueRegion.clear();
   }
 
-  draw(snap: Snapshot, speedMultiplier: number, bubbles?: Map<number, CarBubble>): void {
+  draw(
+    snap: Snapshot,
+    speedMultiplier: number,
+    bubbles?: Map<number, CarBubble>,
+    phaseRatio = 0,
+  ): void {
     this.#resize();
     const { clientWidth: w, clientHeight: h } = this.#canvas;
     const ctx = this.#ctx;
@@ -226,7 +231,7 @@ export class CanvasRenderer {
     if (s === null) return;
 
     if (this.#airport !== null) {
-      drawAirportScene(ctx, snap, w, h, this.#airport);
+      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio, bubbles, this.#accent);
       return;
     }
 
