@@ -140,12 +140,16 @@ jobs:
           key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
 
       # Save today's regression-name list under the per-run-id key so
-      # tomorrow's prefix-fallback restore picks it up. The save runs
-      # unconditionally (no `cache-hit` gate) because run_id is unique
-      # per workflow run, so there is never a same-key conflict, and
-      # we want each nightly to overwrite the rolling reference rather
-      # than locking it at the SHA's first measurement.
+      # tomorrow's prefix-fallback restore picks it up. Only the
+      # scheduled nightly writes — `workflow_dispatch` runs read the
+      # most recent nightly's list (useful as a "would my change trip
+      # the gate?" preview) but don't pollute the rolling reference.
+      # Without this guard, two manual dispatches on the same day would
+      # cross-confirm via prefix-fallback within minutes, firing the
+      # `confirmed on two consecutive nightlies` issue body without
+      # crossing a night boundary.
       - name: Save current regression list
+        if: github.event_name == 'schedule'
         uses: actions/cache/save@v4
         with:
           path: regressions-current.txt
