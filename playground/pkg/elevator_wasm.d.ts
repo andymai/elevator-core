@@ -1073,6 +1073,10 @@ export class WasmSim {
      */
     isElevator(entity_ref: bigint): boolean;
     /**
+     * Whether the line is a closed-loop topology.
+     */
+    isLoop(line_ref: bigint): boolean;
+    /**
      * Whether `entity_ref` resolves to a rider entity in the world.
      */
     isRider(entity_ref: bigint): boolean;
@@ -1104,6 +1108,31 @@ export class WasmSim {
      * disambiguating sky-lobby calls served by multiple banks.
      */
     linesServingStop(stop_ref: bigint): BigUint64Array;
+    /**
+     * Total path length of a Loop line, or `undefined` for Linear / missing.
+     * Hosts derive rendering geometry (`r = C / (2π)` for a circular
+     * layout) from this value.
+     */
+    loopCircumference(line_ref: bigint): number | undefined;
+    /**
+     * Forward cyclic gap from `elevator_ref` to its leader, in `[0, C)`.
+     * Compare against the line's `min_headway` to detect a car pressed
+     * against the headway clamp ("can't advance — gap ≈ `min_headway`").
+     */
+    loopForwardGap(elevator_ref: bigint): number | undefined;
+    /**
+     * The elevator immediately ahead of `elevator_ref` in forward
+     * cyclic order on the same Loop line. `undefined` for Linear lines
+     * and solo cars. Useful for "car ahead" HUDs and coupled-car
+     * rendering.
+     */
+    loopLeader(elevator_ref: bigint): bigint | undefined;
+    /**
+     * The stop immediately after `position` in forward cyclic order on
+     * a Loop line. Returns `undefined` for Linear lines, missing
+     * entities, empty `serves` lists, or non-finite `position`.
+     */
+    loopNextStop(line_ref: bigint, position: number): bigint | undefined;
     /**
      * Current aggregate metrics.
      */
@@ -1948,6 +1977,7 @@ export interface InitOutput {
     readonly wasmsim_idleElevatorCount: (a: number) => number;
     readonly wasmsim_isDisabled: (a: number, b: bigint) => number;
     readonly wasmsim_isElevator: (a: number, b: bigint) => number;
+    readonly wasmsim_isLoop: (a: number, b: bigint) => number;
     readonly wasmsim_isRider: (a: number, b: bigint) => number;
     readonly wasmsim_isStop: (a: number, b: bigint) => number;
     readonly wasmsim_iterRepositioningElevators: (a: number) => [number, number];
@@ -1955,6 +1985,10 @@ export interface InitOutput {
     readonly wasmsim_lineForElevator: (a: number, b: bigint) => bigint;
     readonly wasmsim_linesInGroup: (a: number, b: number) => [number, number];
     readonly wasmsim_linesServingStop: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_loopCircumference: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_loopForwardGap: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_loopLeader: (a: number, b: bigint) => [number, bigint];
+    readonly wasmsim_loopNextStop: (a: number, b: bigint, c: number) => [number, bigint];
     readonly wasmsim_metrics: (a: number) => any;
     readonly wasmsim_metricsForTag: (a: number, b: number, c: number) => any;
     readonly wasmsim_new: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
