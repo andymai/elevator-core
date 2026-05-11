@@ -161,10 +161,11 @@ export class CanvasRenderer {
   }
 
   /**
-   * Report current physics knobs so the HUD's ETA / phase classifier
-   * stay in sync with hot-swapped values from the tweak drawer.
+   * Report current physics knobs so HUD ETA / phase classifier readouts
+   * stay in sync with hot-swapped values from the tweak drawer. Used by
+   * both tether (climber HUD) and airport (per-train HUD) scenes.
    */
-  setTetherPhysics(maxSpeed: number, acceleration: number, deceleration: number): void {
+  setPhysics(maxSpeed: number, acceleration: number, deceleration: number): void {
     if (Number.isFinite(maxSpeed) && maxSpeed > 0) this.#activeMaxSpeed = maxSpeed;
     if (Number.isFinite(acceleration) && acceleration > 0) this.#activeAcceleration = acceleration;
     if (Number.isFinite(deceleration) && deceleration > 0) this.#activeDeceleration = deceleration;
@@ -231,7 +232,11 @@ export class CanvasRenderer {
     if (s === null) return;
 
     if (this.#airport !== null) {
-      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio, bubbles, this.#accent);
+      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio, this.#accent, {
+        maxSpeed: this.#activeMaxSpeed,
+        acceleration: this.#activeAcceleration,
+        deceleration: this.#activeDeceleration,
+      });
       return;
     }
 

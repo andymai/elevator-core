@@ -13,13 +13,14 @@ export interface HotSwapPane {
     }): boolean;
   };
   /**
-   * Optional renderer hook for tether-mode HUD. Building scenarios
-   * leave this undefined; the space elevator threads max-speed
-   * changes through so the side card's ETA / phase classifier
-   * reflects the live tweak instead of the scenario default.
+   * Optional renderer hook for HUD-bearing scenes (tether climber chips,
+   * airport train HUDs). Building scenarios leave this undefined; the
+   * space-elevator and airport scenes thread max-speed changes through
+   * so the inline ETA readouts reflect the live tweak instead of the
+   * scenario default.
    */
   renderer?: {
-    setTetherPhysics(maxSpeed: number, acceleration: number, deceleration: number): void;
+    setPhysics(maxSpeed: number, acceleration: number, deceleration: number): void;
   };
 }
 
@@ -56,12 +57,12 @@ export function applyHotSwapAndRender(
   };
   const panes = [state.paneA, state.paneB].filter((p): p is HotSwapPane => p !== null);
   const allLive = panes.every((pane) => pane.sim.applyPhysicsLive(params));
-  // Tether HUD ETA / phase classifier rely on the active max-speed.
-  // Push the new value to renderers that opted in (`renderer` is
-  // present only on tether-aware panes via `Pane`'s public surface).
+  // HUD ETA readouts rely on the active max-speed. Push the new value
+  // to renderers that expose the hook — both tether and airport scenes
+  // do.
   if (allLive) {
     for (const pane of panes) {
-      pane.renderer?.setTetherPhysics(physics.maxSpeed, physics.acceleration, physics.deceleration);
+      pane.renderer?.setPhysics(physics.maxSpeed, physics.acceleration, physics.deceleration);
     }
   }
   renderTweakPanel(scenario, state.permalink.overrides, ui);
