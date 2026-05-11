@@ -4,13 +4,21 @@
 Criterion's built-in regression detection is purely p-value-based: any
 statistically significant change fires, including sub-%% drift that's noise
 on a shared CI runner. This script keeps only the regressions whose median
-change exceeds a threshold, and writes the same 4-line context blocks the
-old `grep -B 3` emitted.
+change exceeds a threshold.
+
+To suppress single-day runner-variance noise (see issues #547, #557, #734,
+#803), the script can also intersect today's regressions against a list of
+bench names that regressed on the *previous* nightly. Only regressions that
+appear on two consecutive runs are treated as confirmed and surface in the
+issue-open output.
 
 Args:
     sys.argv[1]: path to append `regressed=true|false` to ($GITHUB_OUTPUT).
     sys.argv[2]: minimum |median change %| to alert on (e.g. "5.0").
     sys.argv[3]: path to the Criterion bench output log to filter.
+    sys.argv[4] (optional): path to the previous nightly's regression-name
+        list. If absent or empty, no confirmation gate is applied and the
+        script falls back to single-run behaviour (the original semantics).
 """
 
 from __future__ import annotations
@@ -27,15 +35,19 @@ CHANGE_RE = re.compile(
     r"\]"
 )
 
+CURRENT_LIST = Path("regressions-current.txt")
+ISSUE_BODY = Path("regressions.txt")
+
 
 def main() -> int:
     github_output = Path(sys.argv[1])
     threshold = float(sys.argv[2])
     bench_log = Path(sys.argv[3])
+    previous_list = Path(sys.argv[4]) if len(sys.argv) > 4 else None
 
     lines = bench_log.read_text().splitlines(keepends=True)
 
-    out: list[str] = []
+    todays: dict[str, str] = {}
     for i, line in enumerate(lines):
         if "Performance has regressed." not in line:
             continue
@@ -45,17 +57,36 @@ def main() -> int:
             m = CHANGE_RE.search(change_line)
             if m and abs(float(m.group(2))) < threshold:
                 continue
-        out.extend(ctx)
-        out.append("\n")
+        name = ctx[0].strip() if ctx else f"unknown_{i}"
+        todays[name] = "".join(ctx) + "\n"
 
-    if out:
-        Path("regressions.txt").write_text("".join(out))
-        print(f"== Regressions above {threshold}% detected ==")
-        sys.stdout.write("".join(out))
+    CURRENT_LIST.write_text("\n".join(sorted(todays)) + ("\n" if todays else ""))
+
+    if previous_list and previous_list.exists():
+        previous = {
+            line.strip() for line in previous_list.read_text().splitlines() if line.strip()
+        }
+        confirmed = {name: blob for name, blob in todays.items() if name in previous}
+        gate = "two-day"
+    else:
+        confirmed = dict(todays)
+        gate = "single-run (no previous list — first run after deploy)"
+
+    if confirmed:
+        ISSUE_BODY.write_text("\n".join(confirmed[n] for n in sorted(confirmed)))
+        print(f"== Regressions above {threshold}% [{gate} gate] ==")
+        sys.stdout.write(ISSUE_BODY.read_text())
         with github_output.open("a") as g:
             g.write("regressed=true\n")
     else:
-        print(f"No regressions above {threshold}% threshold.")
+        if todays:
+            print(
+                f"{len(todays)} regression(s) above {threshold}% today, "
+                f"none also flagged on the previous nightly [{gate} gate]. "
+                "Treating as runner variance."
+            )
+        else:
+            print(f"No regressions above {threshold}% threshold.")
         with github_output.open("a") as g:
             g.write("regressed=false\n")
     return 0
