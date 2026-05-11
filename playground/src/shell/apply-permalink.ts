@@ -22,38 +22,40 @@ export function randomSeedWord(): string {
   return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
 
+const AIRPORT_DISPATCH_LABEL = "LoopSchedule";
+const AIRPORT_DISPATCH_DESC = "Fixed-headway timetable on a one-way loop.";
+const AIRPORT_REPOSITION_LABEL = "—";
+
 /**
- * Disable compare-toggle and per-pane strategy triggers when a scenario
- * carries `airport` metadata. Concentric viz doesn't survive a half-
- * width compare canvas, and the RON's per-group LoopSchedule is the
- * only dispatch that makes sense — letting the strategy switcher
- * overwrite it via `Sim.setStrategy` would silently break the demo.
- * Also force-uncheck compare when entering single-pane scenarios so the
- * visual state matches the gated `state.permalink.compare = false`.
+ * Single-pane gating for scenarios that can't survive compare mode
+ * (concentric viz at half-width) and that hard-pin their dispatch via
+ * RON per-group config (LoopSchedule). Disables the relevant triggers,
+ * forces compare off in the UI, and overwrites the dispatch / parking
+ * chip text so the disabled triggers show what's actually running.
+ * Must run AFTER `renderPaneStrategyInfo` / `renderPaneRepositionInfo`
+ * so the label override isn't immediately clobbered.
  */
 export function applyScenarioGating(ui: UiHandles, scenario: ScenarioMeta): boolean {
   const singlePane = scenario.airport !== undefined;
   ui.compareToggle.disabled = singlePane;
   ui.paneA.trigger.disabled = singlePane;
   ui.paneB.trigger.disabled = singlePane;
+  ui.paneA.repoTrigger.disabled = singlePane;
+  ui.paneB.repoTrigger.disabled = singlePane;
   if (singlePane) {
     ui.compareToggle.checked = false;
     ui.layout.dataset["mode"] = "single";
+    for (const pane of [ui.paneA, ui.paneB]) {
+      pane.name.textContent = AIRPORT_DISPATCH_LABEL;
+      pane.desc.textContent = AIRPORT_DISPATCH_DESC;
+      pane.repoName.textContent = AIRPORT_REPOSITION_LABEL;
+    }
   }
   return singlePane;
 }
 
 export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   const scenario = scenarioById(p.scenario);
-  if (applyScenarioGating(ui, scenario)) {
-    // Single-pane scenarios bake compare=false back into the permalink
-    // state so a hand-crafted `?compare=true` URL doesn't propagate that
-    // stale flag the next time `syncPermalinkUrl` runs.
-    p.compare = false;
-  } else {
-    ui.compareToggle.checked = p.compare;
-    ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
-  }
   ui.seedInput.value = p.seed;
   ui.speedInput.value = String(p.speed);
   ui.speedLabel.textContent = speedLabel(p.speed);
@@ -64,6 +66,17 @@ export function applyPermalinkToUi(p: PermalinkState, ui: UiHandles): void {
   renderPaneRepositionInfo(ui.paneA, p.repositionA);
   renderPaneRepositionInfo(ui.paneB, p.repositionB);
   syncScenarioCards(ui, p.scenario);
+  // Gating runs LAST so its dispatch/parking chip-label overrides
+  // win over the generic strategy/reposition info renders above.
+  // Also bakes compare=false back into the permalink state when the
+  // scenario forces single-pane, so stale `?compare=true` URLs don't
+  // propagate through the next `syncPermalinkUrl`.
+  if (applyScenarioGating(ui, scenario)) {
+    p.compare = false;
+  } else {
+    ui.compareToggle.checked = p.compare;
+    ui.layout.dataset["mode"] = p.compare ? "compare" : "single";
+  }
   // Auto-open the drawer when the permalink carries any override —
   // the recipient sees what the sender customized without an extra
   // click. A clean URL leaves the drawer closed so first-time

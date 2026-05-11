@@ -68,11 +68,13 @@ export async function switchScenario(
   hooks: ScenarioSwitchHooks,
 ): Promise<void> {
   const scenario = scenarioById(scenarioId);
-  // Re-apply gating BEFORE strategy resolution so an airport scenario
-  // forces single-pane semantics (compare off, strategy snaps to the
-  // scenario default) instead of carrying the prior scenario's
+  // Detect single-pane BEFORE strategy resolution so an airport scenario
+  // forces compare=false instead of carrying the prior scenario's
   // compare=true state through to a viz that can't render side-by-side.
-  const singlePane = hooks.applyGating(scenario);
+  // Visual gating (disabled triggers + chip-label override) is applied
+  // at the end via `hooks.applyGating` so it runs AFTER the generic
+  // `renderPaneStrategyInfo` / `renderPaneRepositionInfo` calls.
+  const singlePane = scenario.airport !== undefined;
   if (singlePane) {
     state.permalink = { ...state.permalink, compare: false };
   }
@@ -107,6 +109,7 @@ export async function switchScenario(
   syncScenarioCards(ui, scenario.id);
   await resetAll();
   hooks.renderTweakPanel();
+  hooks.applyGating(scenario);
   toast(ui.toast, `${scenario.label} \u00b7 ${STRATEGY_LABELS[nextStrategyA]}`);
 }
 

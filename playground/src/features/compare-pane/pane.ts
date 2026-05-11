@@ -88,7 +88,14 @@ export async function makePane(
   if (wrap) {
     const stopCount = scenario.stops.length;
     const perStoryPx = 16;
-    const minShaftPx = scenario.tether ? 640 : Math.max(200, stopCount * perStoryPx);
+    // Concentric viz scales to the available square — a stop-count
+    // multiplier would reserve far more vertical space than the rings
+    // need, pushing the canvas below the fold on short viewports.
+    const minShaftPx = scenario.tether
+      ? 640
+      : scenario.airport !== undefined
+        ? 220
+        : Math.max(200, stopCount * perStoryPx);
     wrap.style.setProperty("--shaft-min-h", `${minShaftPx}px`);
   }
   return {

@@ -183,17 +183,33 @@ function drawQueueStack(
 ): void {
   // Cap at 12 dots; beyond that the stack saturates visually.
   const visible = Math.min(waiting, 12);
-  const dotR = 2.5;
-  const spacing = 6;
-  const startOffset = outer ? geom.chipR + 4 : -(geom.chipR + 4);
-  const step = outer ? spacing : -spacing;
+  // Scale dot size with the ring band so the stack reads at any viewport.
+  const dotR = Math.max(2.5, geom.thickness * 0.4);
+  const spacing = dotR * 2.2;
   ctx.fillStyle = QUEUE_DOT;
-  for (let i = 0; i < visible; i++) {
-    const offset = startOffset + step * (i + 1);
-    const p = polar(geom, angle, offset);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
-    ctx.fill();
+  if (outer) {
+    // Outer queue grows radially outward, away from the canvas center.
+    for (let i = 0; i < visible; i++) {
+      const offset = geom.chipR + spacing * (i + 1);
+      const p = polar(geom, angle, offset);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Inner queue grows tangentially clockwise along the ring's inner
+    // edge — preserves the empty negative space at the canvas center
+    // even with a full 12-dot stack.
+    const insetOffset = -(geom.chipR + dotR + 2);
+    const insetRadius = Math.abs(geom.radius + insetOffset);
+    const arcStep = spacing / insetRadius;
+    for (let i = 0; i < visible; i++) {
+      const dotAngle = angle + arcStep * (i + 1);
+      const p = polar(geom, dotAngle, insetOffset);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
