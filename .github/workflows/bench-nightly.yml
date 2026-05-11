@@ -62,6 +62,35 @@ jobs:
           restore-keys: |
             criterion-baseline-${{ github.ref_name }}-
 
+      # Restore the previous nightly's regression-name list so the detect
+      # step can gate issue-open on two-day persistence. Key is suffixed
+      # with `github.run_id` (unique per workflow run) rather than the
+      # SHA, because for THIS cache we want rolling-daily semantics, not
+      # the per-SHA freeze the criterion-baseline cache uses: when no new
+      # commit lands for several nights (weekends, quiet windows), we
+      # still want today to compare against *yesterday's* list, not
+      # against day-1's locked snapshot.
+      #
+      # Exact-key restore therefore always misses (this run's run_id is
+      # unique); the prefix-fallback restore-keys pull the most recent
+      # prior run's list. On the very first run after this step ships,
+      # even the prefix fallback misses and the filter falls back to
+      # single-run behaviour for that one day.
+      - name: Restore previous regression list
+        id: restore-regressions
+        uses: actions/cache/restore@v4
+        with:
+          path: regressions-current.txt
+          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            criterion-regressions-${{ github.ref_name }}-
+
+      - name: Stash previous regression list
+        run: |
+          if [ -f regressions-current.txt ]; then
+            mv regressions-current.txt regressions-previous.txt
+          fi
+
       - name: Run benchmarks
         id: bench
         run: |
@@ -76,16 +105,18 @@ jobs:
       # statistically significant change, irrespective of magnitude. On a
       # shared CI runner that produces false positives from sub-percent
       # drift and from micro-benches whose measurements are dominated by
-      # timer jitter. The filter below keeps only regressions whose median
-      # change exceeds MIN_CHANGE_PCT, which is the signal we actually want
-      # to page on.
+      # timer jitter. The filter below keeps regressions whose median
+      # change exceeds MIN_CHANGE_PCT *and* whose bench name also appeared
+      # on the previous nightly's regression list — the documented
+      # recurrence-as-signal heuristic from #734.
       - name: Detect regressions
         id: detect
         env:
           MIN_CHANGE_PCT: '5.0'
         run: |
           python3 .github/scripts/filter-bench-regressions.py \
-            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" bench-output.log
+            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" bench-output.log \
+            regressions-previous.txt
 
       - name: Upload bench output
         if: always()
@@ -108,18 +139,41 @@ jobs:
           path: target/criterion
           key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
 
+      # Save today's regression-name list under the per-run-id key so
+      # tomorrow's prefix-fallback restore picks it up. Only the
+      # scheduled nightly writes — `workflow_dispatch` runs read the
+      # most recent nightly's list (useful as a "would my change trip
+      # the gate?" preview) but don't pollute the rolling reference.
+      # Without this guard, two manual dispatches on the same day would
+      # cross-confirm via prefix-fallback within minutes, firing the
+      # `confirmed on two consecutive nightlies` issue body without
+      # crossing a night boundary.
+      - name: Save current regression list
+        if: github.event_name == 'schedule'
+        uses: actions/cache/save@v4
+        with:
+          path: regressions-current.txt
+          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
+
       # Open the regression issue *before* publishing to gh-pages so a
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
       # auth hiccup) does not silently suppress the alert via the implicit
       # `success()` gate on the issue step's `if:` condition.
       - name: Open issue on regression
         if: steps.detect.outputs.regressed == 'true'
+        env:
+          GATE: ${{ steps.detect.outputs.gate }}
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const gate = process.env.GATE || 'unknown';
+            const header = gate === 'two-day'
+              ? 'Nightly benchmark run flagged a Criterion regression (confirmed on two consecutive nightlies).'
+              : 'Nightly benchmark run flagged a Criterion regression. ' +
+                'Single-run gate (no previous-nightly list cached yet — first run after the persistence gate was deployed).';
             const body = [
-              'Nightly benchmark run flagged a Criterion regression.',
+              header,
               '',
               '```',
               fs.readFileSync('regressions.txt', 'utf8').slice(0, 4000),
@@ -128,7 +182,7 @@ jobs:
               `Full artifact: criterion-output-${{ github.run_id }}`,
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             ].join('\n');
-            github.rest.issues.create({
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Bench regression on ${new Date().toISOString().slice(0,10)}`,
