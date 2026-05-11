@@ -748,6 +748,15 @@ export class WasmSim {
         return ret !== 0;
     }
     /**
+     * Whether the line is a closed-loop topology.
+     * @param {bigint} line_ref
+     * @returns {boolean}
+     */
+    isLoop(line_ref) {
+        const ret = wasm.wasmsim_isLoop(this.__wbg_ptr, line_ref);
+        return ret !== 0;
+    }
+    /**
      * Whether `entity_ref` resolves to a rider entity in the world.
      * @param {bigint} entity_ref
      * @returns {boolean}
@@ -817,6 +826,52 @@ export class WasmSim {
         var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
+    }
+    /**
+     * Total path length of a Loop line, or `undefined` for Linear / missing.
+     * Hosts derive rendering geometry (`r = C / (2π)` for a circular
+     * layout) from this value.
+     * @param {bigint} line_ref
+     * @returns {number | undefined}
+     */
+    loopCircumference(line_ref) {
+        const ret = wasm.wasmsim_loopCircumference(this.__wbg_ptr, line_ref);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * Forward cyclic gap from `elevator_ref` to its leader, in `[0, C)`.
+     * Compare against the line's `min_headway` to detect a car pressed
+     * against the headway clamp ("can't advance — gap ≈ `min_headway`").
+     * @param {bigint} elevator_ref
+     * @returns {number | undefined}
+     */
+    loopForwardGap(elevator_ref) {
+        const ret = wasm.wasmsim_loopForwardGap(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * The elevator immediately ahead of `elevator_ref` in forward
+     * cyclic order on the same Loop line. `undefined` for Linear lines
+     * and solo cars. Useful for "car ahead" HUDs and coupled-car
+     * rendering.
+     * @param {bigint} elevator_ref
+     * @returns {bigint | undefined}
+     */
+    loopLeader(elevator_ref) {
+        const ret = wasm.wasmsim_loopLeader(this.__wbg_ptr, elevator_ref);
+        return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
+    }
+    /**
+     * The stop immediately after `position` in forward cyclic order on
+     * a Loop line. Returns `undefined` for Linear lines, missing
+     * entities, empty `serves` lists, or non-finite `position`.
+     * @param {bigint} line_ref
+     * @param {number} position
+     * @returns {bigint | undefined}
+     */
+    loopNextStop(line_ref, position) {
+        const ret = wasm.wasmsim_loopNextStop(this.__wbg_ptr, line_ref, position);
+        return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
     }
     /**
      * Current aggregate metrics.

@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-49935c9c.js";
+            window.path_to_searchindex_js = "searchindex-1bf5c181.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c7536657.js"></script>
@@ -2677,7 +2677,7 @@ fn custom_strategy_assigns_nearest_car() {
 <p>The feature is off by default. Hosts that want to load Loop scenarios opt in via their <code>Cargo.toml</code>:</p>
 <pre><code class="language-toml">elevator-core = { path = "../elevator-core", features = ["loop_lines"] }
 </code></pre>
-<p>The shipped <code>elevator-bevy</code> host enables the feature out of the box; <code>elevator-tui</code>, <code>elevator-ffi</code>, and <code>elevator-wasm</code> currently don’t.</p>
+<p>The shipped <code>elevator-bevy</code>, <code>elevator-tui</code>, and <code>elevator-wasm</code> hosts enable the feature out of the box. <code>elevator-ffi</code> and <code>elevator-gdext</code> expose <code>loop_lines</code> as an opt-in cargo feature; enable it at build time when shipping a Unity / GameMaker / .NET / Godot integration that needs the Loop topology query surface (<code>ev_sim_is_loop</code>, <code>ev_sim_loop_*</code> / <code>is_loop</code>, <code>loop_*</code>).</p>
 <h2 id="when-to-use-a-loop"><a class="header" href="#when-to-use-a-loop">When to use a loop</a></h2>
 <p>Pick <code>LineKind::Loop</code> whenever the physical layout is a closed cycle and the line is one-way. Examples:</p>
 <ul>
@@ -2762,6 +2762,39 @@ Spawning:     ~1 rider/sec on the demo's 60 Hz tick rate
 <h2 id="snapshots"><a class="header" href="#snapshots">Snapshots</a></h2>
 <p><code>LineKind</code> round-trips through snapshots. Snapshots taken with a Loop scenario can be restored into another sim with the feature enabled. A snapshot containing <code>LineKind::Loop</code> cannot be restored by a sim built without the <code>loop_lines</code> feature – deserialization rejects the variant outright.</p>
 <p>The wire format will keep the legacy flat <code>min_position</code> / <code>max_position</code> fields alongside <code>kind</code> for one release after this feature lands, to give snapshots produced by pre-feature sims a deterministic deserialization path. Once that release cycle passes, the flat fields will be removed.</p>
+<h2 id="driving-a-loop-car-manually"><a class="header" href="#driving-a-loop-car-manually">Driving a Loop car manually</a></h2>
+<p>A host that wants to drive a Loop car directly (player-controlled gondola, AI-scripted train, etc.) puts the car in <code>ServiceMode::Manual</code> and sets its target velocity:</p>
+<pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span><span class="boring">use elevator_core::components::ServiceMode;
+</span><span class="boring">use elevator_core::sim::Simulation;
+</span><span class="boring">use elevator_core::entity::ElevatorId;
+</span><span class="boring">fn drive(sim: &amp;mut Simulation, car: ElevatorId) -&gt; Result&lt;(), elevator_core::error::SimError&gt; {
+</span>sim.set_service_mode(car.entity(), ServiceMode::Manual)?;
+sim.set_target_velocity(car, 2.5)?;
+<span class="boring">Ok(()) }
+</span><span class="boring">}</span></code></pre>
+<p>Two invariants distinguish Manual on a Loop from Manual on a Linear shaft:</p>
+<ul>
+<li><strong>One-way:</strong> <code>set_target_velocity</code> rejects negative targets with <code>SimError::InvalidConfig { field: "target_velocity", .. }</code>. Loops are closed cycles; “reverse” has no physical meaning, and silently clamping to zero would surprise authors. Hosts should surface the error as a UX warning.</li>
+<li><strong>Headway-clamped:</strong> the integrator pulls each tick’s landing back to <code>leader - min_headway</code> along the forward direction. A player flooring the throttle into the car ahead produces a “soft collision” — the car physically stops at the headway boundary and <code>velocity</code> is zeroed. Releasing throttle or waiting for the leader to move releases the clamp on the next tick.</li>
+</ul>
+<p>For loop-aware game UI, the simulation exposes:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>What it returns</th></tr>
+</thead>
+<tbody>
+<tr><td><code>is_loop(line)</code></td><td>Whether the line uses <code>LineKind::Loop</code></td></tr>
+<tr><td><code>loop_circumference(line)</code></td><td>Total path length, or <code>None</code> for Linear</td></tr>
+<tr><td><code>loop_next_stop(line, position)</code></td><td>Forward-most stop after <code>position</code></td></tr>
+<tr><td><code>loop_leader(elevator)</code></td><td>Forward-nearest elevator on the same Loop, or <code>None</code> for a solo car</td></tr>
+<tr><td><code>loop_forward_gap(elevator)</code></td><td>Cyclic arc from <code>elevator</code> to its leader in <code>[0, C)</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Hosts use <code>loop_forward_gap</code> together with the line’s <code>min_headway</code> to detect a car pressed against the clamp (“can’t advance — gap == min_headway”), then surface that state in HUDs or AI behaviour.</p>
 <h2 id="out-of-scope-for-v1"><a class="header" href="#out-of-scope-for-v1">Out of scope for v1</a></h2>
 <p>The <code>loop_lines</code> v1 ships <strong>one-way</strong> loops only. The following are explicitly out of scope and rejected at construction or runtime:</p>
 <ul>
