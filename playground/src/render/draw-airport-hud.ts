@@ -5,7 +5,6 @@ import {
   type AABB,
   type PerimeterPoint,
 } from "./airport-geometry";
-import { withAlpha } from "./color-utils";
 import { CANVAS_FONT_SANS } from "./palette";
 import { formatDuration, tetherEta } from "./tether";
 import type { CarDto, StopDto } from "../types";
@@ -46,9 +45,16 @@ interface HudPlacement {
   bubbleH: number;
 }
 
-const HUD_BG = "rgba(20, 22, 30, 0.94)";
-const HUD_BORDER = "#2a2a35";
-const HUD_TEXT = "rgba(240, 244, 252, 0.95)";
+// HUD chips use the same surface tokens as the playground's pane
+// headers and metric panels: bg-elevated → bg-secondary gradient
+// territory, border-subtle frame, text-secondary eyebrow + text-primary
+// body. Matches scenarios like the metrics strip and tweak panel
+// rather than carrying a scenario-specific colored accent stripe.
+const HUD_BG = "#252530"; // --bg-elevated
+const HUD_BORDER = "#2a2a35"; // --border-subtle
+const HUD_EYEBROW = "#8b8c92"; // --text-tertiary, uppercase tracking
+const HUD_TEXT = "#fafafa"; // --text-primary
+const HUD_MUTED = "#a1a1aa"; // --text-secondary
 const AVG_RIDER_WEIGHT_KG = 75;
 const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
@@ -95,6 +101,9 @@ function buildHudLines(train: TrainPlacement, tripCap: number, physics: AirportP
     );
     etaLine = `ETA ${formatDuration(eta)}`;
   }
+  // First line is rendered as an eyebrow (small uppercase tracking),
+  // the rest as primary body text. Order is preserved from before so
+  // the placement / measurement code stays simple.
   return [`Train ${train.letter}`, segmentLine, loadLine, etaLine];
 }
 
@@ -113,23 +122,34 @@ export function drawTrainHuds(
   if (Math.min(canvasW, canvasH) < 340) return;
 
   const fontPx = showFullLabels ? 11 : 10;
+  const eyebrowPx = Math.round(fontPx - 2);
   const padX = 8;
   const padY = 5;
   const lh = fontPx + 2;
+  const eyebrowLh = eyebrowPx + 4;
 
-  ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
   const tripCap =
     physics.weightCapacity > 0
       ? Math.max(1, Math.floor(physics.weightCapacity / AVG_RIDER_WEIGHT_KG))
       : 0;
   const placements: HudPlacement[] = [];
 
+  // Measure widest line across the body font and the eyebrow font so
+  // chip width clears the longest of the two regardless of which line
+  // is dominant.
+  ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
   for (const train of trains) {
     const lines = buildHudLines(train, tripCap, physics);
     let textW = 0;
-    for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
+    ctx.font = `700 ${eyebrowPx}px ${CANVAS_FONT_SANS}`;
+    const eyebrowText = (lines[0] ?? "").toUpperCase();
+    textW = Math.max(textW, ctx.measureText(eyebrowText).width);
+    ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
+    for (let i = 1; i < lines.length; i++) {
+      textW = Math.max(textW, ctx.measureText(lines[i] ?? "").width);
+    }
     const bubbleW = textW + padX * 2;
-    const bubbleH = lh * lines.length + padY * 2;
+    const bubbleH = eyebrowLh + lh * (lines.length - 1) + padY * 2;
 
     // Outer trains push chips outward; inner trains push inward into
     // the empty inner-ring interior (clean drop zone, no rings or
@@ -206,8 +226,6 @@ export function drawTrainHuds(
     ctx.fillStyle = HUD_BG;
     tracedRoundedRect(ctx, bubbleRect);
     ctx.fill();
-    ctx.fillStyle = withAlpha(p.placement.lineColor, isDwelling(p.placement.car) ? 0.95 : 0.75);
-    ctx.fillRect(p.bx, p.by, 2.5, p.bubbleH);
     ctx.strokeStyle = HUD_BORDER;
     ctx.lineWidth = 1;
     tracedRoundedRect(ctx, bubbleRect);
@@ -215,11 +233,22 @@ export function drawTrainHuds(
 
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    for (let i = 0; i < p.lines.length; i++) {
-      const ly = p.by + padY + lh * i + lh / 2;
+    let ly = p.by + padY + eyebrowLh / 2;
+    // Eyebrow: small uppercase tracking, text-tertiary. Same look as
+    // the "DISPATCH", "PARKING", "TRAFFIC" eyebrows in the pane header.
+    ctx.font = `700 ${eyebrowPx}px ${CANVAS_FONT_SANS}`;
+    ctx.fillStyle = HUD_EYEBROW;
+    const eyebrow = (p.lines[0] ?? "").toUpperCase();
+    ctx.fillText(eyebrow, p.bx + padX, ly);
+    ly += eyebrowLh / 2 + lh / 2;
+    // Body: primary text. Third line (ETA) muted so the chip doesn't
+    // shout the static physics-derived number.
+    ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
+    for (let i = 1; i < p.lines.length; i++) {
       const line = p.lines[i] ?? "";
-      ctx.fillStyle = i === 0 ? withAlpha(p.placement.lineColor, 0.95) : HUD_TEXT;
+      ctx.fillStyle = i === p.lines.length - 1 ? HUD_MUTED : HUD_TEXT;
       ctx.fillText(line, p.bx + padX, ly);
+      ly += lh;
     }
     ctx.restore();
   }

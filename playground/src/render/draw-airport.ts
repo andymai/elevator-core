@@ -5,7 +5,6 @@ import {
   type PerimeterPoint,
   type RectGeometry,
 } from "./airport-geometry";
-import { withAlpha } from "./color-utils";
 import { drawTrainHuds, type AirportPhysics, type TrainPlacement } from "./draw-airport-hud";
 import { CANVAS_FONT_SANS } from "./palette";
 import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
@@ -26,18 +25,21 @@ import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
  */
 
 // ── Color tokens ──────────────────────────────────────────────────────
-// Loop colors are line-identity colors, not pane-themed: outer always
-// blue, inner always coral, regardless of which compare-pane accent
-// the scenario lives under. This is the Mini Metro grammar: each line
-// gets its own color, end of story.
-const OUTER_LINE = "#7dd3fc"; // pane-a blue
-const INNER_LINE = "#fda4af"; // pane-b coral
-const OUTER_RIDER = "#bde4f9"; // lighter blue, reads on the dark bg
-const INNER_RIDER = "#fdd5dc"; // lighter coral, reads on the dark bg
-const STATION_RING = "rgba(232, 235, 240, 0.92)";
+// Tracks are MUTED so the airport scene reads as native to the
+// playground — the rest of the scenarios use low-alpha shaft fills
+// with neutral frames, not bold saturated strokes. Loop identity
+// still comes through via the trains and waiting clusters, which
+// stay at full saturation against the muted track. Outer-track =
+// blue-tinted, inner-track = coral-tinted, both at low alpha.
+const OUTER_TRACK = "rgba(125, 211, 252, 0.45)"; // pane-a, muted
+const INNER_TRACK = "rgba(253, 164, 175, 0.4)"; // pane-b, muted
+const OUTER_TRAIN = "#7dd3fc"; // pane-a, bright — pops against the track
+const INNER_TRAIN = "#fda4af"; // pane-b, bright
+const OUTER_RIDER = "rgba(125, 211, 252, 0.9)";
+const INNER_RIDER = "rgba(253, 164, 175, 0.9)";
+const STATION_RING = "#3a3a45"; // --border-default (neutral, matches shaft frames)
 const STATION_FILL = "#0b0d12";
-const STATION_GLYPH = "rgba(232, 235, 240, 0.85)";
-const STATION_LABEL = "rgba(232, 235, 240, 0.7)";
+const STATION_LABEL = "#a1a1aa"; // --text-secondary (matches other scenarios' floor labels)
 
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
@@ -70,7 +72,10 @@ export function drawAirportScene(
   const rectH = Math.min(h * 0.6, w * 0.42);
   const cornerR = Math.min(rectW, rectH) * 0.32;
   const gap = Math.max(28, minDim * 0.06);
-  const ringThickness = Math.max(3, minDim * 0.008);
+  // Thin tracks, matching the playground's hairline-frame language.
+  // The bright trains on top do the visual heavy lifting; the rings
+  // are just the path.
+  const ringThickness = Math.max(1.5, minDim * 0.005);
 
   const outer: TrackGeometry = {
     cx: w / 2,
@@ -78,7 +83,7 @@ export function drawAirportScene(
     w: rectW,
     h: rectH,
     r: cornerR,
-    color: OUTER_LINE,
+    color: OUTER_TRACK,
     thickness: ringThickness,
   };
   const inner: TrackGeometry = {
@@ -87,7 +92,7 @@ export function drawAirportScene(
     w: rectW - gap * 2,
     h: rectH - gap * 2,
     r: Math.max(0, cornerR - gap),
-    color: INNER_LINE,
+    color: INNER_TRACK,
     thickness: ringThickness,
   };
   const midline: RectGeometry = {
@@ -144,7 +149,7 @@ export function drawAirportScene(
     segLen,
     false,
     letterByCarId,
-    OUTER_LINE,
+    OUTER_TRAIN,
   );
   const innerPlacements = drawTrainsOnLoop(
     ctx,
@@ -157,7 +162,7 @@ export function drawAirportScene(
     segLen,
     true,
     letterByCarId,
-    INNER_LINE,
+    INNER_TRAIN,
   );
 
   // Drop zone for HUD chips that can't find clearance on the
@@ -180,7 +185,11 @@ export function drawAirportScene(
     stationObstacles,
   );
 
-  if (phaseRatio > 0.55) drawPhasePulse(ctx, outer, inner, phaseRatio);
+  // Day-phase intensity is already shown by the phase strip at the
+  // top of the page chrome (shared with every scenario). Pulsing the
+  // canvas tracks too would be airport-specific noise the rest of
+  // the playground doesn't do.
+  void phaseRatio;
 
   ctx.restore();
 }
@@ -263,27 +272,6 @@ function drawTrack(ctx: CanvasRenderingContext2D, track: TrackGeometry): void {
   ctx.stroke();
 }
 
-function drawPhasePulse(
-  ctx: CanvasRenderingContext2D,
-  outer: TrackGeometry,
-  inner: TrackGeometry,
-  phaseRatio: number,
-): void {
-  const intensity = (phaseRatio - 0.55) / 0.45;
-  const t = Math.max(0, Math.min(1, intensity));
-  ctx.save();
-  ctx.lineWidth = outer.thickness * 1.8;
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = withAlpha(OUTER_LINE, 0.12 + t * 0.18);
-  tracedRoundedRect(ctx, outer);
-  ctx.stroke();
-  ctx.strokeStyle = withAlpha(INNER_LINE, 0.12 + t * 0.18);
-  tracedRoundedRect(ctx, inner);
-  ctx.stroke();
-  ctx.restore();
-}
-
 // ── Stations ──────────────────────────────────────────────────────────
 
 function drawStations(
@@ -312,8 +300,9 @@ function drawStations(
     const outerPoint = perimeterPoint(outer, fraction);
     const innerPoint = perimeterPoint(inner, fraction);
 
-    // Outline-circle station — neutral so it doesn't fight either
-    // line's color. Filled dark to punch through both rings.
+    // Outline-circle station — neutral ring matching the playground's
+    // shaft-frame language. No letter glyph inside; the text label
+    // outside the ring carries identity.
     ctx.beginPath();
     ctx.arc(midPoint.x, midPoint.y, stationR, 0, Math.PI * 2);
     ctx.fillStyle = STATION_FILL;
@@ -321,14 +310,6 @@ function drawStations(
     ctx.strokeStyle = STATION_RING;
     ctx.lineWidth = ringWidth;
     ctx.stroke();
-
-    if (showFullLabels) {
-      ctx.font = `600 ${Math.round(stationR * 1.05)}px ${CANVAS_FONT_SANS}`;
-      ctx.fillStyle = STATION_GLYPH;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(stationGlyph(outerStop.name), midPoint.x, midPoint.y + 0.5);
-    }
 
     // Edge-aware label placement: outward perpendicular from the
     // outer ring point, with the offset chosen to clear the capped
