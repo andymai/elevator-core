@@ -1,6 +1,6 @@
 import { METRIC_KEYS, METRIC_HISTORY_LEN } from "../../types";
 import type { Snapshot } from "../../types";
-import { updateAirportLoopPanel } from "./airport-loop-panel";
+import { updateAirportCaption } from "./airport-caption";
 import type { Pane } from "./pane";
 
 export function renderPane(pane: Pane, snap: Snapshot, speed: number, phaseRatio: number): void {
@@ -17,5 +17,5 @@ export function renderPane(pane: Pane, snap: Snapshot, speed: number, phaseRatio
     if (bubble.expiresAt <= now) pane.bubbles.delete(carId);
   }
   pane.renderer.draw(snap, speed, pane.bubbles, phaseRatio);
-  updateAirportLoopPanel(pane, snap);
+  updateAirportCaption(pane);
 }
