@@ -70,6 +70,16 @@ export async function boot(): Promise<void> {
       permalink.repositionB = scenario.defaultReposition;
     }
   }
+  // Cold-boot compare default on narrow portrait viewports: two stacked
+  // panes leave each sim cramped on a 375-wide phone. Shared links keep
+  // `c=` so a recipient still sees the sender's framing.
+  if (
+    !urlSearch.has("c") &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 767px) and (orientation: portrait)").matches
+  ) {
+    permalink.compare = false;
+  }
   // Compact decoded overrides against the resolved scenario so a URL
   // that carries values matching the current default (possible if a
   // scenario default shifted between share-time and load-time) doesn't

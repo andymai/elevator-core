@@ -9,6 +9,7 @@ import {
 } from "./draw-tether-hud";
 import type { Scale } from "./layout";
 import { TARGET_FILL } from "./palette";
+import { truncate } from "./primitives";
 import { formatAltitudeShort, tetherDecadeTicks } from "./tether";
 import type { Snapshot, TetherMeta } from "../types";
 
@@ -287,7 +288,7 @@ function drawTetherStops(
     // Stop name + altitude on the left gutter.
     ctx.fillStyle = "rgba(220, 230, 245, 0.95)";
     ctx.textAlign = "right";
-    ctx.fillText(stop.name, labelLeft + labelW - 4, y - 1);
+    ctx.fillText(truncate(ctx, stop.name, labelW - 4), labelLeft + labelW - 4, y - 1);
     ctx.fillStyle = "rgba(160, 178, 210, 0.7)";
     ctx.font = `${(s.fontSmall - 0.5).toFixed(0)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     ctx.fillText(formatAltitudeShort(stop.y), labelLeft + labelW - 4, y + 10);

@@ -49,7 +49,7 @@ export function scaleFor(width: number): Scale {
     // on the narrowest phones. Tether mode picks its own gutter width
     // inside `drawTetherScene`. `truncate()` clips anything that
     // spills over on ultra-long custom stop names.
-    labelW: lerp(52, 120),
+    labelW: lerp(62, 120),
     // Preferred gutter for rider figures. The gutter grows further
     // only when shafts hit their max; otherwise shafts claim slack.
     figureGutterW: lerp(40, 70),

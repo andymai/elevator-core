@@ -881,6 +881,17 @@
     .tweak-panel-popover {
       width: calc(100vw - 16px);
     }
+    /* Soft right-edge fade hints at horizontally scrollable scenario
+     * cards on mobile. Desktop wraps the cards so no fade is needed. */
+    .scenario-cards-track {
+      -webkit-mask-image: linear-gradient(
+        to right,
+        black 0,
+        black calc(100% - 32px),
+        transparent 100%
+      );
+      mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+    }
   }
 
   /* ── Nav button (?) ─────────────────────────────────────────────────── */
