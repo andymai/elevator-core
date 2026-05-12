@@ -38,7 +38,7 @@ function buildMeta(state: PermalinkState): { title: string; description: string 
   // describe what's actually running. Render the actual dispatch and
   // drop the parking phrase.
   if (scenario.airport !== undefined) {
-    const title = `${scenarioLabel}: ${AIRPORT_DISPATCH_LABEL} dispatch — Elevator dispatch playground`;
+    const title = `${scenarioLabel}: ${AIRPORT_DISPATCH_LABEL} dispatch — ${APP_SUFFIX}`;
     const description =
       `Watch ${AIRPORT_DISPATCH_LABEL} dispatch handle live rider traffic on the ` +
       `${scenarioLabel.toLowerCase()} scenario. ${BASE_DESCRIPTION}`;
@@ -51,14 +51,14 @@ function buildMeta(state: PermalinkState): { title: string; description: string 
   const parkB = REPOSITION_LABELS[state.repositionB];
 
   if (state.compare) {
-    const title = `${scenarioLabel}: ${stratA} vs ${stratB} — Elevator dispatch playground`;
+    const title = `${scenarioLabel}: ${stratA} vs ${stratB} — ${APP_SUFFIX}`;
     const description =
       `Compare ${stratA} (parking: ${parkA}) against ${stratB} (parking: ${parkB}) ` +
       `dispatch on the ${scenarioLabel.toLowerCase()} scenario. ${BASE_DESCRIPTION}`;
     return { title, description };
   }
 
-  const title = `${scenarioLabel}: ${stratA} dispatch — Elevator dispatch playground`;
+  const title = `${scenarioLabel}: ${stratA} dispatch — ${APP_SUFFIX}`;
   const description =
     `Watch ${stratA} dispatch (parking: ${parkA}) handle live rider traffic on the ` +
     `${scenarioLabel.toLowerCase()} scenario. ${BASE_DESCRIPTION}`;
