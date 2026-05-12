@@ -69,6 +69,13 @@ interface TrainPlacement {
   remainingM: number;
 }
 
+interface AABB {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export function drawAirportScene(
   ctx: CanvasRenderingContext2D,
   snap: Snapshot,
@@ -139,7 +146,16 @@ export function drawAirportScene(
     else if (car.line === innerLine) innerCars.push(car);
   }
 
-  drawStations(ctx, outerStops, innerStops, midline, outer, airport, showFullLabels, accent);
+  const stationObstacles = drawStations(
+    ctx,
+    outerStops,
+    innerStops,
+    midline,
+    outer,
+    airport,
+    showFullLabels,
+    accent,
+  );
 
   const trainPx = computeTrainPx(outer);
   const segLen = trainPx / TRAIN_CAR_COUNT;
@@ -186,6 +202,7 @@ export function drawAirportScene(
     physics,
     showFullLabels,
     carBodyH,
+    stationObstacles,
   );
 
   if (phaseRatio > 0.55) drawPhasePulse(ctx, outer, inner, phaseRatio, accent);
@@ -322,12 +339,16 @@ function drawStations(
   airport: AirportMeta,
   showFullLabels: boolean,
   accent: string,
-): void {
+): AABB[] {
   const stationR = Math.max(5, midline.h * 0.022);
   const ringWidth = Math.max(1.5, stationR * 0.32);
   const fontPx = 11;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+
+  // Bounding boxes of the station-name labels we emit. Returned so the
+  // HUD pass can route train chips around them instead of overlapping.
+  const obstacles: AABB[] = [];
 
   const pairCount = Math.min(outerStops.length, innerStops.length);
   for (let i = 0; i < pairCount; i++) {
@@ -365,11 +386,22 @@ function drawStations(
     ctx.font = `500 ${fontPx}px ${CANVAS_FONT_SANS}`;
     ctx.fillStyle = STOP_LABEL;
     const text = showFullLabels ? outerStop.name : stationGlyph(outerStop.name);
+    const textW = ctx.measureText(text).width;
     ctx.fillText(text, lx, ly);
+    // Track-fenced obstacle bbox. Pad by `padding` so HUD chips clear
+    // the label glyphs rather than kissing the edge.
+    const padding = 3;
+    obstacles.push({
+      x: lx - textW / 2 - padding,
+      y: ly - fontPx / 2 - padding,
+      w: textW + padding * 2,
+      h: fontPx + padding * 2,
+    });
 
     drawWaitingDots(ctx, midPoint, midline, outerStop.waiting, true, stationR);
     drawWaitingDots(ctx, midPoint, midline, innerStop.waiting, false, stationR);
   }
+  return obstacles;
 }
 
 function stationGlyph(name: string): string {
@@ -587,6 +619,7 @@ function drawTrainHuds(
   physics: AirportPhysics,
   showFullLabels: boolean,
   carBodyH: number,
+  stationObstacles: AABB[],
 ): void {
   if (trains.length === 0) return;
   // Skip HUD entirely on very narrow viewports — four overlapping
@@ -634,13 +667,17 @@ function drawTrainHuds(
   }
 
   // Collision pass — nudge perpendicular to the radial axis until no
-  // overlap with earlier chips. Simpler than the tether's flip-left-right
-  // because airport anchors are spread along the perimeter already.
-  for (let i = 1; i < placements.length; i++) {
+  // overlap with earlier chips *or* any station-label obstacle. Two-axis
+  // walk: alternating + and − sign on slide direction, scaling step on
+  // each attempt so we explore both shoulders of the anchor.
+  for (let i = 0; i < placements.length; i++) {
     const me = placements[i];
     if (!me) continue;
     let attempts = 0;
-    while (attempts < 6 && hasOverlap(me, placements, i)) {
+    while (
+      attempts < 8 &&
+      (hasChipOverlap(me, placements, i) || hasObstacleOverlap(me, stationObstacles))
+    ) {
       const slideX = -me.oy;
       const slideY = me.ox;
       const step = (attempts % 2 === 0 ? 1 : -1) * (me.bubbleH * 0.6 + 6) * (1 + attempts * 0.4);
@@ -681,22 +718,38 @@ function drawTrainHuds(
   }
 }
 
-function hasOverlap(me: HudPlacement, all: HudPlacement[], myIdx: number): boolean {
+function hasChipOverlap(me: HudPlacement, all: HudPlacement[], myIdx: number): boolean {
   for (let i = 0; i < all.length; i++) {
     if (i === myIdx) continue;
     const o = all[i];
     if (!o) continue;
-    if (
-      me.bx + me.bubbleW <= o.bx ||
-      o.bx + o.bubbleW <= me.bx ||
-      me.by + me.bubbleH <= o.by ||
-      o.by + o.bubbleH <= me.by
-    ) {
-      continue;
+    if (rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, o.bx, o.by, o.bubbleW, o.bubbleH)) {
+      return true;
     }
-    return true;
   }
   return false;
+}
+
+function hasObstacleOverlap(me: HudPlacement, obstacles: AABB[]): boolean {
+  for (const obs of obstacles) {
+    if (rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, obs.x, obs.y, obs.w, obs.h)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function rectIntersects(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+): boolean {
+  return !(ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay);
 }
 
 function isDwelling(car: CarDto): boolean {
