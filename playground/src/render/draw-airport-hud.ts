@@ -1,7 +1,16 @@
+import {
+  outwardNormal,
+  rectIntersects,
+  tracedRoundedRect,
+  type AABB,
+  type PerimeterPoint,
+} from "./airport-geometry";
 import { withAlpha } from "./color-utils";
 import { CANVAS_FONT_SANS } from "./palette";
 import { formatDuration, tetherEta } from "./tether";
 import type { CarDto, StopDto } from "../types";
+
+export type { AABB, PerimeterPoint } from "./airport-geometry";
 
 /**
  * Persistent per-train HUD for the airport scene — the analogue of
@@ -10,28 +19,6 @@ import type { CarDto, StopDto } from "../types";
  * outward; inner trains push chips inward into the empty interior of
  * the inner ring (clean drop zone, no labels or rings to overlap).
  */
-
-export interface PerimeterPoint {
-  x: number;
-  y: number;
-  /** Tangent direction in radians; 0 = +x (rightward), π/2 = +y. */
-  tangent: number;
-}
-
-export interface RectGeometry {
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-  r: number;
-}
-
-export interface AABB {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 export interface AirportPhysics {
   maxSpeed: number;
@@ -67,42 +54,6 @@ const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
 function isDwelling(car: CarDto): boolean {
   return DWELLING_PHASES.has(car.phase);
-}
-
-function outwardNormal(p: PerimeterPoint): { nx: number; ny: number } {
-  return { nx: Math.sin(p.tangent), ny: -Math.cos(p.tangent) };
-}
-
-function tracedRoundedRect(ctx: CanvasRenderingContext2D, rect: RectGeometry): void {
-  const { cx, cy, w, h, r } = rect;
-  const left = cx - w / 2;
-  const top = cy - h / 2;
-  const right = cx + w / 2;
-  const bottom = cy + h / 2;
-  ctx.beginPath();
-  ctx.moveTo(left + r, top);
-  ctx.lineTo(right - r, top);
-  ctx.arcTo(right, top, right, top + r, r);
-  ctx.lineTo(right, bottom - r);
-  ctx.arcTo(right, bottom, right - r, bottom, r);
-  ctx.lineTo(left + r, bottom);
-  ctx.arcTo(left, bottom, left, bottom - r, r);
-  ctx.lineTo(left, top + r);
-  ctx.arcTo(left, top, left + r, top, r);
-  ctx.closePath();
-}
-
-function rectIntersects(
-  ax: number,
-  ay: number,
-  aw: number,
-  ah: number,
-  bx: number,
-  by: number,
-  bw: number,
-  bh: number,
-): boolean {
-  return !(ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay);
 }
 
 function hasChipOverlap(me: HudPlacement, all: HudPlacement[], myIdx: number): boolean {
@@ -222,15 +173,24 @@ export function drawTrainHuds(
       innerSafe.w > me.bubbleW + 8 &&
       innerSafe.h > me.bubbleH + 8
     ) {
+      // Drop into the inner safe zone, stacked vertically. Clamp the
+      // slot so chips past capacity sit at the bottom of the safe
+      // zone rather than running off the canvas. Same-slot overlap
+      // is the lesser evil — better than half-rendered chips.
       const occupied = placements
         .slice(0, i)
-        .filter((p) => p.bx >= innerSafe.x && p.bx + p.bubbleW <= innerSafe.x + innerSafe.w);
-      const slot = occupied.length;
+        .filter(
+          (p) =>
+            p.bx >= innerSafe.x &&
+            p.bx + p.bubbleW <= innerSafe.x + innerSafe.w &&
+            p.by >= innerSafe.y &&
+            p.by + p.bubbleH <= innerSafe.y + innerSafe.h,
+        );
+      const slotStep = me.bubbleH + 4;
+      const maxSlots = Math.max(1, Math.floor((innerSafe.h - me.bubbleH) / slotStep) + 1);
+      const slot = Math.min(occupied.length, maxSlots - 1);
       me.bx = innerSafe.x + (innerSafe.w - me.bubbleW) / 2;
-      me.by = Math.min(
-        innerSafe.y + innerSafe.h - me.bubbleH,
-        innerSafe.y + slot * (me.bubbleH + 4),
-      );
+      me.by = innerSafe.y + slot * slotStep;
     }
   }
 

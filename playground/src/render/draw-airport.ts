@@ -1,11 +1,12 @@
-import { withAlpha } from "./color-utils";
 import {
-  drawTrainHuds,
+  outwardNormal,
+  tracedRoundedRect,
   type AABB,
-  type AirportPhysics,
   type PerimeterPoint,
-  type TrainPlacement,
-} from "./draw-airport-hud";
+  type RectGeometry,
+} from "./airport-geometry";
+import { withAlpha } from "./color-utils";
+import { drawTrainHuds, type AirportPhysics, type TrainPlacement } from "./draw-airport-hud";
 import { CANVAS_FONT_SANS } from "./palette";
 import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
 
@@ -40,14 +41,11 @@ const STATION_LABEL = "rgba(232, 235, 240, 0.7)";
 
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
-
-interface RectGeometry {
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-  r: number;
-}
+const QUEUE_PER_ROW = 4;
+/** Cap on visibly rendered waiting dots so the cluster's outward
+ *  extent stays bounded; surplus riders fold into a "+N" indicator at
+ *  the far end of the cluster. */
+const QUEUE_MAX_VISIBLE_ROWS = 4;
 
 interface TrackGeometry extends RectGeometry {
   color: string;
@@ -256,36 +254,6 @@ function perimeterPoint(rect: RectGeometry, f: number): PerimeterPoint {
   };
 }
 
-/**
- * Outward unit normal at a perimeter point (perpendicular to tangent,
- * pointing away from the rect center). Used for placing labels and
- * waiting-dot clusters cleanly off the track.
- */
-function outwardNormal(p: PerimeterPoint): { nx: number; ny: number } {
-  // For a CW-walked rect, the outward normal is the tangent rotated
-  // 90° CW: (sinθ, -cosθ).
-  return { nx: Math.sin(p.tangent), ny: -Math.cos(p.tangent) };
-}
-
-function tracedRoundedRect(ctx: CanvasRenderingContext2D, rect: RectGeometry): void {
-  const { cx, cy, w, h, r } = rect;
-  const left = cx - w / 2;
-  const top = cy - h / 2;
-  const right = cx + w / 2;
-  const bottom = cy + h / 2;
-  ctx.beginPath();
-  ctx.moveTo(left + r, top);
-  ctx.lineTo(right - r, top);
-  ctx.arcTo(right, top, right, top + r, r);
-  ctx.lineTo(right, bottom - r);
-  ctx.arcTo(right, bottom, right - r, bottom, r);
-  ctx.lineTo(left + r, bottom);
-  ctx.arcTo(left, bottom, left, bottom - r, r);
-  ctx.lineTo(left, top + r);
-  ctx.arcTo(left, top, left + r, top, r);
-  ctx.closePath();
-}
-
 function drawTrack(ctx: CanvasRenderingContext2D, track: TrackGeometry): void {
   tracedRoundedRect(ctx, track);
   ctx.strokeStyle = track.color;
@@ -362,12 +330,17 @@ function drawStations(
       ctx.fillText(stationGlyph(outerStop.name), midPoint.x, midPoint.y + 0.5);
     }
 
-    // Edge-aware label placement: use the outward normal at the outer
-    // ring point, with a tighter offset than the previous radial-from-
-    // center version. On corners the normal rotates with the arc, so
-    // labels at corners tilt diagonally but stay close to the ring.
+    // Edge-aware label placement: outward perpendicular from the
+    // outer ring point, with the offset chosen to clear the capped
+    // outer-waiting-cluster extent (`QUEUE_MAX_VISIBLE_ROWS` rows of
+    // dots above the ring, plus a small gap). Without this the label
+    // would land on top of the queue at busy stations — exactly the
+    // overlap the user reported.
+    const dotR = Math.max(1.8, stationR * 0.22);
+    const stride = dotR * 2.4;
+    const queueExtent = stationR + dotR * 1.6 + stride * (QUEUE_MAX_VISIBLE_ROWS - 1) + dotR;
     const { nx, ny } = outwardNormal(outerPoint);
-    const labelOffset = stationR + fontPx * 0.8 + 4;
+    const labelOffset = queueExtent + fontPx * 0.8 + 4;
     const lx = outerPoint.x + nx * labelOffset;
     const ly = outerPoint.y + ny * labelOffset;
     ctx.font = `500 ${fontPx}px ${CANVAS_FONT_SANS}`;
@@ -426,19 +399,36 @@ function drawWaitingCluster(
   const dotR = Math.max(1.8, stationR * 0.22);
   const stride = dotR * 2.4;
   const startOffset = stationR + dotR * 1.6;
-  const perRow = 4;
+  const maxVisible = QUEUE_PER_ROW * QUEUE_MAX_VISIBLE_ROWS;
+  const overflow = Math.max(0, waiting - maxVisible);
+  // When the queue exceeds the visible cap, reserve the last slot for
+  // a "+N" overflow indicator so users still see how many extra are
+  // waiting without the cluster growing past the station label.
+  const visible = Math.min(waiting, maxVisible);
 
   ctx.fillStyle = color;
-  for (let i = 0; i < waiting; i++) {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-    const offsetCol = col - (perRow - 1) / 2;
+  for (let i = 0; i < visible; i++) {
+    const row = Math.floor(i / QUEUE_PER_ROW);
+    const col = i % QUEUE_PER_ROW;
+    const offsetCol = col - (QUEUE_PER_ROW - 1) / 2;
     const stackDist = startOffset + stride * row;
     const x = anchor.x + nx * stackDist + tx * (offsetCol * stride);
     const y = anchor.y + ny * stackDist + ty * (offsetCol * stride);
     ctx.beginPath();
     ctx.arc(x, y, dotR, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  if (overflow > 0) {
+    // "+N" indicator at the far end of the cluster so the user can
+    // still see exactly how crowded the platform is past the cap.
+    const lastStack = startOffset + stride * (QUEUE_MAX_VISIBLE_ROWS - 1);
+    const xLabel = anchor.x + nx * (lastStack + stride * 1.4);
+    const yLabel = anchor.y + ny * (lastStack + stride * 1.4);
+    ctx.font = `600 ${Math.round(dotR * 4)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`+${overflow}`, xLabel, yLabel);
   }
 }
 
@@ -580,7 +570,9 @@ function drawRidersInCar(
   const cellW = innerW / cols;
   const cellH = innerH / rows;
   const dotR = Math.max(0.7, Math.min(cellW, cellH) * 0.36);
-  // White-ish dots — readable against any line fill color.
+  // Near-black dots — high contrast against the lighter line-colored
+  // car bodies, mirroring Mini Metro's dark passenger marks on
+  // bright trains.
   ctx.fillStyle = "rgba(20, 22, 30, 0.85)";
   let placed = 0;
   for (let row = 0; row < rows && placed < load; row++) {
