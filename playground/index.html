@@ -175,7 +175,7 @@
           "Compare dispatch strategies side-by-side",
           "Six built-in dispatch algorithms (LOOK, SCAN, NEAREST, ETD, DCS, RSR)",
           "Five idle-parking strategies (Adaptive, Predictive, Lobby, Spread, Stay)",
-          "Three scenarios (Convention center, Skyscraper, Space elevator)",
+          "Four scenarios (Skyscraper, Space elevator, Airport loop, Convention center)",
           "Deterministic seeded traffic generation",
           "Live metrics: wait time, ride time, abandonments, throughput",
           "Permalink sharing of full simulator state",
@@ -241,7 +241,7 @@
         ]
       }
     </script>
-    <script type="module" crossorigin src="./assets/index-HRMwNoa1.js"></script>
+    <script type="module" crossorigin src="./assets/index-Bza6dfVo.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-8u0lMMIw.css">
   </head>
   <body>
@@ -344,10 +344,6 @@
         <h2>Scenarios</h2>
         <ul>
           <li>
-            <strong>Convention center</strong> — five named stops (Lobby, Exhibit Hall, Mezzanine,
-            Ballroom, Keynote Hall). Tests burst traffic when a keynote lets out.
-          </li>
-          <li>
             <strong>Skyscraper</strong> — 40 named floors plus three sub-basements and a sky lobby.
             Models morning rush, midday meetings, lunch crowd, evening commute, and late-night
             traffic across low/high banks, an executive line, and a service line.
@@ -355,6 +351,15 @@
           <li>
             <strong>Space elevator</strong> — kilometres-long tether climbers between Earth station
             and orbital platforms. Stress-tests dispatch and parking when stops are far apart.
+          </li>
+          <li>
+            <strong>Airport loop</strong> — two counter-rotating loops connect a terminal to six
+            concourses. Fixed-headway dispatch on a one-way loop, with demand shifting from outbound
+            (morning) to inbound (evening).
+          </li>
+          <li>
+            <strong>Convention center</strong> — five named stops (Lobby, Exhibit Hall, Mezzanine,
+            Ballroom, Keynote Hall). Tests burst traffic when a keynote lets out.
           </li>
         </ul>
 
