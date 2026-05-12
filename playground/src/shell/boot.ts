@@ -1,6 +1,7 @@
 import { reconcileStrategyWithScenario } from "../features/scenario-picker";
 import { applyPlaygroundMode, wireModeToggle } from "../features/mode-toggle";
 import { bootQuestPane } from "../features/quest";
+import { wireScenarioConfig } from "../features/scenario-config";
 import {
   DEFAULT_STATE,
   compactOverrides,
@@ -83,6 +84,11 @@ export async function boot(): Promise<void> {
   applyPlaygroundMode(permalink.mode);
   wireModeToggle(permalink.mode);
   applyPermalinkToUi(permalink, ui);
+  const setScenarioConfig = wireScenarioConfig(ui.toast);
+  setScenarioConfig(permalink.scenario);
+  onPermalinkSync((p) => {
+    setScenarioConfig(p.scenario);
+  });
   const state: State = {
     running: true,
     ready: false,
