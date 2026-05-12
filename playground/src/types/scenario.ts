@@ -116,6 +116,12 @@ export interface ScenarioMeta {
   label: string;
   description: string;
   ron: string;
+  /**
+   * Filename shown above the scenario's RON in the config panel —
+   * e.g. `convention_burst.ron`. Treat it as a label, not a file
+   * path; nothing on disk is loaded by this name.
+   */
+  configFilename: string;
   /** Baseline dispatch strategy for this scenario. User can still swap. */
   defaultStrategy: StrategyName;
   /** Day-cycle phases, ordered. Empty array = static (used by convention-burst). */
