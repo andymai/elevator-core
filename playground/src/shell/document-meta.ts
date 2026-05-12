@@ -20,6 +20,8 @@ export function updateRuntimeMeta(state: PermalinkState): void {
   setDocumentMeta(buildMeta(state));
 }
 
+const AIRPORT_DISPATCH_LABEL = "LoopSchedule";
+
 function buildMeta(state: PermalinkState): { title: string; description: string } {
   if (state.mode === "quest") {
     return {
@@ -31,6 +33,19 @@ function buildMeta(state: PermalinkState): { title: string; description: string 
 
   const scenario = scenarioById(state.scenario);
   const scenarioLabel = scenario.label;
+
+  // Airport hard-pins LoopSchedule via RON per-group config and has no
+  // parking strategy, so the global strategyA/repositionA fields don't
+  // describe what's actually running. Render the actual dispatch and
+  // drop the parking phrase.
+  if (scenario.airport !== undefined) {
+    const title = `${scenarioLabel}: ${AIRPORT_DISPATCH_LABEL} dispatch — Elevator dispatch playground`;
+    const description =
+      `Watch ${AIRPORT_DISPATCH_LABEL} dispatch handle live rider traffic on the ` +
+      `${scenarioLabel.toLowerCase()} scenario. ${BASE_DESCRIPTION}`;
+    return { title, description };
+  }
+
   const stratA = STRATEGY_LABELS[state.strategyA];
   const stratB = STRATEGY_LABELS[state.strategyB];
   const parkA = REPOSITION_LABELS[state.repositionA];

@@ -1,5 +1,6 @@
 import {
   outwardNormal,
+  projectInward,
   tracedRoundedRect,
   type AABB,
   type PerimeterPoint,
@@ -14,32 +15,32 @@ import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
  *
  * Two concentric rounded-rectangles separated by a small gap form
  * two *distinct* lines: outer in playground blue, inner in coral.
- * Outline-circle stations on the midline serve both lines; one dot
- * per rider whether they're waiting at a platform or riding inside a
- * car. Outer trains sweep clockwise, inner trains sweep
- * counter-clockwise.
+ * Each stop renders as a single neutral tick perpendicular to the
+ * tracks, spanning the gap — minimal footprint, clearly a marker,
+ * never confused for a train segment. Inner-loop trains parameterize
+ * positions on the OUTER perimeter and project inward by `gap` so
+ * same-name stops align across loops (each loop's own perimeter
+ * lookup would misalign at corners since the arcs differ).
  *
- * A persistent per-train HUD tag pinned beside each train (outer
- * chips push outward, inner chips drop into the inner ring's empty
- * interior) carries the train's identity, next stop, load, and ETA.
+ * Outer trains sweep clockwise, inner counter-clockwise; lead car is
+ * brightened with a forward-pointing chevron so direction of motion
+ * reads at a glance.
+ *
+ * Per-train info pills are gated: dwelling trains always show one
+ * (info-rich moment), and the user's hovered/touched train shows one.
+ * Moving, un-hovered trains stay un-annotated to keep the scene calm.
  */
 
-// ── Color tokens ──────────────────────────────────────────────────────
-// Tracks are MUTED so the airport scene reads as native to the
-// playground — the rest of the scenarios use low-alpha shaft fills
-// with neutral frames, not bold saturated strokes. Loop identity
-// still comes through via the trains and waiting clusters, which
-// stay at full saturation against the muted track. Outer-track =
-// blue-tinted, inner-track = coral-tinted, both at low alpha.
-const OUTER_TRACK = "rgba(125, 211, 252, 0.45)"; // pane-a, muted
-const INNER_TRACK = "rgba(253, 164, 175, 0.4)"; // pane-b, muted
-const OUTER_TRAIN = "#7dd3fc"; // pane-a, bright — pops against the track
-const INNER_TRAIN = "#fda4af"; // pane-b, bright
+// Tracks are muted so the line identity comes through via the
+// full-saturation trains and waiting clusters on top, not the rings.
+const OUTER_TRACK = "rgba(125, 211, 252, 0.45)";
+const INNER_TRACK = "rgba(253, 164, 175, 0.4)";
+const OUTER_TRAIN = "#7dd3fc";
+const INNER_TRAIN = "#fda4af";
 const OUTER_RIDER = "rgba(125, 211, 252, 0.9)";
 const INNER_RIDER = "rgba(253, 164, 175, 0.9)";
-const STATION_RING = "#3a3a45"; // --border-default (neutral, matches shaft frames)
-const STATION_FILL = "#0b0d12";
-const STATION_LABEL = "#a1a1aa"; // --text-secondary (matches other scenarios' floor labels)
+const STATION_LABEL = "#a1a1aa";
+const STATION_TICK = "rgba(212, 212, 216, 0.55)"; // muted neutral, perpendicular to track
 
 const NARROW_LABELS_PX = 480;
 const TRAIN_CAR_COUNT = 4;
@@ -60,7 +61,7 @@ export function drawAirportScene(
   w: number,
   h: number,
   airport: AirportMeta,
-  phaseRatio: number,
+  _phaseRatio: number,
   _accent: string,
   physics: AirportPhysics,
 ): void {
@@ -68,13 +69,18 @@ export function drawAirportScene(
 
   const minDim = Math.min(w, h);
   const showFullLabels = minDim >= NARROW_LABELS_PX;
-  const rectW = w * 0.88;
-  const rectH = Math.min(h * 0.6, w * 0.42);
+  // Reserve canvas margins for station labels. Full-name labels need
+  // ~95px clearance horizontally (longest is "Concourse X" plus the
+  // outward label offset). Vertical clearance must cover the same
+  // outward offset (~38px) plus a small breathing margin so top/bottom
+  // labels never clip against the canvas edge. Glyph mode at narrow
+  // viewports drops the horizontal budget since labels become 1 char.
+  const labelPadX = showFullLabels ? 95 : 32;
+  const labelPadY = 44;
+  const rectW = Math.min(w * 0.92, Math.max(160, w - labelPadX * 2));
+  const rectH = Math.min(Math.max(120, h - labelPadY * 2), w * 0.5);
   const cornerR = Math.min(rectW, rectH) * 0.32;
-  const gap = Math.max(28, minDim * 0.06);
-  // Thin tracks, matching the playground's hairline-frame language.
-  // The bright trains on top do the visual heavy lifting; the rings
-  // are just the path.
+  const gap = Math.max(14, minDim * 0.025);
   const ringThickness = Math.max(1.5, minDim * 0.005);
 
   const outer: TrackGeometry = {
@@ -94,13 +100,6 @@ export function drawAirportScene(
     r: Math.max(0, cornerR - gap),
     color: INNER_TRACK,
     thickness: ringThickness,
-  };
-  const midline: RectGeometry = {
-    cx: w / 2,
-    cy: h / 2,
-    w: (outer.w + inner.w) / 2,
-    h: (outer.h + inner.h) / 2,
-    r: (outer.r + inner.r) / 2,
   };
 
   drawTrack(ctx, outer);
@@ -124,9 +123,8 @@ export function drawAirportScene(
     ctx,
     outerStops,
     innerStops,
-    midline,
     outer,
-    inner,
+    gap,
     airport,
     showFullLabels,
   );
@@ -136,32 +134,30 @@ export function drawAirportScene(
   const segLen = trainPx / TRAIN_CAR_COUNT;
   const carBodyH = Math.max(9, ringThickness * 2.8);
 
-  const letterByCarId = assignLetters([...outerCars, ...innerCars]);
-
   const outerPlacements = drawTrainsOnLoop(
     ctx,
     outerCars,
     outerStops,
     outer,
+    0,
     airport,
     carBodyW,
     carBodyH,
     segLen,
     false,
-    letterByCarId,
     OUTER_TRAIN,
   );
   const innerPlacements = drawTrainsOnLoop(
     ctx,
     innerCars,
     innerStops,
-    inner,
+    outer,
+    gap,
     airport,
     carBodyW,
     carBodyH,
     segLen,
     true,
-    letterByCarId,
     INNER_TRAIN,
   );
 
@@ -184,12 +180,6 @@ export function drawAirportScene(
     carBodyH,
     stationObstacles,
   );
-
-  // Day-phase intensity is already shown by the phase strip at the
-  // top of the page chrome (shared with every scenario). Pulsing the
-  // canvas tracks too would be airport-specific noise the rest of
-  // the playground doesn't do.
-  void phaseRatio;
 
   ctx.restore();
 }
@@ -278,16 +268,18 @@ function drawStations(
   ctx: CanvasRenderingContext2D,
   outerStops: StopDto[],
   innerStops: StopDto[],
-  midline: RectGeometry,
   outer: TrackGeometry,
-  inner: TrackGeometry,
+  gap: number,
   airport: AirportMeta,
   showFullLabels: boolean,
 ): AABB[] {
-  const stationR = Math.max(5, midline.h * 0.022);
-  const ringWidth = Math.max(1.5, stationR * 0.32);
+  const stationR = Math.max(5, gap * 0.12);
   const fontPx = 11;
   const obstacles: AABB[] = [];
+
+  ctx.strokeStyle = STATION_TICK;
+  ctx.lineWidth = Math.max(1.4, outer.thickness * 1.1);
+  ctx.lineCap = "round";
 
   const pairCount = Math.min(outerStops.length, innerStops.length);
   for (let i = 0; i < pairCount; i++) {
@@ -295,28 +287,25 @@ function drawStations(
     const innerStop = innerStops[i];
     if (!outerStop || !innerStop) continue;
 
+    // Both loops anchor on the outer perimeter at the stop's sim
+    // fraction; inner is the same point projected inward by `gap`.
+    // Same-name stops align across loops, which they wouldn't if each
+    // loop indexed by its own perimeter (matching straights, mismatched
+    // arc lengths).
     const fraction = outerStop.y / airport.circumferenceM;
-    const midPoint = perimeterPoint(midline, fraction);
     const outerPoint = perimeterPoint(outer, fraction);
-    const innerPoint = perimeterPoint(inner, fraction);
+    const innerPoint = projectInward(outerPoint, gap);
 
-    // Outline-circle station — neutral ring matching the playground's
-    // shaft-frame language. No letter glyph inside; the text label
-    // outside the ring carries identity.
+    // One neutral tick perpendicular to the tracks, spanning the gap.
+    // Reads as a station marker without competing with the trains.
     ctx.beginPath();
-    ctx.arc(midPoint.x, midPoint.y, stationR, 0, Math.PI * 2);
-    ctx.fillStyle = STATION_FILL;
-    ctx.fill();
-    ctx.strokeStyle = STATION_RING;
-    ctx.lineWidth = ringWidth;
+    ctx.moveTo(outerPoint.x, outerPoint.y);
+    ctx.lineTo(innerPoint.x, innerPoint.y);
     ctx.stroke();
 
-    // Edge-aware label placement: outward perpendicular from the
-    // outer ring point, with the offset chosen to clear the capped
-    // outer-waiting-cluster extent (`QUEUE_MAX_VISIBLE_ROWS` rows of
-    // dots above the ring, plus a small gap). Without this the label
-    // would land on top of the queue at busy stations — exactly the
-    // overlap the user reported.
+    // Label outside the outer loop, offset to clear the queue cluster
+    // cap. All labels share the same weight/size; identity comes from
+    // position around the ring.
     const dotR = Math.max(1.8, stationR * 0.22);
     const stride = dotR * 2.4;
     const queueExtent = stationR + dotR * 1.6 + stride * (QUEUE_MAX_VISIBLE_ROWS - 1) + dotR;
@@ -339,13 +328,13 @@ function drawStations(
       h: fontPx + labelPad * 2,
     });
 
-    // Waiting riders — one cluster per loop, colored to match its
-    // line. Outer cluster stacks OUTWARD perpendicular to the outer
-    // track; inner cluster stacks INWARD into the inner ring's empty
-    // interior. Row axis is tangential to the track so the queue
-    // grows parallel to the line, not diagonally into the corner.
     drawWaitingCluster(ctx, outerPoint, outerStop.waiting, "outward", OUTER_RIDER, stationR);
     drawWaitingCluster(ctx, innerPoint, innerStop.waiting, "inward", INNER_RIDER, stationR);
+
+    // Stroke state may have been clobbered by waiting cluster fills.
+    ctx.strokeStyle = STATION_TICK;
+    ctx.lineWidth = Math.max(1.4, outer.thickness * 1.1);
+    ctx.lineCap = "round";
   }
   return obstacles;
 }
@@ -430,49 +419,57 @@ function distributeLoad(totalRiders: number): number[] {
   return out;
 }
 
-function assignLetters(cars: CarDto[]): Map<number, string> {
-  const sorted = [...cars].sort((a, b) => a.id - b.id);
-  const out = new Map<number, string>();
-  for (let i = 0; i < sorted.length; i++) {
-    const car = sorted[i];
-    if (car) out.set(car.id, String.fromCharCode(65 + i));
-  }
-  return out;
-}
-
 function drawTrainsOnLoop(
   ctx: CanvasRenderingContext2D,
   cars: CarDto[],
   stops: StopDto[],
-  track: TrackGeometry,
+  outer: TrackGeometry,
+  inwardGap: number,
   airport: AirportMeta,
   carBodyW: number,
   carBodyH: number,
   segLen: number,
   reverseDirection: boolean,
-  letterByCarId: Map<number, string>,
   lineColor: string,
 ): TrainPlacement[] {
   if (cars.length === 0) return [];
-  const perim = perimeterLength(track);
+  // Both loops parameterize positions on the outer perimeter; inner
+  // cars are then projected inward by `inwardGap`. Keeps train and
+  // station positions on the inner loop visually consistent with the
+  // outer (same straight-edge lengths, mirrored stops align).
+  const perim = perimeterLength(outer);
+  const onLoop = (f: number): PerimeterPoint => {
+    const p = perimeterPoint(outer, f);
+    return inwardGap > 0 ? projectInward(p, inwardGap) : p;
+  };
   const placements: TrainPlacement[] = [];
+
+  // Half a train (in perimeter pixels) — used to shift the train so
+  // that its CENTER sits on car.y instead of the lead car. Without
+  // this, a dwelling train's lead car would land at the platform but
+  // the other 3 cars would trail off behind the stop.
+  const halfTrainPx = (TRAIN_CAR_COUNT * segLen) / 2;
 
   for (const car of cars) {
     const baseFraction = car.y / airport.circumferenceM;
-    const frontFraction = reverseDirection ? 1 - baseFraction : baseFraction;
     const perCarLoad = distributeLoad(car.riders);
+    const dir = reverseDirection ? -1 : 1;
+    const centeredBase = reverseDirection ? 1 - baseFraction : baseFraction;
+    const frontFraction = centeredBase + (dir * halfTrainPx) / perim;
+    const carPoints: PerimeterPoint[] = [];
     for (let i = 0; i < TRAIN_CAR_COUNT; i++) {
-      const dir = reverseDirection ? -1 : 1;
       const segCenterPx = -dir * (i * segLen + segLen / 2);
       const segFraction = (((frontFraction + segCenterPx / perim) % 1) + 1) % 1;
-      const point = perimeterPoint(track, segFraction);
-      const load = perCarLoad[i] ?? 0;
-      drawCarBody(ctx, point, carBodyW, carBodyH, lineColor, load, i === 0);
+      carPoints.push(onLoop(segFraction));
     }
-    const dir = reverseDirection ? -1 : 1;
+    for (let i = 0; i < TRAIN_CAR_COUNT; i++) {
+      const point = carPoints[i];
+      if (!point) continue;
+      const load = perCarLoad[i] ?? 0;
+      drawCarBody(ctx, point, carBodyW, carBodyH, lineColor, load, i === 0, dir);
+    }
     const leadFraction = (((frontFraction + (-dir * segLen) / 2 / perim) % 1) + 1) % 1;
-    const anchor = perimeterPoint(track, leadFraction);
-    const letter = letterByCarId.get(car.id) ?? "?";
+    const anchor = onLoop(leadFraction);
 
     const nextStop = pickNextStop(car, stops, airport.circumferenceM);
     const remainingM = nextStop
@@ -481,10 +478,8 @@ function drawTrainsOnLoop(
     placements.push({
       car,
       anchor,
-      letter,
       nextStop,
       remainingM,
-      lineColor,
       isInner: reverseDirection,
     });
   }
@@ -513,24 +508,36 @@ function drawCarBody(
   fill: string,
   load: number,
   isLead: boolean,
+  forwardX: number,
 ): void {
   ctx.save();
   ctx.translate(point.x, point.y);
   ctx.rotate(point.tangent);
   const halfL = length / 2;
   const halfW = width / 2;
-  const r = Math.min(halfL, halfW) * 0.5;
-  tracedRoundedRect(ctx, { cx: 0, cy: 0, w: length, h: width, r });
+  const r = Math.min(length, width) * 0.25;
+  const body = { cx: 0, cy: 0, w: length, h: width, r };
+  tracedRoundedRect(ctx, body);
   ctx.fillStyle = fill;
   ctx.fill();
-  // Subtle inner highlight on the lead car so the train direction
-  // reads at a glance — Mini Metro doesn't do this, but our trains
-  // are dark capsules on a dark bg and need a directional cue.
   if (isLead) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-    ctx.beginPath();
-    ctx.arc(halfL - r * 1.1, 0, halfW * 0.32, 0, Math.PI * 2);
+    tracedRoundedRect(ctx, body);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
     ctx.fill();
+    // Chevron tip at the leading edge — forwardX flips for inner-loop
+    // (counter-clockwise) trains so the chevron always points along
+    // direction of travel, not just along the perimeter parameterization.
+    const tipX = forwardX * (halfL - r * 0.4);
+    const backX = forwardX * (halfL - r * 0.4 - halfW * 0.95);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.lineWidth = Math.max(1.2, halfW * 0.32);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(backX, -halfW * 0.55);
+    ctx.lineTo(tipX, 0);
+    ctx.lineTo(backX, halfW * 0.55);
+    ctx.stroke();
   }
   if (load > 0) drawRidersInCar(ctx, length, width, load);
   ctx.restore();
@@ -551,9 +558,6 @@ function drawRidersInCar(
   const cellW = innerW / cols;
   const cellH = innerH / rows;
   const dotR = Math.max(0.7, Math.min(cellW, cellH) * 0.36);
-  // Near-black dots — high contrast against the lighter line-colored
-  // car bodies, mirroring Mini Metro's dark passenger marks on
-  // bright trains.
   ctx.fillStyle = "rgba(20, 22, 30, 0.85)";
   let placed = 0;
   for (let row = 0; row < rows && placed < load; row++) {
