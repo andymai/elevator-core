@@ -21,7 +21,13 @@
 import type { PlaygroundMode } from "../domain";
 
 /** Elements that exist for compare mode and have no Quest meaning. */
-const COMPARE_CHROME_IDS = ["layout", "scenario-picker", "controls-bar", "cabin-legend"] as const;
+const COMPARE_CHROME_IDS = [
+  "layout",
+  "scenario-picker",
+  "scenario-config",
+  "controls-bar",
+  "cabin-legend",
+] as const;
 
 /** Elements that exist for Quest mode only. */
 const QUEST_CHROME_IDS = ["quest-pane"] as const;

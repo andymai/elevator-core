@@ -80,6 +80,7 @@ const conventionPhases: Phase[] = [
 const convention: ScenarioMeta = {
   id: "convention-burst",
   label: "Convention center",
+  configFilename: "convention_burst.ron",
   description:
     "Five-floor convention center. A keynote ends and 200+ riders spill into the elevators at once — an acute stress test rather than a day cycle.",
   defaultStrategy: "etd",
@@ -111,7 +112,9 @@ const convention: ScenarioMeta = {
   tweakRanges: { ...COMMERCIAL_TWEAK_RANGES, cars: { min: 1, max: 6, step: 1 } },
   passengerMeanIntervalTicks: 30,
   passengerWeightRange: [55.0, 100.0],
-  ron: `SimConfig(
+  ron: `// Five-floor convention center. The keynote ends and 200+ riders
+// flood the lobby at once — a stress test, not a day cycle.
+SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Convention Center",
@@ -123,12 +126,9 @@ const convention: ScenarioMeta = {
             StopConfig(id: StopId(4), name: "Keynote Hall", position: 16.0),
         ],
     ),
-    // Convention door timing: 5 s dwell for group boarding. Big crowds
-    // after keynote are slow to actually step through the threshold;
-    // rushing the doors closed ejects riders mid-walk and re-opens, a
-    // realistic failure mode. Four cars pre-positioned at Lobby,
-    // Mezzanine, Ballroom, and Keynote Hall so dispatch has both
-    // nearby and far cars available when the pile-up hits.
+    // Doors dwell 5 seconds — crowds boarding in a hurry need a beat
+    // to step through. Four cars start spread across the building so
+    // dispatch has nearby and far options when the rush hits.
     elevators: [
         ElevatorConfig(
             id: 0, name: "Car A",
@@ -389,13 +389,18 @@ function buildSkyscraperRon(): string {
                     bypass_load_up_pct: Some(0.85), bypass_load_down_pct: Some(0.55),
                 ),`;
 
-  return `SimConfig(
+  return `// 40-floor tower with four elevator banks. Cross-zone riders
+// transfer at the Sky Lobby; the Executive car is the only path to
+// the penthouse; the Service car is the only path to the basements.
+SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Skyscraper",
         stops: [
 ${stops.join("\n")}
         ],
+        // Four banks, each its own line. The core's topology graph
+        // plans multi-leg journeys that transfer at the Sky Lobby.
         lines: Some([
             LineConfig(
                 id: 0, name: "Low bank",
@@ -432,11 +437,8 @@ ${elevator(4, "Service", 1, 350)}
             GroupConfig(id: 0, name: "Low", lines: [0], dispatch: Scan),
             GroupConfig(id: 1, name: "High", lines: [1], dispatch: Scan),
             GroupConfig(id: 2, name: "Executive", lines: [2], dispatch: Scan),
-            // Service parks on NearestIdle so the car stays where it
-            // last finished a trip instead of cycling between B1 and
-            // the Lobby via AdaptiveParking's ReturnToLobby branch.
-            // Service traffic is sparse; there's no benefit to pre-
-            // positioning and the oscillation is visually distracting.
+            // Service traffic is sparse, so the car parks where it
+            // last stopped instead of cycling back to the lobby.
             GroupConfig(id: 3, name: "Service", lines: [3], dispatch: Scan, reposition: Some(NearestIdle)),
         ]),
     ),
@@ -473,6 +475,7 @@ const skyscraperStops: Array<{ name: string; positionM: number }> = [
 const skyscraper: ScenarioMeta = {
   id: "skyscraper-sky-lobby",
   label: "Skyscraper",
+  configFilename: "skyscraper.ron",
   description:
     "40-floor tower with four elevator banks. Most cross-zone riders transfer at the sky lobby; the exec car is the only way up to the penthouse suites; a service elevator links the lobby to three basement levels (B1 loading dock, B2 parking, B3 utility plant).",
   defaultStrategy: "etd",
@@ -538,6 +541,7 @@ function tetherWeights(perIndex: (i: number) => number): number[] {
 const spaceElevator: ScenarioMeta = {
   id: "space-elevator",
   label: "Space elevator",
+  configFilename: "space_elevator.ron",
   description:
     "A 35,786 km tether to geostationary orbit with platforms at the Karman line, LEO, and the GEO terminus. Three climbers move payload along a single cable; the counterweight beyond GEO holds the line taut.",
   defaultStrategy: "scan",
@@ -639,7 +643,10 @@ const spaceElevator: ScenarioMeta = {
     counterweightAltitudeM: COUNTERWEIGHT_M,
     showDayNight: false,
   },
-  ron: `SimConfig(
+  ron: `// Orbital tether climbing from the ground to geostationary
+// altitude (35,786 km). Three climbers share the cable; cruise speed
+// is 1,000 m/s — the same simulation engine, just scaled way up.
+SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Orbital Tether",
@@ -756,6 +763,7 @@ const airportPhases: Phase[] = [
 const airport: ScenarioMeta = {
   id: "airport-apm",
   label: "Airport loop",
+  configFilename: "airport_loop.ron",
   description:
     "Two counter-rotating loops connect the terminal to six concourses. Fixed-headway dispatch keeps trains on a predictable cadence; rider demand shifts from outbound (morning) to inbound (evening).",
   // Placeholder — actual dispatch is per-group LoopSchedule in the RON;
@@ -791,10 +799,16 @@ const airport: ScenarioMeta = {
     outerStopCount: AIRPORT_OUTER_COUNT,
     circumferenceM: AIRPORT_CIRCUMFERENCE_M,
   },
-  ron: `SimConfig(
+  ron: `// Two counter-rotating loops between the terminal and six
+// concourses. Loop lines run one-way, so trains can't overtake —
+// fixed-headway dispatch keeps them on a predictable cadence.
+SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Airport Loop",
+        // Each loop has its own Terminal + Concourse stops. Inner
+        // positions are mirrored so the two loops rotate opposite
+        // directions on the same physical track layout.
         stops: [
             StopConfig(id: StopId(0),  name: "Terminal",     position: 0.0),
             StopConfig(id: StopId(1),  name: "Concourse A",  position: 300.0),
@@ -812,6 +826,8 @@ const airport: ScenarioMeta = {
             StopConfig(id: StopId(13), name: "Concourse A",  position: 1200.0),
         ],
         lines: Some([
+            // Outer loop: terminal → A → B → C → D → E → F → terminal.
+            // min_headway keeps trains from bunching on the same loop.
             LineConfig(
                 id: 1, name: "Outer Loop",
                 kind: Some(Loop(circumference: 1500.0, min_headway: 200.0)),
@@ -834,6 +850,9 @@ const airport: ScenarioMeta = {
                     ),
                 ],
             ),
+            // Inner loop runs the same stops in the opposite order so
+            // the two loops cover the terminal-to-concourse round trip
+            // from both directions.
             LineConfig(
                 id: 2, name: "Inner Loop",
                 kind: Some(Loop(circumference: 1500.0, min_headway: 200.0)),
