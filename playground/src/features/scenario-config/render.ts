@@ -19,12 +19,7 @@ export function wireScenarioConfig(toastEl: HTMLElement): SetScenario {
   const copy = q("scenario-config-copy") as HTMLButtonElement;
 
   // Open on desktop, closed on mobile; phone rotation doesn't override the user.
-  const mql = window.matchMedia(DESKTOP_QUERY);
-  const applyOpen = (): void => {
-    details.open = mql.matches;
-  };
-  applyOpen();
-  mql.addEventListener("change", applyOpen);
+  details.open = window.matchMedia(DESKTOP_QUERY).matches;
 
   let currentId = "";
   let currentSource = "";

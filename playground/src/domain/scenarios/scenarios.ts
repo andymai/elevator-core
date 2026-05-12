@@ -754,7 +754,7 @@ const airportPhases: Phase[] = [
 const airport: ScenarioMeta = {
   id: "airport-apm",
   label: "Airport loop",
-  configFilename: "airport_loop.ron",
+  configFilename: "airport_apm.ron",
   description:
     "Two counter-rotating loops connect the terminal to six concourses. Fixed-headway dispatch keeps trains on a predictable cadence; rider demand shifts from outbound (morning) to inbound (evening).",
   // Placeholder — actual dispatch is per-group LoopSchedule in the RON;
