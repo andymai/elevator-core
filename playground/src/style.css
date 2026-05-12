@@ -1340,6 +1340,12 @@
 
   /* ── Scenario-config panel ──────────────────────────────────────────── */
 
+  .scenario-config-heading {
+    margin: 0 0 10px;
+    color: var(--text-primary);
+    font: 600 var(--text-base) / 1.25 var(--font-stack-sans);
+    letter-spacing: 0.01em;
+  }
   .scenario-config-details {
     background: linear-gradient(180deg, var(--bg-elevated), var(--bg-secondary));
     border: 1px solid var(--border-subtle);
@@ -1377,16 +1383,10 @@
     color: var(--text-primary);
     letter-spacing: 0;
   }
-  .scenario-config-eyebrow {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-disabled);
-    margin-left: auto;
-  }
   .scenario-config-copy {
     display: inline-flex;
     align-items: center;
+    margin-left: auto;
     height: 22px;
     padding: 0 8px;
     background: var(--bg-active);
@@ -1407,7 +1407,7 @@
     border-color: var(--border-strong);
   }
   .scenario-config-body {
-    max-height: 360px;
+    max-height: 540px;
     overflow: auto;
     border-top: 1px solid var(--border-subtle);
     padding: 6px 0 4px;
@@ -1460,13 +1460,10 @@
   }
   @media (max-width: 767px) {
     .scenario-config-body {
-      max-height: 280px;
+      max-height: 420px;
     }
     .scenario-config-pre {
       font-size: 11.5px;
-    }
-    .scenario-config-eyebrow {
-      display: none;
     }
   }
 
