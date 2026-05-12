@@ -625,11 +625,13 @@
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);
   }
-  button:hover {
-    background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+  @media (hover: hover) {
+    button:hover {
+      background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
   }
   button:active {
     transform: translateY(0);
@@ -644,13 +646,15 @@
       color-mix(in srgb, var(--accent) 4%, transparent) 100%
     );
   }
-  #play:hover {
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--accent) 20%, transparent) 0%,
-      color-mix(in srgb, var(--accent) 8%, transparent) 100%
-    );
-    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  @media (hover: hover) {
+    #play:hover {
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+        color-mix(in srgb, var(--accent) 8%, transparent) 100%
+      );
+      border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    }
   }
 
   /* ── Layout ─────────────────────────────────────────────────────────── */
