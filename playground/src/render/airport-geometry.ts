@@ -36,6 +36,18 @@ export function outwardNormal(p: PerimeterPoint): { nx: number; ny: number } {
   return { nx: Math.sin(p.tangent), ny: -Math.cos(p.tangent) };
 }
 
+/**
+ * Project a perimeter point inward by `gap`. Used to render inner-loop
+ * stations and trains at canvas positions geometrically aligned with
+ * the corresponding outer-loop point, instead of via independent
+ * perimeter-fraction lookup (which misaligns at corners because the
+ * loops have different perimeters).
+ */
+export function projectInward(p: PerimeterPoint, gap: number): PerimeterPoint {
+  const { nx, ny } = outwardNormal(p);
+  return { x: p.x - nx * gap, y: p.y - ny * gap, tangent: p.tangent };
+}
+
 export function tracedRoundedRect(ctx: CanvasRenderingContext2D, rect: RectGeometry): void {
   const { cx, cy, w, h, r } = rect;
   const left = cx - w / 2;
