@@ -241,8 +241,8 @@
         ]
       }
     </script>
-    <script type="module" crossorigin src="./assets/index--Bzd0zZZ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Z9Pxb2Rf.css">
+    <script type="module" crossorigin src="./assets/index-BbCJQKyn.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DWcb-YCb.css">
   </head>
   <body>
     <!--
@@ -688,6 +688,33 @@
         </div>
       </section>
     </main>
+
+    <section
+      id="scenario-config"
+      class="scenario-config mx-5 mb-3 max-md:mx-3.5 max-md:mb-2.5"
+      aria-label="Active scenario configuration"
+    >
+      <details id="scenario-config-details" class="scenario-config-details">
+        <summary class="scenario-config-summary">
+          <span class="scenario-config-caret" aria-hidden="true">&#9656;</span>
+          <span id="scenario-config-filename" class="scenario-config-filename">scenario.ron</span>
+          <span class="scenario-config-eyebrow">Active scenario config</span>
+          <button
+            id="scenario-config-copy"
+            type="button"
+            class="scenario-config-copy"
+            aria-label="Copy scenario config to clipboard"
+          >
+            Copy
+          </button>
+        </summary>
+        <div class="scenario-config-body">
+          <pre
+            class="scenario-config-pre"
+          ><code id="scenario-config-code" class="scenario-config-code"></code></pre>
+        </div>
+      </details>
+    </section>
 
     <footer
       class="text-content-disabled text-[10.5px] tracking-[0.04em] font-mono px-5 pb-2 pt-1 select-none max-md:hidden"
