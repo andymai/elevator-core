@@ -70,14 +70,15 @@ export async function makePane(
   // column layout — which fails badly at 35,786 km axes.
   renderer.setTetherConfig(scenario.tether ?? null);
   renderer.setAirportConfig(scenario.airport ?? null);
-  if (scenario.tether) {
+  if (scenario.tether || scenario.airport) {
     // Use the override-merged physics so a shared permalink with a
     // tweaked max-speed (e.g. `?s=space-elevator&ms=2000`) shows
-    // accurate ETA / phase classification immediately, instead of
-    // waiting for the user to nudge the slider and trigger the
-    // hot-swap path.
+    // accurate ETA readouts immediately, instead of waiting for the
+    // user to nudge the slider and trigger the hot-swap path. Airport
+    // HUDs additionally derive their per-train trip capacity from
+    // `weightCapacity` so the load readout never drifts from the RON.
     const phys = applyPhysicsOverrides(scenario, overrides);
-    renderer.setTetherPhysics(phys.maxSpeed, phys.acceleration, phys.deceleration);
+    renderer.setPhysics(phys.maxSpeed, phys.acceleration, phys.deceleration, phys.weightCapacity);
   }
   // Scenarios with many floors need a taller shaft, or the 42-floor
   // skyscraper crushes into a 6-px-per-story smear. The CSS applies
