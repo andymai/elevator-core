@@ -5,6 +5,7 @@ import { scenarioById, type PermalinkState } from "../domain";
 import { generate as generateRandomWords } from "random-words";
 import type { ScenarioMeta } from "../types";
 import type { UiHandles } from "./wire-ui";
+import { AIRPORT_DISPATCH_LABEL, AIRPORT_DISPATCH_DESC } from "./airport-labels";
 
 export const speedLabel = (v: number): string => `${v}\u00d7`;
 export const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
@@ -22,18 +23,14 @@ export function randomSeedWord(): string {
   return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
 
-const AIRPORT_DISPATCH_LABEL = "LoopSchedule";
-const AIRPORT_DISPATCH_DESC = "Fixed-headway timetable on a one-way loop.";
-const AIRPORT_REPOSITION_LABEL = "—";
-
 /**
  * Single-pane gating for scenarios that can't survive compare mode
  * (concentric viz at half-width) and that hard-pin their dispatch via
  * RON per-group config (LoopSchedule). Disables the relevant triggers,
- * forces compare off in the UI, and overwrites the dispatch / parking
- * chip text so the disabled triggers show what's actually running.
- * Must run AFTER `renderPaneStrategyInfo` / `renderPaneRepositionInfo`
- * so the label override isn't immediately clobbered.
+ * forces compare off in the UI, overwrites the dispatch chip text,
+ * and hides the parking chip entirely since the scenario has no
+ * reposition strategy. Must run AFTER `renderPaneStrategyInfo` /
+ * `renderPaneRepositionInfo` so overrides aren't clobbered.
  */
 export function applyScenarioGating(ui: UiHandles, scenario: ScenarioMeta): boolean {
   const singlePane = scenario.airport !== undefined;
@@ -42,14 +39,17 @@ export function applyScenarioGating(ui: UiHandles, scenario: ScenarioMeta): bool
   ui.paneB.trigger.disabled = singlePane;
   ui.paneA.repoTrigger.disabled = singlePane;
   ui.paneB.repoTrigger.disabled = singlePane;
+  for (const pane of [ui.paneA, ui.paneB]) {
+    const parkSection = pane.repoTrigger.closest(".pane-section");
+    if (parkSection instanceof HTMLElement) parkSection.hidden = singlePane;
+    if (singlePane) {
+      pane.name.textContent = AIRPORT_DISPATCH_LABEL;
+      pane.desc.textContent = AIRPORT_DISPATCH_DESC;
+    }
+  }
   if (singlePane) {
     ui.compareToggle.checked = false;
     ui.layout.dataset["mode"] = "single";
-    for (const pane of [ui.paneA, ui.paneB]) {
-      pane.name.textContent = AIRPORT_DISPATCH_LABEL;
-      pane.desc.textContent = AIRPORT_DISPATCH_DESC;
-      pane.repoName.textContent = AIRPORT_REPOSITION_LABEL;
-    }
   }
   return singlePane;
 }

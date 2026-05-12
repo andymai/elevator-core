@@ -12,11 +12,10 @@ import type { CarDto, StopDto } from "../types";
 export type { AABB, PerimeterPoint } from "./airport-geometry";
 
 /**
- * Persistent per-train HUD for the airport scene — the analogue of
- * the tether scenario's climber chips. One inline tag per train,
- * accent stripe colored by the train's loop. Outer trains push chips
- * outward; inner trains push chips inward into the empty interior of
- * the inner ring (clean drop zone, no labels or rings to overlap).
+ * Per-train HUD for the airport scene. Slim one-line pill carrying
+ * destination, current speed in km/h, and ETA. Pills are gated: only
+ * dwelling trains and the user's hovered/touched train get a pill, so
+ * the moving-scene reads clean and detail surfaces on demand.
  */
 
 export interface AirportPhysics {
@@ -26,70 +25,96 @@ export interface AirportPhysics {
   weightCapacity: number;
 }
 
+/**
+ * Per-renderer hover state for the airport scene. Owned by
+ * `CanvasRenderer` so each instance has its own pointer focus and
+ * train-anchor cache. The pointer handler writes to it; `drawTrainHuds`
+ * reads it each frame to decide which pills to surface.
+ */
+export class AirportHoverState {
+  hoveredCarId: number | undefined;
+  readonly trainAnchors = new Map<number, { x: number; y: number }>();
+
+  setHovered(id: number | undefined): void {
+    this.hoveredCarId = id;
+  }
+
+  /** Nearest train within `radius` of (cx, cy) in canvas-CSS coords. */
+  pick(cx: number, cy: number, radius: number): number | undefined {
+    let best: number | undefined;
+    let bestD2 = radius * radius;
+    for (const [id, p] of this.trainAnchors) {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = id;
+      }
+    }
+    return best;
+  }
+}
+
 export interface TrainPlacement {
   car: CarDto;
   anchor: PerimeterPoint;
-  letter: string;
   nextStop: StopDto | undefined;
   remainingM: number;
-  lineColor: string;
   isInner: boolean;
 }
 
 interface HudPlacement {
   placement: TrainPlacement;
-  lines: string[];
+  head: string;
+  tail: string;
   bx: number;
   by: number;
   bubbleW: number;
   bubbleH: number;
 }
 
-// HUD chips use the same surface tokens as the playground's pane
-// headers and metric panels: bg-elevated → bg-secondary gradient
-// territory, border-subtle frame, text-secondary eyebrow + text-primary
-// body. Matches scenarios like the metrics strip and tweak panel
-// rather than carrying a scenario-specific colored accent stripe.
-const HUD_BG = "#252530"; // --bg-elevated
-const HUD_BORDER = "#2a2a35"; // --border-subtle
-const HUD_EYEBROW = "#8b8c92"; // --text-tertiary, uppercase tracking
-const HUD_TEXT = "#fafafa"; // --text-primary
-const HUD_MUTED = "#a1a1aa"; // --text-secondary
-const AVG_RIDER_WEIGHT_KG = 75;
+const HUD_BG = "rgba(20, 22, 30, 0.78)";
+const HUD_BORDER = "rgba(255, 255, 255, 0.08)";
+const HUD_TEXT = "#fafafa";
+const HUD_MUTED = "#a1a1aa";
 const DWELLING_PHASES = new Set(["loading", "door-opening", "door-closing"]);
 
 function isDwelling(car: CarDto): boolean {
   return DWELLING_PHASES.has(car.phase);
 }
 
-function hasChipOverlap(me: HudPlacement, all: HudPlacement[], myIdx: number): boolean {
-  for (let i = 0; i < all.length; i++) {
+function formatKmh(vMs: number): string {
+  const kph = Math.abs(vMs) * 3.6;
+  if (kph < 0.5) return "0 km/h";
+  return `${Math.round(kph)} km/h`;
+}
+
+function overlapsAny(me: HudPlacement, others: HudPlacement[], myIdx: number): boolean {
+  for (let i = 0; i < others.length; i++) {
     if (i === myIdx) continue;
-    const o = all[i];
-    if (!o) continue;
-    if (rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, o.bx, o.by, o.bubbleW, o.bubbleH)) {
+    const o = others[i];
+    if (o && rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, o.bx, o.by, o.bubbleW, o.bubbleH))
       return true;
-    }
   }
   return false;
 }
 
-function hasObstacleOverlap(me: HudPlacement, obstacles: AABB[]): boolean {
-  for (const obs of obstacles) {
-    if (rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, obs.x, obs.y, obs.w, obs.h)) {
-      return true;
-    }
+function overlapsObstacle(me: HudPlacement, obstacles: AABB[]): boolean {
+  for (const o of obstacles) {
+    if (rectIntersects(me.bx, me.by, me.bubbleW, me.bubbleH, o.x, o.y, o.w, o.h)) return true;
   }
   return false;
 }
 
-function buildHudLines(train: TrainPlacement, tripCap: number, physics: AirportPhysics): string[] {
-  const totalRiders = train.car.riders;
-  const loadLine = tripCap > 0 ? `${totalRiders} / ${tripCap}` : `${totalRiders}`;
-  const destName = train.nextStop?.name ?? "—";
+function buildHudText(
+  train: TrainPlacement,
+  physics: AirportPhysics,
+): { head: string; tail: string } {
   const arrow = isDwelling(train.car) ? "@" : "→";
-  const segmentLine = `${arrow} ${destName}`;
-  let etaLine = "ETA —";
+  const dest = train.nextStop?.name ?? "—";
+  const speed = formatKmh(train.car.v);
+  let etaStr = "—";
   if (train.nextStop && Number.isFinite(train.remainingM)) {
     const eta = tetherEta(
       0,
@@ -99,12 +124,9 @@ function buildHudLines(train: TrainPlacement, tripCap: number, physics: AirportP
       physics.acceleration,
       physics.deceleration,
     );
-    etaLine = `ETA ${formatDuration(eta)}`;
+    etaStr = formatDuration(eta);
   }
-  // First line is rendered as an eyebrow (small uppercase tracking),
-  // the rest as primary body text. Order is preserved from before so
-  // the placement / measurement code stays simple.
-  return [`Train ${train.letter}`, segmentLine, loadLine, etaLine];
+  return { head: `${arrow} ${dest}`, tail: `${speed}  ${etaStr}` };
 }
 
 export function drawTrainHuds(
@@ -117,59 +139,48 @@ export function drawTrainHuds(
   showFullLabels: boolean,
   carBodyH: number,
   stationObstacles: AABB[],
+  hoverState: AirportHoverState,
 ): void {
+  // Refresh hit-test anchors every frame so the pointer handler picks
+  // the train under the cursor against current positions.
+  hoverState.trainAnchors.clear();
+  for (const t of trains) hoverState.trainAnchors.set(t.car.id, { x: t.anchor.x, y: t.anchor.y });
+
   if (trains.length === 0) return;
   if (Math.min(canvasW, canvasH) < 340) return;
 
-  const fontPx = showFullLabels ? 11 : 10;
-  const eyebrowPx = Math.round(fontPx - 2);
-  const padX = 8;
-  const padY = 5;
-  const lh = fontPx + 2;
-  const eyebrowLh = eyebrowPx + 4;
+  // Visible set: dwelling trains (info-rich moment) + the hovered
+  // train. Moving, un-hovered trains stay un-annotated.
+  const visible = trains.filter((t) => isDwelling(t.car) || t.car.id === hoverState.hoveredCarId);
+  if (visible.length === 0) return;
 
-  const tripCap =
-    physics.weightCapacity > 0
-      ? Math.max(1, Math.floor(physics.weightCapacity / AVG_RIDER_WEIGHT_KG))
-      : 0;
+  const fontPx = showFullLabels ? 11 : 10;
+  const padX = 8;
+  const padY = 4;
   const placements: HudPlacement[] = [];
 
-  // Measure widest line across the body font and the eyebrow font so
-  // chip width clears the longest of the two regardless of which line
-  // is dominant.
   ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
-  for (const train of trains) {
-    const lines = buildHudLines(train, tripCap, physics);
-    let textW = 0;
-    ctx.font = `700 ${eyebrowPx}px ${CANVAS_FONT_SANS}`;
-    const eyebrowText = (lines[0] ?? "").toUpperCase();
-    textW = Math.max(textW, ctx.measureText(eyebrowText).width);
-    ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
-    for (let i = 1; i < lines.length; i++) {
-      textW = Math.max(textW, ctx.measureText(lines[i] ?? "").width);
-    }
+  const gapW = ctx.measureText("  ").width;
+  for (const train of visible) {
+    const { head, tail } = buildHudText(train, physics);
+    const textW = ctx.measureText(head).width + (tail ? gapW + ctx.measureText(tail).width : 0);
     const bubbleW = textW + padX * 2;
-    const bubbleH = eyebrowLh + lh * (lines.length - 1) + padY * 2;
+    const bubbleH = fontPx + padY * 2;
 
-    // Outer trains push chips outward; inner trains push inward into
-    // the empty inner-ring interior (clean drop zone, no rings or
-    // station labels to overlap).
     const { nx, ny } = outwardNormal(train.anchor);
     const dir = train.isInner ? -1 : 1;
-    const offset = carBodyH + 18;
+    const offset = carBodyH + 14;
     const ax = train.anchor.x + nx * dir * offset;
     const ay = train.anchor.y + ny * dir * offset;
 
-    let bx = ax - bubbleW / 2;
-    let by = ay - bubbleH / 2;
-    bx = Math.max(4, Math.min(canvasW - bubbleW - 4, bx));
-    by = Math.max(4, Math.min(canvasH - bubbleH - 4, by));
-    placements.push({ placement: train, lines, bx, by, bubbleW, bubbleH });
+    const bx = Math.max(4, Math.min(canvasW - bubbleW - 4, ax - bubbleW / 2));
+    const by = Math.max(4, Math.min(canvasH - bubbleH - 4, ay - bubbleH / 2));
+    placements.push({ placement: train, head, tail, bx, by, bubbleW, bubbleH });
   }
 
   // Collision pass — slide along the local tangent until clear of
-  // other chips and station-label obstacles. Up to 12 attempts with
-  // widening steps; last-resort drop into `innerSafe` if still stuck.
+  // other chips. Station-label overlap is tolerated; pill stays near
+  // its train. Inner-safe fallback only when chips still overlap.
   for (let i = 0; i < placements.length; i++) {
     const me = placements[i];
     if (!me) continue;
@@ -179,7 +190,7 @@ export function drawTrainHuds(
     let attempts = 0;
     while (
       attempts < 12 &&
-      (hasChipOverlap(me, placements, i) || hasObstacleOverlap(me, stationObstacles))
+      (overlapsAny(me, placements, i) || overlapsObstacle(me, stationObstacles))
     ) {
       const sign = attempts % 2 === 0 ? 1 : -1;
       const stepCount = Math.floor(attempts / 2) + 1;
@@ -189,14 +200,10 @@ export function drawTrainHuds(
       attempts++;
     }
     if (
-      (hasChipOverlap(me, placements, i) || hasObstacleOverlap(me, stationObstacles)) &&
+      overlapsAny(me, placements, i) &&
       innerSafe.w > me.bubbleW + 8 &&
       innerSafe.h > me.bubbleH + 8
     ) {
-      // Drop into the inner safe zone, stacked vertically. Clamp the
-      // slot so chips past capacity sit at the bottom of the safe
-      // zone rather than running off the canvas. Same-slot overlap
-      // is the lesser evil — better than half-rendered chips.
       const occupied = placements
         .slice(0, i)
         .filter(
@@ -214,8 +221,10 @@ export function drawTrainHuds(
     }
   }
 
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
   for (const p of placements) {
-    ctx.save();
     const bubbleRect = {
       cx: p.bx + p.bubbleW / 2,
       cy: p.by + p.bubbleH / 2,
@@ -230,26 +239,13 @@ export function drawTrainHuds(
     ctx.lineWidth = 1;
     tracedRoundedRect(ctx, bubbleRect);
     ctx.stroke();
-
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    let ly = p.by + padY + eyebrowLh / 2;
-    // Eyebrow: small uppercase tracking, text-tertiary. Same look as
-    // the "DISPATCH", "PARKING", "TRAFFIC" eyebrows in the pane header.
-    ctx.font = `700 ${eyebrowPx}px ${CANVAS_FONT_SANS}`;
-    ctx.fillStyle = HUD_EYEBROW;
-    const eyebrow = (p.lines[0] ?? "").toUpperCase();
-    ctx.fillText(eyebrow, p.bx + padX, ly);
-    ly += eyebrowLh / 2 + lh / 2;
-    // Body: primary text. Third line (ETA) muted so the chip doesn't
-    // shout the static physics-derived number.
-    ctx.font = `600 ${fontPx}px ${CANVAS_FONT_SANS}`;
-    for (let i = 1; i < p.lines.length; i++) {
-      const line = p.lines[i] ?? "";
-      ctx.fillStyle = i === p.lines.length - 1 ? HUD_MUTED : HUD_TEXT;
-      ctx.fillText(line, p.bx + padX, ly);
-      ly += lh;
+    const midY = p.by + p.bubbleH / 2;
+    ctx.fillStyle = HUD_TEXT;
+    ctx.fillText(p.head, p.bx + padX, midY);
+    if (p.tail) {
+      const tailX = p.bx + padX + ctx.measureText(p.head).width + gapW;
+      ctx.fillStyle = HUD_MUTED;
+      ctx.fillText(p.tail, tailX, midY);
     }
-    ctx.restore();
   }
 }
