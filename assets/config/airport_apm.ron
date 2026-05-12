@@ -29,7 +29,7 @@
 SimConfig(
     schema_version: 1,
     building: BuildingConfig(
-        name: "Airport People Mover",
+        name: "Airport Loop",
         // Terminal listed first so the built-in TrafficDetector keys
         // peak classification off the airport's main entry (same
         // convention as the building scenarios where Lobby is stops[0]).
