@@ -2,13 +2,7 @@ import { scenarioById } from "../../domain";
 import { toast } from "../../platform";
 import { highlightRon } from "./highlight";
 
-export interface ScenarioConfigHandles {
-  readonly root: HTMLElement;
-  readonly details: HTMLDetailsElement;
-  readonly filename: HTMLElement;
-  readonly code: HTMLElement;
-  readonly copy: HTMLButtonElement;
-}
+export type SetScenario = (scenarioId: string) => void;
 
 function q(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -18,35 +12,36 @@ function q(id: string): HTMLElement {
 
 const DESKTOP_QUERY = "(min-width: 768px)";
 
-let currentSource = "";
-let currentScenarioId = "";
+export function wireScenarioConfig(toastEl: HTMLElement): SetScenario {
+  const details = q("scenario-config-details") as HTMLDetailsElement;
+  const filename = q("scenario-config-filename");
+  const code = q("scenario-config-code");
+  const copy = q("scenario-config-copy") as HTMLButtonElement;
 
-export function wireScenarioConfig(toastEl: HTMLElement): ScenarioConfigHandles {
-  const handles: ScenarioConfigHandles = {
-    root: q("scenario-config"),
-    details: q("scenario-config-details") as HTMLDetailsElement,
-    filename: q("scenario-config-filename"),
-    code: q("scenario-config-code"),
-    copy: q("scenario-config-copy") as HTMLButtonElement,
-  };
-
-  // Mobile: collapsed by default; desktop: expanded. Re-evaluate on
-  // viewport change so a portrait→landscape rotation snaps back to
-  // the expected state for that width.
+  // Open on desktop, closed on mobile; phone rotation doesn't override the user.
   const mql = window.matchMedia(DESKTOP_QUERY);
   const applyOpen = (): void => {
-    handles.details.open = mql.matches;
+    details.open = mql.matches;
   };
   applyOpen();
   mql.addEventListener("change", applyOpen);
 
-  // The copy button sits inside <summary>, so its click would
-  // otherwise toggle the details. Stop propagation and handle copy.
-  handles.copy.addEventListener("click", (ev) => {
+  let currentId = "";
+  let currentSource = "";
+
+  copy.addEventListener("click", (ev) => {
+    // Copy button is inside <summary>; stopPropagation prevents the toggle.
     ev.preventDefault();
     ev.stopPropagation();
     if (!currentSource) return;
-    void navigator.clipboard
+    // Undefined in non-secure contexts (HTTP, sandboxed iframes);
+    // lib.dom types it as non-nullable, so cast to expose the runtime gap.
+    const clipboard = navigator.clipboard as Clipboard | undefined;
+    if (!clipboard) {
+      toast(toastEl, "Copy failed");
+      return;
+    }
+    void clipboard
       .writeText(currentSource)
       .then(() => {
         toast(toastEl, "Config copied");
@@ -56,14 +51,12 @@ export function wireScenarioConfig(toastEl: HTMLElement): ScenarioConfigHandles 
       });
   });
 
-  return handles;
-}
-
-export function setScenarioConfig(handles: ScenarioConfigHandles, scenarioId: string): void {
-  if (scenarioId === currentScenarioId) return;
-  const scenario = scenarioById(scenarioId);
-  currentScenarioId = scenarioId;
-  currentSource = scenario.ron;
-  handles.filename.textContent = scenario.configFilename;
-  handles.code.replaceChildren(highlightRon(scenario.ron));
+  return (scenarioId: string): void => {
+    if (scenarioId === currentId) return;
+    const scenario = scenarioById(scenarioId);
+    currentId = scenarioId;
+    currentSource = scenario.ron;
+    filename.textContent = scenario.configFilename;
+    code.replaceChildren(highlightRon(scenario.ron));
+  };
 }

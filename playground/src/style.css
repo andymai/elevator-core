@@ -155,6 +155,10 @@
   --bad: #ef4444;
   --bad-soft: color-mix(in srgb, var(--bad) 10%, transparent);
 
+  /* Syntax-highlight tokens for the scenario-config RON panel. */
+  --syntax-string: #86efac;
+  --syntax-type: #e9b97a;
+
   /* Focus ring */
   --focus-ring: var(--accent);
 
@@ -1398,13 +1402,13 @@
     font-style: italic;
   }
   .ron-s {
-    color: #86efac;
+    color: var(--syntax-string);
   }
   .ron-n {
     color: var(--pane-b);
   }
   .ron-t {
-    color: #e9b97a;
+    color: var(--syntax-type);
   }
   .ron-k {
     color: var(--pane-a);

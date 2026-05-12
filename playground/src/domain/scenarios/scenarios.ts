@@ -112,8 +112,7 @@ const convention: ScenarioMeta = {
   tweakRanges: { ...COMMERCIAL_TWEAK_RANGES, cars: { min: 1, max: 6, step: 1 } },
   passengerMeanIntervalTicks: 30,
   passengerWeightRange: [55.0, 100.0],
-  ron: `// Five-floor convention center. The keynote ends and 200+ riders
-// flood the lobby at once — a stress test, not a day cycle.
+  ron: `// Convention center: keynote ends, 200+ riders flood the lobby at once.
 SimConfig(
     schema_version: 1,
     building: BuildingConfig(
@@ -126,9 +125,7 @@ SimConfig(
             StopConfig(id: StopId(4), name: "Keynote Hall", position: 16.0),
         ],
     ),
-    // Doors dwell 5 seconds — crowds boarding in a hurry need a beat
-    // to step through. Four cars start spread across the building so
-    // dispatch has nearby and far options when the rush hits.
+    // 5s door dwell + cars pre-spread across floors for the rush.
     elevators: [
         ElevatorConfig(
             id: 0, name: "Car A",
@@ -389,9 +386,7 @@ function buildSkyscraperRon(): string {
                     bypass_load_up_pct: Some(0.85), bypass_load_down_pct: Some(0.55),
                 ),`;
 
-  return `// 40-floor tower with four elevator banks. Cross-zone riders
-// transfer at the Sky Lobby; the Executive car is the only path to
-// the penthouse; the Service car is the only path to the basements.
+  return `// 40-floor tower: transfer at the Sky Lobby; the Exec car alone reaches the penthouse.
 SimConfig(
     schema_version: 1,
     building: BuildingConfig(
@@ -399,8 +394,7 @@ SimConfig(
         stops: [
 ${stops.join("\n")}
         ],
-        // Four banks, each its own line. The core's topology graph
-        // plans multi-leg journeys that transfer at the Sky Lobby.
+        // Four banks; topology graph plans transfers at the Sky Lobby.
         lines: Some([
             LineConfig(
                 id: 0, name: "Low bank",
@@ -437,8 +431,7 @@ ${elevator(4, "Service", 1, 350)}
             GroupConfig(id: 0, name: "Low", lines: [0], dispatch: Scan),
             GroupConfig(id: 1, name: "High", lines: [1], dispatch: Scan),
             GroupConfig(id: 2, name: "Executive", lines: [2], dispatch: Scan),
-            // Service traffic is sparse, so the car parks where it
-            // last stopped instead of cycling back to the lobby.
+            // Sparse service traffic — park where the trip ends, don't cycle back.
             GroupConfig(id: 3, name: "Service", lines: [3], dispatch: Scan, reposition: Some(NearestIdle)),
         ]),
     ),
@@ -643,9 +636,7 @@ const spaceElevator: ScenarioMeta = {
     counterweightAltitudeM: COUNTERWEIGHT_M,
     showDayNight: false,
   },
-  ron: `// Orbital tether climbing from the ground to geostationary
-// altitude (35,786 km). Three climbers share the cable; cruise speed
-// is 1,000 m/s — the same simulation engine, just scaled way up.
+  ron: `// Tether to GEO (35,786 km). Three climbers at 1,000 m/s; same engine, scaled up.
 SimConfig(
     schema_version: 1,
     building: BuildingConfig(
@@ -799,16 +790,12 @@ const airport: ScenarioMeta = {
     outerStopCount: AIRPORT_OUTER_COUNT,
     circumferenceM: AIRPORT_CIRCUMFERENCE_M,
   },
-  ron: `// Two counter-rotating loops between the terminal and six
-// concourses. Loop lines run one-way, so trains can't overtake —
-// fixed-headway dispatch keeps them on a predictable cadence.
+  ron: `// Counter-rotating loops to six concourses. No overtaking; fixed headway sets the cadence.
 SimConfig(
     schema_version: 1,
     building: BuildingConfig(
         name: "Airport Loop",
-        // Each loop has its own Terminal + Concourse stops. Inner
-        // positions are mirrored so the two loops rotate opposite
-        // directions on the same physical track layout.
+        // Each loop has its own Terminal + Concourse stops; inner positions mirror outer.
         stops: [
             StopConfig(id: StopId(0),  name: "Terminal",     position: 0.0),
             StopConfig(id: StopId(1),  name: "Concourse A",  position: 300.0),
@@ -826,8 +813,7 @@ SimConfig(
             StopConfig(id: StopId(13), name: "Concourse A",  position: 1200.0),
         ],
         lines: Some([
-            // Outer loop: terminal → A → B → C → D → E → F → terminal.
-            // min_headway keeps trains from bunching on the same loop.
+            // Outer loop: Terminal → A→B→C→D→E→F → Terminal. min_headway stops trains bunching.
             LineConfig(
                 id: 1, name: "Outer Loop",
                 kind: Some(Loop(circumference: 1500.0, min_headway: 200.0)),
@@ -850,9 +836,7 @@ SimConfig(
                     ),
                 ],
             ),
-            // Inner loop runs the same stops in the opposite order so
-            // the two loops cover the terminal-to-concourse round trip
-            // from both directions.
+            // Inner loop runs the same stops reversed so both directions are covered.
             LineConfig(
                 id: 2, name: "Inner Loop",
                 kind: Some(Loop(circumference: 1500.0, min_headway: 200.0)),
