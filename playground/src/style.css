@@ -896,6 +896,7 @@
     .controls-bar-actions {
       position: sticky;
       right: 0;
+      z-index: 1;
       margin-left: auto;
       padding-left: 12px;
       background: linear-gradient(to right, transparent, var(--bg-secondary) 12px);
