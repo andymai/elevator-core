@@ -24,7 +24,7 @@ describe("scaleFor", () => {
     // t=0: lerp(a, b) = a
     expect(s.padX).toBeCloseTo(6, 5);
     expect(s.padTop).toBeCloseTo(22, 5);
-    expect(s.labelW).toBeCloseTo(52, 5);
+    expect(s.labelW).toBeCloseTo(62, 5);
     expect(s.figureGutterW).toBeCloseTo(40, 5);
     expect(s.carH).toBeCloseTo(32, 5);
   });
@@ -42,14 +42,14 @@ describe("scaleFor", () => {
     const s = scaleFor(610);
     // t = (610 - 320) / (900 - 320) = 290/580 = 0.5
     expect(s.padX).toBeCloseTo(10, 5); // lerp(6,14,0.5)
-    expect(s.labelW).toBeCloseTo(86, 5); // lerp(52,120,0.5)
+    expect(s.labelW).toBeCloseTo(91, 5); // lerp(62,120,0.5)
     expect(s.carH).toBeCloseTo(44, 5); // lerp(32,56,0.5)
   });
 
   it("width below 320 clamps to minimum values (t=0)", () => {
     const s = scaleFor(100);
     expect(s.padX).toBeCloseTo(6, 5);
-    expect(s.labelW).toBeCloseTo(52, 5);
+    expect(s.labelW).toBeCloseTo(62, 5);
   });
 
   it("width above 900 clamps to maximum values (t=1)", () => {

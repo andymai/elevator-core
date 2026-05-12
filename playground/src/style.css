@@ -625,11 +625,13 @@
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);
   }
-  button:hover {
-    background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+  @media (hover: hover) {
+    button:hover {
+      background: linear-gradient(180deg, var(--bg-active) 0%, var(--bg-hover) 100%);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
   }
   button:active {
     transform: translateY(0);
@@ -644,13 +646,15 @@
       color-mix(in srgb, var(--accent) 4%, transparent) 100%
     );
   }
-  #play:hover {
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--accent) 20%, transparent) 0%,
-      color-mix(in srgb, var(--accent) 8%, transparent) 100%
-    );
-    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  @media (hover: hover) {
+    #play:hover {
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+        color-mix(in srgb, var(--accent) 8%, transparent) 100%
+      );
+      border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    }
   }
 
   /* ── Layout ─────────────────────────────────────────────────────────── */
@@ -870,6 +874,16 @@
       min-width: var(--touch-target);
       min-height: var(--touch-target);
     }
+    /* Reorder the wrapping bar so primary actions (play/reset/share)
+     * land on the first row at thumb level rather than wrapping below
+     * sliders. `margin-left: auto` is dropped here because the order
+     * already places the group; let flex distribute the row instead. */
+    .controls-bar-actions {
+      order: -1;
+      margin-left: 0;
+      width: 100%;
+      justify-content: flex-end;
+    }
     /* Phase block can hide on the narrowest viewports — the section
      * already collapses when no phases are installed, but on a phone
      * even the active label crowds out the controls. The dedicated
@@ -880,6 +894,20 @@
     }
     .tweak-panel-popover {
       width: calc(100vw - 16px);
+    }
+    /* Soft right-edge fade hints at horizontally scrollable scenario
+     * cards on mobile. Desktop wraps the cards so no fade is needed.
+     * `.is-at-end` is toggled by a scroll listener in cards.ts so the
+     * fade clears once the user has reached the last card — without
+     * this scope, the final card would stay perpetually half-faded. */
+    .scenario-cards-track:not(.is-at-end) {
+      -webkit-mask-image: linear-gradient(
+        to right,
+        black 0,
+        black calc(100% - 32px),
+        transparent 100%
+      );
+      mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
     }
   }
 
