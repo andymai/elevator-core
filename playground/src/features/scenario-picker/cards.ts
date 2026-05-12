@@ -16,7 +16,7 @@ const SCENARIO_CARD_CLS =
 const SCENARIO_KBD_CLS =
   "inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 " +
   "text-[9.5px] font-semibold text-content-disabled bg-surface border border-stroke " +
-  "rounded-sm tabular-nums";
+  "rounded-sm tabular-nums max-md:hidden";
 
 /** Narrow interface — only the fields scenario cards need from UiHandles. */
 export interface ScenarioCardsUi {
