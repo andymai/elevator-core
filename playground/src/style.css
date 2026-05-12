@@ -854,9 +854,24 @@
   }
 
   @media (max-width: 767px) {
+    /* Single-row, horizontally scrolling bar — height stays at the 44 px
+     * touch-target floor instead of wrapping to multiple rows on phones. */
     .controls-bar-inner {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
       padding: 4px 10px;
-      gap: 4px 6px;
+      gap: 4px 8px;
+      scrollbar-width: none;
+    }
+    .controls-bar-inner::-webkit-scrollbar {
+      display: none;
+    }
+    /* Secondary fields scroll under the sticky actions group on the right.
+     * `flex: 0 0 auto` prevents the flex container from squeezing them. */
+    .controls-bar-field,
+    .controls-bar-inner > .ctl-check {
+      flex: 0 0 auto;
     }
     .controls-bar-field input[type="range"] {
       width: 70px;
@@ -874,15 +889,17 @@
       min-width: var(--touch-target);
       min-height: var(--touch-target);
     }
-    /* Reorder the wrapping bar so primary actions (play/reset/share)
-     * land on the first row at thumb level rather than wrapping below
-     * sliders. `margin-left: auto` is dropped here because the order
-     * already places the group; let flex distribute the row instead. */
+    /* Pin primary actions to the right edge so play/reset/share remain in
+     * the thumb zone while the user scrolls horizontally through seed and
+     * the sliders. Solid background + left-edge fade hides scrolled content
+     * passing underneath. */
     .controls-bar-actions {
-      order: -1;
-      margin-left: 0;
-      width: 100%;
-      justify-content: flex-end;
+      position: sticky;
+      right: 0;
+      z-index: 1;
+      margin-left: auto;
+      padding-left: 12px;
+      background: linear-gradient(to right, transparent, var(--bg-secondary) 12px);
     }
     /* Phase block can hide on the narrowest viewports — the section
      * already collapses when no phases are installed, but on a phone
