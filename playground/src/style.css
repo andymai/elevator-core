@@ -284,8 +284,8 @@
 
   .tweak-panel {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-    gap: 10px 18px;
+    grid-template-columns: 1fr;
+    gap: 10px;
     padding: 12px 20px 14px;
     font-variant-numeric: tabular-nums;
   }
