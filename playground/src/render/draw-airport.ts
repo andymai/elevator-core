@@ -6,7 +6,12 @@ import {
   type PerimeterPoint,
   type RectGeometry,
 } from "./airport-geometry";
-import { drawTrainHuds, type AirportPhysics, type TrainPlacement } from "./draw-airport-hud";
+import {
+  drawTrainHuds,
+  type AirportHoverState,
+  type AirportPhysics,
+  type TrainPlacement,
+} from "./draw-airport-hud";
 import { CANVAS_FONT_SANS } from "./palette";
 import type { AirportMeta, CarDto, Snapshot, StopDto } from "../types";
 
@@ -64,6 +69,7 @@ export function drawAirportScene(
   _phaseRatio: number,
   _accent: string,
   physics: AirportPhysics,
+  hoverState: AirportHoverState,
 ): void {
   ctx.save();
 
@@ -179,6 +185,7 @@ export function drawAirportScene(
     showFullLabels,
     carBodyH,
     stationObstacles,
+    hoverState,
   );
 
   ctx.restore();

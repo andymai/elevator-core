@@ -1,5 +1,6 @@
 import { REPOSITION_LABELS, STRATEGY_LABELS, scenarioById, type PermalinkState } from "../domain";
 import { setDocumentMeta } from "../platform";
+import { AIRPORT_DISPATCH_LABEL } from "./airport-labels";
 
 const APP_SUFFIX = "elevator-core playground";
 const BASE_DESCRIPTION =
@@ -19,8 +20,6 @@ const BASE_DESCRIPTION =
 export function updateRuntimeMeta(state: PermalinkState): void {
   setDocumentMeta(buildMeta(state));
 }
-
-const AIRPORT_DISPATCH_LABEL = "LoopSchedule";
 
 function buildMeta(state: PermalinkState): { title: string; description: string } {
   if (state.mode === "quest") {

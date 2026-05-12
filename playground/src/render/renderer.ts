@@ -1,6 +1,6 @@
 import type { AirportMeta, CarDto, CarBubble, Snapshot, StopDto, TetherMeta } from "../types";
 import { drawAirportScene } from "./draw-airport";
-import { pickAirportTrainAt, setAirportHoveredCar } from "./draw-airport-hud";
+import { AirportHoverState } from "./draw-airport-hud";
 import {
   drawFloors,
   drawShaftChannels,
@@ -156,6 +156,7 @@ export class CanvasRenderer {
     else this.#unwireAirportHover();
   }
 
+  readonly #airportHover = new AirportHoverState();
   #airportHoverHandlers: { move: (e: PointerEvent) => void; leave: () => void } | null = null;
 
   #wireAirportHover(): void {
@@ -167,10 +168,10 @@ export class CanvasRenderer {
       // Picking radius scales with min canvas dimension so it works
       // across viewport sizes.
       const radius = Math.max(40, Math.min(rect.width, rect.height) * 0.07);
-      setAirportHoveredCar(pickAirportTrainAt(cx, cy, radius));
+      this.#airportHover.setHovered(this.#airportHover.pick(cx, cy, radius));
     };
     const leave = (): void => {
-      setAirportHoveredCar(undefined);
+      this.#airportHover.setHovered(undefined);
     };
     this.#canvas.addEventListener("pointermove", move);
     this.#canvas.addEventListener("pointerleave", leave);
@@ -182,7 +183,7 @@ export class CanvasRenderer {
     this.#canvas.removeEventListener("pointermove", this.#airportHoverHandlers.move);
     this.#canvas.removeEventListener("pointerleave", this.#airportHoverHandlers.leave);
     this.#airportHoverHandlers = null;
-    setAirportHoveredCar(undefined);
+    this.#airportHover.setHovered(undefined);
   }
 
   // Clear per-car kinematic state on every scenario swap. Prevents a
@@ -278,12 +279,22 @@ export class CanvasRenderer {
     if (s === null) return;
 
     if (this.#airport !== null) {
-      drawAirportScene(ctx, snap, w, h, this.#airport, phaseRatio, this.#accent, {
-        maxSpeed: this.#activeMaxSpeed,
-        acceleration: this.#activeAcceleration,
-        deceleration: this.#activeDeceleration,
-        weightCapacity: this.#activeWeightCapacity,
-      });
+      drawAirportScene(
+        ctx,
+        snap,
+        w,
+        h,
+        this.#airport,
+        phaseRatio,
+        this.#accent,
+        {
+          maxSpeed: this.#activeMaxSpeed,
+          acceleration: this.#activeAcceleration,
+          deceleration: this.#activeDeceleration,
+          weightCapacity: this.#activeWeightCapacity,
+        },
+        this.#airportHover,
+      );
       return;
     }
 

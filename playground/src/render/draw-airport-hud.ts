@@ -25,29 +25,35 @@ export interface AirportPhysics {
   weightCapacity: number;
 }
 
-// Module-level hover state. Updated externally (renderer's pointer
-// handler) and read each frame in drawTrainHuds.
-let hoveredCarId: number | undefined;
-const lastTrainAnchors = new Map<number, { x: number; y: number }>();
+/**
+ * Per-renderer hover state for the airport scene. Owned by
+ * `CanvasRenderer` so each instance has its own pointer focus and
+ * train-anchor cache. The pointer handler writes to it; `drawTrainHuds`
+ * reads it each frame to decide which pills to surface.
+ */
+export class AirportHoverState {
+  hoveredCarId: number | undefined;
+  readonly trainAnchors = new Map<number, { x: number; y: number }>();
 
-export function setAirportHoveredCar(id: number | undefined): void {
-  hoveredCarId = id;
-}
-
-/** Nearest train within `radius` of (cx, cy) in canvas-CSS coords. */
-export function pickAirportTrainAt(cx: number, cy: number, radius: number): number | undefined {
-  let best: number | undefined;
-  let bestD2 = radius * radius;
-  for (const [id, p] of lastTrainAnchors) {
-    const dx = p.x - cx;
-    const dy = p.y - cy;
-    const d2 = dx * dx + dy * dy;
-    if (d2 < bestD2) {
-      bestD2 = d2;
-      best = id;
-    }
+  setHovered(id: number | undefined): void {
+    this.hoveredCarId = id;
   }
-  return best;
+
+  /** Nearest train within `radius` of (cx, cy) in canvas-CSS coords. */
+  pick(cx: number, cy: number, radius: number): number | undefined {
+    let best: number | undefined;
+    let bestD2 = radius * radius;
+    for (const [id, p] of this.trainAnchors) {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = id;
+      }
+    }
+    return best;
+  }
 }
 
 export interface TrainPlacement {
@@ -133,18 +139,19 @@ export function drawTrainHuds(
   showFullLabels: boolean,
   carBodyH: number,
   stationObstacles: AABB[],
+  hoverState: AirportHoverState,
 ): void {
   // Refresh hit-test anchors every frame so the pointer handler picks
   // the train under the cursor against current positions.
-  lastTrainAnchors.clear();
-  for (const t of trains) lastTrainAnchors.set(t.car.id, { x: t.anchor.x, y: t.anchor.y });
+  hoverState.trainAnchors.clear();
+  for (const t of trains) hoverState.trainAnchors.set(t.car.id, { x: t.anchor.x, y: t.anchor.y });
 
   if (trains.length === 0) return;
   if (Math.min(canvasW, canvasH) < 340) return;
 
   // Visible set: dwelling trains (info-rich moment) + the hovered
   // train. Moving, un-hovered trains stay un-annotated.
-  const visible = trains.filter((t) => isDwelling(t.car) || t.car.id === hoveredCarId);
+  const visible = trains.filter((t) => isDwelling(t.car) || t.car.id === hoverState.hoveredCarId);
   if (visible.length === 0) return;
 
   const fontPx = showFullLabels ? 11 : 10;

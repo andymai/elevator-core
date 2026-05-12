@@ -5,6 +5,7 @@ import { scenarioById, type PermalinkState } from "../domain";
 import { generate as generateRandomWords } from "random-words";
 import type { ScenarioMeta } from "../types";
 import type { UiHandles } from "./wire-ui";
+import { AIRPORT_DISPATCH_LABEL, AIRPORT_DISPATCH_DESC } from "./airport-labels";
 
 export const speedLabel = (v: number): string => `${v}\u00d7`;
 export const intensityLabel = (v: number): string => `${v.toFixed(1)}\u00d7`;
@@ -21,9 +22,6 @@ export function randomSeedWord(): string {
   // on options; normalise to the first element.
   return Array.isArray(word) ? (word[0] ?? "seed") : word;
 }
-
-const AIRPORT_DISPATCH_LABEL = "LoopSchedule";
-const AIRPORT_DISPATCH_DESC = "Fixed-headway timetable on a one-way loop.";
 
 /**
  * Single-pane gating for scenarios that can't survive compare mode
