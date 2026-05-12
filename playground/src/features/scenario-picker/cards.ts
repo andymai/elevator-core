@@ -16,7 +16,7 @@ const SCENARIO_CARD_CLS =
 const SCENARIO_KBD_CLS =
   "inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 " +
   "text-[9.5px] font-semibold text-content-disabled bg-surface border border-stroke " +
-  "rounded-sm tabular-nums";
+  "rounded-sm tabular-nums max-md:hidden";
 
 /** Narrow interface — only the fields scenario cards need from UiHandles. */
 export interface ScenarioCardsUi {
@@ -38,6 +38,18 @@ export function renderScenarioCards(ui: ScenarioCardsUi): void {
     frag.appendChild(card);
   });
   ui.scenarioCards.replaceChildren(frag);
+  // The right-edge mask-image fade signals "scroll for more" on mobile.
+  // Clear it once the last card is reached so users get a stop-signal
+  // instead of an always-faded edge.
+  const SCROLL_SLOP = 2;
+  const sync = (): void => {
+    const exhausted =
+      ui.scenarioCards.scrollLeft + ui.scenarioCards.clientWidth >=
+      ui.scenarioCards.scrollWidth - SCROLL_SLOP;
+    ui.scenarioCards.classList.toggle("is-at-end", exhausted);
+  };
+  ui.scenarioCards.addEventListener("scroll", sync, { passive: true });
+  sync();
 }
 
 export function syncScenarioCards(ui: ScenarioCardsUi, scenarioId: string): void {
