@@ -870,6 +870,16 @@
       min-width: var(--touch-target);
       min-height: var(--touch-target);
     }
+    /* Reorder the wrapping bar so primary actions (play/reset/share)
+     * land on the first row at thumb level rather than wrapping below
+     * sliders. `margin-left: auto` is dropped here because the order
+     * already places the group; let flex distribute the row instead. */
+    .controls-bar-actions {
+      order: -1;
+      margin-left: 0;
+      width: 100%;
+      justify-content: flex-end;
+    }
     /* Phase block can hide on the narrowest viewports — the section
      * already collapses when no phases are installed, but on a phone
      * even the active label crowds out the controls. The dedicated
