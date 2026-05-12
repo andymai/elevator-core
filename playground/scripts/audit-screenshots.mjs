@@ -102,22 +102,25 @@ const SCENES = [
 
 async function snap(context, scene, label) {
   const page = await context.newPage();
-  await page.goto(scene.url, { waitUntil: "networkidle" });
-  if (!scene.skipPause) {
-    await page
-      .getByRole("button", { name: /^(pause|play)$/i })
-      .first()
-      .click()
-      .catch(() => {});
-    await page.waitForTimeout(400);
-  } else {
-    await page.waitForTimeout(250);
+  try {
+    await page.goto(scene.url, { waitUntil: "networkidle" });
+    if (!scene.skipPause) {
+      await page
+        .getByRole("button", { name: /^(pause|play)$/i })
+        .first()
+        .click()
+        .catch(() => {});
+      await page.waitForTimeout(400);
+    } else {
+      await page.waitForTimeout(250);
+    }
+    if (scene.setup) await scene.setup(page);
+    const path = join(OUT_DIR, `${label}__${scene.name}.png`);
+    await page.screenshot({ path, fullPage: true });
+    return path;
+  } finally {
+    await page.close();
   }
-  if (scene.setup) await scene.setup(page);
-  const path = join(OUT_DIR, `${label}__${scene.name}.png`);
-  await page.screenshot({ path, fullPage: true });
-  await page.close();
-  return path;
 }
 
 async function main() {
