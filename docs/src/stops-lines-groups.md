@@ -96,7 +96,7 @@ The library uses five identity types. Knowing which to reach for saves confusion
 | `StopId` | A stop in the config (e.g., `StopId(0)`) | Builder API, config files, `spawn_rider` |
 | `GroupId` | An elevator group (e.g., `GroupId(0)`) | Multi-group dispatch, group-specific hooks |
 | `ElevatorId` | A specific elevator entity | Public API surfaces that act on a car (`set_service_mode`, `push_destination`, manual control) |
-| `RiderId` | A specific rider entity | Public API surfaces that act on a rider (`despawn_rider`, `settle_rider`, `rider_tag`) |
+| `RiderId` | A specific rider entity | Public API surfaces that act on a rider (`despawn_rider`, `settle_rider`, `set_rider_tag`) |
 
 `ElevatorId` and `RiderId` are phantom-typed wrappers over `EntityId`. They exist to give the public API surface type safety -- `spawn_rider` returns a `RiderId`, not a bare `EntityId`, so you can't accidentally pass a stop id where a rider id is required. Internally, `World` and event payloads use the untyped `EntityId`.
 
