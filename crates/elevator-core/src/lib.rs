@@ -52,9 +52,10 @@
 //! ```
 //!
 //! Need hand-picked `StopId`s or non-sequential identifiers? Build the
-//! `Vec<StopConfig>` with struct literals instead — see
-//! [`StopConfig::linear`](stop::StopConfig::linear) for when each helper is
-//! appropriate.
+//! `Vec<StopConfig>` with struct literals instead (`StopConfig { id:
+//! StopId(42), name: "Roof".into(), position: 120.0 }`). See
+//! [`StopConfig::linear`](stop::StopConfig::linear) for the constraints
+//! of the compact form.
 //!
 //! ## Crate layout
 //!
