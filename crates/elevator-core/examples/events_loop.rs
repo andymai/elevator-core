@@ -71,7 +71,7 @@ fn main() {
             }
         }
 
-        if delivered == 3 {
+        if delivered >= 3 {
             break;
         }
     }
