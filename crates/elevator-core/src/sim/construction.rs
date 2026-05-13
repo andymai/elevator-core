@@ -1249,6 +1249,17 @@ impl Simulation {
     /// caller-supplied `id`, preserving the prior API for registered
     /// custom factories. Mirrors the pattern applied to
     /// [`set_reposition`](Self::set_reposition) in #414.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    /// use elevator_core::ids::GroupId;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// let strategy = BuiltinStrategy::Look.instantiate().unwrap();
+    /// sim.set_dispatch(GroupId(0), strategy, BuiltinStrategy::Look);
+    /// ```
     pub fn set_dispatch(
         &mut self,
         group: GroupId,
@@ -1294,6 +1305,18 @@ impl Simulation {
     /// strategies pay a memory cost equal to the largest historic
     /// window; if that matters, call `set_arrival_log_retention_ticks`
     /// explicitly after the swap.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    /// use elevator_core::dispatch::BuiltinReposition;
+    /// use elevator_core::ids::GroupId;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// let strategy = BuiltinReposition::DemandWeighted.instantiate().unwrap();
+    /// sim.set_reposition(GroupId(0), strategy, BuiltinReposition::DemandWeighted);
+    /// ```
     pub fn set_reposition(
         &mut self,
         group: GroupId,
