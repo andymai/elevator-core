@@ -11,6 +11,21 @@
 
 All bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.
 
+## Picking a host
+
+If you already know which language / engine you're building in, the table above is a one-step decision. The matrix below maps common starting points to the right binding when the choice isn't obvious:
+
+| You're building... | Use | Why |
+|---|---|---|
+| A Rust game with a renderer | [Bevy Integration](bevy-integration.md) or [Headless / macroquad / eframe](headless-non-bevy.md) | Direct Rust API, no binding layer; lowest friction. |
+| A browser playground or JS/TS frontend | `elevator-wasm` | TypeScript types auto-generated; no Rust toolchain on the consumer side. |
+| A Unity, .NET, or native C/C++ project | `elevator-ffi` | C ABI shared library plus generated `elevator_ffi.h`; P/Invoke or direct linking. |
+| A Godot game (GDScript or GDExtension) | `elevator-gdext` | Registers an `ElevatorSim` node; calls return Godot `Variant` dictionaries. |
+| A GameMaker Studio 2 game | GameMaker GML wrapper | Pre-generated GML scripts wrap `elevator-ffi` so the GMS project sees idiomatic functions. |
+| An analytics / batch / replay tool | Use `elevator-core` directly | The Rust crate is headless. The wasm and FFI surfaces exist for non-Rust consumers; reach for them only when language is the constraint. |
+
+Each binding is a thin translation layer — there's no behavioral difference between simulating in Rust vs. via wasm vs. via FFI given the same config and inputs. Pick by language ergonomics, not by feature set.
+
 ## Coverage and stability
 
 The set of `Simulation` methods exposed through each binding is enumerated in [`bindings.toml`](https://github.com/andymai/elevator-core/blob/main/bindings.toml) at the workspace root. CI verifies the file is in sync with `pub fn` declarations, so a new core method cannot ship without an explicit decision about whether it is bound and how.

@@ -97,6 +97,8 @@ You can drain after every tick, every N ticks, or only when you need to -- event
 
 If you never drain, the buffer grows unbounded. In long-running simulations, drain at least periodically.
 
+The repository ships [`examples/events_loop.rs`](https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/events_loop.rs) as a focused tutorial showing this pattern end-to-end -- a 3-stop building, three riders, and a match arm over `RiderBoarded` / `RiderExited` / `DoorOpened` printing a short narrative.
+
 ## Event ordering guarantees
 
 - **Within a tick:** events fire in phase order (AdvanceTransient, Dispatch, Reposition, Movement, Doors, Loading, Metrics). Events from a later phase always appear later in the drained vec.
