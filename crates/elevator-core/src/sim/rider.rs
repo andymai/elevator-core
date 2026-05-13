@@ -70,6 +70,19 @@ impl super::Simulation {
     ///
     /// Returns [`SimError::NoRoute`] if no group serves both stops.
     /// Returns [`SimError::AmbiguousRoute`] if multiple groups serve both stops.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// let rider = sim.spawn_rider(StopId(0), StopId(1), 70.0).unwrap();
+    /// // `total_spawned` is incremented in the metrics phase of the next tick.
+    /// sim.step();
+    /// assert_eq!(sim.metrics().total_spawned(), 1);
+    /// # let _ = rider;
+    /// ```
     pub fn spawn_rider(
         &mut self,
         origin: impl Into<StopRef>,
