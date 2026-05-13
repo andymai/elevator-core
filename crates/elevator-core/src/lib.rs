@@ -344,6 +344,7 @@
 
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(missing_docs)]
 
 /// Single source of truth for the host-binding wire/ABI version.
 ///
