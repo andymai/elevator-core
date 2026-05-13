@@ -34,11 +34,11 @@
 //! use elevator_core::stop::StopConfig;
 //!
 //! let mut sim = SimulationBuilder::demo()
-//!     .stops(vec![
-//!         StopConfig { id: StopId(0), name: "Ground".into(), position: 0.0 },
-//!         StopConfig { id: StopId(1), name: "Floor 2".into(), position: 4.0 },
-//!         StopConfig { id: StopId(2), name: "Floor 3".into(), position: 8.0 },
-//!     ])
+//!     .stops(StopConfig::linear(&[
+//!         ("Ground", 0.0),
+//!         ("Floor 2", 4.0),
+//!         ("Floor 3", 8.0),
+//!     ]))
 //!     .build()
 //!     .unwrap();
 //!
@@ -50,6 +50,11 @@
 //!
 //! assert!(sim.metrics().total_delivered() > 0);
 //! ```
+//!
+//! Need hand-picked `StopId`s or non-sequential identifiers? Build the
+//! `Vec<StopConfig>` with struct literals instead — see
+//! [`StopConfig::linear`](stop::StopConfig::linear) for when each helper is
+//! appropriate.
 //!
 //! ## Crate layout
 //!
