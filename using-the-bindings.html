@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1bf5c181.js";
+            window.path_to_searchindex_js = "searchindex-1a41bb79.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c7536657.js"></script>
@@ -197,6 +197,24 @@
 </table>
 </div>
 <p>All bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.</p>
+<h2 id="picking-a-host"><a class="header" href="#picking-a-host">Picking a host</a></h2>
+<p>If you already know which language / engine you’re building in, the table above is a one-step decision. The matrix below maps common starting points to the right binding when the choice isn’t obvious:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>You’re building…</th><th>Use</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td>A Rust game with a renderer</td><td><a href="bevy-integration.html">Bevy Integration</a> or <a href="headless-non-bevy.html">Headless / macroquad / eframe</a></td><td>Direct Rust API, no binding layer; lowest friction.</td></tr>
+<tr><td>A browser playground or JS/TS frontend</td><td><code>elevator-wasm</code></td><td>TypeScript types auto-generated; no Rust toolchain on the consumer side.</td></tr>
+<tr><td>A Unity, .NET, or native C/C++ project</td><td><code>elevator-ffi</code></td><td>C ABI shared library plus generated <code>elevator_ffi.h</code>; P/Invoke or direct linking.</td></tr>
+<tr><td>A Godot game (GDScript or GDExtension)</td><td><code>elevator-gdext</code></td><td>Registers an <code>ElevatorSim</code> node; calls return Godot <code>Variant</code> dictionaries.</td></tr>
+<tr><td>A GameMaker Studio 2 game</td><td>GameMaker GML wrapper</td><td>Pre-generated GML scripts wrap <code>elevator-ffi</code> so the GMS project sees idiomatic functions.</td></tr>
+<tr><td>An analytics / batch / replay tool</td><td>Use <code>elevator-core</code> directly</td><td>The Rust crate is headless. The wasm and FFI surfaces exist for non-Rust consumers; reach for them only when language is the constraint.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Each binding is a thin translation layer — there’s no behavioral difference between simulating in Rust vs. via wasm vs. via FFI given the same config and inputs. Pick by language ergonomics, not by feature set.</p>
 <h2 id="coverage-and-stability"><a class="header" href="#coverage-and-stability">Coverage and stability</a></h2>
 <p>The set of <code>Simulation</code> methods exposed through each binding is enumerated in <a href="https://github.com/andymai/elevator-core/blob/main/bindings.toml"><code>bindings.toml</code></a> at the workspace root. CI verifies the file is in sync with <code>pub fn</code> declarations, so a new core method cannot ship without an explicit decision about whether it is bound and how.</p>
 <p>Three statuses are valid per cell (one column per host: <code>wasm</code>, <code>ffi</code>, <code>tui</code>, <code>gms</code>, <code>gdext</code>, <code>bevy</code>):</p>

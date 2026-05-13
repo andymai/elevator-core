@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1bf5c181.js";
+            window.path_to_searchindex_js = "searchindex-1a41bb79.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c7536657.js"></script>
@@ -292,6 +292,7 @@ for event in sim.drain_events() {
 </span><span class="boring">}</span></code></pre>
 <p>You can drain after every tick, every N ticks, or only when you need to – events accumulate until drained. The metrics system processes events independently, so draining does not affect metric calculations.</p>
 <p>If you never drain, the buffer grows unbounded. In long-running simulations, drain at least periodically.</p>
+<p>The repository ships <a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/events_loop.rs"><code>examples/events_loop.rs</code></a> as a focused tutorial showing this pattern end-to-end – a 3-stop building, three riders, and a match arm over <code>RiderBoarded</code> / <code>RiderExited</code> / <code>DoorOpened</code> printing a short narrative.</p>
 <h2 id="event-ordering-guarantees"><a class="header" href="#event-ordering-guarantees">Event ordering guarantees</a></h2>
 <ul>
 <li><strong>Within a tick:</strong> events fire in phase order (AdvanceTransient, Dispatch, Reposition, Movement, Doors, Loading, Metrics). Events from a later phase always appear later in the drained vec.</li>
