@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1bf5c181.js";
+            window.path_to_searchindex_js = "searchindex-1a41bb79.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c7536657.js"></script>
@@ -249,7 +249,7 @@ SimulationBuilder::new()
 <li>Riders aboard an elevator appear in both <code>elevator.riders</code> and carry <code>RiderPhase::Riding(elevator_id)</code></li>
 </ul>
 <h2 id="identity-types"><a class="header" href="#identity-types">Identity types</a></h2>
-<p>The library uses three identity types. Knowing which to reach for saves confusion:</p>
+<p>The library uses five identity types. Knowing which to reach for saves confusion:</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -259,9 +259,12 @@ SimulationBuilder::new()
 <tr><td><code>EntityId</code></td><td>Any entity at runtime (stop, elevator, rider)</td><td>Event payloads, world lookups, dispatch decisions</td></tr>
 <tr><td><code>StopId</code></td><td>A stop in the config (e.g., <code>StopId(0)</code>)</td><td>Builder API, config files, <code>spawn_rider</code></td></tr>
 <tr><td><code>GroupId</code></td><td>An elevator group (e.g., <code>GroupId(0)</code>)</td><td>Multi-group dispatch, group-specific hooks</td></tr>
+<tr><td><code>ElevatorId</code></td><td>A specific elevator entity</td><td>Public API surfaces that act on a car (<code>set_service_mode</code>, <code>push_destination</code>, manual control)</td></tr>
+<tr><td><code>RiderId</code></td><td>A specific rider entity</td><td>Public API surfaces that act on a rider (<code>despawn_rider</code>, <code>settle_rider</code>, <code>set_rider_tag</code>)</td></tr>
 </tbody>
 </table>
 </div>
+<p><code>ElevatorId</code> and <code>RiderId</code> are phantom-typed wrappers over <code>EntityId</code>. They exist to give the public API surface type safety – <code>spawn_rider</code> returns a <code>RiderId</code>, not a bare <code>EntityId</code>, so you can’t accidentally pass a stop id where a rider id is required. Internally, <code>World</code> and event payloads use the untyped <code>EntityId</code>.</p>
 <p><code>StopId</code> is a config-level concept. When the simulation boots, each <code>StopId</code> is mapped to an <code>EntityId</code>. At runtime you work with <code>EntityId</code> everywhere. Convert when needed:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {

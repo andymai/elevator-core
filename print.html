@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1bf5c181.js";
+            window.path_to_searchindex_js = "searchindex-1a41bb79.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c7536657.js"></script>
@@ -672,7 +672,7 @@ SimulationBuilder::new()
 <li>Riders aboard an elevator appear in both <code>elevator.riders</code> and carry <code>RiderPhase::Riding(elevator_id)</code></li>
 </ul>
 <h2 id="identity-types"><a class="header" href="#identity-types">Identity types</a></h2>
-<p>The library uses three identity types. Knowing which to reach for saves confusion:</p>
+<p>The library uses five identity types. Knowing which to reach for saves confusion:</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -682,9 +682,12 @@ SimulationBuilder::new()
 <tr><td><code>EntityId</code></td><td>Any entity at runtime (stop, elevator, rider)</td><td>Event payloads, world lookups, dispatch decisions</td></tr>
 <tr><td><code>StopId</code></td><td>A stop in the config (e.g., <code>StopId(0)</code>)</td><td>Builder API, config files, <code>spawn_rider</code></td></tr>
 <tr><td><code>GroupId</code></td><td>An elevator group (e.g., <code>GroupId(0)</code>)</td><td>Multi-group dispatch, group-specific hooks</td></tr>
+<tr><td><code>ElevatorId</code></td><td>A specific elevator entity</td><td>Public API surfaces that act on a car (<code>set_service_mode</code>, <code>push_destination</code>, manual control)</td></tr>
+<tr><td><code>RiderId</code></td><td>A specific rider entity</td><td>Public API surfaces that act on a rider (<code>despawn_rider</code>, <code>settle_rider</code>, <code>set_rider_tag</code>)</td></tr>
 </tbody>
 </table>
 </div>
+<p><code>ElevatorId</code> and <code>RiderId</code> are phantom-typed wrappers over <code>EntityId</code>. They exist to give the public API surface type safety – <code>spawn_rider</code> returns a <code>RiderId</code>, not a bare <code>EntityId</code>, so you can’t accidentally pass a stop id where a rider id is required. Internally, <code>World</code> and event payloads use the untyped <code>EntityId</code>.</p>
 <p><code>StopId</code> is a config-level concept. When the simulation boots, each <code>StopId</code> is mapped to an <code>EntityId</code>. At runtime you work with <code>EntityId</code> everywhere. Convert when needed:</p>
 <pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -2000,6 +2003,7 @@ for event in sim.drain_events() {
 </span><span class="boring">}</span></code></pre>
 <p>You can drain after every tick, every N ticks, or only when you need to – events accumulate until drained. The metrics system processes events independently, so draining does not affect metric calculations.</p>
 <p>If you never drain, the buffer grows unbounded. In long-running simulations, drain at least periodically.</p>
+<p>The repository ships <a href="https://github.com/andymai/elevator-core/blob/main/crates/elevator-core/examples/events_loop.rs"><code>examples/events_loop.rs</code></a> as a focused tutorial showing this pattern end-to-end – a 3-stop building, three riders, and a match arm over <code>RiderBoarded</code> / <code>RiderExited</code> / <code>DoorOpened</code> printing a short narrative.</p>
 <h2 id="event-ordering-guarantees"><a class="header" href="#event-ordering-guarantees">Event ordering guarantees</a></h2>
 <ul>
 <li><strong>Within a tick:</strong> events fire in phase order (AdvanceTransient, Dispatch, Reposition, Movement, Doors, Loading, Metrics). Events from a later phase always appear later in the drained vec.</li>
@@ -4841,6 +4845,24 @@ semantics of the <code>s</code>/<code>l</code> hotkeys and what restoration pres
 </table>
 </div>
 <p>All bindings share the same simulation core: same physics, same dispatch, same event ordering. The split is purely about how the host language calls in. This chapter covers the contracts each binding exposes and the patterns consumers need to follow to use them safely.</p>
+<h2 id="picking-a-host"><a class="header" href="#picking-a-host">Picking a host</a></h2>
+<p>If you already know which language / engine you’re building in, the table above is a one-step decision. The matrix below maps common starting points to the right binding when the choice isn’t obvious:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>You’re building…</th><th>Use</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td>A Rust game with a renderer</td><td><a href="#bevy-integration">Bevy Integration</a> or <a href="#headless-and-non-bevy-usage">Headless / macroquad / eframe</a></td><td>Direct Rust API, no binding layer; lowest friction.</td></tr>
+<tr><td>A browser playground or JS/TS frontend</td><td><code>elevator-wasm</code></td><td>TypeScript types auto-generated; no Rust toolchain on the consumer side.</td></tr>
+<tr><td>A Unity, .NET, or native C/C++ project</td><td><code>elevator-ffi</code></td><td>C ABI shared library plus generated <code>elevator_ffi.h</code>; P/Invoke or direct linking.</td></tr>
+<tr><td>A Godot game (GDScript or GDExtension)</td><td><code>elevator-gdext</code></td><td>Registers an <code>ElevatorSim</code> node; calls return Godot <code>Variant</code> dictionaries.</td></tr>
+<tr><td>A GameMaker Studio 2 game</td><td>GameMaker GML wrapper</td><td>Pre-generated GML scripts wrap <code>elevator-ffi</code> so the GMS project sees idiomatic functions.</td></tr>
+<tr><td>An analytics / batch / replay tool</td><td>Use <code>elevator-core</code> directly</td><td>The Rust crate is headless. The wasm and FFI surfaces exist for non-Rust consumers; reach for them only when language is the constraint.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Each binding is a thin translation layer — there’s no behavioral difference between simulating in Rust vs. via wasm vs. via FFI given the same config and inputs. Pick by language ergonomics, not by feature set.</p>
 <h2 id="coverage-and-stability"><a class="header" href="#coverage-and-stability">Coverage and stability</a></h2>
 <p>The set of <code>Simulation</code> methods exposed through each binding is enumerated in <a href="https://github.com/andymai/elevator-core/blob/main/bindings.toml"><code>bindings.toml</code></a> at the workspace root. CI verifies the file is in sync with <code>pub fn</code> declarations, so a new core method cannot ship without an explicit decision about whether it is bound and how.</p>
 <p>Three statuses are valid per cell (one column per host: <code>wasm</code>, <code>ffi</code>, <code>tui</code>, <code>gms</code>, <code>gdext</code>, <code>bevy</code>):</p>
