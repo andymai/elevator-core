@@ -10,6 +10,8 @@ Plug it into Bevy, Unity, your own renderer, or run headless.
 [![Crates.io](https://img.shields.io/crates/v/elevator-core.svg)](https://crates.io/crates/elevator-core)
 [![docs.rs](https://img.shields.io/docsrs/elevator-core)](https://docs.rs/elevator-core)
 [![CI](https://img.shields.io/github/actions/workflow/status/andymai/elevator-core/ci.yml?label=CI)](https://github.com/andymai/elevator-core/actions)
+[![Last release](https://img.shields.io/github/release-date/andymai/elevator-core?label=last%20release)](https://github.com/andymai/elevator-core/releases)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/andymai/elevator-core?label=commits%2Fmonth)](https://github.com/andymai/elevator-core/commits/main)
 [![License](https://img.shields.io/crates/l/elevator-core.svg)](LICENSE-MIT)
 
 [Guide](https://andymai.github.io/elevator-core/) · [API Reference](https://docs.rs/elevator-core) · [Examples](crates/elevator-core/examples/)
@@ -73,14 +75,14 @@ cargo run --example basic -p elevator-core
 
 ## Use cases
 
-| Scenario | How |
-|---|---|
-| Office building with 5 floors | Stops at 0, 4, 8, 12, 16 |
-| Skyscraper with sky lobbies | Multi-group dispatch, express zones |
-| Space elevator | Stops at 0 and 1,000 — same engine |
-| Player-controlled car | `ServiceMode::Manual` + velocity commands |
-| Custom AI dispatch | Implement `DispatchStrategy::rank()` |
-| VIP passengers, cargo, robots | Extension storage — attach any data |
+| Scenario                      | How                                       |
+| ----------------------------- | ----------------------------------------- |
+| Office building with 5 floors | Stops at 0, 4, 8, 12, 16                  |
+| Skyscraper with sky lobbies   | Multi-group dispatch, express zones       |
+| Space elevator                | Stops at 0 and 1,000 — same engine        |
+| Player-controlled car         | `ServiceMode::Manual` + velocity commands |
+| Custom AI dispatch            | Implement `DispatchStrategy::rank()`      |
+| VIP passengers, cargo, robots | Extension storage — attach any data       |
 
 ## Features
 
@@ -97,13 +99,13 @@ cargo run --example basic -p elevator-core
 
 `elevator-core` itself is headless. Pick the host that matches your engine:
 
-| Host | Crate | Use it for |
-|---|---|---|
-| Bevy | [`elevator-bevy`](crates/elevator-bevy) | 2-D Rust game with HUD, mesh, and keyboard controls |
-| Browser | [`elevator-wasm`](crates/elevator-wasm) | wasm-bindgen surface; powers the live playground |
-| Unity / .NET / GameMaker | [`elevator-ffi`](crates/elevator-ffi) | C ABI wrapper for native consumers |
-| Godot | [`elevator-gdext`](crates/elevator-gdext) | gdext extension |
-| Terminal | [`elevator-tui`](crates/elevator-tui) | tick-by-tick debugger and headless smoke runner |
+| Host                     | Crate                                     | Use it for                                          |
+| ------------------------ | ----------------------------------------- | --------------------------------------------------- |
+| Bevy                     | [`elevator-bevy`](crates/elevator-bevy)   | 2-D Rust game with HUD, mesh, and keyboard controls |
+| Browser                  | [`elevator-wasm`](crates/elevator-wasm)   | wasm-bindgen surface; powers the live playground    |
+| Unity / .NET / GameMaker | [`elevator-ffi`](crates/elevator-ffi)     | C ABI wrapper for native consumers                  |
+| Godot                    | [`elevator-gdext`](crates/elevator-gdext) | gdext extension                                     |
+| Terminal                 | [`elevator-tui`](crates/elevator-tui)     | tick-by-tick debugger and headless smoke runner     |
 
 Anything not on the list? Drive `Simulation::step()` yourself — the API is engine-agnostic.
 
@@ -135,10 +137,10 @@ cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  
 
 ## Feature flags
 
-| Flag | Default | Adds |
-|------|---------|------|
-| `traffic` | yes | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
-| `energy` | no | Per-elevator energy/regen modeling. |
+| Flag      | Default | Adds                                                       |
+| --------- | ------- | ---------------------------------------------------------- |
+| `traffic` | yes     | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
+| `energy`  | no      | Per-elevator energy/regen modeling.                        |
 
 ## Workspace
 
