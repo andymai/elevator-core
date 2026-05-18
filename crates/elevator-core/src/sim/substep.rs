@@ -9,7 +9,7 @@ use crate::events::EventBus;
 use crate::hooks::Phase;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
-use crate::sim::PhaseCheckState;
+use crate::sim::PhaseCheck;
 use crate::systems::PhaseContext;
 use std::collections::BTreeMap;
 
@@ -86,9 +86,9 @@ impl super::Simulation {
     /// ```
     pub const fn set_strict_phase_order(&mut self, enabled: bool) {
         self.phase_check = if enabled {
-            PhaseCheckState::Expecting(Phase::AdvanceTransient)
+            PhaseCheck::Expecting(Phase::AdvanceTransient)
         } else {
-            PhaseCheckState::Disabled
+            PhaseCheck::Disabled
         };
     }
 
@@ -97,7 +97,7 @@ impl super::Simulation {
     /// debug overlays.
     #[must_use]
     pub const fn is_strict_phase_order(&self) -> bool {
-        !matches!(self.phase_check, PhaseCheckState::Disabled)
+        !matches!(self.phase_check, PhaseCheck::Disabled)
     }
 
     /// Validate that `current` is the next-expected phase, then advance
@@ -113,8 +113,8 @@ impl super::Simulation {
     #[allow(clippy::panic)]
     fn check_and_advance_phase(&mut self, current: Phase, next: Option<Phase>) {
         match self.phase_check {
-            PhaseCheckState::Disabled => {}
-            PhaseCheckState::Expecting(expected) => {
+            PhaseCheck::Disabled => {}
+            PhaseCheck::Expecting(expected) => {
                 assert_eq!(
                     expected, current,
                     "substep phase order violated: expected {expected}, called {current}.\n\
@@ -122,10 +122,9 @@ impl super::Simulation {
                      advance_queue → movement → doors → loading → metrics, then advance_tick() \
                      before the next cycle. See Simulation::set_strict_phase_order.",
                 );
-                self.phase_check =
-                    next.map_or(PhaseCheckState::AwaitingTick, PhaseCheckState::Expecting);
+                self.phase_check = next.map_or(PhaseCheck::AwaitingTick, PhaseCheck::Expecting);
             }
-            PhaseCheckState::AwaitingTick => {
+            PhaseCheck::AwaitingTick => {
                 panic!(
                     "substep phase order violated: called {current} but the previous tick's \
                      metrics phase has run — advance_tick() must run before the next cycle. \
@@ -387,25 +386,46 @@ impl super::Simulation {
     ///
     /// Call after running all desired phases. Events emitted during this tick
     /// are moved to the output buffer and available via `drain_events()`.
+    //
+    // `clippy::panic` is workspace-denied, but the two `Expecting(...)`
+    // arms below describe distinct guard violations that don't fit a
+    // single `assert_eq!`: the start-of-cycle case has no value to
+    // compare against, and the mid-cycle case panics whenever the
+    // expected phase is anything other than AdvanceTransient — which is
+    // already handled by the other arm. Tailored `panic!` messages
+    // surface the failure context; allow is scoped to this function.
+    #[allow(clippy::panic)]
     pub fn advance_tick(&mut self) {
         // Reset the substep guard to the start of the next cycle. With
-        // strict mode on, calling advance_tick from Expecting(X != AdvanceTransient)
-        // means the host skipped at least one phase — fail loud rather
-        // than silently bumping the tick counter on a half-stepped cycle.
+        // strict mode on, `advance_tick()` is only valid after
+        // `run_metrics()` (the `AwaitingTick` state). Any `Expecting(...)`
+        // means the host stopped short — either mid-cycle after some
+        // run_*'s, or at the start of a cycle with zero run_*'s. Both
+        // would silently bump the tick counter on a half-stepped (or
+        // empty) cycle, so reject both.
         match self.phase_check {
-            PhaseCheckState::Disabled => {}
-            PhaseCheckState::AwaitingTick => {
-                self.phase_check = PhaseCheckState::Expecting(Phase::AdvanceTransient);
+            PhaseCheck::Disabled => {}
+            PhaseCheck::AwaitingTick => {
+                self.phase_check = PhaseCheck::Expecting(Phase::AdvanceTransient);
             }
-            PhaseCheckState::Expecting(phase) => {
-                assert_eq!(
-                    phase,
-                    Phase::AdvanceTransient,
+            PhaseCheck::Expecting(Phase::AdvanceTransient) => {
+                // Zero phases ran since the last advance_tick (or since
+                // enabling strict mode). Reject to keep the
+                // documented invariant "advance_tick only fires after
+                // run_metrics" honest.
+                panic!(
+                    "advance_tick() called with zero phases run this cycle. \
+                     Strict mode requires the full canonical phase sequence \
+                     per tick: advance_transient → dispatch → reposition → \
+                     advance_queue → movement → doors → loading → metrics, \
+                     then advance_tick(). See Simulation::set_strict_phase_order.",
+                );
+            }
+            PhaseCheck::Expecting(phase) => {
+                panic!(
                     "advance_tick() called mid-tick: expected to be entering phase {phase} but the \
                      metrics phase has not run yet. See Simulation::set_strict_phase_order.",
                 );
-                // Already at the start of a cycle (no phases run since
-                // last advance_tick) — harmless idempotent reset.
             }
         }
         self.pending_output.extend(self.events.drain());

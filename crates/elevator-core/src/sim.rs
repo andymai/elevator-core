@@ -258,7 +258,7 @@ pub struct Simulation {
     /// diffuse symptoms (riders boarding through closed doors,
     /// movement before dispatch, transient states bleeding across
     /// tick boundaries).
-    pub(crate) phase_check: PhaseCheckState,
+    pub(crate) phase_check: PhaseCheck,
 }
 
 /// State of the substep phase-order guard.
@@ -269,7 +269,7 @@ pub struct Simulation {
 /// `run_*` call matches `phase`; `AwaitingTick` requires
 /// [`Simulation::advance_tick`] before the next cycle begins.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PhaseCheckState {
+pub(crate) enum PhaseCheck {
     /// Guard is off; substep calls are not validated.
     Disabled,
     /// Guard is on and the next allowed `run_*` is this phase.

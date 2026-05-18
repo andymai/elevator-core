@@ -206,3 +206,33 @@ fn strict_phase_order_rejects_premature_advance_tick() {
     // Skip the rest — advance_tick should reject.
     sim.advance_tick();
 }
+
+#[test]
+#[should_panic(expected = "advance_tick() called with zero phases")]
+fn strict_phase_order_rejects_zero_phase_advance_tick() {
+    // advance_tick() right after enabling strict mode, with no run_*
+    // calls in this cycle. Without this guard, the tick counter
+    // would silently bump on an empty cycle.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.advance_tick();
+}
+
+#[test]
+#[should_panic(expected = "advance_tick() called with zero phases")]
+fn strict_phase_order_rejects_back_to_back_advance_tick() {
+    // After a complete canonical cycle plus advance_tick(), a second
+    // advance_tick() with no intervening run_*'s is also zero-phase.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    sim.run_reposition();
+    sim.run_advance_queue();
+    sim.run_movement();
+    sim.run_doors();
+    sim.run_loading();
+    sim.run_metrics();
+    sim.advance_tick(); // first one is fine
+    sim.advance_tick(); // second one with no run_*'s — should panic
+}
