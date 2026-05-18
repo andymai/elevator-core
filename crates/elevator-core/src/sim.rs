@@ -250,6 +250,32 @@ pub struct Simulation {
     /// the substep loop owns the mutation through
     /// [`set_tick_in_progress`](Self::set_tick_in_progress).
     tick_in_progress: bool,
+    /// Opt-in phase-order check for the substep API. `Disabled` (the
+    /// default) skips all checks for backwards compatibility and zero
+    /// runtime cost. Hosts driving phases manually can flip this on
+    /// via [`set_strict_phase_order`](Self::set_strict_phase_order) to
+    /// fail fast on out-of-order `run_*` calls instead of seeing the
+    /// diffuse symptoms (riders boarding through closed doors,
+    /// movement before dispatch, transient states bleeding across
+    /// tick boundaries).
+    pub(crate) phase_check: PhaseCheckState,
+}
+
+/// State of the substep phase-order guard.
+///
+/// `Disabled` (the default) is a no-op: every `run_*` method
+/// short-circuits the check, so there is no runtime cost for hosts
+/// that don't opt in. `Expecting(phase)` enforces that the next
+/// `run_*` call matches `phase`; `AwaitingTick` requires
+/// [`Simulation::advance_tick`] before the next cycle begins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PhaseCheckState {
+    /// Guard is off; substep calls are not validated.
+    Disabled,
+    /// Guard is on and the next allowed `run_*` is this phase.
+    Expecting(crate::hooks::Phase),
+    /// Metrics has run; `advance_tick()` must come before the next cycle.
+    AwaitingTick,
 }
 
 impl Simulation {

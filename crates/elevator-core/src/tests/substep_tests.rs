@@ -101,3 +101,108 @@ fn events_mut_allows_custom_emission() {
             .any(|e| matches!(e, Event::ElevatorDeparted { tick: 999, .. }))
     );
 }
+
+// ── Strict phase-order guard ───────────────────────────────────────
+
+#[test]
+fn strict_phase_order_default_off() {
+    let sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    assert!(!sim.is_strict_phase_order());
+}
+
+#[test]
+fn strict_phase_order_step_passes_check() {
+    // step() walks the canonical order, so strict mode is a no-op
+    // from the consumer's perspective — never panics.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    assert!(sim.is_strict_phase_order());
+    for _ in 0..50 {
+        sim.step();
+    }
+}
+
+#[test]
+fn strict_phase_order_full_substep_cycle_passes() {
+    // Every public substep method in canonical order, with strict on.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    for _ in 0..10 {
+        sim.run_advance_transient();
+        sim.run_dispatch();
+        sim.run_reposition();
+        sim.run_advance_queue();
+        sim.run_movement();
+        sim.run_doors();
+        sim.run_loading();
+        sim.run_metrics();
+        sim.advance_tick();
+    }
+    assert_eq!(sim.current_tick(), 10);
+}
+
+#[test]
+fn strict_phase_order_can_be_toggled_off() {
+    // Toggling off restores the pre-existing tolerant behaviour, so
+    // hosts that skip phases (e.g. the original
+    // `per_phase_methods_equivalent_to_step` test) still work after
+    // experimenting with strict mode.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.set_strict_phase_order(false);
+    // This call skips run_reposition + run_advance_queue and would
+    // panic if strict were still on.
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    sim.run_movement();
+}
+
+#[test]
+#[should_panic(expected = "substep phase order violated")]
+fn strict_phase_order_rejects_out_of_order_call() {
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    // Skip straight to dispatch without advance_transient — should panic.
+    sim.run_dispatch();
+}
+
+#[test]
+#[should_panic(expected = "substep phase order violated")]
+fn strict_phase_order_rejects_skipped_phase() {
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    // Skip dispatch + reposition + advance_queue — straight to movement.
+    sim.run_movement();
+}
+
+#[test]
+#[should_panic(expected = "advance_tick() must run before the next cycle")]
+fn strict_phase_order_rejects_run_before_advance_tick() {
+    // Complete one full cycle, then start the next without
+    // advance_tick(). The AwaitingTick state should reject it.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    sim.run_reposition();
+    sim.run_advance_queue();
+    sim.run_movement();
+    sim.run_doors();
+    sim.run_loading();
+    sim.run_metrics();
+    // Missing advance_tick() here — next call must panic.
+    sim.run_advance_transient();
+}
+
+#[test]
+#[should_panic(expected = "advance_tick() called mid-tick")]
+fn strict_phase_order_rejects_premature_advance_tick() {
+    // advance_tick() called before run_metrics — should panic in strict mode.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    // Skip the rest — advance_tick should reject.
+    sim.advance_tick();
+}

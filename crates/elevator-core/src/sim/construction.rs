@@ -353,6 +353,7 @@ impl Simulation {
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index: RiderIndex::default(),
             tick_in_progress: false,
+            phase_check: super::PhaseCheckState::Disabled,
         })
     }
 
@@ -756,6 +757,7 @@ impl Simulation {
             topo_graph: Mutex::new(TopologyGraph::new()),
             rider_index,
             tick_in_progress: false,
+            phase_check: super::PhaseCheckState::Disabled,
         }
     }
 
