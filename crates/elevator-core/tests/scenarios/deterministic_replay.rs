@@ -141,9 +141,23 @@ fn build_sim() -> Simulation {
         .unwrap()
 }
 
-/// Run the scheduled scenario for `total_ticks` and collect all events + the
-/// final metrics snapshot.
-fn run(total_ticks: u64) -> (Vec<Event>, Metrics) {
+/// Outcome of running the scheduled scenario once.
+///
+/// `snapshot_bytes` is the postcard-serialised world state at the
+/// final tick — the broadest determinism surface we can compare. The
+/// event stream and scalar metrics catch most divergence, but any
+/// world state that doesn't make it into an event (e.g. internal
+/// `RiderIndex` ordering, dispatcher scratch, queued destinations)
+/// only shows up here.
+struct RunOutcome {
+    events: Vec<Event>,
+    metrics: Metrics,
+    snapshot_bytes: Vec<u8>,
+}
+
+/// Run the scheduled scenario for `total_ticks` and collect all events,
+/// the final metrics, and the final serialised snapshot.
+fn run(total_ticks: u64) -> RunOutcome {
     let mut sim = build_sim();
     let mut schedule = schedule();
     schedule.sort_by_key(|s| s.tick); // deterministic ordering
@@ -161,13 +175,29 @@ fn run(total_ticks: u64) -> (Vec<Event>, Metrics) {
         collected.extend(sim.drain_events());
     }
 
-    (collected, sim.metrics().clone())
+    let snapshot_bytes = sim
+        .snapshot_bytes()
+        .expect("snapshot_bytes must succeed on a quiescent sim");
+
+    RunOutcome {
+        events: collected,
+        metrics: sim.metrics().clone(),
+        snapshot_bytes,
+    }
 }
 
 #[test]
 fn event_stream_is_deterministic_across_runs() {
-    let (events_a, metrics_a) = run(5_000);
-    let (events_b, metrics_b) = run(5_000);
+    let RunOutcome {
+        events: events_a,
+        metrics: metrics_a,
+        ..
+    } = run(5_000);
+    let RunOutcome {
+        events: events_b,
+        metrics: metrics_b,
+        ..
+    } = run(5_000);
 
     assert_eq!(
         events_a.len(),
@@ -222,7 +252,9 @@ fn scenario_actually_exercises_the_sim() {
     // Sanity-check that the fixture isn't vacuously deterministic — we need
     // boards, deliveries, and movement to actually happen for the above
     // test to be meaningful.
-    let (events, metrics) = run(5_000);
+    let RunOutcome {
+        events, metrics, ..
+    } = run(5_000);
 
     assert!(
         events
@@ -242,4 +274,33 @@ fn scenario_actually_exercises_the_sim() {
         metrics.total_delivered()
     );
     assert!(metrics.total_distance() > 0.0, "expected elevators to move");
+}
+
+#[test]
+fn snapshot_bytes_are_deterministic_across_runs() {
+    // The strongest determinism assertion we can make in-process: two
+    // independent runs of the same scenario produce byte-identical
+    // postcard-serialised snapshots. This catches divergence in any
+    // serialised field the per-event / scalar-metric checks above
+    // would miss — internal map iteration order, dispatcher scratch,
+    // destination queues, hall-call assignment tables, etc.
+    //
+    // If this fires but `event_stream_is_deterministic_across_runs`
+    // passes, the bug is in something that round-trips through
+    // `snapshot()` but never emits an `Event` — start by diffing the
+    // two byte streams to locate the first diverging field.
+    let a = run(5_000);
+    let b = run(5_000);
+
+    assert_eq!(
+        a.snapshot_bytes.len(),
+        b.snapshot_bytes.len(),
+        "snapshot byte length diverged (A={}, B={})",
+        a.snapshot_bytes.len(),
+        b.snapshot_bytes.len(),
+    );
+    assert_eq!(
+        a.snapshot_bytes, b.snapshot_bytes,
+        "snapshot bytes diverged between two runs of the same scenario",
+    );
 }
