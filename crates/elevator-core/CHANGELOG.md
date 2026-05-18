@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.16.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.15.0...elevator-core-v20.16.0) (2026-05-18)
+
+
+### Features
+
+* **elevator-core:** opt-in strict substep phase-order guard ([#859](https://github.com/andymai/elevator-core/issues/859)) ([f5a4558](https://github.com/andymai/elevator-core/commit/f5a45584dbde48b443e6ea2a26d4494ac7ccd7e0))
+
 ## [20.15.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.14.0...elevator-core-v20.15.0) (2026-05-11)
 
 
