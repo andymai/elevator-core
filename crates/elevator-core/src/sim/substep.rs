@@ -9,6 +9,7 @@ use crate::events::EventBus;
 use crate::hooks::Phase;
 use crate::ids::GroupId;
 use crate::metrics::Metrics;
+use crate::sim::PhaseCheck;
 use crate::systems::PhaseContext;
 use std::collections::BTreeMap;
 
@@ -56,6 +57,89 @@ impl super::Simulation {
         }
     }
 
+    /// Enable or disable strict substep phase-order validation.
+    ///
+    /// When enabled, each `run_*` substep method panics if called out
+    /// of the canonical 8-phase order, and `advance_tick()` panics if
+    /// called before `run_metrics()` has run. Default off — opt in
+    /// during host development to fail fast on accidental out-of-order
+    /// calls instead of debugging the downstream symptoms (riders
+    /// boarding through closed doors, movement before dispatch,
+    /// transient rider states bleeding across tick boundaries).
+    ///
+    /// `step()` and `step_many()` always satisfy the order, so flipping
+    /// this on in production code that drives the sim via `step()` is
+    /// safe (and zero overhead — a single branch per phase).
+    ///
+    /// # Canonical order
+    ///
+    /// Each tick: `run_advance_transient` → `run_dispatch` →
+    /// `run_reposition` → `run_advance_queue` → `run_movement` →
+    /// `run_doors` → `run_loading` → `run_metrics` → `advance_tick`.
+    ///
+    /// ```
+    /// use elevator_core::prelude::*;
+    ///
+    /// let mut sim = SimulationBuilder::demo().build().unwrap();
+    /// sim.set_strict_phase_order(true);
+    /// sim.step(); // canonical order — passes the check.
+    /// ```
+    pub const fn set_strict_phase_order(&mut self, enabled: bool) {
+        // Idempotent on a redundant enable: if the guard is already
+        // on, preserve the existing mid-cycle / AwaitingTick state so
+        // a `set_strict_phase_order(true)` call between `run_metrics`
+        // and `advance_tick` doesn't silently erase the
+        // advance_tick-required marker (which would let the consumer
+        // skip the tick-counter increment and event flush).
+        self.phase_check = match (enabled, self.phase_check) {
+            (true, PhaseCheck::Disabled) => PhaseCheck::Expecting(Phase::AdvanceTransient),
+            (true, current) => current,
+            (false, _) => PhaseCheck::Disabled,
+        };
+    }
+
+    /// Whether strict substep phase-order validation is currently
+    /// enabled. Useful for hosts that want to surface the setting in
+    /// debug overlays.
+    #[must_use]
+    pub const fn is_strict_phase_order(&self) -> bool {
+        !matches!(self.phase_check, PhaseCheck::Disabled)
+    }
+
+    /// Validate that `current` is the next-expected phase, then advance
+    /// the expectation to `next`. No-op when the guard is disabled.
+    /// `next == None` means "tick complete, await `advance_tick`".
+    //
+    // `clippy::panic` is workspace-denied, but the AwaitingTick arm is
+    // unrepresentable as an `assert_eq!` against `current` — there is no
+    // single "expected phase" to compare against (the only allowed next
+    // action is `advance_tick`, not a phase). A direct `panic!` with a
+    // tailored message is the right shape for the AwaitingTick arm; the
+    // allow is scoped to this helper only.
+    #[allow(clippy::panic)]
+    fn check_and_advance_phase(&mut self, current: Phase, next: Option<Phase>) {
+        match self.phase_check {
+            PhaseCheck::Disabled => {}
+            PhaseCheck::Expecting(expected) => {
+                assert_eq!(
+                    expected, current,
+                    "substep phase order violated: expected {expected}, called {current}.\n\
+                     Canonical order each tick: advance_transient → dispatch → reposition → \
+                     advance_queue → movement → doors → loading → metrics, then advance_tick() \
+                     before the next cycle. See Simulation::set_strict_phase_order.",
+                );
+                self.phase_check = next.map_or(PhaseCheck::AwaitingTick, PhaseCheck::Expecting);
+            }
+            PhaseCheck::AwaitingTick => {
+                panic!(
+                    "substep phase order violated: called {current} but the previous tick's \
+                     metrics phase has run — advance_tick() must run before the next cycle. \
+                     See Simulation::set_strict_phase_order.",
+                );
+            }
+        }
+    }
+
     /// Run only the `advance_transient` phase (with hooks).
     ///
     /// # Phase ordering
@@ -76,6 +160,7 @@ impl super::Simulation {
     /// elevators to move before dispatch, or transient states to persist
     /// across tick boundaries.
     pub fn run_advance_transient(&mut self) {
+        self.check_and_advance_phase(Phase::AdvanceTransient, Some(Phase::Dispatch));
         self.set_tick_in_progress(true);
         self.sync_world_tick();
         self.hooks
@@ -101,6 +186,7 @@ impl super::Simulation {
 
     /// Run only the dispatch phase (with hooks).
     pub fn run_dispatch(&mut self) {
+        self.check_and_advance_phase(Phase::Dispatch, Some(Phase::Reposition));
         self.sync_world_tick();
         self.hooks.run_before(Phase::Dispatch, &mut self.world);
         for group in &self.groups {
@@ -126,6 +212,7 @@ impl super::Simulation {
 
     /// Run only the movement phase (with hooks).
     pub fn run_movement(&mut self) {
+        self.check_and_advance_phase(Phase::Movement, Some(Phase::Doors));
         self.hooks.run_before(Phase::Movement, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -149,6 +236,7 @@ impl super::Simulation {
 
     /// Run only the doors phase (with hooks).
     pub fn run_doors(&mut self) {
+        self.check_and_advance_phase(Phase::Doors, Some(Phase::Loading));
         self.hooks.run_before(Phase::Doors, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -172,6 +260,7 @@ impl super::Simulation {
 
     /// Run only the loading phase (with hooks).
     pub fn run_loading(&mut self) {
+        self.check_and_advance_phase(Phase::Loading, Some(Phase::Metrics));
         self.hooks.run_before(Phase::Loading, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -200,6 +289,7 @@ impl super::Simulation {
     /// [`DestinationQueue`](crate::components::DestinationQueue). Runs
     /// between Reposition and Movement.
     pub fn run_advance_queue(&mut self) {
+        self.check_and_advance_phase(Phase::AdvanceQueue, Some(Phase::Movement));
         self.hooks.run_before(Phase::AdvanceQueue, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -229,6 +319,7 @@ impl super::Simulation {
     /// repositioner — this differs from other phases where per-group hooks
     /// fire unconditionally.
     pub fn run_reposition(&mut self) {
+        self.check_and_advance_phase(Phase::Reposition, Some(Phase::AdvanceQueue));
         self.sync_world_tick();
         self.hooks.run_before(Phase::Reposition, &mut self.world);
         if !self.repositioner_set.is_empty() {
@@ -273,6 +364,8 @@ impl super::Simulation {
 
     /// Run only the metrics phase (with hooks).
     pub fn run_metrics(&mut self) {
+        // None → AwaitingTick: advance_tick() must come before the next cycle.
+        self.check_and_advance_phase(Phase::Metrics, None);
         self.hooks.run_before(Phase::Metrics, &mut self.world);
         for group in &self.groups {
             self.hooks
@@ -299,7 +392,48 @@ impl super::Simulation {
     ///
     /// Call after running all desired phases. Events emitted during this tick
     /// are moved to the output buffer and available via `drain_events()`.
+    //
+    // `clippy::panic` is workspace-denied, but the two `Expecting(...)`
+    // arms below describe distinct guard violations that don't fit a
+    // single `assert_eq!`: the start-of-cycle case has no value to
+    // compare against, and the mid-cycle case panics whenever the
+    // expected phase is anything other than AdvanceTransient — which is
+    // already handled by the other arm. Tailored `panic!` messages
+    // surface the failure context; allow is scoped to this function.
+    #[allow(clippy::panic)]
     pub fn advance_tick(&mut self) {
+        // Reset the substep guard to the start of the next cycle. With
+        // strict mode on, `advance_tick()` is only valid after
+        // `run_metrics()` (the `AwaitingTick` state). Any `Expecting(...)`
+        // means the host stopped short — either mid-cycle after some
+        // run_*'s, or at the start of a cycle with zero run_*'s. Both
+        // would silently bump the tick counter on a half-stepped (or
+        // empty) cycle, so reject both.
+        match self.phase_check {
+            PhaseCheck::Disabled => {}
+            PhaseCheck::AwaitingTick => {
+                self.phase_check = PhaseCheck::Expecting(Phase::AdvanceTransient);
+            }
+            PhaseCheck::Expecting(Phase::AdvanceTransient) => {
+                // Zero phases ran since the last advance_tick (or since
+                // enabling strict mode). Reject to keep the
+                // documented invariant "advance_tick only fires after
+                // run_metrics" honest.
+                panic!(
+                    "advance_tick() called with zero phases run this cycle. \
+                     Strict mode requires the full canonical phase sequence \
+                     per tick: advance_transient → dispatch → reposition → \
+                     advance_queue → movement → doors → loading → metrics, \
+                     then advance_tick(). See Simulation::set_strict_phase_order.",
+                );
+            }
+            PhaseCheck::Expecting(phase) => {
+                panic!(
+                    "advance_tick() called mid-tick: expected to be entering phase {phase} but the \
+                     metrics phase has not run yet. See Simulation::set_strict_phase_order.",
+                );
+            }
+        }
         self.pending_output.extend(self.events.drain());
         self.tick += 1;
         self.set_tick_in_progress(false);

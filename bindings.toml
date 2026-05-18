@@ -231,6 +231,30 @@ gms  = "skip:internal — phase ordering invariant"
 gdext = "skip:internal — phase ordering invariant"
 bevy = "skip:internal — phase ordering invariant"
 
+# ─── Substep guard knobs ──────────────────────────────────────────────────
+# Tied to the internal substep API: only useful when a consumer drives the
+# run_* phases directly, which all hosts skip per the invariant above.
+
+[[methods]]
+name = "set_strict_phase_order"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
+
+[[methods]]
+name = "is_strict_phase_order"
+category = "internal"
+wasm = "skip:internal — phase ordering invariant"
+ffi  = "skip:internal — phase ordering invariant"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "skip:internal — phase ordering invariant"
+gdext = "skip:internal — phase ordering invariant"
+bevy = "skip:internal — phase ordering invariant"
+
 # ─── Modes (the original concern: \"emergency stop doesn't work\") ────────
 
 [[methods]]
