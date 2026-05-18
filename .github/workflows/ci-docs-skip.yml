@@ -1,0 +1,58 @@
+name: CI
+
+# Mirror image of ci.yml's `paths-ignore`. When a PR or push touches
+# ONLY paths that ci.yml is configured to ignore, that workflow doesn't
+# fire — so the `Check` required status never appears, and branch
+# protection refuses the merge ("Waiting for status to be reported"
+# forever). The in-workflow comment at ci.yml:42-46 claiming
+# "branch-protection treats a SKIPPED required check as success" is
+# correct for job-level `if:` skips but NOT for workflow-level
+# `paths-ignore`; the latter never emits a status at all.
+#
+# This workflow fires for exactly those ignored paths and emits a
+# successful `Check` so the required-status gate clears. Both
+# workflows share `name: CI` and job name `Check`, producing the
+# identical status context "CI / Check" — branch protection sees one
+# required check; one of the two workflows fires per push/PR
+# depending on the touched paths.
+#
+# If a PR touches both docs AND code paths, both workflows fire (the
+# `paths` / `paths-ignore` filters each match independently). Both
+# pass → the gate clears. The duplicated status entry in the PR UI is
+# cosmetic.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'media/**'
+      - 'AI-DISCLOSURE.md'
+      - 'STABILITY.md'
+      - 'LICENSE*'
+      - '.research/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'media/**'
+      - 'AI-DISCLOSURE.md'
+      - 'STABILITY.md'
+      - 'LICENSE*'
+      - '.research/**'
+
+# Cancel superseded PR runs to mirror ci.yml's concurrency policy.
+concurrency:
+  group: ci-docs-skip-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docs-only no-op
+        run: echo "Docs-only paths - no code change to validate. Check passes."
