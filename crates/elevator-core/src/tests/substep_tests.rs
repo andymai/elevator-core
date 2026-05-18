@@ -219,6 +219,60 @@ fn strict_phase_order_rejects_zero_phase_advance_tick() {
 }
 
 #[test]
+#[should_panic(expected = "advance_tick()")]
+fn strict_phase_order_redundant_enable_preserves_awaiting_tick() {
+    // Greptile #859 finding: a second `set_strict_phase_order(true)`
+    // mid-cycle used to unconditionally reset to
+    // Expecting(AdvanceTransient), silently erasing the AwaitingTick
+    // marker after `run_metrics()`. That would let the consumer call
+    // `run_advance_transient()` without `advance_tick()` between
+    // ticks — skipping the tick-counter increment and event flush.
+    //
+    // The setter is now idempotent on `enabled == true`: redundant
+    // enable preserves the existing state, so the AwaitingTick
+    // requirement survives and the next `run_advance_transient()`
+    // panics as expected.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    sim.run_reposition();
+    sim.run_advance_queue();
+    sim.run_movement();
+    sim.run_doors();
+    sim.run_loading();
+    sim.run_metrics();
+    // Redundant enable — must NOT reset the AwaitingTick state.
+    sim.set_strict_phase_order(true);
+    // Without advance_tick(), this should still panic.
+    sim.run_advance_transient();
+}
+
+#[test]
+fn strict_phase_order_toggle_off_then_on_resets_to_start_of_cycle() {
+    // Toggling off then on IS a reset — the consumer explicitly
+    // disabled and re-enabled, which should land at the start of a
+    // fresh cycle regardless of where mid-cycle they were.
+    let mut sim = crate::sim::Simulation::new(&default_config(), scan()).unwrap();
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    // Disable mid-cycle, then re-enable. State is now
+    // Expecting(AdvanceTransient) so a fresh canonical cycle works.
+    sim.set_strict_phase_order(false);
+    sim.set_strict_phase_order(true);
+    sim.run_advance_transient();
+    sim.run_dispatch();
+    sim.run_reposition();
+    sim.run_advance_queue();
+    sim.run_movement();
+    sim.run_doors();
+    sim.run_loading();
+    sim.run_metrics();
+    sim.advance_tick();
+}
+
+#[test]
 #[should_panic(expected = "advance_tick() called with zero phases")]
 fn strict_phase_order_rejects_back_to_back_advance_tick() {
     // After a complete canonical cycle plus advance_tick(), a second

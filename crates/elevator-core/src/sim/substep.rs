@@ -85,10 +85,16 @@ impl super::Simulation {
     /// sim.step(); // canonical order — passes the check.
     /// ```
     pub const fn set_strict_phase_order(&mut self, enabled: bool) {
-        self.phase_check = if enabled {
-            PhaseCheck::Expecting(Phase::AdvanceTransient)
-        } else {
-            PhaseCheck::Disabled
+        // Idempotent on a redundant enable: if the guard is already
+        // on, preserve the existing mid-cycle / AwaitingTick state so
+        // a `set_strict_phase_order(true)` call between `run_metrics`
+        // and `advance_tick` doesn't silently erase the
+        // advance_tick-required marker (which would let the consumer
+        // skip the tick-counter increment and event flush).
+        self.phase_check = match (enabled, self.phase_check) {
+            (true, PhaseCheck::Disabled) => PhaseCheck::Expecting(Phase::AdvanceTransient),
+            (true, current) => current,
+            (false, _) => PhaseCheck::Disabled,
         };
     }
 
