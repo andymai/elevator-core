@@ -35,6 +35,25 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
         .into();
     }
 
+    // Reject `packed` modifiers. The runtime metadata stores raw
+    // `offset_of!` byte positions, but the consumer codegens
+    // (`elevator-layout-codegen` emitting C# / GML / harness asserts)
+    // have no concept of struct packing — they emit `[StructLayout
+    // (LayoutKind.Sequential)]` and untyped GML buffers that follow
+    // the target language's natural alignment. A packed Rust source
+    // would compute correct offsets here, then the foreign-language
+    // mirror would skew on every nested field. Fail loud at the
+    // derive site instead of corrupting reads silently downstream.
+    if has_repr_packed(&input.attrs) {
+        return syn::Error::new_spanned(
+            name,
+            "MultiHostLayout does not support #[repr(packed)] — \
+             the C# / GML codegen has no notion of packing and would emit skewed offsets",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let fields = match &input.data {
         Data::Struct(s) => match &s.fields {
             Fields::Named(named) => &named.named,
@@ -125,8 +144,10 @@ pub fn derive_multi_host_layout(input: TokenStream) -> TokenStream {
 
 /// Detect whether the input struct carries `#[repr(C)]`.
 ///
-/// `#[repr(C, ...other...)]` (e.g. `#[repr(C, packed)]`) is also
-/// accepted — we walk every nested meta in the repr list.
+/// `#[repr(C, align(N))]` is accepted — alignment promotion preserves
+/// natural field offsets, which the foreign codegens already follow.
+/// `#[repr(C, packed)]` is detected separately by [`has_repr_packed`]
+/// and rejected at the entry point.
 fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
     for attr in attrs {
         if !attr.path().is_ident("repr") {
@@ -135,6 +156,29 @@ fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
         let mut found = false;
         let _ = attr.parse_nested_meta(|nested| {
             if nested.path.is_ident("C") {
+                found = true;
+            }
+            Ok(())
+        });
+        if found {
+            return true;
+        }
+    }
+    false
+}
+
+/// Detect any `packed` modifier in a `#[repr(...)]` list.
+///
+/// Covers both bare `packed` and `packed(N)` — the consumer codegens
+/// can handle neither, so any presence is a hard error.
+fn has_repr_packed(attrs: &[syn::Attribute]) -> bool {
+    for attr in attrs {
+        if !attr.path().is_ident("repr") {
+            continue;
+        }
+        let mut found = false;
+        let _ = attr.parse_nested_meta(|nested| {
+            if nested.path.is_ident("packed") {
                 found = true;
             }
             Ok(())
@@ -176,4 +220,53 @@ fn classify_type(ty: &Type) -> proc_macro2::TokenStream {
         _ => quote!(Bytes),
     };
     quote!(::elevator_layout_runtime::FieldKind::#kind)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::{Attribute, parse_quote};
+
+    fn attrs(input: Attribute) -> Vec<Attribute> {
+        vec![input]
+    }
+
+    #[test]
+    fn has_repr_c_detects_bare_repr_c() {
+        assert!(has_repr_c(&attrs(parse_quote!(#[repr(C)]))));
+    }
+
+    #[test]
+    fn has_repr_c_detects_repr_c_with_align() {
+        assert!(has_repr_c(&attrs(parse_quote!(#[repr(C, align(8))]))));
+    }
+
+    #[test]
+    fn has_repr_c_rejects_non_c_reprs() {
+        assert!(!has_repr_c(&attrs(parse_quote!(#[repr(transparent)]))));
+        assert!(!has_repr_c(&attrs(parse_quote!(#[repr(packed)]))));
+        assert!(!has_repr_c(&[]));
+    }
+
+    #[test]
+    fn has_repr_packed_detects_bare_packed() {
+        assert!(has_repr_packed(&attrs(parse_quote!(#[repr(packed)]))));
+    }
+
+    #[test]
+    fn has_repr_packed_detects_packed_with_c() {
+        assert!(has_repr_packed(&attrs(parse_quote!(#[repr(C, packed)]))));
+    }
+
+    #[test]
+    fn has_repr_packed_detects_packed_with_alignment() {
+        assert!(has_repr_packed(&attrs(parse_quote!(#[repr(C, packed(2))]))));
+    }
+
+    #[test]
+    fn has_repr_packed_ignores_align_only() {
+        assert!(!has_repr_packed(&attrs(parse_quote!(#[repr(C, align(8))]))));
+        assert!(!has_repr_packed(&attrs(parse_quote!(#[repr(C)]))));
+        assert!(!has_repr_packed(&[]));
+    }
 }
