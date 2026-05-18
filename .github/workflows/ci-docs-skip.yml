@@ -12,14 +12,18 @@ name: CI
 # This workflow fires for exactly those ignored paths and emits a
 # successful `Check` so the required-status gate clears. Both
 # workflows share `name: CI` and job name `Check`, producing the
-# identical status context "CI / Check" — branch protection sees one
-# required check; one of the two workflows fires per push/PR
-# depending on the touched paths.
+# identical status context "CI / Check".
 #
-# If a PR touches both docs AND code paths, both workflows fire (the
-# `paths` / `paths-ignore` filters each match independently). Both
-# pass → the gate clears. The duplicated status entry in the PR UI is
-# cosmetic.
+# Mixed-PR safety (docs AND code paths touched simultaneously):
+# GitHub Actions emits a **check run** (Checks API), not a status
+# (legacy Status API). Branch protection requires every required
+# check run of the configured name to succeed — they are AND-ed, not
+# last-write-wins. So if a mixed PR fires both workflows and ci.yml's
+# real `Check` fails, this no-op's success cannot override it; the
+# gate stays blocked until the real check passes. (Last-write-wins
+# semantics apply only to the legacy commit-status API used by
+# third-party integrations, not by GitHub Actions.) The duplicate
+# status entry in the PR UI is cosmetic.
 
 on:
   push:
