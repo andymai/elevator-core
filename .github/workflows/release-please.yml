@@ -93,6 +93,58 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ steps.app-token.outputs.token }}
 
+      # release-please-action only edits each tracked crate's
+      # `version = "..."` line in Cargo.toml; it never runs cargo, so
+      # the workspace Cargo.lock keeps the OLD versions. The next
+      # non-release PR then inherits the drift — its pre-commit hook's
+      # `cargo metadata --frozen` guard rejects any subsequent
+      # Cargo.toml edit until someone refreshes the lock manually.
+      # Refresh it here, on the release PR branch, so the lock lands
+      # together with the version bumps it describes. `--offline`
+      # forbids registry access — the only deltas are the workspace
+      # version lines, which don't need network resolution.
+      - name: Install Rust toolchain (for Cargo.lock refresh)
+        if: steps.release.outputs.pr
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Refresh Cargo.lock on release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr_branch=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json headRefName --jq .headRefName)
+
+          git fetch origin "$pr_branch"
+          git checkout "$pr_branch"
+
+          cargo update --workspace --offline
+
+          if git diff --quiet Cargo.lock; then
+            echo "::notice::Cargo.lock is already in sync; no refresh needed."
+            exit 0
+          fi
+
+          # Attribute the commit to the App that owns the PR. The
+          # default `actions/checkout` step set the credential helper
+          # to GITHUB_TOKEN; a bare `git push origin …` would inherit
+          # that and GitHub would silently suppress the CI re-trigger
+          # (anti-loop protection for pushes by GITHUB_TOKEN). Push
+          # explicitly via the App token URL so CI on the PR re-runs
+          # against the refreshed lock. This still does NOT re-trigger
+          # this release-please workflow — its trigger is
+          # `push: branches: [main]`, and we're pushing to the PR
+          # branch.
+          git config user.name "release-kun[bot]"
+          git config user.email "release-kun[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "chore: refresh Cargo.lock for release"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:${pr_branch}"
+
       # Inline approve + auto-merge in the same workflow run that
       # opened the PR. Approval uses the default GITHUB_TOKEN
       # (`github-actions[bot]` actor), which is distinct from the App
