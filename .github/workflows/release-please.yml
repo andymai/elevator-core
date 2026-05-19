@@ -3,6 +3,21 @@ name: Release Please
 on:
   push:
     branches: [main]
+  # Manual recovery path. `release-please-action` creates the GitHub
+  # release/tag BEFORE downstream jobs run, so a mid-step crash can
+  # leave a version tagged but never published. (Concrete history:
+  # `elevator-core-v20.16.0` was minted on 2026-05-18 but the
+  # env-block fromJSON template error — fixed in #863 — aborted the
+  # workflow before `publish` could fire.) Dispatching this workflow
+  # with `recover_tag` re-runs `publish` for that existing tag using
+  # the same OIDC trusted-publisher identity as the automated flow.
+  # release-please itself is skipped on this trigger.
+  workflow_dispatch:
+    inputs:
+      recover_tag:
+        description: "Tag to re-publish (e.g. elevator-core-v20.16.0). Skips release-please."
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,6 +28,10 @@ env:
 
 jobs:
   release-please:
+    # Skipped on workflow_dispatch — that trigger is the manual
+    # recovery path, which goes straight to `publish` for an existing
+    # tag without re-running release management.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       release-created: ${{ steps.release.outputs['crates/elevator-core--release_created'] }}
@@ -177,14 +196,56 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.release-created == 'true'
+    # Two entry points: the normal push-triggered flow runs when
+    # release-please cut a new elevator-core release; the manual
+    # recovery flow runs when an operator dispatched the workflow
+    # with a `recover_tag` that names an elevator-core release tag.
+    # `always()` is required so this job doesn't auto-skip when its
+    # `needs:` dependency (release-please) was skipped — which is
+    # exactly what happens on the workflow_dispatch path.
+    if: |
+      always() && (
+        (github.event_name == 'push' && needs.release-please.outputs.release-created == 'true') ||
+        (github.event_name == 'workflow_dispatch' && startsWith(inputs.recover_tag, 'elevator-core-v'))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     environment: crates-io
     steps:
+      # On workflow_dispatch, check out the tag explicitly so the
+      # published artefact matches what was tagged even if main has
+      # advanced since. On push, default checkout (HEAD of the
+      # triggering ref) is correct because release-please's PR is the
+      # tip of main when this job fires.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_tag || '' }}
+      - name: Verify Cargo.toml version matches recover_tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.recover_tag }}
+        run: |
+          set -euo pipefail
+          # Tag form: elevator-core-vX.Y.Z → expected Cargo.toml version X.Y.Z.
+          # Reject anything else early — a malformed tag would have failed
+          # at checkout, but this also catches a real tag whose Cargo.toml
+          # somehow disagrees with the tag name.
+          if [[ ! "$TAG" =~ ^elevator-core-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::recover_tag must match 'elevator-core-vMAJOR.MINOR.PATCH' (got: $TAG)"
+            exit 1
+          fi
+          expected="${TAG#elevator-core-v}"
+          line=$(grep -E '^version = "' crates/elevator-core/Cargo.toml | head -1)
+          # `version = "X.Y.Z" # comment` → strip up to and including the
+          # first quote, then strip from the next quote to the end.
+          actual="${line#*\"}"
+          actual="${actual%%\"*}"
+          if [[ "$expected" != "$actual" ]]; then
+            echo "::error::tag $TAG checked out Cargo.toml version $actual; refusing to publish"
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: rust-lang/crates-io-auth-action@v1
