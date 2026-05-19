@@ -111,7 +111,12 @@ jobs:
         if: steps.release.outputs.pr
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+          # Short-circuit: env-block expressions resolve at step-prep, not
+          # at step-run, so when `steps.release.outputs.pr` is empty
+          # (release-please opened no PR), `fromJSON('')` would crash the
+          # workflow before `if:` could skip the step. The `&& ... || ''`
+          # guard yields an empty string in that case; `if:` then skips.
+          PR_NUMBER: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number || '' }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
