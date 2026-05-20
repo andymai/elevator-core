@@ -2,17 +2,17 @@
 
 # elevator-core
 
-**From a 5-story office to a space elevator — same engine, same API.**
+[![CI](https://img.shields.io/github/actions/workflow/status/andymai/elevator-core/ci.yml?label=CI)](https://github.com/andymai/elevator-core/actions)
+[![Crates.io](https://img.shields.io/crates/v/elevator-core.svg)](https://crates.io/crates/elevator-core)
+[![docs.rs](https://img.shields.io/docsrs/elevator-core)](https://docs.rs/elevator-core)
+[![Last release](https://img.shields.io/github/release-date/andymai/elevator-core?label=last%20release)](https://github.com/andymai/elevator-core/releases)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/andymai/elevator-core?label=commits%2Fmonth)](https://github.com/andymai/elevator-core/commits/main)
+[![License](https://img.shields.io/crates/l/elevator-core.svg)](LICENSE-MIT)
 
 An engine-agnostic, tick-based elevator simulation library for Rust.\
 Plug it into Bevy, Unity, your own renderer, or run headless.
 
-[![Crates.io](https://img.shields.io/crates/v/elevator-core.svg)](https://crates.io/crates/elevator-core)
-[![docs.rs](https://img.shields.io/docsrs/elevator-core)](https://docs.rs/elevator-core)
-[![CI](https://img.shields.io/github/actions/workflow/status/andymai/elevator-core/ci.yml?label=CI)](https://github.com/andymai/elevator-core/actions)
-[![Last release](https://img.shields.io/github/release-date/andymai/elevator-core?label=last%20release)](https://github.com/andymai/elevator-core/releases)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/andymai/elevator-core?label=commits%2Fmonth)](https://github.com/andymai/elevator-core/commits/main)
-[![License](https://img.shields.io/crates/l/elevator-core.svg)](LICENSE-MIT)
+From a 5-story office to a space elevator — same engine, same API.
 
 [Guide](https://andymai.github.io/elevator-core/) · [API Reference](https://docs.rs/elevator-core) · [Examples](crates/elevator-core/examples/)
 
@@ -63,7 +63,7 @@ fn main() -> Result<(), SimError> {
 }
 ```
 
-The README snippet above prints `Tick N: rider … delivered!` once the rider arrives. To run a slightly more elaborate example, with three riders and aggregate metrics:
+The snippet above prints `Tick N: rider … delivered!` once the rider arrives. To run a more elaborate example with three riders and aggregate metrics:
 
 ```sh
 cargo run --example basic -p elevator-core
@@ -86,14 +86,24 @@ cargo run --example basic -p elevator-core
 
 ## Features
 
-- **Arbitrary stop positions:** not limited to uniform floors; model buildings, towers, orbital tethers
-- **Pluggable dispatch:** built-in SCAN, LOOK, Nearest Car, ETD, Destination; or bring your own via the `DispatchStrategy` trait
-- **Rider lifecycle:** Waiting → Boarding → Riding → Exiting → Arrived/Abandoned, with hooks at each transition
-- **Extension storage:** attach arbitrary typed data to riders, elevators, and stops
-- **O(1) population queries:** who's waiting, riding, or resident at any stop, instantly
-- **Deterministic replay:** same inputs produce the same simulation every time
-- **Snapshot save/load:** serialize full simulation state for replays or networking
-- **Metrics:** wait times, ride times, throughput, delivered counts, all built-in
+- **Arbitrary stop positions** — not limited to uniform floors; model buildings, towers, orbital tethers
+- **Pluggable dispatch** — built-in SCAN, LOOK, Nearest Car, ETD, Destination; or bring your own via the `DispatchStrategy` trait
+- **Rider lifecycle** — Waiting → Boarding → Riding → Exiting → Arrived/Abandoned, with hooks at each transition
+- **Extension storage** — attach arbitrary typed data to riders, elevators, and stops
+- **O(1) population queries** — who's waiting, riding, or resident at any stop, instantly
+- **Deterministic replay** — same inputs produce the same simulation every time
+- **Snapshot save/load** — serialize full simulation state for replays or networking
+- **Metrics** — wait times, ride times, throughput, delivered counts, all built-in
+
+## Scope
+
+To set expectations, this library deliberately does not:
+
+- **Render or draw elevators** — the core is headless; see the host crates (`elevator-bevy`, `elevator-tui`, `elevator-wasm`) or wire up your own renderer
+- **Model 2-D or n-D space** — motion is strictly 1-D; the sim has no concept of floor plans, room geometry, or lateral movement
+- **Simulate building systems** — HVAC, power, occupancy modelling, and other building-automation concerns are out of scope
+- **Generate or manage traffic autonomously** — rider arrivals are caller-driven; the optional `traffic` feature adds Poisson helpers, but the sim never spawns riders on its own
+- **Handle real-time networking or multiplayer** — snapshot serialization is provided for replays and save/load; authoritative multiplayer sync is the caller's responsibility
 
 ## Hosts
 
@@ -109,48 +119,38 @@ cargo run --example basic -p elevator-core
 
 Anything not on the list? Drive `Simulation::step()` yourself — the API is engine-agnostic.
 
-## Non-goals
+## Install
 
-This is a simulation library, not a game. It deliberately does **not** include:
-
-- Rendering or UI — see the host crates above, or roll your own
-- AI passengers or traffic generation — use the optional `traffic` feature flag, or drive arrivals yourself
-- Building layout or 2-D floor plans — the sim is 1-D by design
-
-## Visual demo
-
-The workspace includes a [Bevy frontend](crates/elevator-bevy) that renders the simulation in 2-D:
-
-```sh
-cargo run                                       # default 5-stop building
-cargo run -- assets/config/space_elevator.ron    # 1,000 km orbital tether
+```toml
+[dependencies]
+elevator-core = "1"
 ```
 
-## TUI debugger
-
-For tick-by-tick debugging or headless smoke runs, the workspace also ships [`elevator-tui`](crates/elevator-tui) — a terminal viewer with pause/step controls, event log, dispatch summary, and snapshot save/load on a hotkey. See the [TUI Debugger guide](https://andymai.github.io/elevator-core/tui-debugger.html).
-
-```sh
-cargo run -p elevator-tui -- assets/config/default.ron                    # interactive
-cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  # CI smoke
-```
-
-## Feature flags
+Feature flags:
 
 | Flag      | Default | Adds                                                       |
 | --------- | ------- | ---------------------------------------------------------- |
 | `traffic` | yes     | Poisson arrivals, daily traffic patterns. Pulls in `rand`. |
 | `energy`  | no      | Per-elevator energy/regen modeling.                        |
 
-## Workspace
+## Development
 
-`elevator-core` is the simulation library. The hosts above wrap it. A handful of supporting crates (`elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen`) are build-time / test-only and exist to keep the host bindings in sync. See [CLAUDE.md](CLAUDE.md#project-structure) for the full layout.
+```sh
+cargo run                                                            # default 5-stop building (Bevy)
+cargo run -- assets/config/space_elevator.ron                        # 1,000 km orbital tether
+cargo run -p elevator-tui -- assets/config/default.ron               # TUI debugger, interactive
+cargo run -p elevator-tui -- assets/config/default.ron --headless --until 5000  # headless CI smoke
+```
+
+The workspace includes a [Bevy frontend](crates/elevator-bevy) (2-D renderer) and [`elevator-tui`](crates/elevator-tui) (tick-by-tick debugger with pause/step controls, event log, dispatch summary, and snapshot save/load). See the [TUI Debugger guide](https://andymai.github.io/elevator-core/tui-debugger.html).
+
+Supporting crates (`elevator-contract`, `elevator-layout-derive`, `elevator-layout-runtime`, `elevator-layout-codegen`) are build-time / test-only and keep host bindings in sync. See [CLAUDE.md](CLAUDE.md#project-structure) for the full workspace layout.
 
 ## See also
 
-- [Stability and Versioning](STABILITY.md) — what counts as a breaking change and what doesn't.
-- [`elevator-core` changelog](crates/elevator-core/CHANGELOG.md) — release-please-managed.
-- [AI disclosure](AI-DISCLOSURE.md) — how AI tools are used in this repo.
+- [Stability and Versioning](STABILITY.md) — what counts as a breaking change and what doesn't
+- [`elevator-core` changelog](crates/elevator-core/CHANGELOG.md) — release-please-managed
+- [AI disclosure](AI-DISCLOSURE.md) — how AI tools are used in this repo
 
 ## License
 
