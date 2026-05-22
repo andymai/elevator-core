@@ -886,6 +886,13 @@ export class WasmSim {
      */
     elevatorDirection(elevator_ref: bigint): string | undefined;
     /**
+     * Resolve a config-time `ElevatorConfig.id` (the `u32` from RON
+     * config) to its runtime `EntityId`. Returns `0` (slotmap-null)
+     * for unknown ids or for runtime-added elevators that were not
+     * in the initial config.
+     */
+    elevatorEntity(elevator_config_id: number): bigint;
+    /**
      * Whether `elevator_ref` is currently committed downward. Returns
      * `undefined` for missing entities.
      */
@@ -910,6 +917,14 @@ export class WasmSim {
      * in `[0.0, 1.0]`. Returns `undefined` for missing entities.
      */
     elevatorLoad(elevator_ref: bigint): number | undefined;
+    /**
+     * Snapshot of the config-time `ElevatorConfig.id` → runtime
+     * `EntityId` map. Returns a flat `[config_id_as_u64, entity_id,
+     * ...]` array. Pair count is `array.length / 2`. Only elevators
+     * from the initial config appear — runtime-added elevators are
+     * not in this map.
+     */
+    elevatorLookupIter(): BigUint64Array;
     /**
      * Total number of completed trips by `elevator_ref` since spawn.
      * Returns `undefined` for missing entities.
@@ -1956,10 +1971,12 @@ export interface InitOutput {
     readonly wasmsim_drainEvents: (a: number) => [number, number];
     readonly wasmsim_dt: (a: number) => number;
     readonly wasmsim_elevatorDirection: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_elevatorEntity: (a: number, b: number) => bigint;
     readonly wasmsim_elevatorGoingDown: (a: number, b: bigint) => number;
     readonly wasmsim_elevatorGoingUp: (a: number, b: bigint) => number;
     readonly wasmsim_elevatorHomeStop: (a: number, b: bigint) => any;
     readonly wasmsim_elevatorLoad: (a: number, b: bigint) => [number, number];
+    readonly wasmsim_elevatorLookupIter: (a: number) => [number, number];
     readonly wasmsim_elevatorMoveCount: (a: number, b: bigint) => [number, bigint];
     readonly wasmsim_elevatorsInPhase: (a: number, b: number, c: number) => any;
     readonly wasmsim_elevatorsOnLine: (a: number, b: bigint) => [number, number];

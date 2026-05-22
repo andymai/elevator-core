@@ -425,6 +425,18 @@ export class WasmSim {
         return v1;
     }
     /**
+     * Resolve a config-time `ElevatorConfig.id` (the `u32` from RON
+     * config) to its runtime `EntityId`. Returns `0` (slotmap-null)
+     * for unknown ids or for runtime-added elevators that were not
+     * in the initial config.
+     * @param {number} elevator_config_id
+     * @returns {bigint}
+     */
+    elevatorEntity(elevator_config_id) {
+        const ret = wasm.wasmsim_elevatorEntity(this.__wbg_ptr, elevator_config_id);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
      * Whether `elevator_ref` is currently committed downward. Returns
      * `undefined` for missing entities.
      * @param {bigint} elevator_ref
@@ -468,6 +480,20 @@ export class WasmSim {
     elevatorLoad(elevator_ref) {
         const ret = wasm.wasmsim_elevatorLoad(this.__wbg_ptr, elevator_ref);
         return ret[0] === 0 ? undefined : ret[1];
+    }
+    /**
+     * Snapshot of the config-time `ElevatorConfig.id` → runtime
+     * `EntityId` map. Returns a flat `[config_id_as_u64, entity_id,
+     * ...]` array. Pair count is `array.length / 2`. Only elevators
+     * from the initial config appear — runtime-added elevators are
+     * not in this map.
+     * @returns {BigUint64Array}
+     */
+    elevatorLookupIter() {
+        const ret = wasm.wasmsim_elevatorLookupIter(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Total number of completed trips by `elevator_ref` since spawn.
