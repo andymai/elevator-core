@@ -68,6 +68,30 @@ fn snapshot_roundtrip_preserves_stop_lookup() {
 }
 
 #[test]
+fn snapshot_roundtrip_preserves_elevator_lookup() {
+    let config = helpers::default_config();
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+
+    let original = sim
+        .elevator_entity(0)
+        .expect("config id 0 resolves pre-snapshot");
+
+    let snap = sim.snapshot();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
+
+    let restored_eid = restored
+        .elevator_entity(0)
+        .expect("config id 0 resolves post-restore");
+
+    // EntityIds are regenerated on restore, but the slot mapping should
+    // point at a live elevator with the original's max_speed/etc.
+    assert!(restored.world().elevator(restored_eid).is_some());
+    let _ = original; // pre-snapshot id; the assertion above is the contract.
+}
+
+#[test]
 fn snapshot_roundtrip_preserves_metrics() {
     let config = helpers::default_config();
     let mut sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();

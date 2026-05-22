@@ -168,6 +168,17 @@ impl super::Simulation {
         self.stop_lookup.get(&id).copied()
     }
 
+    /// Resolve a config-time `ElevatorConfig.id` to its runtime `EntityId`.
+    ///
+    /// Only elevators spawned from the initial config are addressable
+    /// here — runtime [`Self::add_elevator`] takes `ElevatorParams` (no
+    /// config id) and returns the new entity id directly. Mirror of
+    /// [`Self::stop_entity`].
+    #[must_use]
+    pub fn elevator_entity(&self, id: u32) -> Option<EntityId> {
+        self.elevator_lookup.get(&id).copied()
+    }
+
     /// Resolve a [`StopRef`] to its runtime [`EntityId`].
     pub(super) fn resolve_stop(&self, stop: StopRef) -> Result<EntityId, SimError> {
         match stop {
@@ -185,6 +196,13 @@ impl super::Simulation {
     /// Iterate over the stop ID → entity ID mapping.
     pub fn stop_lookup_iter(&self) -> impl Iterator<Item = (&StopId, &EntityId)> {
         self.stop_lookup.iter()
+    }
+
+    /// Iterate over the elevator config ID → entity ID mapping. Only
+    /// elevators spawned from the initial config appear; see
+    /// [`Self::elevator_entity`].
+    pub fn elevator_lookup_iter(&self) -> impl Iterator<Item = (&u32, &EntityId)> {
+        self.elevator_lookup.iter()
     }
 
     /// Peek at events pending for consumer retrieval.
