@@ -244,6 +244,13 @@ global._ev_sim_elevator_direction_handle = external_define(
 function ev_sim_elevator_direction(a0, a1) {
     return external_call(global._ev_sim_elevator_direction_handle, a0, a1);
 }
+// ev_sim_elevator_entity — auto-generated wrapper.
+global._ev_sim_elevator_entity_handle = external_define(
+    "elevator_ffi", "ev_sim_elevator_entity", dll_cdecl, ty_real, 2, ty_real, ty_real
+);
+function ev_sim_elevator_entity(a0, a1) {
+    return external_call(global._ev_sim_elevator_entity_handle, a0, a1);
+}
 // ev_sim_elevator_going_down — auto-generated wrapper.
 global._ev_sim_elevator_going_down_handle = external_define(
     "elevator_ffi", "ev_sim_elevator_going_down", dll_cdecl, ty_real, 2, ty_real, ty_real
@@ -271,6 +278,13 @@ global._ev_sim_elevator_load_handle = external_define(
 );
 function ev_sim_elevator_load(a0, a1) {
     return external_call(global._ev_sim_elevator_load_handle, a0, a1);
+}
+// ev_sim_elevator_lookup_iter — auto-generated wrapper.
+global._ev_sim_elevator_lookup_iter_handle = external_define(
+    "elevator_ffi", "ev_sim_elevator_lookup_iter", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+);
+function ev_sim_elevator_lookup_iter(a0, a1, a2, a3) {
+    return external_call(global._ev_sim_elevator_lookup_iter_handle, a0, a1, a2, a3);
 }
 // ev_sim_elevator_move_count — auto-generated wrapper.
 global._ev_sim_elevator_move_count_handle = external_define(
@@ -377,6 +391,13 @@ global._ev_sim_is_elevator_handle = external_define(
 function ev_sim_is_elevator(a0, a1) {
     return external_call(global._ev_sim_is_elevator_handle, a0, a1);
 }
+// ev_sim_is_loop — auto-generated wrapper.
+global._ev_sim_is_loop_handle = external_define(
+    "elevator_ffi", "ev_sim_is_loop", dll_cdecl, ty_real, 2, ty_real, ty_real
+);
+function ev_sim_is_loop(a0, a1) {
+    return external_call(global._ev_sim_is_loop_handle, a0, a1);
+}
 // ev_sim_is_rider — auto-generated wrapper.
 global._ev_sim_is_rider_handle = external_define(
     "elevator_ffi", "ev_sim_is_rider", dll_cdecl, ty_real, 2, ty_real, ty_real
@@ -425,6 +446,34 @@ global._ev_sim_lines_serving_stop_handle = external_define(
 );
 function ev_sim_lines_serving_stop(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_lines_serving_stop_handle, a0, a1, a2, a3, a4);
+}
+// ev_sim_loop_circumference — auto-generated wrapper.
+global._ev_sim_loop_circumference_handle = external_define(
+    "elevator_ffi", "ev_sim_loop_circumference", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+);
+function ev_sim_loop_circumference(a0, a1, a2) {
+    return external_call(global._ev_sim_loop_circumference_handle, a0, a1, a2);
+}
+// ev_sim_loop_forward_gap — auto-generated wrapper.
+global._ev_sim_loop_forward_gap_handle = external_define(
+    "elevator_ffi", "ev_sim_loop_forward_gap", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+);
+function ev_sim_loop_forward_gap(a0, a1, a2) {
+    return external_call(global._ev_sim_loop_forward_gap_handle, a0, a1, a2);
+}
+// ev_sim_loop_leader — auto-generated wrapper.
+global._ev_sim_loop_leader_handle = external_define(
+    "elevator_ffi", "ev_sim_loop_leader", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+);
+function ev_sim_loop_leader(a0, a1, a2) {
+    return external_call(global._ev_sim_loop_leader_handle, a0, a1, a2);
+}
+// ev_sim_loop_next_stop — auto-generated wrapper.
+global._ev_sim_loop_next_stop_handle = external_define(
+    "elevator_ffi", "ev_sim_loop_next_stop", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+);
+function ev_sim_loop_next_stop(a0, a1, a2, a3) {
+    return external_call(global._ev_sim_loop_next_stop_handle, a0, a1, a2, a3);
 }
 // ev_sim_metrics — auto-generated wrapper.
 global._ev_sim_metrics_handle = external_define(
@@ -868,16 +917,21 @@ function ev_sim_waiting_direction_counts_at(a0, a1, a2, a3) {
 // build_dispatch_manifest — skip:internal — strategies consume this
 // dispatchers — skip:returns trait-object slice — never bound
 // dispatchers_mut — skip:returns &mut trait-object slice — never bound
+// drain_events_by_kind — todo:future-binding
+// drain_events_for_entity — todo:future-binding
 // drain_events_where — skip:closure marshaling — C consumers filter drain_events output
+// elevator_id — todo:future-binding
 // ev_set_log_callback — skip:no_function_pointers — GML cannot pass C function pointers
 // events_mut — skip:returns &mut EventBus — never bound
 // groups — skip:returns &[ElevatorGroup] — internal layout
 // groups_mut — skip:returns &mut [ElevatorGroup] — never bound
+// is_strict_phase_order — skip:internal — phase ordering invariant
 // load_extensions — skip:builder-pattern entry point — runs at construction
 // load_extensions_with — skip:takes a generic closure
 // metrics_mut — skip:returns &mut Metrics — never bound
 // peek_dispatch_manifest — skip:internal — strategies consume this
 // phase_context — skip:returns PhaseContext — internal scheduling helper
+// rider_id — todo:future-binding
 // run_advance_queue — skip:internal — phase ordering invariant
 // run_advance_transient — skip:internal — phase ordering invariant
 // run_dispatch — skip:internal — phase ordering invariant
@@ -886,6 +940,8 @@ function ev_sim_waiting_direction_counts_at(a0, a1, a2, a3) {
 // run_metrics — skip:internal — phase ordering invariant
 // run_movement — skip:internal — phase ordering invariant
 // run_reposition — skip:internal — phase ordering invariant
+// set_strict_phase_order — skip:internal — phase ordering invariant
+// step_many — todo:future-binding
 // time — skip:returns &TimeAdapter — internal layout
 // world — skip:returns &World — consumers use ev_sim_frame
 // world_mut — skip:returns &mut World — never bound

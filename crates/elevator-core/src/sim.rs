@@ -209,6 +209,12 @@ pub struct Simulation {
     groups: Vec<ElevatorGroup>,
     /// Config `StopId` to `EntityId` mapping for spawn helpers.
     stop_lookup: HashMap<StopId, EntityId>,
+    /// Config-time `ElevatorConfig.id` → runtime `EntityId` mapping.
+    /// Populated only for elevators spawned from the initial config —
+    /// runtime `add_elevator` takes `ElevatorParams` (no config id) and
+    /// returns the new `EntityId` directly, so it does not populate
+    /// this map. Mirror of [`Self::stop_lookup`] semantics.
+    elevator_lookup: HashMap<u32, EntityId>,
     /// Dispatch strategies + their snapshot identities, keyed by group.
     /// Owns both halves so insert/remove stay atomic — see
     /// [`DispatcherSet`].
