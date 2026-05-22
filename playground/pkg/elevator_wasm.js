@@ -820,6 +820,17 @@ export class WasmSim {
         return ret >>> 0;
     }
     /**
+     * Resolve a config-time `LineConfig.id` (`u32`) to its runtime
+     * `EntityId`. Returns `0` (slotmap-null) for unknown ids; always
+     * `0` on legacy-topology sims (no `building.lines` block).
+     * @param {number} line_config_id
+     * @returns {bigint}
+     */
+    lineEntity(line_config_id) {
+        const ret = wasm.wasmsim_lineEntity(this.__wbg_ptr, line_config_id);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
      * Line entity that `elevator_ref` runs on, or `0` (slotmap-null)
      * if missing or not an elevator.
      * @param {bigint} elevator_ref
@@ -828,6 +839,19 @@ export class WasmSim {
     lineForElevator(elevator_ref) {
         const ret = wasm.wasmsim_lineForElevator(this.__wbg_ptr, elevator_ref);
         return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Snapshot of the config-time `LineConfig.id` → runtime `EntityId`
+     * map. Returns a flat `[config_id_as_u64, entity_id, ...]` array;
+     * pair count is `array.length / 2`. Empty on legacy-topology sims
+     * and for runtime-added lines.
+     * @returns {BigUint64Array}
+     */
+    lineLookupIter() {
+        const ret = wasm.wasmsim_lineLookupIter(this.__wbg_ptr);
+        var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
     }
     /**
      * Entity ids of every line in `group_id`. Empty if the group does

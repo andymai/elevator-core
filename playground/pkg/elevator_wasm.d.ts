@@ -1109,10 +1109,23 @@ export class WasmSim {
      */
     lineCount(): number;
     /**
+     * Resolve a config-time `LineConfig.id` (`u32`) to its runtime
+     * `EntityId`. Returns `0` (slotmap-null) for unknown ids; always
+     * `0` on legacy-topology sims (no `building.lines` block).
+     */
+    lineEntity(line_config_id: number): bigint;
+    /**
      * Line entity that `elevator_ref` runs on, or `0` (slotmap-null)
      * if missing or not an elevator.
      */
     lineForElevator(elevator_ref: bigint): bigint;
+    /**
+     * Snapshot of the config-time `LineConfig.id` → runtime `EntityId`
+     * map. Returns a flat `[config_id_as_u64, entity_id, ...]` array;
+     * pair count is `array.length / 2`. Empty on legacy-topology sims
+     * and for runtime-added lines.
+     */
+    lineLookupIter(): BigUint64Array;
     /**
      * Entity ids of every line in `group_id`. Empty if the group does
      * not exist.
@@ -1999,7 +2012,9 @@ export interface InitOutput {
     readonly wasmsim_isStop: (a: number, b: bigint) => number;
     readonly wasmsim_iterRepositioningElevators: (a: number) => [number, number];
     readonly wasmsim_lineCount: (a: number) => number;
+    readonly wasmsim_lineEntity: (a: number, b: number) => bigint;
     readonly wasmsim_lineForElevator: (a: number, b: bigint) => bigint;
+    readonly wasmsim_lineLookupIter: (a: number) => [number, number];
     readonly wasmsim_linesInGroup: (a: number, b: number) => [number, number];
     readonly wasmsim_linesServingStop: (a: number, b: bigint) => [number, number];
     readonly wasmsim_loopCircumference: (a: number, b: bigint) => [number, number];
