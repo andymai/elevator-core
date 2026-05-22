@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1a41bb79.js";
+            window.path_to_searchindex_js = "searchindex-9e3d5202.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-fc4de062.js"></script>
@@ -446,7 +446,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
         .stop(StopId(1), "Sky Lobby", 50.0)
         .stop(StopId(2), "Observation Deck", 100.0)
         .elevator(ElevatorConfig {
-            id: 0,
+            id: elevator_core::config::ElevatorConfigId(0),
             name: "Express A".into(),
             max_speed: 5.0.into(),
             acceleration: 2.0.into(),
@@ -472,7 +472,7 @@ fn main() -&gt; Result&lt;(), SimError&gt; {
 <tr><th>Field</th><th>Type</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td><code>id</code></td><td><code>u32</code></td><td>Unique numeric ID within the config (mapped to <code>EntityId</code> at runtime)</td><td>–</td></tr>
+<tr><td><code>id</code></td><td><code>ElevatorConfigId</code></td><td>Unique numeric ID within the config (mapped to <code>EntityId</code> at runtime)</td><td>–</td></tr>
 <tr><td><code>name</code></td><td><code>String</code></td><td>Human-readable name for UIs and logs</td><td>–</td></tr>
 <tr><td><code>max_speed</code></td><td><code>Speed</code></td><td>Maximum travel speed (distance units/second)</td><td><code>2.0</code></td></tr>
 <tr><td><code>acceleration</code></td><td><code>Accel</code></td><td>Acceleration rate</td><td><code>1.5</code></td></tr>
@@ -631,8 +631,8 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 SimulationBuilder::new()
     .stop(StopId(0), "Ground", 0.0)
     .stop(StopId(1), "Top", 10.0)
-    .elevator(ElevatorConfig { id: 0, ..Default::default() })
-    .elevator(ElevatorConfig { id: 1, ..Default::default() })
+    .elevator(ElevatorConfig { id: elevator_core::config::ElevatorConfigId(0), ..Default::default() })
+    .elevator(ElevatorConfig { id: elevator_core::config::ElevatorConfigId(1), ..Default::default() })
     .build()?;
 <span class="boring">Ok(())
 </span><span class="boring">}</span></code></pre>
@@ -850,7 +850,7 @@ let going_down = elev.going_down();
 </span><span class="boring">    .stop(StopId(0), "Ground", 0.0)
 </span><span class="boring">    .stop(StopId(1), "Top", 10.0)
 </span>    .elevator(ElevatorConfig {
-        id: 0,
+        id: elevator_core::config::ElevatorConfigId(0),
         name: "Express A".into(),
         max_speed: 5.0.into(),
         acceleration: 2.0.into(),
@@ -3988,7 +3988,7 @@ struct ScheduledSpawn {
 
 fn car_config(id: u32, name: &amp;str) -&gt; ElevatorConfig {
     ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: name.into(),
         starting_stop: StopId(0),
         ..Default::default()
