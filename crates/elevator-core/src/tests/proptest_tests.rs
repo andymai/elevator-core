@@ -180,7 +180,7 @@ fn make_config(stop_count: u32, elevator_count: u32) -> SimConfig {
 
     let elevators: Vec<ElevatorConfig> = (0..elevator_count)
         .map(|i| ElevatorConfig {
-            id: i,
+            id: crate::config::ElevatorConfigId(i),
             name: format!("Elevator {i}"),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.0),
@@ -326,7 +326,7 @@ proptest! {
                 groups: None,
             },
             elevators: vec![ElevatorConfig {
-                id: 0,
+                id: crate::config::ElevatorConfigId(0),
                 name: "E0".into(),
                 max_speed: Speed::from(5.0),
                 acceleration: Accel::from(3.0),

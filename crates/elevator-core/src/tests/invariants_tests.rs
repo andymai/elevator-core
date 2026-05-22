@@ -149,7 +149,7 @@ impl Workload {
             .collect();
         let elevators: Vec<ElevatorConfig> = (0..self.elevator_count)
             .map(|i| ElevatorConfig {
-                id: i,
+                id: crate::config::ElevatorConfigId(i),
                 name: format!("Car {i}"),
                 max_speed: Speed::from(3.0),
                 acceleration: Accel::from(1.5),

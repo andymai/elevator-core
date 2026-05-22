@@ -266,8 +266,9 @@ impl Simulation {
         // into a seconds expression and getting ~60× over-weighted.
         world.insert_resource(crate::time::TickRate(config.simulation.ticks_per_second));
 
-        let mut elevator_lookup: HashMap<u32, EntityId> = HashMap::new();
-        let mut line_lookup: HashMap<u32, EntityId> = HashMap::new();
+        let mut elevator_lookup: HashMap<crate::config::ElevatorConfigId, EntityId> =
+            HashMap::new();
+        let mut line_lookup: HashMap<crate::config::LineConfigId, EntityId> = HashMap::new();
         let (mut groups, dispatchers, strategy_ids) =
             if let Some(line_configs) = &config.building.lines {
                 Self::build_explicit_topology(
@@ -445,7 +446,7 @@ impl Simulation {
         world: &mut World,
         config: &SimConfig,
         stop_lookup: &HashMap<StopId, EntityId>,
-        elevator_lookup: &mut HashMap<u32, EntityId>,
+        elevator_lookup: &mut HashMap<crate::config::ElevatorConfigId, EntityId>,
         builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     ) -> TopologyResult {
         // Iterate the config's stop list (deterministic Vec order) and
@@ -536,8 +537,8 @@ impl Simulation {
         config: &SimConfig,
         line_configs: &[crate::config::LineConfig],
         stop_lookup: &HashMap<StopId, EntityId>,
-        elevator_lookup: &mut HashMap<u32, EntityId>,
-        line_lookup: &mut HashMap<u32, EntityId>,
+        elevator_lookup: &mut HashMap<crate::config::ElevatorConfigId, EntityId>,
+        line_lookup: &mut HashMap<crate::config::LineConfigId, EntityId>,
         builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     ) -> TopologyResult {
         // Map line config id → (line EntityId, LineInfo). `BTreeMap`
@@ -612,7 +613,7 @@ impl Simulation {
 
             let line_info = LineInfo::new(line_eid, elevator_entities, served_entities);
             line_lookup.insert(lc.id, line_eid);
-            line_map.insert(lc.id, (line_eid, line_info));
+            line_map.insert(lc.id.0, (line_eid, line_info));
         }
 
         // Build groups from GroupConfigs, or auto-infer a single group.
@@ -705,8 +706,8 @@ impl Simulation {
         dt: f64,
         groups: Vec<ElevatorGroup>,
         stop_lookup: HashMap<StopId, EntityId>,
-        elevator_lookup: HashMap<u32, EntityId>,
-        line_lookup: HashMap<u32, EntityId>,
+        elevator_lookup: HashMap<crate::config::ElevatorConfigId, EntityId>,
+        line_lookup: HashMap<crate::config::LineConfigId, EntityId>,
         dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
         strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
         metrics: Metrics,
@@ -1068,7 +1069,7 @@ impl Simulation {
 
         // Validate groups if present.
         if let Some(group_configs) = &building.groups {
-            let line_id_set: HashSet<u32> = line_configs.iter().map(|lc| lc.id).collect();
+            let line_id_set: HashSet<u32> = line_configs.iter().map(|lc| lc.id.0).collect();
 
             let mut seen_group_ids = HashSet::new();
             for gc in group_configs {
@@ -1097,7 +1098,7 @@ impl Simulation {
                 .flat_map(|g| g.lines.iter().copied())
                 .collect();
             for lc in line_configs {
-                if !referenced_line_ids.contains(&lc.id) {
+                if !referenced_line_ids.contains(&lc.id.0) {
                     return Err(SimError::InvalidConfig {
                         field: "building.lines",
                         reason: format!("line {} is not assigned to any group", lc.id),
@@ -1115,7 +1116,7 @@ impl Simulation {
                 let lines: Vec<&crate::config::LineConfig> = gc
                     .lines
                     .iter()
-                    .filter_map(|lid| line_configs.iter().find(|lc| lc.id == *lid))
+                    .filter_map(|lid| line_configs.iter().find(|lc| lc.id.0 == *lid))
                     .collect();
                 let any_loop = lines
                     .iter()

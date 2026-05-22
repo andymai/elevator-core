@@ -443,14 +443,14 @@ fn pin_across_lines_is_rejected() {
         },
     ];
     let mk_elev = |id: u32, name: &str, start: StopId| ElevatorConfig {
-        id,
+        id: crate::config::ElevatorConfigId(id),
         name: name.into(),
         starting_stop: start,
         ..ElevatorConfig::default()
     };
     config.building.lines = Some(vec![
         LineConfig {
-            id: 1,
+            id: crate::config::LineConfigId(1),
             name: "Low".into(),
             serves: vec![StopId(0), StopId(1)],
             elevators: vec![mk_elev(1, "L1", StopId(0))],
@@ -462,7 +462,7 @@ fn pin_across_lines_is_rejected() {
             max_cars: None,
         },
         LineConfig {
-            id: 2,
+            id: crate::config::LineConfigId(2),
             name: "High".into(),
             serves: vec![StopId(1), StopId(2)],
             elevators: vec![mk_elev(2, "H1", StopId(1))],
@@ -668,7 +668,7 @@ fn group_config_wires_hall_call_mode_and_ack_latency() {
 
     let mut config = default_config();
     config.building.lines = Some(vec![LineConfig {
-        id: 1,
+        id: crate::config::LineConfigId(1),
         name: "Main".into(),
         serves: vec![StopId(0), StopId(1), StopId(2)],
         elevators: config.elevators.clone(),

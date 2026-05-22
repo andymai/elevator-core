@@ -37,8 +37,8 @@ For simple single-shaft buildings, you never need to think about lines. The buil
 SimulationBuilder::new()
     .stop(StopId(0), "Ground", 0.0)
     .stop(StopId(1), "Top", 10.0)
-    .elevator(ElevatorConfig { id: 0, ..Default::default() })
-    .elevator(ElevatorConfig { id: 1, ..Default::default() })
+    .elevator(ElevatorConfig { id: elevator_core::config::ElevatorConfigId(0), ..Default::default() })
+    .elevator(ElevatorConfig { id: elevator_core::config::ElevatorConfigId(1), ..Default::default() })
     .build()?;
 # Ok(())
 # }

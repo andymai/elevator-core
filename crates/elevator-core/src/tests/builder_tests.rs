@@ -51,7 +51,7 @@ fn from_config_produces_valid_sim() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E1".into(),
             max_speed: Speed::from(3.0),
             acceleration: Accel::from(2.0),
@@ -112,7 +112,7 @@ fn builder_with_stops_and_elevators() {
             },
         ])
         .elevator(ElevatorConfig {
-            id: 1,
+            id: crate::config::ElevatorConfigId(1),
             name: "E2".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -198,11 +198,11 @@ fn from_config_honours_config_group_dispatch() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![ElevatorConfig {
-                    id: 1,
+                    id: crate::config::ElevatorConfigId(1),
                     name: "E".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -287,11 +287,11 @@ fn from_config_dispatch_override_records_dispatcher_identity() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![ElevatorConfig {
-                    id: 1,
+                    id: crate::config::ElevatorConfigId(1),
                     name: "E".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),

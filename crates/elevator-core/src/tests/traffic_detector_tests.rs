@@ -289,7 +289,7 @@ fn up_peak_detected_in_building_with_basement() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "Main".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

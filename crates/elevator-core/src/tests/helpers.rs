@@ -31,7 +31,7 @@ pub fn default_config() -> SimConfig {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "Main".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -93,7 +93,7 @@ pub fn multi_floor_config(stops: usize, cars: usize) -> SimConfig {
         .collect();
     let elevators: Vec<ElevatorConfig> = (0..cars)
         .map(|i| ElevatorConfig {
-            id: i as u32,
+            id: crate::config::ElevatorConfigId(i as u32),
             name: format!("Car {i}"),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

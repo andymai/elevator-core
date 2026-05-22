@@ -219,7 +219,7 @@ fn rejects_empty_line_serves() {
     use crate::config::LineConfig;
     let mut config = helpers::default_config();
     config.building.lines = Some(vec![LineConfig {
-        id: 0,
+        id: crate::config::LineConfigId(0),
         name: "Empty".into(),
         serves: vec![],
         elevators: config.elevators.clone(),

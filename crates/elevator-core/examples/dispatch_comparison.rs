@@ -64,7 +64,7 @@ fn make_config() -> SimConfig {
 
     let elevators: Vec<ElevatorConfig> = (0..4)
         .map(|i| ElevatorConfig {
-            id: i,
+            id: elevator_core::config::ElevatorConfigId(i),
             name: format!("E{i}"),
             max_speed: Speed::from(2.5),
             acceleration: Accel::from(1.5),
