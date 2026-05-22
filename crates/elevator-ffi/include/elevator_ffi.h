@@ -2097,6 +2097,42 @@ uint64_t ev_sim_stop_entity(struct EvSim *handle, uint32_t stop_id);
 uint64_t ev_sim_elevator_entity(struct EvSim *handle, uint32_t elevator_config_id);
 
 /**
+ * Resolve a config-time `LineConfig.id` to its runtime `EntityId`.
+ *
+ * Returns `0` (slotmap-null) for unknown ids. Legacy (flat-elevator-
+ * list) configs build a single default line with no config id, so
+ * this always returns `0` on those sims; the explicit-topology path
+ * (`building.lines` in the RON config) is where this is useful.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`].
+ */
+uint64_t ev_sim_line_entity(struct EvSim *handle, uint32_t line_config_id);
+
+/**
+ * Snapshot of the config-time `LineConfig.id` → runtime `EntityId` map.
+ *
+ * Buffer-pattern accessor; emits flat `[line_config_id_as_u64,
+ * entity_id, ...]` pairs (each pair = 2 `u64` slots). The number of
+ * pairs written is `*out_written / 2`.
+ *
+ * Empty on legacy-topology sims. Runtime [`ev_sim_add_line`] returns
+ * the new entity id directly via its out-param, so it does not
+ * populate this map either.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+ * must point to at least `capacity` writable `u64` slots when
+ * `capacity > 0`.
+ */
+enum EvStatus ev_sim_line_lookup_iter(struct EvSim *handle,
+                                      uint64_t *out,
+                                      uint32_t capacity,
+                                      uint32_t *out_written);
+
+/**
  * Snapshot of the config-time `ElevatorConfig.id` → runtime `EntityId` map.
  *
  * Buffer-pattern accessor; emits flat

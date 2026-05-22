@@ -477,6 +477,12 @@ impl Simulation {
         // Remove Line component from world.
         self.world.remove_line(line);
 
+        // Drop any config-id → entity mapping pointing at the removed
+        // line. Mirrors the stop/elevator lookup cleanup so a
+        // subsequent `line_entity(id)` returns `None` rather than a
+        // dangling entity reference.
+        self.line_lookup.retain(|_, &mut eid| eid != line);
+
         self.mark_topo_dirty();
         self.events.emit(Event::LineRemoved {
             line,

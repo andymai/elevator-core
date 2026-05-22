@@ -1056,6 +1056,26 @@ gdext = "todo:future-binding"
 bevy = "todo:plugin-layer"
 
 [[methods]]
+name = "line_entity"
+category = "introspection"
+wasm = "lineEntity"
+ffi  = "ev_sim_line_entity"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "ev_sim_line_entity"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
+name = "line_lookup_iter"
+category = "introspection"
+wasm = "lineLookupIter"
+ffi  = "ev_sim_line_lookup_iter"
+tui  = "skip:read-only v1 — interactive viewer does not expose mutators"
+gms  = "ev_sim_line_lookup_iter"
+gdext = "todo:future-binding"
+bevy = "todo:plugin-layer"
+
+[[methods]]
 name = "find_stop_at_position_on_line"
 category = "introspection"
 wasm = "findStopAtPositionOnLine"

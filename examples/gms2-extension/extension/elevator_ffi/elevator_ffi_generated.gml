@@ -426,12 +426,26 @@ global._ev_sim_line_count_handle = external_define(
 function ev_sim_line_count(a0) {
     return external_call(global._ev_sim_line_count_handle, a0);
 }
+// ev_sim_line_entity — auto-generated wrapper.
+global._ev_sim_line_entity_handle = external_define(
+    "elevator_ffi", "ev_sim_line_entity", dll_cdecl, ty_real, 2, ty_real, ty_real
+);
+function ev_sim_line_entity(a0, a1) {
+    return external_call(global._ev_sim_line_entity_handle, a0, a1);
+}
 // ev_sim_line_for_elevator — auto-generated wrapper.
 global._ev_sim_line_for_elevator_handle = external_define(
     "elevator_ffi", "ev_sim_line_for_elevator", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_line_for_elevator(a0, a1) {
     return external_call(global._ev_sim_line_for_elevator_handle, a0, a1);
+}
+// ev_sim_line_lookup_iter — auto-generated wrapper.
+global._ev_sim_line_lookup_iter_handle = external_define(
+    "elevator_ffi", "ev_sim_line_lookup_iter", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+);
+function ev_sim_line_lookup_iter(a0, a1, a2, a3) {
+    return external_call(global._ev_sim_line_lookup_iter_handle, a0, a1, a2, a3);
 }
 // ev_sim_lines_in_group — auto-generated wrapper.
 global._ev_sim_lines_in_group_handle = external_define(

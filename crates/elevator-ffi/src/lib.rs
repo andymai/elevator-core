@@ -4207,6 +4207,83 @@ pub unsafe extern "C" fn ev_sim_elevator_entity(
     })
 }
 
+/// Resolve a config-time `LineConfig.id` to its runtime `EntityId`.
+///
+/// Returns `0` (slotmap-null) for unknown ids. Legacy (flat-elevator-
+/// list) configs build a single default line with no config id, so
+/// this always returns `0` on those sims; the explicit-topology path
+/// (`building.lines` in the RON config) is where this is useful.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_line_entity(handle: *mut EvSim, line_config_id: u32) -> u64 {
+    guard(0, || {
+        clear_last_error();
+        if handle.is_null() {
+            set_last_error("handle is null");
+            return 0;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        ev.sim.line_entity(line_config_id).map_or(0, entity_to_u64)
+    })
+}
+
+/// Snapshot of the config-time `LineConfig.id` → runtime `EntityId` map.
+///
+/// Buffer-pattern accessor; emits flat `[line_config_id_as_u64,
+/// entity_id, ...]` pairs (each pair = 2 `u64` slots). The number of
+/// pairs written is `*out_written / 2`.
+///
+/// Empty on legacy-topology sims. Runtime [`ev_sim_add_line`] returns
+/// the new entity id directly via its out-param, so it does not
+/// populate this map either.
+///
+/// # Safety
+///
+/// `handle` must be a valid pointer returned by [`ev_sim_create`]. `out`
+/// must point to at least `capacity` writable `u64` slots when
+/// `capacity > 0`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ev_sim_line_lookup_iter(
+    handle: *mut EvSim,
+    out: *mut u64,
+    capacity: u32,
+    out_written: *mut u32,
+) -> EvStatus {
+    guard(EvStatus::Panic, || {
+        clear_last_error();
+        if handle.is_null() || out_written.is_null() {
+            set_last_error("handle or out_written is null");
+            return EvStatus::NullArg;
+        }
+        if capacity > 0 && out.is_null() {
+            set_last_error("out is null but capacity > 0");
+            return EvStatus::NullArg;
+        }
+        // Safety: validity guaranteed by caller.
+        let ev = unsafe { &*handle };
+        let mut written: u32 = 0;
+        for (config_id, entity) in ev.sim.line_lookup_iter() {
+            if written + 2 > capacity {
+                break;
+            }
+            // Safety: caller guarantees `out` has at least `capacity`
+            // writable slots; bounds checked above.
+            unsafe {
+                *out.add(written as usize) = u64::from(*config_id);
+                *out.add(written as usize + 1) = entity_to_u64(*entity);
+            }
+            written += 2;
+        }
+        // Safety: out_written non-null per check above.
+        unsafe { *out_written = written };
+        EvStatus::Ok
+    })
+}
+
 /// Snapshot of the config-time `ElevatorConfig.id` → runtime `EntityId` map.
 ///
 /// Buffer-pattern accessor; emits flat

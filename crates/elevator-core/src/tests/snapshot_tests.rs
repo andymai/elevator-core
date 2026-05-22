@@ -68,6 +68,71 @@ fn snapshot_roundtrip_preserves_stop_lookup() {
 }
 
 #[test]
+fn snapshot_roundtrip_preserves_line_lookup() {
+    use crate::components::Orientation;
+    use crate::components::{Accel, Speed, Weight};
+    use crate::config::{BuildingConfig, ElevatorConfig, LineConfig, SimConfig};
+    use crate::stop::StopConfig;
+
+    let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+        building: BuildingConfig {
+            name: "LineLookupRoundtrip".into(),
+            stops: vec![StopConfig {
+                id: StopId(0),
+                name: "G".into(),
+                position: 0.0,
+            }],
+            lines: Some(vec![LineConfig {
+                id: 3,
+                name: "Main".into(),
+                serves: vec![StopId(0)],
+                elevators: vec![ElevatorConfig {
+                    id: 0,
+                    name: "E".into(),
+                    max_speed: Speed::from(2.0),
+                    acceleration: Accel::from(1.5),
+                    deceleration: Accel::from(2.0),
+                    weight_capacity: Weight::from(800.0),
+                    starting_stop: StopId(0),
+                    door_open_ticks: 10,
+                    door_transition_ticks: 5,
+                    restricted_stops: Vec::new(),
+                    #[cfg(feature = "energy")]
+                    energy_profile: None,
+                    service_mode: None,
+                    inspection_speed_factor: 0.25,
+                    bypass_load_up_pct: None,
+                    bypass_load_down_pct: None,
+                }],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                kind: None,
+                max_cars: None,
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        ..Default::default()
+    };
+
+    let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
+    assert!(sim.line_entity(3).is_some());
+
+    let snap = sim.snapshot();
+    let restored = snap
+        .restore(crate::snapshot::RestoreOptions::default())
+        .unwrap();
+
+    let restored_line = restored
+        .line_entity(3)
+        .expect("LineConfig.id 3 resolves post-restore");
+    assert!(restored.world().line(restored_line).is_some());
+}
+
+#[test]
 fn snapshot_roundtrip_preserves_elevator_lookup() {
     let config = helpers::default_config();
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
