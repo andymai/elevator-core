@@ -2434,6 +2434,18 @@ impl WasmSim {
             .map_or(0, entity_to_u64)
     }
 
+    /// Resolve a config-time `ElevatorConfig.id` (the `u32` from RON
+    /// config) to its runtime `EntityId`. Returns `0` (slotmap-null)
+    /// for unknown ids or for runtime-added elevators that were not
+    /// in the initial config.
+    #[wasm_bindgen(js_name = elevatorEntity)]
+    #[must_use]
+    pub fn elevator_entity(&self, elevator_config_id: u32) -> u64 {
+        self.inner
+            .elevator_entity(elevator_config_id)
+            .map_or(0, entity_to_u64)
+    }
+
     /// Snapshot of the config-time `StopId` → runtime `EntityId` map.
     /// Returns a flat `[stop_id_as_u64, entity_id, ...]` array — the
     /// `StopId` is zero-extended into the same `u64` slot the entity
@@ -2444,6 +2456,20 @@ impl WasmSim {
         self.inner
             .stop_lookup_iter()
             .flat_map(|(stop_id, entity)| [u64::from(stop_id.0), entity_to_u64(*entity)])
+            .collect()
+    }
+
+    /// Snapshot of the config-time `ElevatorConfig.id` → runtime
+    /// `EntityId` map. Returns a flat `[config_id_as_u64, entity_id,
+    /// ...]` array. Pair count is `array.length / 2`. Only elevators
+    /// from the initial config appear — runtime-added elevators are
+    /// not in this map.
+    #[wasm_bindgen(js_name = elevatorLookupIter)]
+    #[must_use]
+    pub fn elevator_lookup_iter(&self) -> Vec<u64> {
+        self.inner
+            .elevator_lookup_iter()
+            .flat_map(|(config_id, entity)| [u64::from(*config_id), entity_to_u64(*entity)])
             .collect()
     }
 

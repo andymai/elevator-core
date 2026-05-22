@@ -126,25 +126,264 @@ function ev_drain_log_messages_into_array(_handle) {
     return _out;
 }
 
+// ── EvEvent decoder ─────────────────────────────────────────────────
+//
+// Layout (88 bytes, ABI v5+) consumed via EV_EVENT_*_OFFSET macros from
+// elevator_ffi_layout.gml. EvEventKind is a u8 discriminator (49 kinds);
+// see the cbindgen header for the numeric mapping. Direction is i8.
+
+/// Decode a single EvEvent out of `_buf` at `_offset`.
+///
+/// Returns a struct with every byte of the event. Reader code typically
+/// dispatches on `kind`; numeric u8/i8/u32/u64/f64 fields are read as
+/// GML reals, with the entity-id u64s preserved exactly via buffer_u64.
+function ev_event_decode(_buf, _offset) {
+    return {
+        kind:      buffer_peek(_buf, _offset + EV_EVENT_KIND_OFFSET,      buffer_u8),
+        direction: buffer_peek(_buf, _offset + EV_EVENT_DIRECTION_OFFSET, buffer_s8),
+        code1:     buffer_peek(_buf, _offset + EV_EVENT_CODE1_OFFSET,     buffer_u8),
+        code2:     buffer_peek(_buf, _offset + EV_EVENT_CODE2_OFFSET,     buffer_u8),
+        group:     buffer_peek(_buf, _offset + EV_EVENT_GROUP_OFFSET,     buffer_u32),
+        tick:      buffer_peek(_buf, _offset + EV_EVENT_TICK_OFFSET,      buffer_u64),
+        stop:      buffer_peek(_buf, _offset + EV_EVENT_STOP_OFFSET,      buffer_u64),
+        car:       buffer_peek(_buf, _offset + EV_EVENT_CAR_OFFSET,       buffer_u64),
+        rider:     buffer_peek(_buf, _offset + EV_EVENT_RIDER_OFFSET,     buffer_u64),
+        floor:     buffer_peek(_buf, _offset + EV_EVENT_FLOOR_OFFSET,     buffer_u64),
+        entity:    buffer_peek(_buf, _offset + EV_EVENT_ENTITY_OFFSET,    buffer_u64),
+        count:     buffer_peek(_buf, _offset + EV_EVENT_COUNT_OFFSET,     buffer_u64),
+        f1:        buffer_peek(_buf, _offset + EV_EVENT_F1_OFFSET,        buffer_f64),
+        f2:        buffer_peek(_buf, _offset + EV_EVENT_F2_OFFSET,        buffer_f64),
+        tag:       buffer_peek(_buf, _offset + EV_EVENT_TAG_OFFSET,       buffer_u64),
+    };
+}
+
+// ── Out-param ergonomics: buffer allocate → call → peek → free ──────
+//
+// Every FFI call below is auto-generated in elevator_ffi_generated.gml.
+// The wrappers here just spare consumers from writing the buffer dance
+// for the most common rider/topology calls. Each `_easy` helper returns
+// the produced id (or 0 on failure) and clears its scratch buffer
+// before returning — no caller-side cleanup needed. On failure, the
+// underlying ev_last_error() carries the diagnostic string.
+
+// NaN-encoded `Option::None` sentinel for the optional bypass-load
+// fields on EvElevatorParams. Per the C header:
+//
+//   "bypass_load_up_pct and bypass_load_down_pct: NaN encodes
+//    Option::None; any finite value is treated as Some(v)."
+//
+// Passing `0` to disable bypass would silently configure
+// "bypass-at-0%-load" (i.e. always bypass) — set the field to
+// `EV_BYPASS_NONE` (or leave it unset on the struct) to opt out.
+#macro EV_BYPASS_NONE NaN
+
+/// Spawn a rider from origin → dest with the given weight (kg).
+/// Returns the new rider id, or 0 if the call failed.
+function ev_sim_spawn_rider_easy(_handle, _origin, _dest, _weight) {
+    var _buf = buffer_create(8, buffer_fixed, 1);
+    var _status = ev_sim_spawn_rider(_handle, _origin, _dest, _weight,
+                                     buffer_get_address(_buf));
+    var _rider_id = (_status == 0) ? buffer_peek(_buf, 0, buffer_u64) : 0;
+    buffer_delete(_buf);
+    return _rider_id;
+}
+
+/// Create a new dispatch group. Returns the new group id (u32 widened
+/// into a real), or -1 on failure (group 0 is the legacy default group
+/// and so cannot serve as a sentinel).
+function ev_sim_add_group_easy(_handle, _name, _strategy) {
+    var _buf = buffer_create(4, buffer_fixed, 1);
+    var _status = ev_sim_add_group(_handle, _name, _strategy,
+                                   buffer_get_address(_buf));
+    var _group_id = (_status == 0) ? buffer_peek(_buf, 0, buffer_u32) : -1;
+    buffer_delete(_buf);
+    return _group_id;
+}
+
+/// Add a new line to a group. Returns the new line entity id, or 0
+/// on failure.
+function ev_sim_add_line_easy(_handle, _group_id, _name, _min_position,
+                              _max_position, _max_cars) {
+    var _buf = buffer_create(8, buffer_fixed, 1);
+    var _status = ev_sim_add_line(_handle, _group_id, _name, _min_position,
+                                  _max_position, _max_cars,
+                                  buffer_get_address(_buf));
+    var _entity = (_status == 0) ? buffer_peek(_buf, 0, buffer_u64) : 0;
+    buffer_delete(_buf);
+    return _entity;
+}
+
+/// Add a new stop to a line. Returns the new stop entity id, or 0 on
+/// failure.
+function ev_sim_add_stop_easy(_handle, _line_entity_id, _name, _position) {
+    var _buf = buffer_create(8, buffer_fixed, 1);
+    var _status = ev_sim_add_stop(_handle, _line_entity_id, _name, _position,
+                                  buffer_get_address(_buf));
+    var _entity = (_status == 0) ? buffer_peek(_buf, 0, buffer_u64) : 0;
+    buffer_delete(_buf);
+    return _entity;
+}
+
+/// Add a new elevator to a line. `_params` is a GML struct carrying the
+/// EvElevatorParams fields (max_speed, acceleration, deceleration,
+/// weight_capacity, door_transition_ticks, door_open_ticks,
+/// inspection_speed_factor, bypass_load_up_pct, bypass_load_down_pct).
+/// `_restricted_stops` is an array of stop entity ids (may be empty).
+/// Returns the new elevator entity id, or 0 on failure.
+///
+/// `bypass_load_up_pct` / `bypass_load_down_pct` are optional: set them
+/// to `EV_BYPASS_NONE` (or omit the field entirely) to disable bypass;
+/// a finite value in `[0.0, 1.0]` enables bypass at that load fraction.
+/// Passing `0` here silently means "bypass at 0% load" (i.e. always
+/// bypass) — the helper substitutes `EV_BYPASS_NONE` for missing fields
+/// so the safe default is "disabled", not "always on".
+///
+/// Builds the EvElevatorParams scratch buffer using the layout offsets
+/// auto-generated in elevator_ffi_layout.gml so a future field shuffle
+/// reflows here automatically.
+function ev_sim_add_elevator_easy(_handle, _params, _restricted_stops,
+                                  _line_entity_id, _starting_position) {
+    var _bypass_up = variable_struct_exists(_params, "bypass_load_up_pct")
+        ? _params.bypass_load_up_pct
+        : EV_BYPASS_NONE;
+    var _bypass_down = variable_struct_exists(_params, "bypass_load_down_pct")
+        ? _params.bypass_load_down_pct
+        : EV_BYPASS_NONE;
+
+    var _params_buf = buffer_create(EV_ELEVATOR_PARAMS_SIZE, buffer_fixed, 1);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_MAX_SPEED_OFFSET,                buffer_f64, _params.max_speed);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_ACCELERATION_OFFSET,             buffer_f64, _params.acceleration);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_DECELERATION_OFFSET,             buffer_f64, _params.deceleration);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_WEIGHT_CAPACITY_OFFSET,          buffer_f64, _params.weight_capacity);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_DOOR_TRANSITION_TICKS_OFFSET,    buffer_u32, _params.door_transition_ticks);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_DOOR_OPEN_TICKS_OFFSET,          buffer_u32, _params.door_open_ticks);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_INSPECTION_SPEED_FACTOR_OFFSET,  buffer_f64, _params.inspection_speed_factor);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_UP_PCT_OFFSET,       buffer_f64, _bypass_up);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_DOWN_PCT_OFFSET,     buffer_f64, _bypass_down);
+
+    var _restricted_count = array_length(_restricted_stops);
+    var _restricted_addr = 0;
+    var _restricted_buf = undefined;
+    if (_restricted_count > 0) {
+        _restricted_buf = buffer_create(8 * _restricted_count, buffer_fixed, 1);
+        for (var i = 0; i < _restricted_count; i++) {
+            buffer_poke(_restricted_buf, i * 8, buffer_u64, _restricted_stops[i]);
+        }
+        _restricted_addr = buffer_get_address(_restricted_buf);
+    }
+
+    var _out_buf = buffer_create(8, buffer_fixed, 1);
+    var _status = ev_sim_add_elevator(_handle, buffer_get_address(_params_buf),
+                                      _restricted_addr, _restricted_count,
+                                      _line_entity_id, _starting_position,
+                                      buffer_get_address(_out_buf));
+    var _entity = (_status == 0) ? buffer_peek(_out_buf, 0, buffer_u64) : 0;
+    buffer_delete(_params_buf);
+    buffer_delete(_out_buf);
+    if (!is_undefined(_restricted_buf)) {
+        buffer_delete(_restricted_buf);
+    }
+    return _entity;
+}
+
+// ── Array-returning drains ──────────────────────────────────────────
+//
+// Same chunked-loop pattern as ev_drain_log_messages_into_array. Each
+// returns a fresh GML array; callers don't share buffers with the
+// FFI side.
+
+/// Drain all pending events into a GML array of decoded structs. Each
+/// element is the result of `ev_event_decode`. Drains in chunks of
+/// `_CHUNK` until the queue is empty, so the returned array is the
+/// complete tail of events emitted since the previous call.
+function ev_sim_drain_events_into_array(_handle) {
+    var _CHUNK = 256;
+    var _buf = buffer_create(EV_EVENT_SIZE * _CHUNK, buffer_fixed, 1);
+    var _written_buf = buffer_create(4, buffer_fixed, 1);
+    var _addr_buf = buffer_get_address(_buf);
+    var _addr_written = buffer_get_address(_written_buf);
+
+    var _out = [];
+    while (true) {
+        var _status = ev_sim_drain_events(_handle, _addr_buf, _CHUNK, _addr_written);
+        if (_status != 0) {
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        for (var i = 0; i < _written; i++) {
+            array_push(_out, ev_event_decode(_buf, i * EV_EVENT_SIZE));
+        }
+        if (_written < _CHUNK) {
+            break;
+        }
+    }
+
+    buffer_delete(_buf);
+    buffer_delete(_written_buf);
+    return _out;
+}
+
+/// Helper for buffer-pattern accessors that emit a flat `u64[]`. Calls
+/// `_drain_fn(_handle, addr, capacity, addr_written)` repeatedly with
+/// a growing buffer until the entire result fits in one read. Returns
+/// a GML array of u64 ids (or an empty array on failure).
+///
+/// `_drain_fn` is invoked as `_drain_fn(_handle, _addr_buf, _capacity,
+/// _addr_written)`. Use `method` to bind an extra leading argument (see
+/// `ev_sim_elevators_on_line_into_array` for the pattern).
+function ev_drain_u64_buffer(_handle, _drain_fn) {
+    var _capacity = 64;
+    var _written_buf = buffer_create(4, buffer_fixed, 1);
+    var _addr_written = buffer_get_address(_written_buf);
+
+    while (true) {
+        var _buf = buffer_create(8 * _capacity, buffer_fixed, 1);
+        var _addr_buf = buffer_get_address(_buf);
+        var _status = _drain_fn(_handle, _addr_buf, _capacity, _addr_written);
+        if (_status != 0) {
+            buffer_delete(_buf);
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        if (_written < _capacity) {
+            var _out = array_create(_written);
+            for (var i = 0; i < _written; i++) {
+                _out[i] = buffer_peek(_buf, i * 8, buffer_u64);
+            }
+            buffer_delete(_buf);
+            buffer_delete(_written_buf);
+            return _out;
+        }
+        // A full read means there may be more — grow and retry.
+        buffer_delete(_buf);
+        _capacity *= 2;
+    }
+    buffer_delete(_written_buf);
+    return [];
+}
+
+/// Entity ids of every line across all groups. Empty array on failure.
+function ev_sim_all_lines_into_array(_handle) {
+    return ev_drain_u64_buffer(_handle, ev_sim_all_lines);
+}
+
+/// Entity ids of every elevator attached to `_line_entity_id`. Empty
+/// array if the line has no cars (or on failure — check ev_last_error
+/// to disambiguate).
+function ev_sim_elevators_on_line_into_array(_handle, _line_entity_id) {
+    var _line = _line_entity_id;
+    var _bound = method({ line: _line }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_elevators_on_line(_h, line, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
 // ── Struct decoders for other repr-C types ──────────────────────────
 //
-// EvEvent (88 bytes, 49 kinds), EvFrame, EvElevatorView, EvStopView,
-// EvRiderView, EvHallCall, EvCarCall, EvMetrics, EvElevatorParams,
-// EvAssignment, EvTaggedMetric — extend as needed following the
-// EvLogMessage pattern above. The byte layouts are stable across
-// `cbindgen` runs as long as no field is added or reordered; the C
-// harness in examples/gms2-harness/main.c asserts each offset against
-// the cbindgen-generated header so a future drift fails CI before
-// this file is touched.
-//
-// For ABI v5 the EvEvent layout is:
-//   0:  u8  kind          16: u64 stop          56: u64 count
-//   1:  i8  direction     24: u64 car           64: f64 f1
-//   2:  u8  code1          32: u64 rider         72: f64 f2
-//   3:  u8  code2          40: u64 floor         80: u64 tag
-//   4:  u32 group          48: u64 entity
-//   8:  u64 tick
-//
-// Implement ev_event_decode along the same shape as
-// ev_log_message_decode when the GameMaker game needs to consume
-// events directly from GML.
+// EvFrame, EvElevatorView, EvStopView, EvRiderView, EvHallCall,
+// EvCarCall, EvMetrics, EvAssignment, EvTaggedMetric — extend as
+// needed following the EvLogMessage / EvEvent pattern above. The byte
+// layouts are auto-generated in elevator_ffi_layout.gml; the C harness
+// in examples/gms2-harness/main.c asserts every offset against
+// cbindgen's header so a future drift fails CI before this file is
+// touched.

@@ -538,6 +538,12 @@ impl Simulation {
         // Despawn from world.
         self.world.despawn(elevator);
 
+        // Drop any config-id → entity mapping pointing at the removed
+        // elevator. Mirrors `remove_stop`'s `stop_lookup` cleanup so a
+        // subsequent `elevator_entity(id)` returns `None` rather than a
+        // dangling entity reference.
+        self.elevator_lookup.retain(|_, &mut eid| eid != elevator);
+
         self.mark_topo_dirty();
         Ok(())
     }

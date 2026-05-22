@@ -12,7 +12,7 @@ use crate::entity::{ElevatorId, EntityId};
 use crate::error::SimError;
 use crate::events::Event;
 use crate::ids::GroupId;
-use crate::sim::Simulation;
+use crate::sim::{ElevatorParams, Simulation};
 use crate::stop::{StopConfig, StopId};
 use std::collections::HashSet;
 
@@ -305,6 +305,68 @@ fn remove_stop_removes_from_stop_lookup() {
         after.is_none(),
         "stop_entity should return None after removal"
     );
+}
+
+#[test]
+fn elevator_entity_resolves_config_id() {
+    let config = default_config();
+    let sim = Simulation::new(&config, scan()).unwrap();
+
+    // default_config installs a single elevator with id = 0.
+    let elev = sim.elevator_entity(0).expect("config id 0 should resolve");
+    assert!(sim.world().is_alive(elev));
+    assert!(sim.world().elevator(elev).is_some());
+
+    // Unknown ids return None — no panic, no sentinel.
+    assert!(sim.elevator_entity(99).is_none());
+}
+
+#[test]
+fn remove_elevator_removes_from_elevator_lookup() {
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+
+    let elev = sim.elevator_entity(0).unwrap();
+    sim.remove_elevator(elev).unwrap();
+
+    assert!(
+        sim.elevator_entity(0).is_none(),
+        "elevator_entity should return None after removal"
+    );
+}
+
+#[test]
+fn runtime_added_elevator_not_in_lookup() {
+    // Runtime add_elevator takes ElevatorParams (no config id), so the
+    // returned entity is intentionally not addressable via elevator_entity.
+    // Lookup remains the config-time map.
+    let config = default_config();
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let line = sim.lines_in_group(GroupId(0))[0];
+
+    let params = ElevatorParams {
+        max_speed: Speed::from(3.0),
+        acceleration: Accel::from(2.0),
+        deceleration: Accel::from(2.5),
+        weight_capacity: Weight::from(1000.0),
+        door_transition_ticks: 3,
+        door_open_ticks: 8,
+        restricted_stops: HashSet::new(),
+        inspection_speed_factor: 0.25,
+        bypass_load_up_pct: None,
+        bypass_load_down_pct: None,
+    };
+    let runtime_elev = sim.add_elevator(&params, line, 4.0).unwrap();
+
+    // The runtime-added entity is alive but not in the config-id lookup.
+    assert!(sim.world().is_alive(runtime_elev));
+    let pairs: Vec<(u32, EntityId)> = sim.elevator_lookup_iter().map(|(c, e)| (*c, *e)).collect();
+    assert!(
+        pairs.iter().all(|(_, e)| *e != runtime_elev),
+        "runtime-added elevator must not appear in elevator_lookup"
+    );
+    // The config-time elevator (id 0) is still there.
+    assert!(sim.elevator_entity(0).is_some());
 }
 
 #[test]
