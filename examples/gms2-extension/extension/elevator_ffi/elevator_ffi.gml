@@ -474,12 +474,324 @@ function ev_sim_riders_on_into_array(_handle, _elevator_entity_id) {
     return ev_drain_u64_buffer(_handle, _bound);
 }
 
-// ── Struct decoders for other repr-C types ──────────────────────────
+// ── Struct decoders for repr-C view / metric / call types ─────────
 //
-// EvFrame, EvElevatorView, EvStopView, EvRiderView, EvHallCall,
-// EvCarCall, EvMetrics, EvAssignment, EvTaggedMetric — extend as
-// needed following the EvLogMessage / EvEvent pattern above. The byte
-// layouts are auto-generated in elevator_ffi_layout.gml; the C harness
-// in examples/gms2-harness/main.c asserts every offset against
+// All byte offsets are auto-generated in elevator_ffi_layout.gml from
+// `#[repr(C)] #[derive(MultiHostLayout)]` on the Rust side; the C
+// harness in examples/gms2-harness/main.c asserts every offset against
 // cbindgen's header so a future drift fails CI before this file is
-// touched.
+// touched. Each decoder returns a GML struct keyed by the same field
+// names as the Rust source struct (snake_case).
+
+/// Decode a single EvAssignment (16 B) — `(line_entity_id, car_entity_id)`.
+function ev_assignment_decode(_buf, _offset) {
+    return {
+        line_entity_id: buffer_peek(_buf, _offset + EV_ASSIGNMENT_LINE_ENTITY_ID_OFFSET, buffer_u64),
+        car_entity_id:  buffer_peek(_buf, _offset + EV_ASSIGNMENT_CAR_ENTITY_ID_OFFSET,  buffer_u64),
+    };
+}
+
+/// Decode a single EvCarCall (40 B). `acknowledged_at == u64::MAX`
+/// while still pending acknowledgement.
+function ev_car_call_decode(_buf, _offset) {
+    return {
+        car_entity_id:        buffer_peek(_buf, _offset + EV_CAR_CALL_CAR_ENTITY_ID_OFFSET,        buffer_u64),
+        floor_entity_id:      buffer_peek(_buf, _offset + EV_CAR_CALL_FLOOR_ENTITY_ID_OFFSET,      buffer_u64),
+        press_tick:           buffer_peek(_buf, _offset + EV_CAR_CALL_PRESS_TICK_OFFSET,           buffer_u64),
+        acknowledged_at:      buffer_peek(_buf, _offset + EV_CAR_CALL_ACKNOWLEDGED_AT_OFFSET,      buffer_u64),
+        ack_latency_ticks:    buffer_peek(_buf, _offset + EV_CAR_CALL_ACK_LATENCY_TICKS_OFFSET,    buffer_u32),
+        pending_rider_count:  buffer_peek(_buf, _offset + EV_CAR_CALL_PENDING_RIDER_COUNT_OFFSET,  buffer_u32),
+    };
+}
+
+/// Decode a single EvElevatorView (88 B). `phase` and `door_state` are
+/// u8 discriminants — see the C header for the value tables.
+function ev_elevator_view_decode(_buf, _offset) {
+    return {
+        entity_id:        buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_ENTITY_ID_OFFSET,        buffer_u64),
+        group_id:         buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_GROUP_ID_OFFSET,         buffer_u32),
+        line_id:          buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_LINE_ID_OFFSET,          buffer_u64),
+        phase:            buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_PHASE_OFFSET,            buffer_u8),
+        position:         buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_POSITION_OFFSET,         buffer_f64),
+        velocity:         buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_VELOCITY_OFFSET,         buffer_f64),
+        current_stop_id:  buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_CURRENT_STOP_ID_OFFSET,  buffer_u64),
+        target_stop_id:   buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_TARGET_STOP_ID_OFFSET,   buffer_u64),
+        occupancy:        buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_OCCUPANCY_OFFSET,        buffer_u32),
+        capacity_kg:      buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_CAPACITY_KG_OFFSET,      buffer_f64),
+        door_state:       buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_DOOR_STATE_OFFSET,       buffer_u8),
+        going_up:         buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_GOING_UP_OFFSET,         buffer_u8),
+        going_down:       buffer_peek(_buf, _offset + EV_ELEVATOR_VIEW_GOING_DOWN_OFFSET,       buffer_u8),
+    };
+}
+
+/// Decode a single EvRiderView (40 B). `phase` is a u8 discriminant
+/// (0 Waiting, 1 Boarding, 2 Riding, 3 Exiting, 4 Walking, 5 Arrived,
+/// 6 Abandoned, 7 Resident).
+function ev_rider_view_decode(_buf, _offset) {
+    return {
+        entity_id:           buffer_peek(_buf, _offset + EV_RIDER_VIEW_ENTITY_ID_OFFSET,           buffer_u64),
+        phase:               buffer_peek(_buf, _offset + EV_RIDER_VIEW_PHASE_OFFSET,               buffer_u8),
+        origin_stop_id:      buffer_peek(_buf, _offset + EV_RIDER_VIEW_ORIGIN_STOP_ID_OFFSET,      buffer_u64),
+        destination_stop_id: buffer_peek(_buf, _offset + EV_RIDER_VIEW_DESTINATION_STOP_ID_OFFSET, buffer_u64),
+        elevator_id:         buffer_peek(_buf, _offset + EV_RIDER_VIEW_ELEVATOR_ID_OFFSET,         buffer_u64),
+    };
+}
+
+/// Decode a single EvStopView (56 B). The `name` field is copied out
+/// of the borrowed slice (same pattern as `ev_log_message_decode`),
+/// so it is safe to retain past the next frame.
+function ev_stop_view_decode(_buf, _offset) {
+    var _name_ptr = buffer_peek(_buf, _offset + EV_STOP_VIEW_NAME_PTR_OFFSET, buffer_u64);
+    var _name_len = buffer_peek(_buf, _offset + EV_STOP_VIEW_NAME_LEN_OFFSET, buffer_u64);
+    var _name = "<unavailable>";
+    if (_name_ptr != 0 && _name_len > 0) {
+        var _scratch = buffer_create(_name_len, buffer_fixed, 1);
+        buffer_copy_from_data_pointer(_scratch, 0, _name_ptr, _name_len);
+        _name = buffer_read(_scratch, buffer_text);
+        buffer_delete(_scratch);
+    }
+    return {
+        entity_id: buffer_peek(_buf, _offset + EV_STOP_VIEW_ENTITY_ID_OFFSET, buffer_u64),
+        stop_id:   buffer_peek(_buf, _offset + EV_STOP_VIEW_STOP_ID_OFFSET,   buffer_u32),
+        position:  buffer_peek(_buf, _offset + EV_STOP_VIEW_POSITION_OFFSET,  buffer_f64),
+        waiting:   buffer_peek(_buf, _offset + EV_STOP_VIEW_WAITING_OFFSET,   buffer_u32),
+        residents: buffer_peek(_buf, _offset + EV_STOP_VIEW_RESIDENTS_OFFSET, buffer_u32),
+        abandoned: buffer_peek(_buf, _offset + EV_STOP_VIEW_ABANDONED_OFFSET, buffer_u32),
+        name:      _name,
+    };
+}
+
+/// Decode a single EvHallCall (56 B). `direction == 1` Up, `-1` Down.
+/// `acknowledged_at == u64::MAX` while pending; `assigned_car == 0`
+/// when none; `destination_entity_id == 0` outside DCS mode.
+function ev_hall_call_decode(_buf, _offset) {
+    return {
+        stop_entity_id:        buffer_peek(_buf, _offset + EV_HALL_CALL_STOP_ENTITY_ID_OFFSET,        buffer_u64),
+        direction:             buffer_peek(_buf, _offset + EV_HALL_CALL_DIRECTION_OFFSET,             buffer_s8),
+        press_tick:            buffer_peek(_buf, _offset + EV_HALL_CALL_PRESS_TICK_OFFSET,            buffer_u64),
+        acknowledged_at:       buffer_peek(_buf, _offset + EV_HALL_CALL_ACKNOWLEDGED_AT_OFFSET,       buffer_u64),
+        assigned_car:          buffer_peek(_buf, _offset + EV_HALL_CALL_ASSIGNED_CAR_OFFSET,          buffer_u64),
+        destination_entity_id: buffer_peek(_buf, _offset + EV_HALL_CALL_DESTINATION_ENTITY_ID_OFFSET, buffer_u64),
+        pinned:                buffer_peek(_buf, _offset + EV_HALL_CALL_PINNED_OFFSET,                buffer_u8),
+        pending_rider_count:   buffer_peek(_buf, _offset + EV_HALL_CALL_PENDING_RIDER_COUNT_OFFSET,   buffer_u32),
+    };
+}
+
+/// Decode a single EvMetrics (112 B). Time fields stay in ticks;
+/// multiply by `ev_sim_dt(handle)` for seconds. Prefer this over
+/// EvMetricsView when you need totals + utilization + distance —
+/// EvMetricsView is the smaller five-field projection embedded in
+/// EvFrame.
+function ev_metrics_decode(_buf, _offset) {
+    return {
+        total_delivered:     buffer_peek(_buf, _offset + EV_METRICS_TOTAL_DELIVERED_OFFSET,     buffer_u64),
+        total_abandoned:     buffer_peek(_buf, _offset + EV_METRICS_TOTAL_ABANDONED_OFFSET,     buffer_u64),
+        total_spawned:       buffer_peek(_buf, _offset + EV_METRICS_TOTAL_SPAWNED_OFFSET,       buffer_u64),
+        total_settled:       buffer_peek(_buf, _offset + EV_METRICS_TOTAL_SETTLED_OFFSET,       buffer_u64),
+        total_rerouted:      buffer_peek(_buf, _offset + EV_METRICS_TOTAL_REROUTED_OFFSET,      buffer_u64),
+        throughput:          buffer_peek(_buf, _offset + EV_METRICS_THROUGHPUT_OFFSET,          buffer_u64),
+        avg_wait_ticks:      buffer_peek(_buf, _offset + EV_METRICS_AVG_WAIT_TICKS_OFFSET,      buffer_f64),
+        max_wait_ticks:      buffer_peek(_buf, _offset + EV_METRICS_MAX_WAIT_TICKS_OFFSET,      buffer_u64),
+        avg_ride_ticks:      buffer_peek(_buf, _offset + EV_METRICS_AVG_RIDE_TICKS_OFFSET,      buffer_f64),
+        avg_utilization:     buffer_peek(_buf, _offset + EV_METRICS_AVG_UTILIZATION_OFFSET,     buffer_f64),
+        abandonment_rate:    buffer_peek(_buf, _offset + EV_METRICS_ABANDONMENT_RATE_OFFSET,    buffer_f64),
+        total_distance:      buffer_peek(_buf, _offset + EV_METRICS_TOTAL_DISTANCE_OFFSET,      buffer_f64),
+        total_moves:         buffer_peek(_buf, _offset + EV_METRICS_TOTAL_MOVES_OFFSET,         buffer_u64),
+        reposition_distance: buffer_peek(_buf, _offset + EV_METRICS_REPOSITION_DISTANCE_OFFSET, buffer_f64),
+    };
+}
+
+/// Decode a single EvMetricsView (40 B). Embedded in EvFrame.
+function ev_metrics_view_decode(_buf, _offset) {
+    return {
+        total_delivered:   buffer_peek(_buf, _offset + EV_METRICS_VIEW_TOTAL_DELIVERED_OFFSET,   buffer_u64),
+        total_abandoned:   buffer_peek(_buf, _offset + EV_METRICS_VIEW_TOTAL_ABANDONED_OFFSET,   buffer_u64),
+        avg_wait_seconds:  buffer_peek(_buf, _offset + EV_METRICS_VIEW_AVG_WAIT_SECONDS_OFFSET,  buffer_f64),
+        avg_ride_seconds:  buffer_peek(_buf, _offset + EV_METRICS_VIEW_AVG_RIDE_SECONDS_OFFSET,  buffer_f64),
+        current_tick:      buffer_peek(_buf, _offset + EV_METRICS_VIEW_CURRENT_TICK_OFFSET,      buffer_u64),
+    };
+}
+
+/// Decode a single EvTaggedMetric (40 B).
+function ev_tagged_metric_decode(_buf, _offset) {
+    return {
+        avg_wait_ticks:   buffer_peek(_buf, _offset + EV_TAGGED_METRIC_AVG_WAIT_TICKS_OFFSET,   buffer_f64),
+        max_wait_ticks:   buffer_peek(_buf, _offset + EV_TAGGED_METRIC_MAX_WAIT_TICKS_OFFSET,   buffer_u64),
+        total_delivered:  buffer_peek(_buf, _offset + EV_TAGGED_METRIC_TOTAL_DELIVERED_OFFSET,  buffer_u64),
+        total_abandoned:  buffer_peek(_buf, _offset + EV_TAGGED_METRIC_TOTAL_ABANDONED_OFFSET,  buffer_u64),
+        total_spawned:    buffer_peek(_buf, _offset + EV_TAGGED_METRIC_TOTAL_SPAWNED_OFFSET,    buffer_u64),
+    };
+}
+
+// ── Single-shot struct helpers (allocate → call → decode → free) ────
+
+/// Decode a borrowed view-pointer array out of an EvFrame slot. Reads
+/// the `(ptr, count)` pair at `_ptr_offset` / `_count_offset` inside
+/// `_frame_buf`, copies `count * _struct_size` bytes from the source
+/// pointer into a scratch buffer, then calls `_decode_fn` per element.
+/// Returns a GML array of decoded structs.
+function ev_frame_decode_array(_frame_buf, _ptr_offset, _count_offset, _struct_size, _decode_fn) {
+    var _ptr = buffer_peek(_frame_buf, _ptr_offset, buffer_u64);
+    var _count = buffer_peek(_frame_buf, _count_offset, buffer_u64);
+    if (_ptr == 0 || _count == 0) {
+        return [];
+    }
+    var _bytes = _struct_size * _count;
+    var _scratch = buffer_create(_bytes, buffer_fixed, 1);
+    buffer_copy_from_data_pointer(_scratch, 0, _ptr, _bytes);
+    var _out = array_create(_count);
+    for (var i = 0; i < _count; i++) {
+        _out[i] = _decode_fn(_scratch, i * _struct_size);
+    }
+    buffer_delete(_scratch);
+    return _out;
+}
+
+/// One-shot full snapshot of the simulation. Calls `ev_sim_frame`,
+/// decodes the embedded elevator/stop/rider view arrays and the
+/// metrics view, and returns a GML struct:
+///
+///     { elevators: [EvElevatorView], stops: [EvStopView],
+///       riders: [EvRiderView], metrics: EvMetricsView }
+///
+/// All slice copies happen inside this call, so the returned arrays
+/// are safe to retain past the next `ev_sim_frame` call.
+function ev_sim_frame_into_struct(_handle) {
+    var _buf = buffer_create(EV_FRAME_SIZE, buffer_fixed, 1);
+    var _status = ev_sim_frame(_handle, buffer_get_address(_buf));
+    if (_status != 0) {
+        buffer_delete(_buf);
+        return undefined;
+    }
+    var _result = {
+        elevators: ev_frame_decode_array(_buf,
+            EV_FRAME_ELEVATORS_OFFSET, EV_FRAME_ELEVATOR_COUNT_OFFSET,
+            EV_ELEVATOR_VIEW_SIZE, ev_elevator_view_decode),
+        stops: ev_frame_decode_array(_buf,
+            EV_FRAME_STOPS_OFFSET, EV_FRAME_STOP_COUNT_OFFSET,
+            EV_STOP_VIEW_SIZE, ev_stop_view_decode),
+        riders: ev_frame_decode_array(_buf,
+            EV_FRAME_RIDERS_OFFSET, EV_FRAME_RIDER_COUNT_OFFSET,
+            EV_RIDER_VIEW_SIZE, ev_rider_view_decode),
+        metrics: ev_metrics_view_decode(_buf, EV_FRAME_METRICS_OFFSET),
+    };
+    buffer_delete(_buf);
+    return _result;
+}
+
+/// Read full metrics as a GML struct. Returns `undefined` on failure.
+function ev_sim_metrics_into_struct(_handle) {
+    var _buf = buffer_create(EV_METRICS_SIZE, buffer_fixed, 1);
+    var _status = ev_sim_metrics(_handle, buffer_get_address(_buf));
+    if (_status != 0) {
+        buffer_delete(_buf);
+        return undefined;
+    }
+    var _result = ev_metrics_decode(_buf, 0);
+    buffer_delete(_buf);
+    return _result;
+}
+
+/// Read per-tag metrics for `_tag` as a GML struct. Returns `undefined`
+/// if the tag isn't registered (or any other failure).
+function ev_sim_metrics_for_tag_into_struct(_handle, _tag) {
+    var _buf = buffer_create(EV_TAGGED_METRIC_SIZE, buffer_fixed, 1);
+    var _status = ev_sim_metrics_for_tag(_handle, _tag, buffer_get_address(_buf));
+    if (_status != 0) {
+        buffer_delete(_buf);
+        return undefined;
+    }
+    var _result = ev_tagged_metric_decode(_buf, 0);
+    buffer_delete(_buf);
+    return _result;
+}
+
+// ── Array drains for struct buffers ─────────────────────────────────
+
+/// Snapshot of every active hall call. Returns a GML array of decoded
+/// EvHallCall structs. Drains in chunks of `_CHUNK` until the snapshot
+/// fits in a single read (the count grows over time, so a re-issue
+/// after a short read is rarely needed — but we still defend against
+/// it the same way `ev_drain_log_messages_into_array` does).
+function ev_sim_hall_calls_snapshot_into_array(_handle) {
+    var _CHUNK = 256;
+    var _buf = buffer_create(EV_HALL_CALL_SIZE * _CHUNK, buffer_fixed, 1);
+    var _written_buf = buffer_create(4, buffer_fixed, 1);
+    var _addr_buf = buffer_get_address(_buf);
+    var _addr_written = buffer_get_address(_written_buf);
+
+    var _out = [];
+    while (true) {
+        var _status = ev_sim_hall_calls_snapshot(_handle, _addr_buf, _CHUNK, _addr_written);
+        if (_status != 0) {
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        for (var i = 0; i < _written; i++) {
+            array_push(_out, ev_hall_call_decode(_buf, i * EV_HALL_CALL_SIZE));
+        }
+        if (_written < _CHUNK) {
+            break;
+        }
+    }
+    buffer_delete(_buf);
+    buffer_delete(_written_buf);
+    return _out;
+}
+
+/// Snapshot of every car call pressed inside `_elevator_entity_id`.
+/// Returns a GML array of decoded EvCarCall structs.
+function ev_sim_car_calls_snapshot_into_array(_handle, _elevator_entity_id) {
+    var _CHUNK = 64;
+    var _buf = buffer_create(EV_CAR_CALL_SIZE * _CHUNK, buffer_fixed, 1);
+    var _written_buf = buffer_create(4, buffer_fixed, 1);
+    var _addr_buf = buffer_get_address(_buf);
+    var _addr_written = buffer_get_address(_written_buf);
+
+    var _out = [];
+    while (true) {
+        var _status = ev_sim_car_calls_snapshot(_handle, _elevator_entity_id, _addr_buf, _CHUNK, _addr_written);
+        if (_status != 0) {
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        for (var i = 0; i < _written; i++) {
+            array_push(_out, ev_car_call_decode(_buf, i * EV_CAR_CALL_SIZE));
+        }
+        if (_written < _CHUNK) {
+            break;
+        }
+    }
+    buffer_delete(_buf);
+    buffer_delete(_written_buf);
+    return _out;
+}
+
+/// `(line, car)` assignments on the hall call at `_stop_entity_id`.
+/// Returns a GML array of decoded EvAssignment structs (one per line
+/// serving the stop in DCS mode; usually 0 or 1 entry).
+function ev_sim_assigned_cars_by_line_into_array(_handle, _stop_entity_id) {
+    var _CHUNK = 16;
+    var _buf = buffer_create(EV_ASSIGNMENT_SIZE * _CHUNK, buffer_fixed, 1);
+    var _written_buf = buffer_create(4, buffer_fixed, 1);
+    var _addr_buf = buffer_get_address(_buf);
+    var _addr_written = buffer_get_address(_written_buf);
+
+    var _out = [];
+    while (true) {
+        var _status = ev_sim_assigned_cars_by_line(_handle, _stop_entity_id, _addr_buf, _CHUNK, _addr_written);
+        if (_status != 0) {
+            break;
+        }
+        var _written = buffer_peek(_written_buf, 0, buffer_u32);
+        for (var i = 0; i < _written; i++) {
+            array_push(_out, ev_assignment_decode(_buf, i * EV_ASSIGNMENT_SIZE));
+        }
+        if (_written < _CHUNK) {
+            break;
+        }
+    }
+    buffer_delete(_buf);
+    buffer_delete(_written_buf);
+    return _out;
+}
