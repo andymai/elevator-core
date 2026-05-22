@@ -378,6 +378,102 @@ function ev_sim_elevators_on_line_into_array(_handle, _line_entity_id) {
     return ev_drain_u64_buffer(_handle, _bound);
 }
 
+/// Entity ids of every elevator currently repositioning (heading to a
+/// parking stop with no rider obligation). Empty array on failure.
+function ev_sim_iter_repositioning_elevators_into_array(_handle) {
+    return ev_drain_u64_buffer(_handle, ev_sim_iter_repositioning_elevators);
+}
+
+/// Entity ids of every stop reachable by transfer from another line
+/// (i.e. served by more than one line). Empty array on failure.
+function ev_sim_transfer_points_into_array(_handle) {
+    return ev_drain_u64_buffer(_handle, ev_sim_transfer_points);
+}
+
+/// Stop entity ids in `_elevator`'s destination queue, in FIFO order.
+/// Empty array if the elevator has no destinations (or on failure).
+function ev_sim_destination_queue_into_array(_handle, _elevator_entity_id) {
+    var _elev = _elevator_entity_id;
+    var _bound = method({ elev: _elev }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_destination_queue(_h, elev, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Rider entity ids waiting at `_stop_entity_id`. Empty array if no
+/// riders are waiting (or on failure).
+function ev_sim_waiting_at_into_array(_handle, _stop_entity_id) {
+    var _stop = _stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_waiting_at(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Rider entity ids settled / resident at `_stop_entity_id`.
+function ev_sim_residents_at_into_array(_handle, _stop_entity_id) {
+    var _stop = _stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_residents_at(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Rider entity ids who abandoned their call at `_stop_entity_id`.
+function ev_sim_abandoned_at_into_array(_handle, _stop_entity_id) {
+    var _stop = _stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_abandoned_at(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Entity ids of every line that serves `_stop_entity_id`.
+function ev_sim_lines_serving_stop_into_array(_handle, _stop_entity_id) {
+    var _stop = _stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_lines_serving_stop(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Entity ids of every line in group `_group_id`.
+function ev_sim_lines_in_group_into_array(_handle, _group_id) {
+    var _gid = _group_id;
+    var _bound = method({ gid: _gid }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_lines_in_group(_h, gid, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Stop entity ids reachable from `_from_stop_entity_id` via the
+/// line-graph.
+function ev_sim_reachable_stops_from_into_array(_handle, _from_stop_entity_id) {
+    var _stop = _from_stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_reachable_stops_from(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Stop entity ids served by `_line_entity_id`, in line-graph order.
+function ev_sim_stops_served_by_line_into_array(_handle, _line_entity_id) {
+    var _line = _line_entity_id;
+    var _bound = method({ line: _line }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_stops_served_by_line(_h, line, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
+/// Rider entity ids currently aboard `_elevator_entity_id`.
+function ev_sim_riders_on_into_array(_handle, _elevator_entity_id) {
+    var _elev = _elevator_entity_id;
+    var _bound = method({ elev: _elev }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_riders_on(_h, elev, _addr, _cap, _addr_written);
+    });
+    return ev_drain_u64_buffer(_handle, _bound);
+}
+
 // ── Struct decoders for other repr-C types ──────────────────────────
 //
 // EvFrame, EvElevatorView, EvStopView, EvRiderView, EvHallCall,

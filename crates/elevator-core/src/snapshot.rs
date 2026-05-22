@@ -114,6 +114,13 @@ pub struct WorldSnapshot {
     /// legacy snapshots fall back to the iteration path).
     #[serde(default)]
     pub elevator_lookup: BTreeMap<u32, usize>,
+    /// Config-time `LineConfig.id` → entity index mapping. Absent in
+    /// legacy snapshots (and on legacy-topology sims that never had a
+    /// `building.lines` block); on restore an empty map means
+    /// [`crate::sim::Simulation::line_entity`] returns `None` for all
+    /// ids — same fall-back semantics as `elevator_lookup`.
+    #[serde(default)]
+    pub line_lookup: BTreeMap<u32, usize>,
     /// Global metrics at snapshot time.
     pub metrics: Metrics,
     /// Per-tag metric accumulators and entity-tag associations.
@@ -401,9 +408,9 @@ impl WorldSnapshot {
         sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
         world.insert_resource(SortedStops(sorted));
 
-        // Rebuild groups, stop/elevator lookup, dispatchers, and
+        // Rebuild groups, stop/elevator/line lookup, dispatchers, and
         // extensions (borrows self).
-        let (mut groups, stop_lookup, elevator_lookup, dispatchers, strategy_ids) =
+        let (mut groups, stop_lookup, elevator_lookup, line_lookup, dispatchers, strategy_ids) =
             self.rebuild_groups_and_dispatchers(&index_to_id, custom_strategy_factory)?;
 
         Self::fix_legacy_line_entities(&mut groups, &mut world);
@@ -431,6 +438,7 @@ impl WorldSnapshot {
             groups,
             stop_lookup,
             elevator_lookup,
+            line_lookup,
             dispatchers,
             strategy_ids,
             self.metrics,
@@ -762,6 +770,7 @@ impl WorldSnapshot {
             Vec<crate::dispatch::ElevatorGroup>,
             HashMap<StopId, EntityId>,
             HashMap<u32, EntityId>,
+            HashMap<u32, EntityId>,
             std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
             std::collections::BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
         ),
@@ -830,6 +839,12 @@ impl WorldSnapshot {
             .filter_map(|(cid, &idx)| index_to_id.get(idx).map(|&eid| (*cid, eid)))
             .collect();
 
+        let line_lookup: HashMap<u32, EntityId> = self
+            .line_lookup
+            .iter()
+            .filter_map(|(cid, &idx)| index_to_id.get(idx).map(|&eid| (*cid, eid)))
+            .collect();
+
         let mut dispatchers = std::collections::BTreeMap::new();
         let mut strategy_ids = std::collections::BTreeMap::new();
         for (gs, group) in self.groups.iter().zip(groups.iter()) {
@@ -854,6 +869,7 @@ impl WorldSnapshot {
             groups,
             stop_lookup,
             elevator_lookup,
+            line_lookup,
             dispatchers,
             strategy_ids,
         ))
@@ -1137,6 +1153,10 @@ impl crate::sim::Simulation {
             .elevator_lookup_iter()
             .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (*cid, idx)))
             .collect();
+        let line_lookup: BTreeMap<u32, usize> = self
+            .line_lookup_iter()
+            .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (*cid, idx)))
+            .collect();
 
         WorldSnapshot {
             version: SNAPSHOT_SCHEMA_VERSION,
@@ -1146,6 +1166,7 @@ impl crate::sim::Simulation {
             groups,
             stop_lookup,
             elevator_lookup,
+            line_lookup,
             metrics: self.metrics().clone(),
             metric_tags: self
                 .world()

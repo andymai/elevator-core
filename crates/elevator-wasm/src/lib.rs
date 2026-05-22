@@ -2473,6 +2473,30 @@ impl WasmSim {
             .collect()
     }
 
+    /// Resolve a config-time `LineConfig.id` (`u32`) to its runtime
+    /// `EntityId`. Returns `0` (slotmap-null) for unknown ids; always
+    /// `0` on legacy-topology sims (no `building.lines` block).
+    #[wasm_bindgen(js_name = lineEntity)]
+    #[must_use]
+    pub fn line_entity(&self, line_config_id: u32) -> u64 {
+        self.inner
+            .line_entity(line_config_id)
+            .map_or(0, entity_to_u64)
+    }
+
+    /// Snapshot of the config-time `LineConfig.id` → runtime `EntityId`
+    /// map. Returns a flat `[config_id_as_u64, entity_id, ...]` array;
+    /// pair count is `array.length / 2`. Empty on legacy-topology sims
+    /// and for runtime-added lines.
+    #[wasm_bindgen(js_name = lineLookupIter)]
+    #[must_use]
+    pub fn line_lookup_iter(&self) -> Vec<u64> {
+        self.inner
+            .line_lookup_iter()
+            .flat_map(|(config_id, entity)| [u64::from(*config_id), entity_to_u64(*entity)])
+            .collect()
+    }
+
     /// Entity ids of every elevator currently repositioning (heading to
     /// a parking stop with no rider obligation).
     #[wasm_bindgen(js_name = iterRepositioningElevators)]
