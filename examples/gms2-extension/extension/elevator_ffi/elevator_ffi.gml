@@ -706,32 +706,46 @@ function ev_sim_metrics_for_tag_into_struct(_handle, _tag) {
     return _result;
 }
 
-// ── Array drains for struct buffers ─────────────────────────────────
+// ── Snapshot reads for struct buffers ───────────────────────────────
+//
+// `ev_sim_hall_calls_snapshot`, `ev_sim_car_calls_snapshot`, and
+// `ev_sim_assigned_cars_by_line` are all-or-nothing: they pre-check
+// `needed > capacity` and return `InvalidArg` (no partial writes) if
+// the buffer is too small. The chunked-drain loop used for
+// `ev_drain_events_into_array` doesn't apply — instead we probe with
+// `capacity = 0` first (the FFI writes the required count to
+// `*out_written` and returns `InvalidArg` silently for that case),
+// then allocate exactly the right buffer and call again.
 
-/// Snapshot of every active hall call. Returns a GML array of decoded
-/// EvHallCall structs. Drains in chunks of `_CHUNK` until the snapshot
-/// fits in a single read (the count grows over time, so a re-issue
-/// after a short read is rarely needed — but we still defend against
-/// it the same way `ev_drain_log_messages_into_array` does).
-function ev_sim_hall_calls_snapshot_into_array(_handle) {
-    var _CHUNK = 256;
-    var _buf = buffer_create(EV_HALL_CALL_SIZE * _CHUNK, buffer_fixed, 1);
+/// Probe-then-call helper for struct-buffer FFI accessors with
+/// all-or-nothing semantics. `_call_fn(_handle, _addr_buf, _capacity,
+/// _addr_written)` is invoked twice: once with capacity=0 to read the
+/// required count, once with the right-sized buffer. Use `method` to
+/// bind any extra leading arguments (see
+/// `ev_sim_car_calls_snapshot_into_array` for the pattern).
+function ev_snapshot_struct_buffer(_handle, _call_fn, _struct_size, _decode_fn) {
     var _written_buf = buffer_create(4, buffer_fixed, 1);
-    var _addr_buf = buffer_get_address(_buf);
     var _addr_written = buffer_get_address(_written_buf);
 
+    // Probe pass: capacity=0 with null out pointer is the documented
+    // size-query form. The FFI writes the needed count to *out_written
+    // and returns InvalidArg silently when capacity == 0.
+    _call_fn(_handle, 0, 0, _addr_written);
+    var _needed = buffer_peek(_written_buf, 0, buffer_u32);
+    if (_needed == 0) {
+        buffer_delete(_written_buf);
+        return [];
+    }
+
+    var _buf = buffer_create(_struct_size * _needed, buffer_fixed, 1);
+    var _addr_buf = buffer_get_address(_buf);
+    var _status = _call_fn(_handle, _addr_buf, _needed, _addr_written);
+
     var _out = [];
-    while (true) {
-        var _status = ev_sim_hall_calls_snapshot(_handle, _addr_buf, _CHUNK, _addr_written);
-        if (_status != 0) {
-            break;
-        }
+    if (_status == 0) {
         var _written = buffer_peek(_written_buf, 0, buffer_u32);
         for (var i = 0; i < _written; i++) {
-            array_push(_out, ev_hall_call_decode(_buf, i * EV_HALL_CALL_SIZE));
-        }
-        if (_written < _CHUNK) {
-            break;
+            array_push(_out, _decode_fn(_buf, i * _struct_size));
         }
     }
     buffer_delete(_buf);
@@ -739,59 +753,33 @@ function ev_sim_hall_calls_snapshot_into_array(_handle) {
     return _out;
 }
 
+/// Snapshot of every active hall call. Returns a GML array of decoded
+/// EvHallCall structs (empty on failure or when no hall calls are
+/// pending).
+function ev_sim_hall_calls_snapshot_into_array(_handle) {
+    return ev_snapshot_struct_buffer(_handle, ev_sim_hall_calls_snapshot,
+                                     EV_HALL_CALL_SIZE, ev_hall_call_decode);
+}
+
 /// Snapshot of every car call pressed inside `_elevator_entity_id`.
 /// Returns a GML array of decoded EvCarCall structs.
 function ev_sim_car_calls_snapshot_into_array(_handle, _elevator_entity_id) {
-    var _CHUNK = 64;
-    var _buf = buffer_create(EV_CAR_CALL_SIZE * _CHUNK, buffer_fixed, 1);
-    var _written_buf = buffer_create(4, buffer_fixed, 1);
-    var _addr_buf = buffer_get_address(_buf);
-    var _addr_written = buffer_get_address(_written_buf);
-
-    var _out = [];
-    while (true) {
-        var _status = ev_sim_car_calls_snapshot(_handle, _elevator_entity_id, _addr_buf, _CHUNK, _addr_written);
-        if (_status != 0) {
-            break;
-        }
-        var _written = buffer_peek(_written_buf, 0, buffer_u32);
-        for (var i = 0; i < _written; i++) {
-            array_push(_out, ev_car_call_decode(_buf, i * EV_CAR_CALL_SIZE));
-        }
-        if (_written < _CHUNK) {
-            break;
-        }
-    }
-    buffer_delete(_buf);
-    buffer_delete(_written_buf);
-    return _out;
+    var _elev = _elevator_entity_id;
+    var _bound = method({ elev: _elev }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_car_calls_snapshot(_h, elev, _addr, _cap, _addr_written);
+    });
+    return ev_snapshot_struct_buffer(_handle, _bound,
+                                     EV_CAR_CALL_SIZE, ev_car_call_decode);
 }
 
 /// `(line, car)` assignments on the hall call at `_stop_entity_id`.
 /// Returns a GML array of decoded EvAssignment structs (one per line
 /// serving the stop in DCS mode; usually 0 or 1 entry).
 function ev_sim_assigned_cars_by_line_into_array(_handle, _stop_entity_id) {
-    var _CHUNK = 16;
-    var _buf = buffer_create(EV_ASSIGNMENT_SIZE * _CHUNK, buffer_fixed, 1);
-    var _written_buf = buffer_create(4, buffer_fixed, 1);
-    var _addr_buf = buffer_get_address(_buf);
-    var _addr_written = buffer_get_address(_written_buf);
-
-    var _out = [];
-    while (true) {
-        var _status = ev_sim_assigned_cars_by_line(_handle, _stop_entity_id, _addr_buf, _CHUNK, _addr_written);
-        if (_status != 0) {
-            break;
-        }
-        var _written = buffer_peek(_written_buf, 0, buffer_u32);
-        for (var i = 0; i < _written; i++) {
-            array_push(_out, ev_assignment_decode(_buf, i * EV_ASSIGNMENT_SIZE));
-        }
-        if (_written < _CHUNK) {
-            break;
-        }
-    }
-    buffer_delete(_buf);
-    buffer_delete(_written_buf);
-    return _out;
+    var _stop = _stop_entity_id;
+    var _bound = method({ stop: _stop }, function(_h, _addr, _cap, _addr_written) {
+        return ev_sim_assigned_cars_by_line(_h, stop, _addr, _cap, _addr_written);
+    });
+    return ev_snapshot_struct_buffer(_handle, _bound,
+                                     EV_ASSIGNMENT_SIZE, ev_assignment_decode);
 }
