@@ -44,7 +44,7 @@ Override any `ElevatorConfig` field with struct-update syntax -- `ElevatorConfig
 
 | Field | Type | Description | Default |
 |---|---|---|---|
-| `id` | `u32` | Unique numeric ID within the config (mapped to `EntityId` at runtime) | -- |
+| `id` | `ElevatorConfigId` | Unique numeric ID within the config (mapped to `EntityId` at runtime) | -- |
 | `name` | `String` | Human-readable name for UIs and logs | -- |
 | `max_speed` | `Speed` | Maximum travel speed (distance units/second) | `2.0` |
 | `acceleration` | `Accel` | Acceleration rate | `1.5` |
