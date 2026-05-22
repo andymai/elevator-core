@@ -166,6 +166,17 @@ function ev_event_decode(_buf, _offset) {
 // before returning — no caller-side cleanup needed. On failure, the
 // underlying ev_last_error() carries the diagnostic string.
 
+// NaN-encoded `Option::None` sentinel for the optional bypass-load
+// fields on EvElevatorParams. Per the C header:
+//
+//   "bypass_load_up_pct and bypass_load_down_pct: NaN encodes
+//    Option::None; any finite value is treated as Some(v)."
+//
+// Passing `0` to disable bypass would silently configure
+// "bypass-at-0%-load" (i.e. always bypass) — set the field to
+// `EV_BYPASS_NONE` (or leave it unset on the struct) to opt out.
+#macro EV_BYPASS_NONE NaN
+
 /// Spawn a rider from origin → dest with the given weight (kg).
 /// Returns the new rider id, or 0 if the call failed.
 function ev_sim_spawn_rider_easy(_handle, _origin, _dest, _weight) {
@@ -220,11 +231,25 @@ function ev_sim_add_stop_easy(_handle, _line_entity_id, _name, _position) {
 /// `_restricted_stops` is an array of stop entity ids (may be empty).
 /// Returns the new elevator entity id, or 0 on failure.
 ///
+/// `bypass_load_up_pct` / `bypass_load_down_pct` are optional: set them
+/// to `EV_BYPASS_NONE` (or omit the field entirely) to disable bypass;
+/// a finite value in `[0.0, 1.0]` enables bypass at that load fraction.
+/// Passing `0` here silently means "bypass at 0% load" (i.e. always
+/// bypass) — the helper substitutes `EV_BYPASS_NONE` for missing fields
+/// so the safe default is "disabled", not "always on".
+///
 /// Builds the EvElevatorParams scratch buffer using the layout offsets
 /// auto-generated in elevator_ffi_layout.gml so a future field shuffle
 /// reflows here automatically.
 function ev_sim_add_elevator_easy(_handle, _params, _restricted_stops,
                                   _line_entity_id, _starting_position) {
+    var _bypass_up = variable_struct_exists(_params, "bypass_load_up_pct")
+        ? _params.bypass_load_up_pct
+        : EV_BYPASS_NONE;
+    var _bypass_down = variable_struct_exists(_params, "bypass_load_down_pct")
+        ? _params.bypass_load_down_pct
+        : EV_BYPASS_NONE;
+
     var _params_buf = buffer_create(EV_ELEVATOR_PARAMS_SIZE, buffer_fixed, 1);
     buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_MAX_SPEED_OFFSET,                buffer_f64, _params.max_speed);
     buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_ACCELERATION_OFFSET,             buffer_f64, _params.acceleration);
@@ -233,8 +258,8 @@ function ev_sim_add_elevator_easy(_handle, _params, _restricted_stops,
     buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_DOOR_TRANSITION_TICKS_OFFSET,    buffer_u32, _params.door_transition_ticks);
     buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_DOOR_OPEN_TICKS_OFFSET,          buffer_u32, _params.door_open_ticks);
     buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_INSPECTION_SPEED_FACTOR_OFFSET,  buffer_f64, _params.inspection_speed_factor);
-    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_UP_PCT_OFFSET,       buffer_f64, _params.bypass_load_up_pct);
-    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_DOWN_PCT_OFFSET,     buffer_f64, _params.bypass_load_down_pct);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_UP_PCT_OFFSET,       buffer_f64, _bypass_up);
+    buffer_poke(_params_buf, EV_ELEVATOR_PARAMS_BYPASS_LOAD_DOWN_PCT_OFFSET,     buffer_f64, _bypass_down);
 
     var _restricted_count = array_length(_restricted_stops);
     var _restricted_addr = 0;
@@ -320,7 +345,7 @@ function ev_drain_u64_buffer(_handle, _drain_fn) {
             break;
         }
         var _written = buffer_peek(_written_buf, 0, buffer_u32);
-        if (_written < _capacity || _written == 0) {
+        if (_written < _capacity) {
             var _out = array_create(_written);
             for (var i = 0; i < _written; i++) {
                 _out[i] = buffer_peek(_buf, i * 8, buffer_u64);

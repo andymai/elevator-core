@@ -109,9 +109,9 @@ pub struct WorldSnapshot {
     pub stop_lookup: BTreeMap<StopId, usize>,
     /// Config-time `ElevatorConfig.id` → entity index mapping. Absent
     /// in legacy snapshots; on restore an empty map means
-    /// [`Simulation::elevator_entity`] returns `None` for all ids
-    /// (acceptable degradation — config-loaded host queries on legacy
-    /// snapshots fall back to the iteration path).
+    /// [`crate::sim::Simulation::elevator_entity`] returns `None` for
+    /// all ids (acceptable degradation — config-loaded host queries on
+    /// legacy snapshots fall back to the iteration path).
     #[serde(default)]
     pub elevator_lookup: BTreeMap<u32, usize>,
     /// Global metrics at snapshot time.
