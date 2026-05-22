@@ -77,7 +77,7 @@ SimConfig(
     ),
     elevators: [
         ElevatorConfig(
-            id: elevator_core::config::ElevatorConfigId(0),
+            id: 0,
             name: "Main",
             max_speed: 2.0,
             acceleration: 1.5,
@@ -157,7 +157,7 @@ SimConfig(
     ),
     elevators: [
         ElevatorConfig(
-            id: elevator_core::config::ElevatorConfigId(0),
+            id: 0,
             name: "Cage A",
             max_speed: 18.0,           // ~m/s, deep-shaft hoist class.
             acceleration: 1.5,
