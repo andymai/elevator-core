@@ -179,6 +179,19 @@ impl super::Simulation {
         self.elevator_lookup.get(&id).copied()
     }
 
+    /// Resolve a config-time `LineConfig.id` to its runtime `EntityId`.
+    ///
+    /// Only lines from an explicit `building.lines` block are
+    /// addressable here. Legacy configs (flat elevator list, no
+    /// `lines` block) build a single default line with no config id,
+    /// so this returns `None` for every id on those sims. Runtime
+    /// [`Self::add_line`] takes `LineParams` (no config id) and
+    /// returns the new entity directly.
+    #[must_use]
+    pub fn line_entity(&self, id: u32) -> Option<EntityId> {
+        self.line_lookup.get(&id).copied()
+    }
+
     /// Resolve a [`StopRef`] to its runtime [`EntityId`].
     pub(super) fn resolve_stop(&self, stop: StopRef) -> Result<EntityId, SimError> {
         match stop {
@@ -203,6 +216,12 @@ impl super::Simulation {
     /// [`Self::elevator_entity`].
     pub fn elevator_lookup_iter(&self) -> impl Iterator<Item = (&u32, &EntityId)> {
         self.elevator_lookup.iter()
+    }
+
+    /// Iterate over the line config ID → entity ID mapping. Empty on
+    /// legacy configs; see [`Self::line_entity`].
+    pub fn line_lookup_iter(&self) -> impl Iterator<Item = (&u32, &EntityId)> {
+        self.line_lookup.iter()
     }
 
     /// Peek at events pending for consumer retrieval.

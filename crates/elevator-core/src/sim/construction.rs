@@ -267,6 +267,7 @@ impl Simulation {
         world.insert_resource(crate::time::TickRate(config.simulation.ticks_per_second));
 
         let mut elevator_lookup: HashMap<u32, EntityId> = HashMap::new();
+        let mut line_lookup: HashMap<u32, EntityId> = HashMap::new();
         let (mut groups, dispatchers, strategy_ids) =
             if let Some(line_configs) = &config.building.lines {
                 Self::build_explicit_topology(
@@ -275,6 +276,7 @@ impl Simulation {
                     line_configs,
                     &stop_lookup,
                     &mut elevator_lookup,
+                    &mut line_lookup,
                     builder_dispatchers,
                 )
             } else {
@@ -351,6 +353,7 @@ impl Simulation {
             groups,
             stop_lookup,
             elevator_lookup,
+            line_lookup,
             dispatcher_set: super::DispatcherSet::from_parts(dispatchers, strategy_ids),
             repositioner_set: super::RepositionerSet::from_parts(repositioners, reposition_ids),
             metrics: Metrics::new(),
@@ -534,6 +537,7 @@ impl Simulation {
         line_configs: &[crate::config::LineConfig],
         stop_lookup: &HashMap<StopId, EntityId>,
         elevator_lookup: &mut HashMap<u32, EntityId>,
+        line_lookup: &mut HashMap<u32, EntityId>,
         builder_dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
     ) -> TopologyResult {
         // Map line config id → (line EntityId, LineInfo). `BTreeMap`
@@ -607,6 +611,7 @@ impl Simulation {
             }
 
             let line_info = LineInfo::new(line_eid, elevator_entities, served_entities);
+            line_lookup.insert(lc.id, line_eid);
             line_map.insert(lc.id, (line_eid, line_info));
         }
 
@@ -701,6 +706,7 @@ impl Simulation {
         groups: Vec<ElevatorGroup>,
         stop_lookup: HashMap<StopId, EntityId>,
         elevator_lookup: HashMap<u32, EntityId>,
+        line_lookup: HashMap<u32, EntityId>,
         dispatchers: BTreeMap<GroupId, Box<dyn DispatchStrategy>>,
         strategy_ids: BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
         metrics: Metrics,
@@ -761,6 +767,7 @@ impl Simulation {
             groups,
             stop_lookup,
             elevator_lookup,
+            line_lookup,
             dispatcher_set: super::DispatcherSet::from_parts(dispatchers, strategy_ids),
             repositioner_set: super::RepositionerSet::new(),
             metrics,

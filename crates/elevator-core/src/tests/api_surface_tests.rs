@@ -336,6 +336,139 @@ fn remove_elevator_removes_from_elevator_lookup() {
 }
 
 #[test]
+fn legacy_config_has_empty_line_lookup() {
+    // Legacy config (no `building.lines` block) builds one default
+    // line without a config id, so line_entity always returns None.
+    let config = default_config();
+    let sim = Simulation::new(&config, scan()).unwrap();
+    assert!(sim.line_entity(0).is_none());
+    assert!(sim.line_entity(1).is_none());
+    assert_eq!(sim.line_lookup_iter().count(), 0);
+}
+
+#[test]
+fn explicit_topology_line_entity_resolves() {
+    use crate::components::Orientation;
+    use crate::config::{BuildingConfig, ElevatorConfig, LineConfig, SimConfig};
+    use crate::stop::StopConfig;
+
+    let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+        building: BuildingConfig {
+            name: "LineEntityTest".into(),
+            stops: vec![
+                StopConfig {
+                    id: StopId(0),
+                    name: "G".into(),
+                    position: 0.0,
+                },
+                StopConfig {
+                    id: StopId(1),
+                    name: "T".into(),
+                    position: 10.0,
+                },
+            ],
+            lines: Some(vec![LineConfig {
+                id: 7,
+                name: "Main".into(),
+                serves: vec![StopId(0), StopId(1)],
+                elevators: vec![ElevatorConfig {
+                    id: 0,
+                    name: "E".into(),
+                    max_speed: Speed::from(2.0),
+                    acceleration: Accel::from(1.5),
+                    deceleration: Accel::from(2.0),
+                    weight_capacity: Weight::from(800.0),
+                    starting_stop: StopId(0),
+                    door_open_ticks: 10,
+                    door_transition_ticks: 5,
+                    restricted_stops: Vec::new(),
+                    #[cfg(feature = "energy")]
+                    energy_profile: None,
+                    service_mode: None,
+                    inspection_speed_factor: 0.25,
+                    bypass_load_up_pct: None,
+                    bypass_load_down_pct: None,
+                }],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                kind: None,
+                max_cars: None,
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        ..Default::default()
+    };
+
+    let sim = Simulation::new(&config, scan()).unwrap();
+    let line = sim.line_entity(7).expect("LineConfig.id 7 should resolve");
+    assert!(sim.world().line(line).is_some());
+    assert!(sim.line_entity(99).is_none());
+}
+
+#[test]
+fn remove_line_removes_from_line_lookup() {
+    use crate::components::Orientation;
+    use crate::config::{BuildingConfig, ElevatorConfig, LineConfig, SimConfig};
+    use crate::stop::StopConfig;
+
+    let config = SimConfig {
+        schema_version: crate::config::CURRENT_CONFIG_SCHEMA_VERSION,
+        building: BuildingConfig {
+            name: "LineRemovalTest".into(),
+            stops: vec![StopConfig {
+                id: StopId(0),
+                name: "G".into(),
+                position: 0.0,
+            }],
+            lines: Some(vec![LineConfig {
+                id: 42,
+                name: "Doomed".into(),
+                serves: vec![StopId(0)],
+                elevators: vec![ElevatorConfig {
+                    id: 0,
+                    name: "E".into(),
+                    max_speed: Speed::from(2.0),
+                    acceleration: Accel::from(1.5),
+                    deceleration: Accel::from(2.0),
+                    weight_capacity: Weight::from(800.0),
+                    starting_stop: StopId(0),
+                    door_open_ticks: 10,
+                    door_transition_ticks: 5,
+                    restricted_stops: Vec::new(),
+                    #[cfg(feature = "energy")]
+                    energy_profile: None,
+                    service_mode: None,
+                    inspection_speed_factor: 0.25,
+                    bypass_load_up_pct: None,
+                    bypass_load_down_pct: None,
+                }],
+                orientation: Orientation::Vertical,
+                position: None,
+                min_position: None,
+                max_position: None,
+                kind: None,
+                max_cars: None,
+            }]),
+            groups: None,
+        },
+        elevators: vec![],
+        ..Default::default()
+    };
+
+    let mut sim = Simulation::new(&config, scan()).unwrap();
+    let line = sim.line_entity(42).unwrap();
+    sim.remove_line(line).unwrap();
+    assert!(
+        sim.line_entity(42).is_none(),
+        "line_entity should return None after removal"
+    );
+}
+
+#[test]
 fn runtime_added_elevator_not_in_lookup() {
     // Runtime add_elevator takes ElevatorParams (no config id), so the
     // returned entity is intentionally not addressable via elevator_entity.
