@@ -1,5 +1,13 @@
 # Changelog
 
+## [20.17.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.16.0...elevator-core-v20.17.0) (2026-05-22)
+
+
+### Features
+
+* add elevator_entity accessor and GMS buffer helpers ([#870](https://github.com/andymai/elevator-core/issues/870)) ([a4b0034](https://github.com/andymai/elevator-core/commit/a4b00342c0e1d44a81031b047e29a37e45948c59))
+* add line_entity accessor and broaden GMS array helpers ([#872](https://github.com/andymai/elevator-core/issues/872)) ([a2429f3](https://github.com/andymai/elevator-core/commit/a2429f3669f4c4102b083be2c7ffad15f68cdf78))
+
 ## [20.16.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.15.0...elevator-core-v20.16.0) (2026-05-18)
 
 
