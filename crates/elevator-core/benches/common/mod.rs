@@ -18,7 +18,7 @@ pub fn elevator_cfg(
     weight_capacity: f64,
 ) -> ElevatorConfig {
     ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: format!("E{id}"),
         max_speed: Speed::from(max_speed),
         acceleration: Accel::from(acceleration),

@@ -81,7 +81,7 @@ fn multi_group_config(
 
             group_line_ids.push(line_id);
             lines.push(LineConfig {
-                id: line_id,
+                id: elevator_core::config::LineConfigId(line_id),
                 name: format!("L{line_id}"),
                 serves,
                 elevators,

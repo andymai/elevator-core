@@ -40,7 +40,7 @@ fn single_car_config() -> SimConfig {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "Solo".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -98,12 +98,12 @@ fn two_cars_same_group_config() -> SimConfig {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1), StopId(2), StopId(3)],
                 elevators: vec![
                     ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "A".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -123,7 +123,7 @@ fn two_cars_same_group_config() -> SimConfig {
                         bypass_load_down_pct: None,
                     },
                     ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "B".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -763,7 +763,7 @@ fn single_car_heavy_load_drains_within_tick_budget() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "Car 0".into(),
             max_speed: Speed::from(3.0),
             acceleration: Accel::from(1.5),

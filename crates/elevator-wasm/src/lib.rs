@@ -2442,7 +2442,7 @@ impl WasmSim {
     #[must_use]
     pub fn elevator_entity(&self, elevator_config_id: u32) -> u64 {
         self.inner
-            .elevator_entity(elevator_config_id)
+            .elevator_entity(elevator_core::config::ElevatorConfigId(elevator_config_id))
             .map_or(0, entity_to_u64)
     }
 
@@ -2469,7 +2469,7 @@ impl WasmSim {
     pub fn elevator_lookup_iter(&self) -> Vec<u64> {
         self.inner
             .elevator_lookup_iter()
-            .flat_map(|(config_id, entity)| [u64::from(*config_id), entity_to_u64(*entity)])
+            .flat_map(|(config_id, entity)| [u64::from(config_id.0), entity_to_u64(*entity)])
             .collect()
     }
 
@@ -2480,7 +2480,7 @@ impl WasmSim {
     #[must_use]
     pub fn line_entity(&self, line_config_id: u32) -> u64 {
         self.inner
-            .line_entity(line_config_id)
+            .line_entity(elevator_core::config::LineConfigId(line_config_id))
             .map_or(0, entity_to_u64)
     }
 
@@ -2493,7 +2493,7 @@ impl WasmSim {
     pub fn line_lookup_iter(&self) -> Vec<u64> {
         self.inner
             .line_lookup_iter()
-            .flat_map(|(config_id, entity)| [u64::from(*config_id), entity_to_u64(*entity)])
+            .flat_map(|(config_id, entity)| [u64::from(config_id.0), entity_to_u64(*entity)])
             .collect()
     }
 

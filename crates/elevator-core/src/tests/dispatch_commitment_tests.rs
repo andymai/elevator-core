@@ -23,7 +23,7 @@ fn second_idle_car_not_double_dispatched_to_same_stop() {
     let mut cfg = default_config();
     // Two cars, both starting at the lobby.
     cfg.elevators.push(crate::config::ElevatorConfig {
-        id: 1,
+        id: crate::config::ElevatorConfigId(1),
         name: "Car 2".into(),
         max_speed: cfg.elevators[0].max_speed,
         acceleration: cfg.elevators[0].acceleration,
@@ -88,7 +88,7 @@ fn second_idle_car_not_double_dispatched_to_same_stop() {
 fn committed_car_not_reassigned_mid_trip() {
     let mut cfg = default_config();
     cfg.elevators.push(crate::config::ElevatorConfig {
-        id: 1,
+        id: crate::config::ElevatorConfigId(1),
         name: "Car 2".into(),
         max_speed: cfg.elevators[0].max_speed,
         acceleration: cfg.elevators[0].acceleration,

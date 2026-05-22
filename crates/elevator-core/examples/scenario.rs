@@ -32,7 +32,7 @@ fn main() {
                 groups: None,
             },
             elevators: vec![ElevatorConfig {
-                id: 0,
+                id: elevator_core::config::ElevatorConfigId(0),
                 name: "E1".into(),
                 max_speed: Speed::from(2.0),
                 acceleration: Accel::from(1.5),

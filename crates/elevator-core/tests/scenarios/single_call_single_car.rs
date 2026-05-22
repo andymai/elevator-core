@@ -36,7 +36,7 @@ fn three_car_sim_with<D: DispatchStrategy + 'static>(dispatch: D) -> Simulation 
         .into_iter()
         .enumerate()
         .map(|(idx, start)| ElevatorConfig {
-            id: u32::try_from(idx).unwrap(),
+            id: elevator_core::config::ElevatorConfigId(u32::try_from(idx).unwrap()),
             name: format!("Car {}", char::from(b'A' + u8::try_from(idx).unwrap())),
             max_speed: Speed::from(4.0),
             acceleration: Accel::from(2.0),
@@ -189,7 +189,7 @@ fn twin_shaft_sim() -> Simulation {
     use elevator_core::dispatch::BuiltinStrategy;
 
     let car = |id: u32, name: &str| ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: name.into(),
         max_speed: Speed::from(2.0),
         acceleration: Accel::from(1.5),
@@ -201,7 +201,7 @@ fn twin_shaft_sim() -> Simulation {
         ..ElevatorConfig::default()
     };
     let line = |id: u32, name: &str, car: ElevatorConfig| LineConfig {
-        id,
+        id: elevator_core::config::LineConfigId(id),
         name: name.into(),
         serves: vec![StopId(0), StopId(1)],
         elevators: vec![car],

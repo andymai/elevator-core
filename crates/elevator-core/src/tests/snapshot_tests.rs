@@ -84,11 +84,11 @@ fn snapshot_roundtrip_preserves_line_lookup() {
                 position: 0.0,
             }],
             lines: Some(vec![LineConfig {
-                id: 3,
+                id: crate::config::LineConfigId(3),
                 name: "Main".into(),
                 serves: vec![StopId(0)],
                 elevators: vec![ElevatorConfig {
-                    id: 0,
+                    id: crate::config::ElevatorConfigId(0),
                     name: "E".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -119,7 +119,7 @@ fn snapshot_roundtrip_preserves_line_lookup() {
     };
 
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
-    assert!(sim.line_entity(3).is_some());
+    assert!(sim.line_entity(crate::config::LineConfigId(3)).is_some());
 
     let snap = sim.snapshot();
     let restored = snap
@@ -127,7 +127,7 @@ fn snapshot_roundtrip_preserves_line_lookup() {
         .unwrap();
 
     let restored_line = restored
-        .line_entity(3)
+        .line_entity(crate::config::LineConfigId(3))
         .expect("LineConfig.id 3 resolves post-restore");
     assert!(restored.world().line(restored_line).is_some());
 }
@@ -138,7 +138,7 @@ fn snapshot_roundtrip_preserves_elevator_lookup() {
     let sim = crate::sim::Simulation::new(&config, helpers::scan()).unwrap();
 
     let original = sim
-        .elevator_entity(0)
+        .elevator_entity(crate::config::ElevatorConfigId(0))
         .expect("config id 0 resolves pre-snapshot");
 
     let snap = sim.snapshot();
@@ -147,7 +147,7 @@ fn snapshot_roundtrip_preserves_elevator_lookup() {
         .unwrap();
 
     let restored_eid = restored
-        .elevator_entity(0)
+        .elevator_entity(crate::config::ElevatorConfigId(0))
         .expect("config id 0 resolves post-restore");
 
     // EntityIds are regenerated on restore, but the slot mapping should

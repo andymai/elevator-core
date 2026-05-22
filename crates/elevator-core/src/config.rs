@@ -16,6 +16,45 @@ use serde::{Deserialize, Serialize};
 /// for the full bump-trigger policy and migration playbook.
 pub const CURRENT_CONFIG_SCHEMA_VERSION: u32 = 1;
 
+/// Config-time numeric identifier for an [`ElevatorConfig`].
+///
+/// Unique within the config. Mapped to an
+/// [`EntityId`](crate::entity::EntityId) at construction time; resolve
+/// via [`Simulation::elevator_entity`](crate::sim::Simulation::elevator_entity).
+///
+/// Newtype mirrors [`StopId`]'s pattern so consumers can't accidentally
+/// pass an elevator id where a line/stop id was expected. RON
+/// deserializers unwrap newtype structs by default, so existing config
+/// files with bare `id: 0` continue to parse without changes.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(transparent)]
+pub struct ElevatorConfigId(pub u32);
+
+impl std::fmt::Display for ElevatorConfigId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+/// Config-time numeric identifier for a [`LineConfig`].
+///
+/// Unique within the config. Resolve via
+/// [`Simulation::line_entity`](crate::sim::Simulation::line_entity).
+/// Mirrors [`ElevatorConfigId`]'s pattern; same RON-compat note applies.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(transparent)]
+pub struct LineConfigId(pub u32);
+
+impl std::fmt::Display for LineConfigId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Top-level simulation configuration, loadable from RON.
 ///
 /// Validated at construction time by [`Simulation::new()`](crate::sim::Simulation::new)
@@ -95,8 +134,8 @@ pub struct ElevatorConfig {
     /// Numeric identifier for this elevator, unique within the config.
     ///
     /// Mapped to an [`EntityId`](crate::entity::EntityId) at construction
-    /// time; not used at runtime.
-    pub id: u32,
+    /// time; not used at runtime. See [`ElevatorConfigId`].
+    pub id: ElevatorConfigId,
     /// Human-readable elevator name, displayed in UIs and logs.
     pub name: String,
     /// Maximum travel speed in distance units per second.
@@ -213,7 +252,7 @@ impl Default for ElevatorConfig {
     /// id. Override if your config uses a different bottom-stop id.
     fn default() -> Self {
         Self {
-            id: 0,
+            id: ElevatorConfigId(0),
             name: "Elevator 1".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -306,8 +345,8 @@ impl Default for PassengerSpawnConfig {
 /// [`GroupConfig`] for dispatch purposes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LineConfig {
-    /// Unique line identifier (within the config).
-    pub id: u32,
+    /// Unique line identifier (within the config). See [`LineConfigId`].
+    pub id: LineConfigId,
     /// Human-readable name.
     pub name: String,
     /// Stops served by this line (references [`StopConfig::id`]).

@@ -125,7 +125,7 @@ When constructing elevators, use `ElevatorConfig` to set initial parameters:
 #     .stop(StopId(0), "Ground", 0.0)
 #     .stop(StopId(1), "Top", 10.0)
     .elevator(ElevatorConfig {
-        id: 0,
+        id: elevator_core::config::ElevatorConfigId(0),
         name: "Express A".into(),
         max_speed: 5.0.into(),
         acceleration: 2.0.into(),

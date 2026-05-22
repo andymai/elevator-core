@@ -48,11 +48,11 @@ fn two_group_config() -> SimConfig {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Low".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "L1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -79,11 +79,11 @@ fn two_group_config() -> SimConfig {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "High".into(),
                     serves: vec![StopId(1), StopId(2)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "H1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -162,11 +162,11 @@ fn overlapping_groups_config() -> SimConfig {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Express A".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "A1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -193,11 +193,11 @@ fn overlapping_groups_config() -> SimConfig {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "Express B".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "B1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -622,11 +622,11 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Shaft A".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "A".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -653,11 +653,11 @@ fn line_pinned_rider_boards_only_specified_line_elevator() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "Shaft B".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "B".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -2117,11 +2117,11 @@ fn reachable_stops_from_isolated_stop_returns_empty() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![ElevatorConfig {
-                    id: 1,
+                    id: crate::config::ElevatorConfigId(1),
                     name: "E1".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -2271,11 +2271,11 @@ fn shortest_route_returns_none_for_unreachable_stop() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Line A".into(),
                     serves: vec![StopId(0)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "E-A".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -2302,11 +2302,11 @@ fn shortest_route_returns_none_for_unreachable_stop() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "Line B".into(),
                     serves: vec![StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "E-B".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -2382,7 +2382,7 @@ fn duplicate_line_ids_fail_validation() {
     let mut config = two_group_config();
     // Make both lines have id 1.
     if let Some(lines) = config.building.lines.as_mut() {
-        lines[1].id = 1;
+        lines[1].id = crate::config::LineConfigId(1);
     }
 
     let result = Simulation::new(&config, ScanDispatch::new());
@@ -2482,7 +2482,7 @@ fn no_elevators_in_any_line_fails_validation() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Empty".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![],
@@ -3030,11 +3030,11 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Low".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "L1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3061,11 +3061,11 @@ fn reassign_elevator_to_line_at_max_cars_returns_error() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "High".into(),
                     serves: vec![StopId(1), StopId(2)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "H1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3196,12 +3196,12 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![
                     ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "E1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3221,7 +3221,7 @@ fn max_cars_exactly_met_at_config_time_succeeds() {
                         bypass_load_down_pct: None,
                     },
                     ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "E2".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3287,12 +3287,12 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![
                     ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "E1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3312,7 +3312,7 @@ fn max_cars_exceeded_at_config_time_fails_validation() {
                         bypass_load_down_pct: None,
                     },
                     ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "E2".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3384,11 +3384,11 @@ fn runtime_add_elevator_to_line_at_max_cars_returns_error() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 1,
+                id: crate::config::LineConfigId(1),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![ElevatorConfig {
-                    id: 1,
+                    id: crate::config::ElevatorConfigId(1),
                     name: "E1".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -3482,11 +3482,11 @@ fn three_group_config() -> SimConfig {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "AB".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "E1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3513,11 +3513,11 @@ fn three_group_config() -> SimConfig {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "BC".into(),
                     serves: vec![StopId(1), StopId(2)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "E2".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -3544,11 +3544,11 @@ fn three_group_config() -> SimConfig {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 3,
+                    id: crate::config::LineConfigId(3),
                     name: "CD".into(),
                     serves: vec![StopId(2), StopId(3)],
                     elevators: vec![ElevatorConfig {
-                        id: 3,
+                        id: crate::config::ElevatorConfigId(3),
                         name: "E3".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4077,11 +4077,11 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Main".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "E1".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4108,11 +4108,11 @@ fn orphan_line_not_referenced_by_any_group_fails_validation() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "Orphan".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "E2".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4601,11 +4601,11 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "A".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "carA".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4630,11 +4630,11 @@ fn dispatch_does_not_assign_car_to_stop_its_line_does_not_serve() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "B".into(),
                     serves: vec![StopId(2), StopId(3)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "carB".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4765,11 +4765,11 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "A".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![ElevatorConfig {
-                        id: 1,
+                        id: crate::config::ElevatorConfigId(1),
                         name: "carA".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4794,11 +4794,11 @@ fn loading_resolves_co_located_stops_to_the_cars_own_line() {
                     max_cars: None,
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "B".into(),
                     serves: vec![StopId(2), StopId(3)],
                     elevators: vec![ElevatorConfig {
-                        id: 2,
+                        id: crate::config::ElevatorConfigId(2),
                         name: "carB".into(),
                         max_speed: Speed::from(2.0),
                         acceleration: Accel::from(1.5),
@@ -4904,7 +4904,7 @@ fn two_car_loop_config() -> SimConfig {
     let line = config.building.lines.as_mut().unwrap();
     let template = line[0].elevators[0].clone();
     line[0].elevators.push(crate::config::ElevatorConfig {
-        id: 2,
+        id: crate::config::ElevatorConfigId(2),
         name: "L2".into(),
         starting_stop: StopId(2),
         ..template

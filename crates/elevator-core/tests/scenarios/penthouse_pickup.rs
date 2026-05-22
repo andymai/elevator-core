@@ -30,7 +30,7 @@ fn multi_car_tower_config(stops: u32, door_open_ticks: u32, cars: u32) -> SimCon
         .collect();
     cfg.elevators = (0..cars)
         .map(|i| ElevatorConfig {
-            id: i,
+            id: elevator_core::config::ElevatorConfigId(i),
             name: format!("Car {}", char::from(b'A' + u8::try_from(i).unwrap())),
             max_speed: Speed::from(4.0),
             acceleration: Accel::from(2.0),

@@ -21,7 +21,7 @@ fn sim_with_idle_cars(cars: usize) -> Simulation {
     let mut cfg = default_config();
     for i in 1..cars {
         cfg.elevators.push(crate::config::ElevatorConfig {
-            id: i as u32,
+            id: crate::config::ElevatorConfigId(i as u32),
             name: format!("Car {i}"),
             max_speed: cfg.elevators[0].max_speed,
             acceleration: cfg.elevators[0].acceleration,

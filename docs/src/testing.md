@@ -28,7 +28,7 @@ struct ScheduledSpawn {
 
 fn car_config(id: u32, name: &str) -> ElevatorConfig {
     ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: name.into(),
         starting_stop: StopId(0),
         ..Default::default()

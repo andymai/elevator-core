@@ -53,7 +53,7 @@ pub fn canonical_building() -> SimConfig {
         .into_iter()
         .enumerate()
         .map(|(idx, start)| ElevatorConfig {
-            id: u32::try_from(idx).unwrap(),
+            id: elevator_core::config::ElevatorConfigId(u32::try_from(idx).unwrap()),
             name: format!("Car {}", char::from(b'A' + u8::try_from(idx).unwrap())),
             max_speed: Speed::from(4.0),
             acceleration: Accel::from(2.0),
@@ -88,7 +88,7 @@ pub fn canonical_building() -> SimConfig {
 #[must_use]
 pub fn twin_shaft_building() -> SimConfig {
     let car = |id: u32, name: &str| ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: name.into(),
         max_speed: Speed::from(2.0),
         acceleration: Accel::from(1.5),
@@ -101,7 +101,7 @@ pub fn twin_shaft_building() -> SimConfig {
     };
 
     let line = |id: u32, name: &str, car: ElevatorConfig| LineConfig {
-        id,
+        id: elevator_core::config::LineConfigId(id),
         name: name.into(),
         serves: vec![StopId(0), StopId(1), StopId(2)],
         elevators: vec![car],
@@ -184,7 +184,7 @@ pub fn compact_building() -> SimConfig {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: elevator_core::config::ElevatorConfigId(0),
             name: "Only".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

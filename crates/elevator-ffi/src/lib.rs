@@ -4202,7 +4202,7 @@ pub unsafe extern "C" fn ev_sim_elevator_entity(
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
         ev.sim
-            .elevator_entity(elevator_config_id)
+            .elevator_entity(elevator_core::config::ElevatorConfigId(elevator_config_id))
             .map_or(0, entity_to_u64)
     })
 }
@@ -4227,7 +4227,9 @@ pub unsafe extern "C" fn ev_sim_line_entity(handle: *mut EvSim, line_config_id: 
         }
         // Safety: validity guaranteed by caller.
         let ev = unsafe { &*handle };
-        ev.sim.line_entity(line_config_id).map_or(0, entity_to_u64)
+        ev.sim
+            .line_entity(elevator_core::config::LineConfigId(line_config_id))
+            .map_or(0, entity_to_u64)
     })
 }
 
@@ -4273,7 +4275,7 @@ pub unsafe extern "C" fn ev_sim_line_lookup_iter(
             // Safety: caller guarantees `out` has at least `capacity`
             // writable slots; bounds checked above.
             unsafe {
-                *out.add(written as usize) = u64::from(*config_id);
+                *out.add(written as usize) = u64::from(config_id.0);
                 *out.add(written as usize + 1) = entity_to_u64(*entity);
             }
             written += 2;
@@ -4326,7 +4328,7 @@ pub unsafe extern "C" fn ev_sim_elevator_lookup_iter(
             // Safety: caller guarantees `out` has at least `capacity`
             // writable slots; bounds checked above.
             unsafe {
-                *out.add(written as usize) = u64::from(*config_id);
+                *out.add(written as usize) = u64::from(config_id.0);
                 *out.add(written as usize + 1) = entity_to_u64(*entity);
             }
             written += 2;

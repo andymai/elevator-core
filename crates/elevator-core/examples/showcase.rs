@@ -389,7 +389,7 @@ fn part6_configuration() {
         },
         elevators: vec![
             ElevatorConfig {
-                id: 0,
+                id: elevator_core::config::ElevatorConfigId(0),
                 name: "Express A".into(),
                 max_speed: Speed::from(5.0),
                 acceleration: Accel::from(2.5),
@@ -409,7 +409,7 @@ fn part6_configuration() {
                 bypass_load_down_pct: None,
             },
             ElevatorConfig {
-                id: 1,
+                id: elevator_core::config::ElevatorConfigId(1),
                 name: "Express B".into(),
                 max_speed: Speed::from(5.0),
                 acceleration: Accel::from(2.5),

@@ -97,7 +97,7 @@ fn schedule() -> Vec<ScheduledSpawn> {
 /// assignments.
 fn build_sim() -> Simulation {
     let car = |id: u32, name: &str| ElevatorConfig {
-        id,
+        id: elevator_core::config::ElevatorConfigId(id),
         name: name.into(),
         max_speed: Speed::from(2.0),
         acceleration: Accel::from(1.5),
