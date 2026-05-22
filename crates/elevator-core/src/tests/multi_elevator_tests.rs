@@ -34,7 +34,7 @@ fn two_elevator_config() -> SimConfig {
         },
         elevators: vec![
             ElevatorConfig {
-                id: 0,
+                id: crate::config::ElevatorConfigId(0),
                 name: "E1".into(),
                 max_speed: Speed::from(2.0),
                 acceleration: Accel::from(1.5),
@@ -54,7 +54,7 @@ fn two_elevator_config() -> SimConfig {
                 bypass_load_down_pct: None,
             },
             ElevatorConfig {
-                id: 1,
+                id: crate::config::ElevatorConfigId(1),
                 name: "E2".into(),
                 max_speed: Speed::from(2.0),
                 acceleration: Accel::from(1.5),

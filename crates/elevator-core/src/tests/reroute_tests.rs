@@ -37,7 +37,7 @@ fn three_stop_config() -> SimConfig {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(3.0),
@@ -149,7 +149,7 @@ fn disable_only_stop_causes_abandonment() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(3.0),
@@ -418,7 +418,7 @@ fn remove_only_destination_with_riding_passenger_returns_to_origin() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(3.0),
@@ -493,7 +493,7 @@ fn remove_stop_without_alternative_emits_stop_removed_not_no_alternative() {
             groups: None,
         },
         elevators: vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(3.0),

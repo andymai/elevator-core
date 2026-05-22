@@ -803,7 +803,7 @@ fn build_lobby_sim() -> crate::sim::Simulation {
             },
         ])
         .elevators(vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "A".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

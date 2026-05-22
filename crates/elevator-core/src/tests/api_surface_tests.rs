@@ -313,12 +313,17 @@ fn elevator_entity_resolves_config_id() {
     let sim = Simulation::new(&config, scan()).unwrap();
 
     // default_config installs a single elevator with id = 0.
-    let elev = sim.elevator_entity(0).expect("config id 0 should resolve");
+    let elev = sim
+        .elevator_entity(crate::config::ElevatorConfigId(0))
+        .expect("config id 0 should resolve");
     assert!(sim.world().is_alive(elev));
     assert!(sim.world().elevator(elev).is_some());
 
     // Unknown ids return None — no panic, no sentinel.
-    assert!(sim.elevator_entity(99).is_none());
+    assert!(
+        sim.elevator_entity(crate::config::ElevatorConfigId(99))
+            .is_none()
+    );
 }
 
 #[test]
@@ -326,11 +331,14 @@ fn remove_elevator_removes_from_elevator_lookup() {
     let config = default_config();
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
-    let elev = sim.elevator_entity(0).unwrap();
+    let elev = sim
+        .elevator_entity(crate::config::ElevatorConfigId(0))
+        .unwrap();
     sim.remove_elevator(elev).unwrap();
 
     assert!(
-        sim.elevator_entity(0).is_none(),
+        sim.elevator_entity(crate::config::ElevatorConfigId(0))
+            .is_none(),
         "elevator_entity should return None after removal"
     );
 }
@@ -341,8 +349,8 @@ fn legacy_config_has_empty_line_lookup() {
     // line without a config id, so line_entity always returns None.
     let config = default_config();
     let sim = Simulation::new(&config, scan()).unwrap();
-    assert!(sim.line_entity(0).is_none());
-    assert!(sim.line_entity(1).is_none());
+    assert!(sim.line_entity(crate::config::LineConfigId(0)).is_none());
+    assert!(sim.line_entity(crate::config::LineConfigId(1)).is_none());
     assert_eq!(sim.line_lookup_iter().count(), 0);
 }
 
@@ -369,11 +377,11 @@ fn explicit_topology_line_entity_resolves() {
                 },
             ],
             lines: Some(vec![LineConfig {
-                id: 7,
+                id: crate::config::LineConfigId(7),
                 name: "Main".into(),
                 serves: vec![StopId(0), StopId(1)],
                 elevators: vec![ElevatorConfig {
-                    id: 0,
+                    id: crate::config::ElevatorConfigId(0),
                     name: "E".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -404,9 +412,11 @@ fn explicit_topology_line_entity_resolves() {
     };
 
     let sim = Simulation::new(&config, scan()).unwrap();
-    let line = sim.line_entity(7).expect("LineConfig.id 7 should resolve");
+    let line = sim
+        .line_entity(crate::config::LineConfigId(7))
+        .expect("LineConfig.id 7 should resolve");
     assert!(sim.world().line(line).is_some());
-    assert!(sim.line_entity(99).is_none());
+    assert!(sim.line_entity(crate::config::LineConfigId(99)).is_none());
 }
 
 #[test]
@@ -425,11 +435,11 @@ fn remove_line_removes_from_line_lookup() {
                 position: 0.0,
             }],
             lines: Some(vec![LineConfig {
-                id: 42,
+                id: crate::config::LineConfigId(42),
                 name: "Doomed".into(),
                 serves: vec![StopId(0)],
                 elevators: vec![ElevatorConfig {
-                    id: 0,
+                    id: crate::config::ElevatorConfigId(0),
                     name: "E".into(),
                     max_speed: Speed::from(2.0),
                     acceleration: Accel::from(1.5),
@@ -460,10 +470,10 @@ fn remove_line_removes_from_line_lookup() {
     };
 
     let mut sim = Simulation::new(&config, scan()).unwrap();
-    let line = sim.line_entity(42).unwrap();
+    let line = sim.line_entity(crate::config::LineConfigId(42)).unwrap();
     sim.remove_line(line).unwrap();
     assert!(
-        sim.line_entity(42).is_none(),
+        sim.line_entity(crate::config::LineConfigId(42)).is_none(),
         "line_entity should return None after removal"
     );
 }
@@ -493,13 +503,17 @@ fn runtime_added_elevator_not_in_lookup() {
 
     // The runtime-added entity is alive but not in the config-id lookup.
     assert!(sim.world().is_alive(runtime_elev));
-    let pairs: Vec<(u32, EntityId)> = sim.elevator_lookup_iter().map(|(c, e)| (*c, *e)).collect();
+    let pairs: Vec<(crate::config::ElevatorConfigId, EntityId)> =
+        sim.elevator_lookup_iter().map(|(c, e)| (*c, *e)).collect();
     assert!(
         pairs.iter().all(|(_, e)| *e != runtime_elev),
         "runtime-added elevator must not appear in elevator_lookup"
     );
     // The config-time elevator (id 0) is still there.
-    assert!(sim.elevator_entity(0).is_some());
+    assert!(
+        sim.elevator_entity(crate::config::ElevatorConfigId(0))
+            .is_some()
+    );
 }
 
 #[test]
@@ -1000,7 +1014,7 @@ fn iter_repositioning_elevators_returns_elevator_during_reposition() {
             },
         ])
         .elevator(crate::config::ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "A".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -1065,7 +1079,7 @@ fn iter_repositioning_elevators_empty_after_reposition_completes() {
             },
         ])
         .elevator(crate::config::ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "A".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),
@@ -1300,7 +1314,7 @@ fn rider_builder_no_route_when_stops_not_in_same_group() {
             },
         ])
         .elevator(crate::config::ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E1".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

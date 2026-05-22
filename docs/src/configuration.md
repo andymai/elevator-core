@@ -18,7 +18,7 @@ fn main() -> Result<(), SimError> {
         .stop(StopId(1), "Sky Lobby", 50.0)
         .stop(StopId(2), "Observation Deck", 100.0)
         .elevator(ElevatorConfig {
-            id: 0,
+            id: elevator_core::config::ElevatorConfigId(0),
             name: "Express A".into(),
             max_speed: 5.0.into(),
             acceleration: 2.0.into(),
@@ -77,7 +77,7 @@ SimConfig(
     ),
     elevators: [
         ElevatorConfig(
-            id: 0,
+            id: elevator_core::config::ElevatorConfigId(0),
             name: "Main",
             max_speed: 2.0,
             acceleration: 1.5,
@@ -157,7 +157,7 @@ SimConfig(
     ),
     elevators: [
         ElevatorConfig(
-            id: 0,
+            id: elevator_core::config::ElevatorConfigId(0),
             name: "Cage A",
             max_speed: 18.0,           // ~m/s, deep-shaft hoist class.
             acceleration: 1.5,

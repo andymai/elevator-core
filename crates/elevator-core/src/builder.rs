@@ -70,7 +70,7 @@ impl SimulationBuilder {
     /// ```
     /// use elevator_core::prelude::*;
     /// use elevator_core::components::{Speed, Accel, Weight};
-    /// use elevator_core::config::ElevatorConfig;
+    /// use elevator_core::config::{ElevatorConfig, ElevatorConfigId};
     /// use elevator_core::stop::StopConfig;
     ///
     /// // An empty builder errors on build — you must configure it first.
@@ -83,7 +83,7 @@ impl SimulationBuilder {
     ///         StopConfig { id: StopId(1), name: "Top".into(), position: 10.0 },
     ///     ])
     ///     .elevator(ElevatorConfig {
-    ///         id: 0,
+    ///         id: ElevatorConfigId(0),
     ///         name: "Main".into(),
     ///         max_speed: Speed::from(2.0),
     ///         acceleration: Accel::from(1.5),
@@ -176,7 +176,7 @@ impl SimulationBuilder {
             },
         ];
         b.config.elevators = vec![ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "Elevator 1".into(),
             max_speed: Speed::from(2.0),
             acceleration: Accel::from(1.5),

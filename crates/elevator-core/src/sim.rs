@@ -214,14 +214,14 @@ pub struct Simulation {
     /// runtime `add_elevator` takes `ElevatorParams` (no config id) and
     /// returns the new `EntityId` directly, so it does not populate
     /// this map. Mirror of [`Self::stop_lookup`] semantics.
-    elevator_lookup: HashMap<u32, EntityId>,
+    elevator_lookup: HashMap<crate::config::ElevatorConfigId, EntityId>,
     /// Config-time `LineConfig.id` → runtime `EntityId` mapping.
     /// Populated only for lines from an explicit `building.lines` block
     /// in the config; legacy (flat-elevator-list) configs build a single
     /// default line with no config id, so this stays empty for them.
     /// Runtime `add_line` takes `LineParams` (no config id) and returns
     /// the entity directly. Mirror of [`Self::stop_lookup`] semantics.
-    line_lookup: HashMap<u32, EntityId>,
+    line_lookup: HashMap<crate::config::LineConfigId, EntityId>,
     /// Dispatch strategies + their snapshot identities, keyed by group.
     /// Owns both halves so insert/remove stay atomic — see
     /// [`DispatcherSet`].

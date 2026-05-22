@@ -883,7 +883,7 @@ fn weight_rejection_boundary() {
             groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(3.0),
@@ -980,7 +980,7 @@ fn passing_floor_events_emitted() {
             groups: None,
         },
         elevators: vec![crate::config::ElevatorConfig {
-            id: 0,
+            id: crate::config::ElevatorConfigId(0),
             name: "E0".into(),
             max_speed: Speed::from(5.0),
             acceleration: Accel::from(2.0),

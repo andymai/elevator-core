@@ -217,7 +217,7 @@ fn best_eta_picks_min_across_elevators() {
     use crate::config::ElevatorConfig;
     let mut config = helpers::default_config();
     config.elevators.push(ElevatorConfig {
-        id: 1,
+        id: crate::config::ElevatorConfigId(1),
         name: "Alt".into(),
         max_speed: Speed::from(2.0),
         acceleration: Accel::from(1.5),

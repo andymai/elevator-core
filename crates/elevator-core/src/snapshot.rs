@@ -769,8 +769,8 @@ impl WorldSnapshot {
         (
             Vec<crate::dispatch::ElevatorGroup>,
             HashMap<StopId, EntityId>,
-            HashMap<u32, EntityId>,
-            HashMap<u32, EntityId>,
+            HashMap<crate::config::ElevatorConfigId, EntityId>,
+            HashMap<crate::config::LineConfigId, EntityId>,
             std::collections::BTreeMap<GroupId, Box<dyn crate::dispatch::DispatchStrategy>>,
             std::collections::BTreeMap<GroupId, crate::dispatch::BuiltinStrategy>,
         ),
@@ -833,16 +833,24 @@ impl WorldSnapshot {
             .filter_map(|(sid, &idx)| index_to_id.get(idx).map(|&eid| (*sid, eid)))
             .collect();
 
-        let elevator_lookup: HashMap<u32, EntityId> = self
+        let elevator_lookup: HashMap<crate::config::ElevatorConfigId, EntityId> = self
             .elevator_lookup
             .iter()
-            .filter_map(|(cid, &idx)| index_to_id.get(idx).map(|&eid| (*cid, eid)))
+            .filter_map(|(cid, &idx)| {
+                index_to_id
+                    .get(idx)
+                    .map(|&eid| (crate::config::ElevatorConfigId(*cid), eid))
+            })
             .collect();
 
-        let line_lookup: HashMap<u32, EntityId> = self
+        let line_lookup: HashMap<crate::config::LineConfigId, EntityId> = self
             .line_lookup
             .iter()
-            .filter_map(|(cid, &idx)| index_to_id.get(idx).map(|&eid| (*cid, eid)))
+            .filter_map(|(cid, &idx)| {
+                index_to_id
+                    .get(idx)
+                    .map(|&eid| (crate::config::LineConfigId(*cid), eid))
+            })
             .collect();
 
         let mut dispatchers = std::collections::BTreeMap::new();
@@ -1151,11 +1159,11 @@ impl crate::sim::Simulation {
             .collect();
         let elevator_lookup: BTreeMap<u32, usize> = self
             .elevator_lookup_iter()
-            .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (*cid, idx)))
+            .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (cid.0, idx)))
             .collect();
         let line_lookup: BTreeMap<u32, usize> = self
             .line_lookup_iter()
-            .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (*cid, idx)))
+            .filter_map(|(cid, eid)| id_to_index.get(eid).map(|&idx| (cid.0, idx)))
             .collect();
 
         WorldSnapshot {

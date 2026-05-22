@@ -32,7 +32,7 @@ fn realistic_config() -> SimConfig {
 
     let elevators: Vec<ElevatorConfig> = (0..50u32)
         .map(|i| ElevatorConfig {
-            id: i,
+            id: crate::config::ElevatorConfigId(i),
             name: format!("E{i}"),
             max_speed: Speed::from(3.0),
             acceleration: Accel::from(1.5),

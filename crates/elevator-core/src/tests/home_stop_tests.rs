@@ -345,14 +345,14 @@ fn two_line_config() -> SimConfig {
             ],
             lines: Some(vec![
                 LineConfig {
-                    id: 1,
+                    id: crate::config::LineConfigId(1),
                     name: "Low".into(),
                     serves: vec![StopId(0), StopId(1)],
                     elevators: vec![bare_elevator(1, "L1", StopId(0))],
                     ..Default::default()
                 },
                 LineConfig {
-                    id: 2,
+                    id: crate::config::LineConfigId(2),
                     name: "High".into(),
                     serves: vec![StopId(1), StopId(2)],
                     elevators: vec![bare_elevator(2, "H1", StopId(1))],
@@ -435,7 +435,7 @@ fn two_car_one_line_config() -> SimConfig {
 
 fn bare_elevator(id: u32, name: &str, starting: StopId) -> ElevatorConfig {
     ElevatorConfig {
-        id,
+        id: crate::config::ElevatorConfigId(id),
         name: name.into(),
         max_speed: Speed::from(2.0),
         acceleration: Accel::from(1.5),

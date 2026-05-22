@@ -175,7 +175,7 @@ impl super::Simulation {
     /// config id) and returns the new entity id directly. Mirror of
     /// [`Self::stop_entity`].
     #[must_use]
-    pub fn elevator_entity(&self, id: u32) -> Option<EntityId> {
+    pub fn elevator_entity(&self, id: crate::config::ElevatorConfigId) -> Option<EntityId> {
         self.elevator_lookup.get(&id).copied()
     }
 
@@ -188,7 +188,7 @@ impl super::Simulation {
     /// [`Self::add_line`] takes `LineParams` (no config id) and
     /// returns the new entity directly.
     #[must_use]
-    pub fn line_entity(&self, id: u32) -> Option<EntityId> {
+    pub fn line_entity(&self, id: crate::config::LineConfigId) -> Option<EntityId> {
         self.line_lookup.get(&id).copied()
     }
 
@@ -214,13 +214,17 @@ impl super::Simulation {
     /// Iterate over the elevator config ID → entity ID mapping. Only
     /// elevators spawned from the initial config appear; see
     /// [`Self::elevator_entity`].
-    pub fn elevator_lookup_iter(&self) -> impl Iterator<Item = (&u32, &EntityId)> {
+    pub fn elevator_lookup_iter(
+        &self,
+    ) -> impl Iterator<Item = (&crate::config::ElevatorConfigId, &EntityId)> {
         self.elevator_lookup.iter()
     }
 
     /// Iterate over the line config ID → entity ID mapping. Empty on
     /// legacy configs; see [`Self::line_entity`].
-    pub fn line_lookup_iter(&self) -> impl Iterator<Item = (&u32, &EntityId)> {
+    pub fn line_lookup_iter(
+        &self,
+    ) -> impl Iterator<Item = (&crate::config::LineConfigId, &EntityId)> {
         self.line_lookup.iter()
     }
 
