@@ -359,21 +359,20 @@ jobs:
           BUNDLE="elevator_ffi_gms2-${VERSION}"
           mkdir -p "$BUNDLE"
           # Copy the in-tree extension folder verbatim, then drop the
-          # platform binaries into binaries/. The extension folder
-          # already includes elevator_ffi.gml + elevator_ffi_generated.gml
-          # + elevator_ffi.yy + README + the binaries/.gitkeep that
-          # the release fills in here.
+          # platform binaries as siblings of the .yy manifest. GMS's
+          # GMExtensionFile schema (ProxyFiles entries reference
+          # binaries by bare filename) expects the binaries to live
+          # next to the manifest — see the Steamworks reference
+          # extension. The extension folder already includes
+          # elevator_ffi.gml + elevator_ffi_generated.gml + the .yy
+          # manifest + the zero-byte .ext stub.
           cp -r examples/gms2-extension/* "$BUNDLE/"
-          mkdir -p "$BUNDLE/extension/elevator_ffi/binaries"
-          cp pickup/libelevator_ffi.so      "$BUNDLE/extension/elevator_ffi/binaries/"
-          cp pickup/elevator_ffi.dll        "$BUNDLE/extension/elevator_ffi/binaries/"
-          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/binaries/"
+          cp pickup/libelevator_ffi.so      "$BUNDLE/extension/elevator_ffi/"
+          cp pickup/elevator_ffi.dll        "$BUNDLE/extension/elevator_ffi/"
+          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/"
           # License compliance: the dual MIT/Apache notice ships with
           # every binary distribution.
           cp LICENSE LICENSE-MIT LICENSE-APACHE "$BUNDLE/"
-          # Drop the empty .gitkeep marker that's there only to make
-          # the repo path real before release packaging populates it.
-          rm -f "$BUNDLE/extension/elevator_ffi/binaries/.gitkeep"
           zip -r "$BUNDLE.zip" "$BUNDLE"
 
       - name: Upload bundle to release
