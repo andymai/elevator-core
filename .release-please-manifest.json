@@ -1,5 +1,5 @@
 {
-  "crates/elevator-core": "20.16.0",
-  "crates/elevator-wasm": "0.26.0",
-  "crates/elevator-ffi": "0.22.0"
+  "crates/elevator-core": "21.0.0",
+  "crates/elevator-wasm": "0.27.0",
+  "crates/elevator-ffi": "0.23.0"
 }
