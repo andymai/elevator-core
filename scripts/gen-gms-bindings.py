@@ -137,14 +137,35 @@ def classify_arg(arg: str) -> str:
 
 
 def classify_return(ret: str) -> str:
+    """Return one of:
+
+    - ``"string"``  — ``char *`` return; bind as ``ty_string``.
+    - ``"double"``  — native ``double`` return; bind as ``ty_real``, no shim.
+    - ``"shim"``    — integer / enum / bool / pointer return; bind as
+      ``ty_real`` and target the ``_gms`` companion symbol so the value
+      lands in the float return register on every platform (issue #876).
+    """
     if "char" in ret:
         return "string"
-    return "real"
+    if ret.strip() == "double":
+        return "double"
+    return "shim"
 
 
 def emit_define(fn: str, sig: dict) -> str:
-    """Emit a single `external_define` block + GML wrapper function."""
-    return_type = "ty_string" if sig["return"] == "string" else "ty_real"
+    """Emit a single `external_define` block + GML wrapper function.
+
+    For "shim" returns, `external_define` targets the `<fn>_gms`
+    companion symbol so the value lands in the float return register
+    (`xmm0` / `d0`) on every platform — see crates/elevator-ffi/src/gms_shims.rs.
+    The GML function name itself stays unchanged so call sites don't move.
+    """
+    return_kind = sig["return"]
+    return_type = "ty_string" if return_kind == "string" else "ty_real"
+    # External C symbol targeted by external_define. Shimmed returns
+    # go through the `_gms` companion; pure-double and string returns
+    # call the original directly.
+    c_symbol = f"{fn}_gms" if return_kind == "shim" else fn
     arg_count = len(sig["args"])
     arg_types = ", ".join(
         "ty_string" if a == "string" else "ty_real" for a in sig["args"]
@@ -156,7 +177,7 @@ def emit_define(fn: str, sig: dict) -> str:
     lines = [
         f"// {fn} — auto-generated wrapper.",
         f"global._{fn}_handle = external_define(",
-        f'    "elevator_ffi", "{fn}", dll_cdecl, {return_type}, {arg_count}{arg_types_clause}',
+        f'    "elevator_ffi", "{c_symbol}", dll_cdecl, {return_type}, {arg_count}{arg_types_clause}',
         ");",
         f"function {fn}({arg_names}) {{",
         f"    return external_call(global._{fn}_handle{call_args});",
@@ -244,6 +265,16 @@ def main() -> int:
         "// since 2022.8) this is ABI-equivalent to dll_stdcall — we pick\n"
         "// dll_cdecl to match the Microsoft x64 ABI emitted by Rust's\n"
         "// extern \"C\".\n"
+        "//\n"
+        "// Return-register bridge: functions whose Rust signature declares an\n"
+        "// integer, enum, bool, or pointer return type are bound to the\n"
+        "// `_gms` companion symbol exported by crates/elevator-ffi/src/gms_shims.rs.\n"
+        "// The shim forwards the call and bit-reinterprets the underlying\n"
+        "// return as `f64` so GMS's `ty_real` read of `xmm0` / `d0` observes\n"
+        "// the correct value on every platform (issue #876). The GML wrapper\n"
+        "// name itself is unchanged — only the underlying C symbol differs.\n"
+        "// Native `double`-returning fns and `char *`-returning fns are\n"
+        "// bound to the original symbol directly.\n"
         "\n"
     )
 
