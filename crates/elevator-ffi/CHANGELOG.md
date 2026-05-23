@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.23.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.22.0...elevator-ffi-v0.23.0) (2026-05-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* ElevatorConfig.id and LineConfig.id field types changed from u32 to typed newtypes ElevatorConfigId / LineConfigId. Simulation::elevator_entity and line_entity now take the newtypes instead of raw u32. See #874 for the full migration guide.
+
+### Features
+
+* add elevator_entity accessor and GMS buffer helpers ([#870](https://github.com/andymai/elevator-core/issues/870)) ([a4b0034](https://github.com/andymai/elevator-core/commit/a4b00342c0e1d44a81031b047e29a37e45948c59))
+* add line_entity accessor and broaden GMS array helpers ([#872](https://github.com/andymai/elevator-core/issues/872)) ([a2429f3](https://github.com/andymai/elevator-core/commit/a2429f3669f4c4102b083be2c7ffad15f68cdf78))
+* re-mark [#874](https://github.com/andymai/elevator-core/issues/874) ElevatorConfigId rename as breaking ([1e564c8](https://github.com/andymai/elevator-core/commit/1e564c81bd1b69c9ec4110c5287e470eb9893623))
+
 ## [0.22.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.21.0...elevator-ffi-v0.22.0) (2026-05-11)
 
 
