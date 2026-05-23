@@ -30,17 +30,48 @@
 //!
 //! The shims move the encoding out of the calling convention's
 //! hands. Each `<name>_gms` declares `f64` for every non-native slot
-//! (return and arg). On the return side the underlying integer /
-//! pointer / enum / bool is bit-reinterpreted via
-//! `f64::from_bits(value as u64)`. On the arg side the inbound `f64`
-//! is decoded back to its real type via `f64::to_bits()` plus the
-//! appropriate cast (`as <int>` for integers / unit enums, `as usize
-//! as *mut/*const T` for pointers, `!= 0` for `bool`).
+//! (return and arg).
+//!
+//! On the **return side** the underlying integer / pointer / enum /
+//! bool is bit-reinterpreted via `f64::from_bits(value as u64)`.
+//! Hand-written GML decoders (`ev_decode_u64`, `ev_decode_status`,
+//! `ev_decode_i8`) recover the original value on the caller side.
+//!
+//! On the **arg side** the inbound `f64` falls into one of two
+//! encoding camps:
+//!
+//! - *Bit-packed*: pointer args and `u64` entity-ID / tag args. The
+//!   caller obtained these from a previous `_gms` return (e.g.
+//!   `ev_sim_create_gms`, `ev_sim_stop_entity_gms`), so the `double`
+//!   GMS hands the shim has the value bit-pattern in its bits. The
+//!   shim decodes via `f64::to_bits()` plus a cast back to the
+//!   native type.
+//! - *Numeric*: every other integer width (`u8` / `u16` / `u32` /
+//!   `i8` / `i16` / `i32` / `i64`) and every fieldless `#[repr(C)]`
+//!   enum (`EvStrategy`, `EvReposition`, `EvServiceMode`). These are
+//!   user-typed literals on the GML side (`var dir = -1;`,
+//!   `var strat = EvStrategy_Look;`) and arrive as plain IEEE-754
+//!   doubles whose VALUE encodes the integer. The shim decodes via
+//!   the numeric `as` cast (and for enums, `(value as i32) →
+//!   transmute`).
 //!
 //! `f64` args and `*const c_char` args (the only `ty_string` shape
 //! GMS supports) stay native: GMS already uses the float register for
 //! the former and the integer register for the latter, matching the
 //! Rust ABI exactly. The macro special-cases both spellings.
+//!
+//! ### Known asymmetry
+//!
+//! Two `u64` args on the FFI surface are user-typed tick counts
+//! (`max_ticks` on `ev_sim_run_until_quiet`, `retention_ticks` on
+//! `ev_sim_set_arrival_log_retention_ticks`), not entity IDs. They
+//! sit in the bit-packed camp by virtue of being `u64`, so a GML
+//! caller passing a literal `var max_ticks = 600;` will see the
+//! shim decode `600.0_f64.to_bits()` ≈ `4.6e18` and reject the call
+//! as out-of-range. Callers wanting to set those need to pre-encode
+//! the numeric value (e.g., via a `buffer_poke(buffer_f64) →
+//! buffer_peek(buffer_u64)` roundtrip), or use a future
+//! `ev_encode_u64` GML helper. Not in scope for the #879 ABI fix.
 //!
 //! ## What this does **not** affect
 //!
@@ -67,6 +98,11 @@
 // truncation warning fires once per pointer-arg expansion (most of
 // the ~131 shims) so an allow at module scope is the only sane fix.
 #![allow(clippy::cast_possible_truncation)]
+// `i64 as f64` in the numeric-decode tests encodes user-typed tick
+// counts the way GML stores them. The clippy::cast_precision_loss
+// lint fires above 2^53, which is far outside the test values; the
+// alternative `f64::from(i64)` doesn't exist on stable.
+#![allow(clippy::cast_precision_loss)]
 // `use crate::*;` is intentional — every shim references a different
 // item from the parent module, so an explicit import list would be
 // ~130 names long for no expressive gain.
@@ -99,21 +135,45 @@ macro_rules! gms_arg_ty {
 
 /// Decodes one inbound shim arg back to its native FFI type.
 ///
-/// Dispatch mirrors `gms_arg_ty!`:
-/// - `f64` and `*const c_char` pass through unchanged (native ABI).
-/// - `bool` reads the low byte through a non-zero check.
-/// - Pointers cast `u64 → usize → ptr`.
-/// - Primitive integers use the `as` cast.
-/// - Single-identifier types not in the primitive list (i.e. the
-///   fieldless `#[repr(C)]` enums `EvStrategy`, `EvReposition`,
-///   `EvServiceMode`) fall through to `transmute_copy`.
+/// Inbound values fall into two encoding camps based on their
+/// provenance on the GML side:
 ///
-/// Stable Rust forbids `u64 as Enum` even when the enum is
-/// unit-only, so the enum case can't share the integer arm. The
-/// `transmute_copy` reads the low bytes of the encoded u64 in the
-/// enum's discriminant size (4 bytes for `#[repr(C)]` on every
-/// target we ship to); little-endian byte order means those low
-/// bytes match what `<Enum> as u64` wrote on the return side.
+/// 1. **Bit-packed**: pointers and `u64` entity IDs / tags. These
+///    originate from a previous `_gms` return, where the value was
+///    encoded as `f64::from_bits(value as u64)` to escape the
+///    integer-return-register ABI mismatch (#876). GMS stores the
+///    encoded `double` verbatim and passes it back unchanged, so the
+///    shim recovers the original value via `f64::to_bits()` and
+///    casts (pointers go through `usize`).
+///
+/// 2. **Numeric**: every other integer (`u8` / `u16` / `u32` / `i8`
+///    / `i16` / `i32` / `i64`) and every fieldless `#[repr(C)]` enum
+///    (`EvStrategy`, `EvReposition`, `EvServiceMode`). These are
+///    user-typed literals in GML (`var capacity = 16; var
+///    direction = -1; var strategy = EvStrategy_Look;`) and arrive
+///    as plain IEEE-754 doubles whose VALUE encodes the integer,
+///    not whose BIT PATTERN does. `16.0_f64.to_bits() as u32` is
+///    `0`, but `16.0_f64 as u32` is `16`. Decode via the numeric
+///    `as` cast for primitives, and via `(value as i32) → transmute`
+///    for unit-only enums (stable Rust forbids `int as Enum` even
+///    for fieldless enums, so the discriminant must launder through
+///    `transmute`).
+///
+/// The `u64` arm sits in the bit-packed camp because the
+/// overwhelming majority of `u64` args on this FFI surface are
+/// entity IDs / tags shuttled across `_gms` calls. The two
+/// exceptions are tick counts (`max_ticks` on
+/// `ev_sim_run_until_quiet`, `retention_ticks` on
+/// `ev_sim_set_arrival_log_retention_ticks`); callers wanting to
+/// pass a user-typed numeric for those must bit-pack the value
+/// first (e.g., via a GML-side `ev_encode_u64` helper) or read it
+/// off an `*mut u64` out-pointer where the buffer-peek path
+/// naturally gives a bit-packed-equivalent double. Tracked as a
+/// follow-up; not part of #879's ABI fix.
+///
+/// `bool` reads the low byte via a non-zero check, which works for
+/// both encodings (GMS sends `true/false` as `1.0`/`0.0`, and
+/// `1.0_f64 != 0.0` matches `1.0_f64.to_bits() != 0`).
 ///
 /// Arm order is significant — literal arms (`f64`, `*const c_char`,
 /// the primitives) must precede the generic pointer / catch-all arms
@@ -121,19 +181,19 @@ macro_rules! gms_arg_ty {
 macro_rules! gms_arg_decode {
     ($v:ident, f64) => { $v };
     ($v:ident, *const c_char) => { $v };
-    ($v:ident, bool) => { $v.to_bits() != 0 };
+    ($v:ident, bool) => { $v != 0.0 };
     ($v:ident, *mut $($t:tt)+) => { ($v.to_bits() as usize) as *mut $($t)+ };
     ($v:ident, *const $($t:tt)+) => { ($v.to_bits() as usize) as *const $($t)+ };
-    ($v:ident, u8) => { $v.to_bits() as u8 };
-    ($v:ident, u16) => { $v.to_bits() as u16 };
-    ($v:ident, u32) => { $v.to_bits() as u32 };
     ($v:ident, u64) => { $v.to_bits() };
-    ($v:ident, i8) => { $v.to_bits() as i8 };
-    ($v:ident, i16) => { $v.to_bits() as i16 };
-    ($v:ident, i32) => { $v.to_bits() as i32 };
-    ($v:ident, i64) => { $v.to_bits() as i64 };
+    ($v:ident, u8) => { $v as u8 };
+    ($v:ident, u16) => { $v as u16 };
+    ($v:ident, u32) => { $v as u32 };
+    ($v:ident, i8) => { $v as i8 };
+    ($v:ident, i16) => { $v as i16 };
+    ($v:ident, i32) => { $v as i32 };
+    ($v:ident, i64) => { $v as i64 };
     ($v:ident, $t:ident) => {
-        unsafe { core::mem::transmute_copy::<u64, $t>(&$v.to_bits()) }
+        unsafe { core::mem::transmute::<i32, $t>($v as i32) }
     };
 }
 
@@ -426,21 +486,64 @@ mod tests {
     }
 
     #[test]
-    fn enum_arg_decode_recovers_discriminant() {
-        // The enum decoder uses `transmute_copy::<u64, T>(&bits)`
-        // because stable Rust forbids `u64 as Enum` even for
-        // unit-only enums. Confirm the byte-copy recovers the
-        // original discriminant for each fieldless `#[repr(C)]` enum
-        // we transport via the shim layer.
-        unsafe {
-            let strat_bits = u64::from(EvStrategy::NearestCar as u32);
-            let recovered: EvStrategy = core::mem::transmute_copy::<u64, EvStrategy>(&strat_bits);
-            assert_eq!(recovered, EvStrategy::NearestCar);
+    fn numeric_integer_arg_decode_recovers_user_typed_value() {
+        // GMS-side users type literal numerics (`var capacity = 16;`,
+        // `var direction = -1;`) which GML stores as plain IEEE-754
+        // doubles (`16.0`, `-1.0`). The shim's arg decoder for the
+        // smaller integer widths must use the numeric `as` cast —
+        // `16.0_f64.to_bits() as u32` is `0`, which would silently
+        // zero every count / capacity / phase / direction arg. This
+        // test exercises the same conversion the macro expands to.
+        for raw in [0_u32, 1, 16, 255, 65_536, u32::MAX / 2] {
+            let as_f64 = f64::from(raw);
+            let decoded = as_f64 as u32;
+            assert_eq!(decoded, raw, "u32 numeric round-trip failed for {raw}");
+        }
 
-            let repo_bits = u64::from(EvReposition::PredictiveParking as u32);
-            let recovered: EvReposition =
-                core::mem::transmute_copy::<u64, EvReposition>(&repo_bits);
-            assert_eq!(recovered, EvReposition::PredictiveParking);
+        for raw in [-128_i8, -1, 0, 1, 42, 127] {
+            let as_f64 = f64::from(raw);
+            let decoded = as_f64 as i8;
+            assert_eq!(decoded, raw, "i8 numeric round-trip failed for {raw}");
+        }
+
+        for raw in [-1_000_000_i64, -1, 0, 1, 600, 1_000_000] {
+            let as_f64 = raw as f64;
+            let decoded = as_f64 as i64;
+            assert_eq!(decoded, raw, "i64 numeric round-trip failed for {raw}");
+        }
+    }
+
+    #[test]
+    fn enum_arg_decode_recovers_discriminant_from_numeric() {
+        // Enums are user-typed discriminants on the GML side (e.g.
+        // `var s = EvStrategy_NearestCar;` resolves to `2.0`). The
+        // shim casts the inbound double to `i32` numerically and
+        // then transmutes to the enum's `#[repr(C)]` layout (`int`,
+        // 4 bytes on every target we ship to). Confirm round-trip
+        // for the three fieldless enums on the FFI surface.
+        unsafe {
+            let strat_real = f64::from(EvStrategy::NearestCar as u32);
+            let decoded: EvStrategy = core::mem::transmute::<i32, EvStrategy>(strat_real as i32);
+            assert_eq!(decoded, EvStrategy::NearestCar);
+
+            let repo_real = f64::from(EvReposition::PredictiveParking as u32);
+            let decoded: EvReposition = core::mem::transmute::<i32, EvReposition>(repo_real as i32);
+            assert_eq!(decoded, EvReposition::PredictiveParking);
+
+            // Contrast with `transmute_copy::<u64, T>(&bits)` (the
+            // previous decode strategy): for a numeric input like
+            // `2.0_f64`, the low 4 bytes of the bit pattern are all
+            // zero (the mantissa's least-significant 32 bits are
+            // zero for any small integer-valued double), so the
+            // recovered variant would have been `EvStrategy::Scan`
+            // (discriminant 0) regardless of the input. Pin the
+            // hazard here so any future regression to bit-pattern
+            // decoding is obvious.
+            let mantissa_low = core::mem::transmute_copy::<u64, u32>(&(2.0_f64).to_bits());
+            assert_eq!(
+                mantissa_low, 0,
+                "the bit-pattern low-word of 2.0_f64 is 0; this is the trap the numeric decoder avoids"
+            );
         }
     }
 
