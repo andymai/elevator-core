@@ -12,17 +12,27 @@
 // since 2022.8) this is ABI-equivalent to dll_stdcall — we pick
 // dll_cdecl to match the Microsoft x64 ABI emitted by Rust's
 // extern "C".
+//
+// Return-register bridge: functions whose Rust signature declares an
+// integer, enum, bool, or pointer return type are bound to the
+// `_gms` companion symbol exported by crates/elevator-ffi/src/gms_shims.rs.
+// The shim forwards the call and bit-reinterprets the underlying
+// return as `f64` so GMS's `ty_real` read of `xmm0` / `d0` observes
+// the correct value on every platform (issue #876). The GML wrapper
+// name itself is unchanged — only the underlying C symbol differs.
+// Native `double`-returning fns and `char *`-returning fns are
+// bound to the original symbol directly.
 
 // ev_abi_version — auto-generated wrapper.
 global._ev_abi_version_handle = external_define(
-    "elevator_ffi", "ev_abi_version", dll_cdecl, ty_real, 0
+    "elevator_ffi", "ev_abi_version_gms", dll_cdecl, ty_real, 0
 );
 function ev_abi_version() {
     return external_call(global._ev_abi_version_handle);
 }
 // ev_drain_log_messages — auto-generated wrapper.
 global._ev_drain_log_messages_handle = external_define(
-    "elevator_ffi", "ev_drain_log_messages", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_drain_log_messages_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_drain_log_messages(a0, a1, a2, a3) {
     return external_call(global._ev_drain_log_messages_handle, a0, a1, a2, a3);
@@ -36,105 +46,105 @@ function ev_last_error() {
 }
 // ev_pending_log_message_count — auto-generated wrapper.
 global._ev_pending_log_message_count_handle = external_define(
-    "elevator_ffi", "ev_pending_log_message_count", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_pending_log_message_count_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_pending_log_message_count(a0) {
     return external_call(global._ev_pending_log_message_count_handle, a0);
 }
 // ev_sim_abandoned_at — auto-generated wrapper.
 global._ev_sim_abandoned_at_handle = external_define(
-    "elevator_ffi", "ev_sim_abandoned_at", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_abandoned_at_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_abandoned_at(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_abandoned_at_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_abandoned_count_at — auto-generated wrapper.
 global._ev_sim_abandoned_count_at_handle = external_define(
-    "elevator_ffi", "ev_sim_abandoned_count_at", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_abandoned_count_at_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_abandoned_count_at(a0, a1) {
     return external_call(global._ev_sim_abandoned_count_at_handle, a0, a1);
 }
 // ev_sim_abort_movement — auto-generated wrapper.
 global._ev_sim_abort_movement_handle = external_define(
-    "elevator_ffi", "ev_sim_abort_movement", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_abort_movement_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_abort_movement(a0, a1) {
     return external_call(global._ev_sim_abort_movement_handle, a0, a1);
 }
 // ev_sim_add_elevator — auto-generated wrapper.
 global._ev_sim_add_elevator_handle = external_define(
-    "elevator_ffi", "ev_sim_add_elevator", dll_cdecl, ty_real, 7, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_add_elevator_gms", dll_cdecl, ty_real, 7, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_add_elevator(a0, a1, a2, a3, a4, a5, a6) {
     return external_call(global._ev_sim_add_elevator_handle, a0, a1, a2, a3, a4, a5, a6);
 }
 // ev_sim_add_group — auto-generated wrapper.
 global._ev_sim_add_group_handle = external_define(
-    "elevator_ffi", "ev_sim_add_group", dll_cdecl, ty_real, 4, ty_real, ty_string, ty_real, ty_real
+    "elevator_ffi", "ev_sim_add_group_gms", dll_cdecl, ty_real, 4, ty_real, ty_string, ty_real, ty_real
 );
 function ev_sim_add_group(a0, a1, a2, a3) {
     return external_call(global._ev_sim_add_group_handle, a0, a1, a2, a3);
 }
 // ev_sim_add_line — auto-generated wrapper.
 global._ev_sim_add_line_handle = external_define(
-    "elevator_ffi", "ev_sim_add_line", dll_cdecl, ty_real, 7, ty_real, ty_real, ty_string, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_add_line_gms", dll_cdecl, ty_real, 7, ty_real, ty_real, ty_string, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_add_line(a0, a1, a2, a3, a4, a5, a6) {
     return external_call(global._ev_sim_add_line_handle, a0, a1, a2, a3, a4, a5, a6);
 }
 // ev_sim_add_stop — auto-generated wrapper.
 global._ev_sim_add_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_add_stop", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_string, ty_real, ty_real
+    "elevator_ffi", "ev_sim_add_stop_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_string, ty_real, ty_real
 );
 function ev_sim_add_stop(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_add_stop_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_add_stop_to_line — auto-generated wrapper.
 global._ev_sim_add_stop_to_line_handle = external_define(
-    "elevator_ffi", "ev_sim_add_stop_to_line", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_add_stop_to_line_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_add_stop_to_line(a0, a1, a2) {
     return external_call(global._ev_sim_add_stop_to_line_handle, a0, a1, a2);
 }
 // ev_sim_all_lines — auto-generated wrapper.
 global._ev_sim_all_lines_handle = external_define(
-    "elevator_ffi", "ev_sim_all_lines", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_all_lines_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_all_lines(a0, a1, a2, a3) {
     return external_call(global._ev_sim_all_lines_handle, a0, a1, a2, a3);
 }
 // ev_sim_all_tags — auto-generated wrapper.
 global._ev_sim_all_tags_handle = external_define(
-    "elevator_ffi", "ev_sim_all_tags", dll_cdecl, ty_real, 7, ty_real, ty_string, ty_real, ty_string, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_all_tags_gms", dll_cdecl, ty_real, 7, ty_real, ty_string, ty_real, ty_string, ty_real, ty_real, ty_real
 );
 function ev_sim_all_tags(a0, a1, a2, a3, a4, a5, a6) {
     return external_call(global._ev_sim_all_tags_handle, a0, a1, a2, a3, a4, a5, a6);
 }
 // ev_sim_assign_line_to_group — auto-generated wrapper.
 global._ev_sim_assign_line_to_group_handle = external_define(
-    "elevator_ffi", "ev_sim_assign_line_to_group", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_assign_line_to_group_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_assign_line_to_group(a0, a1, a2, a3) {
     return external_call(global._ev_sim_assign_line_to_group_handle, a0, a1, a2, a3);
 }
 // ev_sim_assigned_car — auto-generated wrapper.
 global._ev_sim_assigned_car_handle = external_define(
-    "elevator_ffi", "ev_sim_assigned_car", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_assigned_car_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_assigned_car(a0, a1, a2, a3) {
     return external_call(global._ev_sim_assigned_car_handle, a0, a1, a2, a3);
 }
 // ev_sim_assigned_cars_by_line — auto-generated wrapper.
 global._ev_sim_assigned_cars_by_line_handle = external_define(
-    "elevator_ffi", "ev_sim_assigned_cars_by_line", dll_cdecl, ty_real, 6, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_assigned_cars_by_line_gms", dll_cdecl, ty_real, 6, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_assigned_cars_by_line(a0, a1, a2, a3, a4, a5) {
     return external_call(global._ev_sim_assigned_cars_by_line_handle, a0, a1, a2, a3, a4, a5);
 }
 // ev_sim_best_eta — auto-generated wrapper.
 global._ev_sim_best_eta_handle = external_define(
-    "elevator_ffi", "ev_sim_best_eta", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_best_eta_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_best_eta(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_best_eta_handle, a0, a1, a2, a3, a4);
@@ -148,63 +158,63 @@ function ev_sim_braking_distance(a0, a1) {
 }
 // ev_sim_cancel_door_hold — auto-generated wrapper.
 global._ev_sim_cancel_door_hold_handle = external_define(
-    "elevator_ffi", "ev_sim_cancel_door_hold", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_cancel_door_hold_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_cancel_door_hold(a0, a1) {
     return external_call(global._ev_sim_cancel_door_hold_handle, a0, a1);
 }
 // ev_sim_car_calls_snapshot — auto-generated wrapper.
 global._ev_sim_car_calls_snapshot_handle = external_define(
-    "elevator_ffi", "ev_sim_car_calls_snapshot", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_car_calls_snapshot_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_car_calls_snapshot(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_car_calls_snapshot_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_clear_destinations — auto-generated wrapper.
 global._ev_sim_clear_destinations_handle = external_define(
-    "elevator_ffi", "ev_sim_clear_destinations", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_clear_destinations_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_clear_destinations(a0, a1) {
     return external_call(global._ev_sim_clear_destinations_handle, a0, a1);
 }
 // ev_sim_clear_elevator_home_stop — auto-generated wrapper.
 global._ev_sim_clear_elevator_home_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_clear_elevator_home_stop", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_clear_elevator_home_stop_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_clear_elevator_home_stop(a0, a1) {
     return external_call(global._ev_sim_clear_elevator_home_stop_handle, a0, a1);
 }
 // ev_sim_close_door — auto-generated wrapper.
 global._ev_sim_close_door_handle = external_define(
-    "elevator_ffi", "ev_sim_close_door", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_close_door_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_close_door(a0, a1) {
     return external_call(global._ev_sim_close_door_handle, a0, a1);
 }
 // ev_sim_create — auto-generated wrapper.
 global._ev_sim_create_handle = external_define(
-    "elevator_ffi", "ev_sim_create", dll_cdecl, ty_real, 1, ty_string
+    "elevator_ffi", "ev_sim_create_gms", dll_cdecl, ty_real, 1, ty_string
 );
 function ev_sim_create(a0) {
     return external_call(global._ev_sim_create_handle, a0);
 }
 // ev_sim_current_tick — auto-generated wrapper.
 global._ev_sim_current_tick_handle = external_define(
-    "elevator_ffi", "ev_sim_current_tick", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_current_tick_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_current_tick(a0) {
     return external_call(global._ev_sim_current_tick_handle, a0);
 }
 // ev_sim_despawn_rider — auto-generated wrapper.
 global._ev_sim_despawn_rider_handle = external_define(
-    "elevator_ffi", "ev_sim_despawn_rider", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_despawn_rider_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_despawn_rider(a0, a1) {
     return external_call(global._ev_sim_despawn_rider_handle, a0, a1);
 }
 // ev_sim_destination_queue — auto-generated wrapper.
 global._ev_sim_destination_queue_handle = external_define(
-    "elevator_ffi", "ev_sim_destination_queue", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_destination_queue_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_destination_queue(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_destination_queue_handle, a0, a1, a2, a3, a4);
@@ -218,14 +228,14 @@ function ev_sim_destroy(a0) {
 }
 // ev_sim_disable — auto-generated wrapper.
 global._ev_sim_disable_handle = external_define(
-    "elevator_ffi", "ev_sim_disable", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_disable_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_disable(a0, a1) {
     return external_call(global._ev_sim_disable_handle, a0, a1);
 }
 // ev_sim_drain_events — auto-generated wrapper.
 global._ev_sim_drain_events_handle = external_define(
-    "elevator_ffi", "ev_sim_drain_events", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_drain_events_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_drain_events(a0, a1, a2, a3) {
     return external_call(global._ev_sim_drain_events_handle, a0, a1, a2, a3);
@@ -239,35 +249,35 @@ function ev_sim_dt(a0) {
 }
 // ev_sim_elevator_direction — auto-generated wrapper.
 global._ev_sim_elevator_direction_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_direction", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_direction_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_elevator_direction(a0, a1) {
     return external_call(global._ev_sim_elevator_direction_handle, a0, a1);
 }
 // ev_sim_elevator_entity — auto-generated wrapper.
 global._ev_sim_elevator_entity_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_entity", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_entity_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_elevator_entity(a0, a1) {
     return external_call(global._ev_sim_elevator_entity_handle, a0, a1);
 }
 // ev_sim_elevator_going_down — auto-generated wrapper.
 global._ev_sim_elevator_going_down_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_going_down", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_going_down_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_elevator_going_down(a0, a1) {
     return external_call(global._ev_sim_elevator_going_down_handle, a0, a1);
 }
 // ev_sim_elevator_going_up — auto-generated wrapper.
 global._ev_sim_elevator_going_up_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_going_up", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_going_up_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_elevator_going_up(a0, a1) {
     return external_call(global._ev_sim_elevator_going_up_handle, a0, a1);
 }
 // ev_sim_elevator_home_stop — auto-generated wrapper.
 global._ev_sim_elevator_home_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_home_stop", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_home_stop_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_elevator_home_stop(a0, a1, a2) {
     return external_call(global._ev_sim_elevator_home_stop_handle, a0, a1, a2);
@@ -281,63 +291,63 @@ function ev_sim_elevator_load(a0, a1) {
 }
 // ev_sim_elevator_lookup_iter — auto-generated wrapper.
 global._ev_sim_elevator_lookup_iter_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_lookup_iter", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_lookup_iter_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_elevator_lookup_iter(a0, a1, a2, a3) {
     return external_call(global._ev_sim_elevator_lookup_iter_handle, a0, a1, a2, a3);
 }
 // ev_sim_elevator_move_count — auto-generated wrapper.
 global._ev_sim_elevator_move_count_handle = external_define(
-    "elevator_ffi", "ev_sim_elevator_move_count", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevator_move_count_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_elevator_move_count(a0, a1) {
     return external_call(global._ev_sim_elevator_move_count_handle, a0, a1);
 }
 // ev_sim_elevators_in_phase — auto-generated wrapper.
 global._ev_sim_elevators_in_phase_handle = external_define(
-    "elevator_ffi", "ev_sim_elevators_in_phase", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevators_in_phase_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_elevators_in_phase(a0, a1, a2) {
     return external_call(global._ev_sim_elevators_in_phase_handle, a0, a1, a2);
 }
 // ev_sim_elevators_on_line — auto-generated wrapper.
 global._ev_sim_elevators_on_line_handle = external_define(
-    "elevator_ffi", "ev_sim_elevators_on_line", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_elevators_on_line_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_elevators_on_line(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_elevators_on_line_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_emergency_stop — auto-generated wrapper.
 global._ev_sim_emergency_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_emergency_stop", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_emergency_stop_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_emergency_stop(a0, a1) {
     return external_call(global._ev_sim_emergency_stop_handle, a0, a1);
 }
 // ev_sim_enable — auto-generated wrapper.
 global._ev_sim_enable_handle = external_define(
-    "elevator_ffi", "ev_sim_enable", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_enable_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_enable(a0, a1) {
     return external_call(global._ev_sim_enable_handle, a0, a1);
 }
 // ev_sim_eta — auto-generated wrapper.
 global._ev_sim_eta_handle = external_define(
-    "elevator_ffi", "ev_sim_eta", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_eta_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_eta(a0, a1, a2, a3) {
     return external_call(global._ev_sim_eta_handle, a0, a1, a2, a3);
 }
 // ev_sim_eta_for_call — auto-generated wrapper.
 global._ev_sim_eta_for_call_handle = external_define(
-    "elevator_ffi", "ev_sim_eta_for_call", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_eta_for_call_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_eta_for_call(a0, a1, a2, a3) {
     return external_call(global._ev_sim_eta_for_call_handle, a0, a1, a2, a3);
 }
 // ev_sim_find_stop_at_position_on_line — auto-generated wrapper.
 global._ev_sim_find_stop_at_position_on_line_handle = external_define(
-    "elevator_ffi", "ev_sim_find_stop_at_position_on_line", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_find_stop_at_position_on_line_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_find_stop_at_position_on_line(a0, a1, a2) {
     return external_call(global._ev_sim_find_stop_at_position_on_line_handle, a0, a1, a2);
@@ -351,182 +361,182 @@ function ev_sim_future_stop_position(a0, a1) {
 }
 // ev_sim_groups_serving_stop — auto-generated wrapper.
 global._ev_sim_groups_serving_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_groups_serving_stop", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_groups_serving_stop_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_groups_serving_stop(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_groups_serving_stop_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_hall_calls_snapshot — auto-generated wrapper.
 global._ev_sim_hall_calls_snapshot_handle = external_define(
-    "elevator_ffi", "ev_sim_hall_calls_snapshot", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_hall_calls_snapshot_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_hall_calls_snapshot(a0, a1, a2, a3) {
     return external_call(global._ev_sim_hall_calls_snapshot_handle, a0, a1, a2, a3);
 }
 // ev_sim_hold_door — auto-generated wrapper.
 global._ev_sim_hold_door_handle = external_define(
-    "elevator_ffi", "ev_sim_hold_door", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_hold_door_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_hold_door(a0, a1, a2) {
     return external_call(global._ev_sim_hold_door_handle, a0, a1, a2);
 }
 // ev_sim_idle_elevator_count — auto-generated wrapper.
 global._ev_sim_idle_elevator_count_handle = external_define(
-    "elevator_ffi", "ev_sim_idle_elevator_count", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_idle_elevator_count_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_idle_elevator_count(a0) {
     return external_call(global._ev_sim_idle_elevator_count_handle, a0);
 }
 // ev_sim_is_disabled — auto-generated wrapper.
 global._ev_sim_is_disabled_handle = external_define(
-    "elevator_ffi", "ev_sim_is_disabled", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_is_disabled_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_is_disabled(a0, a1) {
     return external_call(global._ev_sim_is_disabled_handle, a0, a1);
 }
 // ev_sim_is_elevator — auto-generated wrapper.
 global._ev_sim_is_elevator_handle = external_define(
-    "elevator_ffi", "ev_sim_is_elevator", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_is_elevator_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_is_elevator(a0, a1) {
     return external_call(global._ev_sim_is_elevator_handle, a0, a1);
 }
 // ev_sim_is_loop — auto-generated wrapper.
 global._ev_sim_is_loop_handle = external_define(
-    "elevator_ffi", "ev_sim_is_loop", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_is_loop_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_is_loop(a0, a1) {
     return external_call(global._ev_sim_is_loop_handle, a0, a1);
 }
 // ev_sim_is_rider — auto-generated wrapper.
 global._ev_sim_is_rider_handle = external_define(
-    "elevator_ffi", "ev_sim_is_rider", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_is_rider_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_is_rider(a0, a1) {
     return external_call(global._ev_sim_is_rider_handle, a0, a1);
 }
 // ev_sim_is_stop — auto-generated wrapper.
 global._ev_sim_is_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_is_stop", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_is_stop_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_is_stop(a0, a1) {
     return external_call(global._ev_sim_is_stop_handle, a0, a1);
 }
 // ev_sim_iter_repositioning_elevators — auto-generated wrapper.
 global._ev_sim_iter_repositioning_elevators_handle = external_define(
-    "elevator_ffi", "ev_sim_iter_repositioning_elevators", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_iter_repositioning_elevators_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_iter_repositioning_elevators(a0, a1, a2, a3) {
     return external_call(global._ev_sim_iter_repositioning_elevators_handle, a0, a1, a2, a3);
 }
 // ev_sim_line_count — auto-generated wrapper.
 global._ev_sim_line_count_handle = external_define(
-    "elevator_ffi", "ev_sim_line_count", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_line_count_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_line_count(a0) {
     return external_call(global._ev_sim_line_count_handle, a0);
 }
 // ev_sim_line_entity — auto-generated wrapper.
 global._ev_sim_line_entity_handle = external_define(
-    "elevator_ffi", "ev_sim_line_entity", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_line_entity_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_line_entity(a0, a1) {
     return external_call(global._ev_sim_line_entity_handle, a0, a1);
 }
 // ev_sim_line_for_elevator — auto-generated wrapper.
 global._ev_sim_line_for_elevator_handle = external_define(
-    "elevator_ffi", "ev_sim_line_for_elevator", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_line_for_elevator_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_line_for_elevator(a0, a1) {
     return external_call(global._ev_sim_line_for_elevator_handle, a0, a1);
 }
 // ev_sim_line_lookup_iter — auto-generated wrapper.
 global._ev_sim_line_lookup_iter_handle = external_define(
-    "elevator_ffi", "ev_sim_line_lookup_iter", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_line_lookup_iter_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_line_lookup_iter(a0, a1, a2, a3) {
     return external_call(global._ev_sim_line_lookup_iter_handle, a0, a1, a2, a3);
 }
 // ev_sim_lines_in_group — auto-generated wrapper.
 global._ev_sim_lines_in_group_handle = external_define(
-    "elevator_ffi", "ev_sim_lines_in_group", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_lines_in_group_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_lines_in_group(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_lines_in_group_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_lines_serving_stop — auto-generated wrapper.
 global._ev_sim_lines_serving_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_lines_serving_stop", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_lines_serving_stop_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_lines_serving_stop(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_lines_serving_stop_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_loop_circumference — auto-generated wrapper.
 global._ev_sim_loop_circumference_handle = external_define(
-    "elevator_ffi", "ev_sim_loop_circumference", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_loop_circumference_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_loop_circumference(a0, a1, a2) {
     return external_call(global._ev_sim_loop_circumference_handle, a0, a1, a2);
 }
 // ev_sim_loop_forward_gap — auto-generated wrapper.
 global._ev_sim_loop_forward_gap_handle = external_define(
-    "elevator_ffi", "ev_sim_loop_forward_gap", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_loop_forward_gap_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_loop_forward_gap(a0, a1, a2) {
     return external_call(global._ev_sim_loop_forward_gap_handle, a0, a1, a2);
 }
 // ev_sim_loop_leader — auto-generated wrapper.
 global._ev_sim_loop_leader_handle = external_define(
-    "elevator_ffi", "ev_sim_loop_leader", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_loop_leader_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_loop_leader(a0, a1, a2) {
     return external_call(global._ev_sim_loop_leader_handle, a0, a1, a2);
 }
 // ev_sim_loop_next_stop — auto-generated wrapper.
 global._ev_sim_loop_next_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_loop_next_stop", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_loop_next_stop_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_loop_next_stop(a0, a1, a2, a3) {
     return external_call(global._ev_sim_loop_next_stop_handle, a0, a1, a2, a3);
 }
 // ev_sim_metrics — auto-generated wrapper.
 global._ev_sim_metrics_handle = external_define(
-    "elevator_ffi", "ev_sim_metrics", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_metrics_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_metrics(a0, a1) {
     return external_call(global._ev_sim_metrics_handle, a0, a1);
 }
 // ev_sim_metrics_for_tag — auto-generated wrapper.
 global._ev_sim_metrics_for_tag_handle = external_define(
-    "elevator_ffi", "ev_sim_metrics_for_tag", dll_cdecl, ty_real, 3, ty_real, ty_string, ty_real
+    "elevator_ffi", "ev_sim_metrics_for_tag_gms", dll_cdecl, ty_real, 3, ty_real, ty_string, ty_real
 );
 function ev_sim_metrics_for_tag(a0, a1, a2) {
     return external_call(global._ev_sim_metrics_for_tag_handle, a0, a1, a2);
 }
 // ev_sim_occupancy — auto-generated wrapper.
 global._ev_sim_occupancy_handle = external_define(
-    "elevator_ffi", "ev_sim_occupancy", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_occupancy_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_occupancy(a0, a1) {
     return external_call(global._ev_sim_occupancy_handle, a0, a1);
 }
 // ev_sim_open_door — auto-generated wrapper.
 global._ev_sim_open_door_handle = external_define(
-    "elevator_ffi", "ev_sim_open_door", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_open_door_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_open_door(a0, a1) {
     return external_call(global._ev_sim_open_door_handle, a0, a1);
 }
 // ev_sim_pending_event_count — auto-generated wrapper.
 global._ev_sim_pending_event_count_handle = external_define(
-    "elevator_ffi", "ev_sim_pending_event_count", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_pending_event_count_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_pending_event_count(a0) {
     return external_call(global._ev_sim_pending_event_count_handle, a0);
 }
 // ev_sim_pin_assignment — auto-generated wrapper.
 global._ev_sim_pin_assignment_handle = external_define(
-    "elevator_ffi", "ev_sim_pin_assignment", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_pin_assignment_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_pin_assignment(a0, a1, a2, a3) {
     return external_call(global._ev_sim_pin_assignment_handle, a0, a1, a2, a3);
@@ -540,343 +550,343 @@ function ev_sim_position_at(a0, a1, a2) {
 }
 // ev_sim_press_car_button — auto-generated wrapper.
 global._ev_sim_press_car_button_handle = external_define(
-    "elevator_ffi", "ev_sim_press_car_button", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_press_car_button_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_press_car_button(a0, a1, a2) {
     return external_call(global._ev_sim_press_car_button_handle, a0, a1, a2);
 }
 // ev_sim_press_hall_button — auto-generated wrapper.
 global._ev_sim_press_hall_button_handle = external_define(
-    "elevator_ffi", "ev_sim_press_hall_button", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_press_hall_button_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_press_hall_button(a0, a1, a2) {
     return external_call(global._ev_sim_press_hall_button_handle, a0, a1, a2);
 }
 // ev_sim_push_destination — auto-generated wrapper.
 global._ev_sim_push_destination_handle = external_define(
-    "elevator_ffi", "ev_sim_push_destination", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_push_destination_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_push_destination(a0, a1, a2) {
     return external_call(global._ev_sim_push_destination_handle, a0, a1, a2);
 }
 // ev_sim_push_destination_front — auto-generated wrapper.
 global._ev_sim_push_destination_front_handle = external_define(
-    "elevator_ffi", "ev_sim_push_destination_front", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_push_destination_front_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_push_destination_front(a0, a1, a2) {
     return external_call(global._ev_sim_push_destination_front_handle, a0, a1, a2);
 }
 // ev_sim_reachable_stops_from — auto-generated wrapper.
 global._ev_sim_reachable_stops_from_handle = external_define(
-    "elevator_ffi", "ev_sim_reachable_stops_from", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_reachable_stops_from_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_reachable_stops_from(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_reachable_stops_from_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_reassign_elevator_to_line — auto-generated wrapper.
 global._ev_sim_reassign_elevator_to_line_handle = external_define(
-    "elevator_ffi", "ev_sim_reassign_elevator_to_line", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_reassign_elevator_to_line_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_reassign_elevator_to_line(a0, a1, a2) {
     return external_call(global._ev_sim_reassign_elevator_to_line_handle, a0, a1, a2);
 }
 // ev_sim_recall_to — auto-generated wrapper.
 global._ev_sim_recall_to_handle = external_define(
-    "elevator_ffi", "ev_sim_recall_to", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_recall_to_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_recall_to(a0, a1, a2) {
     return external_call(global._ev_sim_recall_to_handle, a0, a1, a2);
 }
 // ev_sim_remove_elevator — auto-generated wrapper.
 global._ev_sim_remove_elevator_handle = external_define(
-    "elevator_ffi", "ev_sim_remove_elevator", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_remove_elevator_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_remove_elevator(a0, a1) {
     return external_call(global._ev_sim_remove_elevator_handle, a0, a1);
 }
 // ev_sim_remove_line — auto-generated wrapper.
 global._ev_sim_remove_line_handle = external_define(
-    "elevator_ffi", "ev_sim_remove_line", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_remove_line_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_remove_line(a0, a1) {
     return external_call(global._ev_sim_remove_line_handle, a0, a1);
 }
 // ev_sim_remove_reposition — auto-generated wrapper.
 global._ev_sim_remove_reposition_handle = external_define(
-    "elevator_ffi", "ev_sim_remove_reposition", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_remove_reposition_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_remove_reposition(a0, a1) {
     return external_call(global._ev_sim_remove_reposition_handle, a0, a1);
 }
 // ev_sim_remove_stop — auto-generated wrapper.
 global._ev_sim_remove_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_remove_stop", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_remove_stop_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_remove_stop(a0, a1) {
     return external_call(global._ev_sim_remove_stop_handle, a0, a1);
 }
 // ev_sim_remove_stop_from_line — auto-generated wrapper.
 global._ev_sim_remove_stop_from_line_handle = external_define(
-    "elevator_ffi", "ev_sim_remove_stop_from_line", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_remove_stop_from_line_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_remove_stop_from_line(a0, a1, a2) {
     return external_call(global._ev_sim_remove_stop_from_line_handle, a0, a1, a2);
 }
 // ev_sim_reposition_id — auto-generated wrapper.
 global._ev_sim_reposition_id_handle = external_define(
-    "elevator_ffi", "ev_sim_reposition_id", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_reposition_id_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_reposition_id(a0, a1, a2) {
     return external_call(global._ev_sim_reposition_id_handle, a0, a1, a2);
 }
 // ev_sim_reroute — auto-generated wrapper.
 global._ev_sim_reroute_handle = external_define(
-    "elevator_ffi", "ev_sim_reroute", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_reroute_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_reroute(a0, a1, a2) {
     return external_call(global._ev_sim_reroute_handle, a0, a1, a2);
 }
 // ev_sim_resident_count_at — auto-generated wrapper.
 global._ev_sim_resident_count_at_handle = external_define(
-    "elevator_ffi", "ev_sim_resident_count_at", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_resident_count_at_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_resident_count_at(a0, a1) {
     return external_call(global._ev_sim_resident_count_at_handle, a0, a1);
 }
 // ev_sim_residents_at — auto-generated wrapper.
 global._ev_sim_residents_at_handle = external_define(
-    "elevator_ffi", "ev_sim_residents_at", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_residents_at_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_residents_at(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_residents_at_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_rider_tag — auto-generated wrapper.
 global._ev_sim_rider_tag_handle = external_define(
-    "elevator_ffi", "ev_sim_rider_tag", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_rider_tag_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_rider_tag(a0, a1, a2) {
     return external_call(global._ev_sim_rider_tag_handle, a0, a1, a2);
 }
 // ev_sim_riders_on — auto-generated wrapper.
 global._ev_sim_riders_on_handle = external_define(
-    "elevator_ffi", "ev_sim_riders_on", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_riders_on_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_riders_on(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_riders_on_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_run_until_quiet — auto-generated wrapper.
 global._ev_sim_run_until_quiet_handle = external_define(
-    "elevator_ffi", "ev_sim_run_until_quiet", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_run_until_quiet_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_run_until_quiet(a0, a1, a2) {
     return external_call(global._ev_sim_run_until_quiet_handle, a0, a1, a2);
 }
 // ev_sim_service_mode — auto-generated wrapper.
 global._ev_sim_service_mode_handle = external_define(
-    "elevator_ffi", "ev_sim_service_mode", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_service_mode_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_service_mode(a0, a1, a2) {
     return external_call(global._ev_sim_service_mode_handle, a0, a1, a2);
 }
 // ev_sim_set_acceleration — auto-generated wrapper.
 global._ev_sim_set_acceleration_handle = external_define(
-    "elevator_ffi", "ev_sim_set_acceleration", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_acceleration_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_acceleration(a0, a1, a2) {
     return external_call(global._ev_sim_set_acceleration_handle, a0, a1, a2);
 }
 // ev_sim_set_arrival_log_retention_ticks — auto-generated wrapper.
 global._ev_sim_set_arrival_log_retention_ticks_handle = external_define(
-    "elevator_ffi", "ev_sim_set_arrival_log_retention_ticks", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_arrival_log_retention_ticks_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_set_arrival_log_retention_ticks(a0, a1) {
     return external_call(global._ev_sim_set_arrival_log_retention_ticks_handle, a0, a1);
 }
 // ev_sim_set_deceleration — auto-generated wrapper.
 global._ev_sim_set_deceleration_handle = external_define(
-    "elevator_ffi", "ev_sim_set_deceleration", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_deceleration_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_deceleration(a0, a1, a2) {
     return external_call(global._ev_sim_set_deceleration_handle, a0, a1, a2);
 }
 // ev_sim_set_door_open_ticks — auto-generated wrapper.
 global._ev_sim_set_door_open_ticks_handle = external_define(
-    "elevator_ffi", "ev_sim_set_door_open_ticks", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_door_open_ticks_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_door_open_ticks(a0, a1, a2) {
     return external_call(global._ev_sim_set_door_open_ticks_handle, a0, a1, a2);
 }
 // ev_sim_set_door_transition_ticks — auto-generated wrapper.
 global._ev_sim_set_door_transition_ticks_handle = external_define(
-    "elevator_ffi", "ev_sim_set_door_transition_ticks", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_door_transition_ticks_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_door_transition_ticks(a0, a1, a2) {
     return external_call(global._ev_sim_set_door_transition_ticks_handle, a0, a1, a2);
 }
 // ev_sim_set_elevator_home_stop — auto-generated wrapper.
 global._ev_sim_set_elevator_home_stop_handle = external_define(
-    "elevator_ffi", "ev_sim_set_elevator_home_stop", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_elevator_home_stop_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_elevator_home_stop(a0, a1, a2) {
     return external_call(global._ev_sim_set_elevator_home_stop_handle, a0, a1, a2);
 }
 // ev_sim_set_elevator_restricted_stops — auto-generated wrapper.
 global._ev_sim_set_elevator_restricted_stops_handle = external_define(
-    "elevator_ffi", "ev_sim_set_elevator_restricted_stops", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_elevator_restricted_stops_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_set_elevator_restricted_stops(a0, a1, a2, a3) {
     return external_call(global._ev_sim_set_elevator_restricted_stops_handle, a0, a1, a2, a3);
 }
 // ev_sim_set_line_range — auto-generated wrapper.
 global._ev_sim_set_line_range_handle = external_define(
-    "elevator_ffi", "ev_sim_set_line_range", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_line_range_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_set_line_range(a0, a1, a2, a3) {
     return external_call(global._ev_sim_set_line_range_handle, a0, a1, a2, a3);
 }
 // ev_sim_set_max_speed — auto-generated wrapper.
 global._ev_sim_set_max_speed_handle = external_define(
-    "elevator_ffi", "ev_sim_set_max_speed", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_max_speed_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_max_speed(a0, a1, a2) {
     return external_call(global._ev_sim_set_max_speed_handle, a0, a1, a2);
 }
 // ev_sim_set_reposition — auto-generated wrapper.
 global._ev_sim_set_reposition_handle = external_define(
-    "elevator_ffi", "ev_sim_set_reposition", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_reposition_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_reposition(a0, a1, a2) {
     return external_call(global._ev_sim_set_reposition_handle, a0, a1, a2);
 }
 // ev_sim_set_rider_access — auto-generated wrapper.
 global._ev_sim_set_rider_access_handle = external_define(
-    "elevator_ffi", "ev_sim_set_rider_access", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_rider_access_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_set_rider_access(a0, a1, a2, a3) {
     return external_call(global._ev_sim_set_rider_access_handle, a0, a1, a2, a3);
 }
 // ev_sim_set_rider_tag — auto-generated wrapper.
 global._ev_sim_set_rider_tag_handle = external_define(
-    "elevator_ffi", "ev_sim_set_rider_tag", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_rider_tag_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_rider_tag(a0, a1, a2) {
     return external_call(global._ev_sim_set_rider_tag_handle, a0, a1, a2);
 }
 // ev_sim_set_service_mode — auto-generated wrapper.
 global._ev_sim_set_service_mode_handle = external_define(
-    "elevator_ffi", "ev_sim_set_service_mode", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_service_mode_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_service_mode(a0, a1, a2) {
     return external_call(global._ev_sim_set_service_mode_handle, a0, a1, a2);
 }
 // ev_sim_set_strategy — auto-generated wrapper.
 global._ev_sim_set_strategy_handle = external_define(
-    "elevator_ffi", "ev_sim_set_strategy", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_strategy_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_strategy(a0, a1, a2) {
     return external_call(global._ev_sim_set_strategy_handle, a0, a1, a2);
 }
 // ev_sim_set_target_velocity — auto-generated wrapper.
 global._ev_sim_set_target_velocity_handle = external_define(
-    "elevator_ffi", "ev_sim_set_target_velocity", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_target_velocity_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_target_velocity(a0, a1, a2) {
     return external_call(global._ev_sim_set_target_velocity_handle, a0, a1, a2);
 }
 // ev_sim_set_weight_capacity — auto-generated wrapper.
 global._ev_sim_set_weight_capacity_handle = external_define(
-    "elevator_ffi", "ev_sim_set_weight_capacity", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_set_weight_capacity_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_set_weight_capacity(a0, a1, a2) {
     return external_call(global._ev_sim_set_weight_capacity_handle, a0, a1, a2);
 }
 // ev_sim_settle_rider — auto-generated wrapper.
 global._ev_sim_settle_rider_handle = external_define(
-    "elevator_ffi", "ev_sim_settle_rider", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_settle_rider_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_settle_rider(a0, a1) {
     return external_call(global._ev_sim_settle_rider_handle, a0, a1);
 }
 // ev_sim_shortest_route — auto-generated wrapper.
 global._ev_sim_shortest_route_handle = external_define(
-    "elevator_ffi", "ev_sim_shortest_route", dll_cdecl, ty_real, 6, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_shortest_route_gms", dll_cdecl, ty_real, 6, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_shortest_route(a0, a1, a2, a3, a4, a5) {
     return external_call(global._ev_sim_shortest_route_handle, a0, a1, a2, a3, a4, a5);
 }
 // ev_sim_spawn_rider — auto-generated wrapper.
 global._ev_sim_spawn_rider_handle = external_define(
-    "elevator_ffi", "ev_sim_spawn_rider", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_spawn_rider_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_spawn_rider(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_spawn_rider_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_spawn_rider_ex — auto-generated wrapper.
 global._ev_sim_spawn_rider_ex_handle = external_define(
-    "elevator_ffi", "ev_sim_spawn_rider_ex", dll_cdecl, ty_real, 10, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_spawn_rider_ex_gms", dll_cdecl, ty_real, 10, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_spawn_rider_ex(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
     return external_call(global._ev_sim_spawn_rider_ex_handle, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 // ev_sim_step — auto-generated wrapper.
 global._ev_sim_step_handle = external_define(
-    "elevator_ffi", "ev_sim_step", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_step_gms", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_step(a0) {
     return external_call(global._ev_sim_step_handle, a0);
 }
 // ev_sim_stop_entity — auto-generated wrapper.
 global._ev_sim_stop_entity_handle = external_define(
-    "elevator_ffi", "ev_sim_stop_entity", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_stop_entity_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_stop_entity(a0, a1) {
     return external_call(global._ev_sim_stop_entity_handle, a0, a1);
 }
 // ev_sim_stop_lookup_iter — auto-generated wrapper.
 global._ev_sim_stop_lookup_iter_handle = external_define(
-    "elevator_ffi", "ev_sim_stop_lookup_iter", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_stop_lookup_iter_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_stop_lookup_iter(a0, a1, a2, a3) {
     return external_call(global._ev_sim_stop_lookup_iter_handle, a0, a1, a2, a3);
 }
 // ev_sim_stops_served_by_line — auto-generated wrapper.
 global._ev_sim_stops_served_by_line_handle = external_define(
-    "elevator_ffi", "ev_sim_stops_served_by_line", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_stops_served_by_line_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_stops_served_by_line(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_stops_served_by_line_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_strategy_id — auto-generated wrapper.
 global._ev_sim_strategy_id_handle = external_define(
-    "elevator_ffi", "ev_sim_strategy_id", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_strategy_id_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_strategy_id(a0, a1, a2) {
     return external_call(global._ev_sim_strategy_id_handle, a0, a1, a2);
 }
 // ev_sim_tag_entity — auto-generated wrapper.
 global._ev_sim_tag_entity_handle = external_define(
-    "elevator_ffi", "ev_sim_tag_entity", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_string
+    "elevator_ffi", "ev_sim_tag_entity_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_string
 );
 function ev_sim_tag_entity(a0, a1, a2) {
     return external_call(global._ev_sim_tag_entity_handle, a0, a1, a2);
 }
 // ev_sim_transfer_points — auto-generated wrapper.
 global._ev_sim_transfer_points_handle = external_define(
-    "elevator_ffi", "ev_sim_transfer_points", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_transfer_points_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_transfer_points(a0, a1, a2, a3) {
     return external_call(global._ev_sim_transfer_points_handle, a0, a1, a2, a3);
 }
 // ev_sim_unpin_assignment — auto-generated wrapper.
 global._ev_sim_unpin_assignment_handle = external_define(
-    "elevator_ffi", "ev_sim_unpin_assignment", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_unpin_assignment_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_real
 );
 function ev_sim_unpin_assignment(a0, a1, a2) {
     return external_call(global._ev_sim_unpin_assignment_handle, a0, a1, a2);
 }
 // ev_sim_untag_entity — auto-generated wrapper.
 global._ev_sim_untag_entity_handle = external_define(
-    "elevator_ffi", "ev_sim_untag_entity", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_string
+    "elevator_ffi", "ev_sim_untag_entity_gms", dll_cdecl, ty_real, 3, ty_real, ty_real, ty_string
 );
 function ev_sim_untag_entity(a0, a1, a2) {
     return external_call(global._ev_sim_untag_entity_handle, a0, a1, a2);
@@ -890,28 +900,28 @@ function ev_sim_velocity(a0, a1) {
 }
 // ev_sim_waiting_at — auto-generated wrapper.
 global._ev_sim_waiting_at_handle = external_define(
-    "elevator_ffi", "ev_sim_waiting_at", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_waiting_at_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_waiting_at(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_waiting_at_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_waiting_count_at — auto-generated wrapper.
 global._ev_sim_waiting_count_at_handle = external_define(
-    "elevator_ffi", "ev_sim_waiting_count_at", dll_cdecl, ty_real, 2, ty_real, ty_real
+    "elevator_ffi", "ev_sim_waiting_count_at_gms", dll_cdecl, ty_real, 2, ty_real, ty_real
 );
 function ev_sim_waiting_count_at(a0, a1) {
     return external_call(global._ev_sim_waiting_count_at_handle, a0, a1);
 }
 // ev_sim_waiting_counts_by_line_at — auto-generated wrapper.
 global._ev_sim_waiting_counts_by_line_at_handle = external_define(
-    "elevator_ffi", "ev_sim_waiting_counts_by_line_at", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_waiting_counts_by_line_at_gms", dll_cdecl, ty_real, 5, ty_real, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_waiting_counts_by_line_at(a0, a1, a2, a3, a4) {
     return external_call(global._ev_sim_waiting_counts_by_line_at_handle, a0, a1, a2, a3, a4);
 }
 // ev_sim_waiting_direction_counts_at — auto-generated wrapper.
 global._ev_sim_waiting_direction_counts_at_handle = external_define(
-    "elevator_ffi", "ev_sim_waiting_direction_counts_at", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
+    "elevator_ffi", "ev_sim_waiting_direction_counts_at_gms", dll_cdecl, ty_real, 4, ty_real, ty_real, ty_real, ty_real
 );
 function ev_sim_waiting_direction_counts_at(a0, a1, a2, a3) {
     return external_call(global._ev_sim_waiting_direction_counts_at_handle, a0, a1, a2, a3);

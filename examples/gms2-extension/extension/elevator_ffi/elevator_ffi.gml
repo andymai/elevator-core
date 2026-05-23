@@ -36,6 +36,50 @@ function ev_real_to_handle(_real) {
     return _real;
 }
 
+// ── Return-register bridge decoders ─────────────────────────────────
+//
+// Integer / enum / bool returns from the cdylib are bit-pattern-encoded
+// into the `ty_real` return so the value lands in the float register
+// (xmm0 / d0) on every platform — see crates/elevator-ffi/src/gms_shims.rs
+// for the Rust shim layer and issue #876 for the underlying bug.
+//
+// `_status != 0` checks against EvStatus codes work without decoding
+// (the bit pattern of any non-zero status is itself non-zero). Use the
+// helpers below when you need the actual numerical value of a status,
+// count, or u64 ID.
+
+/// Decode a 64-bit unsigned integer from a `ty_real` return value
+/// that carries it as a bit pattern. Use this for `u32`/`u64` counts
+/// and IDs, or for `EvStatus` when you need to compare against a
+/// specific non-zero variant (e.g. `EvStatus_NotFound = 6`).
+function ev_decode_u64(_real) {
+    var _buf = buffer_create(8, buffer_fixed, 1);
+    buffer_poke(_buf, 0, buffer_f64, _real);
+    var _u = buffer_peek(_buf, 0, buffer_u64);
+    buffer_delete(_buf);
+    return _u;
+}
+
+/// Decode an `EvStatus` variant (a small unsigned integer) from a
+/// `ty_real` return value. Equivalent to `ev_decode_u64` but reads
+/// as a 32-bit unsigned for slightly less buffer overhead.
+function ev_decode_status(_real) {
+    var _buf = buffer_create(8, buffer_fixed, 1);
+    buffer_poke(_buf, 0, buffer_f64, _real);
+    var _u = buffer_peek(_buf, 0, buffer_u32);
+    buffer_delete(_buf);
+    return _u;
+}
+
+/// Decode a signed 8-bit `int8_t` return (currently only
+/// `ev_sim_elevator_direction`: -1 down, 0 still, +1 up). The shim
+/// zero-extends through the low byte, so we mask and sign-extend
+/// here to recover the original signed value.
+function ev_decode_i8(_real) {
+    var _byte = ev_decode_u64(_real) & 0xFF;
+    return (_byte > 127) ? _byte - 256 : _byte;
+}
+
 // ── EvLogMessage decoder ────────────────────────────────────────────
 //
 // Offset macros live in elevator_ffi_layout.gml (auto-generated from

@@ -27,6 +27,7 @@
 #![allow(unsafe_code)]
 
 mod events_encode;
+mod gms_shims;
 
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
