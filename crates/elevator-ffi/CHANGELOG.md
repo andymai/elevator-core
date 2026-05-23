@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.23.0...elevator-ffi-v0.23.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **ffi:** bridge integer FFI args into the GMS float register ([#880](https://github.com/andymai/elevator-core/issues/880)) ([ca436e2](https://github.com/andymai/elevator-core/commit/ca436e2a350fdc3ad1c228d551744aa75626591a)), closes [#879](https://github.com/andymai/elevator-core/issues/879)
+* **ffi:** bridge integer FFI returns into the GMS float register ([#877](https://github.com/andymai/elevator-core/issues/877)) ([65c6533](https://github.com/andymai/elevator-core/commit/65c65330992b4cdd0645ac5f0c7d111ad6eb6827)), closes [#876](https://github.com/andymai/elevator-core/issues/876)
+
 ## [0.23.0](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.22.0...elevator-ffi-v0.23.0) (2026-05-23)
 
 
