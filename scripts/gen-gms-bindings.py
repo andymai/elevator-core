@@ -36,14 +36,30 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BINDINGS = REPO_ROOT / "bindings.toml"
 HEADER = REPO_ROOT / "crates" / "elevator-ffi" / "include" / "elevator_ffi.h"
-OUT = (
-    REPO_ROOT
-    / "examples"
-    / "gms2-extension"
-    / "extension"
-    / "elevator_ffi"
-    / "elevator_ffi_generated.gml"
+FFI_CARGO_TOML = REPO_ROOT / "crates" / "elevator-ffi" / "Cargo.toml"
+EXT_DIR = (
+    REPO_ROOT / "examples" / "gms2-extension" / "extension" / "elevator_ffi"
 )
+OUT = EXT_DIR / "elevator_ffi_generated.gml"
+YY_OUT = EXT_DIR / "elevator_ffi.yy"
+
+
+def read_ffi_crate_version() -> str:
+    """Pull the current `elevator-ffi` crate version off Cargo.toml.
+
+    GMS uses the manifest's `extensionVersion` to decide whether a
+    re-imported extension needs refreshing in an existing project,
+    so it must track the crate version on every release-please bump
+    — otherwise consumers carrying a stale import won't see ABI
+    breaks (which release-please bumps the major on for elevator-ffi).
+    """
+    for line in FFI_CARGO_TOML.read_text().splitlines():
+        m = re.match(r'^version\s*=\s*"([^"]+)"', line)
+        if m:
+            return m.group(1)
+    raise RuntimeError(
+        f"could not find `version = \"...\"` in {FFI_CARGO_TOML}"
+    )
 
 # FFI helpers that aren't tied to a Simulation method and so don't
 # appear in bindings.toml. Each entry is (name, gms_status). Status
@@ -201,6 +217,221 @@ def emit_skip(fn: str, reason: str) -> str:
     return f"// {fn} — skipped: {reason}\n\n"
 
 
+# ── GameMaker Studio 2 extension manifest (.yy) emission ──────────────────
+#
+# Schema reverse-engineered from YoYoGames/GMEXT-Steamworks (the only
+# public reference extension with the same cross-platform x64 desktop
+# shape we target). GameMaker writes .yy files as JSON-with-trailing-
+# commas, fixed field order per resource type, and no whitespace
+# between sibling fields inside a resource record. The emitters below
+# match that exactly so re-saving the manifest in GMS produces a
+# zero-byte diff (otherwise contributors get a noisy regen step every
+# time someone opens the project).
+#
+# Why empty `functions` in v1: the existing
+# `elevator_ffi_generated.gml` already does `external_define` for
+# every shim, so declaring the same functions in the manifest would
+# double-bind and error at import time. Migrating function decls
+# into the manifest (and dropping `elevator_ffi_generated.gml`) is a
+# follow-up — see issue #869's "Notes on the schema".
+
+
+def yy_dump(value: object, indent: int) -> str:
+    """Emit a GMS-flavoured JSON fragment.
+
+    Differences from `json.dumps`:
+    - Trailing commas after the last element in every object/array.
+    - No space after `:` between key and value.
+    - Arrays and objects with nested resources break across lines;
+      flat / leaf records stay on one line (mirrors the Steamworks
+      pattern).
+
+    The function only handles `dict`, `list`, `str`, `int`, `float`,
+    `bool`, and `None`. Anything else raises.
+    """
+    pad = "  " * indent
+
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        # If every child is a leaf (str/int/bool/None/empty list),
+        # emit single-line.
+        if all(_is_leaf(v) for v in value.values()):
+            parts = [f'"{k}":{yy_dump(v, 0)}' for k, v in value.items()]
+            return "{" + ",".join(parts) + ",}"
+        # Multi-line for nested.
+        inner_pad = "  " * (indent + 1)
+        lines = []
+        for k, v in value.items():
+            lines.append(f'{inner_pad}"{k}":{yy_dump(v, indent + 1)}')
+        return "{\n" + ",\n".join(lines) + ",\n" + pad + "}"
+
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        if all(_is_leaf(v) for v in value):
+            parts = [yy_dump(v, 0) for v in value]
+            return "[" + ",".join(parts) + ",]"
+        inner_pad = "  " * (indent + 1)
+        lines = [f"{inner_pad}{yy_dump(v, indent + 1)}" for v in value]
+        return "[\n" + ",\n".join(lines) + ",\n" + pad + "]"
+
+    if isinstance(value, bool):
+        # `bool` must come before `int` — `isinstance(True, int)` is True.
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        # GMS uses standard JSON string escaping. Double quotes,
+        # backslashes, and control chars need escaping; everything
+        # else passes through.
+        escaped = (
+            value.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+        )
+        return f'"{escaped}"'
+
+    raise TypeError(f"yy_dump: unsupported type {type(value).__name__}")
+
+
+def _is_leaf(v: object) -> bool:
+    """A leaf value (no nested objects/non-empty lists) renders inline."""
+    if isinstance(v, (str, int, float, bool)) or v is None:
+        return True
+    if isinstance(v, list):
+        return not v
+    if isinstance(v, dict):
+        return not v
+    return False
+
+
+def build_proxy_file(name: str, target_mask: int) -> dict:
+    """One per-platform proxy entry. Field order matches Steamworks."""
+    return {
+        "$GMProxyFile": "",
+        "%Name": name,
+        "name": name,
+        "resourceType": "GMProxyFile",
+        "resourceVersion": "2.0",
+        "TargetMask": target_mask,
+    }
+
+
+def build_cdylib_file_entry() -> dict:
+    """The single `GMExtensionFile` entry that resolves the elevator-ffi
+    cdylib for each target platform.
+
+    `functions` is intentionally empty for v1 — see the file-level
+    docstring above. `ProxyFiles` declares the per-platform binary
+    GMS should swap in at build time. Target masks copied verbatim
+    from the Steamworks reference manifest (the only public GMS
+    extension I could find with the same Win/macOS/Linux desktop x64
+    shape we ship).
+    """
+    return {
+        "$GMExtensionFile": "v1",
+        "%Name": "elevator_ffi.ext",
+        "constants": [],
+        "copyToTargets": 194,
+        "filename": "elevator_ffi.ext",
+        "final": "",
+        "functions": [],
+        "init": "",
+        "kind": 4,
+        "name": "elevator_ffi.ext",
+        "origname": "elevator_ffi.dll",
+        "ProxyFiles": [
+            build_proxy_file("libelevator_ffi.dylib", 1),
+            build_proxy_file("libelevator_ffi.so", 7),
+            build_proxy_file("elevator_ffi.dll", 6),
+        ],
+        "resourceType": "GMExtensionFile",
+        "resourceVersion": "2.0",
+        "uncompress": False,
+        "usesRunnerInterface": True,
+    }
+
+
+def build_extension_root() -> dict:
+    """Top-level `GMExtension` resource. Field order matches the
+    Steamworks reference verbatim — GMS appears to be strict about
+    field order on re-save (re-ordering produces noisy diffs even
+    when nothing else changed)."""
+    return {
+        "$GMExtension": "",
+        "%Name": "elevator_ffi",
+        "androidactivityinject": "",
+        "androidclassname": "",
+        "androidcodeinjection": "",
+        "androidinject": "",
+        "androidmanifestinject": "",
+        "androidPermissions": [],
+        "androidProps": False,
+        "androidsourcedir": "",
+        "author": "",
+        "classname": "",
+        "ConfigValues": {},
+        "copyToTargets": 194,
+        "description": "Native FFI bridge to elevator-core. Auto-generated manifest — see scripts/gen-gms-bindings.py.",
+        "exportToGame": True,
+        "extensionVersion": read_ffi_crate_version(),
+        "files": [build_cdylib_file_entry()],
+        "gradleinject": "",
+        "hasConvertedCodeInjection": True,
+        "helpfile": "",
+        "HTML5CodeInjection": "",
+        "html5Props": False,
+        "IncludedResources": [],
+        "installdir": "",
+        "iosCocoaPodDependencies": "",
+        "iosCocoaPods": "",
+        "ioscodeinjection": "",
+        "iosdelegatename": "",
+        "iosplistinject": "",
+        "iosProps": False,
+        "iosSystemFrameworkEntries": [],
+        "iosThirdPartyFrameworkEntries": [],
+        "license": "MIT OR Apache-2.0",
+        "maccompilerflags": "",
+        "maclinkerflags": "",
+        "macsourcedir": "",
+        "name": "elevator_ffi",
+        "options": [],
+        "optionsFile": "options.json",
+        "packageId": "",
+        "parent": {
+            "name": "elevator_ffi",
+            "path": "folders/elevator_ffi.yy",
+        },
+        "productId": "",
+        "resourceType": "GMExtension",
+        "resourceVersion": "2.0",
+        "sourcedir": "",
+        "supportedTargets": 113497714299118,
+        "tvosclassname": "",
+        "tvosCocoaPodDependencies": "",
+        "tvosCocoaPods": "",
+        "tvoscodeinjection": "",
+        "tvosdelegatename": "",
+        "tvosmaccompilerflags": "",
+        "tvosmaclinkerflags": "",
+        "tvosplistinject": "",
+        "tvosProps": False,
+        "tvosSystemFrameworkEntries": [],
+        "tvosThirdPartyFrameworkEntries": [],
+    }
+
+
+def emit_yy_manifest() -> str:
+    """Render the GMExtension manifest as a GMS-flavoured JSON document."""
+    return yy_dump(build_extension_root(), 0) + "\n"
+
+
 def main() -> int:
     sigs = parse_header_signatures()
     bindings_entries = parse_bindings()
@@ -308,6 +539,17 @@ def main() -> int:
         f"wrote {OUT.relative_to(REPO_ROOT)}: "
         f"{len(exports_clean)} exported, {len(skips)} skipped"
     )
+
+    # ── GMExtension manifest ──────────────────────────────────────────
+    # The .yy lets consumers drag-and-drop the extension folder into
+    # GameMaker Studio's Asset Browser instead of running through the
+    # 5-step manual recipe in `examples/gms2-extension/README.md`. It
+    # ships zero function declarations for v1 — functions still bind
+    # through `external_define` in `elevator_ffi_generated.gml` to
+    # avoid double-definition errors at import time. Migrating function
+    # decls into the manifest is a follow-up — see issue #869.
+    YY_OUT.write_text(emit_yy_manifest())
+    print(f"wrote {YY_OUT.relative_to(REPO_ROOT)}: GMExtension manifest")
     return 0
 
 
