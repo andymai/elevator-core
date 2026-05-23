@@ -40,6 +40,35 @@ FFI function the manifest marks as exported (`gms = "..."` in
 `bindings.toml`). Hand-written helpers in `elevator_ffi.gml` cover
 the cases that need GML-side decoding.
 
+### Return-register bridge (`_gms` shims)
+
+GameMaker's `external_call` reads `ty_real` returns from the
+floating-point return register (`xmm0` on x64, `d0` on AAPCS / arm64).
+Rust's `extern "C" fn -> u32` (or any integer / enum / bool / pointer
+return) places the value in the integer return register (`rax` / `x0`)
+per the System V x86-64 and AArch64 ABIs, so on macOS arm64 GMS reads
+zero — see [issue #876](https://github.com/andymai/elevator-core/issues/876).
+
+`crates/elevator-ffi/src/gms_shims.rs` exports a companion `<name>_gms`
+symbol for every non-`double`-returning FFI function. Each shim
+forwards the call unchanged and bit-reinterprets the underlying
+return as `f64`, so the value lands in the float return register on
+every platform. The generated `external_define` calls in
+`elevator_ffi_generated.gml` target these `_gms` symbols
+automatically; the GML wrapper function names stay the same, so call
+sites don't move.
+
+The GML wrapper returns a `ty_real` whose bit pattern is the
+underlying integer. `_status != 0` checks against `EvStatus` codes
+work unchanged. For the actual numerical value of a status, count,
+or `u64` ID, use the decode helpers in `elevator_ffi.gml`:
+
+| Helper | Returns |
+|---|---|
+| `ev_decode_status(_real)` | `EvStatus` variant (`u32`) |
+| `ev_decode_u64(_real)` | `u32` / `u64` counts and IDs |
+| `ev_decode_i8(_real)` | signed 8-bit (`ev_sim_elevator_direction`) |
+
 ## Installing (end users)
 
 Download `elevator_ffi_gms2-<version>.zip` from the
