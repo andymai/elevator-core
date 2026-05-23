@@ -36,11 +36,30 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BINDINGS = REPO_ROOT / "bindings.toml"
 HEADER = REPO_ROOT / "crates" / "elevator-ffi" / "include" / "elevator_ffi.h"
+FFI_CARGO_TOML = REPO_ROOT / "crates" / "elevator-ffi" / "Cargo.toml"
 EXT_DIR = (
     REPO_ROOT / "examples" / "gms2-extension" / "extension" / "elevator_ffi"
 )
 OUT = EXT_DIR / "elevator_ffi_generated.gml"
 YY_OUT = EXT_DIR / "elevator_ffi.yy"
+
+
+def read_ffi_crate_version() -> str:
+    """Pull the current `elevator-ffi` crate version off Cargo.toml.
+
+    GMS uses the manifest's `extensionVersion` to decide whether a
+    re-imported extension needs refreshing in an existing project,
+    so it must track the crate version on every release-please bump
+    — otherwise consumers carrying a stale import won't see ABI
+    breaks (which release-please bumps the major on for elevator-ffi).
+    """
+    for line in FFI_CARGO_TOML.read_text().splitlines():
+        m = re.match(r'^version\s*=\s*"([^"]+)"', line)
+        if m:
+            return m.group(1)
+    raise RuntimeError(
+        f"could not find `version = \"...\"` in {FFI_CARGO_TOML}"
+    )
 
 # FFI helpers that aren't tied to a Simulation method and so don't
 # appear in bindings.toml. Each entry is (name, gms_status). Status
@@ -360,7 +379,7 @@ def build_extension_root() -> dict:
         "copyToTargets": 194,
         "description": "Native FFI bridge to elevator-core. Auto-generated manifest — see scripts/gen-gms-bindings.py.",
         "exportToGame": True,
-        "extensionVersion": "1.0.0",
+        "extensionVersion": read_ffi_crate_version(),
         "files": [build_cdylib_file_entry()],
         "gradleinject": "",
         "hasConvertedCodeInjection": True,

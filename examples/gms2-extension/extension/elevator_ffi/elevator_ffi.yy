@@ -15,7 +15,7 @@
   "copyToTargets":194,
   "description":"Native FFI bridge to elevator-core. Auto-generated manifest — see scripts/gen-gms-bindings.py.",
   "exportToGame":true,
-  "extensionVersion":"1.0.0",
+  "extensionVersion":"0.23.0",
   "files":[
     {
       "$GMExtensionFile":"v1",
