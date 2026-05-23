@@ -119,9 +119,20 @@ jobs:
       # `cargo metadata --frozen` guard rejects any subsequent
       # Cargo.toml edit until someone refreshes the lock manually.
       # Refresh it here, on the release PR branch, so the lock lands
-      # together with the version bumps it describes. `--offline`
-      # forbids registry access — the only deltas are the workspace
-      # version lines, which don't need network resolution.
+      # together with the version bumps it describes.
+      #
+      # The cargo invocation below is plain `cargo update --workspace`
+      # — *not* `--offline`. A previous version of this step used
+      # `--offline` on the (incorrect) premise that "only the workspace
+      # version lines change, no network resolution needed." In
+      # practice `--offline` requires the registry cache in
+      # `~/.cargo/registry` to be primed, which isn't the case on a
+      # fresh runner without `Swatinem/rust-cache` — the step crashed
+      # with "no matching package named …" on the first non-cached
+      # transitive dep (e.g. `pathfinding`). Without `--offline`, cargo
+      # contacts the index for the (tiny) workspace-internal version
+      # bumps and succeeds; the actual diff against the lockfile is
+      # still just the three `version = ...` lines.
       - name: Install Rust toolchain (for Cargo.lock refresh)
         if: steps.release.outputs.pr
         uses: dtolnay/rust-toolchain@stable
@@ -146,7 +157,7 @@ jobs:
           git fetch origin "$pr_branch"
           git checkout "$pr_branch"
 
-          cargo update --workspace --offline
+          cargo update --workspace
 
           if git diff --quiet Cargo.lock; then
             echo "::notice::Cargo.lock is already in sync; no refresh needed."
