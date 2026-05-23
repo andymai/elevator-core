@@ -8,11 +8,14 @@ macOS, Ubuntu).
 
 ```
 extension/elevator_ffi/
-├── elevator_ffi.yy                  GMS extension manifest (placeholder — see below)
+├── elevator_ffi.yy                  GMS extension manifest (auto-generated)
+├── elevator_ffi.ext                 Zero-byte stub the manifest references
 ├── elevator_ffi.gml                 Hand-written: handle helpers + struct decoders
 ├── elevator_ffi_generated.gml       Auto-generated: external_define for every FFI fn
-└── binaries/
-    └── .gitkeep                     Populated at release time (or locally — see below)
+├── elevator_ffi_layout.gml          Auto-generated: #[repr(C)] field offsets
+├── elevator_ffi.dll                 Windows binary (placed at release time / locally — see below)
+├── libelevator_ffi.dylib            macOS binary (   "   )
+└── libelevator_ffi.so               Linux binary  (   "   )
 ```
 
 `elevator_ffi_generated.gml` is regenerated from
@@ -76,8 +79,14 @@ Download `elevator_ffi_gms2-<version>.zip` from the
 — the [release-please packaging
 job](../../.github/workflows/release-please.yml) attaches it to every
 `elevator-ffi-v*` tag with all three platform binaries plus the dual
-MIT/Apache LICENSE files pre-staged. Extract the zip and follow the
-manual import recipe at the bottom of this README.
+MIT/Apache LICENSE files pre-staged.
+
+Extract the zip, then drag-and-drop the `extension/elevator_ffi/`
+folder into your GameMaker Studio 2 project's Asset Browser. GMS
+reads the bundled `elevator_ffi.yy` manifest, picks the right
+binary for your build target, and exposes every `ev_*` function
+without further setup. See *Manifest* below for what the manifest
+declares.
 
 ## Local testing (developers)
 
@@ -88,11 +97,11 @@ tagged release:
 # 1. Build the cdylib
 cargo build -p elevator-ffi --release
 
-# 2. Copy the produced artefact into the extension folder.
+# 2. Copy the produced artefact next to the .yy manifest.
 #    (cargo writes to a workspace-local target/release/ unless you
 #    set CARGO_TARGET_DIR; adjust the source path accordingly.)
 cp target/release/libelevator_ffi.so \
-   examples/gms2-extension/extension/elevator_ffi/binaries/    # Linux
+   examples/gms2-extension/extension/elevator_ffi/    # Linux
 # or libelevator_ffi.dylib on macOS, elevator_ffi.dll on Windows
 
 # 3. Open a fresh GameMaker Studio 2 project and import the extension
@@ -132,30 +141,38 @@ x64-only since GameMaker Studio v2022.8 dropped 32-bit Windows. The
 pointer-as-double round-trip relies on this — file an issue if you
 need a different target.
 
-## Manifest (`elevator_ffi.yy`) — work in progress
+## Manifest (`elevator_ffi.yy`)
 
-The `.yy` file in this folder is a structural placeholder. GameMaker
-Studio 2's extension manifest schema evolves across LTS versions, so
-a follow-up PR adds verified `.yy` + `.yymps` packaging once the
-format has been exercised against a working extension import.
+The bundle ships a generated `elevator_ffi.yy` manifest so consumers
+can drag-and-drop the extension folder into GameMaker Studio 2's
+Asset Browser instead of building it by hand. The manifest declares:
 
-Until then, treat the bundle as a folder of GML scripts + binaries
-that you manually wire up by:
+- **Calling convention** `dll_cdecl` (default; on x64 ABI-equivalent
+  to `dll_stdcall`).
+- **Per-platform binaries** via three `GMProxyFile` entries —
+  `elevator_ffi.dll` (Windows), `libelevator_ffi.dylib` (macOS),
+  `libelevator_ffi.so` (Linux). The `elevator_ffi.ext` zero-byte
+  stub is the file the manifest's `filename` field points at; GMS
+  picks the right per-platform `ProxyFile` at build time.
+- **Platform target mask** desktop x64 only (no HTML5, mobile, or
+  console — see *Supported targets* above).
 
-1. Creating a new extension in your GMS project (Asset Browser →
-   right-click → Create → Extension).
-2. Setting the extension's name to `elevator_ffi`.
-3. Adding the platform-appropriate binary as a Proxy File.
-4. Adding `elevator_ffi.gml` and `elevator_ffi_generated.gml` as
-   extension scripts.
-5. Setting the extension's calling convention to `dll_cdecl` (the
-   default; on x64 this is ABI-equivalent to `dll_stdcall`).
+The function bindings continue to come from
+`elevator_ffi_generated.gml`'s `external_define` calls — declaring
+them again in the manifest would double-bind and error at import
+time. Migrating function declarations into the manifest (and
+dropping `elevator_ffi_generated.gml`) is a follow-up tracked in
+[issue #869](https://github.com/andymai/elevator-core/issues/869).
 
-Manual GMS verification recipe (post-import):
+The manifest is auto-generated alongside `elevator_ffi_generated.gml`
+by `scripts/gen-gms-bindings.py`; both files are committed so users
+cloning the repo don't need Python.
+
+### Manual GMS verification recipe (post-import)
 
 ```gml
 // In any object's Create event:
-show_debug_message("ABI version: " + string(ev_abi_version()));
+show_debug_message("ABI version: " + string(ev_decode_u64(ev_abi_version())));
 // expect: "ABI version: 5"
 
 var _sim = ev_sim_create("path/to/your/config.ron");
@@ -164,8 +181,8 @@ ev_sim_destroy(_sim);
 ```
 
 If `ev_abi_version()` returns 0 or the call hangs, the extension
-isn't loading the right binary — check the Proxy File mapping in the
-extension's properties panel.
+isn't loading the right binary — check the Proxy File mapping in
+the extension's properties panel.
 
 ## Regenerating the bindings
 
