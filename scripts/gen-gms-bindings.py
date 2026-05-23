@@ -141,6 +141,11 @@ def classify_return(ret: str) -> str:
 
     - ``"string"``  — ``char *`` return; bind as ``ty_string``.
     - ``"double"``  — native ``double`` return; bind as ``ty_real``, no shim.
+    - ``"void"``    — no return value; bind as ``ty_real`` against the
+      original symbol. GMS expects a return type for every
+      ``external_define``; ``ty_real`` is the safe placeholder since
+      the caller discards the result and the integer-return-register
+      hazard does not apply (nothing to read).
     - ``"shim"``    — integer / enum / bool / pointer return; bind as
       ``ty_real`` and target the ``_gms`` companion symbol so the value
       lands in the float return register on every platform (issue #876).
@@ -149,6 +154,8 @@ def classify_return(ret: str) -> str:
         return "string"
     if ret.strip() == "double":
         return "double"
+    if ret.strip() == "void":
+        return "void"
     return "shim"
 
 
@@ -162,9 +169,12 @@ def emit_define(fn: str, sig: dict) -> str:
     """
     return_kind = sig["return"]
     return_type = "ty_string" if return_kind == "string" else "ty_real"
-    # External C symbol targeted by external_define. Shimmed returns
-    # go through the `_gms` companion; pure-double and string returns
-    # call the original directly.
+    # External C symbol targeted by external_define. Only `shim`
+    # returns route through the `_gms` companion; native double,
+    # string, and void returns call the original symbol directly
+    # (void-returning fns like `ev_sim_destroy` have no `_gms`
+    # companion — see the void-classification rationale in
+    # classify_return).
     c_symbol = f"{fn}_gms" if return_kind == "shim" else fn
     arg_count = len(sig["args"])
     arg_types = ", ".join(

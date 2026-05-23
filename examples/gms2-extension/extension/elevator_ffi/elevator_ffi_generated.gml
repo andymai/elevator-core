@@ -221,7 +221,7 @@ function ev_sim_destination_queue(a0, a1, a2, a3, a4) {
 }
 // ev_sim_destroy — auto-generated wrapper.
 global._ev_sim_destroy_handle = external_define(
-    "elevator_ffi", "ev_sim_destroy_gms", dll_cdecl, ty_real, 1, ty_real
+    "elevator_ffi", "ev_sim_destroy", dll_cdecl, ty_real, 1, ty_real
 );
 function ev_sim_destroy(a0) {
     return external_call(global._ev_sim_destroy_handle, a0);
