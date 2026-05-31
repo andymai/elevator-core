@@ -29,11 +29,26 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, NOT @stable. The criterion baseline is a frozen per-SHA
+      # measurement; comparing it against a run built by a newer stable
+      # rustc conflates compiler codegen drift with code changes, which
+      # is exactly how an unpinned @stable produced ~2 weeks of phantom
+      # +13–20% regressions (issue #884). Bump this deliberately when
+      # adopting a new toolchain — the baseline auto-re-establishes
+      # because the cache key below is keyed on `rustc --version`.
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: bench-criterion
           cache-targets: true
+
+      # Capture the exact compiler version into the env so the criterion
+      # baseline cache key can include it. Any toolchain change (the pin
+      # above, or even a patch release) then lands on a fresh key and the
+      # next nightly re-baselines instead of reporting compiler drift as
+      # a code regression.
+      - name: Record rustc version for the baseline cache key
+        run: echo "RUSTC_VER=$(rustc --version | tr ' ()' '___')" >> "$GITHUB_ENV"
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
@@ -53,14 +68,21 @@ jobs:
       # SHA's baseline so the new commit is compared against the prior
       # known-good measurement. The save step writes a fresh entry
       # under the new SHA, freezing it for subsequent nightlies.
+      #
+      # The key also carries `RUSTC_VER`, so the prefix-fallback only
+      # matches baselines built by the *same compiler*. A toolchain bump
+      # changes the prefix, every old baseline stops matching, and the
+      # next nightly re-establishes a clean baseline — instead of
+      # charging the compiler's codegen drift to the code as a phantom
+      # regression (issue #884).
       - name: Restore previous criterion baseline
         id: restore-baseline
         uses: actions/cache/restore@v4
         with:
           path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
+          key: criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.sha }}
           restore-keys: |
-            criterion-baseline-${{ github.ref_name }}-
+            criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-
 
       # Restore the previous nightly's regression-name list so the detect
       # step can gate issue-open on two-day persistence. Key is suffixed
@@ -137,7 +159,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-${{ github.sha }}
+          key: criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.sha }}
 
       # Save today's regression-name list under the per-run-id key so
       # tomorrow's prefix-fallback restore picks it up. Only the
