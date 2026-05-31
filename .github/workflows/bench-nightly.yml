@@ -47,8 +47,11 @@ jobs:
       # above, or even a patch release) then lands on a fresh key and the
       # next nightly re-baselines instead of reporting compiler drift as
       # a code regression.
+      # Whitelist-sanitize to chars valid in a GitHub Actions cache key
+      # (commas in particular are rejected). A future rustc format change
+      # — channel suffix, date-delimiter tweak — can't then corrupt the key.
       - name: Record rustc version for the baseline cache key
-        run: echo "RUSTC_VER=$(rustc --version | tr ' ()' '___')" >> "$GITHUB_ENV"
+        run: echo "RUSTC_VER=$(rustc --version | sed 's/[^a-zA-Z0-9._-]/_/g')" >> "$GITHUB_ENV"
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
