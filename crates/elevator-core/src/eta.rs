@@ -36,7 +36,7 @@ pub fn travel_time(distance: f64, v0: f64, v_max: f64, accel: f64, decel: f64) -
     // deceleration leg `d = v0·t − ½·decel·t²` for the smaller root.
     let brake_d = v0 * v0 / (2.0 * decel);
     if brake_d >= distance {
-        let disc = (v0 * v0 - 2.0 * distance * decel).max(0.0);
+        let disc = (2.0 * distance).mul_add(-decel, v0 * v0).max(0.0);
         return (v0 - disc.sqrt()) / decel;
     }
 

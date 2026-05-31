@@ -90,7 +90,7 @@ pub fn run(
             continue;
         }
         if let Some(vel) = world.velocity(eid) {
-            total_dist += vel.value.abs() * ctx.dt;
+            total_dist = vel.value.abs().mul_add(ctx.dt, total_dist);
         }
     }
     if total_dist > 0.0 {
