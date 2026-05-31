@@ -394,7 +394,7 @@ impl DispatchStrategy for RsrDispatch {
             let capacity = car.weight_capacity().value();
             if capacity > 0.0 {
                 let load_ratio = (car.current_load().value() / capacity).clamp(0.0, 1.0);
-                cost += self.load_penalty_coeff * load_ratio;
+                cost = self.load_penalty_coeff.mul_add(load_ratio, cost);
             }
         }
 

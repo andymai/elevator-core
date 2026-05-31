@@ -108,7 +108,7 @@ fn event_loop(
         if state.paused {
             accumulator = 0.0;
         } else {
-            accumulator += dt * state.tick_rate * cfg_tps;
+            accumulator = (dt * state.tick_rate).mul_add(cfg_tps, accumulator);
             // Cap how many ticks we'll run inside one frame, then
             // discard any leftover backlog. Without this two failure
             // modes appear:
