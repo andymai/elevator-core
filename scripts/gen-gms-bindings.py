@@ -186,11 +186,14 @@ def classify_return(ret: str) -> str:
     - ``"double"``  — native ``double`` return; bind as ``ty_real``. No
       return-side shim, but the call still routes through ``<fn>_gms``
       if any arg needs re-encoding (issue #883) — see ``emit_define``.
-    - ``"void"``    — no return value; bind as ``ty_real`` against the
-      original symbol. GMS expects a return type for every
-      ``external_define``; ``ty_real`` is the safe placeholder since
-      the caller discards the result and the integer-return-register
-      hazard does not apply (nothing to read).
+    - ``"void"``    — no return value; bind as ``ty_real``. GMS expects
+      a return type for every ``external_define``; ``ty_real`` is the
+      safe placeholder since the caller discards the result and the
+      integer-return-register hazard does not apply (nothing to read).
+      No return-side shim, but — like ``"double"`` — the call still
+      routes through ``<fn>_gms`` if any arg needs re-encoding (e.g.
+      ``ev_sim_destroy``'s ``*mut EvSim``, issue #883). This
+      classification only describes the return side; see ``emit_define``.
     - ``"shim"``    — integer / enum / bool / pointer return; bind as
       ``ty_real`` and target the ``_gms`` companion symbol so the value
       lands in the float return register on every platform (issue #876).
