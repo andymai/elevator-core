@@ -247,15 +247,49 @@ macro_rules! gms_shim {
             f64::from_bits(u64::from(v as u8))
         }
     };
+    // Native `f64` return with one or more non-`f64` args. The return
+    // needs no bridging — the original already lands the double in the
+    // float return register GMS reads — but the args still ride the
+    // float register file under GMS's `ty_real` transport, so a
+    // pointer / `u64` / enum arg has to be decoded the same way as any
+    // other shim. Binding these to the original symbol (the pre-#883
+    // behaviour) read pointer args from the integer register on macOS
+    // arm64 and dereferenced garbage. The return passes through
+    // verbatim — no `f64::from_bits`.
+    (f64 unsafe $shim:ident = $orig:ident ( $($arg:ident: [$($argty:tt)+]),* $(,)? )) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $shim($($arg: gms_arg_ty!($($argty)+)),*) -> f64 {
+            $(let $arg: $($argty)+ = gms_arg_decode!($arg, $($argty)+);)*
+            unsafe { $orig($($arg),*) }
+        }
+    };
+    // `void` return with one or more non-`f64` args. Same arg-register
+    // hazard as the `f64`-return arm (#883): a `void` fn taking a
+    // `*mut EvSim` — `ev_sim_destroy` is the live case — read the
+    // handle from the wrong register on macOS arm64 and freed garbage.
+    // GMS still expects a `ty_real` back from every `external_call`, so
+    // hand it a discarded `0.0`.
+    (void unsafe $shim:ident = $orig:ident ( $($arg:ident: [$($argty:tt)+]),* $(,)? )) => {
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn $shim($($arg: gms_arg_ty!($($argty)+)),*) -> f64 {
+            $(let $arg: $($argty)+ = gms_arg_decode!($arg, $($argty)+);)*
+            unsafe { $orig($($arg),*) };
+            0.0
+        }
+    };
 }
 
 // ── Generated shim invocations ────────────────────────────────────────────
 //
-// One per non-`double`/non-`void`/non-`char*`-returning `pub extern "C"`
-// function. Sorted alphabetically to match the deterministic order
-// of `scripts/gen-gms-bindings.py` so diffs stay tight when the FFI
-// surface evolves. When adding or renaming an FFI function, add or
-// rename the matching `gms_shim!()` line here.
+// One per `pub extern "C"` function that needs *either* return-side or
+// arg-side bridging — i.e. whose return needs bit-encoding (the
+// `unsafe`/`i8 unsafe` arms) OR whose args include any non-`f64`,
+// non-`char*` slot even when the return is native `double` or `void`
+// (the `f64 unsafe`/`void unsafe` arms). Sorted alphabetically to
+// match the deterministic order of `scripts/gen-gms-bindings.py` so
+// diffs stay tight when the FFI surface evolves. When adding or
+// renaming an FFI function, add or rename the matching `gms_shim!()`
+// line here.
 
 gms_shim!(ev_abi_version_gms = ev_abi_version() -> u32);
 gms_shim!(unsafe ev_drain_log_messages_gms = ev_drain_log_messages(handle: [*mut EvSim], out: [*mut EvLogMessage], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
@@ -274,6 +308,7 @@ gms_shim!(unsafe ev_sim_assign_line_to_group_gms = ev_sim_assign_line_to_group(h
 gms_shim!(unsafe ev_sim_assigned_car_gms = ev_sim_assigned_car(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8], out_elevator: [*mut u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_assigned_cars_by_line_gms = ev_sim_assigned_cars_by_line(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8], out: [*mut EvAssignment], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
 gms_shim!(unsafe ev_sim_best_eta_gms = ev_sim_best_eta(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8], out_elevator: [*mut u64], out_seconds: [*mut f64]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_braking_distance_gms = ev_sim_braking_distance(handle: [*mut EvSim], elevator_entity_id: [u64]));
 gms_shim!(unsafe ev_sim_cancel_door_hold_gms = ev_sim_cancel_door_hold(handle: [*mut EvSim], elevator_entity_id: [u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_car_call_count_gms = ev_sim_car_call_count(handle: [*mut EvSim], elevator_entity_id: [u64]) -> u32);
 gms_shim!(unsafe ev_sim_car_call_pending_riders_gms = ev_sim_car_call_pending_riders(handle: [*mut EvSim], elevator_entity_id: [u64], index: [u32], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
@@ -286,13 +321,16 @@ gms_shim!(unsafe ev_sim_current_tick_gms = ev_sim_current_tick(handle: [*mut EvS
 gms_shim!(unsafe ev_sim_default_elevator_params_gms = ev_sim_default_elevator_params(out_params: [*mut EvElevatorParams]) -> EvStatus);
 gms_shim!(unsafe ev_sim_despawn_rider_gms = ev_sim_despawn_rider(handle: [*mut EvSim], rider_entity_id: [u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_destination_queue_gms = ev_sim_destination_queue(handle: [*mut EvSim], elevator_entity_id: [u64], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
+gms_shim!(void unsafe ev_sim_destroy_gms = ev_sim_destroy(handle: [*mut EvSim]));
 gms_shim!(unsafe ev_sim_disable_gms = ev_sim_disable(handle: [*mut EvSim], entity_id: [u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_drain_events_gms = ev_sim_drain_events(handle: [*mut EvSim], out: [*mut EvEvent], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_dt_gms = ev_sim_dt(handle: [*mut EvSim]));
 gms_shim!(i8 unsafe ev_sim_elevator_direction_gms = ev_sim_elevator_direction(handle: [*mut EvSim], elevator_entity_id: [u64]));
 gms_shim!(unsafe ev_sim_elevator_entity_gms = ev_sim_elevator_entity(handle: [*mut EvSim], elevator_config_id: [u32]) -> u64);
 gms_shim!(unsafe ev_sim_elevator_going_down_gms = ev_sim_elevator_going_down(handle: [*mut EvSim], elevator_entity_id: [u64]) -> bool);
 gms_shim!(unsafe ev_sim_elevator_going_up_gms = ev_sim_elevator_going_up(handle: [*mut EvSim], elevator_entity_id: [u64]) -> bool);
 gms_shim!(unsafe ev_sim_elevator_home_stop_gms = ev_sim_elevator_home_stop(handle: [*mut EvSim], elevator_entity_id: [u64], out_stop_id: [*mut u64]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_elevator_load_gms = ev_sim_elevator_load(handle: [*mut EvSim], elevator_entity_id: [u64]));
 gms_shim!(unsafe ev_sim_elevator_lookup_iter_gms = ev_sim_elevator_lookup_iter(handle: [*mut EvSim], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
 gms_shim!(unsafe ev_sim_elevator_move_count_gms = ev_sim_elevator_move_count(handle: [*mut EvSim], elevator_entity_id: [u64]) -> u64);
 gms_shim!(unsafe ev_sim_elevators_in_phase_gms = ev_sim_elevators_in_phase(handle: [*mut EvSim], phase: [u8], out_count: [*mut u32]) -> EvStatus);
@@ -303,6 +341,7 @@ gms_shim!(unsafe ev_sim_eta_gms = ev_sim_eta(handle: [*mut EvSim], elevator_enti
 gms_shim!(unsafe ev_sim_eta_for_call_gms = ev_sim_eta_for_call(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8], out_ticks: [*mut u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_find_stop_at_position_on_line_gms = ev_sim_find_stop_at_position_on_line(handle: [*mut EvSim], position: [f64], line_entity_id: [u64]) -> u64);
 gms_shim!(unsafe ev_sim_frame_gms = ev_sim_frame(handle: [*mut EvSim], out: [*mut EvFrame]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_future_stop_position_gms = ev_sim_future_stop_position(handle: [*mut EvSim], elevator_entity_id: [u64]));
 gms_shim!(unsafe ev_sim_groups_serving_stop_gms = ev_sim_groups_serving_stop(handle: [*mut EvSim], stop_entity_id: [u64], out: [*mut u32], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
 gms_shim!(unsafe ev_sim_hall_call_count_gms = ev_sim_hall_call_count(handle: [*mut EvSim]) -> u32);
 gms_shim!(unsafe ev_sim_hall_calls_snapshot_gms = ev_sim_hall_calls_snapshot(handle: [*mut EvSim], out: [*mut EvHallCall], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
@@ -335,6 +374,7 @@ gms_shim!(unsafe ev_sim_occupancy_gms = ev_sim_occupancy(handle: [*mut EvSim], e
 gms_shim!(unsafe ev_sim_open_door_gms = ev_sim_open_door(handle: [*mut EvSim], elevator_entity_id: [u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_pending_event_count_gms = ev_sim_pending_event_count(handle: [*mut EvSim]) -> u32);
 gms_shim!(unsafe ev_sim_pin_assignment_gms = ev_sim_pin_assignment(handle: [*mut EvSim], car_entity_id: [u64], stop_entity_id: [u64], direction: [i8]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_position_at_gms = ev_sim_position_at(handle: [*mut EvSim], entity_id: [u64], alpha: [f64]));
 gms_shim!(unsafe ev_sim_press_car_button_gms = ev_sim_press_car_button(handle: [*mut EvSim], car_entity_id: [u64], floor_entity_id: [u64]) -> EvStatus);
 gms_shim!(unsafe ev_sim_press_hall_button_gms = ev_sim_press_hall_button(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8]) -> EvStatus);
 gms_shim!(unsafe ev_sim_push_destination_gms = ev_sim_push_destination(handle: [*mut EvSim], elevator_entity_id: [u64], stop_entity_id: [u64]) -> EvStatus);
@@ -389,6 +429,7 @@ gms_shim!(unsafe ev_sim_tag_entity_gms = ev_sim_tag_entity(handle: [*mut EvSim],
 gms_shim!(unsafe ev_sim_transfer_points_gms = ev_sim_transfer_points(handle: [*mut EvSim], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
 gms_shim!(unsafe ev_sim_unpin_assignment_gms = ev_sim_unpin_assignment(handle: [*mut EvSim], stop_entity_id: [u64], direction: [i8]) -> EvStatus);
 gms_shim!(unsafe ev_sim_untag_entity_gms = ev_sim_untag_entity(handle: [*mut EvSim], entity_id: [u64], tag: [*const c_char]) -> EvStatus);
+gms_shim!(f64 unsafe ev_sim_velocity_gms = ev_sim_velocity(handle: [*mut EvSim], elevator_entity_id: [u64]));
 gms_shim!(unsafe ev_sim_waiting_at_gms = ev_sim_waiting_at(handle: [*mut EvSim], stop_entity_id: [u64], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
 gms_shim!(unsafe ev_sim_waiting_count_at_gms = ev_sim_waiting_count_at(handle: [*mut EvSim], stop_entity_id: [u64]) -> u32);
 gms_shim!(unsafe ev_sim_waiting_counts_by_line_at_gms = ev_sim_waiting_counts_by_line_at(handle: [*mut EvSim], stop_entity_id: [u64], out: [*mut u64], capacity: [u32], out_written: [*mut u32]) -> EvStatus);
@@ -460,6 +501,19 @@ mod tests {
     #[allow(dead_code)]
     const _ASSERT_ELEVATOR_DIRECTION_SIG: unsafe extern "C" fn(f64, f64) -> f64 =
         ev_sim_elevator_direction_gms;
+    // Native-`f64`-return shims (issue #883): every non-`f64` arg slot
+    // must still ride `f64` so a pointer / `u64` arg lands in the float
+    // register GMS writes. `position_at` carries the mixed case
+    // (pointer + u64 + native f64); `dt` the bare pointer-arg case.
+    #[allow(dead_code)]
+    const _ASSERT_POSITION_AT_SIG: unsafe extern "C" fn(f64, f64, f64) -> f64 =
+        ev_sim_position_at_gms;
+    #[allow(dead_code)]
+    const _ASSERT_DT_SIG: unsafe extern "C" fn(f64) -> f64 = ev_sim_dt_gms;
+    // Void-return shim (issue #883): `ev_sim_destroy`'s `*mut EvSim`
+    // arg must ride `f64` too, and the shim returns a discarded `f64`.
+    #[allow(dead_code)]
+    const _ASSERT_DESTROY_SIG: unsafe extern "C" fn(f64) -> f64 = ev_sim_destroy_gms;
 
     #[test]
     fn pointer_arg_decode_round_trips_through_f64() {
