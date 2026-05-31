@@ -139,7 +139,29 @@ def parse_header_signatures() -> dict[str, dict]:
 
 
 def classify_arg(arg: str) -> str:
-    """Return 'string' for char*-flavoured args, 'real' for everything else."""
+    """Classify a C arg by how GameMaker transports it and whether the
+    `_gms` shim must re-encode it.
+
+    GameMaker's `external_call` has two transport types: `ty_string`
+    (char*, integer register) and `ty_real` (double, float register).
+    Both `string` and the two `real_*` buckets below map to one of
+    those when emitting `external_define`; the `real_native` /
+    `real_encoded` split exists only to decide whether a shim is
+    needed (see `emit_define`).
+
+    - ``"string"``       — char* arg; rides `ty_string`, matches the
+      native `*const c_char` ABI, no re-encoding.
+    - ``"callback"``     — function-pointer wrapper; cannot bind
+      (flagged at the caller).
+    - ``"real_native"``  — a bare ``double``; rides `ty_real` and lands
+      in the float register exactly where Rust's `f64` ABI reads it.
+      No shim re-encoding needed.
+    - ``"real_encoded"`` — every other scalar / pointer / enum / bool
+      (including ``double *`` out-pointers). Still transported as
+      `ty_real`, but the native Rust ABI puts a non-`f64` in a register
+      GMS didn't write (macOS arm64) or with the wrong encoding, so the
+      shim must decode it — issues #876 / #879 / #883.
+    """
     # `const char *path` or `char *path` → string
     if re.search(r"\bchar\s*\*", arg) and "void" not in arg:
         return "string"
@@ -149,14 +171,21 @@ def classify_arg(arg: str) -> str:
     # we surface this here too.
     if "EvLogFn" in arg or "Option_" in arg:
         return "callback"
-    return "real"
+    # A bare `double` (no `*`) rides the float register identically to
+    # Rust's `f64` — no re-encoding. A `double *` out-pointer is a
+    # pointer and falls through to `real_encoded`.
+    if re.search(r"\bdouble\b", arg) and "*" not in arg:
+        return "real_native"
+    return "real_encoded"
 
 
 def classify_return(ret: str) -> str:
     """Return one of:
 
     - ``"string"``  — ``char *`` return; bind as ``ty_string``.
-    - ``"double"``  — native ``double`` return; bind as ``ty_real``, no shim.
+    - ``"double"``  — native ``double`` return; bind as ``ty_real``. No
+      return-side shim, but the call still routes through ``<fn>_gms``
+      if any arg needs re-encoding (issue #883) — see ``emit_define``.
     - ``"void"``    — no return value; bind as ``ty_real`` against the
       original symbol. GMS expects a return type for every
       ``external_define``; ``ty_real`` is the safe placeholder since
@@ -178,20 +207,29 @@ def classify_return(ret: str) -> str:
 def emit_define(fn: str, sig: dict) -> str:
     """Emit a single `external_define` block + GML wrapper function.
 
-    For "shim" returns, `external_define` targets the `<fn>_gms`
-    companion symbol so the value lands in the float return register
-    (`xmm0` / `d0`) on every platform — see crates/elevator-ffi/src/gms_shims.rs.
-    The GML function name itself stays unchanged so call sites don't move.
+    `external_define` targets the `<fn>_gms` companion symbol whenever
+    the call needs bridging — a return that needs bit-encoding, or any
+    arg that needs re-encoding (see `needs_shim` below and
+    crates/elevator-ffi/src/gms_shims.rs). Routing through the shim
+    keeps both the return value and pointer / integer / enum args on
+    the float register file GMS reads on every platform. The GML
+    function name itself stays unchanged so call sites don't move.
     """
     return_kind = sig["return"]
     return_type = "ty_string" if return_kind == "string" else "ty_real"
-    # External C symbol targeted by external_define. Only `shim`
-    # returns route through the `_gms` companion; native double,
-    # string, and void returns call the original symbol directly
-    # (void-returning fns like `ev_sim_destroy` have no `_gms`
-    # companion — see the void-classification rationale in
-    # classify_return).
-    c_symbol = f"{fn}_gms" if return_kind == "shim" else fn
+    # External C symbol targeted by external_define. A `_gms` companion
+    # is needed when *either* the return needs bit-encoding (`shim`) OR
+    # any arg needs re-encoding (`real_encoded`) — the latter covers
+    # native-`double` and `void` returns that take a pointer / `u64` /
+    # enum arg (e.g. `ev_sim_position_at`, `ev_sim_destroy`), which
+    # otherwise read that arg from the wrong register file on macOS
+    # arm64 (issue #883). `ev_last_error` (string return, no args) and
+    # any future arg-free native-double return stay on the original
+    # symbol.
+    needs_shim = return_kind == "shim" or any(
+        a == "real_encoded" for a in sig["args"]
+    )
+    c_symbol = f"{fn}_gms" if needs_shim else fn
     arg_count = len(sig["args"])
     arg_types = ", ".join(
         "ty_string" if a == "string" else "ty_real" for a in sig["args"]
