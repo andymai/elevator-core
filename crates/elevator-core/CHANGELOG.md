@@ -1,5 +1,12 @@
 # Changelog
 
+## [21.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.0...elevator-core-v21.0.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **lint:** adopt mul_add for clippy 1.96 suboptimal_flops ([#895](https://github.com/andymai/elevator-core/issues/895)) ([809450e](https://github.com/andymai/elevator-core/commit/809450e693c59db1b7dcd34889ebbfc2790f6680))
+
 ## [21.0.0](https://github.com/andymai/elevator-core/compare/elevator-core-v20.16.0...elevator-core-v21.0.0) (2026-05-23)
 
 
