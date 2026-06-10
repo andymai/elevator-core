@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.2](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.23.1...elevator-ffi-v0.23.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* **ffi:** bridge args for native-f64 and void GMS shims ([#883](https://github.com/andymai/elevator-core/issues/883)) ([#892](https://github.com/andymai/elevator-core/issues/892)) ([c421b7f](https://github.com/andymai/elevator-core/commit/c421b7fd52420d7d76a1c607045deda26d515d2e))
+
 ## [0.23.1](https://github.com/andymai/elevator-core/compare/elevator-ffi-v0.23.0...elevator-ffi-v0.23.1) (2026-05-23)
 
 
