@@ -151,7 +151,7 @@ pub fn spawn_building_visuals(
         commands.spawn((
             Text2d::new(name),
             TextFont {
-                font_size: vs.font_size,
+                font_size: FontSize::Px(vs.font_size),
                 ..default()
             },
             Transform::from_xyz(vs.label_offset_x, y, 0.1),

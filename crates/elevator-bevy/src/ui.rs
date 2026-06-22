@@ -14,7 +14,7 @@ pub fn spawn_hud(mut commands: Commands) {
     commands.spawn((
         Text::new(""),
         TextFont {
-            font_size: 16.0,
+            font_size: FontSize::Px(16.0),
             ..default()
         },
         TextColor(Color::WHITE),
@@ -30,7 +30,7 @@ pub fn spawn_hud(mut commands: Commands) {
     commands.spawn((
         Text::new("Space: pause | 1: 1x | 2: 2x | 3: 10x"),
         TextFont {
-            font_size: 13.0,
+            font_size: FontSize::Px(13.0),
             ..default()
         },
         TextColor(Color::srgba(0.6, 0.6, 0.6, 1.0)),

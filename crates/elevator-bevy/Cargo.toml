@@ -16,6 +16,6 @@ workspace = true
 # is a conditional cyclic-motion branch in `systems/movement.rs` —
 # a single predicate per car per tick.
 elevator-core = { path = "../elevator-core", features = ["loop_lines"] }
-bevy = { version = "0.19", default-features = false, features = ["2d"] }
+bevy = { version = "0.19", default-features = false, features = ["2d", "ui"] }
 ron.workspace = true
 rand.workspace = true
