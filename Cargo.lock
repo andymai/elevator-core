@@ -1126,7 +1126,7 @@ dependencies = [
  "glam",
  "itertools 0.14.0",
  "libm",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_distr",
  "serde",
  "thiserror 2.0.18",
@@ -2670,7 +2670,7 @@ version = "1.0.0"
 dependencies = [
  "bevy",
  "elevator-core",
- "rand 0.10.1",
+ "rand 0.10.2",
  "ron",
 ]
 
@@ -2679,7 +2679,7 @@ name = "elevator-contract"
 version = "1.0.0"
 dependencies = [
  "elevator-core",
- "rand 0.10.1",
+ "rand 0.10.2",
  "ron",
 ]
 
@@ -2692,7 +2692,7 @@ dependencies = [
  "pathfinding",
  "postcard",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "ron",
  "serde",
  "serde_json",
@@ -2719,7 +2719,7 @@ version = "1.0.0"
 dependencies = [
  "elevator-core",
  "godot",
- "rand 0.10.1",
+ "rand 0.10.2",
  "ron",
  "slotmap",
 ]
@@ -2773,7 +2773,7 @@ dependencies = [
  "elevator-core",
  "getrandom 0.4.3",
  "js-sys",
- "rand 0.10.1",
+ "rand 0.10.2",
  "ron",
  "serde",
  "serde-wasm-bindgen",
@@ -3166,7 +3166,7 @@ dependencies = [
  "bytemuck",
  "encase",
  "libm",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde_core",
 ]
 
@@ -4949,9 +4949,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -4999,7 +4999,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d431c2703ccf129de4d45253c03f49ebb22b97d6ad79ee3ecfc7e3f4862c1d8"
 dependencies = [
  "num-traits",
- "rand 0.10.1",
+ "rand 0.10.2",
 ]
 
 [[package]]
@@ -5726,7 +5726,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
