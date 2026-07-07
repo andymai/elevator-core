@@ -10,11 +10,16 @@ version = 2
 yanked = "warn"
 # `unmaintained` defaults to "workspace" in v2; we want warnings, not failures.
 unmaintained = "workspace"
-# quick-xml DoS advisories reachable only through wayland-scanner (a build-time
-# proc-macro that parses the fixed, trusted wayland-protocol XML shipped with the
-# crate — never attacker-controlled input). The fix lands in quick-xml >=0.41, but
-# wayland-scanner 0.31 pins ^0.39, so it is unreachable until wayland-rs bumps it.
-# Remove these once wayland-scanner ships a release using quick-xml >=0.41.
+# quick-xml DoS advisories (RUSTSEC-2026-0194/0195). Verified via
+# `cargo tree -i quick-xml`: its ONLY consumer is wayland-scanner, a BUILD-TIME
+# proc-macro that parses the fixed wayland-protocol XML shipped with the crate to
+# generate bindings at compile time. The runtime wayland protocol is binary, not
+# XML, so no runtime path parses compositor-/attacker-provided XML — the DoS
+# vectors are unreachable here.
+# This ignore is workspace-global: if `cargo tree -i quick-xml` ever reports a
+# consumer other than wayland-scanner, re-evaluate before trusting this waiver.
+# The fix lands in quick-xml >=0.41, but wayland-scanner 0.31 pins ^0.39, so it is
+# unreachable until wayland-rs bumps it. Remove once that release exists.
 ignore = [
   "RUSTSEC-2026-0194",
   "RUSTSEC-2026-0195",
