@@ -10,7 +10,15 @@ version = 2
 yanked = "warn"
 # `unmaintained` defaults to "workspace" in v2; we want warnings, not failures.
 unmaintained = "workspace"
-ignore = []
+# quick-xml DoS advisories reachable only through wayland-scanner (a build-time
+# proc-macro that parses the fixed, trusted wayland-protocol XML shipped with the
+# crate — never attacker-controlled input). The fix lands in quick-xml >=0.41, but
+# wayland-scanner 0.31 pins ^0.39, so it is unreachable until wayland-rs bumps it.
+# Remove these once wayland-scanner ships a release using quick-xml >=0.41.
+ignore = [
+  "RUSTSEC-2026-0194",
+  "RUSTSEC-2026-0195",
+]
 
 [licenses]
 version = 2
