@@ -1,0 +1,21 @@
+deny.toml
+  s_80223233167846::t_166500aeffee61 13-21
+Cargo.lock
+  s_80223233167846::t_7e3c3075b73bc8 2368,2370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8cdf70499ed6e4bcb240e2b28f37b71420947704",
+  "prompts": {},
+  "sessions": {
+    "s_80223233167846": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d5e79952-7793-4267-b673-c58f816fcc9e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
