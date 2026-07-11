@@ -369,7 +369,11 @@ jobs:
           cp -r examples/gms2-extension/* "$BUNDLE/"
           cp pickup/libelevator_ffi.so      "$BUNDLE/extension/elevator_ffi/"
           cp pickup/elevator_ffi.dll        "$BUNDLE/extension/elevator_ffi/"
-          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/"
+          # macOS: the proxy name in elevator_ffi.yy is the bare `elevator_ffi`
+          # (no `lib` prefix, no `.dylib` suffix) because Mac_Runner dlopens the
+          # literal `@loader_path/elevator_ffi` (#882). The staged file has to
+          # match that proxy name, so drop the prefix/suffix on copy.
+          cp pickup/libelevator_ffi.dylib   "$BUNDLE/extension/elevator_ffi/elevator_ffi"
           # License compliance: the dual MIT/Apache notice ships with
           # every binary distribution.
           cp LICENSE LICENSE-MIT LICENSE-APACHE "$BUNDLE/"

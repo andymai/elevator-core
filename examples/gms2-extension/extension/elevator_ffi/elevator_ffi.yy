@@ -15,7 +15,7 @@
   "copyToTargets":194,
   "description":"Native FFI bridge to elevator-core. Auto-generated manifest — see scripts/gen-gms-bindings.py.",
   "exportToGame":true,
-  "extensionVersion":"0.23.1",
+  "extensionVersion":"0.23.2",
   "files":[
     {
       "$GMExtensionFile":"v1",
@@ -30,7 +30,7 @@
       "name":"elevator_ffi.ext",
       "origname":"elevator_ffi.dll",
       "ProxyFiles":[
-        {"$GMProxyFile":"","%Name":"libelevator_ffi.dylib","name":"libelevator_ffi.dylib","resourceType":"GMProxyFile","resourceVersion":"2.0","TargetMask":1,},
+        {"$GMProxyFile":"","%Name":"elevator_ffi","name":"elevator_ffi","resourceType":"GMProxyFile","resourceVersion":"2.0","TargetMask":1,},
         {"$GMProxyFile":"","%Name":"libelevator_ffi.so","name":"libelevator_ffi.so","resourceType":"GMProxyFile","resourceVersion":"2.0","TargetMask":7,},
         {"$GMProxyFile":"","%Name":"elevator_ffi.dll","name":"elevator_ffi.dll","resourceType":"GMProxyFile","resourceVersion":"2.0","TargetMask":6,},
       ],
