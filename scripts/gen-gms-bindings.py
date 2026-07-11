@@ -387,7 +387,13 @@ def build_cdylib_file_entry() -> dict:
         "name": "elevator_ffi.ext",
         "origname": "elevator_ffi.dll",
         "ProxyFiles": [
-            build_proxy_file("libelevator_ffi.dylib", 1),
+            # macOS proxy is the bare symbol name with no `lib` prefix and
+            # no `.dylib` suffix: GameMaker's Mac_Runner calls
+            # dlopen("@loader_path/elevator_ffi", RTLD_NOW) with the literal
+            # extension name and no fallback — dyld does not auto-append
+            # `.dylib`, so the staged file must be named exactly
+            # `elevator_ffi` or `external_define` returns undefined (#882).
+            build_proxy_file("elevator_ffi", 1),
             build_proxy_file("libelevator_ffi.so", 7),
             build_proxy_file("elevator_ffi.dll", 6),
         ],

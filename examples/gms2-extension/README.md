@@ -14,7 +14,7 @@ extension/elevator_ffi/
 ├── elevator_ffi_generated.gml       Auto-generated: external_define for every FFI fn
 ├── elevator_ffi_layout.gml          Auto-generated: #[repr(C)] field offsets
 ├── elevator_ffi.dll                 Windows binary (placed at release time / locally — see below)
-├── libelevator_ffi.dylib            macOS binary (   "   )
+├── elevator_ffi                     macOS binary — no lib prefix / no .dylib suffix (   "   )
 └── libelevator_ffi.so               Linux binary  (   "   )
 ```
 
@@ -102,7 +102,10 @@ cargo build -p elevator-ffi --release
 #    set CARGO_TARGET_DIR; adjust the source path accordingly.)
 cp target/release/libelevator_ffi.so \
    examples/gms2-extension/extension/elevator_ffi/    # Linux
-# or libelevator_ffi.dylib on macOS, elevator_ffi.dll on Windows
+# Windows: cp target/release/elevator_ffi.dll  examples/.../elevator_ffi/
+# macOS:   cp target/release/libelevator_ffi.dylib \
+#             examples/.../elevator_ffi/elevator_ffi   # note: no .dylib suffix —
+#          Mac_Runner dlopens the literal `@loader_path/elevator_ffi` (#882)
 
 # 3. Open a fresh GameMaker Studio 2 project and import the extension
 #    folder. From Asset Browser → right-click → Add → Existing Asset →
@@ -129,8 +132,10 @@ matrix). The harness includes static asserts on every
 ## Supported targets
 
 - **Windows x64 desktop**: `elevator_ffi.dll`
-- **macOS arm64 desktop**: `libelevator_ffi.dylib` (Intel Mac is a
-  follow-up — see PR 3's risk note)
+- **macOS arm64 desktop**: staged as `elevator_ffi` (built as
+  `libelevator_ffi.dylib`, renamed with no `lib` prefix / no `.dylib`
+  suffix to match the literal `dlopen` name — see #882). Intel Mac is a
+  follow-up — see PR 3's risk note.
 - **Ubuntu x64 desktop**: `libelevator_ffi.so`
 - **HTML5, mobile, consoles**: not supported. HTML5 needs
   [`elevator-wasm`](../../crates/elevator-wasm) with a different
@@ -150,8 +155,8 @@ Asset Browser instead of building it by hand. The manifest declares:
 - **Calling convention** `dll_cdecl` (default; on x64 ABI-equivalent
   to `dll_stdcall`).
 - **Per-platform binaries** via three `GMProxyFile` entries —
-  `elevator_ffi.dll` (Windows), `libelevator_ffi.dylib` (macOS),
-  `libelevator_ffi.so` (Linux). The `elevator_ffi.ext` zero-byte
+  `elevator_ffi.dll` (Windows), `elevator_ffi` (macOS — no prefix/suffix,
+  #882), `libelevator_ffi.so` (Linux). The `elevator_ffi.ext` zero-byte
   stub is the file the manifest's `filename` field points at; GMS
   picks the right per-platform `ProxyFile` at build time.
 - **Platform target mask** desktop x64 only (no HTML5, mobile, or
