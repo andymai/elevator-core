@@ -295,7 +295,7 @@ fn remove_stop_removes_from_stop_lookup() {
     let mut sim = Simulation::new(&config, scan()).unwrap();
 
     let stop_id = sim.stop_entity(StopId(2)).unwrap();
-    assert!(stop_id != EntityId::default());
+    assert_ne!(stop_id, EntityId::default());
 
     sim.remove_stop(stop_id).unwrap();
 
