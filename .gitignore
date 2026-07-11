@@ -24,3 +24,7 @@ crates/*/proptest-regressions/
 .vscode/
 *.code-workspace
 *.log
+
+# Python bytecode cache (e.g. from running .github/scripts tests)
+__pycache__/
+*.pyc

@@ -125,15 +125,25 @@ jobs:
           cargo bench -p elevator-core --bench dispatch_bench    -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench multi_line_bench  -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench query_bench       -- --save-baseline nightly 2>&1 | tee -a bench-output.log
+          # Runner-speed calibration — no elevator-core code. The detect step
+          # divides its change% back out of every real bench to cancel the
+          # shared `ubuntu-latest` speed variance that otherwise reads as a
+          # uniform across-the-board regression (#907/#908/#913/#914/#916).
+          cargo bench -p elevator-core --bench calibration_bench -- --save-baseline nightly 2>&1 | tee -a bench-output.log
 
       # Criterion's "Performance has regressed." line fires on any
       # statistically significant change, irrespective of magnitude. On a
       # shared CI runner that produces false positives from sub-percent
       # drift and from micro-benches whose measurements are dominated by
       # timer jitter. The filter below keeps regressions whose median
-      # change exceeds MIN_CHANGE_PCT *and* whose bench name also appeared
-      # on the previous nightly's regression list — the documented
-      # recurrence-as-signal heuristic from #734.
+      # change — after dividing out the calibration bench's runner-speed
+      # factor (#907/#908/#913/#914/#916) — exceeds MIN_CHANGE_PCT *and*
+      # whose bench name also appeared on the previous nightly's regression
+      # list (the recurrence-as-signal heuristic from #734).
+      #
+      # MIN_CHANGE_PCT stays at 5.0: calibration removes the uniform
+      # runner-speed component, so the residual this gate sees is genuine
+      # per-bench spread. Nudge to ~7-8 if residual noise still trips.
       - name: Detect regressions
         id: detect
         env:
