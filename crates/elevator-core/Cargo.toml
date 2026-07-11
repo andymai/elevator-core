@@ -117,6 +117,10 @@ harness = false
 name = "query_bench"
 harness = false
 
+[[bench]]
+name = "calibration_bench"
+harness = false
+
 [[example]]
 name = "dispatch_comparison"
 required-features = ["traffic"]
