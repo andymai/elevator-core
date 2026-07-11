@@ -96,6 +96,31 @@ def adjust(change_pct: float, calib_pct: float | None) -> float:
     return ((1.0 + change_pct / 100.0) / scale - 1.0) * 100.0
 
 
+def regression_block(lines: list[str], verdict_idx: int) -> tuple[str, str]:
+    """Resolve the (bench_name, block) for a 'Performance has regressed.' line.
+
+    Criterion's summary block starts at an *unindented* line — the bench id,
+    sometimes with `time:` appended when the id is short — and the
+    time:/thrpt:/change:/verdict lines below it are indented. Scanning back to
+    the first unindented line is robust to how many stat lines criterion emits;
+    a fixed offset breaks when a `Throughput`-configured bench adds a `thrpt:`
+    line (greptile/cubic P2 on #920). The name is normalized to the bare
+    criterion id so it stays stable across nights for the persistence gate and
+    the calibration-skip substring match is reliable."""
+    start = verdict_idx
+    for j in range(verdict_idx - 1, max(-1, verdict_idx - 9), -1):
+        if lines[j].strip() and not lines[j][:1].isspace():
+            start = j
+            break
+    name = lines[start].strip()
+    if name.startswith("Benchmarking "):
+        name = name[len("Benchmarking ") :].rsplit(":", 1)[0]
+    for tail in ("time:", "thrpt:"):
+        name = name.split(tail, 1)[0]
+    name = name.strip() or f"unknown_{verdict_idx}"
+    return name, "".join(lines[start : verdict_idx + 1])
+
+
 def main() -> int:
     github_output = Path(sys.argv[1])
     threshold = float(sys.argv[2])
@@ -116,16 +141,15 @@ def main() -> int:
     for i, line in enumerate(lines):
         if "Performance has regressed." not in line:
             continue
-        ctx = lines[max(0, i - 3) : i + 1]
-        name = ctx[0].strip() if ctx else f"unknown_{i}"
+        name, block = regression_block(lines, i)
         if CALIBRATION_NAME in name:
             continue
-        change_line = next((l for l in ctx if "change:" in l), None)
+        change_line = next((l for l in block.splitlines() if "change:" in l), None)
         if change_line:
             m = CHANGE_RE.search(change_line)
             if m and adjust(_pct(m.group(2)), calib) < threshold:
                 continue
-        todays[name] = "".join(ctx) + "\n"
+        todays[name] = block + "\n"
 
     CURRENT_LIST.write_text("\n".join(sorted(todays)) + ("\n" if todays else ""))
 

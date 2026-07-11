@@ -135,6 +135,37 @@ class CalibrationAdjustmentTest(unittest.TestCase):
         self.assertNotIn(flt.CALIBRATION_NAME, body)
 
 
+class NameExtractionTest(unittest.TestCase):
+    def test_throughput_line_does_not_shift_name(self):
+        # A Throughput-configured bench adds a `thrpt:` line — the name must
+        # still resolve, and a regressed calibration entry with a thrpt line
+        # must still be skipped (greptile/cubic P2).
+        block = (
+            f"{flt.CALIBRATION_NAME}\n"
+            "                        time:   [3.0 ms 3.1 ms 3.2 ms]\n"
+            "                        thrpt:  [1.0 elem/s 1.1 elem/s 1.2 elem/s]\n"
+            "                        change: [+11.0% +12.0% +13.0%] (p = 0.00 < 0.05)\n"
+            "                        Performance has regressed.\n\n"
+        )
+        regressed, _, body = run_filter(block, previous=[flt.CALIBRATION_NAME])
+        self.assertEqual(regressed, "false")
+        self.assertNotIn("time:", body)
+
+    def test_same_line_name_and_time(self):
+        # Criterion prints short ids as `<id>  time: [...]` on one line.
+        log = (
+            "query_riders/100_riders time:   [18.0 µs 18.4 µs 18.9 µs]\n"
+            "                        change: [+11.0% +12.0% +13.0%] (p = 0.00 < 0.05)\n"
+            "                        Performance has regressed.\n\n"
+        )
+        log += bench_block(flt.CALIBRATION_NAME, 0.0, False)
+        _, _, body = run_filter(log, previous=["query_riders/100_riders"])
+        self.assertIn("query_riders/100_riders", body)
+        # The persisted name must be the bare id, not the id+time string.
+        name, _ = flt.regression_block(log.splitlines(keepends=True), 2)
+        self.assertEqual(name, "query_riders/100_riders")
+
+
 class HelperMathTest(unittest.TestCase):
     def test_adjust_cancels_matching_scale(self):
         self.assertAlmostEqual(flt.adjust(12.0, 12.0), 0.0, places=6)
