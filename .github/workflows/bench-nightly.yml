@@ -120,6 +120,11 @@ jobs:
         id: bench
         run: |
           set -o pipefail
+          # Pre-compile all benches so cargo's "Updating/Downloading/Compiling"
+          # output doesn't land in bench-output.log (parsed by the publish step).
+          # On a cold build it otherwise pollutes the log and github-action-
+          # benchmark reports "No benchmark result was found".
+          cargo bench -p elevator-core --no-run
           cargo bench -p elevator-core --bench sim_bench         -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench scaling_bench     -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench dispatch_bench    -- --save-baseline nightly 2>&1 | tee -a bench-output.log
