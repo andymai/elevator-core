@@ -1,0 +1,21 @@
+.github/workflows/bench-nightly.yml
+  s_e1c9ad3495378a::t_972dcaf74f448c 238-244,249
+.github/scripts/criterion-to-bencher.py
+  s_e1c9ad3495378a::t_a98a2f78b0a442 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "5618969b4821229181106f34038d0323d55a5e66",
+  "prompts": {},
+  "sessions": {
+    "s_e1c9ad3495378a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e005044-5771-4265-ab76-92f74a8924b4",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
