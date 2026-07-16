@@ -235,11 +235,18 @@ jobs:
       # `tee -a` above) and pushes per-bench history to gh-pages/bench/. The
       # docs.yml workflow uses `keep_files: true` to preserve this directory
       # across docs deploys.
+      # github-action-benchmark's `cargo` parser wants libtest "bencher"
+      # lines, which Criterion never emits. Generate them from Criterion's
+      # JSON estimates so bench-output.log stays in its native format for
+      # the regression detector above.
+      - name: Convert Criterion results to bencher format
+        run: python3 .github/scripts/criterion-to-bencher.py > bench-bencher.txt
+
       - name: Publish bench history
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
-          output-file-path: bench-output.log
+          output-file-path: bench-bencher.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           gh-pages-branch: gh-pages
