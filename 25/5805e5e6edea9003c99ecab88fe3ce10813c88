@@ -1,0 +1,19 @@
+.github/workflows/bench-nightly.yml
+  s_e1c9ad3495378a::t_5be09c6cbae7e0 123-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "255805e5e6edea9003c99ecab88fe3ce10813c88",
+  "prompts": {},
+  "sessions": {
+    "s_e1c9ad3495378a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9e005044-5771-4265-ab76-92f74a8924b4",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
