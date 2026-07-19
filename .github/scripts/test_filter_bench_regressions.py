@@ -110,7 +110,9 @@ class CalibrationAdjustmentTest(unittest.TestCase):
 
     def test_negative_calibration_unicode_minus_parses(self):
         # Runner slightly faster than baseline (calibration −4%, Unicode minus)
-        # while one bench genuinely regressed +9% → adjusted ≈ +13.5% survives.
+        # while one bench genuinely regressed +9%. The damping clamp holds the
+        # adjusted value at the raw +9% rather than inflating it to +13.5%; it
+        # still clears the 5% gate, so the finding survives either way.
         log = bench_block("dispatch/10e_50s", 9.0, True)
         log += bench_block(flt.CALIBRATION_NAME, -4.0, False)
         regressed, _, body = run_filter(log, previous=["dispatch/10e_50s"])
@@ -175,6 +177,33 @@ class HelperMathTest(unittest.TestCase):
 
     def test_adjust_absurd_scale_falls_back(self):
         self.assertEqual(flt.adjust(12.0, -150.0), 12.0)
+
+    def test_adjust_never_exceeds_raw_change(self):
+        # Faster runner (negative calibration) must not inflate a small
+        # positive change. Unclamped this is (1.03)/(0.89135)-1 = +15.6%.
+        self.assertAlmostEqual(flt.adjust(3.0, -10.865), 3.0, places=6)
+
+    def test_adjust_still_damps_when_calibration_slower(self):
+        # The original purpose is preserved: a slower runner still cancels.
+        self.assertLess(flt.adjust(12.0, 10.0), 12.0)
+
+
+class DampingRegressionTest(unittest.TestCase):
+    def test_issue_923_924_shape_is_not_flagged(self):
+        # The exact shape that produced #923/#924: runner ~11% faster on
+        # calibration, four benches ~+3%, flagged both nights by the
+        # persistence gate. Damping-only holds them at +3% → below the gate.
+        names = [
+            "dispatch_comparison/etd_50e_200s",
+            "dispatch_comparison/nearest_car_50e_200s",
+            "dispatch_comparison/rsr_50e_200s",
+            "dispatch_comparison/scan_50e_200s",
+        ]
+        log = "".join(bench_block(n, 3.0, True) for n in names)
+        log += bench_block(flt.CALIBRATION_NAME, -10.865, False)
+        regressed, _, body = run_filter(log, previous=names)
+        self.assertEqual(regressed, "false")
+        self.assertEqual(body, "")
 
 
 if __name__ == "__main__":

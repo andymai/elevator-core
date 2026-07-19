@@ -19,11 +19,16 @@ the runner-speed factor back out. The `calibration/fixed_workload` bench
 (benches/calibration_bench.rs) contains no elevator-core code, so its
 change% is a pure reading of this runner vs the baseline runner. Each real
 bench's change is adjusted by that factor before the magnitude gate:
-`adjusted = (1 + change/100) / (1 + calib/100) - 1`. A genuine per-bench
-regression diverges from calibration and survives; a whole-suite runner scale
-cancels. If the calibration reading is absent (the one-night warm-up right
-after this ships, before calibration has a prior baseline), the script falls
-back to raw change% so detection is never silently weakened.
+`adjusted = min(((1 + change/100) / (1 + calib/100) - 1) * 100, change)`, with
+both sides of the `min` in percentage units. A genuine
+per-bench regression diverges from calibration and survives; a whole-suite
+runner scale cancels. If the calibration reading is absent (the one-night
+warm-up right after this ships, before calibration has a prior baseline), the
+script falls back to raw change% so detection is never silently weakened.
+
+The `min(..., change)` clamp makes the adjustment damping-only — see `adjust()`
+for why an unclamped divide-out amplified +3% into +15.6% and produced the
+false positives in #923/#924.
 
 Args:
     sys.argv[1]: path to append `regressed=true|false` and `gate=two-day|
@@ -87,13 +92,27 @@ def calibration_change(lines: list[str]) -> float | None:
 
 def adjust(change_pct: float, calib_pct: float | None) -> float:
     """Divide the runner-speed factor out of a bench's change%. With no
-    calibration reading, pass the raw change through unchanged (fallback)."""
+    calibration reading, pass the raw change through unchanged (fallback).
+
+    The result is clamped to never exceed the raw change: calibration may only
+    *shrink* a reported regression, never inflate one. Without the clamp a
+    faster-than-baseline runner amplifies instead of cancelling — on run
+    29680411190 calibration read −10.87% while four `dispatch_comparison/
+    *_50e_200s` benches read +3%, and `(1.03)/(0.8913)−1 = +15.6%` cleared the
+    5% gate (issues #923/#924). The divide-out assumes runner speed is a single
+    scalar every bench shares; it isn't, because the calibration walk is
+    memory-bandwidth-bound while the dispatch benches are branch-bound, so the
+    two diverge across runner instances. Damping-only keeps the whole-suite
+    cancellation this was built for while making that divergence unable to
+    manufacture a regression.
+    """
     if calib_pct is None:
         return change_pct
     scale = 1.0 + calib_pct / 100.0
     if scale <= 0.0:  # absurd reading — don't trust it, fall back to raw
         return change_pct
-    return ((1.0 + change_pct / 100.0) / scale - 1.0) * 100.0
+    adjusted = ((1.0 + change_pct / 100.0) / scale - 1.0) * 100.0
+    return min(adjusted, change_pct)
 
 
 def regression_block(lines: list[str], verdict_idx: int) -> tuple[str, str]:
