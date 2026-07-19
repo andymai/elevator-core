@@ -202,8 +202,15 @@ jobs:
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
       # auth hiccup) does not silently suppress the alert via the implicit
       # `success()` gate on the issue step's `if:` condition.
+      #
+      # Scheduled runs only, matching the cache-write guards. A dispatch run
+      # restores the last nightly's regression list and compares against the
+      # same history, so it would re-confirm a live regression and file a
+      # duplicate issue without a night boundary having passed. Dispatch
+      # stays a read-only preview: the finding is still printed in the step
+      # log and the `regressed` output is still set.
       - name: Open issue on regression
-        if: steps.detect.outputs.regressed == 'true'
+        if: steps.detect.outputs.regressed == 'true' && github.event_name == 'schedule'
         env:
           GATE: ${{ steps.detect.outputs.gate }}
         uses: actions/github-script@v7

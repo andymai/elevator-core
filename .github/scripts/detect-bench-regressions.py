@@ -69,14 +69,17 @@ def read_today(root: str) -> dict[str, float]:
 
     Names come from the directory path rather than the log: Criterion drops
     the name prefix in non-TTY runs, which is why criterion-to-bencher.py
-    reads the paths too.
+    reads the paths too. The id is taken relative to `root` rather than by
+    locating a "criterion" path component, so a bench group named
+    `criterion` cannot shift the split and silently yield the wrong key.
     """
     out: dict[str, float] = {}
     pattern = os.path.join(root, "**", "new", "estimates.json")
     for est in sorted(glob.glob(pattern, recursive=True)):
-        parts = est.split(os.sep)
-        ci = len(parts) - 1 - parts[::-1].index("criterion") if "criterion" in parts else 0
-        name = "/".join(parts[ci + 1 : -2])
+        parts = os.path.relpath(est, root).split(os.sep)
+        if len(parts) < 3 or parts[-2:] != ["new", "estimates.json"]:
+            continue
+        name = "/".join(parts[:-2])
         try:
             with open(est) as f:
                 data = json.load(f)
@@ -171,14 +174,23 @@ def main() -> int:
         sys.exit(f"detect-bench-regressions: no estimates found under {criterion_root}")
     history = load_history(history_path)
 
+    # Distinguish the two ways calibration can be unavailable: a warming-up
+    # history is expected and benign, a missing bench means calibration_bench
+    # did not produce a result this run and wants investigating.
     calib = None
-    if CALIBRATION_NAME in today and CALIBRATION_NAME in history:
-        calib = pct_above_median(today[CALIBRATION_NAME], history[CALIBRATION_NAME])
-    if calib is None:
+    if CALIBRATION_NAME not in today:
         print(
-            "warning: no usable calibration/fixed_workload median yet — using raw "
-            "change vs median. Expected while history is warming up."
+            f"warning: {CALIBRATION_NAME} produced no measurement this run — "
+            "runner-speed adjustment disabled, gating on raw change vs median. "
+            "This is not expected; check whether calibration_bench failed."
         )
+    else:
+        calib = pct_above_median(today[CALIBRATION_NAME], history.get(CALIBRATION_NAME, []))
+        if calib is None:
+            print(
+                f"warning: {CALIBRATION_NAME} has fewer than {MIN_SAMPLES} nightlies "
+                "of history — gating on raw change vs median until it warms up."
+            )
 
     todays: dict[str, str] = {}
     for name, value in sorted(today.items()):
@@ -223,7 +235,7 @@ def main() -> int:
             "Treating as runner variance."
         )
     else:
-        print(f"No regressions above {threshold}% above the rolling median.")
+        print(f"No regressions above {threshold}% vs the rolling median.")
     return 0
 
 

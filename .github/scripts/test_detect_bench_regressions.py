@@ -194,6 +194,15 @@ class HistoryFileTest(unittest.TestCase):
             p.write_text("{not json")
             self.assertEqual(det.load_history(p), {})
 
+    def test_missing_calibration_falls_back_to_raw(self):
+        # calibration_bench produced nothing this run: detection must still
+        # work, gating on the raw change vs median.
+        means = {"dispatch/10e_50s": 120.0}
+        hist = {"dispatch/10e_50s": [100.0] * 5}
+        regressed, _, body, _ = run_detect(means, history=hist, previous=["dispatch/10e_50s"])
+        self.assertEqual(regressed, "true")
+        self.assertIn("dispatch/10e_50s", body)
+
     def test_calibration_never_reported(self):
         means = {det.CALIBRATION_NAME: 200.0}
         hist = {det.CALIBRATION_NAME: [100.0] * 5}
@@ -225,6 +234,20 @@ class HelperMathTest(unittest.TestCase):
             write_estimates(root, {"dispatch_comparison/etd_50e_200s": 9_223_500.0})
             got = det.read_today(str(root))
             self.assertEqual(got, {"dispatch_comparison/etd_50e_200s": 9_223_500.0})
+
+    def test_read_today_handles_a_bench_group_named_criterion(self):
+        # Resolving the id relative to root (rather than by locating a
+        # "criterion" path component) keeps this from silently mis-keying.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "criterion"
+            write_estimates(root, {"some_group/criterion": 100.0})
+            self.assertEqual(det.read_today(str(root)), {"some_group/criterion": 100.0})
+
+    def test_read_today_ignores_root_named_something_else(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "not-criterion"
+            write_estimates(root, {"a/b": 12.0})
+            self.assertEqual(det.read_today(str(root)), {"a/b": 12.0})
 
 
 if __name__ == "__main__":
