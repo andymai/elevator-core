@@ -19,7 +19,8 @@ the runner-speed factor back out. The `calibration/fixed_workload` bench
 (benches/calibration_bench.rs) contains no elevator-core code, so its
 change% is a pure reading of this runner vs the baseline runner. Each real
 bench's change is adjusted by that factor before the magnitude gate:
-`adjusted = min((1 + change/100) / (1 + calib/100) - 1, change)`. A genuine
+`adjusted = min(((1 + change/100) / (1 + calib/100) - 1) * 100, change)`, with
+both sides of the `min` in percentage units. A genuine
 per-bench regression diverges from calibration and survives; a whole-suite
 runner scale cancels. If the calibration reading is absent (the one-night
 warm-up right after this ships, before calibration has a prior baseline), the
