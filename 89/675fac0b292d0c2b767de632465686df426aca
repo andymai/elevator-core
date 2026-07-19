@@ -1,0 +1,23 @@
+.github/scripts/filter-bench-regressions.py
+  s_e80e8704369455::t_606def2f811c4a 94-107,113-114
+  s_e80e8704369455::t_07fc0f759af49a 22-30
+.github/scripts/test_filter_bench_regressions.py
+  s_e80e8704369455::t_f2360f3dd0c460 181-207
+  s_e80e8704369455::t_09c0df632649a4 113-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "89675fac0b292d0c2b767de632465686df426aca",
+  "prompts": {},
+  "sessions": {
+    "s_e80e8704369455": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1048acae-b2ff-489e-9364-be5505715d28",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
