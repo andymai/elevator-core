@@ -1,0 +1,45 @@
+.github/scripts/test_detect_bench_regressions.py
+  s_e80e8704369455::t_93d6aa0637d875 1-231
+.github/scripts/detect-bench-regressions.py
+  s_e80e8704369455::t_6fb6640d0f848e 4-6
+  s_e80e8704369455::t_93d6aa0637d875 1-3,7-231
+.github/workflows/bench-nightly.yml
+  s_e80e8704369455::t_4a5839298ee45b 215-217
+  s_e80e8704369455::t_4f04ebbc6de981 60-62,64-71,73-78,82-83,85
+  s_e80e8704369455::t_39d74722133e09 171-177,179,182-183
+  s_e80e8704369455::t_abc7c04516a80f 134-147,157-159
+  s_e80e8704369455::t_9fdb515ad1e7fc 46
+  s_e80e8704369455::t_c7e94c6ce0f650 88-92,96-97
+  s_e80e8704369455::t_f4b17ac364a694 128-131
+  s_e80e8704369455::t_aeffc8d64717bf 178
+  s_e80e8704369455::t_c18d945cdef7ed 54
+  s_e80e8704369455::t_c0b8cbff5a1693 37
+  s_e80e8704369455::t_66a3487c6424d5 79
+  s_38d3958cd84f35::t_534f83e6a655ff 45,48-50
+.github/workflows/ci.yml
+  s_e80e8704369455::t_4d061bb79d9a76 306-317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8ec722babce27a87bdb706c48f92fe0dcd47f4ca",
+  "prompts": {},
+  "sessions": {
+    "s_38d3958cd84f35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc5ac8b2-b474-4c23-b601-2b384eec3726",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    },
+    "s_e80e8704369455": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1048acae-b2ff-489e-9364-be5505715d28",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
