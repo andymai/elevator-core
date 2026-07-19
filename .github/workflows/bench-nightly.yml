@@ -34,7 +34,7 @@ jobs:
       # rustc conflates compiler codegen drift with code changes, which
       # is exactly how an unpinned @stable produced ~2 weeks of phantom
       # +13–20% regressions (issue #884). Bump this deliberately when
-      # adopting a new toolchain — the baseline auto-re-establishes
+      # adopting a new toolchain — the history auto-re-establishes
       # because the cache key below is keyed on `rustc --version`.
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
@@ -42,65 +42,59 @@ jobs:
           shared-key: bench-criterion
           cache-targets: true
 
-      # Capture the exact compiler version into the env so the criterion
-      # baseline cache key can include it. Any toolchain change (the pin
+      # Capture the exact compiler version into the env so the measurement
+      # history cache key can include it. Any toolchain change (the pin
       # above, or even a patch release) then lands on a fresh key and the
-      # next nightly re-baselines instead of reporting compiler drift as
-      # a code regression.
+      # history rebuilds from scratch instead of reporting compiler drift
+      # as a code regression — absolute timings are compiler-dependent, so
+      # a history must never span toolchains.
       # Whitelist-sanitize to chars valid in a GitHub Actions cache key
       # (commas in particular are rejected). A future rustc format change
       # — channel suffix, date-delimiter tweak — can't then corrupt the key.
-      - name: Record rustc version for the baseline cache key
+      - name: Record rustc version for the history cache key
         run: echo "RUSTC_VER=$(rustc --version | sed 's/[^a-zA-Z0-9._-]/_/g')" >> "$GITHUB_ENV"
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
 
-      # Restore the Criterion baseline so this run compares against it.
-      # The cache key is suffixed with `github.sha`, so re-running the
-      # *same* commit always restores the *first* measurement of that
-      # commit (the save step below is gated on `cache-hit != 'true'`,
-      # so the per-SHA baseline is locked once written). This bounds
-      # drift to single-run variance instead of compounding it across
-      # nights — under the previous `run_id`-keyed scheme each nightly
-      # save overwrote the baseline with its own noisy output, which
-      # then became tomorrow's comparison floor.
+      # Restore the rolling per-bench measurement history. The detect step
+      # compares tonight against the *median* of the last N nightlies rather
+      # than against a single frozen prior measurement.
       #
-      # When a new commit lands the exact-key restore misses; the
-      # `restore-keys` prefix-fallback then pulls the most recent
-      # SHA's baseline so the new commit is compared against the prior
-      # known-good measurement. The save step writes a fresh entry
-      # under the new SHA, freezing it for subsequent nightlies.
+      # This replaces the per-SHA criterion baseline lock (#734). That lock
+      # froze the comparison point at the first nightly to measure a commit,
+      # which made the two-day persistence gate structurally unable to do its
+      # job: a real regression showed up for exactly one night (the nightly
+      # after the new SHA landed), and that same night re-locked the baseline,
+      # so every subsequent night compared the SHA against itself. Only noise
+      # recurs under that scheme, so only noise was ever confirmed — see
+      # #923/#924.
       #
-      # The key also carries `RUSTC_VER`, so the prefix-fallback only
-      # matches baselines built by the *same compiler*. A toolchain bump
-      # changes the prefix, every old baseline stops matching, and the
-      # next nightly re-establishes a clean baseline — instead of
-      # charging the compiler's codegen drift to the code as a phantom
-      # regression (issue #884).
-      - name: Restore previous criterion baseline
-        id: restore-baseline
+      # Keyed by `run_id` with a prefix fallback, giving rolling-daily
+      # semantics: each night picks up the most recent prior history. The key
+      # carries `RUSTC_VER` so a toolchain bump starts a fresh history instead
+      # of charging the compiler's codegen drift to the code as a phantom
+      # regression (issue #884) — absolute timings are compiler-dependent, so
+      # history must not span toolchains.
+      - name: Restore bench median history
         uses: actions/cache/restore@v4
         with:
-          path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.sha }}
+          path: bench-history.json
+          key: bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.run_id }}
           restore-keys: |
-            criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-
+            bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-
 
       # Restore the previous nightly's regression-name list so the detect
-      # step can gate issue-open on two-day persistence. Key is suffixed
-      # with `github.run_id` (unique per workflow run) rather than the
-      # SHA, because for THIS cache we want rolling-daily semantics, not
-      # the per-SHA freeze the criterion-baseline cache uses: when no new
-      # commit lands for several nights (weekends, quiet windows), we
-      # still want today to compare against *yesterday's* list, not
-      # against day-1's locked snapshot.
+      # step can gate issue-open on two-day persistence. Keyed by
+      # `github.run_id` with a prefix fallback for rolling-daily semantics,
+      # matching the history cache above: when no new commit lands for
+      # several nights (weekends, quiet windows), today still compares
+      # against *yesterday's* list.
       #
       # Exact-key restore therefore always misses (this run's run_id is
       # unique); the prefix-fallback restore-keys pull the most recent
-      # prior run's list. On the very first run after this step ships,
-      # even the prefix fallback misses and the filter falls back to
-      # single-run behaviour for that one day.
+      # prior run's list. When even the prefix fallback misses, the detect
+      # step falls back to single-run behaviour for that one day.
       - name: Restore previous regression list
         id: restore-regressions
         uses: actions/cache/restore@v4
@@ -131,20 +125,26 @@ jobs:
           cargo bench -p elevator-core --bench multi_line_bench  -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           cargo bench -p elevator-core --bench query_bench       -- --save-baseline nightly 2>&1 | tee -a bench-output.log
           # Runner-speed calibration — no elevator-core code. The detect step
-          # divides its change% back out of every real bench to cancel the
-          # shared `ubuntu-latest` speed variance that otherwise reads as a
-          # uniform across-the-board regression (#907/#908/#913/#914/#916).
+          # measures it against its own rolling median and divides that factor
+          # back out of every real bench, cancelling the shared `ubuntu-latest`
+          # speed variance that otherwise reads as a uniform across-the-board
+          # regression (#907/#908/#913/#914/#916).
           cargo bench -p elevator-core --bench calibration_bench -- --save-baseline nightly 2>&1 | tee -a bench-output.log
 
-      # Criterion's "Performance has regressed." line fires on any
-      # statistically significant change, irrespective of magnitude. On a
-      # shared CI runner that produces false positives from sub-percent
-      # drift and from micro-benches whose measurements are dominated by
-      # timer jitter. The filter below keeps regressions whose median
-      # change — after dividing out the calibration bench's runner-speed
-      # factor (#907/#908/#913/#914/#916) — exceeds MIN_CHANGE_PCT *and*
-      # whose bench name also appeared on the previous nightly's regression
-      # list (the recurrence-as-signal heuristic from #734).
+      # Compare tonight's per-bench mean (read from Criterion's
+      # estimates.json, not its `change:` lines) against the median of the
+      # last N nightlies. A bench is reported when it exceeds that median by
+      # more than MIN_CHANGE_PCT after the calibration bench's runner-speed
+      # factor is divided out (#907/#908/#913/#914/#916), *and* it also
+      # appeared on the previous nightly's list (the recurrence-as-signal
+      # heuristic from #734).
+      #
+      # The median baseline is what makes that recurrence gate meaningful: it
+      # stays put night to night, so a genuine regression keeps clearing the
+      # threshold until enough post-regression nights accumulate to move the
+      # median. Under the old per-SHA freeze the baseline re-locked the same
+      # night the regression appeared, so the gate could only ever confirm
+      # noise (#923/#924).
       #
       # MIN_CHANGE_PCT stays at 5.0: calibration removes the uniform
       # runner-speed component, so the residual this gate sees is genuine
@@ -154,9 +154,9 @@ jobs:
         env:
           MIN_CHANGE_PCT: '5.0'
         run: |
-          python3 .github/scripts/filter-bench-regressions.py \
-            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" bench-output.log \
-            regressions-previous.txt
+          python3 .github/scripts/detect-bench-regressions.py \
+            "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" target/criterion \
+            bench-history.json regressions-previous.txt
 
       - name: Upload bench output
         if: always()
@@ -168,16 +168,19 @@ jobs:
             bench-output.log
           retention-days: 30
 
-      # Only save when the exact-key restore missed — i.e. this is the
-      # first nightly to bench this SHA. Skipping on exact-match keeps
-      # the per-SHA baseline frozen at its first measurement, which is
-      # what stops the noise compounding loop.
-      - name: Save new criterion baseline
-        if: steps.restore-baseline.outputs.cache-hit != 'true'
+      # Persist the history with tonight's sample appended (the detect step
+      # rewrote the file in place, after doing its comparison, so tonight
+      # never influenced the median it was measured against).
+      #
+      # Scheduled runs only, for the same reason the regression list is
+      # guarded below: a `workflow_dispatch` preview must not inject a
+      # sample into the rolling reference.
+      - name: Save bench median history
+        if: github.event_name == 'schedule'
         uses: actions/cache/save@v4
         with:
-          path: target/criterion
-          key: criterion-baseline-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.sha }}
+          path: bench-history.json
+          key: bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.run_id }}
 
       # Save today's regression-name list under the per-run-id key so
       # tomorrow's prefix-fallback restore picks it up. Only the
@@ -199,8 +202,15 @@ jobs:
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
       # auth hiccup) does not silently suppress the alert via the implicit
       # `success()` gate on the issue step's `if:` condition.
+      #
+      # Scheduled runs only, matching the cache-write guards. A dispatch run
+      # restores the last nightly's regression list and compares against the
+      # same history, so it would re-confirm a live regression and file a
+      # duplicate issue without a night boundary having passed. Dispatch
+      # stays a read-only preview: the finding is still printed in the step
+      # log and the `regressed` output is still set.
       - name: Open issue on regression
-        if: steps.detect.outputs.regressed == 'true'
+        if: steps.detect.outputs.regressed == 'true' && github.event_name == 'schedule'
         env:
           GATE: ${{ steps.detect.outputs.gate }}
         uses: actions/github-script@v7
@@ -209,9 +219,9 @@ jobs:
             const fs = require('fs');
             const gate = process.env.GATE || 'unknown';
             const header = gate === 'two-day'
-              ? 'Nightly benchmark run flagged a Criterion regression (confirmed on two consecutive nightlies).'
-              : 'Nightly benchmark run flagged a Criterion regression. ' +
-                'Single-run gate (no previous-nightly list cached yet — first run after the persistence gate was deployed).';
+              ? 'Nightly benchmark run flagged a regression against the rolling median of recent nightlies (confirmed on two consecutive nightlies).'
+              : 'Nightly benchmark run flagged a regression against the rolling median of recent nightlies. ' +
+                'Single-run gate (no previous-nightly list cached yet).';
             const body = [
               header,
               '',
