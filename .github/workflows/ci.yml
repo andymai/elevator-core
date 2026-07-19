@@ -303,6 +303,18 @@ jobs:
       - name: Build elevator-core on MSRV
         run: cargo build -p elevator-core --all-features
 
+  bench-scripts:
+    name: Bench script tests
+    # The nightly bench gate's detection math lives entirely in
+    # .github/scripts/. It only executes at 08:00 UTC, so without this job a
+    # bug there surfaces as a bogus regression issue a day later rather than
+    # on the PR that introduced it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run detector unit tests
+        run: python3 .github/scripts/test_detect_bench_regressions.py
+
   commitlint:
     name: Commitlint
     # PR-only: commits on main have already landed. The local
