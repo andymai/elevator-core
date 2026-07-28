@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785143955622,
+  "lastUpdate": 1785229667889,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -4151,6 +4151,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 142832,
             "range": "± 36439",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b6a713080b91f0f41ba396ab64d60a6d7914c562",
+          "message": "ci(bench): detect regressions against a rolling median of nightlies (#933)\n\nReplaces #932, which GitHub auto-closed when its base branch\n(`ci/bench-calibration-damping`, the #931 branch) was deleted on merge.\nSame content, rebuilt as a single commit on top of `main`, with\ngreptile's review findings from #932 already folded in.\n\nFixes the structural half of #923/#924. #931 stopped calibration from\nmanufacturing regressions; this stops the gate from being unable to\nconfirm real ones.\n\n## The bug\n\nThe per-SHA baseline lock and the two-day persistence gate cannot both\nwork:\n\n1. The lock freezes the comparison point at the **first** nightly to\nmeasure a commit.\n2. So a real regression is visible on exactly **one** night — the\nnightly right after the new SHA lands, compared against the prior SHA's\nbaseline.\n3. That same night re-locks the baseline. Every night after compares the\nSHA **against itself**, where no code difference is representable.\n4. The gate only files when a bench regresses on **two consecutive**\nnightlies.\n\nA genuine regression's signal appears once and is then baselined away,\nso it can never be confirmed. Noise, which does recur on same-SHA\nnights, is the only thing the gate can ever confirm. Four consecutive\nnightlies ran on `0f9de844`, and #923/#924 were filed off\nself-comparisons of that commit.\n\n## The fix\n\nBaseline is now the per-bench median of the last 7 nightly measurements,\nread from Criterion's `estimates.json` rather than its `change:` lines:\n\n- A single unusually fast or slow runner moves the median by one sample\nout of seven, so the comparison point is stable night to night. That is\nwhat the per-SHA freeze was reaching for, without freezing.\n- A real regression stays above the median for several consecutive\nnights after landing, until enough post-regression samples drag the\nmedian up. **That is what makes the persistence gate meaningful for the\nfirst time.**\n\nCalibration still divides runner speed out, computed the same way\n(tonight vs its own median), still clamped to damping-only per #931.\n\nCache changes: the per-SHA `criterion-baseline-*` cache is replaced by a\nrolling `bench-history-*` cache keyed by `run_id` with prefix fallback.\nIt keeps `RUSTC_VER` in the key — absolute timings are\ncompiler-dependent, so a history must never span toolchains (#884).\nWrites are `schedule`-only so a `workflow_dispatch` preview cannot\ninject a sample.\n\n## Verification\n\nReplayed against the real 54-bench criterion tree from the failing\nnightly (run 29680411190), with every bench on the previous-night list\nso the two-day gate applies:\n\n| scenario | result |\n|---|---|\n| stable night (tonight == median) | `regressed=false` |\n| the #923/#924 shape (+3% benches, −10.9% calibration) |\n`regressed=false` |\n| genuine +20% on `dispatch_comparison/etd_50e_200s` | `regressed=true`,\nonly that bench flagged |\n| whole suite 12% slower (runner) | `regressed=false` |\n\n23 unit tests, including one that walks two nights in sequence to assert\na real regression survives into night two and is confirmed — the\nproperty the old scheme structurally could not have.\n\n## Review findings from #932, already applied\n\n- **Issue creation is now `schedule`-only.** A dispatch run restores the\nlast nightly's regression list and compares against the same history, so\nit would re-confirm a live regression and file a duplicate issue without\na night boundary passing. The cache-write guards already assumed\ndispatch was a read-only preview; the issue step did not match.\n- **A missing calibration bench is now distinguished from a warming-up\nhistory.** Both previously printed \"expected during warmup\", so\n`calibration_bench` failing outright looked benign.\n- **Bench ids resolve relative to the criterion root** rather than by\nlocating a `\"criterion\"` path component, which mis-keyed a bench group\nnamed `criterion`.\n- Fixed a duplicated word in the no-regression message.\n\n## Warm-up\n\nPer bench, fewer than 3 prior samples means it is recorded but not\ngated, so the first two nightlies after this lands report nothing while\nhistory accumulates. Warm-up is per bench, so newly added benches do not\nmute established ones.\n\n## Also\n\nAdds a `Bench script tests` CI job. These unit tests previously ran\nnowhere — the nightly executes at 08:00 UTC, so a bug in the detection\nmath surfaced as a bogus issue the next morning instead of on the PR\nthat caused it. (This also meant #932 itself got no real CI, since\n`ci.yml` only triggers on PRs based on `main`.)\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nDetect regressions against a rolling median of the last 7 nightlies\ninstead of a per-SHA baseline, so real regressions are confirmed and\nnoise is ignored. Also adds unit tests and updates workflows to use a\nrolling history keyed by `RUSTC_VER`.\n\n- **Bug Fixes**\n- Compare each bench to the median of its last 7 nightlies (from\n`estimates.json`) instead of a frozen per-SHA baseline, so regressions\npersist across nights and the two-day gate works.\n- Keep runner-speed correction via `calibration/fixed_workload` vs its\nown median, clamped to damping-only.\n- Warm-up: benches with fewer than 3 samples are recorded but not gated.\n\n- **Refactors**\n- Replace `.github/scripts/filter-bench-regressions.py` with\n`.github/scripts/detect-bench-regressions.py`; add unit tests and run\nthem in CI.\n- Use a rolling `bench-history.json` cache keyed by\n`bench-history-${ref}-${RUSTC_VER}-${run_id}` with prefix fallback;\nwrites are `schedule`-only. Issue creation is also `schedule`-only to\navoid duplicates from `workflow_dispatch`.\n- Update nightly workflow to restore/save history and the previous-night\nregression list; detector reads `target/criterion`, adjusts by\ncalibration, and sets `regressed`/`gate` outputs.\n\n<sup>Written for commit 5322bca416921d72d397287651a70f5543e81a5b.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/933?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"Review in cubic\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->",
+          "timestamp": "2026-07-19T21:16:50Z",
+          "url": "https://github.com/andymai/elevator-core/commit/b6a713080b91f0f41ba396ab64d60a6d7914c562"
+        },
+        "date": 1785229664951,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3930599,
+            "range": "± 6214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 610972,
+            "range": "± 4015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 596186,
+            "range": "± 5109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 716182,
+            "range": "± 2180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 552456,
+            "range": "± 2612",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 34912,
+            "range": "± 466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7403,
+            "range": "± 329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3356536,
+            "range": "± 33941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15017911,
+            "range": "± 46821",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 569869,
+            "range": "± 12104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1842336,
+            "range": "± 3760",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9077327,
+            "range": "± 94479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 265585,
+            "range": "± 964",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1798728,
+            "range": "± 41146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8666362,
+            "range": "± 21277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 260909,
+            "range": "± 1281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1722498,
+            "range": "± 6797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8480413,
+            "range": "± 93610",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 253588,
+            "range": "± 2492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1726132,
+            "range": "± 8088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8724100,
+            "range": "± 53982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 253813,
+            "range": "± 1383",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1793432,
+            "range": "± 12059",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8642504,
+            "range": "± 39693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 252655,
+            "range": "± 1354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 3701,
+            "range": "± 324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4029,
+            "range": "± 4493",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4067,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4008,
+            "range": "± 1339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 21503,
+            "range": "± 446",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3421144,
+            "range": "± 40417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3209989,
+            "range": "± 11586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7154,
+            "range": "± 18658",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 16638,
+            "range": "± 395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 8703,
+            "range": "± 10108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 91623,
+            "range": "± 1940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 16318,
+            "range": "± 2621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 846166,
+            "range": "± 35125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 88793,
+            "range": "± 2634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15252,
+            "range": "± 2509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 847981,
+            "range": "± 15632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 90621,
+            "range": "± 8282",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16493,
+            "range": "± 2491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 4546992867,
+            "range": "± 12899674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 63523798,
+            "range": "± 316329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 16947617,
+            "range": "± 23709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 54119595,
+            "range": "± 273831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8011160,
+            "range": "± 23683",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 34132,
+            "range": "± 1120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 13779,
+            "range": "± 995",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6059,
+            "range": "± 379",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 203748,
+            "range": "± 15044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 197774,
+            "range": "± 11621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 131746,
+            "range": "± 9863",
             "unit": "ns/iter"
           }
         ]
