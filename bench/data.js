@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785834536262,
+  "lastUpdate": 1785920894987,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -6919,6 +6919,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 132760,
             "range": "± 14089",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "3ffd9a128e399bf6f37dc5c4b7dec1ea8578ecc7",
+          "message": "chore(deps): bump syn from 3.0.0 to 3.0.3 (#939)\n\nBumps [syn](https://github.com/dtolnay/syn) from 3.0.0 to 3.0.3.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/dtolnay/syn/releases\">syn's\nreleases</a>.</em></p>\n<blockquote>\n<h2>3.0.3</h2>\n<ul>\n<li>Documentation improvements</li>\n</ul>\n<h2>3.0.2</h2>\n<ul>\n<li>Add <a\nhref=\"https://docs.rs/syn/3/syn/struct.Error.html#method.new_range\"><code>Error::new_range(start..end,\n&quot;msg&quot;)</code></a> (<a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2068\">#2068</a>, <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2070\">#2070</a>)</li>\n<li>Add <a\nhref=\"https://docs.rs/syn/3/syn/buffer/struct.Cursor.html#method.prev_span\"><code>Cursor::prev_span</code></a></li>\n</ul>\n<h2>3.0.1</h2>\n<ul>\n<li>Parse const traits (<a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2056\">#2056</a>, <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2057\">#2057</a>, <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2058\">#2058</a>, <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2063\">#2063</a>, <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2064\">#2064</a>)</li>\n<li>Parse unsafe binder types (<a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2065\">#2065</a>)</li>\n<li>Parse impl restrictions (<a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2066\">#2066</a>)</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/23dbaab4b0c43f56cd803894054cf366661e53b0\"><code>23dbaab</code></a>\nRelease 3.0.3</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/16aad4e9df889973182b93ea4d2309e594ba9fa4\"><code>16aad4e</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2071\">#2071</a>\nfrom dtolnay/compatibility</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/42181b86c4c5dbf187069a500e28937873f39d8e\"><code>42181b8</code></a>\nAdd explanation of compatibility strategy</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/f3af08e3ab9764257faf14ff546cca148f7baaab\"><code>f3af08e</code></a>\nUpdate test suite to nightly-2026-07-21</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/88ee7be2197e61d6e84f0bff38eb2fe57998a765\"><code>88ee7be</code></a>\nRelease 3.0.2</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/587bc203a0e975e8261a65791203e8912edb1c42\"><code>587bc20</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2070\">#2070</a>\nfrom dtolnay/emptyrange</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/96801f717ed1ae7943182afe1fd4c5857c50428b\"><code>96801f7</code></a>\nAllow Error::new_range at empty cursor range</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/9dc16c94cf0468dc4e4b1f6011cfd4040246c06c\"><code>9dc16c9</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/dtolnay/syn/issues/2069\">#2069</a>\nfrom dtolnay/prevspan</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/1db76b7ba3f4e16430e6b2c96f160c05160e056e\"><code>1db76b7</code></a>\nAlign on using impl trait across all Error constructors</li>\n<li><a\nhref=\"https://github.com/dtolnay/syn/commit/bfa1ebf336f5fae0a0a22a89aeb991e2cd96c65a\"><code>bfa1ebf</code></a>\nMake Cursor::prev_span public</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/dtolnay/syn/compare/3.0.0...3.0.3\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=syn&package-manager=cargo&previous-version=3.0.0&new-version=3.0.3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop\nDependabot creating any more for this major version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop\nDependabot creating any more for this minor version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop\nDependabot creating any more for this dependency (unless you reopen the\nPR or upgrade to it yourself)\n\n\n</details>\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nBump `syn` to 3.0.3 to pick up parser improvements and minor APIs. Only\nlockfile changes; no code changes required.\n\n- **Dependencies**\n- Parser updates: support for const traits, unsafe binder types, and\nimpl restrictions.\n- New APIs: `Error::new_range` and `Cursor::prev_span`, plus docs\nimprovements.\n\n<sup>Written for commit 72077743e0d0f0e85f812cd68220ac88683e81b1.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/939?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"Review in cubic\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-08-03T20:37:29Z",
+          "url": "https://github.com/andymai/elevator-core/commit/3ffd9a128e399bf6f37dc5c4b7dec1ea8578ecc7"
+        },
+        "date": 1785920892075,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3925302,
+            "range": "± 3784",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 604151,
+            "range": "± 898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 600489,
+            "range": "± 1648",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 701060,
+            "range": "± 1560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 556645,
+            "range": "± 1210",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 34887,
+            "range": "± 531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7503,
+            "range": "± 1007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3397858,
+            "range": "± 17798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15227845,
+            "range": "± 46167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 567134,
+            "range": "± 1473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1881320,
+            "range": "± 5002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9190538,
+            "range": "± 52611",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 274254,
+            "range": "± 1021",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1823497,
+            "range": "± 6179",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8816426,
+            "range": "± 30468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 264713,
+            "range": "± 1271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1752123,
+            "range": "± 3566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8630073,
+            "range": "± 47114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 261591,
+            "range": "± 2849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1778052,
+            "range": "± 7810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8625875,
+            "range": "± 25763",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 258803,
+            "range": "± 1491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1826174,
+            "range": "± 7273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8841649,
+            "range": "± 73341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 260828,
+            "range": "± 1318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 3640,
+            "range": "± 706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 3459,
+            "range": "± 656",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4675,
+            "range": "± 6152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 3951,
+            "range": "± 1087",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 21882,
+            "range": "± 3913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3259775,
+            "range": "± 10783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3028970,
+            "range": "± 3031",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7893,
+            "range": "± 28003",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 16207,
+            "range": "± 303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 8115,
+            "range": "± 6893",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 99879,
+            "range": "± 113626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 16230,
+            "range": "± 2129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 815480,
+            "range": "± 5235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 84943,
+            "range": "± 8306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15541,
+            "range": "± 2235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 825924,
+            "range": "± 21802",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 90920,
+            "range": "± 34533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16258,
+            "range": "± 2027",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5301691803,
+            "range": "± 18597857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 75608247,
+            "range": "± 419195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18248481,
+            "range": "± 238739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 62129446,
+            "range": "± 171799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8054833,
+            "range": "± 12621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 34268,
+            "range": "± 872",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 13762,
+            "range": "± 1936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 5996,
+            "range": "± 183",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 205824,
+            "range": "± 20732",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 196456,
+            "range": "± 2653",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 132333,
+            "range": "± 26530",
             "unit": "ns/iter"
           }
         ]
