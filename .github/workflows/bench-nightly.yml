@@ -29,9 +29,10 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-      # Pinned, NOT @stable. The criterion baseline is a frozen per-SHA
-      # measurement; comparing it against a run built by a newer stable
-      # rustc conflates compiler codegen drift with code changes, which
+      # Pinned, NOT @stable. The comparison baseline is a rolling median of
+      # recent nightly measurements; comparing it against a run built by a
+      # newer stable rustc conflates compiler codegen drift with code changes,
+      # which
       # is exactly how an unpinned @stable produced ~2 weeks of phantom
       # +13–20% regressions (issue #884). Bump this deliberately when
       # adopting a new toolchain — the history auto-re-establishes
@@ -58,8 +59,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev libvulkan-dev
 
       # Restore the rolling per-bench measurement history. The detect step
-      # compares tonight against the *median* of the last N nightlies rather
-      # than against a single frozen prior measurement.
+      # compares tonight against the *median* of recent nightlies that ran on
+      # the same machine class, rather than against a single frozen prior
+      # measurement. The `ubuntu-latest` pool cycles between CPU SKUs whose
+      # whole-suite spread (-20% to +12%) dwarfs any effect worth alerting on,
+      # so an unstratified median blends hardware and measures which machine
+      # the run drew rather than the code. Retention spans several weeks
+      # because only same-class nightlies are eligible as baseline samples.
       #
       # This replaces the per-SHA criterion baseline lock (#734). That lock
       # froze the comparison point at the first nightly to measure a commit,
@@ -132,12 +138,14 @@ jobs:
           cargo bench -p elevator-core --bench calibration_bench -- --save-baseline nightly 2>&1 | tee -a bench-output.log
 
       # Compare tonight's per-bench mean (read from Criterion's
-      # estimates.json, not its `change:` lines) against the median of the
-      # last N nightlies. A bench is reported when it exceeds that median by
-      # more than MIN_CHANGE_PCT after the calibration bench's runner-speed
-      # factor is divided out (#907/#908/#913/#914/#916), *and* it also
-      # appeared on the previous nightly's list (the recurrence-as-signal
-      # heuristic from #734).
+      # estimates.json, not its `change:` lines) against the median of recent
+      # nightlies on the same machine class. The calibration bench identifies
+      # the class: its reading is sharply quantized, holding within 1% across
+      # repeat visits to one SKU while classes sit 10-15% apart. A bench is
+      # reported when it exceeds that median by more than MIN_CHANGE_PCT after
+      # the residual within-class runner drift is divided out
+      # (#907/#908/#913/#914/#916), *and* it also appeared on the previous
+      # nightly's list (the recurrence-as-signal heuristic from #734).
       #
       # The median baseline is what makes that recurrence gate meaningful: it
       # stays put night to night, so a genuine regression keeps clearing the
@@ -146,9 +154,11 @@ jobs:
       # night the regression appeared, so the gate could only ever confirm
       # noise (#923/#924).
       #
-      # MIN_CHANGE_PCT stays at 5.0: calibration removes the uniform
-      # runner-speed component, so the residual this gate sees is genuine
-      # per-bench spread. Nudge to ~7-8 if residual noise still trips.
+      # MIN_CHANGE_PCT stays at 5.0. Backtesting the detector over 25
+      # consecutive nightlies with no simulation-code change showed raising it
+      # to 10.0 removed only one of five spurious filings while costing real
+      # sensitivity, so the threshold is not the useful lever here —
+      # stratification is.
       - name: Detect regressions
         id: detect
         env:
