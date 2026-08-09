@@ -120,10 +120,14 @@ def _clean_nightly(raw: object) -> dict[str, float] | None:
 def load_history(path: Path) -> list[dict[str, float]]:
     """Nightlies oldest-first, each a bench-name -> ns mapping.
 
-    Accepts the older per-bench-list layout by transposing it: samples were
-    appended once per nightly in a fixed order, so index k across benches
-    refers to one night. Rebuilding rather than discarding keeps an existing
-    cached history usable instead of forcing a multi-week warm-up.
+    Accepts the older per-bench-list layout by transposing it, which keeps a
+    cached history usable instead of forcing a multi-week warm-up. Only
+    columns holding a sample for every retained night are transposed: that
+    layout appended once per nightly per bench that reported, so a bench
+    missing from any night leaves a gap indistinguishable from a short tail.
+    Guessing where the gap falls would pair its samples with another night's
+    calibration and stratify on the wrong machine class, so short columns are
+    dropped and left to warm up.
     """
     if not path.exists():
         return []
@@ -150,19 +154,13 @@ def load_history(path: Path) -> list[dict[str, float]]:
     columns = {name: vals for name, vals in columns.items() if vals}
     if not columns:
         return []
-    # Right-align: a bench added part-way through has a shorter column, and
-    # its most recent sample belongs to the most recent night.
     depth = max(len(v) for v in columns.values())
-    rebuilt: list[dict[str, float]] = []
-    for k in range(depth):
-        night: dict[str, float] = {}
-        for name, vals in columns.items():
-            idx = k - (depth - len(vals))
-            if idx >= 0:
-                night[name] = vals[idx]
-        if night:
-            rebuilt.append(night)
-    return rebuilt[-HISTORY_LEN:]
+    aligned = {name: vals for name, vals in columns.items() if len(vals) == depth}
+    if CALIBRATION_NAME not in aligned:
+        # Without a calibration sample per night the machine class is unknown
+        # for every rebuilt night, which is the whole point of the history.
+        return []
+    return [{name: vals[k] for name, vals in aligned.items()} for k in range(depth)][-HISTORY_LEN:]
 
 
 def save_history(path: Path, history: list[dict[str, float]], today: dict[str, float]) -> None:
