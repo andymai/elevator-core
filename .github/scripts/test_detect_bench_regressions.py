@@ -53,8 +53,8 @@ def run_detect(
 ):
     """Drive main(); return (regressed, gate, body, history_after).
 
-    `history` accepts the current per-nightly list or the older per-bench
-    column layout, so the migration path stays covered by the same cases.
+    `history` accepts the current per-nightly list, or the older per-bench
+    column layout to cover the discard path.
     """
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
@@ -299,50 +299,27 @@ class HistoryFileTest(unittest.TestCase):
         )
         self.assertEqual(len(after), det.HISTORY_LEN)
 
-    def test_legacy_column_history_is_transposed_not_discarded(self):
-        # Columns were appended once per nightly, so index k lines up across
-        # benches. Rebuilding keeps a cached history usable.
+    def test_legacy_column_history_is_discarded(self):
+        # The column layout records no night identity, and two columns can
+        # omit different nights while holding equal counts, so equal length
+        # is not proof of alignment. Reconstructing would risk pairing a
+        # bench with another night's calibration.
         legacy = {"dispatch/10e_50s": [100.0, 115.0, 100.0], CAL: [100.0, 115.0, 100.0]}
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "h.json"
             p.write_text(json.dumps({"version": 1, "entries": legacy}))
-            got = det.load_history(p)
-        self.assertEqual(
-            got,
-            [
-                {"dispatch/10e_50s": 100.0, CAL: 100.0},
-                {"dispatch/10e_50s": 115.0, CAL: 115.0},
-                {"dispatch/10e_50s": 100.0, CAL: 100.0},
-            ],
-        )
-
-    def test_legacy_short_column_is_dropped_not_guessed(self):
-        # A short column is ambiguous: the bench may have been added late or
-        # may have failed on an intermediate night. Guessing would pair its
-        # samples with another night's calibration and stratify on the wrong
-        # machine class, so it warms up instead.
-        legacy = {"old/bench": [1.0, 2.0, 3.0], "new/bench": [9.0], CAL: [10.0, 20.0, 30.0]}
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "h.json"
-            p.write_text(json.dumps({"version": 1, "entries": legacy}))
-            got = det.load_history(p)
-        self.assertEqual(
-            got,
-            [
-                {"old/bench": 1.0, CAL: 10.0},
-                {"old/bench": 2.0, CAL: 20.0},
-                {"old/bench": 3.0, CAL: 30.0},
-            ],
-        )
-
-    def test_legacy_history_without_full_calibration_is_discarded(self):
-        # Every rebuilt night needs a calibration sample; without one the
-        # machine class is unknowable and the history has no value.
-        legacy = {"old/bench": [1.0, 2.0, 3.0], CAL: [10.0]}
-        with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "h.json"
-            p.write_text(json.dumps({"version": 1, "entries": legacy}))
             self.assertEqual(det.load_history(p), [])
+
+    def test_warm_up_after_discarding_legacy_history_does_not_gate(self):
+        # Failing safe: the night the new format lands, nothing is gated.
+        legacy = {"dispatch/10e_50s": [100.0] * 7, CAL: [100.0] * 7}
+        regressed, _, _, after = run_detect(
+            {"dispatch/10e_50s": 500.0, CAL: 100.0},
+            history=legacy,
+            previous=["dispatch/10e_50s"],
+        )
+        self.assertEqual(regressed, "false")
+        self.assertEqual(column(after, "dispatch/10e_50s"), [500.0])
 
     def test_corrupt_history_is_treated_as_empty(self):
         with tempfile.TemporaryDirectory() as d:

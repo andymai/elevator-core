@@ -120,14 +120,16 @@ def _clean_nightly(raw: object) -> dict[str, float] | None:
 def load_history(path: Path) -> list[dict[str, float]]:
     """Nightlies oldest-first, each a bench-name -> ns mapping.
 
-    Accepts the older per-bench-list layout by transposing it, which keeps a
-    cached history usable instead of forcing a multi-week warm-up. Only
-    columns holding a sample for every retained night are transposed: that
-    layout appended once per nightly per bench that reported, so a bench
-    missing from any night leaves a gap indistinguishable from a short tail.
-    Guessing where the gap falls would pair its samples with another night's
-    calibration and stratify on the wrong machine class, so short columns are
-    dropped and left to warm up.
+    A cached history in the older per-bench-column layout is discarded rather
+    than transposed. That layout appended one sample per nightly per bench
+    *that reported* and capped each column independently, so it records no
+    night identity: two columns can omit different nights and still hold
+    equal counts. Any reconstruction is therefore a guess, and a wrong one
+    pairs a bench with another night's calibration and stratifies it on the
+    wrong machine class — the failure this gate exists to remove, in a form
+    nothing downstream can detect. Warming up costs about a week and fails
+    safe: benches are recorded but not gated until enough same-class samples
+    accumulate.
     """
     if not path.exists():
         return []
@@ -143,24 +145,13 @@ def load_history(path: Path) -> list[dict[str, float]]:
         out = [n for n in (_clean_nightly(r) for r in nightlies) if n]
         return out[-HISTORY_LEN:]
 
-    entries = raw.get("entries")
-    if not isinstance(entries, dict):
-        return []
-    columns = {
-        name: [float(s) for s in samples if isinstance(s, (int, float)) and s > 0]
-        for name, samples in entries.items()
-        if isinstance(name, str) and isinstance(samples, list)
-    }
-    columns = {name: vals for name, vals in columns.items() if vals}
-    if not columns:
-        return []
-    depth = max(len(v) for v in columns.values())
-    aligned = {name: vals for name, vals in columns.items() if len(vals) == depth}
-    if CALIBRATION_NAME not in aligned:
-        # Without a calibration sample per night the machine class is unknown
-        # for every rebuilt night, which is the whole point of the history.
-        return []
-    return [{name: vals[k] for name, vals in aligned.items()} for k in range(depth)][-HISTORY_LEN:]
+    if isinstance(raw.get("entries"), dict):
+        print(
+            "note: cached history uses the per-bench-column layout, which does not "
+            "record which nightly each sample came from. Starting a fresh history — "
+            "benches are recorded but not gated until they warm up."
+        )
+    return []
 
 
 def save_history(path: Path, history: list[dict[str, float]], today: dict[str, float]) -> None:
