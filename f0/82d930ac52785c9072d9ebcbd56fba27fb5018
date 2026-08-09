@@ -1,0 +1,27 @@
+.github/workflows/bench-nightly.yml
+  s_083aeee1e1f09f::t_bf756be7844db3 32-35
+  s_083aeee1e1f09f::t_12a14f77bd2a35 157-161
+  s_083aeee1e1f09f::t_a5c987d01a4ebe 141-148
+  s_083aeee1e1f09f::t_3e895e85edaef3 62-68
+.github/scripts/detect-bench-regressions.py
+  s_083aeee1e1f09f::t_5820495dda8792 2-35,60-64,66-73,76-80,109-127,129,133-135,137-140,142-186,190,205-208,231-232,249-250,253,256-266,272
+.github/scripts/test_detect_bench_regressions.py
+  s_083aeee1e1f09f::t_a72852a4c96273 26-27,39-47,50,54-58,64-66,91,99-100,108-111,113-114,120-123,125-127,129-131,136,141,143-145,150,152-157,162-165,170-173,181-264,267,270,273-276,280-281,290-291,293,296-328,334,339-342,347-350,352,372-376
+  s_083aeee1e1f09f::t_ef32b51f3f5678 377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "f082d930ac52785c9072d9ebcbd56fba27fb5018",
+  "prompts": {},
+  "sessions": {
+    "s_083aeee1e1f09f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "35605637-c289-41f4-af47-3397cc9c08ae",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
