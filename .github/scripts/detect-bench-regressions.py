@@ -1,34 +1,38 @@
 #!/usr/bin/env python3
-"""Detect bench regressions against a rolling median of the last N nightlies.
+"""Detect bench regressions against a rolling median of comparable nightlies.
 
-Detection deliberately does not use Criterion's own `change:` lines, which
-compare against a per-SHA-locked baseline. That pairing could not work:
-the baseline froze on the *first* nightly to measure a commit, so a
-genuine regression was visible for exactly one night (the nightly right
-after the new SHA landed, compared against the prior SHA) and that same
-night re-locked the baseline. Every later night compared the SHA against
-itself, where no code difference exists. Because the issue-open gate
-requires a bench to regress on two *consecutive* nightlies, it could only
-ever confirm noise — which does recur on same-SHA nights — and never a real
-regression. Issues #923/#924 are that failure mode.
+Baseline selection is machine-stratified. The `ubuntu-latest` pool cycles
+between a handful of distinct CPU SKUs, and the spread between them dwarfs
+the effect sizes worth alerting on: across 25 consecutive nightlies with no
+change to simulation code, whole-suite swings of -20% to +12% tracked which
+SKU the run landed on. A median taken over *all* recent nightlies therefore
+blends hardware, and a bench compared against it is measured mostly by which
+machine it drew rather than by its code.
 
-Here the baseline is instead the per-bench median of the last N nightly
-measurements, read from Criterion's machine-readable estimates.json rather
-than from its change lines. Two properties follow:
+The synthetic `calibration/fixed_workload` bench (benches/calibration_bench.rs,
+no elevator-core code) identifies the SKU: its reading is sharply quantized,
+clustering within 1% for repeat visits to the same machine class while classes
+sit 10-15% apart. Only prior nightlies whose calibration lands within
+MACHINE_TOL of tonight's are eligible as baseline samples, so the comparison is
+like-for-like hardware. Nights on a machine class with too little history are
+recorded but not gated, which is why HISTORY_LEN spans several weeks: a class
+seen occasionally still accumulates MIN_SAMPLES within the window.
 
-- A single unusually fast or slow runner moves the median by at most one
-  sample out of N, so the comparison point stays stable night to night.
-  That is what the per-SHA freeze was reaching for, without freezing.
-- A real regression stays above the median for several consecutive nights
-  after it lands (until enough post-regression samples accumulate to drag
-  the median up), so the two-day persistence gate can finally confirm one.
+Within a class the residual runner drift is divided out from each bench and
+clamped to damping-only: the adjustment may shrink a reported regression but
+never inflate one. Calibration is memory-bandwidth-bound while the sim benches
+are branch-bound, so the two diverge and an unclamped divide-out turns a small
+noise reading into a large one (#923/#924).
 
-Runner-speed variance is still divided out using the synthetic
-`calibration/fixed_workload` bench, computed the same way (tonight vs its
-own median). The adjustment is clamped to damping-only: it may shrink a
-reported regression but never inflate one, because calibration is
-memory-bandwidth-bound while the sim benches are branch-bound and the two
-diverge across runner instances.
+Detection deliberately does not use Criterion's own `change:` lines. Those
+compare against a per-SHA-locked baseline that froze on the first nightly to
+measure a commit, making a real regression visible for exactly one night and
+re-locking the baseline that same night. Since the issue-open gate requires a
+bench to regress on two consecutive nightlies, that pairing could only ever
+confirm same-SHA noise. The rolling median read from machine-readable
+estimates.json is what makes the persistence gate meaningful: it stays put
+night to night, so a real regression keeps clearing the threshold until enough
+post-regression samples accumulate to move it.
 
 Args:
     sys.argv[1]: path to append `regressed=`/`gate=` outputs to ($GITHUB_OUTPUT).
@@ -53,15 +57,26 @@ ISSUE_BODY = Path("regressions.txt")
 
 CALIBRATION_NAME = "calibration/fixed_workload"
 
-# Nightlies retained per bench. Seven keeps a week of history, so a single
-# outlier runner is outvoted while a real regression still takes over the
-# median within a week of landing.
-HISTORY_LEN = 7
+# Nightlies retained. Baseline samples are drawn only from those matching
+# tonight's machine class, so the window must span enough nights for an
+# infrequent class to reach MIN_SAMPLES. Three weeks covers a class seen on
+# roughly one night in five.
+HISTORY_LEN = 21
 
-# Below this many prior samples the median is not yet trustworthy, so the
-# bench is recorded but not gated. Applies per bench, so a newly added
-# bench warms up without suppressing detection on established ones.
+# Most recent same-class nightlies contributing to a bench's median. Capped
+# below HISTORY_LEN so a regression that lands is not held down indefinitely
+# by a long tail of pre-regression samples.
+BASELINE_SAMPLES = 7
+
+# Below this many comparable samples the median is not trustworthy, so the
+# bench is recorded but not gated. Applies per bench, so a newly added bench
+# warms up without suppressing detection on established ones.
 MIN_SAMPLES = 3
+
+# Relative calibration spread within which two nightlies count as the same
+# machine class. Repeat visits to one class hold within 1%; the nearest
+# distinct classes sit ~10% apart, so this separates them with wide margin.
+MACHINE_TOL = 0.03
 
 
 def read_today(root: str) -> dict[str, float]:
@@ -91,35 +106,88 @@ def read_today(root: str) -> dict[str, float]:
     return out
 
 
-def load_history(path: Path) -> dict[str, list[float]]:
+def _clean_nightly(raw: object) -> dict[str, float] | None:
+    if not isinstance(raw, dict):
+        return None
+    vals = {
+        name: float(v)
+        for name, v in raw.items()
+        if isinstance(name, str) and isinstance(v, (int, float)) and v > 0
+    }
+    return vals or None
+
+
+def load_history(path: Path) -> list[dict[str, float]]:
+    """Nightlies oldest-first, each a bench-name -> ns mapping.
+
+    Accepts the older per-bench-list layout by transposing it: samples were
+    appended once per nightly in a fixed order, so index k across benches
+    refers to one night. Rebuilding rather than discarding keeps an existing
+    cached history usable instead of forcing a multi-week warm-up.
+    """
     if not path.exists():
-        return {}
+        return []
     try:
         raw = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
-        return {}
-    entries = raw.get("entries") if isinstance(raw, dict) else None
+        return []
+    if not isinstance(raw, dict):
+        return []
+
+    nightlies = raw.get("nightlies")
+    if isinstance(nightlies, list):
+        out = [n for n in (_clean_nightly(r) for r in nightlies) if n]
+        return out[-HISTORY_LEN:]
+
+    entries = raw.get("entries")
     if not isinstance(entries, dict):
-        return {}
-    clean: dict[str, list[float]] = {}
-    for name, samples in entries.items():
-        if isinstance(samples, list):
-            vals = [float(s) for s in samples if isinstance(s, (int, float)) and s > 0]
-            if vals:
-                clean[name] = vals[-HISTORY_LEN:]
-    return clean
+        return []
+    columns = {
+        name: [float(s) for s in samples if isinstance(s, (int, float)) and s > 0]
+        for name, samples in entries.items()
+        if isinstance(name, str) and isinstance(samples, list)
+    }
+    columns = {name: vals for name, vals in columns.items() if vals}
+    if not columns:
+        return []
+    # Right-align: a bench added part-way through has a shorter column, and
+    # its most recent sample belongs to the most recent night.
+    depth = max(len(v) for v in columns.values())
+    rebuilt: list[dict[str, float]] = []
+    for k in range(depth):
+        night: dict[str, float] = {}
+        for name, vals in columns.items():
+            idx = k - (depth - len(vals))
+            if idx >= 0:
+                night[name] = vals[idx]
+        if night:
+            rebuilt.append(night)
+    return rebuilt[-HISTORY_LEN:]
 
 
-def save_history(path: Path, history: dict[str, list[float]], today: dict[str, float]) -> None:
-    merged = {name: list(samples) for name, samples in history.items()}
-    for name, value in today.items():
-        merged.setdefault(name, []).append(value)
-        merged[name] = merged[name][-HISTORY_LEN:]
-    path.write_text(json.dumps({"version": 1, "entries": merged}, indent=1, sort_keys=True) + "\n")
+def save_history(path: Path, history: list[dict[str, float]], today: dict[str, float]) -> None:
+    merged = [*history, dict(today)][-HISTORY_LEN:]
+    path.write_text(json.dumps({"version": 2, "nightlies": merged}, indent=1) + "\n")
+
+
+def comparable(history: list[dict[str, float]], calib_today: float | None) -> list[dict[str, float]]:
+    """Prior nightlies measured on the same machine class as tonight.
+
+    Without a calibration reading the class is unknown, so every nightly stays
+    eligible — a wider baseline is better than none, and the caller warns.
+    """
+    if calib_today is None or calib_today <= 0:
+        return history
+    out = []
+    for night in history:
+        prior = night.get(CALIBRATION_NAME)
+        if prior and abs(prior / calib_today - 1.0) <= MACHINE_TOL:
+            out.append(night)
+    return out
 
 
 def adjust(change_pct: float, calib_pct: float | None) -> float:
-    """Divide the runner-speed factor out, clamped to damping-only.
+    """Divide the residual runner-speed factor out, clamped to damping-only.
 
     Without the clamp a faster-than-baseline runner amplifies rather than
     cancels: calibration -10.87% against a bench at +3% yields +15.6%, which
@@ -132,6 +200,10 @@ def adjust(change_pct: float, calib_pct: float | None) -> float:
         return change_pct
     adjusted = ((1.0 + change_pct / 100.0) / scale - 1.0) * 100.0
     return min(adjusted, change_pct)
+
+
+def samples_for(name: str, nights: list[dict[str, float]]) -> list[float]:
+    return [v for v in (night.get(name) for night in nights) if v][-BASELINE_SAMPLES:]
 
 
 def pct_above_median(value: float, samples: list[float]) -> float | None:
@@ -156,8 +228,8 @@ def block(name: str, today: float, samples: list[float], raw: float, adjusted: f
     note = "" if abs(adjusted - raw) < 0.005 else f"  (calibration-adjusted from {raw:+.2f}%)"
     return (
         f"{name}\n"
-        f"    median of last {len(samples)} nightlies: {fmt_ns(med)}\n"
-        f"    tonight:                       {fmt_ns(today)}\n"
+        f"    median of {len(samples)} comparable nightlies: {fmt_ns(med)}\n"
+        f"    tonight:                          {fmt_ns(today)}\n"
         f"    change: {adjusted:+.2f}%{note}\n\n"
     )
 
@@ -174,29 +246,30 @@ def main() -> int:
         sys.exit(f"detect-bench-regressions: no estimates found under {criterion_root}")
     history = load_history(history_path)
 
-    # Distinguish the two ways calibration can be unavailable: a warming-up
-    # history is expected and benign, a missing bench means calibration_bench
-    # did not produce a result this run and wants investigating.
-    calib = None
-    if CALIBRATION_NAME not in today:
+    calib_today = today.get(CALIBRATION_NAME)
+    if calib_today is None:
         print(
             f"warning: {CALIBRATION_NAME} produced no measurement this run — "
-            "runner-speed adjustment disabled, gating on raw change vs median. "
+            "machine class unknown, comparing against every retained nightly. "
             "This is not expected; check whether calibration_bench failed."
         )
-    else:
-        calib = pct_above_median(today[CALIBRATION_NAME], history.get(CALIBRATION_NAME, []))
-        if calib is None:
-            print(
-                f"warning: {CALIBRATION_NAME} has fewer than {MIN_SAMPLES} nightlies "
-                "of history — gating on raw change vs median until it warms up."
-            )
+    nights = comparable(history, calib_today)
+    print(
+        f"{len(nights)} of {len(history)} retained nightlies match tonight's machine class"
+        + (f" (calibration {fmt_ns(calib_today)})" if calib_today else "")
+    )
+
+    # Residual drift within the class. Stratification removes the between-SKU
+    # step; this catches whatever spread is left inside one class.
+    calib = None
+    if calib_today is not None:
+        calib = pct_above_median(calib_today, samples_for(CALIBRATION_NAME, nights))
 
     todays: dict[str, str] = {}
     for name, value in sorted(today.items()):
         if name == CALIBRATION_NAME:
             continue
-        samples = history.get(name, [])
+        samples = samples_for(name, nights)
         raw = pct_above_median(value, samples)
         if raw is None:
             continue
