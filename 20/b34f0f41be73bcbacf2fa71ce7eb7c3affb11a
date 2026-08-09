@@ -1,0 +1,23 @@
+.github/scripts/detect-bench-regressions.py
+  s_083aeee1e1f09f::t_6d474fd4e10f75 123-132
+  s_083aeee1e1f09f::t_f3559906f7b232 148-154
+.github/scripts/test_detect_bench_regressions.py
+  s_083aeee1e1f09f::t_ecc5f3977b601c 56-57
+  s_083aeee1e1f09f::t_4d83994f5e3d77 302-306,311,313-319,321-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "20b34f0f41be73bcbacf2fa71ce7eb7c3affb11a",
+  "prompts": {},
+  "sessions": {
+    "s_083aeee1e1f09f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "35605637-c289-41f4-af47-3397cc9c08ae",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
