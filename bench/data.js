@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786263948836,
+  "lastUpdate": 1786351491048,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -8649,6 +8649,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 134079,
             "range": "± 21314",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "bfb4c189bf526cfc31e02c0a0671737b96d325be",
+          "message": "ci(bench): stratify the bench baseline by machine class (#941)\n\nCloses #934. Closes #938.\n\n## What was wrong\n\nThe nightly gate compared each bench against a rolling median taken over\nevery recent nightly, regardless of which machine measured them.\nGitHub's `ubuntu-latest` pool cycles between a handful of CPU SKUs, and\nthe spread between them dwarfs the effect sizes worth alerting on, so\nthat median blended hardware. A bench was scored mostly by which machine\nit drew.\n\n## Evidence\n\nThe 25 consecutive nightlies from 2026-07-16 to 08-09 are a natural\ncontrol: the only commits in that window are dependency bumps and\nCI-only changes, so **every filing in it is a false positive by\nconstruction**. Replaying the detector over the published gh-pages\nseries:\n\n- The whole suite swung between **-20% and +12%**, tracking the SKU.\n- 49 of 54 benches exceeded the 5% gate on pure noise at some point;\n`dynamic_topology/add_line` has a *median absolute* night-to-night\ndeviation of 11%.\n- The detector filed on **6 of 25 nights**. Both open regression issues\nare in that set.\n\nThe `calibration/fixed_workload` bench was already identifying the SKU\nwithout being read that way. Its measurement is sharply quantized rather\nthan continuous:\n\n| calibration reading | nights | spread within class |\n|---|---|---|\n| ~3.93e6 ns | 14 | < 1% |\n| ~4.42e6 ns | 5 | < 0.3% |\n| ~4.09-4.23e6 ns | 3 | |\n| ~3.43-3.53e6 ns | 2 | |\n\nClasses sit 10-15% apart while repeat visits to one class hold within\n1%. On the two fastest nights (07-21, 08-07) *every* bench group dropped\n15-22% together.\n\n## What changed\n\nBaseline samples are drawn only from prior nightlies whose calibration\nlands within `MACHINE_TOL` (3%) of tonight's, so the comparison is\nlike-for-like hardware. Retention grows from 7 nightlies to 21 so an\ninfrequently-seen class still reaches `MIN_SAMPLES`; a class without\nenough history is recorded but not gated. The median still uses at most\n`BASELINE_SAMPLES` (7) of the most recent same-class nights, so a landed\nregression is not held down indefinitely by a long pre-regression tail.\n\nThe within-class residual drift is still divided out and still clamped\nto damping-only, so the #923/#924 amplification shape stays impossible.\n\nThe history file moves to a per-nightly layout, since stratification\nneeds to know which calibration reading each bench sample was measured\nalongside. A cached history in the old per-bench-column layout is\n**discarded rather than reconstructed**: that layout appended one sample\nper nightly per bench *that reported* and capped each column\nindependently, so it records no night identity and two columns can omit\ndifferent nights while holding equal counts. Any reconstruction is a\nguess, and a wrong one pairs a bench with another night's calibration -\nthe exact failure this PR removes, in a form nothing downstream can\ndetect. Discarding costs about a week of warm-up and fails safe, since\nnothing is gated until enough same-class samples accumulate.\n\n`MIN_CHANGE_PCT` is unchanged at 5.0. Backtesting showed raising it to\n10.0 removed only one of five spurious filings while costing real\nsensitivity, so the threshold is not the useful lever here.\n\n## Validation\n\nBacktested by driving the actual implementation night-by-night over the\nreal series:\n\n| | issues filed on 25 flat nights |\n|---|---|\n| before | 6 |\n| after | 5 (4 of which are one episode, below) |\n\nSensitivity, injecting a step regression on 2026-08-01 and requiring a\n*new* filing naming that bench:\n\n| step | quiet benches | mid | noisy |\n|---|---|---|---|\n| +6% | caught next night | caught next night | 1 of 3 caught |\n| +8% | caught next night | caught next night | all caught |\n| +10% and up | caught next night | caught next night | all caught |\n\nDetector unit tests go from 20 to 33 cases, covering stratification, the\n`MACHINE_TOL` boundary, the warm-up path for an unseen class, the\n`BASELINE_SAMPLES` cap, and the legacy-history discard including the\nfail-safe warm-up night.\n\n## Known remaining false positive\n\nFour of the five surviving filings are one episode with a different\ncause. The `scaling_*` group sat ~14% low for the entire nine-night\nwindow of b6a71308 and returned to normal the night the SHA changed,\n**on the same machine class** - though that commit touched no Rust or\nCargo file. Absolute timings therefore depend on build or environment\nstate beyond the source. Stratifying by hardware cannot address that, so\nit is filed as #942 rather than papered over here.",
+          "timestamp": "2026-08-09T23:16:31Z",
+          "url": "https://github.com/andymai/elevator-core/commit/bfb4c189bf526cfc31e02c0a0671737b96d325be"
+        },
+        "date": 1786351488030,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3932194,
+            "range": "± 14685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 605970,
+            "range": "± 2510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 607706,
+            "range": "± 3308",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 701557,
+            "range": "± 2224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 554332,
+            "range": "± 3750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 35011,
+            "range": "± 1473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7729,
+            "range": "± 1678",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3375498,
+            "range": "± 10886",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15214052,
+            "range": "± 199045",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 559859,
+            "range": "± 1526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1879288,
+            "range": "± 7633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9149615,
+            "range": "± 40138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 271762,
+            "range": "± 5670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1834716,
+            "range": "± 6513",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8771953,
+            "range": "± 46545",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 259721,
+            "range": "± 854",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1787423,
+            "range": "± 52628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8542204,
+            "range": "± 30557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 253180,
+            "range": "± 1919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1766456,
+            "range": "± 6552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8666769,
+            "range": "± 233347",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 256425,
+            "range": "± 1713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1831333,
+            "range": "± 6979",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8770099,
+            "range": "± 33851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 254514,
+            "range": "± 2386",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4518,
+            "range": "± 1182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 5695,
+            "range": "± 12894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 5782,
+            "range": "± 12173",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 5215,
+            "range": "± 6082",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 23171,
+            "range": "± 1061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3424787,
+            "range": "± 9338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3189555,
+            "range": "± 5524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 8885,
+            "range": "± 22061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 20537,
+            "range": "± 8019",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 10159,
+            "range": "± 9209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 99090,
+            "range": "± 11707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 19180,
+            "range": "± 3592",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 940601,
+            "range": "± 35884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 104994,
+            "range": "± 13933",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 19717,
+            "range": "± 6457",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 916000,
+            "range": "± 28992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 95194,
+            "range": "± 7148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 20120,
+            "range": "± 5436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5359181376,
+            "range": "± 12150365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 76372802,
+            "range": "± 434669",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18189797,
+            "range": "± 45395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 62881224,
+            "range": "± 119608",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8368310,
+            "range": "± 70562",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 36068,
+            "range": "± 3236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14713,
+            "range": "± 3160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6567,
+            "range": "± 1645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 206625,
+            "range": "± 8947",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 201691,
+            "range": "± 8306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 136113,
+            "range": "± 14217",
             "unit": "ns/iter"
           }
         ]
