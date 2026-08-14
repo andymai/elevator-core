@@ -1,0 +1,26 @@
+packages:
+  - .
+
+# Both ship prebuilt platform binaries via optionalDependencies; their install
+# scripts only re-verify what npm already fetched. Denying them keeps the
+# behaviour pnpm has had here all along, now stated explicitly.
+allowBuilds:
+  esbuild: false
+  unrs-resolver: false
+
+# pnpm 11 no longer reads the `pnpm` field from package.json; overrides live here.
+#
+# Every entry raises a transitive dependency past a published advisory. The
+# direct dependents already permit these ranges, so the overrides only pull the
+# floor up. Remove one once its dependent's own floor clears the advisory.
+overrides:
+  # monaco-editor pins dompurify below the sanitizer-bypass fixes.
+  dompurify: ^3.4.13
+  # ajv -> fast-uri: host confusion via backslash authority delimiter.
+  fast-uri: ^3.1.5
+  # cosmiconfig -> js-yaml: quadratic CPU consumption via merge keys / !!omap.
+  js-yaml: ^4.3.1
+  # minimatch -> brace-expansion: exponential-time expansion DoS.
+  brace-expansion: ^5.0.9
+  # vite -> postcss: sourceMappingURL path traversal.
+  postcss: ^8.5.26

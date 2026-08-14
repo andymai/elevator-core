@@ -57,7 +57,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          # Version comes from `packageManager`. A floating major here once
+          # drifted ahead of local pnpm, and the newer major stopped reading
+          # `pnpm.overrides` from package.json, silently dropping the
+          # security overrides on one side only.
+          package_json_file: playground/package.json
 
       - name: Setup Node
         uses: actions/setup-node@v4
