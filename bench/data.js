@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786781867685,
+  "lastUpdate": 1786868290073,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -10725,6 +10725,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 131967,
             "range": "± 19401",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "68af9806b49d3138ecc6b8b8c93522c0ce9974fe",
+          "message": "fix(deps): restore playground security overrides under pnpm 11 (#943)\n\nCloses all 19 open Dependabot alerts. `pnpm audit` is clean for both\nprod and dev trees.\n\n## Root cause\n\npnpm 11 no longer reads the `pnpm` field from `package.json`:\n\n```\n[WARN] The \"pnpm\" field in package.json is no longer read by pnpm.\nThe following keys were ignored: \"pnpm.overrides\".\n```\n\nThe playground carried a `dompurify: \"^3.4.2\"` override there. CI pinned\n`pnpm/action-setup` to a floating `version: 10`, which still honoured\nit, while local pnpm had moved to 11 and dropped it. The override\nexisted, appeared to work on one side, and quietly stopped constraining\nanything on the other. Advisories piled up behind that split.\n\n## Changes\n\n- Overrides move to `playground/pnpm-workspace.yaml`, their supported\nhome.\n- `packageManager: \"pnpm@11.9.0\"` in `playground/package.json`; both\nworkflows now resolve the version from it via `package_json_file:`\ninstead of a floating major. Local and CI can no longer disagree about\nwhich settings are read.\n- Every flagged transitive dependency is raised past its advisory. All\nfive direct dependents already permitted these ranges, so the overrides\nonly lift the floor.\n\n| package | was | now | fixes | scope |\n|---|---|---|---|---|\n| dompurify | 3.4.2 | 3.4.13 | 10 alerts (XSS / sanitizer bypass) |\nruntime, via monaco-editor |\n| fast-uri | 3.1.2 | 3.1.5 | 3 alerts (host confusion) | dev, via ajv |\n| js-yaml | 4.1.1 | 4.3.1 | 3 alerts (quadratic CPU) | dev, via\ncosmiconfig |\n| postcss | 8.5.15 | 8.5.26 | 2 alerts (sourceMappingURL traversal) |\ndev, via vite |\n| brace-expansion | 5.0.5 | 5.0.9 | 1 alert (exponential expansion) |\ndev, via minimatch |\n\n`allowBuilds` is now stated explicitly for `esbuild` and\n`unrs-resolver`. pnpm 11 prompts for these where 10 ignored them\nsilently; both are denied, which is the behaviour the repo has had all\nalong. They ship prebuilt platform binaries via `optionalDependencies`,\nso their install scripts only re-verify what was already fetched.\n\n## Verification\n\n- `pnpm audit` and `pnpm audit --prod`: no known vulnerabilities.\n- 353 tests across 27 files pass; `tsc -b --noEmit` clean; eslint 0\nerrors; `vite build` succeeds.\n\nOnly `playground/` and `.github/` are touched, so no crate is bumped.\n\nNote: `pnpm run knip` fails on unused exports in `src/features/quest/`.\nThat is pre-existing and unrelated. knip runs in neither CI nor the\npre-commit hook, so it is left for a separate change.\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nRestores playground security overrides under `pnpm` 11 and pins `pnpm`\nvia `packageManager` so CI and local resolve identically. Previously,\n`pnpm` 11 ignored `package.json` `pnpm.overrides` while CI on `pnpm` 10\nhonored them; now overrides live in `pnpm-workspace.yaml` and all\nflagged transitives are bumped past advisories.\n\n- Move overrides to `playground/pnpm-workspace.yaml` and raise floors:\n`dompurify@^3.4.13`, `fast-uri@^3.1.5`, `js-yaml@^4.3.1`,\n`brace-expansion@^5.0.9`, `postcss@^8.5.26`.\n- Pin `packageManager: \"pnpm@11.9.0\"` in `playground/package.json`;\n`pnpm/action-setup` now uses `package_json_file` to align CI with local.\n- Declare `allowBuilds` for `esbuild` and `unrs-resolver` as false to\nmatch prior behavior (use prebuilt optional binaries).\n- Validation: `pnpm audit` (prod and dev) clean; tests/tsc/eslint/build\npass. Scope limited to `playground/` and `.github/`.\n\n<sup>Written for commit c1b1aa9e1713e436fa67466530fa6a8ea33f9d72.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/943?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"Review in cubic\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->",
+          "timestamp": "2026-08-14T17:57:18Z",
+          "url": "https://github.com/andymai/elevator-core/commit/68af9806b49d3138ecc6b8b8c93522c0ce9974fe"
+        },
+        "date": 1786868286596,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3927307,
+            "range": "± 3336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 605195,
+            "range": "± 2061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 603773,
+            "range": "± 1962",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 699343,
+            "range": "± 3652",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 554227,
+            "range": "± 4173",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 34389,
+            "range": "± 4722",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7563,
+            "range": "± 1689",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3407703,
+            "range": "± 9804",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15285815,
+            "range": "± 47145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 570911,
+            "range": "± 1799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1871280,
+            "range": "± 4646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9221308,
+            "range": "± 63274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 269648,
+            "range": "± 923",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1819503,
+            "range": "± 8384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8858861,
+            "range": "± 47396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 264699,
+            "range": "± 2093",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1768860,
+            "range": "± 28700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8616154,
+            "range": "± 27600",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 259273,
+            "range": "± 1921",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1756882,
+            "range": "± 10378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8675133,
+            "range": "± 175454",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 256798,
+            "range": "± 1487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1805242,
+            "range": "± 8058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8847451,
+            "range": "± 49138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 254670,
+            "range": "± 684",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4111,
+            "range": "± 3291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 3813,
+            "range": "± 1661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4178,
+            "range": "± 335",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4225,
+            "range": "± 2632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 21717,
+            "range": "± 984",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3407702,
+            "range": "± 7796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3175570,
+            "range": "± 14343",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7893,
+            "range": "± 27535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 17559,
+            "range": "± 11739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 7574,
+            "range": "± 281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 89387,
+            "range": "± 1741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17128,
+            "range": "± 2536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 827516,
+            "range": "± 13127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 86290,
+            "range": "± 1571",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15349,
+            "range": "± 2492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 843989,
+            "range": "± 5319",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 87701,
+            "range": "± 7019",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16904,
+            "range": "± 2599",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5324844911,
+            "range": "± 21781178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 75578673,
+            "range": "± 98174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18215886,
+            "range": "± 32945",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 62168969,
+            "range": "± 154968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8215799,
+            "range": "± 20473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 33909,
+            "range": "± 720",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14449,
+            "range": "± 3144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 5958,
+            "range": "± 205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 203178,
+            "range": "± 4861",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 196809,
+            "range": "± 5713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 135785,
+            "range": "± 29069",
             "unit": "ns/iter"
           }
         ]
