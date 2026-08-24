@@ -6,6 +6,15 @@
 //! re-exporting the raw type. This keeps the playground decoupled from the
 //! core's enum evolution.
 
+// tsify 0.5.7 blanket-deprecates into_wasm_abi alongside from_wasm_abi
+// (madonoharu/tsify#65). The leak it describes is in FromWasmABI, which
+// throws past destructors when *decoding* input; this crate declares no
+// from_wasm_abi impls, so that path does not exist here. Ts<T> is the
+// upstream replacement but would make every export return
+// Result<Ts<T>, JsError>, i.e. throw — which is exactly what the
+// discriminated-union results in result.rs exist to avoid.
+#![allow(deprecated)]
+
 use elevator_core::entity::EntityId;
 use elevator_core::events::Event;
 use elevator_core::prelude::Simulation;
