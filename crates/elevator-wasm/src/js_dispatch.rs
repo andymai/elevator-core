@@ -6,6 +6,15 @@
 //! returned number (or `null`/`undefined`) maps onto the trait's
 //! `Option<f64>` rank.
 
+// tsify 0.5.7 blanket-deprecates into_wasm_abi alongside from_wasm_abi
+// (madonoharu/tsify#65). The leak it describes is in FromWasmABI, which
+// throws past destructors when *decoding* input; this crate declares no
+// from_wasm_abi impls, so that path does not exist here. Ts<T> is the
+// upstream replacement but would make every export return
+// Result<Ts<T>, JsError>, i.e. throw — which is exactly what the
+// discriminated-union results in result.rs exist to avoid.
+#![allow(deprecated)]
+
 use elevator_core::dispatch::{BuiltinStrategy, DispatchStrategy, RankContext};
 use serde::Serialize;
 use slotmap::Key;
