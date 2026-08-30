@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787991654553,
+  "lastUpdate": 1788078062679,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -15569,6 +15569,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 130096,
             "range": "± 9306",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "9a9d9637d2e24f6648a4e5a067127f1620d4dcf2",
+          "message": "chore(deps): bump tsify from 0.5.6 to 0.5.7 (#948)\n\nBumps [tsify](https://github.com/madonoharu/tsify) from 0.5.6 to 0.5.7.\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/madonoharu/tsify/blob/main/CHANGELOG.md\">tsify's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>v0.5.7</h2>\n<ul>\n<li>Added <code>Ts&lt;T&gt;</code>, a wrapper for\n<code>#[wasm_bindgen]</code> parameters and return types.\n<code>#[tsify(from_wasm_abi)]</code> deserializes at the ABI boundary,\nwhich cannot report failure, so bad input from JavaScript ends in\n<code>wasm_bindgen::throw_str</code> — a catchable JS exception that\nskips destructors, leaking a little on every failure until the instance\ndies. <code>Ts&lt;T&gt;</code> keeps the boundary infallible and moves\nthe conversion into the function body, where it is an ordinary\n<code>Result</code>. Addresses <a\nhref=\"https://redirect.github.com/madonoharu/tsify/issues/65\">#65</a>,\n<a href=\"https://redirect.github.com/madonoharu/tsify/issues/47\">#47</a>\nand <a\nhref=\"https://redirect.github.com/madonoharu/tsify/issues/86\">#86</a>.\n<a href=\"https://github.com/cormacrelf\"><code>@​cormacrelf</code></a>\ncontributed <a\nhref=\"https://redirect.github.com/madonoharu/tsify/issues/71\">#71</a></li>\n<li>Deprecated <code>into_wasm_abi</code> and <code>from_wasm_abi</code>\nin favour of <code>Ts&lt;T&gt;</code>. <code>into_wasm_abi</code> panics\nrather than leaks on failure, but it has the same root cause and the\nsame fix. The attributes still work, and no removal is planned; see the\nREADME for details</li>\n<li><code>Ts&lt;T&gt;</code> can now be returned from <code>async\nfn</code>. <a\nhref=\"https://github.com/hgiesel\"><code>@​hgiesel</code></a> contributed\n<a\nhref=\"https://redirect.github.com/madonoharu/tsify/issues/84\">#84</a></li>\n<li><code>#[tsify(namespace)]</code> enums now emit <code>export type E\n= E.A | E.B</code> instead of repeating each variant's shape in the\nunion. <a href=\"https://github.com/hgiesel\"><code>@​hgiesel</code></a>\ncontributed <a\nhref=\"https://redirect.github.com/madonoharu/tsify/issues/78\">#78</a></li>\n<li>Fixed raw string artifacts in doc comments copied into the generated\nTypeScript. <a\nhref=\"https://github.com/samkearney\"><code>@​samkearney</code></a>\ncontributed the fix</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li>See full diff in <a\nhref=\"https://github.com/madonoharu/tsify/commits/v0.5.7\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-08-24T18:13:32Z",
+          "url": "https://github.com/andymai/elevator-core/commit/9a9d9637d2e24f6648a4e5a067127f1620d4dcf2"
+        },
+        "date": 1788078058609,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3922328,
+            "range": "± 132779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 528832,
+            "range": "± 3701",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 574254,
+            "range": "± 5004",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 660481,
+            "range": "± 14053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 484490,
+            "range": "± 7106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 31994,
+            "range": "± 1331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7395,
+            "range": "± 1675",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3008912,
+            "range": "± 59603",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 14359240,
+            "range": "± 491448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 480818,
+            "range": "± 9196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1814182,
+            "range": "± 42278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 8923992,
+            "range": "± 293938",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 233754,
+            "range": "± 5166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1721713,
+            "range": "± 68923",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8825917,
+            "range": "± 98160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 227820,
+            "range": "± 5580",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1685942,
+            "range": "± 41629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8373047,
+            "range": "± 199756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 216840,
+            "range": "± 6501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1681016,
+            "range": "± 29699",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8450993,
+            "range": "± 368901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 228868,
+            "range": "± 5523",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1681067,
+            "range": "± 26535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8552224,
+            "range": "± 163034",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 207878,
+            "range": "± 2118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4798,
+            "range": "± 7491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4583,
+            "range": "± 5992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4952,
+            "range": "± 4148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4345,
+            "range": "± 904",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 18021,
+            "range": "± 456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 2979211,
+            "range": "± 33794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3104488,
+            "range": "± 23026",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 6280,
+            "range": "± 7404",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 16764,
+            "range": "± 883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 8313,
+            "range": "± 3777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 89967,
+            "range": "± 4945",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 15907,
+            "range": "± 2976",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 815534,
+            "range": "± 21649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 83505,
+            "range": "± 2715",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 13942,
+            "range": "± 3220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 851318,
+            "range": "± 21416",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 85499,
+            "range": "± 3806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16000,
+            "range": "± 2822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5099823437,
+            "range": "± 66962042",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 75361083,
+            "range": "± 1738335",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 17220184,
+            "range": "± 157408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 55927880,
+            "range": "± 722159",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 7404212,
+            "range": "± 238410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 30692,
+            "range": "± 1276",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 13517,
+            "range": "± 1870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 5475,
+            "range": "± 296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 165866,
+            "range": "± 7118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 159686,
+            "range": "± 5817",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 112314,
+            "range": "± 4453",
             "unit": "ns/iter"
           }
         ]
