@@ -1,5 +1,12 @@
 # Changelog
 
+## [21.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.1...elevator-core-v21.0.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* **lint:** use assert_ne! for clippy 1.97 manual_assert_eq ([#919](https://github.com/andymai/elevator-core/issues/919)) ([6cdfccd](https://github.com/andymai/elevator-core/commit/6cdfccd6ab3d485cf3b0e881014092957c831c1d))
+
 ## [21.0.1](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.0...elevator-core-v21.0.1) (2026-06-09)
 
 
