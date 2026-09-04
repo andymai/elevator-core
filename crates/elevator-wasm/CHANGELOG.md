@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.27.0...elevator-wasm-v0.27.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **wasm:** allow tsify's into_wasm_abi deprecation ([#949](https://github.com/andymai/elevator-core/issues/949)) ([e654f07](https://github.com/andymai/elevator-core/commit/e654f07d15ade1ca050b9d4f54867d84e7e537cc))
+
 ## [0.27.0](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.26.0...elevator-wasm-v0.27.0) (2026-05-23)
 
 
