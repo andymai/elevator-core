@@ -7,7 +7,7 @@
  * The first entry is the origin, the last is the destination, and any
  * in-between entries are transfer points. Adjacent pairs become route
  * legs internally; this projection drops the per-leg `via` (Group /
- * Line / Walk) information since it isn\'t observable to the JS side
+ * Line / Walk) information since it isn't observable to the JS side
  * without additional context.
  */
 export interface RouteDto {
@@ -18,14 +18,14 @@ export interface RouteDto {
     stops: number[];
     /**
      * Optional total cost in ticks (currently always `None` —
-     * [`Simulation::shortest_route`] doesn\'t yet compute cost).
+     * [`Simulation::shortest_route`] doesn't yet compute cost).
      */
     cost: number | undefined;
 }
 
 /**
  * Aggregate metrics DTO. Wait/ride times are converted to seconds using the
- * sim\'s tick rate so the UI doesn\'t have to know about ticks.
+ * sim's tick rate so the UI doesn't have to know about ticks.
  */
 export interface MetricsDto {
     delivered: number;
@@ -78,7 +78,7 @@ export interface CarCallDto {
 
 /**
  * Debug-formatted view of a pending event, paired with a syslog-style
- * severity level. Mirrors the `EvLogMessage` shape exposed by the FFI\'s
+ * severity level. Mirrors the `EvLogMessage` shape exposed by the FFI's
  * `ev_drain_log_messages` API so JS consumers can log simulator
  * diagnostics with the same text and level codes as Unity / `GameMaker`
  * hosts.
@@ -91,7 +91,7 @@ export interface LogMessageDto {
     level: number;
     /**
      * Debug-rendered event text. Format matches
-     * `format!(\"{event:?}\")` for the underlying core `Event`.
+     * `format!("{event:?}")` for the underlying core `Event`.
      */
     message: string;
 }
@@ -118,14 +118,14 @@ export interface DoorView {
  *
  * Every variant includes a `kind` discriminator and the engine tick at
  * which it was emitted; the remaining fields vary by kind. Unknown
- * variants (added to core later) fall back to `{ kind: \"unknown\" }`
+ * variants (added to core later) fall back to `{ kind: "unknown" }`
  * so the UI stays forward-compatible.
  */
 export type EventDto = { kind: "rider-spawned"; tick: number; rider: number; origin: number; destination: number; tag: number } | { kind: "rider-boarded"; tick: number; rider: number; elevator: number; tag: number } | { kind: "rider-exited"; tick: number; rider: number; elevator: number; stop: number; tag: number } | { kind: "rider-rejected"; tick: number; rider: number; elevator: number; reason: string; tag: number } | { kind: "rider-abandoned"; tick: number; rider: number; stop: number; tag: number } | { kind: "rider-ejected"; tick: number; rider: number; elevator: number; stop: number; tag: number } | { kind: "rider-settled"; tick: number; rider: number; stop: number; tag: number } | { kind: "rider-despawned"; tick: number; rider: number; tag: number } | { kind: "rider-rerouted"; tick: number; rider: number; new_destination: number; tag: number } | { kind: "rider-skipped"; tick: number; rider: number; elevator: number; at_stop: number; tag: number } | { kind: "route-invalidated"; tick: number; rider: number; affected_stop: number; reason: string; tag: number } | { kind: "elevator-arrived"; tick: number; elevator: number; stop: number } | { kind: "elevator-departed"; tick: number; elevator: number; stop: number } | { kind: "door-opened"; tick: number; elevator: number } | { kind: "door-closed"; tick: number; elevator: number } | { kind: "door-command-queued"; tick: number; elevator: number; command: string } | { kind: "door-command-applied"; tick: number; elevator: number; command: string } | { kind: "passing-floor"; tick: number; elevator: number; stop: number; moving_up: boolean } | { kind: "movement-aborted"; tick: number; elevator: number; brake_target: number } | { kind: "elevator-idle"; tick: number; elevator: number; at_stop: number | undefined } | { kind: "elevator-assigned"; tick: number; elevator: number; stop: number } | { kind: "hall-button-pressed"; tick: number; stop: number; direction: string } | { kind: "hall-call-acknowledged"; tick: number; stop: number; direction: string } | { kind: "hall-call-cleared"; tick: number; stop: number; direction: string; car: number } | { kind: "car-button-pressed"; tick: number; car: number; floor: number; rider: number | undefined; tag: number | undefined } | { kind: "destination-queued"; tick: number; elevator: number; stop: number } | { kind: "elevator-repositioning"; tick: number; elevator: number; stop: number } | { kind: "elevator-repositioned"; tick: number; elevator: number; stop: number } | { kind: "elevator-recalled"; tick: number; elevator: number; to_stop: number } | { kind: "stop-added"; tick: number; stop: number; line: number; group: number } | { kind: "stop-removed"; tick: number; stop: number } | { kind: "elevator-added"; tick: number; elevator: number; line: number; group: number } | { kind: "elevator-removed"; tick: number; elevator: number; line: number; group: number } | { kind: "line-added"; tick: number; line: number; group: number } | { kind: "line-removed"; tick: number; line: number; group: number } | { kind: "line-reassigned"; tick: number; line: number; old_group: number; new_group: number } | { kind: "elevator-reassigned"; tick: number; elevator: number; old_line: number; new_line: number } | { kind: "entity-disabled"; tick: number; entity: number } | { kind: "entity-enabled"; tick: number; entity: number } | { kind: "residents-at-removed-stop"; tick: number; stop: number; residents: number[] } | { kind: "service-mode-changed"; tick: number; elevator: number; from: string; to: string } | { kind: "manual-velocity-commanded"; tick: number; elevator: number; target_velocity: number | undefined } | { kind: "capacity-changed"; tick: number; elevator: number; current_load: number; capacity: number } | { kind: "direction-indicator-changed"; tick: number; elevator: number; going_up: boolean; going_down: boolean } | { kind: "elevator-upgraded"; tick: number; elevator: number; field: string; old: number; new: number } | { kind: "energy-consumed"; tick: number; elevator: number; consumed: number; regenerated: number } | { kind: "snapshot-dangling-reference"; tick: number; stale_id: number } | { kind: "reposition-strategy-not-restored"; tick: number; group: number } | { kind: "dispatch-config-not-restored"; tick: number; group: number; reason: string } | { kind: "unknown"; tick: number; label: string };
 
 /**
  * Hall-call lamp state at a stop. The per-line assignment maps let
- * renderers show \"the low-bank car is coming for the up call\" by
+ * renderers show "the low-bank car is coming for the up call" by
  * looking up which car serves which line at this floor.
  */
 export interface StopHallCalls {
@@ -138,11 +138,11 @@ export interface StopHallCalls {
      */
     down: boolean;
     /**
-     * `(line, car)` pairs for the up call\'s per-line assignments.
+     * `(line, car)` pairs for the up call's per-line assignments.
      */
     up_assigned: LineCarPair[];
     /**
-     * `(line, car)` pairs for the down call\'s per-line assignments.
+     * `(line, car)` pairs for the down call's per-line assignments.
      */
     down_assigned: LineCarPair[];
 }
@@ -161,7 +161,7 @@ export interface HallCallDto {
      */
     stop: number;
     /**
-     * Direction label: `\"up\"` or `\"down\"`.
+     * Direction label: `"up"` or `"down"`.
      */
     direction: string;
     /**
@@ -212,7 +212,7 @@ export interface AssignedCarByLine {
 }
 
 /**
- * One line\'s share of a stop\'s waiting queue.
+ * One line's share of a stop's waiting queue.
  */
 export interface WaitingByLine {
     /**
@@ -267,7 +267,7 @@ export interface CarDto {
      */
     riders: number;
     /**
-     * Minimum y-position of a stop the car\'s line serves. Renderers
+     * Minimum y-position of a stop the car's line serves. Renderers
      * use this (with `max_served_y`) to draw the shaft channel only
      * over the range the car can actually reach — an express elevator
      * that skips mid floors gets a short visible shaft, while a
@@ -276,7 +276,7 @@ export interface CarDto {
      */
     min_served_y: number;
     /**
-     * Maximum y-position of a stop the car\'s line serves.
+     * Maximum y-position of a stop the car's line serves.
      */
     max_served_y: number;
 }
@@ -294,7 +294,7 @@ export interface CarView {
      */
     line: number;
     /**
-     * Group id the car\'s line belongs to.
+     * Group id the car's line belongs to.
      */
     group: number;
     /**
@@ -377,8 +377,8 @@ export interface LineView {
     min_position: number;
     max_position: number;
     /**
-     * Topology kind. `\"linear\"` for open-ended shafts (the default);
-     * `\"loop\"` for closed-loop people-movers, gondolas, and monorails.
+     * Topology kind. `"linear"` for open-ended shafts (the default);
+     * `"loop"` for closed-loop people-movers, gondolas, and monorails.
      * Renderers branch on this to pick layout: linear shafts render as
      * vertical/horizontal strips; loops render as cycles, deriving the
      * rendering radius from `circumference`.
@@ -386,10 +386,10 @@ export interface LineView {
     kind: "linear" | "loop";
     /**
      * Total path length around the loop, in distance units. Always
-     * present (`Some`) for `kind == \"loop\"` and absent (`None`) for
-     * `kind == \"linear\"` — for backward compatibility,
+     * present (`Some`) for `kind == "loop"` and absent (`None`) for
+     * `kind == "linear"` — for backward compatibility,
      * `max_position - min_position` still spans the renderable range
-     * in both cases, so consumers that don\'t yet branch on `kind`
+     * in both cases, so consumers that don't yet branch on `kind`
      * keep rendering correctly.
      */
     circumference: number | undefined;
@@ -456,7 +456,7 @@ export interface StopDto {
 
 /**
  * Per-stop rider population partitioned by lifecycle phase. Useful
- * for \"this floor is overcrowded\" / \"queue is long\" UI cues.
+ * for "this floor is overcrowded" / "queue is long" UI cues.
  */
 export interface WaitingPhaseBreakdown {
     /**
@@ -554,27 +554,27 @@ export interface TaggedMetricDto {
 /**
  * Result shape for `Vec<u8>`-typed returns (snapshot bytes, etc.).
  * On the TS side:
- * `{ kind: \"ok\"; value: Uint8Array } | { kind: \"err\"; error: string }`.
+ * `{ kind: "ok"; value: Uint8Array } | { kind: "err"; error: string }`.
  */
 export type WasmBytesResult = { kind: "ok"; value: number[] } | { kind: "err"; error: string };
 
 /**
  * Result shape for `u32`-typed returns (counts, ticks, codes).
  * On the TS side:
- * `{ kind: \"ok\"; value: number } | { kind: \"err\"; error: string }`.
+ * `{ kind: "ok"; value: number } | { kind: "err"; error: string }`.
  */
 export type WasmU32Result = { kind: "ok"; value: number } | { kind: "err"; error: string };
 
 /**
  * Result shape for entity-id returns (rider/elevator/stop/line ids).
  * On the TS side:
- * `{ kind: \"ok\"; value: bigint } | { kind: \"err\"; error: string }`.
+ * `{ kind: "ok"; value: bigint } | { kind: "err"; error: string }`.
  */
 export type WasmU64Result = { kind: "ok"; value: number } | { kind: "err"; error: string };
 
 /**
  * Result shape for void mutators. On the TS side:
- * `{ kind: \"ok\" } | { kind: \"err\"; error: string }`.
+ * `{ kind: "ok" } | { kind: "err"; error: string }`.
  */
 export type WasmVoidResult = { kind: "ok" } | { kind: "err"; error: string };
 
@@ -595,7 +595,7 @@ export interface JsRankContext {
      */
     car: bigint;
     /**
-     * Position of the car along the shaft axis, in core\'s distance
+     * Position of the car along the shaft axis, in core's distance
      * units (typically metres).
      */
     carPosition: number;
@@ -644,7 +644,7 @@ export interface Snapshot {
 }
 
 /**
- * `(line, car)` pair carried by [`StopHallCalls`]. Tuples don\'t tsify
+ * `(line, car)` pair carried by [`StopHallCalls`]. Tuples don't tsify
  * cleanly, so use a named struct.
  */
 export interface LineCarPair {
