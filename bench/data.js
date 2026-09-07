@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788682908716,
+  "lastUpdate": 1788769485975,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -18337,6 +18337,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 130919,
             "range": "± 8691",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "release-kun[bot]",
+            "username": "release-kun[bot]",
+            "email": "276042328+release-kun[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "09ae6050421254de7d549d54f3dd0aaaa5e98660",
+          "message": "chore: release main (#950)\n\n:robot: I have created a release *beep* *boop*\n---\n\n\n<details><summary>elevator-core: 21.0.2</summary>\n\n##\n[21.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.1...elevator-core-v21.0.2)\n(2026-08-31)\n\n\n### Bug Fixes\n\n* **lint:** use assert_ne! for clippy 1.97 manual_assert_eq\n([#919](https://github.com/andymai/elevator-core/issues/919))\n([6cdfccd](https://github.com/andymai/elevator-core/commit/6cdfccd6ab3d485cf3b0e881014092957c831c1d))\n</details>\n\n<details><summary>elevator-wasm: 0.27.1</summary>\n\n##\n[0.27.1](https://github.com/andymai/elevator-core/compare/elevator-wasm-v0.27.0...elevator-wasm-v0.27.1)\n(2026-08-31)\n\n\n### Bug Fixes\n\n* **wasm:** allow tsify's into_wasm_abi deprecation\n([#949](https://github.com/andymai/elevator-core/issues/949))\n([e654f07](https://github.com/andymai/elevator-core/commit/e654f07d15ade1ca050b9d4f54867d84e7e537cc))\n</details>\n\n---\nThis PR was generated with [Release\nPlease](https://github.com/googleapis/release-please). See\n[documentation](https://github.com/googleapis/release-please#release-please).\n\n---------\n\nCo-authored-by: release-kun[bot] <276042328+release-kun[bot]@users.noreply.github.com>\nCo-authored-by: release-kun[bot] <release-kun[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-04T11:08:56Z",
+          "url": "https://github.com/andymai/elevator-core/commit/09ae6050421254de7d549d54f3dd0aaaa5e98660"
+        },
+        "date": 1788769483124,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3937371,
+            "range": "± 5184",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 611529,
+            "range": "± 2899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 600826,
+            "range": "± 2920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 706013,
+            "range": "± 2010",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 555032,
+            "range": "± 2706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 34835,
+            "range": "± 3727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7655,
+            "range": "± 1202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3480503,
+            "range": "± 11793",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 16201416,
+            "range": "± 29342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 566542,
+            "range": "± 3547",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1970793,
+            "range": "± 6482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 10173441,
+            "range": "± 104175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 267147,
+            "range": "± 2332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1911566,
+            "range": "± 16959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 9808048,
+            "range": "± 26758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 262759,
+            "range": "± 1905",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1855692,
+            "range": "± 8492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 9597926,
+            "range": "± 20993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 253477,
+            "range": "± 1337",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1847669,
+            "range": "± 31023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 9620012,
+            "range": "± 79098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 251663,
+            "range": "± 3210",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1906153,
+            "range": "± 8427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 9828378,
+            "range": "± 133970",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 256078,
+            "range": "± 6018",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4405,
+            "range": "± 5999",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4399,
+            "range": "± 6141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 5462,
+            "range": "± 9774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4184,
+            "range": "± 1133",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 22256,
+            "range": "± 3016",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3288469,
+            "range": "± 5791",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3070751,
+            "range": "± 29910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7872,
+            "range": "± 25560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 18157,
+            "range": "± 10023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 8968,
+            "range": "± 9936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 94320,
+            "range": "± 16640",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17149,
+            "range": "± 3081",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 825119,
+            "range": "± 26505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 86610,
+            "range": "± 3229",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15320,
+            "range": "± 2813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 843647,
+            "range": "± 7745",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 88948,
+            "range": "± 2090",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16610,
+            "range": "± 2657",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 6103370747,
+            "range": "± 14533137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 87708125,
+            "range": "± 206732",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 19352545,
+            "range": "± 53786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 70129060,
+            "range": "± 116885",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8217602,
+            "range": "± 24257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 34421,
+            "range": "± 2065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14096,
+            "range": "± 1733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6248,
+            "range": "± 1394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 204345,
+            "range": "± 7131",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 197129,
+            "range": "± 10065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 130575,
+            "range": "± 2492",
             "unit": "ns/iter"
           }
         ]
