@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789115017626,
+  "lastUpdate": 1789201270959,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -20067,6 +20067,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 140769,
             "range": "± 14881",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1b6db02adc8b159bb70803f86112f62121a02180",
+          "message": "chore(deps): bump smallvec from 1.15.2 to 1.16.0 (#956)\n\nBumps [smallvec](https://github.com/servo/rust-smallvec) from 1.15.2 to\n1.16.0.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/servo/rust-smallvec/releases\">smallvec's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v1.16.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Include debug_metadata/*.natvis in the published crate to fix\ndebugger_visualizer/docs.rs build by <a\nhref=\"https://github.com/teddytennant\"><code>@​teddytennant</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/417\">servo/rust-smallvec#417</a></li>\n<li>feat: removed debugger visualizer + tests by <a\nhref=\"https://github.com/alejandro-vaz\"><code>@​alejandro-vaz</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/420\">servo/rust-smallvec#420</a></li>\n<li>feat: added style check to CI &amp;&amp; rustfmt.toml by <a\nhref=\"https://github.com/alejandro-vaz\"><code>@​alejandro-vaz</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/436\">servo/rust-smallvec#436</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a\nhref=\"https://github.com/teddytennant\"><code>@​teddytennant</code></a>\nmade their first contribution in <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/417\">servo/rust-smallvec#417</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/servo/rust-smallvec/compare/v1.15.2...v1.16.0\">https://github.com/servo/rust-smallvec/compare/v1.15.2...v1.16.0</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/b3ceac4757ad167f08107a1b65209056b36e0162\"><code>b3ceac4</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/issues/436\">#436</a>\nfrom alejandro-vaz/better-ci</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/de02fc363fa8a44ec63c8bb9db4af60a43c30d61\"><code>de02fc3</code></a>\nfix: returned to LayoutErr</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/10c5efa3115ef8799d79bfdfbe4738401aacae41\"><code>10c5efa</code></a>\nfix: style check</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/6833a58fe63f4b7e9b99eb16595868e200c48549\"><code>6833a58</code></a>\nfix: deprecation warnings</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/4d930f7894758b5520304af39943efc571ebf798\"><code>4d930f7</code></a>\nfix: changed import granularity to preserve</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/76528c72e4c53fd4aa4592bb951b83117208fc9b\"><code>76528c7</code></a>\nfeat: added style check to CI &amp;&amp; rustfmt.toml</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/673b4f3a22f186de73a62fce144e4b57d584a2ae\"><code>673b4f3</code></a>\nfix: removed visualizer debugger tests from workflow</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/a8e8695245fbbdc426efb1d489e97b7182c1faf9\"><code>a8e8695</code></a>\nfix(debug_metadata): removed dir again</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/ef9bec5981c83107c22ffa49916d66b9cf1bb910\"><code>ef9bec5</code></a>\nfix: added debug_metadata/ back</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/ebf7773da96bccda53dd3ed67d5628f25cd9863d\"><code>ebf7773</code></a>\nfeat: removed debugger visualizer + tests</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/servo/rust-smallvec/compare/v1.15.2...v1.16.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-07T19:20:17Z",
+          "url": "https://github.com/andymai/elevator-core/commit/1b6db02adc8b159bb70803f86112f62121a02180"
+        },
+        "date": 1789201267132,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 4180424,
+            "range": "± 19631",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 578344,
+            "range": "± 2870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 600601,
+            "range": "± 5091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 700848,
+            "range": "± 4246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 536080,
+            "range": "± 2865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 36815,
+            "range": "± 2035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 8045,
+            "range": "± 577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3312475,
+            "range": "± 19286",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15414882,
+            "range": "± 60856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 516208,
+            "range": "± 2234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1910070,
+            "range": "± 37528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9466280,
+            "range": "± 33700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 251905,
+            "range": "± 4180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1823083,
+            "range": "± 9485",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 9171879,
+            "range": "± 33839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 249928,
+            "range": "± 3479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1772626,
+            "range": "± 12417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8997922,
+            "range": "± 103516",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 242925,
+            "range": "± 2710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1777233,
+            "range": "± 8852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8986695,
+            "range": "± 61549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 240722,
+            "range": "± 5252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1872212,
+            "range": "± 16966",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 9227084,
+            "range": "± 85146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 223516,
+            "range": "± 2909",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 5049,
+            "range": "± 5842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 5299,
+            "range": "± 9951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 5390,
+            "range": "± 4961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4949,
+            "range": "± 2934",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 20980,
+            "range": "± 2769",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 2985856,
+            "range": "± 11981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3148470,
+            "range": "± 34249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7030,
+            "range": "± 5863",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 20219,
+            "range": "± 7136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 10090,
+            "range": "± 9311",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 105235,
+            "range": "± 8895",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 19006,
+            "range": "± 3448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 903146,
+            "range": "± 13671",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 97616,
+            "range": "± 5946",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 16251,
+            "range": "± 3741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 949022,
+            "range": "± 19778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 100726,
+            "range": "± 5481",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 18338,
+            "range": "± 3453",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5700801579,
+            "range": "± 36334800",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 83241436,
+            "range": "± 343096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 19149651,
+            "range": "± 26248",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 61413689,
+            "range": "± 142197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 7966993,
+            "range": "± 49266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 34114,
+            "range": "± 913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14594,
+            "range": "± 270",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6127,
+            "range": "± 323",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 183785,
+            "range": "± 7223",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 178063,
+            "range": "± 6479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 127899,
+            "range": "± 17357",
             "unit": "ns/iter"
           }
         ]
