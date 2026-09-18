@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789633330042,
+  "lastUpdate": 1789719757773,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -22143,6 +22143,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 83109,
             "range": "± 31406",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "94907c67252a956c532b77c10c192d2c41c7cf6b",
+          "message": "chore(deps): bump @vitest/mocker from 4.1.4 to 5.0.0 in /playground in the npm_and_yarn group across 0 directory (#958)\n\nUpdates `@vitest/mocker` from 4.1.4 to 5.0.0\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/vitest-dev/vitest/releases\">@​vitest/mocker's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v5.0.0</h2>\n<p>Vitest 5 is officially out! This release focuses on performance and\nbrings a lot of new features while fixing long-standing bugs. See our <a\nhref=\"https://vitest.dev/blog/vitest-5.html\">blog post</a> for the\nofficial announcement.</p>\n<h3>   🚨 Breaking Changes</h3>\n<ul>\n<li>Replace <code>loupe.inspect</code> with pretty-format  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Claude Opus 5 (1M context)</strong> and <strong>OpenAI\nCodex</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/9609\">vitest-dev/vitest#9609</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/3f802da4b\"><!-- raw\nHTML omitted -->(3f802)<!-- raw HTML omitted --></a></li>\n<li>Remove quotes from string values in <code>test.for/each</code> title\n<code>$</code> variable (take 2)  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10170\">vitest-dev/vitest#10170</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/04d37e9d7\"><!-- raw\nHTML omitted -->(04d37)<!-- raw HTML omitted --></a></li>\n<li>Default <code>attachmentsDir</code> from\n<code>.vitest-attachements/</code> to <code>.vitest/attachments/</code>\n -  by <a\nhref=\"https://github.com/MdSadiqMd\"><code>@​MdSadiqMd</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10186\">vitest-dev/vitest#10186</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/1ba7338c3\"><!-- raw\nHTML omitted -->(1ba73)<!-- raw HTML omitted --></a></li>\n<li>Remove <code>sequential</code> test/suite options in favor of\n<code>concurrent</code>  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a> and\n<strong>OpenAI Codex</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10198\">vitest-dev/vitest#10198</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/9229f2edc\"><!-- raw\nHTML omitted -->(9229f)<!-- raw HTML omitted --></a></li>\n<li>Represent locator as an object instead of a string  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10212\">vitest-dev/vitest#10212</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/80f07edf6\"><!-- raw\nHTML omitted -->(80f07)<!-- raw HTML omitted --></a></li>\n<li>Inline <code>expect</code> package  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10221\">vitest-dev/vitest#10221</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/ad16223e7\"><!-- raw\nHTML omitted -->(ad162)<!-- raw HTML omitted --></a></li>\n<li>Remove deprecated entry points  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10222\">vitest-dev/vitest#10222</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/994c6ddb9\"><!-- raw\nHTML omitted -->(994c6)<!-- raw HTML omitted --></a></li>\n<li>Require Node.js 22 and Vite 6.4  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10178\">vitest-dev/vitest#10178</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/3876283e8\"><!-- raw\nHTML omitted -->(38762)<!-- raw HTML omitted --></a></li>\n<li>Fail <code>expect.poll</code> when function didn't resolve in time\n -  by <a href=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>\nand <strong>OpenAI Codex</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10233\">vitest-dev/vitest#10233</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/4df048c11\"><!-- raw\nHTML omitted -->(4df04)<!-- raw HTML omitted --></a></li>\n<li>Throw an error if hoistable methods are outside the top level scope\n -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10460\">vitest-dev/vitest#10460</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/d0b4fddcb\"><!-- raw\nHTML omitted -->(d0b4f)<!-- raw HTML omitted --></a></li>\n<li><code>toHaveTextContent</code> is strict, add\n<code>toMatchTextContent</code> as alternative  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10473\">vitest-dev/vitest#10473</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/18f303079\"><!-- raw\nHTML omitted -->(18f30)<!-- raw HTML omitted --></a></li>\n<li>Don't lookup config file from ancestor directories  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>OpenAI Codex</strong> and <strong>Hiroshi Ogawa</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10428\">vitest-dev/vitest#10428</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/945d9090e\"><!-- raw\nHTML omitted -->(945d9)<!-- raw HTML omitted --></a></li>\n<li>Inline <code>@vitest/runner</code> package, do not publish it\nanymore  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10511\">vitest-dev/vitest#10511</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/6d6e46b1e\"><!-- raw\nHTML omitted -->(6d6e4)<!-- raw HTML omitted --></a></li>\n<li>Allow mutating happy-dom/jsdom window object  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenAI Codex</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10373\">vitest-dev/vitest#10373</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/206e8cff8\"><!-- raw\nHTML omitted -->(206e8)<!-- raw HTML omitted --></a></li>\n<li>Expose <code>concurrencyId</code>/<code>workerId</code> on\nTestModule's diagnostics, make id 1-based  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10516\">vitest-dev/vitest#10516</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/bdd985433\"><!-- raw\nHTML omitted -->(bdd98)<!-- raw HTML omitted --></a></li>\n<li>Add <code>screenshotDirectory</code> config to\n<code>browser.expect.toMatchScreenshot</code>  -  by <a\nhref=\"https://github.com/macarie\"><code>@​macarie</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10592\">vitest-dev/vitest#10592</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/a60ded0fb\"><!-- raw\nHTML omitted -->(a60de)<!-- raw HTML omitted --></a></li>\n<li>Update <code>@sinonjs/fake-timers</code> and support mocking\n<code>Temporal</code>  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(gpt-5.6-sol)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10654\">vitest-dev/vitest#10654</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/f8b1532fe\"><!-- raw\nHTML omitted -->(f8b15)<!-- raw HTML omitted --></a></li>\n<li>Remove webdriverio package  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10675\">vitest-dev/vitest#10675</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/5fed68f72\"><!-- raw\nHTML omitted -->(5fed6)<!-- raw HTML omitted --></a></li>\n<li>Clear mocks by default before each test  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10613\">vitest-dev/vitest#10613</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/0f6463bf2\"><!-- raw\nHTML omitted -->(0f646)<!-- raw HTML omitted --></a></li>\n<li>Don't emit localStorage warnings on Node 26, fail gracefully when\nworker fails to start  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10293\">vitest-dev/vitest#10293</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/334edef92\"><!-- raw\nHTML omitted -->(334ed)<!-- raw HTML omitted --></a></li>\n<li>Separate config resolution from the server creation  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10554\">vitest-dev/vitest#10554</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/1c0ec3444\"><!-- raw\nHTML omitted -->(1c0ec)<!-- raw HTML omitted --></a></li>\n<li>Inline projects extend the root config by default  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10750\">vitest-dev/vitest#10750</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/fec001ad3\"><!-- raw\nHTML omitted -->(fec00)<!-- raw HTML omitted --></a></li>\n<li>Enable mocking Temporal without fake timers  -  by <a\nhref=\"https://github.com/fabon-f\"><code>@​fabon-f</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenCode\n(gpt-5.6-sol)</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10757\">vitest-dev/vitest#10757</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/ac2d46b42\"><!-- raw\nHTML omitted -->(ac2d4)<!-- raw HTML omitted --></a></li>\n<li>Support nested projects  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10846\">vitest-dev/vitest#10846</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/ec367cf2a\"><!-- raw\nHTML omitted -->(ec367)<!-- raw HTML omitted --></a></li>\n<li>Use <code>&gt;</code> as separator in <code>-t</code>, calculate\n<code>only</code> once  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10686\">vitest-dev/vitest#10686</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/a0b20bc86\"><!-- raw\nHTML omitted -->(a0b20)<!-- raw HTML omitted --></a></li>\n<li>Fail the test when an asynchronous assertion is not awaited  -  by\n<a href=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a>\nin <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10868\">vitest-dev/vitest#10868</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/86d4a9da9\"><!-- raw\nHTML omitted -->(86d4a)<!-- raw HTML omitted --></a></li>\n<li>Share the Vite server between inline projects  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10848\">vitest-dev/vitest#10848</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/d87c96ee4\"><!-- raw\nHTML omitted -->(d87c9)<!-- raw HTML omitted --></a></li>\n<li>Parse files statically in vitest list by default  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/11088\">vitest-dev/vitest#11088</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/51e949416\"><!-- raw\nHTML omitted -->(51e94)<!-- raw HTML omitted --></a></li>\n<li><strong>benchmark</strong>:\n<ul>\n<li>Rewrite the public API  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10113\">vitest-dev/vitest#10113</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/19f6e8947\"><!-- raw\nHTML omitted -->(19f6e)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n<li><strong>browser</strong>:\n<ul>\n<li>Iframe scale  -  by <a\nhref=\"https://github.com/macarie\"><code>@​macarie</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/9745\">vitest-dev/vitest#9745</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/b639852cc\"><!-- raw\nHTML omitted -->(b6398)<!-- raw HTML omitted --></a></li>\n<li>Enable <code>locators.exact</code> by default  -  by <a\nhref=\"https://github.com/sheremet-va\"><code>@​sheremet-va</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10430\">vitest-dev/vitest#10430</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/e203202f9\"><!-- raw\nHTML omitted -->(e2032)<!-- raw HTML omitted --></a></li>\n<li>Require <code>sessionId</code> for orchestrator html request  -  by\n<a href=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong> and <strong>OpenAI Codex</strong> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10522\">vitest-dev/vitest#10522</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/79b7d8fcc\"><!-- raw\nHTML omitted -->(79b7d)<!-- raw HTML omitted --></a></li>\n<li>Save failure screenshots in <code>attachmentsDir</code>  -  by <a\nhref=\"https://github.com/macarie\"><code>@​macarie</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10917\">vitest-dev/vitest#10917</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/3b5bbd8b4\"><!-- raw\nHTML omitted -->(3b5bb)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n<li><strong>coverage</strong>:\n<ul>\n<li><code>include/exclude</code> globs too eager  -  by <a\nhref=\"https://github.com/AriPerkkio\"><code>@​AriPerkkio</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/9818\">vitest-dev/vitest#9818</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/edacb0fd4\"><!-- raw\nHTML omitted -->(edacb)<!-- raw HTML omitted --></a></li>\n<li>Allow <code>thresholds.perFile</code> to accept an object  -  by <a\nhref=\"https://github.com/vladlenskiy\"><code>@​vladlenskiy</code></a> and\n<a href=\"https://github.com/AriPerkkio\"><code>@​AriPerkkio</code></a> in\n<a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10190\">vitest-dev/vitest#10190</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/13b78d98b\"><!-- raw\nHTML omitted -->(13b78)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n<li><strong>expect</strong>:\n<ul>\n<li>Fix <code>toThrow(&quot;&quot;)</code> behavior by reverting <a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/6710\">#6710</a>\n -  by <a href=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>\nin <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/9643\">vitest-dev/vitest#9643</a>\nand <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/6710\">vitest-dev/vitest#6710</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/6c3e4bdbf\"><!-- raw\nHTML omitted -->(6c3e4)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n<li><strong>mocker</strong>:\n<ul>\n<li>Deserialize automock as automock  -  by <a\nhref=\"https://github.com/nami8824\"><code>@​nami8824</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10192\">vitest-dev/vitest#10192</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/2f892712d\"><!-- raw\nHTML omitted -->(2f892)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n<li><strong>reporters</strong>:\n<ul>\n<li><code>blob</code> reporter and <code>--merge-reports</code> default\nto <code>.vitest/blob/</code>  -  by <a\nhref=\"https://github.com/AriPerkkio\"><code>@​AriPerkkio</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10232\">vitest-dev/vitest#10232</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/d22b029ae\"><!-- raw\nHTML omitted -->(d22b0)<!-- raw HTML omitted --></a></li>\n<li>Write json and junit reporter output files to <code>.vitest</code>\nby default  -  by <a\nhref=\"https://github.com/hi-ogawa\"><code>@​hi-ogawa</code></a>,\n<strong>Hiroshi Ogawa</strong>, <strong>OpenCode (gpt-5.6-sol)</strong>\nand <a\nhref=\"https://github.com/AriPerkkio\"><code>@​AriPerkkio</code></a> in <a\nhref=\"https://redirect.github.com/vitest-dev/vitest/issues/10621\">vitest-dev/vitest#10621</a>\n<a href=\"https://github.com/vitest-dev/vitest/commit/58577290a\"><!-- raw\nHTML omitted -->(58577)<!-- raw HTML omitted --></a></li>\n</ul>\n</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/f441c6fab25e579c5b7dd3dd50538416f415fbae\"><code>f441c6f</code></a>\nchore: release v5.0.0 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/11130\">#11130</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/897f51fd2493046c52ec9539b7d02fe3763bd63e\"><code>897f51f</code></a>\nchore: release v5.0.0-rc.4 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/11107\">#11107</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/7db80dc27e5948010c00160ed0b86570baad6ce8\"><code>7db80dc</code></a>\nchore: release v5.0.0-rc.3 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/11089\">#11089</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/732df2c2b4bc73e8fcddc256228e43c6e479a87e\"><code>732df2c</code></a>\nfix(deps): update all non-major dependencies (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/11043\">#11043</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/1e9f80ec18c06be06211c93536d90a81955e661a\"><code>1e9f80e</code></a>\nperf(vm): don't prewarm modules the worker never requests (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/11033\">#11033</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/af83d1b1933b5d74c421d30849717369b828de0b\"><code>af83d1b</code></a>\nchore: release v5.0.0-rc.2 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/10976\">#10976</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/8ff9b9a9efca7c6cfd5243569440de8d7a33aec4\"><code>8ff9b9a</code></a>\nfix(mocker): restrict redirect mocks to the fs allowlist (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/10972\">#10972</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/65263d74e6783cf052e1eff2f2a4e371bbd40635\"><code>65263d7</code></a>\nfix(deps): update all non-major dependencies (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/10966\">#10966</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/a7fa111fef94bdc80ca9614c4e20b56f3393c920\"><code>a7fa111</code></a>\nchore: release v5.0.0-rc.1 (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/10920\">#10920</a>)</li>\n<li><a\nhref=\"https://github.com/vitest-dev/vitest/commit/0553851f9f299233fbd2e797a76152e98f593ac7\"><code>0553851</code></a>\nchore: add Knip checks (<a\nhref=\"https://github.com/vitest-dev/vitest/tree/HEAD/packages/mocker/issues/10847\">#10847</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/vitest-dev/vitest/commits/v5.0.0/packages/mocker\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=@vitest/mocker&package-manager=npm_and_yarn&previous-version=4.1.4&new-version=5.0.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's major version (unless you unignore this specific\ndependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this\ngroup update PR and stop Dependabot creating any more for the specific\ndependency's minor version (unless you unignore this specific\ndependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR\nand stop Dependabot creating any more for the specific dependency\n(unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore\nconditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will\nremove the ignore condition of the specified dependency and ignore\nconditions\nYou can disable automated security fix PRs for this repo from the\n[Security Alerts\npage](https://github.com/andymai/elevator-core/network/alerts).\n\n</details>\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nUpdates Vitest from 4.x to 5.0.0 in the playground, a major release with\nbreaking changes that may require test configuration updates.\n\n**Breaking changes**\n- Requires Node.js 22 and Vite 6.4 or newer.\n- Inlines the `expect` package and removes deprecated entry points.\n- Changes default output paths for attachments and reports.\n\n<sup>Written for commit 73a4dd9b8cb81bf11855a521397b15856c71f2a7.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/958?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"Review in cubic\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-14T15:34:38Z",
+          "url": "https://github.com/andymai/elevator-core/commit/94907c67252a956c532b77c10c192d2c41c7cf6b"
+        },
+        "date": 1789719753850,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 4425301,
+            "range": "± 21539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 615077,
+            "range": "± 2691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 622025,
+            "range": "± 4618",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 731784,
+            "range": "± 2626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 562536,
+            "range": "± 3667",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 38356,
+            "range": "± 7723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 8217,
+            "range": "± 1368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3542782,
+            "range": "± 14246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15758056,
+            "range": "± 49935",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 618710,
+            "range": "± 6145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1971839,
+            "range": "± 5496",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9306223,
+            "range": "± 92275",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 292637,
+            "range": "± 936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1911576,
+            "range": "± 9037",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8860306,
+            "range": "± 18768",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 284540,
+            "range": "± 662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1844857,
+            "range": "± 7629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8684365,
+            "range": "± 20301",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 281099,
+            "range": "± 3236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1863882,
+            "range": "± 12802",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 9016257,
+            "range": "± 45480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 275944,
+            "range": "± 3143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1910795,
+            "range": "± 7549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8947660,
+            "range": "± 59353",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 277974,
+            "range": "± 4916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4778,
+            "range": "± 6955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4803,
+            "range": "± 9422",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4560,
+            "range": "± 1396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 5438,
+            "range": "± 12127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 24541,
+            "range": "± 3195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3494206,
+            "range": "± 25107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3337668,
+            "range": "± 9122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 10075,
+            "range": "± 33078",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 18102,
+            "range": "± 10146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 8127,
+            "range": "± 515",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 95154,
+            "range": "± 1148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17525,
+            "range": "± 2641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 851698,
+            "range": "± 10779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 92407,
+            "range": "± 4987",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 16358,
+            "range": "± 2935",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 855466,
+            "range": "± 7000",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 95934,
+            "range": "± 37350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 17111,
+            "range": "± 2764",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5969198790,
+            "range": "± 10498816",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 80758130,
+            "range": "± 292328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18500929,
+            "range": "± 24868",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 64680504,
+            "range": "± 220044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8275870,
+            "range": "± 12432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 36368,
+            "range": "± 467",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14981,
+            "range": "± 476",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6529,
+            "range": "± 271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 230386,
+            "range": "± 4915",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 217998,
+            "range": "± 4020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 142123,
+            "range": "± 36763",
             "unit": "ns/iter"
           }
         ]
