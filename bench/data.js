@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790584204260,
+  "lastUpdate": 1790670201714,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -25949,6 +25949,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 140554,
             "range": "± 15212",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6e01e4e2e9345eec798dd8977e1529ec417b42bd",
+          "message": "chore(deps): bump rand from 0.10.2 to 0.10.3 (#964)\n\nBumps [rand](https://github.com/rust-random/rand) from 0.10.2 to 0.10.3.\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/rust-random/rand/blob/master/CHANGELOG.md\">rand's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>[0.10.3] — 2026-09-20</h2>\n<h3>Fixes</h3>\n<ul>\n<li>Fix <code>WeightedIndex</code> panic when the sum of float weights\nis infinite; return <code>Error::Overflow</code> instead (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1808\">#1808</a>)</li>\n<li>Fix spurious <code>Error::NonFinite</code> from\n<code>Uniform::new_inclusive</code> on large finite float ranges such as\n<code>0.0..=f64::MAX</code> (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1821\">#1821</a>)</li>\n<li>Fix possible panic due to sampling a deserialized\n<code>Uniform&lt;char&gt;</code> (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1831\">#1831</a>)</li>\n</ul>\n<h3>Changes</h3>\n<ul>\n<li>Report exact remaining lengths from\n<code>WeightedIndex::weights()</code> and reduce overhead when reading\nweights (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1838\">#1838</a>)</li>\n</ul>\n<p><a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1808\">#1808</a>:\n<a\nhref=\"https://redirect.github.com/rust-random/rand/pull/1808\">rust-random/rand#1808</a>\n<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1821\">#1821</a>:\n<a\nhref=\"https://redirect.github.com/rust-random/rand/pull/1821\">rust-random/rand#1821</a>\n<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1831\">#1831</a>:\n<a\nhref=\"https://redirect.github.com/rust-random/rand/pull/1831\">rust-random/rand#1831</a>\n<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1838\">#1838</a>:\n<a\nhref=\"https://redirect.github.com/rust-random/rand/pull/1838\">rust-random/rand#1838</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/9e7d328f60d6372ae22927f37d1a816fc980f25e\"><code>9e7d328</code></a>\nPrepare rand 0.10.3 (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1840\">#1840</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/f73ce74d4ac8f47259e871e22939c6c52e17befe\"><code>f73ce74</code></a>\nOptimize WeightedIndex weight lookup and iteration (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1838\">#1838</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/ef9e044b6b1f5fe541516d4b622c9c2d9932d789\"><code>ef9e044</code></a>\nAvoid panic from deserialized <code>Uniform\\&lt;char&gt;</code> where\n<code>range == 0</code> (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1831\">#1831</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/c994eb1e40ab8cc9a929cfe11b345f7296bca393\"><code>c994eb1</code></a>\ndocs: fix angle unit in quick start example (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1839\">#1839</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/33dea4fcd044c3425fd8f35ffc9d203c652c3d73\"><code>33dea4f</code></a>\nTest that WeightedIndex rejects INFINITY with Error::Overflow (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1822\">#1822</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/94c9078267aa9ea4e9ad61bd552b35245c995830\"><code>94c9078</code></a>\nFix Uniform::new_inclusive overflow on large finite float ranges (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1821\">#1821</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/bb1262f703ca04e4ce56be78e1dc4e204cd6a998\"><code>bb1262f</code></a>\nUse Xoshiro256PlusPlus in examples/rayon-monte-carlo.rs (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1805\">#1805</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/521fab6a1bcf349760d2581c2143fbc1aafe8798\"><code>521fab6</code></a>\nStop pinning dependencies (<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1820\">#1820</a>)</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/3f7c4335fd6ba118aaed1ab59b1964808a955d4d\"><code>3f7c433</code></a>\nStop pinning dependencies</li>\n<li><a\nhref=\"https://github.com/rust-random/rand/commit/cf4f73e3953ffcf97f575317a07f0fd5983bfe9e\"><code>cf4f73e</code></a>\nsample_efraimidis_spirakis: error on more than amount non-finite weights\n(<a\nhref=\"https://redirect.github.com/rust-random/rand/issues/1814\">#1814</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/rust-random/rand/compare/0.10.2...0.10.3\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=rand&package-manager=cargo&previous-version=0.10.2&new-version=0.10.3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop\nDependabot creating any more for this major version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop\nDependabot creating any more for this minor version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop\nDependabot creating any more for this dependency (unless you reopen the\nPR or upgrade to it yourself)\n\n\n</details>\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nBumps `rand` from 0.10.2 to 0.10.3, a patch release that fixes\n`WeightedIndex` panics on infinite float weights, spurious\n`Uniform::new_inclusive` errors on large finite float ranges, and a\npossible panic from deserialized `Uniform<char>` values. It also reduces\noverhead when reading `WeightedIndex` weights.\n\nThe lockfile update also downgrades `tempfile`'s `getrandom` dependency\nfrom 0.4.3 to 0.3.4 as part of resolution.\n\n<sup>Written for commit f5a233fff08f778588a9a5a2d35a5adb1630d36d.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/964?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"Review in cubic\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-28T22:23:42Z",
+          "url": "https://github.com/andymai/elevator-core/commit/6e01e4e2e9345eec798dd8977e1529ec417b42bd"
+        },
+        "date": 1790670197694,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3107971,
+            "range": "± 155825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 418711,
+            "range": "± 345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 440362,
+            "range": "± 11942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 516574,
+            "range": "± 11780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 383135,
+            "range": "± 5991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 29172,
+            "range": "± 1139",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 6701,
+            "range": "± 2157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 2402079,
+            "range": "± 7350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 11264793,
+            "range": "± 637411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 366283,
+            "range": "± 718",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1400935,
+            "range": "± 60495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 7392522,
+            "range": "± 503814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 182833,
+            "range": "± 845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1351949,
+            "range": "± 27041",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 6733582,
+            "range": "± 185126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 197403,
+            "range": "± 6931",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1315564,
+            "range": "± 43221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 6547417,
+            "range": "± 21757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 184350,
+            "range": "± 16051",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1332023,
+            "range": "± 64565",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 6679411,
+            "range": "± 328121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 172246,
+            "range": "± 1384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1524674,
+            "range": "± 65932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 6746936,
+            "range": "± 207129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 183643,
+            "range": "± 6525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 3579,
+            "range": "± 489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 3752,
+            "range": "± 3212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 3848,
+            "range": "± 571",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 3740,
+            "range": "± 574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 15075,
+            "range": "± 427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 2409741,
+            "range": "± 54975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 2410891,
+            "range": "± 86314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 4766,
+            "range": "± 333",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 13960,
+            "range": "± 875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 6782,
+            "range": "± 468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 74014,
+            "range": "± 3974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 14182,
+            "range": "± 2502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 717903,
+            "range": "± 20491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 71330,
+            "range": "± 3885",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 12891,
+            "range": "± 2785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 761266,
+            "range": "± 23354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 72304,
+            "range": "± 3960",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 14330,
+            "range": "± 2436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 4024411888,
+            "range": "± 89204555",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 54978001,
+            "range": "± 990999",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 13993792,
+            "range": "± 231774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 45565975,
+            "range": "± 890196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 6438820,
+            "range": "± 60439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 26929,
+            "range": "± 779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 11607,
+            "range": "± 408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 4877,
+            "range": "± 226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 133513,
+            "range": "± 6600",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 139536,
+            "range": "± 36857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 89096,
+            "range": "± 5024",
             "unit": "ns/iter"
           }
         ]
