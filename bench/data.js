@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791121788536,
+  "lastUpdate": 1791219357328,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -28025,6 +28025,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 130442,
             "range": "± 6530",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7c4ace65f12da9dd3b41012f52c6b99939ec7ab9",
+          "message": "chore(deps): bump smallvec from 1.16.1 to 1.16.2 (#969)\n\nBumps [smallvec](https://github.com/servo/rust-smallvec) from 1.16.1 to\n1.16.2.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/servo/rust-smallvec/releases\">smallvec's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v1.16.2</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Backport v2’s retain implementation to v1 by <a\nhref=\"https://github.com/charliermarsh\"><code>@​charliermarsh</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/596\">servo/rust-smallvec#596</a></li>\n<li>Fix element ownership tracking with may_dangle by <a\nhref=\"https://github.com/charliermarsh\"><code>@​charliermarsh</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/594\">servo/rust-smallvec#594</a></li>\n<li>Fix Cargo manual_readme warning by <a\nhref=\"https://github.com/Rayan-and-beyond\"><code>@​Rayan-and-beyond</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/608\">servo/rust-smallvec#608</a></li>\n<li>chore: bump version by <a\nhref=\"https://github.com/alejandro-vaz\"><code>@​alejandro-vaz</code></a>\nin <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/617\">servo/rust-smallvec#617</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a\nhref=\"https://github.com/Rayan-and-beyond\"><code>@​Rayan-and-beyond</code></a>\nmade their first contribution in <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/pull/608\">servo/rust-smallvec#608</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a\nhref=\"https://github.com/servo/rust-smallvec/compare/v1.16.1...v1.16.2\">https://github.com/servo/rust-smallvec/compare/v1.16.1...v1.16.2</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/ccf5fc71044d491c46a3d79e7ed53948e6da1590\"><code>ccf5fc7</code></a>\nchore: bump version (<a\nhref=\"https://redirect.github.com/servo/rust-smallvec/issues/617\">#617</a>)</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/af207ccb68496e112f3d7366a66c07c6107ef04a\"><code>af207cc</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/issues/608\">#608</a>\nfrom Rayan-and-beyond/fix/manual-readme-warning-606</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/cda4b73506acb35823a8147ef4397375f7063b82\"><code>cda4b73</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/issues/594\">#594</a>\nfrom astral-sh/charlie/codex-fix-may-dangle</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/d0556cb8e33b02b434074896f753f5f03b20c278\"><code>d0556cb</code></a>\nMerge pull request <a\nhref=\"https://redirect.github.com/servo/rust-smallvec/issues/596\">#596</a>\nfrom astral-sh/charlie/codex-v1-compact</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/f73914cf4b523741b9af5d13a98e77d59c54bc13\"><code>f73914c</code></a>\nFlatten retain tests into the unit test module</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/954d599e41b074282857e97c44211f0f797e6597\"><code>954d599</code></a>\nMove retain tests into the unit test module</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/8d936338dbcefa380b4dd596379b57582ed5d616\"><code>8d93633</code></a>\nRemove added retain benchmark harness</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/88c6bfabd610f34f4f1f9d530f58fb8a74b9a807\"><code>88c6bfa</code></a>\nLimit compaction optimization to retain</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/b9ef17da33c19cb1d11190e0c7c29e459297cd6a\"><code>b9ef17d</code></a>\nFix element ownership tracking with may_dangle</li>\n<li><a\nhref=\"https://github.com/servo/rust-smallvec/commit/42029c27c9243d8a178a0d64464185547b3a7d6f\"><code>42029c2</code></a>\nCompact retained elements directly in retain and dedup_by</li>\n<li>See full diff in <a\nhref=\"https://github.com/servo/rust-smallvec/compare/v1.16.1...v1.16.2\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-05T16:40:00Z",
+          "url": "https://github.com/andymai/elevator-core/commit/7c4ace65f12da9dd3b41012f52c6b99939ec7ab9"
+        },
+        "date": 1791219353051,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 4423546,
+            "range": "± 5388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 637587,
+            "range": "± 2932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 640760,
+            "range": "± 3970",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 754680,
+            "range": "± 2508",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 587563,
+            "range": "± 4071",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 37985,
+            "range": "± 1752",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 8212,
+            "range": "± 1100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3569086,
+            "range": "± 18103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 16836391,
+            "range": "± 61074",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 600113,
+            "range": "± 1224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 2072267,
+            "range": "± 9302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 10375849,
+            "range": "± 62466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 293494,
+            "range": "± 1917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 2021082,
+            "range": "± 12407",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 10096396,
+            "range": "± 143370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 283503,
+            "range": "± 1642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1954125,
+            "range": "± 6177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 9929970,
+            "range": "± 335342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 282229,
+            "range": "± 1367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1956520,
+            "range": "± 4594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 9910979,
+            "range": "± 114950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 281430,
+            "range": "± 3904",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 2006554,
+            "range": "± 5420",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 10137574,
+            "range": "± 86682",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 274093,
+            "range": "± 1905",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 5133,
+            "range": "± 6710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4434,
+            "range": "± 5836",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 5828,
+            "range": "± 13753",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4461,
+            "range": "± 1940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 24459,
+            "range": "± 473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3337625,
+            "range": "± 10687",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3129225,
+            "range": "± 6446",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 6171,
+            "range": "± 6744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 17110,
+            "range": "± 532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 9748,
+            "range": "± 17138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 92914,
+            "range": "± 847",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17085,
+            "range": "± 2986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 844607,
+            "range": "± 21758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 89428,
+            "range": "± 1797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15989,
+            "range": "± 2979",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 857872,
+            "range": "± 24060",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 91701,
+            "range": "± 1867",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16950,
+            "range": "± 3175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5982253326,
+            "range": "± 28575634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 80395596,
+            "range": "± 462437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18767340,
+            "range": "± 143067",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 65135226,
+            "range": "± 365639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8155163,
+            "range": "± 44741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 36656,
+            "range": "± 695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 16972,
+            "range": "± 6550",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 7446,
+            "range": "± 6457",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 229260,
+            "range": "± 6961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 217266,
+            "range": "± 10168",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 137356,
+            "range": "± 8121",
             "unit": "ns/iter"
           }
         ]
