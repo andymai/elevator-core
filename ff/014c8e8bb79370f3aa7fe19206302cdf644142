@@ -1,0 +1,29 @@
+Cargo.toml
+  s_1d5e36a6570c0d::t_6340da851bae12 40-41
+crates/elevator-core/src/dispatch/destination.rs
+  s_1d5e36a6570c0d::t_34da23373a299c 430
+crates/elevator-core/src/snapshot.rs
+  s_1d5e36a6570c0d::t_34da23373a299c 616,747
+crates/elevator-gdext/src/sim_node.rs
+  s_1d5e36a6570c0d::t_3f25b11411661f 128-130
+crates/elevator-core/src/tests/proptest_tests.rs
+  s_1d5e36a6570c0d::t_34da23373a299c 42,362
+crates/elevator-core/examples/headless_trace.rs
+  s_1d5e36a6570c0d::t_3f25b11411661f 147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff014c8e8bb79370f3aa7fe19206302cdf644142",
+  "prompts": {},
+  "sessions": {
+    "s_1d5e36a6570c0d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "15dead13-7148-4edb-9a37-9f8afd3fca6a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andy Aragon <hi@andymai.com>"
+    }
+  }
+}
