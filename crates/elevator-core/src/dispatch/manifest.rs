@@ -2,7 +2,7 @@
 //!
 //! [`DispatchManifest`] is the read-only view of waiting riders, in-transit
 //! riders, hall calls, car calls, and rolling arrival counts that
-//! [`DispatchStrategy::rank`](crate::dispatch::DispatchStrategy::rank) uses
+//! [`DispatchStrategy::rank`] uses
 //! to score `(car, stop)` pairs.
 //! It's built once per group per tick by `systems::dispatch::build_manifest`
 //! and discarded after the assignment pass.
