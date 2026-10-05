@@ -39,7 +39,7 @@ proptest! {
         // absolute scale of `d` varies with the input range.
         let expected = d1 * 4.0;
         prop_assert!(
-            (d2 - expected).abs() <= expected * 1e-9 + 1e-12,
+            (d2 - expected).abs() <= crate::fp::fma(expected, 1e-9, 1e-12),
             "braking_distance not v²-proportional: d({velocity})={d1}, d({})={d2}, expected≈{expected}",
             velocity * 2.0,
         );
@@ -359,7 +359,7 @@ proptest! {
         let mut next_weight = || -> f64 {
             rng_state = rng_state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
             let frac = (rng_state >> 32) as f64 / (1u64 << 32) as f64;
-            10.0 + frac * (capacity * 0.3) // individual weight always < capacity
+            crate::fp::fma(frac, capacity * 0.3, 10.0) // individual weight always < capacity
         };
 
         for _ in 0..rider_count {

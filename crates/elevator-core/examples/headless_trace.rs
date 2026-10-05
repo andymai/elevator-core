@@ -144,7 +144,7 @@ fn main() -> ExitCode {
 
     let mut sim = SimulationBuilder::from_config(config).build().unwrap();
     for i in 0..args.spawn {
-        let weight = 70.0 + f64::from(u32::try_from(i).unwrap_or(0)) * 2.5;
+        let weight = f64::from(u32::try_from(i).unwrap_or(0)).mul_add(2.5, 70.0);
         sim.spawn_rider(first, last, weight).unwrap();
     }
 
