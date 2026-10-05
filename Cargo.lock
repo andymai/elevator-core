@@ -5826,7 +5826,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
@@ -6159,9 +6159,9 @@ checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 
 [[package]]
 name = "tui-big-text"
-version = "0.8.9"
+version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49f9a24d33ae99834c8b6b4dad4c815c17952d55747d0e467212e5a184e72d0f"
+checksum = "32cdc3e75f28ef4a8c14c1c1def76842507b8a9e8b5e1f4224bd732f42946a90"
 dependencies = [
  "derive_builder",
  "font8x8",
