@@ -498,7 +498,6 @@ impl AppState {
     /// Iterator over events the user wants to see, optionally filtered
     /// by entity when follow mode is on. Double-ended so the renderer
     /// can `.rev()` to show newest at the top of the panel.
-    #[must_use]
     pub fn visible_events(
         &self,
         focused_entity: Option<elevator_core::entity::EntityId>,

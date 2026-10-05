@@ -125,7 +125,9 @@ impl INode for ElevatorSim {
 
         match Simulation::new(&config, ScanDispatch::new()) {
             Ok(sim) => self.sim = Some(sim),
-            Err(e) => godot_error!("ElevatorSim: simulation build failed: {e}"),
+            Err(e) => {
+                godot_error!("ElevatorSim: simulation build failed: {e}");
+            }
         }
     }
 

@@ -37,6 +37,8 @@ must_use_candidate = "deny"
 missing_errors_doc = "warn"
 # Panic paths are already denied; documenting them is redundant
 missing_panics_doc = "allow"
+# Its fix needs a typed empty array (`[] as [T; 0]`) for anything that isn't a string
+assert_is_empty = "allow"
 # Simulation math intentionally uses as-casts for u64/usize -> f64 (values stay within f64 mantissa range)
 cast_precision_loss = "allow"
 cast_possible_truncation = "allow"

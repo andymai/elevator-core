@@ -427,7 +427,7 @@ impl DestinationDispatch {
             0.0
         };
 
-        pickup_time + ride_time + penalty * new_stops + idle_bonus + load_penalty
+        crate::fp::fma(penalty, new_stops, pickup_time + ride_time) + idle_bonus + load_penalty
     }
 }
 

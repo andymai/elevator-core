@@ -9,7 +9,7 @@
 //!
 //! In `Destination` mode car calls are unused: the kiosk entry at the
 //! hall reveals the destination up front, and the car's
-//! [`DestinationQueue`](crate::components::DestinationQueue) is populated
+//! [`DestinationQueue`] is populated
 //! directly by [`DestinationDispatch`](crate::dispatch::DestinationDispatch).
 
 use serde::{Deserialize, Serialize};

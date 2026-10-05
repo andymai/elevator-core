@@ -7,7 +7,7 @@
 //! and [`Simulation::best_eta`](crate::sim::Simulation::best_eta) to walk a
 //! destination queue and sum per-leg travel plus per-stop door dwell.
 //!
-//! The profile mirrors [`movement::tick_movement`](crate::movement::tick_movement)
+//! The profile mirrors [`movement::tick_movement`]
 //! at the closed-form level — the per-tick integrator and the closed-form
 //! solver agree to within a tick on the same inputs. ETAs are estimates,
 //! not bit-exact: load/unload time, dispatch reordering, and door commands

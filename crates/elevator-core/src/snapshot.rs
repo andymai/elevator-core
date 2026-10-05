@@ -613,7 +613,7 @@ impl WorldSnapshot {
         id_remap: &HashMap<EntityId, EntityId>,
     ) {
         let remap = |old: EntityId| -> EntityId { id_remap.get(&old).copied().unwrap_or(old) };
-        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(&remap) };
+        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(remap) };
 
         for (i, snap) in entities.iter().enumerate() {
             let eid = index_to_id[i];
@@ -744,7 +744,7 @@ impl WorldSnapshot {
         id_remap: &HashMap<EntityId, EntityId>,
     ) {
         let remap = |old: EntityId| -> EntityId { id_remap.get(&old).copied().unwrap_or(old) };
-        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(&remap) };
+        let remap_opt = |old: Option<EntityId>| -> Option<EntityId> { old.map(remap) };
         for hc in &self.hall_calls {
             let mut c = hc.clone();
             c.stop = remap(c.stop);
