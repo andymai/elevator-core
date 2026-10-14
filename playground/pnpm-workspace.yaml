@@ -15,12 +15,14 @@ allowBuilds:
 # floor up. Remove one once its dependent's own floor clears the advisory.
 overrides:
   # monaco-editor pins dompurify below the sanitizer-bypass fixes.
-  dompurify: ^3.4.13
+  dompurify: ^3.4.16
   # ajv -> fast-uri: host confusion via backslash authority delimiter.
-  fast-uri: ^3.1.5
+  fast-uri: ^3.1.8
   # cosmiconfig -> js-yaml: quadratic CPU consumption via merge keys / !!omap.
-  js-yaml: ^4.3.1
+  js-yaml: ^4.3.2
   # minimatch -> brace-expansion: exponential-time expansion DoS.
-  brace-expansion: ^5.0.9
+  brace-expansion: ^5.0.12
+  # eslint-plugin-boundaries pins handlebars below the template-injection fixes.
+  handlebars: ^4.7.10
   # vite -> postcss: sourceMappingURL path traversal.
   postcss: ^8.5.26
