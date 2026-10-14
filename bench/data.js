@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791906101841,
+  "lastUpdate": 1791984393098,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -30793,6 +30793,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 109273,
             "range": "± 7297",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "40a79edc5ac32a2fb58245e09489c9cc27426750",
+          "message": "chore(deps): bump insta from 1.48.0 to 1.49.0 (#973)\n\nBumps [insta](https://github.com/mitsuhiko/insta) from 1.48.0 to 1.49.0.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/mitsuhiko/insta/releases\">insta's\nreleases</a>.</em></p>\n<blockquote>\n<h2>1.49.0</h2>\n<h2>Release Notes</h2>\n<ul>\n<li>Allow <code>Option&lt;&amp;OsStr&gt;</code> snapshot names, such as\n<code>Path::file_name()</code>,\nwithout explicit string conversion. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/929\">#929</a>\n(<a\nhref=\"https://github.com/dislogical\"><code>@​dislogical</code></a>)</li>\n<li>Add prebuilt <code>cargo-insta</code> binaries for ARM64 Linux\n(<code>aarch64-unknown-linux-gnu</code>). <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/942\">#942</a>\n(<a href=\"https://github.com/aljohri\"><code>@​aljohri</code></a>)</li>\n<li>Fix JSON serialization of maps keyed by unit enum variants. Keys use\nthe\nserialized variant name, including serde renames. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/934\">#934</a>\n(<a\nhref=\"https://github.com/teddytennant\"><code>@​teddytennant</code></a>)</li>\n<li>Remove trailing semicolons from serialization macro bodies to avoid\ncompiler warnings when used in expression position. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/940\">#940</a>\n(<a href=\"https://github.com/Tiwalun\"><code>@​Tiwalun</code></a>)</li>\n<li>Mention <code>INSTA_UPDATE=always</code> in snapshot mismatch hints\nfor file\nsnapshots. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/927\">#927</a>\n(<a\nhref=\"https://github.com/hiro-nikaitou\"><code>@​hiro-nikaitou</code></a>)</li>\n<li>Update the lockfile's <code>tempfile</code> and <code>rustix</code>\ndependencies to fix builds\nwith newer Rust toolchains. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/939\">#939</a></li>\n<li>Fix <code>cargo insta test --all-targets --test-runner\nnextest</code> failing with\n&quot;Can't mix --doc with other target selecting options&quot;. Like\n<code>cargo test --all-targets</code>, it no longer runs doctests. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/460\">#460</a></li>\n</ul>\n<h2>Install cargo-insta 1.49.0</h2>\n<h3>Install prebuilt binaries via shell script</h3>\n<pre lang=\"sh\"><code>curl --proto '=https' --tlsv1.2 -LsSf\nhttps://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-installer.sh\n| sh\n</code></pre>\n<h3>Install prebuilt binaries via powershell script</h3>\n<pre lang=\"sh\"><code>powershell -ExecutionPolicy Bypass -c &quot;irm\nhttps://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-installer.ps1\n| iex&quot;\n</code></pre>\n<h2>Download cargo-insta 1.49.0</h2>\n<table>\n<thead>\n<tr>\n<th>File</th>\n<th>Platform</th>\n<th>Checksum</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-aarch64-apple-darwin.tar.xz\">cargo-insta-aarch64-apple-darwin.tar.xz</a></td>\n<td>Apple Silicon macOS</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-aarch64-apple-darwin.tar.xz.sha256\">checksum</a></td>\n</tr>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-apple-darwin.tar.xz\">cargo-insta-x86_64-apple-darwin.tar.xz</a></td>\n<td>Intel macOS</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-apple-darwin.tar.xz.sha256\">checksum</a></td>\n</tr>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-pc-windows-msvc.zip\">cargo-insta-x86_64-pc-windows-msvc.zip</a></td>\n<td>x64 Windows</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-pc-windows-msvc.zip.sha256\">checksum</a></td>\n</tr>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-aarch64-unknown-linux-gnu.tar.xz\">cargo-insta-aarch64-unknown-linux-gnu.tar.xz</a></td>\n<td>ARM64 Linux</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-aarch64-unknown-linux-gnu.tar.xz.sha256\">checksum</a></td>\n</tr>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-unknown-linux-gnu.tar.xz\">cargo-insta-x86_64-unknown-linux-gnu.tar.xz</a></td>\n<td>x64 Linux</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-unknown-linux-gnu.tar.xz.sha256\">checksum</a></td>\n</tr>\n<tr>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-unknown-linux-musl.tar.xz\">cargo-insta-x86_64-unknown-linux-musl.tar.xz</a></td>\n<td>x64 MUSL Linux</td>\n<td><a\nhref=\"https://github.com/mitsuhiko/insta/releases/download/1.49.0/cargo-insta-x86_64-unknown-linux-musl.tar.xz.sha256\">checksum</a></td>\n</tr>\n</tbody>\n</table>\n<blockquote>\n<p><em>This was written by Codex on behalf of <a\nhref=\"https://github.com/max-sixty\"><code>@​max-sixty</code></a></em></p>\n</blockquote>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/mitsuhiko/insta/blob/master/CHANGELOG.md\">insta's\nchangelog</a>.</em></p>\n<blockquote>\n<h2>1.49.0</h2>\n<ul>\n<li>Allow <code>Option&lt;&amp;OsStr&gt;</code> snapshot names, such as\n<code>Path::file_name()</code>,\nwithout explicit string conversion. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/929\">#929</a>\n(<a\nhref=\"https://github.com/dislogical\"><code>@​dislogical</code></a>)</li>\n<li>Add prebuilt <code>cargo-insta</code> binaries for ARM64 Linux\n(<code>aarch64-unknown-linux-gnu</code>). <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/942\">#942</a>\n(<a href=\"https://github.com/aljohri\"><code>@​aljohri</code></a>)</li>\n<li>Fix JSON serialization of maps keyed by unit enum variants. Keys use\nthe\nserialized variant name, including serde renames. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/934\">#934</a>\n(<a\nhref=\"https://github.com/teddytennant\"><code>@​teddytennant</code></a>)</li>\n<li>Remove trailing semicolons from serialization macro bodies to avoid\ncompiler warnings when used in expression position. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/940\">#940</a>\n(<a href=\"https://github.com/Tiwalun\"><code>@​Tiwalun</code></a>)</li>\n<li>Mention <code>INSTA_UPDATE=always</code> in snapshot mismatch hints\nfor file\nsnapshots. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/927\">#927</a>\n(<a\nhref=\"https://github.com/hiro-nikaitou\"><code>@​hiro-nikaitou</code></a>)</li>\n<li>Update the lockfile's <code>tempfile</code> and <code>rustix</code>\ndependencies to fix builds\nwith newer Rust toolchains. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/939\">#939</a></li>\n<li>Fix <code>cargo insta test --all-targets --test-runner\nnextest</code> failing with\n&quot;Can't mix --doc with other target selecting options&quot;. Like\n<code>cargo test --all-targets</code>, it no longer runs doctests. <a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/460\">#460</a></li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/5df39ceafc8a47f82ec9953aaba12072d316adc8\"><code>5df39ce</code></a>\nRelease 1.49.0 (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/944\">#944</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/1c28c19e812a0b538ae8f75eb2424e63eb028761\"><code>1c28c19</code></a>\nSkip the separate doctest run for nextest with\n<code>--all-targets</code> (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/941\">#941</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/064742e9b7b2f3eaabb4724069e739ddf23d8227\"><code>064742e</code></a>\nBuild cargo-insta for aarch64-unknown-linux-gnu (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/942\">#942</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/08b67d940a363501c2c94d7246a2073210e7e03d\"><code>08b67d9</code></a>\nRemove trailing semicolons from macro bodies (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/940\">#940</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/06858e1c92ceef33d90e642cfce6e2fd36fbd1e2\"><code>06858e1</code></a>\nfix: regenerate Cargo.lock to avoid broken rustix 0.37.27 (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/939\">#939</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/70be034869ec431519919d60102c2e65e7b54bae\"><code>70be034</code></a>\nSerialize unit enum variants used as JSON map keys (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/934\">#934</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/54d0b9691c3a951c0f82e1d6fa8ebe6a7130804d\"><code>54d0b96</code></a>\nfeat: implement From for SnapshotValue with OsStr (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/929\">#929</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/3d62572f910cd19eba45673b37ad91293d82b689\"><code>3d62572</code></a>\n[fix] Mention INSTA_UPDATE variable in snapshot mismatch errors (<a\nhref=\"https://redirect.github.com/mitsuhiko/insta/issues/927\">#927</a>)</li>\n<li><a\nhref=\"https://github.com/mitsuhiko/insta/commit/1712876439ad9ba9f5d32aff3deedcc909dd8917\"><code>1712876</code></a>\nci: run CI on a pinned toolchain via rust-toolchain.toml; fix format-arg\nlint...</li>\n<li>See full diff in <a\nhref=\"https://github.com/mitsuhiko/insta/compare/1.48.0...1.49.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility\nscore](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=insta&package-manager=cargo&previous-version=1.48.0&new-version=1.49.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't\nalter it yourself. You can also trigger a rebase manually by commenting\n`@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits\nthat have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all\nof the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop\nDependabot creating any more for this major version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop\nDependabot creating any more for this minor version (unless you reopen\nthe PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop\nDependabot creating any more for this dependency (unless you reopen the\nPR or upgrade to it yourself)\n\n\n</details>\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nUpdates `insta` from 1.48.0 to 1.49.0. This minor release includes fixes\nfor JSON serialization of unit enum keys, support for `Option<&OsStr>`\nsnapshot names, and updated internal dependencies for compatibility with\nnewer Rust toolchains.\n\n<sup>Written for commit 72beb1d62f04aae29d65c785a1b422292e0f9207.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/973?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"View guided diff\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"></picture></a>\n<a\nhref=\"https://www.cubic.dev/action/auto-fix/pr/andymai/elevator-core/973?returnTo=https%3A%2F%2Fgithub.com%2Fandymai%2Felevator-core%2Fpull%2F973&source=description\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"><img\nalt=\"Turn on auto-fix\"\nsrc=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-14T00:18:15Z",
+          "url": "https://github.com/andymai/elevator-core/commit/40a79edc5ac32a2fb58245e09489c9cc27426750"
+        },
+        "date": 1791984389539,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 2897122,
+            "range": "± 153628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 380913,
+            "range": "± 4891",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 377116,
+            "range": "± 7102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 461462,
+            "range": "± 5047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 351570,
+            "range": "± 7951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 21315,
+            "range": "± 1393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 5362,
+            "range": "± 5955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 2295949,
+            "range": "± 73039",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 10385611,
+            "range": "± 242341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 349365,
+            "range": "± 15924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1317862,
+            "range": "± 24013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 7432561,
+            "range": "± 122413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 170165,
+            "range": "± 5885",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1264735,
+            "range": "± 13614",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 7199612,
+            "range": "± 149310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 167134,
+            "range": "± 3433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1274284,
+            "range": "± 38521",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 7094032,
+            "range": "± 194567",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 161525,
+            "range": "± 1920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1259968,
+            "range": "± 12766",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 6876143,
+            "range": "± 123636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 163462,
+            "range": "± 3098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1280887,
+            "range": "± 21828",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 7264651,
+            "range": "± 129992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 155124,
+            "range": "± 4568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 3348,
+            "range": "± 7932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 3946,
+            "range": "± 13498",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 3699,
+            "range": "± 8280",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4114,
+            "range": "± 12918",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 13407,
+            "range": "± 1751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 1900859,
+            "range": "± 18377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 1951951,
+            "range": "± 13708",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 3627,
+            "range": "± 383",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 11045,
+            "range": "± 1141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 6629,
+            "range": "± 14891",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 60312,
+            "range": "± 2534",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 10829,
+            "range": "± 1303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 554772,
+            "range": "± 49101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 57908,
+            "range": "± 1655",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 9363,
+            "range": "± 1332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 581245,
+            "range": "± 24098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 60586,
+            "range": "± 5806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 10728,
+            "range": "± 1506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 4045942528,
+            "range": "± 112209206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 62301525,
+            "range": "± 680007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 12226258,
+            "range": "± 73307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 40709763,
+            "range": "± 3122112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 5262989,
+            "range": "± 107010",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 20501,
+            "range": "± 810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 8689,
+            "range": "± 1757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 4024,
+            "range": "± 3410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 120875,
+            "range": "± 2142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 114918,
+            "range": "± 6795",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 77800,
+            "range": "± 5564",
             "unit": "ns/iter"
           }
         ]
