@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791984393098,
+  "lastUpdate": 1792069926153,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -31139,6 +31139,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 77800,
             "range": "± 5564",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "c9b51686c91402ed3b117fee15c908009b65955e",
+          "message": "fix(playground): clear Dependabot security advisories (#974)\n\nClears the advisories blocking the Dependabot security-update job on\nmain. Workflow run `38489409639` failed with\n`security_update_not_possible` for seven packages in\n`playground/pnpm-lock.yaml`.\n\nRaises the existing override floors for `dompurify`, `fast-uri`,\n`js-yaml`, and `brace-expansion` to their first fixed versions. Adds\n`handlebars: ^4.7.10` because `eslint-plugin-boundaries` 6.0.2 and\n`@boundaries/elements` 2.0.1 pin 4.7.9.\n\n| Package | Old | New |\n| --- | --- | --- |\n| brace-expansion | 5.0.9 | 5.0.12 |\n| dompurify | 3.4.13 | 3.4.17 |\n| fast-uri | 3.1.5 | 3.1.8 |\n| handlebars | 4.7.9 | 4.7.10 |\n| js-yaml | 4.3.1 | 4.3.2 |\n| smol-toml | 1.6.1 | 1.9.1 |\n| source-map-js | 1.2.1 | 1.2.2 |\n\n`smol-toml` and `source-map-js` need no override; their parents already\naccept the fixed versions. The remaining OSV finding is `braces` 3.0.3,\nwhich has no fixed release and was not attempted by the failing job.\n\nThe playground pre-commit hook passes lint-staged, typecheck, and 353\ntests across 27 files. Only `playground/` changes, so release-please\nsees no tracked crate change.\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nClears the Dependabot security advisories that blocked the\nsecurity-update job on main, which failed with\n`security_update_not_possible` for seven packages.\n\n- Raises override floors for `dompurify`, `fast-uri`, `js-yaml`, and\n`brace-expansion` to their first fixed versions.\n- Adds `handlebars: ^4.7.10` because `eslint-plugin-boundaries` 6.0.2\nand `@boundaries/elements` 2.0.1 pin 4.7.9.\n- `smol-toml` and `source-map-js` update without overrides since their\nparents accept the fixed versions; `braces` 3.0.3 has no fixed release.\n- Only `playground/` files change, so release-please sees no tracked\ncrate change.\n\n<sup>Written for commit 5c8419d4c759442632d1d77aaf832fcb1f8a4d00.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/974?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"View guided diff\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"></picture></a>\n<a\nhref=\"https://www.cubic.dev/action/auto-fix/pr/andymai/elevator-core/974?returnTo=https%3A%2F%2Fgithub.com%2Fandymai%2Felevator-core%2Fpull%2F974&source=description\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"><img\nalt=\"Turn on auto-fix\"\nsrc=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->",
+          "timestamp": "2026-10-14T20:21:27Z",
+          "url": "https://github.com/andymai/elevator-core/commit/c9b51686c91402ed3b117fee15c908009b65955e"
+        },
+        "date": 1792069921968,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3028827,
+            "range": "± 138643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 405471,
+            "range": "± 7642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 402571,
+            "range": "± 7578",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 485132,
+            "range": "± 10029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 364790,
+            "range": "± 5696",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 25449,
+            "range": "± 5067",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 5858,
+            "range": "± 3680",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 2273065,
+            "range": "± 17174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 10796111,
+            "range": "± 204594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 361575,
+            "range": "± 3851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1341754,
+            "range": "± 24300",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 7574972,
+            "range": "± 113383",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 174769,
+            "range": "± 2192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1306426,
+            "range": "± 28151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 7117108,
+            "range": "± 110434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 171873,
+            "range": "± 7442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1290007,
+            "range": "± 22989",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 7018175,
+            "range": "± 264310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 170968,
+            "range": "± 11344",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1335407,
+            "range": "± 18593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 7144970,
+            "range": "± 321851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 169372,
+            "range": "± 2685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1329305,
+            "range": "± 53686",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 7301960,
+            "range": "± 128720",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 155327,
+            "range": "± 1589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 3726,
+            "range": "± 5781",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4145,
+            "range": "± 5913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 3898,
+            "range": "± 4943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4151,
+            "range": "± 6220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 15899,
+            "range": "± 8480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 1945531,
+            "range": "± 34651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 2035193,
+            "range": "± 20305",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 5184,
+            "range": "± 2726",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 13561,
+            "range": "± 2646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 7203,
+            "range": "± 3300",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 74875,
+            "range": "± 20518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 12496,
+            "range": "± 1968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 809205,
+            "range": "± 87134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 86636,
+            "range": "± 23506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 12498,
+            "range": "± 3729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 763970,
+            "range": "± 56931",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 82295,
+            "range": "± 19534",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 12440,
+            "range": "± 2226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 4184521526,
+            "range": "± 26923591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 64817356,
+            "range": "± 1126394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 12768994,
+            "range": "± 366331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 40626258,
+            "range": "± 427050",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 5565424,
+            "range": "± 40396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 23059,
+            "range": "± 6250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 9338,
+            "range": "± 2380",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 4568,
+            "range": "± 6353",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 134366,
+            "range": "± 36892",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 128790,
+            "range": "± 11981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 85950,
+            "range": "± 9650",
             "unit": "ns/iter"
           }
         ]
