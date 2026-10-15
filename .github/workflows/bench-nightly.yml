@@ -218,12 +218,16 @@ jobs:
       # same-day dispatches saving their lists would cross-confirm each other
       # and fire the two-day gate without a night boundary passing.
       #
+      # Gated on the detect step rather than the default `success()`, so an
+      # issue-creation failure above does not also drop tonight's sample and
+      # the list tomorrow's gate confirms against.
+      #
       # The commit is built in a scratch worktree and pushed from the main
       # checkout, so the push uses the credentials actions/checkout configured
       # for the workspace. The `pages` concurrency group keeps docs deploys
       # from racing it; the retry covers transient push failures.
       - name: Save detector state
-        if: github.event_name == 'schedule'
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.detect.outcome == 'success' }}
         run: |
           state="bench/state/${RUSTC_VER}"
           pages="$RUNNER_TEMP/gh-pages"
