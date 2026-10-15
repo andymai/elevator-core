@@ -36,7 +36,7 @@ jobs:
       # is exactly how an unpinned @stable produced ~2 weeks of phantom
       # +13–20% regressions (issue #884). Bump this deliberately when
       # adopting a new toolchain — the history auto-re-establishes
-      # because the cache key below is keyed on `rustc --version`.
+      # because the state path below is keyed on `rustc --version`.
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
@@ -44,15 +44,15 @@ jobs:
           cache-targets: true
 
       # Capture the exact compiler version into the env so the measurement
-      # history cache key can include it. Any toolchain change (the pin
-      # above, or even a patch release) then lands on a fresh key and the
-      # history rebuilds from scratch instead of reporting compiler drift
-      # as a code regression — absolute timings are compiler-dependent, so
-      # a history must never span toolchains.
-      # Whitelist-sanitize to chars valid in a GitHub Actions cache key
-      # (commas in particular are rejected). A future rustc format change
-      # — channel suffix, date-delimiter tweak — can't then corrupt the key.
-      - name: Record rustc version for the history cache key
+      # history path can include it. Any toolchain change (the pin above, or
+      # even a patch release) then lands on a fresh path and the history
+      # rebuilds from scratch instead of reporting compiler drift as a code
+      # regression. Absolute timings are compiler-dependent, so a history
+      # must never span toolchains.
+      # Whitelist-sanitize to chars safe in a single path segment, so a future
+      # rustc format change (channel suffix, date-delimiter tweak) can't
+      # corrupt the path.
+      - name: Record rustc version for the history path
         run: echo "RUSTC_VER=$(rustc --version | sed 's/[^a-zA-Z0-9._-]/_/g')" >> "$GITHUB_ENV"
 
       - name: Install system dependencies
@@ -76,45 +76,27 @@ jobs:
       # recurs under that scheme, so only noise was ever confirmed — see
       # #923/#924.
       #
-      # Keyed by `run_id` with a prefix fallback, giving rolling-daily
-      # semantics: each night picks up the most recent prior history. The key
-      # carries `RUSTC_VER` so a toolchain bump starts a fresh history instead
-      # of charging the compiler's codegen drift to the code as a phantom
-      # regression (issue #884) — absolute timings are compiler-dependent, so
-      # history must not span toolchains.
-      - name: Restore bench median history
-        uses: actions/cache/restore@v4
-        with:
-          path: bench-history.json
-          key: bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.run_id }}
-          restore-keys: |
-            bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-
-
-      # Restore the previous nightly's regression-name list so the detect
-      # step can gate issue-open on two-day persistence. Keyed by
-      # `github.run_id` with a prefix fallback for rolling-daily semantics,
-      # matching the history cache above: when no new commit lands for
-      # several nights (weekends, quiet windows), today still compares
-      # against *yesterday's* list.
+      # The previous nightly's regression-name list comes back alongside it,
+      # so the detect step can gate issue-open on two-day persistence. When
+      # the list is absent the detect step falls back to single-run behaviour.
       #
-      # Exact-key restore therefore always misses (this run's run_id is
-      # unique); the prefix-fallback restore-keys pull the most recent
-      # prior run's list. When even the prefix fallback misses, the detect
-      # step falls back to single-run behaviour for that one day.
-      - name: Restore previous regression list
-        id: restore-regressions
-        uses: actions/cache/restore@v4
-        with:
-          path: regressions-current.txt
-          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            criterion-regressions-${{ github.ref_name }}-
-
-      - name: Stash previous regression list
+      # Both live on gh-pages under bench/state/<rustc>/ rather than in the
+      # Actions cache. The repo's cache sits at its 10 GB cap and every
+      # lockfile bump saves several GB of rust-cache entries, so LRU eviction
+      # drops the day-old history and list together and the baseline restarts
+      # from empty. The path carries `RUSTC_VER` so a
+      # toolchain bump starts a fresh history instead of charging the
+      # compiler's codegen drift to the code as a phantom regression (issue
+      # #884). Absolute timings are compiler-dependent, so history must not
+      # span toolchains.
+      - name: Restore detector state
         run: |
-          if [ -f regressions-current.txt ]; then
-            mv regressions-current.txt regressions-previous.txt
-          fi
+          state="bench/state/${RUSTC_VER}"
+          git fetch --depth=1 origin gh-pages
+          git show "FETCH_HEAD:${state}/history.json" > bench-history.json \
+            || rm -f bench-history.json
+          git show "FETCH_HEAD:${state}/regressions.txt" > regressions-previous.txt \
+            || rm -f regressions-previous.txt
 
       - name: Run benchmarks
         id: bench
@@ -154,15 +136,21 @@ jobs:
       # night the regression appeared, so the gate could only ever confirm
       # noise (#923/#924).
       #
-      # MIN_CHANGE_PCT stays at 5.0. Backtesting the detector over 25
-      # consecutive nightlies with no simulation-code change showed raising it
-      # to 10.0 removed only one of five spurious filings while costing real
-      # sensitivity, so the threshold is not the useful lever here —
-      # stratification is.
+      # MIN_CHANGE_PCT is 25 because two noise sources that involve no
+      # elevator-core code reach ~22%. Every rebuild re-rolls code layout,
+      # which steps the memory-heavy benches in either direction: a release
+      # commit that only bumped the crate version moved `scaling_*` by ~30%
+      # (#942). The microsecond-scale benches (`query_*`,
+      # `dynamic_topology/*`) swing ±10-30% night to night on the same binary
+      # and machine class. Backtesting this detector over 91 nightlies with no
+      # performance-relevant code change filed 32 spurious issues at 5%, 5 at
+      # 20% and none at 25%, while still confirming over 80% of synthetic 30%
+      # regressions. Smaller regressions are below what this runner pool can
+      # resolve from absolute timings.
       - name: Detect regressions
         id: detect
         env:
-          MIN_CHANGE_PCT: '5.0'
+          MIN_CHANGE_PCT: '25.0'
         run: |
           python3 .github/scripts/detect-bench-regressions.py \
             "$GITHUB_OUTPUT" "$MIN_CHANGE_PCT" target/criterion \
@@ -178,42 +166,12 @@ jobs:
             bench-output.log
           retention-days: 30
 
-      # Persist the history with tonight's sample appended (the detect step
-      # rewrote the file in place, after doing its comparison, so tonight
-      # never influenced the median it was measured against).
-      #
-      # Scheduled runs only, for the same reason the regression list is
-      # guarded below: a `workflow_dispatch` preview must not inject a
-      # sample into the rolling reference.
-      - name: Save bench median history
-        if: github.event_name == 'schedule'
-        uses: actions/cache/save@v4
-        with:
-          path: bench-history.json
-          key: bench-history-${{ github.ref_name }}-${{ env.RUSTC_VER }}-${{ github.run_id }}
-
-      # Save today's regression-name list under the per-run-id key so
-      # tomorrow's prefix-fallback restore picks it up. Only the
-      # scheduled nightly writes — `workflow_dispatch` runs read the
-      # most recent nightly's list (useful as a "would my change trip
-      # the gate?" preview) but don't pollute the rolling reference.
-      # Without this guard, two manual dispatches on the same day would
-      # cross-confirm via prefix-fallback within minutes, firing the
-      # `confirmed on two consecutive nightlies` issue body without
-      # crossing a night boundary.
-      - name: Save current regression list
-        if: github.event_name == 'schedule'
-        uses: actions/cache/save@v4
-        with:
-          path: regressions-current.txt
-          key: criterion-regressions-${{ github.ref_name }}-${{ github.run_id }}
-
       # Open the regression issue *before* publishing to gh-pages so a
       # `git push` failure in the publish step (rate-limit, non-fast-forward,
       # auth hiccup) does not silently suppress the alert via the implicit
       # `success()` gate on the issue step's `if:` condition.
       #
-      # Scheduled runs only, matching the cache-write guards. A dispatch run
+      # Scheduled runs only, matching the state-save guard. A dispatch run
       # restores the last nightly's regression list and compares against the
       # same history, so it would re-confirm a live regression and file a
       # duplicate issue without a night boundary having passed. Dispatch
@@ -231,7 +189,7 @@ jobs:
             const header = gate === 'two-day'
               ? 'Nightly benchmark run flagged a regression against the rolling median of recent nightlies (confirmed on two consecutive nightlies).'
               : 'Nightly benchmark run flagged a regression against the rolling median of recent nightlies. ' +
-                'Single-run gate (no previous-nightly list cached yet).';
+                'Single-run gate (no previous-nightly list stored yet).';
             const body = [
               header,
               '',
@@ -249,6 +207,43 @@ jobs:
               body,
               labels: ['perf', 'automated'],
             });
+
+      # Persist the history with tonight's sample appended (the detect step
+      # rewrote the file in place, after doing its comparison, so tonight
+      # never influenced the median it was measured against), plus tonight's
+      # regression list for tomorrow's two-day gate.
+      #
+      # Scheduled runs only. A `workflow_dispatch` preview reads the stored
+      # state but must not inject a sample into the rolling reference, and two
+      # same-day dispatches saving their lists would cross-confirm each other
+      # and fire the two-day gate without a night boundary passing.
+      #
+      # The commit is built in a scratch worktree and pushed from the main
+      # checkout, so the push uses the credentials actions/checkout configured
+      # for the workspace. The `pages` concurrency group keeps docs deploys
+      # from racing it; the retry covers transient push failures.
+      - name: Save detector state
+        if: github.event_name == 'schedule'
+        run: |
+          state="bench/state/${RUSTC_VER}"
+          pages="$RUNNER_TEMP/gh-pages"
+          git fetch --depth=1 origin gh-pages
+          git worktree add --detach "$pages" FETCH_HEAD
+          mkdir -p "$pages/$state"
+          cp bench-history.json "$pages/$state/history.json"
+          cp regressions-current.txt "$pages/$state/regressions.txt"
+          git -C "$pages" add "$state"
+          git -C "$pages" \
+            -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "bench: detector state for ${GITHUB_SHA::8}"
+          commit=$(git -C "$pages" rev-parse HEAD)
+          for attempt in 1 2 3; do
+            git push origin "$commit:refs/heads/gh-pages" && break
+            [ "$attempt" -lt 3 ] || exit 1
+            sleep 10
+          done
+          git worktree remove "$pages"
 
       # Publish a time-series dashboard at andymai.github.io/elevator-core/bench/.
       # Parses Criterion's output from `bench-output.log` (already captured by
